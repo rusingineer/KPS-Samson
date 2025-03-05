@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -439,6 +439,7 @@ class CFileNameCol(CCol):
             return toVariant(forceString(fileAttach).split('/')[-1])
         return CCol.invalid
 
+
 class CActionNameCol(CCol):
     def __init__(self, title, fields, defaultWidth):
         CCol.__init__(self, title, fields, defaultWidth, 'l')
@@ -458,6 +459,7 @@ class CActionNameCol(CCol):
         if actionName:
             return toVariant(forceString(actionName + u' от ' + actionEndDate))
         return CCol.invalid
+
 
 class CStatusREMD_FileAttachCol(CCol):
     def __init__(self, title, fields, defaultWidth):
@@ -486,6 +488,7 @@ ORDER BY status DESC limit 1 """ %(fileAttachExportId,fileAttachExportId)
         else:
             return toVariant(u'Информация еще не получена')
         return CCol.invalid
+
 
 class CDesignationCol(CCol):
 #    u"""
@@ -578,11 +581,33 @@ class CTableModel(QAbstractTableModel):
         self._loadFields = []
         self._mapColumnToOrder = {}
         self.headerSortingCol = {}
+        self.readOnly = False
 
         self.setIdList([])
         self._cols.extend(cols)
         if tableName:
             self.setTable(tableName)
+
+
+    def setReadOnly(self, value):
+        self.readOnly = value
+
+
+    def getReadOnly(self):
+        return self.readOnly
+
+
+    def flags(self, index):
+        if self.readOnly:
+            return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        flags = QAbstractTableModel.flags(self, index)
+        if self.cellReadOnly(index):
+            flags = flags & (~Qt.ItemIsEditable) & (~Qt.ItemIsUserCheckable)
+        return flags
+
+
+    def cellReadOnly(self, index):
+        return False
 
 
     def getOrder(self, fieldName, column):

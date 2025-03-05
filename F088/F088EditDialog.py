@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -81,7 +81,7 @@ from Events.Utils import (checkAttachOnDate, checkPolicyOnDate, checkTissueJourn
                           getActionTypeIdListByFlatCode, getDeathDate, getEventPurposeId,
                           setActionPropertiesColumnVisible, specifyDiagnosis, CEventTypeDescription, getEventServiceId,
                           getEventVisitFinance, CFinanceType, )
-from Events.TimeoutLogout            import CTimeoutLogout
+from library.TimeoutLogout            import CTimeoutLogout
 from Orgs.Orgs                       import selectOrganisation
 from Orgs.PersonComboBoxEx           import CPersonFindInDocTableCol
 from Registry.AmbCardMixin           import getClientActions
@@ -241,15 +241,14 @@ class CF088EditDialog(CItemEditorBaseDialog, Ui_F088Dialog):
         self.cmbAmbCardStatusGroup_28.setClassesVisible(True)
         self.cmbAmbCardDiagnosticGroup_29.setClass(1)
         self.createApplyButton()
-        if QtGui.qApp.getEventTimeout() != 0:
-            self.timeoutFilter = CTimeoutLogout(QtGui.qApp.getEventTimeout()*60000 - 60000, self) 
-            QtGui.qApp.installEventFilter(self.timeoutFilter)
-            self.timeoutFilter.deleteLater()
-            self.timeoutFilter.timerActivate(self.timeoutAlert)
         self.servicesURL = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
         self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.tabExtendedMSE), forceBool(self.servicesURL))
         self.connect(self.edtBegDate, SIGNAL('dateChanged(const QDate &)'), self.on_edtBegDate_dateChanged)
         self.connect(self.edtEndDate, SIGNAL('dateChanged(const QDate &)'), self.on_edtEndDate_dateChanged)
+
+        self._timeoutLogout = CTimeoutLogout(self)
+        if QtGui.qApp.getEventTimeout() != 0 and bool(self.itemId()):
+            self._timeoutLogout.setup(QtGui.qApp.getEventTimeout() * 60000, u'обращение')
 
 
     def createApplyButton(self):
@@ -277,13 +276,6 @@ class CF088EditDialog(CItemEditorBaseDialog, Ui_F088Dialog):
             return True
         else:
             return False
-
-    def timeoutAlert(self):
-        self.timeoutFilter.disconnectAll()
-        self.timeoutFilter.timerActivate(lambda: self.timeoutFilter.close(), 60000, False)
-        if self.timeoutFilter.timeoutWindowAlert() == QtGui.QMessageBox.Cancel:
-            self.timeoutFilter.disconnectAll()
-            self.timeoutFilter.timerActivate(self.timeoutAlert)
 
 
     def getOrganisationByMSI_43Filter(self):
@@ -505,10 +497,6 @@ class CF088EditDialog(CItemEditorBaseDialog, Ui_F088Dialog):
             return currentTime.addSecs(60)
         else:
             return currentDateTime.time()
-
-
-    def destroy(self):
-        pass
 
 
     def getClientId(self, eventId):

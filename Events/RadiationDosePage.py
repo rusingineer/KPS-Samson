@@ -143,7 +143,7 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
         self.modelRadiationDose.setIdList(actionIdList)
 
-        self.updateLabelsInfo()
+        #self.updateLabelsInfo()
 
     def updateLabelsInfo(self):
         self.updateLabelRecordCountInfo()

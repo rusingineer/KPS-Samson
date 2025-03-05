@@ -25,7 +25,7 @@ class CEconomicAnalisysE14(CReport):
         groupCols = u'colInsurerCodeName, colIsWorking'
         orderCols = u'colInsurerCodeName, colIsWorking'
 
-        stmt = getStmt(colsStmt, cols, groupCols, orderCols, params, additionCond=u"and substr(Insurer.area, 1, 2) = '%(defaulRegion)s' and ct.id is not null")
+        stmt = getStmt(colsStmt, cols, groupCols, orderCols, params, additionCond=u"and substr(Insurer.area, 1, 2) = '%(defaultRegion)s' and ct.id is not null")
 
         db = QtGui.qApp.db
         return db.query(stmt)

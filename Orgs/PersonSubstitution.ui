@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PersonSubstitution</class>
+ <widget class="QDialog" name="PersonSubstitution">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1178</width>
+    <height>599</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Сервис замещения сотрудников</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="1">
+    <widget class="QWidget" name="widget" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <property name="spacing">
+       <number>4</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnPrint">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Печатать (F6)</string>
+       </property>
+       <property name="shortcut">
+        <string>F6</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnApply">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Закрыть</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="0">
+    <widget class="QSplitter" name="splitter_2">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="QWidget" name="layoutWidget">
+       <layout class="QGridLayout">
+        <item row="0" column="1" colspan="2">
+         <widget class="QCheckBox" name="chkFIO">
+          <property name="text">
+           <string>ФИО</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1" colspan="2">
+         <widget class="QLineEdit" name="edtFIO">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1" colspan="2">
+         <widget class="QCheckBox" name="chkPost">
+          <property name="text">
+           <string>Должность</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1" colspan="2">
+         <widget class="CRBComboBox" name="cmbPost">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1" colspan="2">
+         <widget class="QCheckBox" name="chkSpeciality">
+          <property name="text">
+           <string>Специальность</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1" colspan="2">
+         <widget class="CRBComboBox" name="cmbSpeciality">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QLabel" name="lblBegDate">
+          <property name="text">
+           <string>Дата начала периода</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="2">
+         <widget class="CDateEdit" name="edtBegDate"/>
+        </item>
+        <item row="7" column="1">
+         <widget class="QLabel" name="lblEndDate">
+          <property name="text">
+           <string>Дата окончания периода</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="2">
+         <widget class="CDateEdit" name="edtEndDate"/>
+        </item>
+        <item row="8" column="1" colspan="2">
+         <widget class="QCheckBox" name="chkOnlyActive">
+          <property name="text">
+           <string>Только активные записи</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="2">
+         <widget class="QPushButton" name="btnFilterReset">
+          <property name="text">
+           <string>Сбросить</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" rowspan="11">
+         <widget class="QTreeView" name="treeOrgStructure"/>
+        </item>
+        <item row="9" column="2">
+         <spacer name="verticalSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="CTableView" name="tblPersonnel">
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <property name="sortingEnabled">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QWidget" name="gridLayoutWidget_2">
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0" colspan="3">
+        <widget class="CTableView" name="tblSubstitutionPeriods">
+         <property name="sortingEnabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnApply</sender>
+   <signal>clicked()</signal>
+   <receiver>PersonSubstitution</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1015</x>
+     <y>668</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>573</x>
+     <y>486</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFIO</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFIO</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>436</x>
+     <y>18</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>436</x>
+     <y>42</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSpeciality</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSpeciality</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>436</x>
+     <y>116</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>436</x>
+     <y>140</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPost</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbPost</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>436</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>436</x>
+     <y>91</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

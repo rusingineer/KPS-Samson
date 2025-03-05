@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,8 +16,8 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignature, QDate, QTime, SIGNAL
 
 from library.interchange import getCheckBoxValue, getLineEditValue, getRBComboBoxValue, getTextEditValue, setRBComboBoxValue, setTextEditValue, setCheckBoxValue
-from library.Utils       import forceBool, forceDate, forceDateTime, forceRef, forceString, toVariant, trim
-
+from library.Utils       import forceBool, forceDate, forceDateTime, forceRef, forceInt, forceString, toVariant, trim, calcAgeTuple
+from Events.EventEditDialog import CEventEditDialog
 from Events.Utils        import (checkUniqueEventExternalId,
 #                                 getActionTypeIdListByFlatCode,
                                  getEventCounterId,
@@ -25,13 +25,18 @@ from Events.Utils        import (checkUniqueEventExternalId,
                                  getEventShowTime,
                                  hasEventAssistant,
                                  hasEventCurator,
-#                                 getEventTypeForm,
+                                 getEventFinanceId,
+                                 isEventTerritorialBelonging,
+                                 getEventTypeForm
                                 )
+from KLADR.Utils         import KLADRMatch
 from Orgs.OrgComboBox    import CPolyclinicComboBox
 from Orgs.Orgs           import selectOrganisation
+from Registry.Utils      import getClientInfo, getClientWork
 from Users.Rights        import urEditClosedEvent, urEditEventExpertise, urCanChangeEventExpose, urEditClosedEventCash
 
 from Events.Ui_EventNotesPage   import Ui_EventNotesPageWidget
+from Events.Ui_EventNotesPageEx import  Ui_EventNotesPageExWidget
 
 
 class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
@@ -75,6 +80,8 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
         enableEdit = QtGui.qApp.userHasRight(urEditEventExpertise)
         for widget in [self.edtExpertiseDate, self.cmbExpertPerson]:
             widget.setEnabled(enableEdit and not isProtected)
+        self.edtExpertiseDate.setReadOnly(isProtected)
+        self.cmbExpertPerson.setReadOnly(isProtected)
         if not isProtected:
             self.enableEditors(self.eventEditor.eventTypeId)
 
@@ -128,7 +135,8 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
         self.edtExpertiseDate.setDate(forceDate(record.value('expertiseDate')))
         self.cmbExpertPerson.setValue(forceRef(record.value('expert_id')))
         self.cmbRelegatePerson.setValue(forceRef(record.value('relegatePerson_id')))
-        self.setId(self.lblEventIdValue, record, 'id')
+        self.lblEventIdValue.setText(forceString(forceRef(record.value('id'))))
+        # self.setId(self.lblEventIdValue, record, 'id')
         self.setId(self.edtEventExternalIdValue, record, 'externalId')
         setRBComboBoxValue(self.cmbEventAssistant, record, 'assistant_id')
         setRBComboBoxValue(self.cmbEventCurator, record, 'curator_id')
@@ -379,7 +387,19 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
 
     @pyqtSignature('QDate')
     def on_edtBegDate_dateChanged(self, date):
-        self.updateFilters(date)
+        if isinstance(self, CEventNotesPageEx):
+            if self.eventEditor:
+                oldDate = None
+                if self.eventEditor.action:
+                    record = self.eventEditor.action.getRecord()
+                    if record:
+                        oldDate = forceDate(self.eventEditor.action.getRecord().value('begDate'))
+                if oldDate != date:
+                    self.updateFilters(date)
+            else:
+                self.updateFilters(date)
+        else:
+            self.updateFilters(date)
 
 
     def updateFilters(self, date):
@@ -393,4 +413,132 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
     def on_edtExpertiseDate_dateChanged(self, date):
         if not self.cmbExpertPerson.value() and date and QtGui.qApp.userHasRight(urEditEventExpertise):
             self.cmbExpertPerson.setValue(QtGui.qApp.userId)
+
+
+class CEventNotesPageEx(Ui_EventNotesPageExWidget, CEventNotesPage):
+    def __init__(self, parent=None):
+        CEventNotesPage.__init__(self, parent)
+        self.contractId = None
+        self.orgId = None
+        self.eventTypeId = None
+        self.clientType = CEventEditDialog.ctOther
+        self.eventFinanceId = None
+
+
+    def initContract(self):
+        def getPolicyInfo(policyRecord):
+            if policyRecord:
+                insurerId = forceRef(policyRecord.value('insurer_id'))
+                policyTypeId = forceRef(policyRecord.value('policyType_id'))
+            else:
+                insurerId = None
+                policyTypeId = None
+            return insurerId, policyTypeId
+
+        self.clientId = self.eventEditor.clientId
+        date = self.eventEditor.eventDate
+        if not date and self.eventEditor.eventSetDateTime:
+            date = self.eventEditor.eventSetDateTime.date()
+        baseDate = date if date else QDate.currentDate()
+        self.clientInfo = getClientInfo(self.clientId, date=date)
+        if self.clientInfo.id:
+            self.clientSex = self.clientInfo.sexCode
+            self.clientBirthDate = self.clientInfo.birthDate
+            self.clientAge = calcAgeTuple(self.clientBirthDate, baseDate)
+        workRecord = getClientWork(self.clientId)
+        self.clientWorkOrgId = forceRef(workRecord.value('org_id')) if workRecord else None
+        self.clientPolicyInfoList = []
+        policyRecord = self.clientInfo.get('compulsoryPolicyRecord')
+        if policyRecord:
+            self.clientPolicyInfoList.append(getPolicyInfo(policyRecord))
+        policyRecord = self.clientInfo.get('voluntaryPolicyRecord')
+        if policyRecord:
+            self.clientPolicyInfoList.append(getPolicyInfo(policyRecord))
+        self.eventTypeId = self.eventEditor.eventTypeId
+
+        clientKLADRCode = ''
+        self.isTerritorialBelonging = isEventTerritorialBelonging(self.eventTypeId)
+        if self.isTerritorialBelonging == CEventEditDialog.ctLocAddress:
+            clientKLADRCode = self.clientInfo.locAddressInfo.KLADRCode
+        elif self.isTerritorialBelonging == CEventEditDialog.ctInsurer:
+            financeCode = forceString(
+                QtGui.qApp.db.translate('rbFinance', 'id', self.eventFinanceId, 'code')) if self.eventFinanceId else u''
+            if financeCode == u'3':
+                record = self.clientInfo.voluntaryPolicyRecord
+                if record:
+                    clientKLADRCode = forceString(record.value('area'))
+            else:
+                record = self.clientInfo.compulsoryPolicyRecord
+                if record:
+                    clientKLADRCode = forceString(record.value('area'))
+        if not clientKLADRCode:
+            regAddressInfo = self.clientInfo.get('regAddressInfo')
+            if regAddressInfo:
+                clientKLADRCode = regAddressInfo.KLADRCode
+
+        if KLADRMatch(clientKLADRCode, QtGui.qApp.defaultKLADR()):
+            self.clientType = CEventEditDialog.ctLocal
+        elif KLADRMatch(clientKLADRCode, QtGui.qApp.provinceKLADR()):
+            self.clientType = CEventEditDialog.ctProvince
+        else:
+            self.clientType = CEventEditDialog.ctOther
+
+        self.cmbContract.setClientInfo(self.clientId, self.clientSex, self.clientAge, self.clientWorkOrgId,
+                                           self.clientPolicyInfoList)
+        self.setOrgId(QtGui.qApp.currentOrgId())
+        self.cmbContract.setEventTypeId(self.eventTypeId)
+        if not self.cmbContract.value():
+            self.cmbContract.setCurrentIndex(0)
+
+
+    def setNotes(self, record):
+        CEventNotesPage.setNotes(self, record)
+        setRBComboBoxValue(self.cmbContract, record, 'contract_id')
+
+
+    def getNotes(self, record, eventTypeId):
+        CEventNotesPage.getNotes(self, record, eventTypeId)
+        getRBComboBoxValue(self.cmbContract, record, 'contract_id')
+
+
+    @pyqtSignature('')
+    def on_cmbContract_valueChanged(self):
+        self.setContractId(self.cmbContract.value())
+
+
+    def setContractId(self, contractId):
+        if self.contractId != contractId:
+            if contractId:
+                db = QtGui.qApp.db
+                table = db.table('Contract')
+                record = db.getRecordEx(table, [table['finance_id'], table['dateOfVisitExposition']],
+                                        [table['id'].eq(contractId)])
+                self.eventFinanceId = forceRef(record.value('finance_id')) if record else None
+                self.dateOfVisitExposition = forceInt(record.value('dateOfVisitExposition')) if record else None
+            else:
+                self.eventFinanceId = getEventFinanceId(self.eventTypeId)
+                self.dateOfVisitExposition = None
+            self.contractId = contractId
+            self.eventEditor.setContractId(contractId)
+
+
+    def getContractId(self):
+        return self.contractId
+
+
+    def setOrgId(self, orgId):
+        self.orgId = orgId
+        self.cmbContract.setOrgId(orgId)
+
+
+    def protectFromEdit(self, isProtected):
+        CEventNotesPage.protectFromEdit(self, isProtected)
+        self.cmbContract.setReadOnly(isProtected)
+        self.chkIsClosed.setReadOnly(isProtected)
+
+
+    @pyqtSignature('')
+    def on_btnAttachedFiles_pressed(self):
+        if self.btnAttachedFiles.getIsSaveModel() and self.eventEditor:
+            self.eventEditor.setIsDirty(True)
 

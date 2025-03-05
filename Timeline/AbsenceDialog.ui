@@ -6,76 +6,46 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>294</width>
-    <height>117</height>
+    <width>324</width>
+    <height>128</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Причина отсутствия</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="2" column="0" colspan="2">
-    <widget class="QLabel" name="lblReasonOfAbsence">
+   <item row="1" column="2" colspan="4">
+    <widget class="QCheckBox" name="chkFillRedDays">
      <property name="text">
-      <string>Причина &amp;отсутствия</string>
+      <string>&amp;Заполнять выходные дни</string>
      </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
-     </property>
-     <property name="buddy">
-      <cstring>cmbReasonOfAbsence</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="2">
-    <widget class="CDateEdit" name="edtBegDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="calendarPopup">
+     <property name="checked">
       <bool>true</bool>
      </property>
     </widget>
    </item>
-   <item row="0" column="3">
-    <widget class="QLabel" name="lblEndDate">
-     <property name="text">
-      <string>&amp;по</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtEndDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <spacer name="verticalSpacer">
+   <item row="5" column="0" colspan="6">
+    <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Vertical</enum>
+      <enum>Qt::Horizontal</enum>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblBegDate">
-     <property name="text">
-      <string>В период &amp;с</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtBegDate</cstring>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
@@ -105,6 +75,16 @@
      </property>
     </spacer>
    </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblBegDate">
+     <property name="text">
+      <string>В период &amp;с</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtBegDate</cstring>
+     </property>
+    </widget>
+   </item>
    <item row="2" column="2" colspan="4">
     <widget class="CRBComboBox" name="cmbReasonOfAbsence">
      <property name="sizePolicy">
@@ -115,25 +95,61 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="2" colspan="4">
-    <widget class="QCheckBox" name="chkFillRedDays">
+   <item row="0" column="3">
+    <widget class="QLabel" name="lblEndDate">
      <property name="text">
-      <string>&amp;Заполнять выходные дни</string>
+      <string>&amp;по</string>
      </property>
-     <property name="checked">
+     <property name="buddy">
+      <cstring>edtEndDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <widget class="QLabel" name="lblReasonOfAbsence">
+     <property name="text">
+      <string>Причина &amp;отсутствия</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbReasonOfAbsence</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <widget class="CDateEdit" name="edtBegDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="calendarPopup">
       <bool>true</bool>
      </property>
     </widget>
    </item>
-   <item row="4" column="0" colspan="6">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   <item row="3" column="0" colspan="2">
+    <widget class="QLabel" name="lblSubstitutePerson">
+     <property name="text">
+      <string>Замещающий сотрудник</string>
      </property>
     </widget>
+   </item>
+   <item row="3" column="2" colspan="4">
+    <widget class="CPersonComboBoxEx" name="cmbSubstitutePerson"/>
    </item>
   </layout>
  </widget>
@@ -147,6 +163,11 @@
    <class>CDateEdit</class>
    <extends>QDateEdit</extends>
    <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

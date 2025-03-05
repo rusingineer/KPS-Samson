@@ -60,8 +60,8 @@
        <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'.AppleSystemUIFont'; font-size:13pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:'MS Shell Dlg 2'; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
       </property>
      </widget>
      <widget class="QScrollArea" name="scrollArea">
@@ -115,6 +115,9 @@ p, li { white-space: pre-wrap; }
           </property>
           <property name="tabShape">
            <enum>QTabWidget::Rounded</enum>
+          </property>
+          <property name="currentIndex">
+           <number>0</number>
           </property>
           <widget class="QWidget" name="tabToken">
            <attribute name="title">
@@ -694,7 +697,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CEventMedicalDiagnosisPage" name="tabMedicalDiagnosis">
            <attribute name="title">
-            <string>Диагноз</string>
+            <string>Диагно&amp;з</string>
            </attribute>
           </widget>
           <widget class="CActionsPage" name="tabStatus">
@@ -709,7 +712,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CEventCashPage" name="tabCash">
            <attribute name="title">
-            <string>Оплата</string>
+            <string>&amp;Оплата</string>
            </attribute>
           </widget>
           <widget class="CEventNotesPage" name="tabNotes">
@@ -757,19 +760,34 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CRBComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/crbcombobox.h</header>
-  </customwidget>
-  <customwidget>
    <class>CDateEdit</class>
    <extends>QDateEdit</extends>
    <header>library/DateEdit</header>
   </customwidget>
   <customwidget>
-   <class>CContractComboBox</class>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPolyclinicComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CKLADRComboBox</class>
+   <extends>QComboBox</extends>
+   <header>KLADR/kladrComboxes.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CStreetComboBox</class>
+   <extends>QComboBox</extends>
+   <header>KLADR/kladrComboxes.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
   <customwidget>
    <class>CTextBrowser</class>
@@ -777,9 +795,9 @@ p, li { white-space: pre-wrap; }
    <header>library/TextBrowser.h</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
+   <class>CContractComboBox</class>
    <extends>QComboBox</extends>
-   <header>Orgs/PersonComboBoxEx.h</header>
+   <header>Orgs/OrgComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CActionsPage</class>
@@ -800,30 +818,15 @@ p, li { white-space: pre-wrap; }
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CEventMedicalDiagnosisPage</class>
-   <extends>QWidget</extends>
-   <header>Events/EventMedicalDiagnosisPage.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>CDiagnosticsInDocTableView</class>
    <extends>QTableView</extends>
    <header>Events/EventDiagnosticsTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CPolyclinicComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CKLADRComboBox</class>
-   <extends>QComboBox</extends>
-   <header>KLADR/kladrComboxes.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CStreetComboBox</class>
-   <extends>QComboBox</extends>
-   <header>KLADR/kladrComboxes.h</header>
+   <class>CEventMedicalDiagnosisPage</class>
+   <extends>QWidget</extends>
+   <header>Events/EventMedicalDiagnosisPage.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

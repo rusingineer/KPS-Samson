@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -40,7 +40,9 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
     def __init__(self,  parent, isAddRequisition=False):
         CItemEditorBaseDialog.__init__(self, parent, 'StockRequisition')
         self.setupUi(self)
+        self.cmbRecipientPerson.setSpecialityIndependents()
         self._stockOrgStructureId = None
+        self.isEditRTMsRequisitionEnabled = True
         self.addModels('Items', CItemsModel(self, isAddRequisition))
         self.addObject('actDuplicate', QtGui.QAction(u'Дублировать', self))
         self.addObject('btnPrint', CPrintButton(self, u'Печать'))
@@ -68,7 +70,10 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.connect(self.actDuplicate, QtCore.SIGNAL('triggered()'), self.on_duplicateItems)
+        self.tblItems.enableColsMove()
 
+    def setIsEditRTMsRequisitionEnabled(self, isEditRTMsRequisitionEnabled):
+        self.isEditRTMsRequisitionEnabled = isEditRTMsRequisitionEnabled
 
     def setAgreementRequirementsStock(self):
         isEnabled = setAgreementRequirementsStock(self.cmbSupplier.value())
@@ -131,6 +136,7 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         self.edtDate.setDate(QDate.currentDate())
         self.edtDeadlineDate.setDate(QDate())
         self.cmbRecipient.setValue(QtGui.qApp.currentOrgStructureId())
+        self.cmbRecipientPerson.setValue(QtGui.qApp.userId)
 
 
     def setReadOnly(self):
@@ -142,16 +148,18 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
             satisfiedQnt = forceDouble(record.value('satisfiedQnt'))
             if satisfiedQnt>0:
                 isRequisitionSatisfied = True
-        if isRequisitionSatisfied:
-            self.edtDate.setEnabled(False)
-            self.edtDeadlineDate.setEnabled(False)
+        if isRequisitionSatisfied or not self.isEditRTMsRequisitionEnabled:
+            self.edtDate.setReadOnly(True)
+            self.edtDeadlineDate.setReadOnly(True)
             self.chkRevoked.setEnabled(False)
-            self.edtDeadlineTime.setEnabled(False)
-            self.edtNumber.setEnabled(False)
-            self.cmbSupplier.setEnabled(False)
-            self.cmbRecipient.setEnabled(False)
-            self.edtNote.setEnabled(False)
-            self.tblItems.setEnabled(False)
+            self.edtDeadlineTime.setReadOnly(True)
+            self.edtNumber.setReadOnly(True)
+            self.cmbSupplier.setReadOnly(True)
+            self.cmbRecipient.setReadOnly(True)
+            self.cmbRecipientPerson.setReadOnly(True)
+            self.edtNote.setReadOnly(True)
+            self.modelItems.setReadOnly(True)
+            self.actDuplicate.setEnabled(False)
 
     def _generateStockMotionNumber(self):
         if unicode(self.edtNumber.text()):
@@ -203,6 +211,10 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         recipient = self.cmbRecipient.value()
         if recipient:
             description.append(u'Заказчик %s'%forceString(db.translate('OrgStructure', 'id', recipient, 'name')))
+        receiverPerson = self.cmbRecipientPerson.value()
+        if receiverPerson:
+            description.append(u'Ответственный %s' % forceString(
+                db.translate('vrbPersonWithSpeciality', 'id', receiverPerson, 'name')))
         note = self.edtNote.text()
         if note:
             description.append(u'Примечания %s'%forceString(note))
@@ -231,7 +243,7 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         iColNumber = False
         for iCol, colWidth in enumerate(colWidths):
             widthInPercents = str(max(1, colWidth*90/totalWidth))+'%'
-            if iColNumber == False:
+            if not iColNumber:
                 tableColumns.append((widthInPercents, [u'№'], CReportBase.AlignRight))
                 iColNumber = True
             tableColumns.append((widthInPercents, [forceString(model._cols[iCol].title())], CReportBase.AlignLeft))
@@ -262,6 +274,7 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         setCheckBoxValue(   self.chkRevoked,        record, 'revoked')
         setRBComboBoxValue( self.cmbSupplier,       record, 'supplier_id')
         setRBComboBoxValue( self.cmbRecipient,      record, 'recipient_id')
+        setRBComboBoxValue(self.cmbRecipientPerson, record, 'recipientPerson_id')
         setLineEditValue(   self.edtNote,           record, 'note')
         setComboBoxValue(   self.cmbAgreementStatus, record, 'agreementStatus')
         setDateEditValue(   self.edtAgreementDate,  record, 'agreementDate')
@@ -280,6 +293,7 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         getCheckBoxValue(   self.chkRevoked,        record, 'revoked')
         getRBComboBoxValue( self.cmbSupplier,       record, 'supplier_id')
         getRBComboBoxValue( self.cmbRecipient,      record, 'recipient_id')
+        getRBComboBoxValue(self.cmbRecipientPerson, record, 'recipientPerson_id')
         getLineEditValue(   self.edtNote,           record, 'note')
         getComboBoxValue(   self.cmbAgreementStatus, record, 'agreementStatus')
         getDateEditValue(   self.edtAgreementDate,  record, 'agreementDate')
@@ -327,11 +341,11 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
         qnt            = forceDouble(item.value('qnt'))
         financeId      = forceRef(item.value('finance_id'))
         medicalAidKindId      = forceRef(item.value('medicalAidKind_id'))
-        result = nomenclatureId or self.checkInputMessage(u'лекарственное средство или изделие медицинского назначения', False, self.tblProperties, row, 0)
-        result = result and (qnt or self.checkInputMessage(u'количество', False, self.tblProperties, row, 2))
+        result = nomenclatureId or self.checkInputMessage(u'лекарственное средство или изделие медицинского назначения', False, self.tblItems, row, 0)
+        result = result and (qnt or self.checkInputMessage(u'количество', False, self.tblItems, row, 2))
         fnKey = (financeId, nomenclatureId, medicalAidKindId)
         if fnKey in existsFN:
-            self.checkValueMessage(u'ЛСиИМН с таким тпиом финансирования уже указан', False, self.tblProperties, row, 0)
+            self.checkValueMessage(u'ЛСиИМН с таким типом финансирования уже указан', False, self.tblItems, row, 0)
         existsFN.add(fnKey)
         return result
 
@@ -361,8 +375,9 @@ class CStockRequisitionEditDialog(CItemEditorBaseDialog, Ui_StockRequisitionDial
 
     @pyqtSignature('')
     def on_cmbRecipient_valueChanged(self):
+        orgStructureId = self.cmbRecipient.value()
+        self.cmbRecipientPerson.setOrgStructureId(orgStructureId)
         if forceBool(QtGui.qApp.preferences.appPrefs.get('isPermitRequisitionsOnlyParentStock', QVariant())):
-            orgStructureId = self.cmbRecipient.value()
             self.setCMBSupplierFilter(orgStructureId)
 
 

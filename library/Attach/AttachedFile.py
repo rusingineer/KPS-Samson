@@ -21,15 +21,15 @@ import locale
 import zlib
 
 from PyQt4 import QtGui
-from PyQt4.QtCore  import (
-                            Qt,
-                            SIGNAL,
-                            QAbstractTableModel,
-                            QByteArray,
-                            QDateTime,
-                            QModelIndex,
-                            QVariant,
-                         )
+from PyQt4.QtCore import (
+    Qt,
+    SIGNAL,
+    QAbstractTableModel,
+    QByteArray,
+    QDateTime,
+    QModelIndex,
+    QVariant, pyqtSignal,
+)
 
 from library.Utils import forceDateTime, forceRef, forceString, forceInt, toVariant
 from library.CertComboBox import extractCertInfo
@@ -96,6 +96,7 @@ class CAttachedFile:
         self.lastModified  = None
         self.authorId      = None
         self.respSigner_name = None
+        self.templateId = None
 #        self.author        = None
 
         self.respSignature = None
@@ -131,7 +132,7 @@ class CAttachedFile:
         self.isLost = False
 
 
-    def setRecord(self, record):
+    def setRecord(self, record, tableName='Action_FileAttach'):
         self._record = record
         self.id = forceRef(record.value('id'))
         self.comment = forceString(record.value('comment'))
@@ -144,13 +145,13 @@ class CAttachedFile:
                              forceDateTime(record.value('orgSigningDatetime')))
         self.respSigner_name = forceString(record.value('respSigner_name'))
         self.loadAdditionalSignatures(self.id)
-        self.loadHtmlTemplate(self.id)
+        self.loadHtmlTemplate(self.id, tableName)
         if not self.htmlTemplate:
             html = forceString(record.value('html'))
             self.htmlTemplate = html if html else None
 
 
-    def getRecord(self, table):
+    def getRecord(self, table=None):
         if self._record:
             record = self._record
         else:
@@ -202,14 +203,16 @@ class CAttachedFile:
                                                                     ))
 
 
-    def loadHtmlTemplate(self, masterId):
+    def loadHtmlTemplate(self, masterId, tableName='Action_FileAttach'):
         db = QtGui.qApp.db
-        table = db.table('Action_FileAttach_PrintTemplate')
+        table = db.table(tableName + '_PrintTemplate')
         record = db.getRecord(table, '*', masterId)
         if record:
             html = record.value('html').toByteArray()
+            self.templateId = forceRef(record.value('template_id'))
             try:
-                self.htmlTemplate = zlib.decompress(html).decode('utf8')
+                if html:
+                    self.htmlTemplate = zlib.decompress(html, zlib.MAX_WBITS | 32).decode('utf8')
             except Exception:
                 QtGui.qApp.logCurrentException()
 
@@ -309,10 +312,16 @@ class CAttachedFile:
 
     def rename(self, newName):
         self.newName = newName
+        if self._record:
+            self._record._dirty = True
+            self._record.changed = True
 
 
     def edtComment(self, comment):
         self.comment = comment
+        if self._record:
+            self._record._dirty = True
+            self._record.changed = True
 
 
     def getPath(self):
@@ -345,7 +354,7 @@ class CAttachedFilesLoader:
             for record in records:
                 path = forceString(record.value('path'))
                 item = interface.createAttachedFileItem(path)
-                item.setRecord(record)
+                item.setRecord(record, tableName)
                 result.append(item)
             return result
         else:
@@ -367,7 +376,7 @@ class CAttachedFilesLoader:
 
 
     @staticmethod
-    def saveItems(interface, tableName, masterId, items):
+    def saveItems(interface, tableName, masterId, items, saveOnlyChanged=False):
         if interface:
             interface.saveFiles(items)
             idSet = set([item.id for item in items if item.id])
@@ -376,15 +385,20 @@ class CAttachedFilesLoader:
             cond = db.joinAnd([table['deleted'].eq(0),
                                table['master_id'].eq(masterId),
                                table['id'].notInlist(idSet)
-                              ])
+                               ])
             db.deleteRecord(table, cond)
             for item in items:
                 record = item.getRecord(table)
                 record.setValue('master_id', masterId)
+                if item.id and saveOnlyChanged:
+                    if hasattr(record, 'changed') and record.changed:
+                        pass
+                    else:
+                        continue
                 _id = db.insertOrUpdate(table, record)
                 item.id = _id
                 CAttachedFilesLoader.saveAdditionalSign(item)
-                CAttachedFilesLoader.savePrintTemplate(item)
+                CAttachedFilesLoader.savePrintTemplate(item, tableName)
                 item.setRecord(record)
 
     @staticmethod
@@ -414,22 +428,25 @@ class CAttachedFilesLoader:
 
 
     @staticmethod
-    def savePrintTemplate(item):
-        if item.htmlTemplate:
+    def savePrintTemplate(item, tableName='Action_FileAttach'):
+        if item.htmlTemplate or item.templateId:
             db = QtGui.qApp.db
-            table = db.table('Action_FileAttach_PrintTemplate')
+            table = db.table(tableName + '_PrintTemplate')
             record = db.getRecord(table, '*', item.id)
             if not record:
                 record = table.newRecord()
-                value = item.htmlTemplate.encode('utf8')
-                compData = zlib.compress(value)
+                if item.htmlTemplate:
+                    value = item.htmlTemplate.encode('utf8')
+                    compData = zlib.compress(value)
+                    record.setValue('html', QByteArray(compData))
                 record.setValue('id', item.id)
-                record.setValue('html', QByteArray(compData))
+                record.setValue('template_id', item.templateId)
                 db.insertRecord(table, record)
 
 
 class CAttachedFilesModel(QAbstractTableModel):
     u"""Список прикреплённых файлов"""
+    changed = pyqtSignal()
 
     def __init__(self, parent):
         QAbstractTableModel.__init__(self)
@@ -452,12 +469,12 @@ class CAttachedFilesModel(QAbstractTableModel):
         self.reset()
 
 
-    def saveItems(self, masterId):
-        CAttachedFilesLoader.saveItems(self.interface, self.tableName, masterId, self.items)
+    def saveItems(self, masterId, saveOnlyChanged=False):
+        CAttachedFilesLoader.saveItems(self.interface, self.tableName, masterId, self.items, saveOnlyChanged=saveOnlyChanged)
 
 
     def columnCount(self, index=None):
-        return 8
+        return 9
 
 
     def rowCount(self, index=None):
@@ -466,7 +483,7 @@ class CAttachedFilesModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return QVariant((u'Имя файла', u'Комментарий', u'Размер', u'Дата', u'Автор', u'Владелец подписи', u'Подпись отв.лица', u'Подпись организации')[section])
+            return QVariant((u'ID', u'Имя файла', u'Комментарий', u'Размер', u'Дата', u'Автор', u'Владелец подписи', u'Подпись отв.лица', u'Подпись организации')[section])
         return QVariant()
 
 
@@ -515,16 +532,18 @@ class CAttachedFilesModel(QAbstractTableModel):
             column = index.column()
             item = self.items[row]
             if column == 0:
-                return QVariant(item.newName)
+                return QVariant(item.id)
             if column == 1:
+                return QVariant(item.newName)
+            if column == 2:
                 return QVariant(item.comment)
-            elif column == 2:
-                return QVariant(item.size)
             elif column == 3:
-                return QVariant(item.lastModified)
+                return QVariant(item.size)
             elif column == 4:
-                return QVariant(self._getPersonName(item.authorId))
+                return QVariant(item.lastModified)
             elif column == 5:
+                return QVariant(self._getPersonName(item.authorId))
+            elif column == 6:
                 if item.respSignature and item.respSignature.certCustom:
                     respSigner_name = u'{0} {1} {2}'.format(forceString(item.respSignature.certCustom.surName()),
                                                             forceString(item.respSignature.certCustom.givenName()),
@@ -532,9 +551,9 @@ class CAttachedFilesModel(QAbstractTableModel):
                 else:
                     respSigner_name = None
                 return QVariant(item.respSigner_name if item.respSigner_name else respSigner_name)
-            elif column == 6:
-                return self._getPersonName(item.getRespSignerId())
             elif column == 7:
+                return self._getPersonName(item.getRespSignerId())
+            elif column == 8:
                 return self._getPersonName(item.getOrgSignerId())
             # elif column == 7:
             #     return QVariant(self._getAddSignatures(item.additionalSignatures))
@@ -542,17 +561,17 @@ class CAttachedFilesModel(QAbstractTableModel):
 
         elif role == Qt.TextAlignmentRole:
             column = index.column()
-            if column == 0:
+            if column == 1:
                 return QVariant(Qt.AlignLeft | Qt.AlignVCenter)
-            elif column == 2:
-                return QVariant(Qt.AlignRight | Qt.AlignVCenter)
             elif column == 3:
-                return QVariant(Qt.AlignCenter | Qt.AlignVCenter)
+                return QVariant(Qt.AlignRight | Qt.AlignVCenter)
             elif column == 4:
                 return QVariant(Qt.AlignCenter | Qt.AlignVCenter)
             elif column == 5:
                 return QVariant(Qt.AlignCenter | Qt.AlignVCenter)
             elif column == 6:
+                return QVariant(Qt.AlignCenter | Qt.AlignVCenter)
+            elif column == 7:
                 return QVariant(Qt.AlignCenter | Qt.AlignVCenter)
             return QVariant(Qt.AlignLeft | Qt.AlignVCenter)
 
@@ -560,21 +579,21 @@ class CAttachedFilesModel(QAbstractTableModel):
             row = index.row()
             column = index.column()
             item = self.items[row]
-            if column == 0:
+            if column == 1:
                 if item.isLost:
                     return QVariant(QtGui.qApp.style().standardIcon(QtGui.QStyle.SP_MessageBoxWarning))
                 else:
                     #                    return QVariant(QtGui.QIcon(QtGui.QPixmap(row*10,row*10)))
                     return QVariant(QtGui.QColor(0, 0, 0, 0))
         #        elif role == Qt.DecorationRole:
-            if column == 4:
+            if column == 5:
                 if item.additionalSignatures:
                     return QVariant(QtGui.qApp.style().standardIcon(QtGui.QStyle.SP_MessageBoxInformation))
                 return QVariant()
 
         elif role == Qt.ToolTipRole:
             column = index.column()
-            if column == 4:
+            if column == 5:
                 row = index.row()
                 item = self.items[row]
                 tooltip = ('<html><body><table width = 400>'
@@ -584,11 +603,11 @@ class CAttachedFilesModel(QAbstractTableModel):
                            + '</table></body></html>'))
                 return tooltip
                 # return QVariant(self._getAddSignatures(item.id))
-            if column == 6:
+            if column == 7:
                 row = index.row()
                 item = self.items[row]
                 return QVariant(item.getRespSignerToolTip())
-            if column == 7:
+            if column == 8:
                 row = index.row()
                 item = self.items[row]
                 return QVariant(item.getOrgSignerToolTip())
@@ -606,13 +625,14 @@ class CAttachedFilesModel(QAbstractTableModel):
             return locale.strxfrm(convertKeyForNaturalSort(s))
 
 
-        keys = { 0: lambda item: prepKey(item.newName),
-                 1: lambda item: prepKey(item.comment),
-                 2: lambda item: item.size,
-                 3: lambda item: item.lastModified,
-                 4: lambda item: prepKey(forceString(self._getPersonName(item.authorId))),
-                 5: lambda item: prepKey(forceString(self._getPersonName(item.getRespSignerId()))),
-                 6: lambda item: prepKey(forceString(self._getPersonName(item.getOrgSignerId()))),
+        keys = { 0: lambda item: item.id,
+                 1: lambda item: prepKey(item.newName),
+                 2: lambda item: prepKey(item.comment),
+                 3: lambda item: item.size,
+                 4: lambda item: item.lastModified,
+                 5: lambda item: prepKey(forceString(self._getPersonName(item.authorId))),
+                 6: lambda item: prepKey(forceString(self._getPersonName(item.getRespSignerId()))),
+                 7: lambda item: prepKey(forceString(self._getPersonName(item.getOrgSignerId()))),
                }
         self.items.sort( key=keys[column],
                          reverse = order != Qt.AscendingOrder
@@ -624,6 +644,7 @@ class CAttachedFilesModel(QAbstractTableModel):
         self.beginRemoveRows(parent, row, row+count-1)
         try:
             del self.items[row: row+count]
+            self.changed.emit()
             return True
         except:
             return False
@@ -651,10 +672,12 @@ class CAttachedFilesModel(QAbstractTableModel):
                 self.beginInsertRows(QModelIndex(), len(self.items), len(self.items)+1)
                 self.items.append( fileItem )
                 self.endInsertRows()
+        self.changed.emit()
 
 
-    def uploadBytes(self, fileName, fileBytes, userSignatureBytes, orgSignatureBytes, html=''):
+    def uploadBytes(self, fileName, fileBytes, userSignatureBytes, orgSignatureBytes, templateId=None, html=''):
         fileItem = self.interface.uploadBytes(fileName, fileBytes)
+        fileItem.templateId = templateId
         fileItem.setRespSignature(userSignatureBytes, QtGui.qApp.userId, QDateTime().currentDateTime())
         fileItem.setOrgSignature(orgSignatureBytes, QtGui.qApp.userId, QDateTime().currentDateTime())
         if html:
@@ -662,29 +685,26 @@ class CAttachedFilesModel(QAbstractTableModel):
         self.beginInsertRows(QModelIndex(), 1, len(self.items)+1)
         self.items.append(fileItem)
         self.endInsertRows()
+        self.changed.emit()
 
 
 #?
     def saveFiles(self):
         return self.interface.saveFiles(self.items)
 
-
     def indexOfItem(self, item):
         return self.items.index(item)
 
-
     def touchRow(self, row):
-        self.emit(SIGNAL('dataChanged()'),
-                  self.index(row, 0),
-                  self.index(row, self.columnCount()-1)
-                 )
-
+        self.emit(SIGNAL('dataChanged()'), self.index(row, 0), self.index(row, self.columnCount()-1))
+        self.changed.emit()
 
     def renameFile(self, row, newName):
         self.items[row].rename(newName)
         self.touchRow(row)
-
+        self.changed.emit()
 
     def edtComment(self, row, comment):
         self.items[row].edtComment(comment)
         self.touchRow(row)
+        self.changed.emit()

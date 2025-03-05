@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -39,7 +39,7 @@ from Events.ActionsSummaryModel import CActionsSummaryModel
 from Events.DiagnosisType       import CDiagnosisTypeCol
 from Events.EventEditDialog     import CEventEditDialog, CDiseaseCharacter, CDiseaseStage, CDiseasePhases, CToxicSubstances, getToxicSubstancesIdListByMKB
 from Events.EventInfo           import CDiagnosticInfoProxyList, CEmergencyAccidentInfo, CEmergencyBrigadeInfo, CEmergencyCauseCallInfo, CEmergencyDeathInfo, CEmergencyDiseasedInfo, CEmergencyEbrietyInfo, CEmergencyEventInfo, CEmergencyMethodTransportInfo, CEmergencyPlaceCallInfo, CEmergencyPlaceReceptionCallInfo, CEmergencyReasondDelaysInfo, CEmergencyReceivedCallInfo, CEmergencyResultInfo, CEmergencyTransferTransportInfo, CEmergencyTypeAssetInfo, CHospitalInfo
-from Events.Utils               import checkDiagnosis, checkIsHandleDiagnosisIsChecked, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventDurationRange, getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary, checkLGSerialNumber
+from Events.Utils               import checkDiagnosis, checkIsHandleDiagnosisIsChecked, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventDurationRange, getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary
 from F110.PreF110Dialog         import CPreF110Dialog, CPreF110DagnosticAndActionPresets
 from Orgs.PersonComboBoxEx      import CPersonFindInDocTableCol
 from Orgs.PersonInfo            import CPersonInfo
@@ -209,21 +209,22 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
 
 
     def destroy(self):
+        CEventEditDialog.deleteLater(self)
         self.tblPersonnel.setModel(None)
         self.tblFinalDiagnostics.setModel(None)
-        self.grpTempInvalid.destroy()
-        self.grpAegrotat.destroy()
-        self.grpDisability.destroy()
-        self.grpVitalRestriction.destroy()
-        self.tabStatus.destroy()
-        self.tabDiagnostic.destroy()
-        self.tabCure.destroy()
-        self.tabMisc.destroy()
-        self.tabCash.destroy()
-        self.tabMes.destroy()
+        self.grpTempInvalid.deleteLater()
+        self.grpAegrotat.deleteLater()
+        self.grpDisability.deleteLater()
+        self.grpVitalRestriction.deleteLater()
+        self.tabStatus.deleteLater()
+        self.tabDiagnostic.deleteLater()
+        self.tabCure.deleteLater()
+        self.tabMisc.deleteLater()
+        self.tabCash.deleteLater()
+        self.tabMes.deleteLater()
         del self.modelPersonnel
         del self.modelFinalDiagnostics
-        self.tabAmbCard.destroy()
+        self.tabAmbCard.deleteLater()
 
 
 #    def currentClientId(self): # for AmbCard mixin
@@ -449,11 +450,17 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
             eventDate = eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime
         else:
             eventDate = QDate.currentDate()
+        presentActionTypes = []
+        for item in self.modelActionsSummary.items():
+            actionTypeId = forceString(item.value('actionType_id'))
+            if actionTypeId not in presentActionTypes:
+                presentActionTypes.append(actionTypeId)
         if QtGui.qApp.userHasRight(urAccessF110planner):
             dlg = CPreF110Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
-                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, flagHospitalization, actionTypeIdValue, tissueTypeId)
+                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
+                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -464,7 +471,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF110DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue)
+            presets = CPreF110DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             return self._prepare(clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                  presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -476,12 +483,14 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         def addActionType(actionTypeId, amount, idListActionType):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
-            for model in (self.tabStatus.modelAPActions,
+            for iModel, model in enumerate([self.tabStatus.modelAPActions,
                           self.tabDiagnostic.modelAPActions,
                           self.tabCure.modelAPActions,
-                          self.tabMisc.modelAPActions):
+                          self.tabMisc.modelAPActions]):
                 if actionTypeId in model.actionTypeIdList:
                     model.addRow(actionTypeId, amount)
+                    i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                    self.onActionChanged(i)
                     if actionTypeId in idListActionType:
                         record, action = model.items()[-1]
                         if u'Приемное отделение' in action._actionType._propertiesByName:
@@ -555,6 +564,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         self.updateMesMKB()
         self.tabMes.setRecord(record)
         self.loadActions()
+        self.on_cmbResult_currentIndexChanged()
         self.initFocus()
         self.tabCash.load(self.itemId())
         self.setIsDirty(False)
@@ -563,6 +573,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         self.initFocus()
         self.blankMovingIdList = []
         self.protectClosedEvent()
+        self.btnRelatedEventHighlight()
 
 
     def setRecordEmergencyCall(self, record):
@@ -1176,43 +1187,6 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         return True
 
 
-    def checkSerialNumberEntered(self):
-        result = True
-        self.blankMovingIdList = []
-        db = QtGui.qApp.db
-        table = db.table('ActionPropertyType')
-        actionTypeIdListSerial = db.getDistinctIdList(table, [table['actionType_id']], [table['deleted'].eq(0), table['typeName'].like('BlankSerialNumber')])
-        #actionTypeIdListNumber = db.getDistinctIdList(table, [table['actionType_id']], [table['deleted'].eq(0), table['typeName'].like('BlankNumber')])
-
-        for tab in (self.tabStatus,
-                    self.tabDiagnostic,
-                    self.tabCure,
-                    self.tabMisc):
-            model = tab.modelAPActions
-            for actionTypeIdSerial in actionTypeIdListSerial:
-                if actionTypeIdSerial in model.actionTypeIdList:
-                    for row, (record, action) in enumerate(model.items()):
-                        if action and action._actionType.id:
-                            actionTypeId = action._actionType.id
-                            if actionTypeId == actionTypeIdSerial:
-                                blank = action[u'Серия и номер бланка']
-                                if blank:
-                                    #Проверка серий и номеров льготных рецептов на дубляж перед сохранением (для КК)
-                                    if QtGui.qApp.defaultKLADR()[:2] == u'23' and action._actionType.context == 'recipe' and not checkLGSerialNumber(self, blank, action, self.clientId):
-                                        return False
-                                    blankList = blank.split(" ")
-                                    if len(blankList) == 2:
-                                        serial = blankList[0]
-                                        number = forceInt(blankList[1])
-                                        if serial and number:
-                                            blankParams = self.getBlankIdList(action)
-                                            result, blankMovingId = self.checkBlankParams(blankParams, serial, number, tab.tblAPActions, row)
-                                            self.blankMovingIdList.append(blankMovingId)
-                                            if not result:
-                                                return result
-        return result
-
-
     def checkHouses(self):
         result = True
         locHouse = forceString(self.edtLocHouse.text())
@@ -1543,6 +1517,43 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         self.updateMesMKB()
 
 
+    def btnRelatedEventHighlight(self):
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tablePWS = db.table('vrbPersonWithSpeciality')
+        tableCreatePWS = db.table('vrbPersonWithSpeciality').alias('CPWS')
+        tableActionType = db.table('ActionType')
+        tableAction = db.table('Action')
+        cols = [tableEvent['id'].alias('eventId')]
+
+        cond = [tableEvent['deleted'].eq(0),
+                tableEventType['context'].like(u'relatedAction%'),
+                tableAction['deleted'].eq(0),
+                tableEvent['client_id'].eq(self.clientId)
+                ]
+
+        table = tableEvent.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
+        table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+        table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
+        table = table.leftJoin(tableCreatePWS, tableCreatePWS['id'].eq(tableAction['createPerson_id']))
+        record = db.getRecordEx(table, cols, cond)
+
+        if record:
+            self.btnRelatedEvent.setStyleSheet("""
+                QPushButton {
+                    background-color: #F28a64;
+                }
+                QPushButton:hover {
+                    background-color: #F6b096;
+                }
+            """)
+        else:
+            self.btnRelatedEvent.setGraphicsEffect(None)
+            self.btnRelatedEvent.setStyleSheet("")
+
+
     @pyqtSignature('')
     def on_btnRelatedEvent_clicked(self):
         currentEventId = self.itemId()
@@ -1600,15 +1611,16 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
 
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
-        context = CInfoContext()
-        eventInfo = self.getEventInfo(context)
-        tempInvalidInfo = self.getTempInvalidInfo(context)
+        if self.checkPrintByTemplateAllowed(templateId):
+            context = CInfoContext()
+            eventInfo = self.getEventInfo(context)
+            tempInvalidInfo = self.getTempInvalidInfo(context)
 
-        data = { 'event' : eventInfo,
-                 'client': eventInfo.client,
-                 'tempInvalid': tempInvalidInfo
-               }
-        applyTemplate(self, templateId, data, signAndAttachHandler=None)
+            data = {'event': eventInfo,
+                    'client': eventInfo.client,
+                    'tempInvalid': tempInvalidInfo
+                    }
+            applyTemplate(self, templateId, data, signAndAttachHandler=None)
 
 
 class CF110PersonnelModel(CInDocTableModel):

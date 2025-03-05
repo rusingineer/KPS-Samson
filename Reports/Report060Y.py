@@ -38,51 +38,81 @@ class CRep060Y(CReport):
         if not endDate or endDate.isNull():
             return None
         db = QtGui.qApp.db
-        stmt = u'''SELECT api.value AS num,convert(CONCAT('Прием ',apd.value,' ',apt.value,', отсылка ',apd_extr.value,', принял ',aps.value), char) AS two,o.fullName AS nam,
-  CONCAT(c.lastName,' ',c.firstName,' ',c.patrName)  AS FIO,if (age(c.birthDate,a.begDate)<3,
-  c.birthDate,age(c.birthDate,a.begDate)) AS age, getClientLocAddress(c.id) AS adres,if (cw.freeInput IS NULL OR cw.freeInput='','безработный',cw.freeInput) AS work,
-  apd_zab.value AS zab,CONCAT(a.MKB,', ',apd_diag.value) AS mkb,convert(CONCAT(e.setDate,', ',o.fullName),char) AS post,apd_dobr.value AS gosp,' ' AS 'z12','' AS 'z13','' AS 'z14',
-  apsli.value AS iss,'' AS 'z16'
+        stmt = u'''
+  SELECT 
+    MAX(a.id),
+    aps_noticeNumber.value AS noticeNumber,
+    convert(CONCAT('Прием ', IFNULL(apd_noticePhoneDate.value, '-'), ', ', 
+            IFNULL(apt_noticePhoneTime.value, '-'), ', отсылка ', 
+            IFNULL(apd_noticeSendDate.value, '-'), ', передал ', 
+            CONCAT(IFNULL(p.lastName, '-'), ' ', IFNULL(p.firstName, '-'), ' ', IFNULL(p.patrName, '-')), 
+            ', принял ', IFNULL(aps_noticeGetPerson.value, '-')), char) AS noticeData, 
+    o.fullName AS orgName,
+    CONCAT(IFNULL(c.lastName, ''),' ',IFNULL(c.firstName, ''),' ',IFNULL(c.patrName, '')) AS clientFIO,
+    if (age(c.birthDate,a.begDate)<3,
+        c.birthDate,age(c.birthDate,a.begDate)) AS clientAge, 
+    getClientLocAddress(c.id) AS clientAddress,
+    if (cw.freeInput IS NULL OR cw.freeInput='','безработный',cw.freeInput) AS clientWork,
+    IFNULL(apd_lastVisitWorkDate.value, '') as clientWorkDate,
+    apd_dateIllness.value AS dateIllness,
+    CONCAT(a.MKB,', ',apd_diagnosisDate.value) AS setDiagnosis,
+    CONCAT(apd_hospitalDate.value, ', ', o_hospital.fullName) AS hospital,
+    apd_firstVisit.value AS firstVisit,
+    aps_diagnosis.value AS diagnosis,
+    '' AS dateEpid,
+    '' AS diagReport,
+    aps_lab.value as lab,
+    '' AS note
   FROM Action a 
-  LEFT JOIN ActionType at ON a.actionType_id = at.id
-  LEFT JOIN Event e ON a.event_id = e.id
-  LEFT JOIN Client c ON e.client_id = c.id
-  LEFT JOIN ClientWork cw ON c.id = cw.client_id and cw.id = (SELECT MAX(cl.id) FROM ClientWork cl WHERE cl.deleted=0 AND cl.client_id=c.id)
-  LEFT JOIN Organisation o ON e.org_id = o.id
-  left join ActionProperty ap on ap.action_id = a.id and ap.type_id in (select id from ActionPropertyType where name = 'Номер извещения') AND ap.deleted = 0
-  left join ActionProperty_Integer api on api.id = ap.id
-  left join ActionProperty ap_teld on ap_teld.action_id = a.id and ap_teld.type_id in (select id from ActionPropertyType where name = 'Дата сообщения по телефону') AND ap_teld.deleted = 0
-  left join ActionProperty_Date apd on apd.id = ap_teld.id
-  left join ActionProperty ap_telt on ap_telt.action_id = a.id and ap_telt.type_id in (select id from ActionPropertyType where name = 'Время сообщения по телефону') AND ap_telt.deleted = 0
-  left join ActionProperty_Time apt on apt.id = ap_telt.id
-  left join ActionProperty ap_dobr on ap_dobr.action_id = a.id and ap_dobr.type_id in (select id from ActionPropertyType where name = 'Дата первичного обращения') AND ap_dobr.deleted = 0
-  left join ActionProperty_Date apd_dobr on apd_dobr.id = ap_dobr.id
-  left join ActionProperty ap_diag on ap_diag.action_id = a.id and ap_diag.type_id in (select id from ActionPropertyType where name = 'Дата установления предв. диагноза') AND ap_diag.deleted = 0
-  left join ActionProperty_Date apd_diag on apd_diag.id = ap_diag.id
-  left join ActionProperty ap_extr on ap_extr.action_id = a.id and ap_extr.type_id in (select id from ActionPropertyType where name = 'Дата отсылки экстренного извещения') AND ap_extr.deleted = 0
-  left join ActionProperty_Date apd_extr on apd_extr.id = ap_extr.id
-  left join ActionProperty ap_extrpri on ap_extrpri.action_id = a.id and ap_extrpri.type_id in (select id from ActionPropertyType where name = 'Экстренное извещение принял') AND ap_extrpri.deleted = 0
-  left join ActionProperty_String aps on aps.id = ap_extrpri.id
-  left join ActionProperty ap_dou on ap_dou.action_id = a.id and ap_dou.type_id in (select id from ActionPropertyType where name = 'Дата последнего посещения ДОУ или школы') AND ap_dou.deleted = 0
-  left join ActionProperty_Date apd_dou on apd_dou.id = ap_dou.id
-  left join ActionProperty ap_zab on ap_zab.action_id = a.id and ap_zab.type_id in (select id from ActionPropertyType where name = 'Дата заболевания') AND ap_zab.deleted = 0
-  left join ActionProperty_Date apd_zab on apd_zab.id = ap_zab.id
-  left join ActionProperty ap_li on ap_li.action_id = a.id and ap_li.type_id in (select id from ActionPropertyType where name = 'Л/И и результат') AND ap_li.deleted = 0
-  left join ActionProperty_String apsli on apsli.id = ap_li.id
-  WHERE at.context='f058' AND a.deleted=0 AND e.deleted=0 AND at.deleted=0 AND c.deleted=0 AND DATE(a.begDate) BETWEEN %(begDate)s AND %(endDate)s
-  ORDER BY num
-        ''' % {'begDate': db.formatDate(begDate),
-               'endDate': db.formatDate(endDate),
-               }
+    LEFT JOIN ActionType at ON a.actionType_id = at.id
+    LEFT JOIN Event e ON a.event_id = e.id
+    LEFT JOIN Client c ON e.client_id = c.id
+    LEFT JOIN ClientWork cw ON c.id = cw.client_id and cw.id = (SELECT MAX(cl.id) FROM ClientWork cl WHERE cl.deleted=0 AND cl.client_id=c.id)
+    LEFT JOIN Organisation o ON e.org_id = o.id   
+    LEFT JOIN ActionProperty ap_lastVisitWorkDate on ap_lastVisitWorkDate.action_id = a.id and ap_lastVisitWorkDate.type_id in (select id from ActionPropertyType where name = 'Дата телефонограммы') AND ap_lastVisitWorkDate.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_lastVisitWorkDate on apd_lastVisitWorkDate.id = ap_lastVisitWorkDate.id  
+    LEFT JOIN ActionProperty ap_noticeNumber on ap_noticeNumber.action_id = a.id and ap_noticeNumber.type_id in (select id from ActionPropertyType where name = 'Номер извещения') AND ap_noticeNumber.deleted = 0
+    LEFT JOIN ActionProperty_String aps_noticeNumber on aps_noticeNumber.id = ap_noticeNumber.id  
+    LEFT JOIN ActionProperty ap_noticePhoneDate on ap_noticePhoneDate.action_id = a.id and ap_noticePhoneDate.type_id in (select id from ActionPropertyType where name = 'Дата телефонограммы') AND ap_noticePhoneDate.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_noticePhoneDate on apd_noticePhoneDate.id = ap_noticePhoneDate.id  
+    LEFT JOIN ActionProperty ap_noticePhoneTime on ap_noticePhoneTime.action_id = a.id and ap_noticePhoneTime.type_id in (select id from ActionPropertyType where name = 'Время телефонограммы') AND ap_noticePhoneTime.deleted = 0
+    LEFT JOIN ActionProperty_Time apt_noticePhoneTime on apt_noticePhoneTime.id = ap_noticePhoneTime.id 
+    LEFT JOIN ActionProperty ap_noticeSendDate on ap_noticeSendDate.action_id = a.id and ap_noticeSendDate.type_id in (select id from ActionPropertyType where name = 'Дата отправки извещения') AND ap_noticeSendDate.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_noticeSendDate on apd_noticeSendDate.id = ap_noticeSendDate.id   
+    LEFT JOIN Person p ON p.id = a.person_id
+    LEFT JOIN ActionProperty ap_noticeGetPerson on ap_noticeGetPerson.action_id = a.id and ap_noticeGetPerson.type_id in (select id from ActionPropertyType where name = 'Извещение принял') AND ap_noticeGetPerson.deleted = 0
+    LEFT JOIN ActionProperty_String aps_noticeGetPerson on aps_noticeGetPerson.id = ap_noticeGetPerson.id
+    LEFT JOIN ActionProperty ap_dateIllness on ap_dateIllness.action_id = a.id and ap_dateIllness.type_id in (select id from ActionPropertyType where name like 'Дата заболевания%') AND ap_dateIllness.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_dateIllness on apd_dateIllness.id = ap_dateIllness.id
+    LEFT JOIN ActionProperty ap_diagnosisDate on ap_diagnosisDate.action_id = a.id and ap_diagnosisDate.type_id in (select id from ActionPropertyType where name = 'Дата установления диагноза') AND ap_diagnosisDate.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_diagnosisDate on apd_diagnosisDate.id = ap_diagnosisDate.id
+    LEFT JOIN ActionProperty ap_hospital on ap_hospital.action_id = a.id and ap_hospital.type_id in (select id from ActionPropertyType where name = 'Госпитализирован') AND ap_hospital.deleted = 0
+    LEFT JOIN ActionProperty_Organisation apo_hospital on apo_hospital.id = ap_hospital.id
+    LEFT JOIN Organisation o_hospital ON apo_hospital.value = o_hospital.id 
+    LEFT JOIN ActionProperty ap_hospitalDate on ap_hospitalDate.action_id = a.id and ap_hospitalDate.type_id in (select id from ActionPropertyType where name = 'Дата госпитализации') AND ap_hospitalDate.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_hospitalDate on apd_hospitalDate.id = ap_hospitalDate.id
+    LEFT JOIN ActionProperty ap_firstVisit on ap_firstVisit.action_id = a.id and ap_firstVisit.type_id in (select id from ActionPropertyType where name = 'Дата первого обращения') AND ap_firstVisit.deleted = 0
+    LEFT JOIN ActionProperty_Date apd_firstVisit on apd_firstVisit.id = ap_firstVisit.id
+    LEFT JOIN ActionProperty ap_diagnosis on ap_diagnosis.action_id = a.id and ap_diagnosis.type_id in (select id from ActionPropertyType where name = 'Диагноз при обращении') AND ap_diagnosis.deleted = 0
+    LEFT JOIN ActionProperty_String aps_diagnosis on aps_diagnosis.id = ap_diagnosis.id
+    LEFT JOIN ActionProperty ap_lab on ap_lab.action_id = a.id and ap_lab.type_id in (select id from ActionPropertyType where name = 'Лабораторное обследование и его результат') AND ap_lab.deleted = 0
+    LEFT JOIN ActionProperty_String aps_lab on aps_lab.id = ap_lab.id
+  WHERE 
+    at.flatCode='j_specsl'
+    AND a.deleted=0 
+    AND e.deleted=0 
+    AND at.deleted=0 
+    AND c.deleted=0 
+    AND DATE(a.begDate) BETWEEN {} AND {}
+  GROUP BY e.id
+  ORDER BY noticeNumber
+        '''.format(db.formatDate(begDate),
+               db.formatDate(endDate),)
         db = QtGui.qApp.db
         return db.query(stmt)
         
        
     def build(self, params):
-        query = self.selectData(params)
-        query.first()
-        
-        
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
         cursor.setCharFormat(CReportBase.ReportTitle)
@@ -94,16 +124,16 @@ class CRep060Y(CReport):
         cursor.insertBlock()
         #рисуем первую табличку
         tableColumns = [
-            ('6%',  [ u'N п/п', '1'], CReportBase.AlignLeft),
-            ('6%',  [ u'Дата и часы сообщения (приема) по телефону и дата отсылки (получения) первичного экстренного извещения, кто передал, кто принял	', '2'], CReportBase.AlignRight),
-            ('6%',  [ u'Наименование лечебного учреждения, сделавшего сообщение', '3'], CReportBase.AlignRight),
-            ('6%',  [ u'Фамилия, имя, отчество больного', '4'], CReportBase.AlignRight), 
-            ('6%',  [ u'Возраст (для детей до 3 лет указать месяц и год рождения)	', '5'], CReportBase.AlignRight),
+            ('3%',  [ u'N п/п', '1'], CReportBase.AlignLeft),
+            ('9%',  [ u'Дата и часы сообщения (приема) по телефону и дата отсылки (получения) первичного экстренного извещения, кто передал, кто принял	', '2'], CReportBase.AlignRight),
+            ('8%',  [ u'Наименование лечебного учреждения, сделавшего сообщение', '3'], CReportBase.AlignRight),
+            ('7%',  [ u'Фамилия, имя, отчество больного', '4'], CReportBase.AlignRight), 
+            ('3%',  [ u'Возраст (для детей до 3 лет указать месяц и год рождения)', '5'], CReportBase.AlignRight),
             ('6%',  [ u'Домашний адрес (город, село, улица, дом N, кв. N)', '6'], CReportBase.AlignRight),
             ('6%',  [ u'Наименование места работы, учебы, дошкольного детского учреждения, группа, класс, дата последнего посещения', '7'], CReportBase.AlignRight),
-            ('6%',  [ u'Дата заболевания', '8'], CReportBase.AlignRight),
+            ('4%',  [ u'Дата заболевания', '8'], CReportBase.AlignRight),
             ('6%',  [ u'Диагноз и дата его установления', '9'], CReportBase.AlignRight),
-            ('6%',  [ u'Дата, место госпитализации', '10'], CReportBase.AlignRight),
+            ('8%',  [ u'Дата, место госпитализации', '10'], CReportBase.AlignRight),
             ('6%',  [ u'Дата первичного обращения', '11'], CReportBase.AlignRight),
             ('6%',  [ u'Измененный (уточненный) диагноз и дата его установления', '12'], CReportBase.AlignRight),
             ('6%',  [ u'Дата эпид. обследования Фамилия обследовавшего', '13'], CReportBase.AlignRight),
@@ -114,43 +144,43 @@ class CRep060Y(CReport):
 
         table = createTable(cursor, tableColumns)
         query = self.selectData(params)
-
         while query.next():
             record = query.record()
-            num = forceInt(record.value('num'))
-            two = forceString(record.value('two'))
-            nam = forceString(record.value('nam'))
-            FIO = forceString(record.value('FIO'))
-            age = forceString(record.value('age'))
-            adres = forceString(record.value('adres'))
-            work = forceString(record.value('work'))
-            zab = forceString(record.value('zab'))
-            mkb = forceString(record.value('mkb'))
-            post = forceString(record.value('post'))
-            gosp = forceString(record.value('gosp'))
-            z12 = forceString(record.value('z12'))
-            z13 = forceString(record.value('z13'))
-            z14 = forceString(record.value('z14'))
-            iss = forceString(record.value('iss'))
-            z16 = forceString(record.value('z16'))
+            noticeNumber = forceString(record.value('noticeNumber'))
+            noticeData = forceString(record.value('noticeData'))
+            orgName = forceString(record.value('orgName'))
+            clientFIO = forceString(record.value('clientFIO'))
+            clientAge = forceString(record.value('clientAge'))
+            clientAddress = forceString(record.value('clientAddress'))
+            clientWork = forceString(record.value('clientWork'))
+            clientWorkDate = forceString(record.value('clientWorkDate'))
+            dateIllness = forceString(record.value('dateIllness'))
+            setDiagnosis = forceString(record.value('setDiagnosis'))
+            hospital = forceString(record.value('hospital'))
+            firstVisit = forceString(record.value('firstVisit'))
+            diagnosis = forceString(record.value('diagnosis'))
+            dateEpid = forceString(record.value('dateEpid'))
+            diagReport = forceString(record.value('diagReport'))
+            lab = forceString(record.value('lab'))
+            note = forceString(record.value('note'))
             row = table.addRow()
             #table.mergeCells(0, 0, 1, 1)
-            table.setText(row, 0, num)
-            table.setText(row, 1, two)
-            table.setText(row, 2, nam)  
-            table.setText(row, 3, FIO)
-            table.setText(row, 4, age)
-            table.setText(row, 5, adres)  
-            table.setText(row, 6, work) 
-            table.setText(row, 7, zab)
-            table.setText(row, 8, mkb)
-            table.setText(row, 9, post)  
-            table.setText(row, 10, gosp)
-            table.setText(row, 11, z12)
-            table.setText(row, 12, z13)  
-            table.setText(row, 13, z14)
-            table.setText(row, 14, iss)
-            table.setText(row, 15, z16)
+            table.setText(row, 0, noticeNumber)
+            table.setText(row, 1, noticeData)
+            table.setText(row, 2, orgName)  
+            table.setText(row, 3, clientFIO)
+            table.setText(row, 4, clientAge)
+            table.setText(row, 5, clientAddress)  
+            table.setText(row, 6, clientWork + ", {}".format(clientWorkDate) if clientWorkDate else '') 
+            table.setText(row, 7, dateIllness)
+            table.setText(row, 8, setDiagnosis)
+            table.setText(row, 9, hospital)  
+            table.setText(row, 10, firstVisit)
+            table.setText(row, 11, diagnosis)
+            table.setText(row, 12, dateEpid)  
+            table.setText(row, 13, diagReport)
+            table.setText(row, 14, lab)
+            table.setText(row, 15, note)
         
 
         return doc

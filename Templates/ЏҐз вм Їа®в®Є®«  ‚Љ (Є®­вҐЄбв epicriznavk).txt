@@ -1,0 +1,48 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html>
+
+<!-- Данный вариант выравнивает категории(описание) и содержимое -->
+
+<head></head>
+<body style="font-family: 'Times New Roman'; font-size: 11pt; font-weight: 400; font-style: normal;">
+
+
+<!-- Настройки страницы -->
+{setPageSize('A4')}
+{setOrientation('P')}
+{setLeftMargin(20)} {setTopMargin(5)} {setBottomMargin(5)} {setRightMargin(20)}
+<!-- - - - - - -->
+
+<font style="font-size: 12pt;"><center> <b>Протокол ВК {action.organization.shortName} № {action[u'Номер'].value} от {:a=unicode(action.endDate).split(' ')}{a[0]}</b></center></font><br/>
+
+Ф.И.О. пациента: <b>{event.client.lastName} {event.client.firstName} {client.patrName} </b>, <b>{client.birthDate} г.р.</b> Возраст: <b>{event.client.age}</b><br><br>
+Адрес: <b>{client.locAddress}</b>
+<br><br>
+Должность: <b>{client.work.post}</b><br><br>
+
+</b> 
+
+Инвалидность: <b>{action[u'Инвалидность'].value}</b><br><br>
+ЛН №: <b>{action[u'Номер ЛН'].value}</b><br><br>
+Диагноз ВК (основной, сопутствующий, с указанием функц. нарушений и их степени): <b>{action[u'Диагноз ВК'].value}</b> <br><br>
+Дополнения ВК (к данным объективного осмотра, к обследованию, к лечению):  <b>{action[u'Дополнения ВК'].value}</b><br><br>
+Данные рекомендации и выявленные нарушения: <b></b> <br><br>
+Решения ВК: <b>{action[u'Решение'].value}</b><br><br>
+
+{if: action[u'Дата следующей явки'].value} Дата следующей явки на прием: <b>{action[u'Дата следующей явки'].value} </b><br><br>{else: ''}{end:}
+{if: action[u'Дата явки в бюро МСЭ'].value} Дата явки в бюро МСЭ: <b>{action[u'Дата явки в бюро МСЭ'].value} </b><br><br>{else: ''}{end:}
+<<br><br>
+<div align=justify>
+
+</div>
+<br>
+Председатель ВК: <b>{action.person.shortName}</b>____________________<br><br>
+Члены ВК: <br>
+
+{if: action[u'Эксперт 1'].value} <b>{action[u'Эксперт 1'].value} ____________________</b> <br>{else: ''}{end:}
+{if: action[u'Эксперт 2'].value} <b>{action[u'Эксперт 2'].value} ____________________</b> <br>{else: ''}{end:}
+{if: action[u'Эксперт 3'].value} <b>{action[u'Эксперт 3'].value} ____________________</b> <br>{else: ''}{end:}
+{if: action[u'Эксперт 4'].value} <b>{action[u'Эксперт 4'].value} ____________________</b> <br>{else: ''}{end:}
+</div>
+</body>
+</html>

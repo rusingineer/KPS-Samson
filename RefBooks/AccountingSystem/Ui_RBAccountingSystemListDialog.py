@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_ekslp\RefBooks\AccountingSystem\RBAccountingSystemListDialog.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_test\RefBooks\AccountingSystem\RBAccountingSystemListDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #

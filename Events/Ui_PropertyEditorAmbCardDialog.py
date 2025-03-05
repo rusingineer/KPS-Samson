@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\Events\PropertyEditorAmbCardDialog.ui'
+# Form implementation generated from reading ui file 'C:\Projects\Samson\client_test\Events\PropertyEditorAmbCardDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -27,8 +27,6 @@ class Ui_PropertyEditorAmbCardDialog(object):
         PropertyEditorAmbCardDialog.setObjectName(_fromUtf8("PropertyEditorAmbCardDialog"))
         PropertyEditorAmbCardDialog.resize(1022, 712)
         self.gridLayout_3 = QtGui.QGridLayout(PropertyEditorAmbCardDialog)
-        self.gridLayout_3.setMargin(4)
-        self.gridLayout_3.setSpacing(4)
         self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
         self.splitter_2 = QtGui.QSplitter(PropertyEditorAmbCardDialog)
         self.splitter_2.setOrientation(QtCore.Qt.Vertical)
@@ -111,7 +109,7 @@ class Ui_PropertyEditorAmbCardDialog(object):
         self.splitter.setObjectName(_fromUtf8("splitter"))
         self.tblActions = CRegistryActionsTableView(self.splitter)
         self.tblActions.setObjectName(_fromUtf8("tblActions"))
-        self.tblActionProperties = CActionPropertiesTableView(self.splitter)
+        self.tblActionProperties = CF088ActionPropertiesTableView(self.splitter)
         self.tblActionProperties.setObjectName(_fromUtf8("tblActionProperties"))
         self.gridLayout_2.addWidget(self.splitter, 1, 0, 1, 1)
         self.gridLayout_2.setRowStretch(1, 5)
@@ -137,9 +135,9 @@ class Ui_PropertyEditorAmbCardDialog(object):
         self.chkHasAttachedFiles.setText(_translate("PropertyEditorAmbCardDialog", "Имеет прикрепленные файлы", None))
         self.cmbSpeciality.setItemText(0, _translate("PropertyEditorAmbCardDialog", "Специальность", None))
 
-from Events.ActionPropertiesTable import CActionPropertiesTableView
 from Events.ActionStatus import CActionStatusComboBox
 from Events.ActionTypeComboBox import CActionTypeComboBox
+from F088.F088ActionPropertiesCheckTable import CF088ActionPropertiesTableView
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Registry.RegistryTable import CRegistryActionsTableView
 from library.DateEdit import CDateEdit

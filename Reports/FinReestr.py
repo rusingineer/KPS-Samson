@@ -43,10 +43,10 @@ class CFinReestr(CReport):
     SELECT Account.number AS num, OrgStructure.bookkeeperCode AS lpu, OrgStructure.name AS lpu_name,
      Account.settleDate AS schet_date, Account.date AS schet_fact_date, rbAccountType.name AS type_reestr,
      CASE when Account.group_id in (1, 2, 9) then 'Койко-день' 
-                    when Account.group_id in (3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29) then 'Посещение'
-                    when Account.group_id in (7, 10, 22) then 'День лечения' 
-                    when Account.group_id in (18, 19, 20, 21, 23) then 'Услуга' 
-                    when Account.group_id = 8 then 'Вызов бригады СМП'
+          when Account.group_id in (3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 31, 32, 33) then 'Посещение'
+          when Account.group_id in (7, 10, 22) then 'День лечения' 
+          when Account.group_id in (18, 19, 20, 21, 23, 30) then 'Услуга' 
+          when Account.group_id = 8 then 'Вызов бригады СМП'
   END AS ed,
   COUNT(DISTINCT ai.event_id) AS kol_usl
   , Account.uet AS kol_uet
@@ -71,7 +71,7 @@ LEFT JOIN Account_Item ai ON Account.id = ai.master_id
         if self.isDetailed:
             orderby = "OrgStructure.bookkeeperCode, o.infisCode, Account.settleDate, Account.date"
 
-        st = stmt % {"cond": cond , "orderby": orderby}
+        st = stmt % {"cond": cond, "orderby": orderby}
         return db.query(st)
     
     

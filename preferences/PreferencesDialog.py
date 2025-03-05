@@ -62,6 +62,7 @@ from SpellCheckPage        import CSpellCheckPage
 from LLOPage               import CLLOPage
 from InformerPage          import CInformerPage
 from DiagnosisPage         import CDiagnosisPage
+from HospitalBedsPage      import CHospitalBedsPage
 
 
 class CPreferencesDialog(CPreferencesDialogBase):
@@ -80,6 +81,7 @@ class CPreferencesDialog(CPreferencesDialogBase):
         self.addPage(CFreeQueuePage(self))
         self.addPage(CDiagnosisPage(self))
         self.addPage(CRegistryPage(self))
+        self.addPage(CHospitalBedsPage(self))
         self.addPage(CEventPage(self))
         self.addPage(CActionPage(self))
         self.addPage(CJobsOperatingPage(self))

@@ -97,23 +97,23 @@ class CPersonComboBox(CRBComboBox):
                 self.updateFilter()
 
     
-    def keyPressEvent(self, event): #В базах у сотрудника "Интернет" code пустой, поэтому вместо пустого поля, при нажатии Del или Backspace устанавливался Интернет
+    def keyPressEvent(self, event):  # В базах у сотрудника "Интернет" code пустой, поэтому вместо пустого поля, при нажатии Del или Backspace устанавливался Интернет
         if self.isReadOnly():
             event.accept()
         else:
             key = event.key()
-        if key == Qt.Key_Delete: 
-            self.setCurrentIndex(0)
-            event.accept()
-        elif key == Qt.Key_Backspace: # BS
-            self._searchString = self._searchString[:-1]
-            if self._searchString == '':
+            if key == Qt.Key_Delete:
                 self.setCurrentIndex(0)
+                event.accept()
+            elif key == Qt.Key_Backspace:  # BS
+                self._searchString = self._searchString[:-1]
+                if self._searchString == '':
+                    self.setCurrentIndex(0)
+                else:
+                    self.lookup()
+                event.accept()
             else:
-                self.lookup()
-            event.accept()
-        else:
-            CRBComboBox.keyPressEvent(self, event)
+                CRBComboBox.keyPressEvent(self, event)
     
 
     def setDeallocatedPerson(self, deallocatedPerson):

@@ -22,6 +22,7 @@ from Events.ActionPropertyChooser import CActionPropertyChooser
 from Events.ActionPropertiesTable import (CActionPropertiesTableModel,
                                           CActionPropertiestableVerticalHeaderView,
                                           CActionPropertyEvaluationDelegate,
+                                          CActionPropertyCommentDelegate,
                                           CActionPropertyDelegate,
                                           )
 from Events.ActionProperty.BooleanActionPropertyValueType import CBooleanActionPropertyValueType
@@ -34,13 +35,14 @@ from Events.ActionProperty.ConstructorActionPropertyValueType import CConstructo
 
 
 class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
-    column = [u'Включить', u'Назначено', u'Значение',  u'Ед.изм.',  u'Норма', u'Оценка']
+    column = [u'Включить', u'Назначено', u'Значение',  u'Ед.изм.',  u'Норма', u'Оценка', u'Комментарий']
     ciIsChecked  = 0
     ciIsAssigned = 1
     ciValue      = 2
     ciUnit       = 3
     ciNorm       = 4
     ciEvaluation = 5
+    ciComment = 6
 
     def __init__(self, parent, visibilityFilter=0):
         CActionPropertiesTableModel.__init__(self, parent, visibilityFilter)
@@ -48,7 +50,7 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
 
 
     def columnCount(self, index = None):
-        return 6
+        return 7
 
 
     def getCurrentActionId(self):
@@ -141,6 +143,8 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
                         return Qt.ItemIsSelectable|Qt.ItemIsEnabled
                     elif propertyType.defaultEvaluation in (2, 3):# 2-полуавтомат, 3-ручное
                         return Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsEnabled
+                elif column == self.ciComment:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
             return Qt.ItemIsSelectable|Qt.ItemIsEnabled
 
 
@@ -166,6 +170,8 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
                 else:
                     s = ('%+d'%evaluation) if evaluation else '0'
                 return toVariant(s)
+            elif column == self.ciComment:
+                return QVariant(property.getComment())
             else:
                 return QVariant()
         elif role == Qt.CheckStateRole:
@@ -188,6 +194,8 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
                 return toVariant(property.getNorm())
             elif column == self.ciEvaluation:
                 return toVariant(property.getEvaluation())
+            elif column == self.ciComment:
+                return toVariant(property.getComment())
             else:
                 return QVariant()
         elif role == Qt.TextAlignmentRole:
@@ -243,6 +251,10 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
         elif role == Qt.CheckStateRole:
             if column == self.ciIsChecked:
                 self.includeRows[row] = Qt.Checked if forceInt(value) else Qt.Unchecked
+                self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                return True
+            elif column == self.ciComment:
+                property.setComment(forceString(value))
                 self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
                 return True
             if column == self.ciValue:
@@ -320,6 +332,8 @@ class CF088ActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
         self.setItemDelegateForColumn(CF088ActionPropertiesCheckTableModel.ciValue, self.valueDelegate)
         self.evaluationDelegate = CActionPropertyEvaluationDelegate(self.fontMetrics().height(), self)
         self.setItemDelegateForColumn(CF088ActionPropertiesCheckTableModel.ciEvaluation, self.evaluationDelegate)
+        self.commentDelegate = CActionPropertyCommentDelegate(self.fontMetrics().height(), self)
+        self.setItemDelegateForColumn(CF088ActionPropertiesCheckTableModel.ciComment, self.commentDelegate)
         self.setEditTriggers(QtGui.QAbstractItemView.AllEditTriggers)
         self._popupMenu = None
         self._actCopy = None

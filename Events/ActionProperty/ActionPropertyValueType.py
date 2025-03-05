@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -81,46 +81,44 @@ class CActionPropertyValueType(object):
         self.domain = domain
         self.tableName = self.getTableName()
 
-
     @classmethod
     def getTableName(cls):
-        return cls.tableNamePrefix+cls.name
-
+        return cls.tableNamePrefix + cls.name
 
     @staticmethod
     def convertPyValueToQVariant(value):
         return toVariant(value)
 
-
     @staticmethod
     def convertPyValueToDBValue(value):
         return toVariant(value)
 
-
     def getEditorClass(self):
         return self.CPropEditor
-
 
     @staticmethod
     def getDomainEditorClass():
         return None
 
-
     def toText(self, v):
         return v
-
 
     def toImage(self, v):
         return None
 
-
     def toInfo(self, context, v):
         return forceString(v) if v else ''
-
 
     def getPresetValue(self, action):
         return None
 
-
     def shownUp(self, action, clientId):
         pass
+
+    @staticmethod
+    def _checkAndNormalizeCodeObj(codeObj):
+        if isinstance(codeObj, (basestring, int)):
+            return True, [unicode(codeObj)]
+        if isinstance(codeObj, list) and all(isinstance(code, (basestring, int)) for code in codeObj):
+            return True, [unicode(code) for code in codeObj]
+        return False, None

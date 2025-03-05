@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -24,7 +24,8 @@ from PyQt4.QtCore import Qt, QDate, pyqtSignature, QVariant, QAbstractTableModel
 from Accounting.Utils import roundMath
 from Events.Action import CAction
 from Exchange.AbstractExportXmlStreamWriter import CAbstractExportXmlStreamWriter
-from Exchange.Export import CExportHelperMixin, CAbstractExportPage1, CAbstractExportPage2, CAbstractExportWizard
+from Exchange.Export import CExportHelperMixin, CAbstractExportPage1, CAbstractExportPage2, CAbstractExportWizard, \
+    CMultiRecordInfo
 from Exchange.Ui_ExportR23NativePage1 import Ui_ExportR23NativePage1
 from Exchange.Ui_ExportR23NativePage2 import Ui_ExportR23NativePage2
 from Exchange.Ui_ExportR23NoKeysDialog import Ui_ExportR23NoKeysDialog
@@ -195,7 +196,7 @@ class CExportWizard(CAbstractExportWizard):
 
 
     def setAccountExposeDate(self):
-        if self.page1.exportType in [self.page1.exportTypeP26]:
+        if self.page1.exportType in [self.page1.exportTypeP27]:
             for accountId in self.page1.selectedAccountIds:
                 self.page1.accInfo = self.page1.mapAccountInfo[accountId]
                 accountRecord = self.db.getRecord('Account', '*', accountId)
@@ -209,21 +210,21 @@ class CExportWizard(CAbstractExportWizard):
 
 
 class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperMixin):
-    exportTypeP26 = 0  # Положение 26
-    exportTypePreControlP26 = 1  # предварительный контроль счетов
-    exportTypeFLK = 2  # ФЛК реестров
-    exportTypeFLKXml = 3  # ФЛК реестров (xml)
-    exportTypeAttachments = 4  # Прикрепленное население
-    exportTypeInvoice = 5  # Файлы "Счёт" из реестров
-    exportTypeInvoiceNil = 6  # Файлы "Счёт" с нулевыми суммами из реестров
-    exportTypeList = [u'Положение 26', u'Предварительный контроль счетов',
-                      u'ФЛК реестров', u'ФЛК реестров (xml)', u'Прикрепленное население', u'Файлы "Счёт" из реестров',
-                      u'Файлы "Счёт" с нулевыми суммами из реестров']
+    exportTypeP27 = 0  # Положение 27
+    exportTypePreControlP27 = 1  # предварительный контроль счетов
+    exportTypeFLKXml = 2  # ФЛК реестров (xml)
+    exportTypeAttachments = 3  # Прикрепленное население
+    exportTypeInvoice = 4  # Файлы "Счёт" из реестров
+    exportTypeInvoiceNil = 5  # Файлы "Счёт" с нулевыми суммами из реестров
+    exportTypeFLK = 6  # дбф формат флк
+    exportTypeList = [u'Положение 27', u'Предварительный контроль счетов',
+                      u'ФЛК реестров (xml)', u'Прикрепленное население', u'Файлы "Счёт" из реестров',
+                      u'Файлы "Счёт" с нулевыми суммами из реестров', u'дбф формат флк']
     fieldListKeyP = ['SN', 'CODE_MO', 'PL_OGRN', 'FIO', 'IMA', 'OTCH', 'POL', 'DATR', 'KAT', 'SNILS', 'OKATO_OMS',
                      'SPV', 'SPS', 'SPN', 'INV', 'MSE', 'Q_G', 'NOVOR', 'VNOV_D', 'FAMP', 'IMP', 'OTP', 'POLP', 'DATRP',
                      'C_DOC', 'S_DOC', 'N_DOC', 'NAPR_MO', 'NAPR_N', 'NAPR_D', 'NAPR_DP', 'TAL_N', 'TAL_D', 'PR_D_N',
                      'PR_DS_N', 'DATN', 'DATO', 'ISHOB', 'ISHL', 'MP', 'DOC_SS', 'SPEC', 'PROFIL', 'MKBX', 'MKBXS',
-                     'DS_ONK', 'MKBX_PR', 'VMP', 'KSO', 'P_CEL', 'VB_P', 'WEI', 'ENP']
+                     'DS_ONK', 'MKBX_PR', 'VMP', 'KSO', 'P_CEL', 'VB_P', 'WEI', 'ENP', 'DATE_PO', 'SOC']
 
     fieldListKeyU = ['UID', 'CODE_MO', 'SN', 'ISTI', 'P_PER', 'KOTD', 'KPK', 'MKBX', 'MKBXS', 'MKBXS_PR', 'PR_MS_N',
                      'MKBXO', 'C_ZAB', 'VP', 'KRIT', 'KRIT2', 'KSLP', 'KSLP_IT', 'KUSL', 'KOLU', 'KD', 'DATN', 'DATO',
@@ -248,6 +249,8 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
     fieldListKeyE = ['EID', 'CODE_MO', 'SN', 'UID', 'DATA_INJ', 'CODE_SH', 'REGNUM', 'COD_MARK', 'ED_IZM', 'DOSE_INJ', 'METHOD_INJ', 'COL_INJ']
 
     fieldListKeyM = ['MID', 'CODE_MO', 'SN', 'UID', 'DATE_MED', 'CODE_MDV', 'NUMBER_SER']
+
+    fieldListKeyL = ['LID', 'CODE_MO', 'SN', 'OID', 'REGNUM', 'REGNUM_DOP', 'DATE_INJ', 'KV_INJ', 'KIZ_INJ', 'S_INJ', 'SV_INJ', 'SIZ_INJ', 'RED_INJ']
 
     fieldListKeyFLK = [('CODE_MO', 'CODE_MO'), ('PL_OGRN', 'PL_OGRN'), ('FIO', 'FIO'), ('IMA', 'IMA'), ('OTCH', 'OTCH'),
                        ('DATR', 'DATR'), ('POL', 'POL'), ('SNILS', 'SNILS'), ('C_DOC', 'C_DOC'), ('S_DOC', 'S_DOC'), ('N_DOC', 'N_DOC'),
@@ -300,10 +303,10 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.mapMedicalAidTypeIdToName = {}
         self.mapEventTypeToTFOMSAccIdent = {}
 
-        self.chkMakeInvoice.setEnabled(self.exportType in [self.exportTypeP26])
+        self.chkMakeInvoice.setEnabled(self.exportType in [self.exportTypeP27])
         if self.exportType in [self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.chkMakeInvoice.setChecked(True)
-        self.edtRegistryNumber.setEnabled(self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil])
+        self.edtRegistryNumber.setEnabled(self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil])
 
         if hasattr(self, 'progressBarAccount'):
             self.progressBarAccount.setMinimum(0)
@@ -332,12 +335,20 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         while query.next():
             record = query.record()
             self.pobr.add(forceString(record.value('infis')))
-        for item in ['B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
-                     'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
-                     'B05.070.010', 'B05.070.011', 'B05.070.012', 'B03.014.018',
-                     'B05.023.003.001', 'B05.023.002.011', 'B05.004.001.010',
-                     'B05.004.001.011', 'B05.004.001.012', 'B05.028.010.002', 'B05.028.010.003', 'B05.050.003.002',
-                     'B05.050.003.001', 'B05.050.004.017', 'B05.050.004.012', 'B05.050.004.013']:
+        for item in ['B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012',
+                     'B05.023.002.001', 'B05.023.002.002',
+                     'B05.023.002.010', 'B05.023.002.011', 'B05.023.002.012', 'B05.023.002.013', 'B05.023.002.14',
+                     'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
+                     'B05.070.010', 'B05.070.011', 'B05.070.012', 'B03.014.018', 'B05.029.001', 'B05.032.010', 'B05.028.010',
+                     'B05.023.003.001',
+                     'B05.004.001.010', 'B05.004.001.011', 'B05.004.001.012', 'B05.004.001.013', 'B05.004.001.014',
+                     'B05.004.001.015',
+                     'B05.008.001.010', 'B05.008.001.011', 'B05.008.001.012', 'B05.008.001.013',
+                     'B05.028.010.001', 'B05.028.010.002', 'B05.028.010.003', 'B05.028.010.004',
+                     'B05.050.003.001', 'B05.050.003.002', 'B05.046.001.001', 'B05.046.001.002',
+                     'B05.050.004.010', 'B05.050.004.011', 'B05.050.004.012', 'B05.050.004.013', 'B05.050.004.014',
+                     'B05.050.004.015', 'B05.050.004.016', 'B05.050.004.017', 'B05.050.004.017', 'B05.050.004.019',
+                     'B05.050.004.020', 'B05.050.004.021']:
             self.pobr.add(item)
 
         # Для определения услуг беременной
@@ -358,7 +369,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.chkVerboseLog.setEnabled(not flag)
         self.cmbExportType.setEnabled(not flag)
         self.edtRegistryNumber.setEnabled(not flag
-            and self.cmbExportType.currentIndex() not in (self.exportTypeFLK, self.exportTypeFLKXml, self.exportTypeAttachments)
+            and self.cmbExportType.currentIndex() not in (self.exportTypeFLKXml, self.exportTypeAttachments, self.exportTypeFLK)
             and not hasattr(self, 'selectedAccountIds') or len(self.selectedAccountIds) == 1)
         self.chkMakeInvoice.setEnabled(not flag)
 
@@ -396,7 +407,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
     def getZipFileName(self):
         lpuCode = self.accInfo.get('codeLpu') if hasattr(self, 'accInfo') else self.processParams().get('codeLpu')
 
-        if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml, self.exportTypeAttachments]:
+        if self.exportType in [self.exportTypeFLKXml, self.exportTypeAttachments, self.exportTypeFLK]:
             #  Файл ФЛК должен иметь вид ГГММККККК.zip , где ГГММ – отчетный год и месяц ,
             # ККККК – код структурного подразделения (код омс), маска файла PKKKKK – где
             # ККККК – код структурного подразделения, P – буква латинского алфавита.
@@ -407,7 +418,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                 exdate = exdate - datetime.timedelta(days=8)
             result = u'%s%s.ZIP' % (exdate.strftime('%y%m'), lpuCode)
         else:
-            prefix = u'a' if self.exportType in [self.exportTypePreControlP26] else ''
+            prefix = u'a' if self.exportType in [self.exportTypePreControlP27] else ''
             result = u'%s%s%s%05d.ZIP' % (prefix, self.accInfo['payerCode'][:4], lpuCode[:5], self.accInfo['iAccNumber'])
         return result
 
@@ -424,12 +435,12 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.noExportedAccount = []
         self.ignoreErrors = self.chkIgnoreErrors.isChecked()
         self.exportType = self.cmbExportType.currentIndex()
-        self.mkInvoice = self.exportType in [self.exportTypeP26, self.exportTypeInvoice, self.exportTypeInvoiceNil] and self.chkMakeInvoice.isChecked()
+        self.mkInvoice = self.exportType in [self.exportTypeP27, self.exportTypeInvoice, self.exportTypeInvoiceNil] and self.chkMakeInvoice.isChecked()
         fileList = []
         self.noKeysDict = {}
         self.NoKeysDictD = {}
         # выгрузка нескольких реестров
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.progressBarAccount.reset()
             self.progressBarAccount.setMaximum(len(self.selectedAccountIds))
             self.progressBarAccount.setValue(0)
@@ -445,8 +456,8 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     zf = ZipFile(zipFilePath, 'w', allowZip64=True)
                     exportType = self.exportType
 
-                    if exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
-                        prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M')
+                    if exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+                        prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M', 'L')
                     else:
                         prefixes = ('P')
 
@@ -455,12 +466,12 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                         filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.html"))
                         zf.write(filePath, "schfakt.html", ZIP_DEFLATED)
 
-                    if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26]:
+                    if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27]:
                         for src in prefixes:
                             filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename(src + baseName))
                             zf.write(filePath, src+os.path.basename(self.getDbfBaseName()), ZIP_DEFLATED)
                     fileList.append(zipFilePath)
-            if self.exportType == self.exportTypePreControlP26 and self.noKeysFLKDict:
+            if self.exportType == self.exportTypePreControlP27 and self.noKeysFLKDict:
                 dial = CExportR23NoKeysDialog(self, self.noKeysFLKDict, title=u"Внимание!", message=u"При экспорте реестров обнаружены персональные счета, не прошедшие ФЛК (отсутствует FKEY).\nОтравьте реестры на ФЛК")
                 dial.exec_()
                 if not fileList:
@@ -472,9 +483,9 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     # self.abort()
             elif self.noExportedAccount:
                 message = ''
-                if self.exportType == self.exportTypePreControlP26:
+                if self.exportType == self.exportTypePreControlP27:
                     message = u'Не найдено персональных счетов с отсутствующими или некорректными ключами RKEY'
-                elif self.exportType == self.exportTypeP26:
+                elif self.exportType == self.exportTypeP27:
                     message = u'Не найдено персональных счетов с корректными ключами RKEY'
 
                 QtGui.QMessageBox.information(self,
@@ -483,11 +494,11 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                                               QtGui.QMessageBox.Ok,
                                               QtGui.QMessageBox.Ok)
             self._parent.page2.setFileList(fileList)
-            if self.exportType == self.exportTypeP26 and self.NoKeysDictD:
+            if self.exportType == self.exportTypeP27 and self.NoKeysDictD:
                 NoKeysD = [self.NoKeysDictD[key] for key in self.NoKeysDictD.keys()]
                 QtGui.QMessageBox.information(self, u'Внимание!',
                                               u'Для следующих медицинских сотрудников не получены RKEY или изменились данные:\n{0}'.format(u'\n'.join(NoKeysD)), QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-            if self.exportType == self.exportTypeP26 and self.noKeysDict:
+            if self.exportType == self.exportTypeP27 and self.noKeysDict:
                 dial = CExportR23NoKeysDialog(self, self.noKeysDict, title=u"Внимание!", message=u"При экспорте реестров обнаружены персональные счета, не прошедшие предварительный контроль (отсутствует RKEY).\nУдалите персональные счета из реестра и повторите экспорт")
                 dial.exec_()
         else:
@@ -546,6 +557,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.RecordListC = []
         self.RecordListE = []
         self.RecordListM = []
+        self.RecordListL = []
 
         self.setExportMode(True)
         self.progressBar.reset()
@@ -597,10 +609,27 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             self.setProcessFuncList([self.processFLK])
         else:
             self.setProcessFuncList([self.process, self.processPerson])
+
         self.setProcessParams(params)
+
+
+        # Запросы для выборки доп. сведений
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27]:
+            tableAccountItem = self.db.table('Account_Item')
+            itemsCond = [tableAccountItem['deleted'].eq(0), tableAccountItem['master_id'].eq(self.currentAccountId)]
+
+            for msg, name, _class in (
+                    (u'Запрос данных о приемах психологов...', 'psychologistInfo',  CPsychologistInfo),
+                    (u'Запрос данных о введении противоопухолевых ЛП...', 'cancerMedicamentInfo', CCancerMedicamentInfo),
+                  ):
+                self.log(msg)
+                val = _class()
+                params[name] = val.get(self.db, self.db.joinAnd(itemsCond), self)
+
+
         CAbstractExportPage1.exportInt(self)
         res = True
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             # Пересчет стоимости лечения стоматологии в 2018 году
             if self.accInfo['settleDate'] >= QDate(2018, 1, 1):
                 self.calcStom()
@@ -644,7 +673,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                 dbf = Dbf(dbfName, False, encoding='cp866')
                 for rec in self.RecordListP:
                     fkey = fkeysDict.get(forceString(rec['SN']), '')
-                    if fkey == '' or self.exportType in [self.exportTypeP26]:
+                    if fkey == '' or self.exportType in [self.exportTypeP27]:
                         _rec = dbf.newRecord()
                         _rec.fieldData = rec.fieldData[:]
                         _rec['FKEY'] = fkey
@@ -681,7 +710,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     rkey = rkeysDict.get((fileType, hashKey), '')
                     if not rkey:
                         self.noKeysSNILS.add(forceString(rec[keyField]))
-                    if self.exportType == self.exportTypePreControlP26:
+                    if self.exportType == self.exportTypePreControlP27:
                         rkey = ''
                 else:
                     rkey = rkeysDict.get((fileType, forceString(rec[keyField])), '')
@@ -691,7 +720,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                 # else:
                 #     fkey = True
 
-                if rkey == '' or self.exportType == self.exportTypeP26:
+                if rkey == '' or self.exportType == self.exportTypeP27:
                     _rec = dbf.newRecord()
                     _rec.fieldData = rec.fieldData[:]
                     _rec['RKEY'] = rkey
@@ -722,6 +751,8 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         updateInternalHash('C', 'CID', self.RecordListC, dats, CExportPage1.fieldListKeyC)
         updateInternalHash('E', 'EID', self.RecordListE, dats, CExportPage1.fieldListKeyE)
         updateInternalHash('M', 'MID', self.RecordListM, dats, CExportPage1.fieldListKeyM)
+        updateInternalHash('L', 'LID', self.RecordListL, dats, CExportPage1.fieldListKeyL)
+
         self.log(u'обновление/вставка контрольных сумм в таблицу с ключами...')
         QtGui.qApp.processEvents()
 
@@ -734,7 +765,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         SELECT sark.event_id, sark.id
         FROM soc_Account_RowKeys sark
         INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
-        WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M') and sark.account_id is null""")
+        WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L') and sark.account_id is null""")
         # self.log(u'запрос 2')
         QtGui.qApp.processEvents()
         self.db.query(u"""INSERT INTO tmp_keyList(event_id, sark_id)
@@ -752,11 +783,11 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         QtGui.qApp.processEvents()
         self.db.query(u"""drop temporary table if EXISTS tmp_keyList""")
 
-        #  очищаем ключи для измененных записей файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M'
+        #  очищаем ключи для измененных записей файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L'
         self.db.query(u"""UPDATE soc_Account_RowKeys sark
 INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
 set sark.account_id = NULL, sark.internalKey = t.internalKey, `key` = IF(sark.internalKey != t.internalKey, NULL, sark.`key`)
-WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M')""")
+WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L')""")
         # self.log(u'запрос 5')
         QtGui.qApp.processEvents()
         #  очищаем ключи для измененных записей файла 'N'
@@ -774,12 +805,12 @@ WHERE t.typeFile = 'D'""")
 
         # self.log(u'запрос 7')
         QtGui.qApp.processEvents()
-        #  вставляем отсутствующие записи для ключей файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M'
+        #  вставляем отсутствующие записи для ключей файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L'
         self.db.query(u"""INSERT INTO soc_Account_RowKeys(event_id, typeFile, row_id, alt_row_id, internalKey)
 select t.event_id, t.typeFile, t.row_id, t.alt_row_id, t.internalKey
 from tmp_internalKeys t
 left JOIN soc_Account_RowKeys sark ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
-where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M') AND sark.id is null""")
+where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L') AND sark.id is null""")
         # self.log(u'запрос 8')
         QtGui.qApp.processEvents()
         #  вставляем отсутствующие записи для ключей файла 'N'
@@ -805,7 +836,7 @@ where t.typeFile = 'D' AND sark.id is null""")
 select t.event_id
 from tmp_internalKeys t
 left JOIN soc_Account_RowKeys sark ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
-where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M') and ifnull(sark.`key`, '') = ''""")
+where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L') and ifnull(sark.`key`, '') = ''""")
         self.db.query(u"""INSERT INTO tmp_eventsWithoutkeys(event_id)
 select t.event_id
 from tmp_internalKeys t
@@ -819,7 +850,7 @@ from tmp_internalKeys t
 left JOIN soc_Account_RowKeys sark ON t.alt_row_id = sark.alt_row_id AND t.typeFile = sark.typeFile
 where t.typeFile = 'D' and ifnull(sark.`key`, '') = ''""")
         # Врачи без ключей
-        if self.exportType == self.exportTypeP26:
+        if self.exportType == self.exportTypeP27:
             queryD = self.db.query(u"""select snils from tmp_DWithoutkeys""")
             while queryD.next():
                 recordD = queryD.record()
@@ -845,11 +876,11 @@ where sark.typeFile != 'F'""")
         # self.log(u'запрос 12')
         QtGui.qApp.processEvents()
         rkeysDict = {}
-        #  заполняем словарь rkey для файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M'
+        #  заполняем словарь rkey для файлов 'P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L'
         query = self.db.query(u"""SELECT sark.`key`, t.*
 FROM soc_Account_RowKeys sark
 INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
-where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M')""")
+where t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L')""")
         while query.next():
             record = query.record()
             typeFile = forceString(record.value('typeFile'))
@@ -924,6 +955,7 @@ where t.typeFile = 'D'""")
         fillDBF('C', 'CID', self.RecordListC)
         fillDBF('E', 'EID', self.RecordListE)
         fillDBF('M', 'MID', self.RecordListM)
+        fillDBF('L', 'LID', self.RecordListL)
 
         return True
 
@@ -977,7 +1009,7 @@ where t.typeFile = 'D'""")
                         kso = '24'  # вызов скорой медицинской помощи (инокраевые застрахованные)
                 elif VP in ['271', '272']:
                     kso = '25'  # по подуш. нормат. финан. на прикреп. лиц в сочетании с оплатой за единицу объема медицинской помощи
-                elif  VP in ['01', '02', '111', '112', '211', '232', '252', '261', '262', '241', '242', '281', '282', '233']:
+                elif  VP in ['01', '02', '111', '112', '211', '232', '252', '261', '262', '241', '242', '281', '282', '233', '244']:
                     kso = '29'  # за посещение в поликлинике
                 elif VP in ['21', '22', '31', '32']:
                     if event['hasObrService']:
@@ -989,29 +1021,39 @@ where t.typeFile = 'D'""")
                 rec_p['KSO'] = kso
 
                 if VP in ['01', '02', '111', '112', '21', '22', '211', '232', '252', '261', '262', '271', '272', '241',
-                          '242', '31', '32', '201', '202', '60', '281', '282', '233']:
+                          '242', '31', '32', '201', '202', '60', '281', '282', '233', '244']:
                     if rec_p['MP'] == '8' and not event['hasObrService']:
-                        cel = '1.1' # посещениe в неотложной форме
+                        cel = '1.1'  # посещениe в неотложной форме
                     elif VP in ['261', '262']:
-                        cel = '2.1' # медицинский осмотр
-                    elif VP in ['211', '232', '252', '233']:
-                        cel = '2.2' # диспансеризация
+                        cel = '2.1'  # медицинский осмотр
+                    elif VP in ['211', '232', '252', '233', '244']:
+                        cel = '2.2'  # диспансеризация
                     elif VP in ['01', '02']:
-                        cel = '2.3' # комплексное обследование
+                        cel = '2.3'  # комплексное обследование
                     elif event['hasObrService']:
-                        cel = '3.0' # обращение по заболеванию
+                        cel = '3.0'  # обращение по заболеванию
                     elif event['hasDiabetSchool'] and rec_p['DATO'] >= datetime.date(2024, 1, 1):
                         cel = '1.4'  # школа диабета
                     elif event['hasHomeServiсe']:
-                        cel = '1.2' # активное посещение
+                        cel = '1.2'  # активное посещение
                     elif event['hasDNService']:
-                        cel = '1.3' # диспансерное наблюдение
+                        eventTypeId = event['eventTypeId']
+                        value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                        if value is None:
+                            value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                            self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                        if value == 'dnwork':
+                            cel = '4.1'  # Диспансерное наблюдение работающих по месту осуществления служебной деятельности
+                        elif value == 'dneducate':
+                            cel = '4.2'  # Диспансерное наблюдение по месту обучения в образовательной организации
+                        else:
+                            cel = '1.3'  # диспансерное наблюдение
                     elif event['hasPatronService']:
-                        cel = '2.5' # патронаж
+                        cel = '2.5'  # патронаж
                     elif rec_p['MKBX'] and rec_p['MKBX'][0] != 'Z':
-                        cel = '1.0' # посещение по заболеванию
+                        cel = '1.0'  # посещение по заболеванию
                     else:
-                        cel = '2.6' # посещение по другим обстоятельствам
+                        cel = '2.6'  # посещение по другим обстоятельствам
                 else:
                     cel = ''
                 rec_p['P_CEL'] = cel
@@ -1148,11 +1190,12 @@ where t.typeFile = 'D'""")
                         else:
                             rep['kolu'][kat] += rec_u['KOLU']
                     if rec_u['KUSL'][:1] in ['G', 'V']:
-                        rep['somp'][kat] += 1
-                        if rec_u['VP'] in ['11', '12', '301', '302', '401', '402']:
-                            rep['kd'][kat] += rec_u['KD']
-                        elif rec_u['VP'] in ['41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522']:
-                            rep['pd'][kat] += rec_u['KD']
+                        if rec_u['KUSL'][3:] not in ['st36.013', 'st36.014', 'st36.015']:
+                            rep['somp'][kat] += 1
+                            if rec_u['VP'] in ['11', '12', '301', '302', '401', '402']:
+                                rep['kd'][kat] += rec_u['KD']
+                            elif rec_u['VP'] in ['41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522']:
+                                rep['pd'][kat] += rec_u['KD']
                     rep['uet'][kat] += self.uetDict.get(rec_u['UID'], 0)
                     rep['summ'][kat] += rec_u['SUMM']
         return report
@@ -1776,7 +1819,7 @@ where t.typeFile = 'D'""")
         vpsumm = 0.0
         kolpos = 0
         for key in reps:
-            if key in ['211', '233']:
+            if key in ['211', '233', '244']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
         row_number += 1
@@ -2053,11 +2096,11 @@ where t.typeFile = 'D'""")
 # *****************************************************************************************
 
     def createDbf(self):
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             return (self.createDbfP(), self.createDbfU(),
                     self.createDbfD(), self.createDbfN(), self.createDbfR(),
                     self.createDbfO(), self.createDbfI(), self.createDbfC(),
-                    self.createDbfE(), self.createDbfM())
+                    self.createDbfE(), self.createDbfM(), self.createDbfL())
         else:
             return self.createDbfFLK()
 
@@ -2129,7 +2172,8 @@ where t.typeFile = 'D'""")
             ('RKEY', 'C', 50),  # ключ записи
             ('FKEY', 'C', 50),  # ключ записи ФЛК
             ('COMENTSL', 'C', 250),  # Служебное поле
-            ('DATE_PO', 'D')  # дата проведения следующего планового осмотра
+            ('DATE_PO', 'D'),  # дата проведения следующего планового осмотра
+            ('SOC', 'C', 3)  # Социальная категория
             )
         return dbf
 
@@ -2138,7 +2182,7 @@ where t.typeFile = 'D'""")
         u"""Паспортная часть(ФЛК)"""
         dbfName = os.path.join(self.getTmpDir(), 'P' + self.getDbfBaseName())
         dbf = Dbf(dbfName, new=True, encoding='cp866')
-        if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml]:
+        if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK]:
             dbf.addField(
                 ('NS', 'N', 5, 0),  # номер реестра счетов
                 ('VS', 'C', 2),  # тип реестра счетов
@@ -2264,9 +2308,9 @@ where t.typeFile = 'D'""")
         dbf.addField(
             ('CODE_MO', 'C', 5),  # код МО, оказавшей медицинскую помощь
             ('SNILS', 'C', 14),  # СНИЛС (ХХХ-ХХХ-ХХХ ХХ)
-            ('FIO', 'C', 30),  # фамилия медицинского работника
-            ('IMA', 'C', 20),  # имя медицинского работника
-            ('OTCH', 'C', 30),  # отчество медицинского работника
+            ('FIO', 'C', 40),  # фамилия медицинского работника
+            ('IMA', 'C', 40),  # имя медицинского работника
+            ('OTCH', 'C', 40),  # отчество медицинского работника
             ('POL', 'C', 1),  # пол (М/Ж)
             ('DATR', 'D'),  # дата рождения
             ('DATN', 'D'),  # дата устройства на работу
@@ -2349,6 +2393,31 @@ where t.typeFile = 'D'""")
         return dbf
 
 
+    def createDbfL(self):
+        u"""Сведения о введениях противоопухолевого лекарственного препарата"""
+        dbfName = os.path.join(self.getTmpDir(), 'L' + self.getDbfBaseName())
+        dbf = Dbf(dbfName, new=True, encoding='cp866')
+        dbf.addField(
+            ('LID', 'N', 14),  # уникальный номер записи о введении противоопухолевого лекарственного препарата
+            ('CODE_MO', 'C', 5),  # код МО, оказавшей медицинскую помощь
+            ('NS', 'N', 5, 0),  # номер реестра счетов
+            ('SN', 'N', 12, 0),  # номер персонального счета
+            ('OID', 'N', 14, 0),  # уникальный номер записи
+            ('REGNUM', 'C', 6),  # идентификатор лекарственного препарата, применяемого при проведении лекарственной противоопухолевой терапии
+            ('REGNUM_DOP', 'C', 25),  # код расширенного идентификатора МНН лекарственного препарата с указанием пути введения (в том числе с уточнением действующего вещества
+            # или формы выпуска), типа лекарственной формы по агрегатному состоянию и виду высвобождения, единиц измерения
+            ('DATE_INJ', 'D'),  # дата введения лекарственного препарата
+            ('KV_INJ', 'N', 8, 3),  # количество введенного лекарственного препарата (действующего вещества)
+            ('KIZ_INJ', 'N', 8, 3),  # количество израсходованного (введенного + утилизированного) лекарственного препарата (действующего вещества)
+            ('S_INJ', 'N', 15, 6),  # фактическая стоимость лекарственного препарата за единицу измерения действующего вещества
+            ('SV_INJ', 'N', 15, 2),  # стоимость введенного лекарственного препарата
+            ('SIZ_INJ', 'N', 15, 2),  # стоимость израсходованного лекарственного препарата
+            ('RED_INJ', 'N', 1, 0),  # признак применения редукции для лекарственного препарата
+            ('RKEY', 'C', 50)  # значение ключа записи
+            )
+        return dbf
+
+
     def createDbfI(self):
         u"""Сведения о проведенных исследованиях и их результатах"""
         dbfName = os.path.join(self.getTmpDir(), 'I' + self.getDbfBaseName())
@@ -2426,7 +2495,7 @@ where t.typeFile = 'D'""")
 
 
     def createQuery(self):
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeFLK, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil, self.exportTypeFLK]:
             return [self.createQueryAccount(), self.createQueryPerson()]
         elif self.exportType == self.exportTypeFLKXml:
             return [self.createQueryFLK()]
@@ -2437,7 +2506,7 @@ where t.typeFile = 'D'""")
     def createQueryAccount(self):
         tableAccountItem = self.db.table('Account_Item')
         cond = [tableAccountItem['deleted'].eq(0)]
-        if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml]:
+        if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK]:
             cond.append(tableAccountItem['master_id'].inlist(self.selectedAccountIds))
         else:
             cond.append(tableAccountItem['master_id'].eq(self.currentAccountId))
@@ -2484,7 +2553,7 @@ where t.typeFile = 'D'""")
   Action.begDate AS actionDate,
   Action.endDate AS actionEndDate,
   Diagnosis.MKB AS MKBXP,
-  IF(rbEventProfile.regionalCode IN ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017')
+  IF(rbEventProfile.regionalCode IN ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019', '8020', '8021', '8022', '8023')
   OR mt.regionalCode IN ('31', '32', '11', '12'), IF(IFNULL(Action.MKB, '') <> '', Action.MKB, Diagnosis.MKB), Diagnosis.MKB) AS MKB,
   rbDiseasePhases.code as phasesCode,
   AssociatedDiagnosis.MKB as MKBXSP,
@@ -2503,7 +2572,7 @@ where t.typeFile = 'D'""")
     AND s.infis LIKE 'A%%'
     AND IFNULL(a.MKB, '') <> ''
     AND a.MKB <> IF(IFNULL(Action.MKB, '') <> '', Action.MKB, Diagnosis.MKB)), NULL),
-    IF(mt.regionalCode IN ('21', '22', '271', '272', '111', '112', '01', '02', '80', '90', '201', '202', '211', '232', '233', '252', '241', '242', '261', '262') 
+    IF(mt.regionalCode IN ('21', '22', '271', '272', '111', '112', '01', '02', '80', '90', '201', '202', '211', '232', '233', '244', '252', '241', '242', '261', '262', '801', '802') 
     or mt.regionalCode IN ('11', '12', '301', '302', '41', '42', '411', '422', '43', '51', '52', '511', '522', '401', '402')
        AND LEFT(rbItemService.infis, 1) in ('G', 'V', 'A'), AssociatedDiagnosis.MKB, NULL)) AS AssociatedMKB,
   SeqDiagnosis.MKB AS SeqMKB,
@@ -2538,7 +2607,7 @@ where t.typeFile = 'D'""")
   CONCAT(
   CASE WHEN Client.id <> ClientPolicy.client_id THEN '2' ELSE '' END,
   CASE WHEN Client.patrName = '' or Client.id <> ClientPolicy.client_id and repr.patrName = '' THEN '4' ELSE '' END,
-  CASE WHEN rbEventProfile.regionalCode IN ('8008', '8010', '8014', '102', '8012', '8013', '8017', '8018') THEN '5' WHEN rbEventProfile.regionalCode IN ('8009', '8015', '8016', '103', '8019') THEN '6' ELSE '' END,
+  CASE WHEN rbEventProfile.regionalCode IN ('8008', '8010', '8014', '102', '8012', '8013', '8017', '8018', '8020', '8022') THEN '5' WHEN rbEventProfile.regionalCode IN ('8009', '8015', '8016', '103', '8019', '8021') THEN '6' ELSE '' END,
   IF(mt.regionalCode = '12' AND Event.relative_id IS NOT NULL AND age(Client.birthDate, Event.setDate) < 18, '7', ''),
   IFNULL((select case aps.value
             when 'a-проведение 1 этапа ЭКО(стимуляция суперовуляции)' then 'a'
@@ -2581,7 +2650,17 @@ where t.typeFile = 'D'""")
                                             AND AT.deleted = 0
                                   )
                     )
-            AND apt.shortName = 'criminal'), '')
+            AND apt.shortName = 'criminal'), ''),
+    CASE WHEN Client.sex = 2 AND mt.regionalCode in ('211', '244') AND Event.execDate >= '2024-01-01' THEN 
+         IFNULL((SELECT IF(aps.value IN ('экстирпация матки', 'virgio'), 'i', NULL)
+            FROM Action a
+            LEFT JOIN ActionType at ON a.actionType_id = at.id
+            LEFT JOIN rbService s ON at.nomenclativeService_id = s.id
+            left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0
+            left join ActionProperty ap on ap.type_id = apt.id and ap.action_id = a.id and ap.deleted = 0
+            left join ActionProperty_String aps ON ap.id = aps.id
+            where a.event_id = Event.id AND a.deleted = 0 AND s.infis IN ('A08.20.017.002', 'A08.20.040', 'A01.20.003', 'A26.20.034.001')
+                AND apt.shortName = 'extirpation' ORDER BY 1 desc LIMIT 1), '') ELSE '' END
   ) AS Q_G,
   IFNULL(ActionOrg.infisCode, '') AS outOrgCode,
   IF(ActionOrg.infisCode is null or
@@ -2596,23 +2675,23 @@ where t.typeFile = 'D'""")
   Event.externalId,
   rbDiseaseCharacter.id as diseaseCharacterId,
   IF(rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR,
-  IF(mt.regionalCode in ('261', '262', '211', '232', '252', '233') and rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR_P20,
+  IF(mt.regionalCode in ('261', '262', '211', '232', '252', '233', '244') and rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR_P20,
   IF(AssociatedCharacter.code in ('1', '2'), '1', '0') as MKBXS_PR,
   CASE WHEN rbDispanser.code = '1' then '1'
     WHEN rbDispanser.code in ('2', '6') then '2'
     WHEN rbDispanser.code = '4' then '4'
     WHEN rbDispanser.code in ('3', '5') then '6'
-    WHEN IFNULL(rbDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233') then '3'
+    WHEN IFNULL(rbDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233', '244') then '3'
     ELSE '0' END  as PR_D_N,
    CASE WHEN AssocDiagDispanser.code = '1' then '1'
     WHEN AssocDiagDispanser.code in ('2', '6') then '2'
     WHEN AssocDiagDispanser.code = '4' then '4'
     WHEN AssocDiagDispanser.code in ('3', '5') then '6'
-    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233') then '3'
+    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233', '244') then '3'
     ELSE '0' END  as PR_DS_N,
    CASE WHEN AssocDiagDispanser.code = '1' then '1'
     WHEN AssocDiagDispanser.code in ('2', '6') then '2'
-    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233') then '3'
+    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '6') and mt.regionalCode in ('261', '262', '211', '232', '252', '233', '244') then '3'
     ELSE '0' END as PR_MS_N,
   PersonProfile.regionalCode as personProfileRegionalCode,
   RelegateOrg.smoCode as NAPR_MO,
@@ -2621,13 +2700,28 @@ where t.typeFile = 'D'""")
   Event.srcDate as NAPR_D,
   KRITAction.id as kritActionid,
   IF(rbItemService.name like 'Обращен%%' and rbItemService.infis regexp '^B0[12]' 
-        OR rbItemService.infis in ('B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
-                 'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
-                 'B05.070.010', 'B05.070.011', 'B05.070.012', 'B03.014.018',
-                 'B05.023.003.001', 'B05.023.002.011', 'B05.004.001.010', 'B05.004.001.011', 'B05.004.001.012',
-                 'B05.028.010.002', 'B05.028.010.003', 'B05.050.003.002', 'B05.050.003.001', 'B05.050.004.017',
-                 'B05.050.004.012', 'B05.050.004.013'), 1, 0) as isObr,
-  IF(rbItemService.name like '%%диспансерн%%' and mt.regionalCode not in ('261', '262', '211', '232', '252', '233'), 1, 0) as DNService,
+        OR rbItemService.infis in ('B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012',
+                 'B05.023.002.001', 'B05.023.002.002',
+                 'B05.023.002.010', 'B05.023.002.011', 'B05.023.002.012', 'B05.023.002.013', 'B05.023.002.14',
+                 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
+                 'B05.070.010', 'B05.070.011', 'B05.070.012', 'B03.014.018', 'B05.029.001', 'B05.032.010', 'B05.028.010',
+                 'B05.023.003.001',
+                 'B05.004.001.010', 'B05.004.001.011', 'B05.004.001.012', 'B05.004.001.013', 'B05.004.001.014',
+                 'B05.004.001.015',
+                 'B05.008.001.010', 'B05.008.001.011', 'B05.008.001.012', 'B05.008.001.013',
+                 'B05.028.010.001', 'B05.028.010.002', 'B05.028.010.003', 'B05.028.010.004',
+                 'B05.050.003.001', 'B05.050.003.002', 'B05.046.001.001', 'B05.046.001.002',
+                 'B05.050.004.010', 'B05.050.004.011', 'B05.050.004.012', 'B05.050.004.013', 'B05.050.004.014',
+                 'B05.050.004.015', 'B05.050.004.016', 'B05.050.004.017', 'B05.050.004.017', 'B05.050.004.019',
+                 'B05.050.004.020', 'B05.050.004.021'), 1, 0) as isObr,
+  IF(rbItemService.infis in ('B02.047.021', 'B02.047.022',
+                             'B04.001.001', 'B04.008.001', 'B04.014.002', 'B04.015.003', 'B04.023.001', 'B04.026.001',
+                             'B04.027.001', 'B04.028.001', 'B04.029.001', 'B04.029.005', 'B04.040.002', 'B04.046.001',
+                             'B04.047.001', 'B04.047.003', 'B04.047.005', 'B04.050.001', 'B04.053.001', 'B04.057.001',
+                             'B04.058.005', 'B04.064.003', 'B04.065.001', 'B04.065.003', 'B04.065.005', 'B04.001.006',
+                             'B04.008.005', 'B04.009.001', 'B04.010.001', 'B04.014.007', 'B04.015.005', 'B04.023.016',
+                             'B04.026.004', 'B04.028.004', 'B04.029.006', 'B04.031.001', 'B04.031.003', 'B04.050.008',
+                             'B04.053.003', 'B04.058.002') and mt.regionalCode in ('21', '22', '31', '32'), 1, 0) as DNService,
   IF(rbItemService.infis in ('B04.012.001', 'B04.012.001.010', 'B04.012.001.011', 'B04.012.001.012'), 1, 0) as diabetSchoolService,
   IF(rbItemService.name like '%%беременной%%' or rbItemService.name like '%%патронаж%%', 1, 0) as patronService,
   IF(rbItemService.infis in ('B01.047.015', 'B01.031.008'), 1, 0) as homeService,
@@ -2641,7 +2735,7 @@ where t.typeFile = 'D'""")
   Diagnostic.pNodus_id,
   Diagnostic.pMetastasis_id,
   Diagnostic.pTNMPhase_id,
-IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.infis), 1, 1) in ('B', 'G', 'V') AND COALESCE(rbItemService.name, rbVisitService.name, rbEventService.name) not like 'Обращен%%',
+IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.infis), 1, 1) in ('G', 'V')  OR (substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.infis), 1, 3) in ('B01', 'B04') AND COALESCE(rbItemService.name, rbVisitService.name, rbEventService.name) not like 'Обращен%%'),
 (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2759,9 +2853,18 @@ IF(COALESCE(rbItemService.infis, rbEventService.infis) like 'G%%' and substr(COA
               AND pp.begDate > Event.execDate
                AND (YEAR(pp.begDate) = YEAR(Event.execDate) AND MONTH(pp.begDate) > MONTH(Event.execDate) OR YEAR(pp.begDate) > YEAR(Event.execDate))
                AND pp.parent_id IS NOT NULL AND pp.deleted = 0 order BY pp.begDate limit 1)
-  END AS DATE_PO
+  END AS DATE_PO,
+  rbEventProfile.regionalCode AS eventProfileRegionalCode,
+  COALESCE((SELECT sst.code
+            FROM ClientSocStatus css
+            left JOIN rbSocStatusType sst on sst.id = css.socStatusType_id
+            left JOIN rbSocStatusClass ssc ON ssc.id = css.socStatusClass_id
+            WHERE css.client_id = Client.id AND css.deleted = 0 AND ssc.code = 'svo'
+             AND (css.begDate <= Event.execDate OR css.begDate IS NULL)
+             AND (css.endDate >= Event.execDate OR css.endDate IS NULL) limit 1), '000') AS SOC
 FROM Account_Item
   LEFT JOIN Account ON Account_Item.master_id = Account.id
+  LEFT JOIN rbAccountType on rbAccountType.id = Account.type_id
   Left join Contract_Tariff on Contract_Tariff.id = Account_Item.tariff_id
   LEFT JOIN Action ON Action.id = Account_Item.action_id
   LEFT JOIN Event_CSG ON Event_CSG.id = Account_Item.eventCSG_id
@@ -2771,7 +2874,7 @@ FROM Account_Item
   LEFT JOIN Organisation currentOrg on currentOrg.id = Event.org_id
   LEFT JOIN Client ON Client.id = Event.client_id
   LEFT JOIN Client repr ON repr.id = Event.relative_id
-  LEFT JOIN ClientPolicy ON ClientPolicy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
+  LEFT JOIN ClientPolicy ON ClientPolicy.id = IF(rbAccountType.regionalCode in ('ap', 'cp', 'dp'), getClientPolicyId(Client.id, 1), getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id))
   LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
   LEFT JOIN rbPolicyKind ON rbPolicyKind.id = ClientPolicy.policyKind_id
   /*документ берем на кого оформлен полис*/
@@ -2791,7 +2894,7 @@ FROM Account_Item
       FROM Diagnostic d
       INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = d.diagnosisType_id
       WHERE d.event_id = Account_Item.event_id
-      AND rbDiagnosisType.CODE IN ('1', '2')
+      AND rbDiagnosisType.CODE IN ('1', '2', '4')
       AND d.deleted = 0
       ORDER BY rbDiagnosisType.code
       LIMIT 1)
@@ -2918,8 +3021,6 @@ LEFT JOIN Action AS KRITAction
         FROM ActionType AT1
         WHERE AT1.flatCode = 'KRIT'
         AND AT1.deleted = 0))
-  
-  LEFT JOIN rbAccountType on rbAccountType.id = Account.type_id
   LEFT JOIN Organisation AS Payer ON Payer.id = Account.payer_id
 WHERE %s
 ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
@@ -3058,7 +3159,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
     def createQueryPerson(self):
         tableAccountItem = self.db.table('Account_Item')
         cond = [tableAccountItem['master_id'].inlist(self.selectedAccountIds)
-            if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml]
+            if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK]
             else tableAccountItem['master_id'].eq(self.currentAccountId), tableAccountItem['deleted'].eq(0)]
 
         stmt = """SELECT ExecPerson.snils, min(ExecPerson.lastName) lastName, min(ExecPerson.firstName) firstName, min(ExecPerson.patrName) patrName,
@@ -3103,6 +3204,8 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
         ImmunohistochemistryId = forceRef(record.value('ImmunohistochemistryId'))
         VP = forceString(record.value('medicalAidTypeRegionalCode'))
         UID = forceRef(record.value('UID')) #forceRef(record.value('accountItemId'))
+        eventTypeId = forceRef(record.value('eventTypeId'))
+        eventProfileRegionalCode = forceString(record.value('eventProfileRegionalCode'))
 
         # список кодов специальностей для терапевта, педиатра, ВОП
         if endDate >= QDate(2018, 4, 1):
@@ -3118,14 +3221,15 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
         elif VP == '90' and QDate(2018, 1, 1) <= endDate:
             VP = '41'
 
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
-            (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM) = dbf
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM, dbfL) = dbf
         else:
             dbfP = dbf
 
         if eventId not in self.exportedEvents:
             self.eventsDict[eventId] = {'VP': VP,
                                         'VS': forceString(record.value('accTypeCode')),
+                                        'eventTypeId': eventTypeId,
                                         'hasObrService': 0,
                                         'hasHomeServiсe': 0,
                                         'hasPatronService': 0,
@@ -3133,7 +3237,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                         'hasDiabetSchool': 0}
             dbfRecord = dbfP.newRecord()
             if self.exportType != self.exportTypeAttachments:
-                if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+                if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                     # номер реестра счетов (п. 1 примечаний) обязательное
                     dbfRecord['NS'] = self.processParams().get('iAccNumber') #if self.edtRegistryNumber.isEnabled() self.edtRegistryNumber.value()
                 else:# Для ФЛК берем номера из счетов, если их возможно преобразовать в число, если невозможно то берем от основного
@@ -3151,7 +3255,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 dbfRecord['DATPS'] = pyDate(endDate)
 
             # код медицинской организации в системе ОМС, предоставившей медицинскую помощь
-            if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml]:
+            if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK]:
                 if accountId and len(self.mapAccountInfo[accountId].get('oms_code', '')) == 5:
                     dbfRecord['CODE_MO'] = self.mapAccountInfo[accountId].get('oms_code')
                 else:
@@ -3166,7 +3270,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['OTCH'] = forceString(record.value('patrName')).strip().upper()[:40]
             dbfRecord['POL'] = formatSex(record.value('sex')).upper() # пол (М/Ж)
             dbfRecord['DATR'] = pyDate(birthDate) # дата рождения
-            if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 dbfRecord['KAT'] = forceInt(record.value('KAT'))
             dbfRecord['SNILS'] = formatSNILS(forceString(record.value('SNILS')))
 
@@ -3190,9 +3294,17 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['SPS'] = forceString(record.value('policySerial'))[:10]
             dbfRecord['SPN'] = forceString(record.value('policyNumber'))[:20]
             Q_G = forceString(record.value('Q_G'))[:10]
-            dbfRecord['Q_G'] = '2' if self.exportType in [self.exportTypeFLK, self.exportTypeFLKXml] and '2' in Q_G else Q_G
+
+            if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27]:
+                if params['psychologistInfo']:
+                    psychologistInfo = params['psychologistInfo'].get(eventId, {})
+                    if psychologistInfo:
+                        psychStatus = psychologistInfo.get('psychoStatus', '')
+                        Q_G += forceString(psychStatus[-1])
+
+            dbfRecord['Q_G'] = '2' if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK] and '2' in Q_G else Q_G
             C_DOC = forceInt(record.value('documentRegionalCode'))
-            if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 if forceInt(record.value('policyKindCode')) == 3:
                     dbfRecord['ENP'] = forceString(record.value('policyNumber'))[:16]
                 age = calcAgeInDays(birthDate, begDate)
@@ -3219,12 +3331,12 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['S_DOC'] = forceString(record.value('documentSerial')).strip()[:10]
             dbfRecord['N_DOC'] = forceString(record.value('documentNumber')).strip()[:15]
 
-            if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 MP = forceString(record.value('MP'))[:1]
                 # сведения о направлении на плановую госпитализацию
                 NAPR_MO = forceString(record.value('NAPR_MO'))
                 NAPR_MO_OMSCODE = forceString(record.value('NAPR_MO_OMSCODE'))
-                NAPR_N = forceString(record.value('NAPR_N'))
+                NAPR_N = forceString(record.value('NAPR_N')).strip()
                 if not NAPR_MO_OMSCODE:
                     NAPR_MO_OMSCODE = '88888'
                 dbfRecord['NAPR_MO'] = NAPR_MO[:6]
@@ -3248,8 +3360,11 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['DATO'] = pyDate(endDate)
 
             # код исхода заболевания обязательное SPR11
-            if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
-                dbfRecord['ISHL'] = forceString(record.value('diagnosticResultCode'))[:3]
+            if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+                if dbfRecord['VS'] in ['ap', 'cp', 'dp']:
+                    dbfRecord['ISHL'] = '307'
+                else:
+                    dbfRecord['ISHL'] = forceString(record.value('diagnosticResultCode'))[:3]
                 # код исхода обращения обязательное SPR12
                 dbfRecord['ISHOB'] = forceString(record.value('eventResultCode'))[:3]
                 # код вида обращения обязательное SPR14
@@ -3279,10 +3394,11 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 dbfRecord['VMP'] = vmp[:2]
                 dbfRecord['DVOZVRAT'] = pyDate(forceDate(record.value('DVOZVRAT')))
                 dbfRecord['DATE_PO'] = pyDate(forceDate(record.value('DATE_PO')))
+                dbfRecord['SOC'] = forceString(record.value('SOC'))
             self.RecordListP.append(dbfRecord)
             self.exportedEvents.add(eventId)
 
-        if self.exportType not in [self.exportTypeFLK, self.exportTypeFLKXml, self.exportTypeAttachments]:
+        if self.exportType not in [self.exportTypeFLKXml, self.exportTypeAttachments, self.exportTypeFLK]:
             serviceCode = forceString(record.value('service'))
             patronService = forceInt(record.value('patronService'))
             homeService = forceInt(record.value('homeService'))
@@ -3335,9 +3451,10 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             # обязательное для всех услуг, кроме диагностических SPR20
             dbfRecord['MKBX'] = forceString(record.value('MKBofCSG'))[:6] or forceString(record.value('MKB'))[:6]
             # код диагноза сопутствующего заболевания по МКБ–Х (п. 2 примечаний) SPR20
-            dbfRecord['MKBXS'] = forceString(record.value('AssociatedMKB'))[:6]
+            associatedMKB = forceString(record.value('AssociatedMKB'))[:6]
+            dbfRecord['MKBXS'] = associatedMKB if associatedMKB != dbfRecord['MKBX'] else ''
             if dbfRecord['MKBXS']:
-                if VP in ['211', '232', '252', '261', '262', '233']:
+                if VP in ['211', '232', '252', '261', '262', '233', '244']:
                     dbfRecord['MKBXS_PR'] = forceString(record.value('MKBXS_PR'))[:1]
                 dbfRecord['PR_MS_N'] = forceString(record.value('PR_MS_N'))[:1]
             # код диагноза осложнения основного заболевания по МКБ–Х (п. 2 примечаний) SPR20
@@ -3363,6 +3480,28 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 if value:
                     dbfRecord['C_ZAB'] = value[:1]
 
+            # проставление характера заболевания если профиль события 8023 и МКБ не на Z
+            if eventProfileRegionalCode == '8023' and not forceString(record.value('MKB')).startswith('Z'):
+                query = self.db.query(u"""
+                SELECT 
+                  Diagnosis.character_id
+                FROM Diagnostic 
+                  LEFT JOIN Diagnosis ON Diagnostic.diagnosis_id = Diagnosis.id
+                  LEFT JOIN rbDiagnosisType ON Diagnosis.diagnosisType_id = rbDiagnosisType.id
+                WHERE Diagnostic.event_id = {0}
+                  AND Diagnosis.MKB = '{1}'
+                  AND rbDiagnosisType.code in ('1', '9')
+                """.format(eventId, forceString(record.value('MKB'))))
+                if query.first():
+                    recordCharacter = query.record()
+                    characterId = forceRef(recordCharacter.value('character_id'))
+                    value = self.mapDiseaseCharacter.get(characterId, None)
+                    if value is None:
+                        value = getIdentification('rbDiseaseCharacter', characterId, 'AccTFOMS', raiseIfNonFound=False)
+                        self.mapDiseaseCharacter[diseaseCharacterId] = value
+                    if value:
+                        dbfRecord['C_ZAB'] = value[:1]
+
             # код условия оказания медицинской помощи
             dbfRecord['VP'] = VP[:3]
 
@@ -3376,11 +3515,19 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                  u'Множественная травма', u'Антимикробная терапия', u'Дерматозы', u'Иммунизация детей до 2-х лет',
                                  u'Генноинженерные препараты и селективные иммунодепресанты', u'Уровень курации',
                                  u'Терапия с заменой генноинженерных препаратов или селективных иммунодепрессантов',
-                                 u'Количество фракций', u'Сопроводительная лекарственная терапия пр ЗНО',
-                                 u'Сочетание A12.28.006, A12.28.007, A04.28.002.005', u'Назначение при хр гепатите B']:
+                                 u'Сопроводительная лекарственная терапия пр ЗНО',
+                                 u'Сочетание A12.28.006, A12.28.007, A04.28.002.005', u'Назначение при хр гепатите B',
+                                 u'Баллонная вазодилатация', u'Плазмаферез', u'Досуточная диагностическая госпитализация',
+                                 u'Сложные неврологические заболевания', u'Интравитреальное введение препаратов', u'Высокодозный иммуноглобулин',
+                                 u'Сурфактанты легочные']:
                     code = self.getKRITCode(forceRef(action[propName]))
+                    endDateCSG = forceDate(record.value('endDateCSG'))
+                    if endDateCSG:
+                        kritDate = endDateCSG
+                    else:
+                        kritDate = endDate
                     stmt = u"select NULL from soc_spr69 where ksgkusl = '{kusl}' and KRIT = '{krit}' and (dato is null or dato >= {date})"
-                    if code and db.query(stmt.format(kusl=serviceCode, krit=code, date=db.formatDate(endDate))).size() > 0:
+                    if code and db.query(stmt.format(kusl=serviceCode, krit=code, date=db.formatDate(kritDate))).size() > 0:
                         dbfRecord['KRIT'] = code[:10]
                         break
                 # схема лекарственной терапии (только для комбинированных схем лечения)
@@ -3399,10 +3546,11 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
 
             if serviceCode[:1] in ('G', 'V'):
                 dayCount = forceInt(record.value('dayCount'))
-                if serviceCode in ['G22st36.013', 'G22st36.014', 'G22st36.015', 'G23st36.013', 'G23st36.014', 'G23st36.015']:
-                    dbfRecord['KD'] = 0
-                else:
-                    dbfRecord['KD'] = dayCount if dayCount > 1 else 1
+                # согласно формату ФФОМС, KD обязательно для заполнения и минимальное значение 1
+                # if serviceCode[3:] in ['st36.013', 'st36.014', 'st36.015']:
+                #     dbfRecord['KD'] = 0
+                # else:
+                dbfRecord['KD'] = dayCount if dayCount > 1 else 1
 
             # дата начала выполнения услуги обязательное
             servDate = forceDate(record.value('actionDate'))
@@ -3469,9 +3617,29 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             specialityCode = forceString(record.value('specialityCode'))[:9]
             dbfRecord['SPEC'] = specialityCode
 
+            if endDate >= QDate(2025, 1, 1) and VP in ['211', '244', '261', '233'] or endDate >= QDate(2025, 2, 1) and VP in ['262']:
+                value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                if value is None:
+                    value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                    self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                if value == 'mob_p':
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += '8p' if '8p' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
+                elif value == 'mob_r':
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += '8r' if '8r' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
+                elif value == 'mob':
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += '8n' if '8n' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
+                else:
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += 'n' if 'n' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
             # выгружаем дополнительно особый случай Q_G = 8 проведение ДД мобильными бригадами
-            if endDate >= QDate(2023, 1, 1) and VP in ['232', '252', '262', '211', '261']:
-                eventTypeId = forceRef(record.value('eventTypeId'))
+            elif endDate >= QDate(2023, 1, 1) and VP in ['232', '252', '262', '211', '261']:
                 value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
                 if value is None:
                     value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
@@ -3480,7 +3648,16 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                     Q_G = self.RecordListP[-1]['Q_G']
                     Q_G += '8' if '8' not in Q_G else ''
                     self.RecordListP[-1]['Q_G'] = Q_G
-
+            # выгружаем дополнительно особый случай Q_G = m Диспансерное наблюдение на дому
+            elif endDate >= QDate(2024, 1, 1) and DNService:
+                value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                if value is None:
+                    value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                    self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                if value == 'dnhome':
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += 'm' if 'm' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
             # выгружать f в поле Q_G для услуг терапевта, выполненных фельдшером
             if specialityCode in ['206', '207'] and serviceCode in ['B01.047.001', 'B01.047.002', 'B01.047.005', 'B01.047.006', 'B01.047.014',
                                                            'B01.047.019', 'B01.047.019.001', 'B01.047.020', 'B01.047.022', 'B01.047.022.001',
@@ -3514,7 +3691,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 vmp = '11'
             dbfRecord['VMP'] = vmp
 
-            DS_ONK = '1' if (directionCancerId or forceString(record.value('phasesCode')) == '10') else '0'
+            DS_ONK = '1' if (directionCancerId and directionCancerId not in self.exportedAppointments or forceString(record.value('phasesCode')) == '10') else '0'
             dbfRecord['DS_ONK'] = DS_ONK
             if DS_ONK == '1':
                 self.DS_ONKSet.add(eventId)
@@ -3660,36 +3837,61 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                             dbfRecordO['K_FR'] = forceInt(action[u'Количество фракций проведения лучевой терапии'])
                         # сведения о противоопухолевом лекарственном препарате
                         if dbfRecord['USL_TIP'] in ['2', '4']:
-                            stmt = u"""select ni.value as REGNUM, a.begDate as DATE_INJ
-        FROM Action a
-        LEFT JOIN ActionType at ON at.id = a.actionType_id AND at.deleted = 0
-        LEFT JOIN ActionPropertyType apt ON at.id = apt.actionType_id AND apt.deleted = 0 AND apt.typeName = 'Номенклатура ЛСиИМН'
-        left JOIN ActionProperty ap ON ap.type_id = apt.id AND ap.action_id = a.id AND ap.deleted = 0
-        LEFT JOIN ActionProperty_rbNomenclature apn ON apn.id = ap.id
-        LEFT JOIN rbNomenclature n ON n.id = apn.value
-        LEFT JOIN rbAccountingSystem `as` ON `as`.code = 'AccTFOMS'
-        LEFT JOIN rbNomenclature_Identification ni on ni.master_id = n.id AND ni.system_id = `as`.id AND ni.deleted = 0 and ni.checkDate <= a.begDate
-        WHERE a.event_id = {0} AND a.deleted = 0 AND at.class = 2 AND ni.value is NOT NULL
-        ORDER BY a.begDate, ni.checkDate desc;""".format(eventId)
-                            query = db.query(stmt)
-                            if query.first():
-                                medicamentRecord = query.record()
-                                if medicamentRecord:
-                                    dbfRecordO['CODE_SH'] = dbfRecord['KRIT']
-                                    dbfRecordO['REGNUM'] = forceString(medicamentRecord.value('REGNUM'))[:6]
-                                    dbfRecordO['DATE_INJ'] = pyDate(forceDate(medicamentRecord.value('DATE_INJ')))
+                            if endDate >= QDate(2025, 1, 1):
+                                dbfRecordO['CODE_SH'] = dbfRecord['KRIT']
+                                if params['cancerMedicamentInfo']:
+                                    cancerMedicamentInfo = params['cancerMedicamentInfo'].get(eventId, {})
+                                    if cancerMedicamentInfo:
+                                        for i in xrange(len(cancerMedicamentInfo.get('LID', []))):
+                                            dateInj = forceDate(cancerMedicamentInfo.get('DATE_INJ', [])[i])
+                                            dbfRecordL = dbfL.newRecord()
+                                            dbfRecordL['LID'] = forceRef(cancerMedicamentInfo.get('LID', [])[i])
+                                            dbfRecordL['CODE_MO'] = params['codeLpu'][:5]
+                                            dbfRecordL['NS'] = self.processParams().get('iAccNumber')
+                                            dbfRecordL['SN'] = eventId
+                                            dbfRecordL['OID'] = ControlListOnkoId
+                                            dbfRecordL['REGNUM'] = forceString(cancerMedicamentInfo.get('REGNUM', [])[i])[:6]
+                                            if dateInj >= QDate(2025, 1, 1):
+                                                dbfRecordL['REGNUM_DOP'] = forceString(cancerMedicamentInfo.get('REGNUM_DOP', [])[i])[:25]
+                                            dbfRecordL['DATE_INJ'] = pyDate(dateInj)
+                                            dbfRecordL['KV_INJ'] = round(forceDouble(cancerMedicamentInfo.get('KV_INJ', [])[i]), 3)
+                                            dbfRecordL['KIZ_INJ'] = round(forceDouble(cancerMedicamentInfo.get('KIZ_INJ', [])[i]), 3)
+                                            dbfRecordL['S_INJ'] = round(forceDouble(cancerMedicamentInfo.get('S_INJ', [])[i]), 6)
+                                            dbfRecordL['SV_INJ'] = round(forceDouble(cancerMedicamentInfo.get('SV_INJ', [])[i]), 2)
+                                            dbfRecordL['SIZ_INJ'] = round(forceDouble(cancerMedicamentInfo.get('SIZ_INJ', [])[i]), 2)
+                                            dbfRecordL['RED_INJ'] = forceInt(cancerMedicamentInfo.get('RED_INJ', [])[i])
+                                            self.RecordListL.append(dbfRecordL)
+                            else:
+                                stmt = u"""select ni.value as REGNUM, a.begDate as DATE_INJ
+            FROM Action a
+            LEFT JOIN ActionType at ON at.id = a.actionType_id AND at.deleted = 0
+            LEFT JOIN ActionPropertyType apt ON at.id = apt.actionType_id AND apt.deleted = 0 AND apt.typeName = 'Номенклатура ЛСиИМН'
+            left JOIN ActionProperty ap ON ap.type_id = apt.id AND ap.action_id = a.id AND ap.deleted = 0
+            LEFT JOIN ActionProperty_rbNomenclature apn ON apn.id = ap.id
+            LEFT JOIN rbNomenclature n ON n.id = apn.value
+            LEFT JOIN rbAccountingSystem `as` ON `as`.code = 'AccTFOMS'
+            LEFT JOIN rbNomenclature_Identification ni on ni.master_id = n.id AND ni.system_id = `as`.id AND ni.deleted = 0 and ni.checkDate <= a.begDate
+            WHERE a.event_id = {0} AND a.deleted = 0 AND at.class = 2 AND ni.value is NOT NULL
+            ORDER BY a.begDate, ni.checkDate desc;""".format(eventId)
+                                query = db.query(stmt)
+                                if query.first():
+                                    medicamentRecord = query.record()
+                                    if medicamentRecord:
+                                        dbfRecordO['CODE_SH'] = dbfRecord['KRIT']
+                                        dbfRecordO['REGNUM'] = forceString(medicamentRecord.value('REGNUM'))[:6]
+                                        dbfRecordO['DATE_INJ'] = pyDate(forceDate(medicamentRecord.value('DATE_INJ')))
                             if action[u'Проведение профилактики тошноты и рвотного рефлекса'] == u'да':
                                 dbfRecordO['PPTR'] = 1
                             else:
                                 dbfRecordO['PPTR'] = 0
                             wei = action[u'Масса тела (кг)']
-                            if wei is not None:
+                            if wei:
                                 dbfRecordO['WEI'] = round(forceDouble(wei), 1)
                             hei = action[u'Рост (см)']
-                            if hei is not None:
+                            if hei:
                                 dbfRecordO['HEI'] = forceInt(hei)
                             bsa = action[u'Площадь поверхности тела']
-                            if bsa is not None:
+                            if bsa:
                                 dbfRecordO['BSA'] = round(forceDouble(bsa), 2)
                         self.RecordListO.append(dbfRecordO)
                         self.exportedOnkoInfo.add(ControlListOnkoId)
@@ -3775,6 +3977,12 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                         mid = forceRef(QVariant(mid))
                         if mid not in self.exportedImplants:
                             mdvAction = CAction(record=db.getRecord('Action', '*', mid))
+                            if len(listMDV) > 1:
+                                prop = mdvAction.getPropertyByShortName(u'operService')
+                                if prop:
+                                    codeOper = prop.getInfo(context).infis
+                                    if codeOper and codeOper != forceString(record.value('service')):
+                                        continue
                             dbfRecord = dbfM.newRecord()
                             dbfRecord['MID'] = mid
                             dbfRecord['CODE_MO'] = params['codeLpu'][:5]
@@ -3790,7 +3998,6 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                 dbfRecord['NUMBER_SER'] = forceString(prop.getValue()).strip()[:100]
                             self.RecordListM.append(dbfRecord)
                             self.exportedImplants.add(mid)
-
                 # Файл E
                 if covid:
                     listCovid = covid.split(',')
@@ -3908,8 +4115,8 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
 
 
     def processPerson(self, dbf, record, params):
-        if self.exportType in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
-            (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM) = dbf
+        if self.exportType in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM, dbfL) = dbf
             row = dbfD.newRecord()
             snils = forceString(record.value('snils'))
             row['CODE_MO'] = params['codeLpu'][:5]
@@ -3927,8 +4134,8 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
     def on_cmbExportType_currentIndexChanged(self, index):
         if index in [self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.chkMakeInvoice.setChecked(True)
-        self.chkMakeInvoice.setEnabled(index in [self.exportTypeP26, self.exportTypePreControlP26])
-        self.edtRegistryNumber.setEnabled(index in [self.exportTypeP26, self.exportTypePreControlP26, self.exportTypeInvoice, self.exportTypeInvoiceNil])
+        self.chkMakeInvoice.setEnabled(index in [self.exportTypeP27, self.exportTypePreControlP27])
+        self.edtRegistryNumber.setEnabled(index in [self.exportTypeP27, self.exportTypePreControlP27, self.exportTypeInvoice, self.exportTypeInvoiceNil])
 
     @pyqtSignature('bool')
     def on_rbTFOMS_toggled(self, checked):
@@ -3966,8 +4173,8 @@ class CExportPage2(CAbstractExportPage2, Ui_ExportR23NativePage2):
         zf = ZipFile(zipFilePath, 'w', allowZip64=True)
         exportType = self._parent.page1.exportType
 
-        if exportType in [CExportPage1.exportTypeP26, CExportPage1.exportTypePreControlP26]:
-            prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M')
+        if exportType in [CExportPage1.exportTypeP27, CExportPage1.exportTypePreControlP27]:
+            prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M', 'L')
         elif exportType in [CExportPage1.exportTypeInvoice, CExportPage1.exportTypeInvoiceNil]:
             prefixes = []
         else:
@@ -4228,3 +4435,92 @@ def getFLCQuery():
       LEFT JOIN rbDocumentType ON rbDocumentType.id = ClientDocument.documentType_id
     WHERE {where}
     ORDER BY Account_Item.event_id"""
+
+
+class CPsychologistInfo(CMultiRecordInfo):
+    def __init__(self):
+        CMultiRecordInfo.__init__(self)
+
+
+    def _stmt(self):
+        stmt = u"""SELECT
+  Account_Item.event_id AS eventId,
+  (SELECT CASE aps.value
+            WHEN 'ветераны боевых действий' THEN 'j'
+            WHEN 'лица, состоящие на диспансерном наблюдении' THEN 'k'
+            WHEN 'женщины в период беременности, родов, и послеродовой период' THEN 'l'
+            ELSE '' END
+        FROM  ActionPropertyType apt
+        LEFT JOIN ActionProperty ap ON ap.type_id = apt.id AND ap.deleted = 0 
+        LEFT JOIN ActionProperty_String aps ON aps.id = ap.id
+        WHERE apt.actionType_id = psychologistAction.actionType_id AND ap.action_id = psychologistAction.id 
+            AND apt.deleted = 0 AND apt.shortName = 'specStatusPacient_OMS' LIMIT 1) as psychoStatus
+FROM Account_Item
+  LEFT JOIN rbService ON rbService.id = Account_Item.service_id
+  LEFT JOIN Event ON Event.id = Account_Item.event_id
+  LEFT JOIN EventType ON EventType.id = Event.eventType_id
+  LEFT JOIN rbMedicalAidType ON EventType.medicalAidType_id = rbMedicalAidType.id
+  LEFT JOIN Action AS psychologistAction
+    ON psychologistAction.id = (SELECT
+        MAX(A.id)
+      FROM Action A
+      WHERE A.event_id = Event.id
+      AND A.deleted = 0
+      AND A.actionType_id IN (SELECT
+          AT.id
+        FROM ActionType AT
+        WHERE AT.flatCode = 'psychologist_OMS'
+        AND AT.deleted = 0))
+WHERE Event.execDate >= '2024-01-01' AND rbMedicalAidType.regionalCode IN ('21', '22') AND rbService.infis IN ('B01.070.009', 'B01.070.010')
+      AND {idList}""" .format(idList=self._idList)
+        return stmt
+
+
+class CCancerMedicamentInfo(CMultiRecordInfo):
+    def __init__(self):
+        CMultiRecordInfo.__init__(self)
+
+
+    def _stmt(self):
+        stmt = u"""SELECT 
+  a.id AS LID,
+  a.event_id AS eventId,
+  ni.value AS REGNUM,
+  (SELECT sn.ID_LEKP_EXT FROM soc_sprN021 sn WHERE sn.ID_LEKP = ni.value LIMIT 1) AS REGNUM_DOP,
+  a.endDate AS DATE_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Double apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'KV_INJ' limit 1) AS KV_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Double apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'KIZ_INJ' limit 1) AS KIZ_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Double apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'S_INJ' limit 1) AS S_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Double apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'SV_INJ' limit 1) AS SV_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Double apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'SIZ_INJ' limit 1) AS SIZ_INJ,
+  (SELECT apd.value FROM ActionProperty ap1
+  LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id
+  LEFT JOIN ActionProperty_Boolean apd ON ap1.id = apd.id
+  WHERE ap1.action_id = a.id AND ap1.deleted = 0 AND apt1.deleted = 0 AND apt1.shortName = 'RED_INJ' limit 1) AS RED_INJ
+FROM Action a
+LEFT JOIN ActionType at ON at.id = a.actionType_id AND at.deleted = 0
+LEFT JOIN ActionPropertyType apt ON at.id = apt.actionType_id AND apt.deleted = 0 AND apt.typeName = 'Номенклатура ЛСиИМН'
+left JOIN ActionProperty ap ON ap.type_id = apt.id AND ap.action_id = a.id AND ap.deleted = 0
+LEFT JOIN ActionProperty_rbNomenclature apn ON apn.id = ap.id
+LEFT JOIN rbNomenclature n ON n.id = apn.value
+LEFT JOIN rbAccountingSystem `as` ON `as`.code = 'AccTFOMS'
+LEFT JOIN rbNomenclature_Identification ni on ni.master_id = n.id AND ni.system_id = `as`.id AND ni.deleted = 0 and ni.checkDate <= a.begDate
+WHERE a.event_id IN (SELECT Account_Item.event_id FROM Account_Item WHERE {idList})
+AND a.deleted = 0 AND at.class = 2 AND ni.value is NOT NULL;
+""" .format(idList=self._idList)
+        return stmt

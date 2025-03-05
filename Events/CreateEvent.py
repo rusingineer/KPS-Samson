@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,18 +16,21 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QDateTime
 
 from Events.Action import CActionTypeCache, CAction
+from Events.ActionStatus import CActionStatus
 from Events.ActionTypeDialog import CActionTypeDialogTableModel
 from F088.F088CreateDialog import CF088CreateDialog
 from F088.F088EditDialog import CF088EditDialog
 from F088.F0882022EditDialog                import CF0882022EditDialog
 from F088.F0882022CreateDialog              import CF0882022CreateDialog
+from F090.F090CreateDialog import createF090
+from F090.F090EditDialog import CF090EditDialog
 from library.AgeSelector          import checkAgeSelector
 from library.Utils import calcAgeTuple, exceptionToUnicode, forceBool, forceDate, forceDateTime, forceRef, forceString, formatDateTime, toVariant, forceInt
 from library.PrintTemplates import applyTemplate
 
-from Events.EditDispatcher        import getEventFormClass, getEventFormClassByType
-from Events.PreCreateEventDialog  import CPreCreateEventDialog
-from Events.Utils import CFinanceType, getEventShowTime, checkEventPosibility, getDeathDate, getEventAgeSelector, \
+from Events.EditDispatcher        import getEventFormClass, getEventFormClassByType, getF090ActionIdToEventId
+from Events.PreCreateEventDialog import CPreCreateEventDialog
+from Events.Utils import CEventTypeDescription, CFinanceType, getActionTypeIdListByFlatCode, getEventShowTime, checkEventPosibility, getDeathDate, getEventAgeSelector, \
     getEventFinanceCode, getEventTypeForm, getEventProfileId, isEventDeath, getEventOrder, getEventContextData, \
     getEventAidTypeRegionalCode
 from Registry.CheckEnteredOpenEventsDialog import CCheckEnteredOpenEvents
@@ -63,6 +65,9 @@ def requestNewEvent(params):
         docNum               = params.get('docNum', None)
         plannedEndDate       = params.get('plannedEndDate', None)
         mapJournalInfoTransfer = params.get('mapJournalInfoTransfer', None)
+        #planningActionId = None
+        actionBegDate = None
+        actionEndDate = None
 
         while True:
             destroyCounterController()
@@ -84,29 +89,40 @@ def requestNewEvent(params):
             orgId                 = dlg.orgId()
             relegateOrgId         = dlg.relegateOrgId()
             relegatePersonId      = dlg.relegatePersonId()
-            srcPerson            = dlg.getSrcPerson()
-            srcNumber            = dlg.getSrcNumber()
-            srcDate              = dlg.getSrcDate()
-            srcMKB               = dlg.getSrcMKB()
-            relegateInfo         = [srcPerson, srcNumber, srcDate, relegateOrgId, relegatePersonId, srcMKB]
+            srcPerson             = dlg.getSrcPerson()
+            srcNumber             = dlg.getSrcNumber()
+            srcDate               = dlg.getSrcDate()
+            srcMKB                = dlg.getSrcMKB()
+            relegateInfo          = [srcPerson, srcNumber, srcDate, relegateOrgId, relegatePersonId, srcMKB]
 
             eventTypeId           = dlg.eventTypeId()
             tissueTypeId          = dlg.tissueTypeId()
             personId              = dlg.personId()
             eventSetDatetime      = dlg.eventSetDate()
             if not eventDatetime:
-                eventDatetime         = dlg.eventDate()
+                eventDatetime     = dlg.eventDate()
             weekProfile           = dlg.weekProfile()
             selectPreviousActions = dlg.selectPreviousActions()
             days                  = dlg.days()
             assistantId           = dlg.assistantId()
             curatorId             = dlg.curatorId()
+            mesId                 = dlg.mesId()
             eventSetDate = eventSetDatetime.date() if eventSetDatetime else None
             eventDate    = eventDatetime.date() if eventDatetime else None
             form         = getEventTypeForm(eventTypeId)
             eventProfileId = getEventProfileId(eventTypeId)
             eventProfileRegionalCode = forceString(QtGui.qApp.db.translate('rbEventProfile', 'id', eventProfileId, 'regionalCode'))
             voucherParams = {}
+            financeCode = getEventFinanceCode(eventTypeId)
+
+            # проверять только при создании событий по омс
+            if financeCode == CFinanceType.CMI and not checkFirstEvent(clientId, personId, eventSetDate, eventDate, eventTypeId):
+                if QtGui.QMessageBox.question(widget,
+                                    u'Внимание!',
+                                    u'У этого пациента в этом месяце уже была услуга от врача данной специальности.\nПродолжить?',
+                                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.Cancel,
+                                    QtGui.QMessageBox.Yes) == QtGui.QMessageBox.Cancel:
+                    break
 
             if form == '088':
                 db = QtGui.qApp.db
@@ -168,6 +184,14 @@ def requestNewEvent(params):
                             destroyCounterController()
                             return eventId
             # --------------
+            if form == '090':
+                if not personId:
+                    QtGui.QMessageBox.warning(widget,
+                                              u'Внимание!',
+                                              u'Укажите врача ответственного за событие. Выберите врача со специальностью!',
+                                              QtGui.QMessageBox.Ok,
+                                              QtGui.QMessageBox.Ok)
+                    break
             if form == '072':
                 voucherParams['directionOrgId'] = relegateOrgId
                 voucherParams['directionPersonId'] = relegatePersonId
@@ -248,7 +272,7 @@ def requestNewEvent(params):
                         break
                     
             eventId = None if QtGui.qApp.isDisabledEventForPersonOrSpeciality() else findCreateEventToDate(eventTypeId, personId, clientId, eventSetDate, eventDate)
-            if eventId:
+            if eventId and form != '090':
                 msg = u'Новый осмотр указанного типа не может быть добавлен.\nОткрыть существующий?'
                 boxResult = QtGui.QMessageBox.question(widget,
                     u'Внимание!',
@@ -260,7 +284,7 @@ def requestNewEvent(params):
                     continue
                 elif boxResult == QtGui.QMessageBox.Yes and eventId:
                     destroyCounterController()
-                    editEvent(widget, eventId)
+                    editEvent(widget, eventId, eventTypeId)
                     return eventId
                 else:
                     break
@@ -321,7 +345,7 @@ def requestNewEvent(params):
                     continue
             if not checkDatesRegardToClientLife(widget, clientId, eventSetDate, eventDate, eventTypeId):
                 continue
-            if not checkWorkHurts(widget, clientId, eventTypeId):
+            if form != '090' and not checkWorkHurts(widget, clientId, eventTypeId):
                 continue
             if form != '001' and not isMoving:
                 eventId = None if QtGui.qApp.isDisabledEventForPersonOrSpeciality() else findSameEvent(eventTypeId, personId, clientId, eventSetDate, eventDate)
@@ -337,19 +361,59 @@ def requestNewEvent(params):
                         break
                     elif boxResultExisting == QtGui.QMessageBox.Yes and eventId:
                         destroyCounterController()
-                        editEvent(widget, eventId)
+                        editEvent(widget, eventId, eventTypeId)
                         return eventId
+            
+            if not flagHospitalization and isStationaryEventType(eventTypeId):
+                btnAction, eventId, planningActionId = checkPlanningOpenEvents(widget, clientId)
+                if btnAction == 1 and eventId:
+                    from HospitalBeds.HospitalizationFromQueue import CHospitalizationFromQueue
+                    hospEvent = CHospitalizationFromQueue(widget)
+                    data = hospEvent.getDataQueueEvent(eventId)
+                    orgStructureId = data[1]
+                    bedId = data[2]
+                    # обновить данные
+                    flagHospitalization = True
+                    valueProperties = [orgStructureId, bedId]
+                    relegatePersonId = data[8]
+                    plannedEndDate = data[6]
+                    relegateOrgId = data[10]
+                    srcNumber = data[11] or forceString(QtGui.qApp.db.translate('Event', 'id', eventId, 'srcNumber'))
+                    srcDate = data[12]
+                    planningEventId = eventId
+                    prevEventId = eventId
+                    diagnos = hospEvent.getDiagnosString(eventId)
+                    financeId = hospEvent.getPlanningFinanceId(eventId)
+                    protocolQuoteId = hospEvent.getProtocolQuote(eventId) if form == '027' else None
+                    params['valueProperties'] = valueProperties
+                    params['plannedEndDate'] = plannedEndDate
+                    params['relegateOrgId'] = relegateOrgId
+                    if QtGui.qApp.currentOrgId() == relegateOrgId:
+                        params['relegatePersonId'] = relegatePersonId
+                        params['srcPerson'] = None
+                    else:
+                        params['relegatePersonId'] = None
+                        params['srcPerson'] = forceString(QtGui.qApp.db.translate('vrbPersonWithSpeciality', 'id', relegatePersonId, 'name')) if relegatePersonId else ''
+                    params['srcNumber'] = srcNumber
+                    params['srcDate'] = srcDate
+                    params['planningEventId'] = planningEventId
+                    params['prevEventId'] = prevEventId
+                    params['diagnos'] = diagnos
+                    params['financeId'] = financeId
+                    params['protocolQuoteId'] = protocolQuoteId
+                    continue  # заново открыть диалог
+            
             if not isMoving:
                 btnOpenEvent, eventId = checkClientHasOpenEvents(widget, eventTypeId, clientId, eventSetDate, eventDate, personId, form)
                 if eventId and btnOpenEvent == 2:
                     destroyCounterController()
-                    editEvent(widget, eventId)
+                    editEvent(widget, eventId, eventTypeId)
                     return eventId
                 elif btnOpenEvent == 0:
                     break
                 elif btnOpenEvent == 1:
                     continue
-            if form == '001' or isMoving:
+            if form == '001' or form == '090' or isMoving:
                 if QtGui.qApp.preferences.dbDatabaseName == 's11_00000':
                     canEnterEvent, priorEventId = checkEventPosibility(clientId, eventTypeId, personId, eventDate if eventDate else eventSetDate)
                 else:
@@ -369,14 +433,16 @@ def requestNewEvent(params):
                         if transferDataList:
                             return saveTransferEvent(widget, transferDataList, clientId, eventTypeId, orgId, personId, eventDatetime, eventSetDatetime, weekProfile, days, externalId, assistantId, curatorId, flagHospitalization, actionTypeId, valueProperties, tissueTypeId, selectPreviousActions, relegateOrgId, relegatePersonId, planningEventId, diagnos, financeId, protocolQuoteId, actionByNewEvent, order)
                         else:
-                            newEventId = createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDatetime, eventSetDatetime, weekProfile, days, externalId, assistantId, curatorId,
+                            eventId = createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDatetime, eventSetDatetime, weekProfile, days, externalId, assistantId, curatorId,
                                                flagHospitalization, actionTypeId, valueProperties, tissueTypeId, selectPreviousActions, relegateOrgId, relegatePersonId, planningEventId, diagnos, financeId,
                                                protocolQuoteId, actionByNewEvent, order, actionListToNewEvent, result, prevEventId, typeQueue, docNum, relegateInfo, plannedEndDate, mapJournalInfoTransfer, voucherParams=voucherParams,
-                                               planningActionId=planningActionId, emergencyInfo=emergencyInfo)
-                            return newEventId
+                                               planningActionId=planningActionId, emergencyInfo=emergencyInfo, mesId=mesId)
+                            if flagHospitalization and eventId:
+                                closePlanningAction(planningActionId, eventId)
+                        return eventId
                 else:
                     continue
-            else:
+            elif form != '090':
                 msg = u'Новый осмотр указанного типа не может быть добавлен.'
                 if priorEventId:
                     msg += u'\nОткрыть существующий?'
@@ -390,7 +456,7 @@ def requestNewEvent(params):
                     continue
                 elif boxResult == QtGui.QMessageBox.Yes and priorEventId:
                     destroyCounterController()
-                    editEvent(widget, priorEventId)
+                    editEvent(widget, priorEventId, eventTypeId)
                     return priorEventId
                 else:
                     break
@@ -855,7 +921,7 @@ def printCostSprDialog(widget):
 def createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDate, eventSetDate, weekProfile, numDays, externalId, assistantId, curatorId, flagHospitalization=False, actionTypeId=None,
                 valueProperties=None, tissueTypeId=None, selectPreviousActions=False, relegateOrgId=None, relegatePersonId=None, planningEventId=None, diagnos=None, financeId=None, protocolQuoteId=None,
                 actionByNewEvent=[], order=1, actionListToNewEvent=[], result=None, prevEventId=None, typeQueue=-1, docNum=None, relegateInfo=[], plannedEndDate=None, mapJournalInfoTransfer=[], voucherParams={},
-                planningActionId=None, emergencyInfo=None):
+                planningActionId=None, emergencyInfo=None, mesId=None):
     formClass = getEventFormClassByType(eventTypeId)
     dialog = formClass(widget)
     QtGui.qApp.setJTR(dialog) # fucked shit!
@@ -877,7 +943,16 @@ def createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDate,
                 dialog.getEventDataPlanning(planningEventId)
             if planningActionId:
                 dialog.planningActionId = planningActionId
-            if dialog.exec_():
+            if mesId:
+                if hasattr(dialog, 'tabMes') and hasattr(dialog.tabMes, 'cmbMes'):
+                    dialog.tabMes.cmbMes.setValue(mesId)
+                    dialog.autoInsertingActionByMES()
+            if form == u'090':
+                resultF090, eventF090Id, actionF090Id = createF090(dialog, dialog.getRecord())
+                if resultF090:
+                    updateEventListAfterEdit(eventF090Id)
+                    return eventF090Id
+            elif dialog.exec_():
                 updateEventListAfterEdit(dialog.itemId())
                 # вставка обращений
                 if QtGui.qApp.checkGlobalPreference(u'23:obr', u'да'):
@@ -907,54 +982,206 @@ def createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDate,
         dialog.deleteLater()
 
 
-def editEvent(widget, eventId, readOnly=False):
-    formClass = getEventFormClass(eventId)
-    if formClass == CF088EditDialog:
-        db = QtGui.qApp.db
-        tableAction = db.table('Action')
-        recordAction = db.getRecordEx(tableAction, [tableAction['createDatetime'], tableAction['id']],
-                                      [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0)])
-        createDate = forceDate(recordAction.value('createDatetime')) if recordAction else None
-        actionId = forceRef(recordAction.value('id')) if recordAction else None
-        if createDate and createDate >= QDate(2022, 1, 1):
-            dialog = CF0882022EditDialog(widget)
-        else:
-            dialog = CF088EditDialog(widget)
-        dialog.load(actionId)
+def editEvent(widget, eventId, eventTypeId=None, readOnly=False):
+    if not eventTypeId:
+        eventTypeId = forceRef(QtGui.qApp.db.translate('Event', 'id', eventId, 'eventType_id'))
+    form = getEventTypeForm(eventTypeId) if eventTypeId else u''
+    if form == u'090':
+        actionId = getF090ActionIdToEventId(eventId)
+        if not actionId:
+            return None
+        dialog = CF090EditDialog(widget)
+        try:
+            dialog.load(actionId)
+            dialog.protectWidgetFromEdit(False)
+            dialog.exec_()
+            if dialog.isBtnSave:
+                actionId = dialog.itemId()
+                updateEventListAfterEdit(eventId)
+                return actionId
+            return None
+        finally:
+            dialog.destroy()
+            dialog.setParent(None)
     else:
-        dialog = formClass(widget)
-        dialog.load(eventId)
-    try:
+        formClass = getEventFormClass(eventId)
+        if formClass == CF088EditDialog:
+            db = QtGui.qApp.db
+            tableAction = db.table('Action')
+            recordAction = db.getRecordEx(tableAction, [tableAction['createDatetime'], tableAction['id']],
+                                          [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0)])
+            createDate = forceDate(recordAction.value('createDatetime')) if recordAction else None
+            actionId = forceRef(recordAction.value('id')) if recordAction else None
+            if createDate and createDate >= QDate(2022, 1, 1):
+                dialog = CF0882022EditDialog(widget)
+            else:
+                dialog = CF088EditDialog(widget)
+            dialog.load(actionId)
+        else:
+            dialog = formClass(widget)
+            dialog.load(eventId)
+
         if readOnly:
             dialog.setReadOnly(readOnly)
-        if dialog.exec_():
-            updateEventListAfterEdit(eventId)
-            # вставка обращений
-            if QtGui.qApp.checkGlobalPreference(u'23:obr', u'да'):
-                QtGui.qApp.db.query('CALL InsertObr(%d);' % dialog.itemId())
-            if dialog.tabNotes.isEventClosed() and QtGui.qApp.checkGlobalPreference(u'23:printCostSpr', u'да'):
-                printCostSprDialog(widget)
-            # изменение типа приема терапевта для диспансеризации
-            if hasattr(dialog, 'changeExaminServiceCode'):
-                (id026, id047) = dialog.changeExaminServiceCode
-                sql = '''
-                    update Action
-                    left join ActionType on ActionType.id = Action.actionType_id
-                    left join rbService on rbService.id = ActionType.nomenclativeService_id 
-                    set Action.actionType_id = (case when rbService.infis regexp 'B04.026.001.0(01|02|05|06|09|10|17|18|21|22|25|26|37|38|39|40|41|42|53|55|56|59|62|63|65|66|67|68|69|70|71|72|73|74|75|76|77|78|79|80|71|72|83|86|87|88)' 
-                                                     or rbService.infis regexp 'B04.026.002.0(13|14|15|16|17|18|19|20|21|22)' then %d
-                                                     when rbService.infis regexp 'B04.047.001.0(01|02|05|06|09|10|17|18|21|22|25|26|37|38|39|40|41|42|54|56|57|60|63|64|66|67|68|69|70|71|72|73|74|75|76|77|78|79|80|71|72|83|84|85|86|87)'
-                                                     or rbService.infis regexp 'B04.047.002.0(13|14|15|16|17|18|19|20|21|22)' then %d
-                                                     else Action.actionType_id end)
-                    where Action.event_id = %d
-                '''
-                QtGui.qApp.db.query(sql % (forceInt(id026), forceInt(id047),  dialog.itemId()))             
-            return dialog.itemId()
-        return None
-    finally:
-        dialog.deleteLater()
+        res = None
+        try:
+            if dialog.exec_():
+                res = dialog.itemId()
+                updateEventListAfterEdit(eventId)
+                # вставка обращений
+                if QtGui.qApp.checkGlobalPreference(u'23:obr', u'да'):
+                    QtGui.qApp.db.query('CALL InsertObr(%d);' % dialog.itemId())
+                if dialog.tabNotes.isEventClosed() and QtGui.qApp.checkGlobalPreference(u'23:printCostSpr', u'да'):
+                    printCostSprDialog(widget)
+                # изменение типа приема терапевта для диспансеризации
+                if hasattr(dialog, 'changeExaminServiceCode'):
+                    (id026, id047) = dialog.changeExaminServiceCode
+                    sql = '''
+                        update Action
+                        left join ActionType on ActionType.id = Action.actionType_id
+                        left join rbService on rbService.id = ActionType.nomenclativeService_id 
+                        set Action.actionType_id = (case when rbService.infis regexp 'B04.026.001.0(01|02|05|06|09|10|17|18|21|22|25|26|37|38|39|40|41|42|53|55|56|59|62|63|65|66|67|68|69|70|71|72|73|74|75|76|77|78|79|80|71|72|83|86|87|88)' 
+                                                         or rbService.infis regexp 'B04.026.002.0(13|14|15|16|17|18|19|20|21|22)' then %d
+                                                         when rbService.infis regexp 'B04.047.001.0(01|02|05|06|09|10|17|18|21|22|25|26|37|38|39|40|41|42|54|56|57|60|63|64|66|67|68|69|70|71|72|73|74|75|76|77|78|79|80|71|72|83|84|85|86|87)'
+                                                         or rbService.infis regexp 'B04.047.002.0(13|14|15|16|17|18|19|20|21|22)' then %d
+                                                         else Action.actionType_id end)
+                        where Action.event_id = %d
+                    '''
+                    QtGui.qApp.db.query(sql % (forceInt(id026), forceInt(id047),  dialog.itemId()))
+        finally:
+            dialog.destroy()
+            dialog.setParent(None)
+        return res
 
 
 def updateEventListAfterEdit(eventId):
     if QtGui.qApp.mainWindow.registry:
         QtGui.qApp.mainWindow.registry.updateEventListAfterEdit(eventId)
+
+
+def isStationaryEventType(eventTypeId):
+    description = CEventTypeDescription.get(eventTypeId)
+    return description.isStationary or description.isDayStationary
+
+
+def checkPlanningOpenEvents(parent, clientId):
+    from HospitalBeds.HospitalizationEventDialog import CCheckPlanningOpenEvents
+    result = (2, None, None)
+    actionTypeIdList = getActionTypeIdListByFlatCode(u'planning%')
+    if clientId and actionTypeIdList:
+        db = QtGui.qApp.db
+        tableAction  = db.table('Action')
+        tableActionType = db.table('ActionType')
+        tableEvent  = db.table('Event')
+        table = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.innerJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
+        cols = [tableAction['id']]
+        cond = [tableEvent['client_id'].eq(clientId),
+                tableAction['deleted'].eq(0),
+                tableActionType['deleted'].eq(0),
+                tableEvent['deleted'].eq(0),
+                tableActionType['id'].inlist(actionTypeIdList)
+                ]
+        
+        cond.append(tableAction['status'].notInlist([CActionStatus.finished, CActionStatus.canceled, CActionStatus.refused]))
+            
+        actionIdList = db.getIdList(table, cols, cond, 'Action.begDate')
+        if actionIdList:
+            dialog = CCheckPlanningOpenEvents(parent, actionIdList, clientId, isVisible=False)
+            dialog.setWindowTitleEx(u'Список открытых планирований на пациента')
+            try:
+                dialog.exec_()
+                actionId = dialog.resultActionId
+                eventId = None
+                if actionId:
+                    eventId = forceRef(db.translate('Action', 'id', actionId, 'event_id'))
+                result = (dialog.btnResult, eventId, actionId)
+            finally:
+                dialog.deleteLater()
+    return result
+
+def closePlanningAction(actionId, eventId):
+    if not actionId:
+        return
+    db = QtGui.qApp.db
+    tableAction = db.table('Action')
+    setDate = forceDateTime(db.translate('Event', 'id', eventId, 'setDate'))
+    updateCond = [
+        tableAction['id'].eq(actionId),
+        tableAction['deleted'].eq(0),
+    ]
+    updateCols = [
+        tableAction['endDate'].eq(setDate),
+        tableAction['status'].eq(2),
+    ]
+    db.updateRecords(tableAction, updateCols, updateCond)
+
+
+# проверка при создании нового события: была ли у данного пациента услуга
+# от врача такой специальности в данном месяце
+def checkFirstEvent(clientID, personId, setDate, endDate, eventTypeId):
+    db = QtGui.qApp.db
+    smt1 = u''' select EventType.code as codeEvent
+                from EventType
+                where EventType.id = %s ''' % eventTypeId
+    query = db.query(smt1)
+    eventTypeCode = 0
+    while query.next():
+        record = query.record()
+        if record:
+            eventTypeCode = forceInt(record.value('codeEvent'))
+
+    if eventTypeCode not in (11, 12, 301, 302, 401, 402, 41, 42, 51, 52,
+                             71, 72, 60, 111, 112, 241, 242, 262, 211, 261):
+        dateMonthEnd = 0
+        dateMonthSet = 0
+        dateYearEnd = 0
+        dateYearSet = 0
+        dateMonth = 0
+        dateYear = 0
+        if endDate is not None:
+            dateMonthEnd = endDate.month()
+            dateYearEnd = endDate.year()
+        if setDate is not None:
+            dateMonthSet = setDate.month()
+            dateYearSet = setDate.year()
+        if dateMonthEnd >= dateMonthSet and dateYearEnd >= dateYearSet:
+            dateMonth = dateMonthEnd
+            dateYear = dateYearEnd
+        if dateMonthEnd < dateMonthSet and dateYearEnd < dateYearSet:
+            dateMonth = dateMonthSet
+            dateYear = dateYearSet
+
+
+        smt1 = u''' SELECT Person.speciality_id AS specid
+                    FROM Person
+                    WHERE Person.id = %s ''' % personId
+        query = db.query(smt1)
+        spec_id = 0
+        while query.next():
+            record = query.record()
+            if record:
+                spec_id = forceInt(record.value('specid'))
+
+        smt = u''' SELECT COUNT(*) as id
+                    FROM Event
+                    LEFT JOIN Person ON Person.id = Event.execPerson_id
+                    WHERE	
+                            case
+                            when Event.execDate is not NULL then
+                                MONTH(Event.execDate) = %s and
+                                YEAR(Event.execDate) = %s 
+                            when Event.setDate is not NULL then
+                                month(Event.setDate) = %s and
+                                Year(Event.setDate) = %s 
+                            end 
+                            and Event.client_id = %s AND Person.speciality_id = %s and Event.deleted=0''' % (dateMonth, dateYear, dateMonth, dateYear, clientID, spec_id)
+        query = db.query(smt)
+        checkFlag = 0
+        while query.next():
+            record = query.record()
+            if record:
+                checkFlag = forceInt(record.value('id'))
+        if checkFlag != 0:
+            return False
+    return True

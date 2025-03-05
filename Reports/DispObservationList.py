@@ -16,7 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignature, QDate
 
 from library.Utils      import forceInt, forceString, formatName, formatSex, formatSNILS
-from Orgs.Utils         import getOrgStructureDescendants, getOrgStructures
+from Orgs.Utils import getOrgStructureDescendants, getOrgStructures, getOrgStructureFullName
 from Orgs.Orgs          import selectOrganisation
 from Reports.ReportBase import CReportBase, createTable
 from Reports.Report     import CReport, normalizeMKB
@@ -25,7 +25,10 @@ from Reports.Report     import CReport, normalizeMKB
 def dumpParamsEx(cursor, params):
     date = params['date']
     areaIdEnabled = params.get('areaIdEnabled', False)
+    attachOrgStructureId = params.get('attachOrgStructureId', None)
     description = [u'на дату %s' % forceString(date)]
+    if attachOrgStructureId:
+        description.append(u'Прикрепление к участку: ' + getOrgStructureFullName(attachOrgStructureId))
     if areaIdEnabled:
         filterAddressType = params.get('filterAddressType', 0)
         description.append(u'Адрес ' + forceString([u'регистрации', u'проживания'][filterAddressType]))
@@ -36,8 +39,8 @@ def dumpParamsEx(cursor, params):
     cursor.movePosition(QtGui.QTextCursor.End)
 
 
-def selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, isFilterAddressType, filterAddressType):
-    stmt=u"""
+def selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, isFilterAddressType, filterAddressType, socStatusClassId, socStatusTypeId, orgStructureId, specialityId, attachOrgStructureId):
+    stmt = u"""
 SELECT DISTINCT
     Client.id, Client.lastName, Client.firstName, Client.patrName, Client.sex, Client.birthDate, Client.SNILS,
     %s
@@ -50,7 +53,8 @@ SELECT DISTINCT
     IF(ClientWork.org_id IS NULL, ClientWork.freeInput, Organisation.shortName) AS workName,
     ClientWork.post AS workPost,
     Diagnosis.MKB,
-    Diagnosis.MKBEx
+    Diagnosis.MKBEx,
+    getClientContacts(Client.id) as contacts
 FROM
     Diagnosis
     LEFT JOIN rbDispanser ON rbDispanser.id = Diagnosis.dispanser_id
@@ -76,6 +80,14 @@ FROM
     LEFT JOIN ClientWork     ON ClientWork.client_id = Client.id
                                 AND ClientWork.id = (SELECT MAX(CW.id) FROM ClientWork AS CW WHERE CW.deleted=0 AND CW.client_id=Client.id)
     LEFT JOIN Organisation   ON Organisation.id = ClientWork.org_id
+    left JOIN ClientAttach ca ON ca.id = (
+              SELECT MAX(ClientAttach.id)
+                    FROM ClientAttach
+                    INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
+                    WHERE client_id = Client.id
+                      AND ClientAttach.deleted = 0
+                      AND NOT rbAttachType.TEMPORARY)
+    LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = Diagnosis.dispanserPerson_id
 WHERE
     %s
 ORDER BY
@@ -86,6 +98,9 @@ ORDER BY
     tableDiagnostic = db.table('Diagnostic')
     tableClient          = db.table('Client')
     tableClientDispanser = db.table('rbDispanser')
+    tablePerson = db.table('vrbPersonWithSpeciality')
+    tableClientAttach = db.table('ClientAttach').alias('ca')
+
     cond = []
     cond.append(tableDiagnosis['deleted'].eq(0))
     cond.append(tableDiagnostic['deleted'].eq(0))
@@ -107,6 +122,16 @@ ORDER BY
 
     if personId:
         cond.append(tableDiagnosis['dispanserPerson_id'].eq(personId))
+    elif orgStructureId:
+        cond.append(tablePerson['orgStructure_id'].inlist(getOrgStructureDescendants(orgStructureId)))
+    else:
+        cond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
+    if specialityId:
+        cond.append(tablePerson['speciality_id'].eq(specialityId))
+    if attachOrgStructureId:
+        orgStructureList = getOrgStructureDescendants(attachOrgStructureId)
+        cond.append(tableClientAttach['orgStructure_id'].inlist(orgStructureList))
+
     if MKBFilter == 1:
         cond.append(tableDiagnosis['MKB'].ge(MKBFrom))
         cond.append(tableDiagnosis['MKB'].le(MKBTo))
@@ -117,9 +142,9 @@ ORDER BY
         cond.append(tableClient['sex'].eq(sex))
     if ageFrom <= ageTo:
         if ageFrom != 0:
-            cond.append('Diagnosis.endDate >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)' % ageFrom)
+            cond.append(' ADDDATE(Client.birthDate, INTERVAL %d YEAR)<= %s ' % (ageFrom,db.formatDate(date) ))
         if ageTo != 150:
-            cond.append('Diagnosis.endDate < SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)' % (ageTo + 1))
+            cond.append(' ADDDATE(Client.birthDate, INTERVAL %d YEAR)> %s ' % (ageTo + 1, db.formatDate(date)))
     cond.append('''Diagnostic.endDate = (SELECT MAX(DC.endDate)
                FROM Diagnostic AS DC LEFT JOIN rbDispanser AS rbDSP ON rbDSP.id = DC.dispanser_id
                WHERE DC.deleted = 0 AND DC.diagnosis_id = Diagnosis.id AND rbDSP.observed=1 AND Diagnosis.client_id = Client.id
@@ -155,6 +180,17 @@ ORDER BY
                             LEFT JOIN ClientAddress AS ClientAddress1 ON ClientAddress1.client_id = Diagnosis.client_id
                             AND ClientAddress1.id = (SELECT MAX(id) FROM ClientAddress AS CA1 WHERE CA1.Type=1 and CA1.client_id = Diagnosis.client_id AND CA1.deleted = 0)'''
 
+    if socStatusTypeId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusType_id=%d' % socStatusTypeId)
+        cond.append('EXISTS('+subStmt+')')
+    elif socStatusClassId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusClass_id=%d' % socStatusClassId)
+        cond.append('EXISTS('+subStmt+')')
+
     return db.query(stmt % (colsAddressType, joinAddressType, db.joinAnd(cond)))
 
 
@@ -183,8 +219,15 @@ class CDispObservationList(CReport):
         MKBFrom = params.get('MKBFrom', 'A00')
         MKBTo = params.get('MKBTo', 'Z99.9')
         personId = params.get('personId', None)
+        orgStructureId = params.get('orgStructureId', None)
+        specialityId = params.get('specialityId', None)
+
         isFilterAddressType = bool(params.get('isFilterAddressType', False))
         filterAddressType = params.get('filterAddressType', 0)
+
+        socStatusClassId = params.get('socStatusClassId', None)
+        socStatusTypeId = params.get('socStatusTypeId', None)
+        attachOrgStructureId = params.get('attachOrgStructureId', None)
 
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
@@ -212,38 +255,39 @@ class CDispObservationList(CReport):
 
         table = createTable(cursor, tableColumns)
 
-        query = selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, isFilterAddressType, filterAddressType)
-        n = 0
-        while query.next():
-            n += 1
-            record = query.record()
-            name = formatName(record.value('lastName'),
-                              record.value('firstName'),
-                              record.value('patrName'))
-            birthDate = forceString(record.value('birthDate'))
-            sex = formatSex(forceInt(record.value('sex')))
-            SNILS   = formatSNILS(record.value('SNILS'))
-            policy  = ' '.join([forceString(record.value('policySerial')), forceString(record.value('policyNumber')), forceString(record.value('insurer'))])
-            document= ' '.join([forceString(record.value('documentSerial')), forceString(record.value('documentNumber'))])
-            regAddress = forceString(record.value('regAddress'))
-            locAddress = forceString(record.value('locAddress'))
-            MKB = normalizeMKB(forceString(record.value('MKB')))
-            MKBEx = normalizeMKB(forceString(record.value('MKBEx')))
-#            endDate = forceDate(record.value('endDate'))
-            contacts = ''
-            work= ' '.join([forceString(record.value('workName')), forceString(record.value('workPost'))])
-            i = table.addRow()
-            table.setText(i, 0, n)
-            table.setText(i, 1, name)
-            table.setText(i, 2, sex)
-            table.setText(i, 3, birthDate)
-            table.setText(i, 4, SNILS)
-            table.setText(i, 5, policy)
-            table.setText(i, 6, document)
-            table.setText(i, 7, regAddress+'\n'+locAddress)
-            table.setText(i, 8, contacts)
-            table.setText(i, 9, work)
-            table.setText(i, 10, MKB + ((u' + ' + MKBEx) if MKBEx else u''))
+        query = selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, isFilterAddressType, filterAddressType, socStatusClassId, socStatusTypeId, orgStructureId, specialityId, attachOrgStructureId)
+        if query.size():
+            table.appendRows(query.size())
+            row = 0
+            while query.next():
+                row += 1
+                record = query.record()
+                name = formatName(record.value('lastName'),
+                                  record.value('firstName'),
+                                  record.value('patrName'))
+                birthDate = forceString(record.value('birthDate'))
+                sex = formatSex(forceInt(record.value('sex')))
+                SNILS = formatSNILS(record.value('SNILS'))
+                policy = ' '.join([forceString(record.value('policySerial')), forceString(record.value('policyNumber')), forceString(record.value('insurer'))])
+                document = ' '.join([forceString(record.value('documentSerial')), forceString(record.value('documentNumber'))])
+                regAddress = forceString(record.value('regAddress'))
+                locAddress = forceString(record.value('locAddress'))
+                MKB = normalizeMKB(forceString(record.value('MKB')))
+                MKBEx = normalizeMKB(forceString(record.value('MKBEx')))
+    #            endDate = forceDate(record.value('endDate'))
+                contacts = forceString(record.value('contacts'))
+                work = ' '.join([forceString(record.value('workName')), forceString(record.value('workPost'))])
+                table.setText(row, 0, row)
+                table.setText(row, 1, name)
+                table.setText(row, 2, sex)
+                table.setText(row, 3, birthDate)
+                table.setText(row, 4, SNILS)
+                table.setText(row, 5, policy)
+                table.setText(row, 6, document)
+                table.setText(row, 7, regAddress+'\n'+locAddress)
+                table.setText(row, 8, contacts)
+                table.setText(row, 9, work)
+                table.setText(row, 10, MKB + ((u' + ' + MKBEx) if MKBEx else u''))
         return doc
 
 
@@ -258,6 +302,11 @@ class CDispObservationListSetupDialog(QtGui.QDialog, Ui_DispObservationSetupDial
         self.cmbArea.setOrgId(QtGui.qApp.currentOrgId())
         self.cmbArea.setValue(QtGui.qApp.currentOrgStructureId())
         self.setChkPrintOnlyFilledRowsVisible(False)
+        self.cmbSocStatusType.setTable('vrbSocStatusType', True)
+        self.cmbOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
+        self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
+        self.cmbSpeciality.setTable('rbSpeciality', True)
+        # self.cmbPerson.addNotSetValue()
 
 
     def setTitle(self, title):
@@ -269,6 +318,8 @@ class CDispObservationListSetupDialog(QtGui.QDialog, Ui_DispObservationSetupDial
 
     def setParams(self, params):
         self.edtDate.setDate(params.get('date', QDate.currentDate()))
+        self.cmbOrgStructure.setValue(params.get('orgStructureId', None))
+        self.cmbSpeciality.setValue(params.get('specialityId', None))
         self.cmbPerson.setValue(params.get('personId', None))
         self.cmbWorkOrganisation.setValue(params.get('workOrgId', None))
         self.cmbSex.setCurrentIndex(params.get('sex', 0))
@@ -287,11 +338,16 @@ class CDispObservationListSetupDialog(QtGui.QDialog, Ui_DispObservationSetupDial
         self.edtMKBFrom.setText(params.get('MKBFrom', 'A00'))
         self.edtMKBTo.setText(params.get('MKBTo',   'Z99.9'))
         self.chkPrintOnlyFilledRows.setChecked(bool(params.get('isPrintOnlyFilledRows', False)))
+        self.cmbSocStatusClass.setValue(params.get('socStatusClassId', None))
+        self.cmbSocStatusType.setValue(params.get('socStatusTypeId', None))
+        self.cmbOrgStructureAttach.setValue(params.get('attachOrgStructureId', None))
 
 
     def params(self):
         result = {}
         result['date'] = self.edtDate.date()
+        result['orgStructureId'] = self.cmbOrgStructure.value()
+        result['specialityId'] = self.cmbSpeciality.value()
         result['personId'] = self.cmbPerson.value()
         result['workOrgId'] = self.cmbWorkOrganisation.value()
         result['sex'] = self.cmbSex.currentIndex()
@@ -305,6 +361,9 @@ class CDispObservationListSetupDialog(QtGui.QDialog, Ui_DispObservationSetupDial
         result['MKBFrom']   = unicode(self.edtMKBFrom.text())
         result['MKBTo']     = unicode(self.edtMKBTo.text())
         result['isPrintOnlyFilledRows'] = self.chkPrintOnlyFilledRows.isChecked()
+        result['socStatusClassId'] = self.cmbSocStatusClass.value()
+        result['socStatusTypeId'] = self.cmbSocStatusType.value()
+        result['attachOrgStructureId'] = self.cmbOrgStructureAttach.value()
         return result
 
 
@@ -320,3 +379,20 @@ class CDispObservationListSetupDialog(QtGui.QDialog, Ui_DispObservationSetupDial
     def on_cmbMKBFilter_currentIndexChanged(self, index):
         self.edtMKBFrom.setEnabled(index == 1)
         self.edtMKBTo.setEnabled(index == 1)
+
+    @pyqtSignature('int')
+    def on_cmbSocStatusClass_currentIndexChanged(self, index):
+        socStatusClassId = self.cmbSocStatusClass.value()
+        filter = ('class_id=%d' % socStatusClassId) if socStatusClassId else ''
+        self.cmbSocStatusType.setFilter(filter)
+
+    @pyqtSignature('int')
+    def on_cmbOrgStructure_currentIndexChanged(self, index):
+        orgStructureId = self.cmbOrgStructure.value()
+        self.cmbPerson.setOrgStructureId(orgStructureId)
+
+    @pyqtSignature('int')
+    def on_cmbSpeciality_currentIndexChanged(self, index):
+        specialityId = self.cmbSpeciality.value()
+        self.cmbPerson.setSpecialityId(specialityId)
+

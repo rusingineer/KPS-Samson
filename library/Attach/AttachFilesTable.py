@@ -33,6 +33,7 @@ from Users.Rights   import ( urCanAttachFile,
                              urCanRenameOwnAttachedFile,
                              urCanDeleteAnyAttachedFile,
                              urCanDeleteOwnAttachedFile,
+                             urCanDeleteSuccessExpFile,
                              urCanSignForOrganisation,
                              urAdmin,
                            )
@@ -134,7 +135,7 @@ class CAttachFilesTable(QtGui.QTableView):
     def sizeHint(self):
         model = self.model()
         if not model:
-            return QtGui.QTableView.sizeHint()
+            return QtGui.QTableView().sizeHint()
         else:
             self.resizeColumnsToContents()
             self.resizeRowsToContents()
@@ -221,8 +222,21 @@ class CAttachFilesTable(QtGui.QTableView):
 
 
     def canDelete(self, fileItem):
+
+        if fileItem.id:
+            stmt = u'''SELECT id FROM Information_Messages WHERE IdMedDocumentMis_id = %(Id)s AND CHAR_LENGTH(IFNULL(RemdRegNumber, '')) > 0''' % {
+                'Id': fileItem.id
+            }
+
+            query = QtGui.qApp.db.query(stmt)
+            delete_ok = query.size() == 0
+        else:
+            delete_ok = True
+
         return (     bool(self._flags & CAttachFilesTableFlag.canDelete)
-                 and self.userHasRights(fileItem, urCanDeleteAnyAttachedFile, urCanDeleteOwnAttachedFile)
+                     and ((delete_ok or QtGui.qApp.userHasRight(urCanDeleteSuccessExpFile)) and
+                          self.userHasRights(fileItem, urCanDeleteAnyAttachedFile, urCanDeleteOwnAttachedFile)
+                          )
                )
 
 
@@ -354,7 +368,7 @@ class CAttachFilesTable(QtGui.QTableView):
         if fileItem.comment == None:
             comment = u''
         comment, ok = QtGui.QInputDialog.getText(self, # QWidget * parent,
-                                                 u'Изменить коментарий y' + fileItem.newName, # const QString & title,
+                                                 u'Изменить коментарий y ' + fileItem.newName, # const QString & title,
                                                  '',                                   # const QString & label,
                                                  QtGui.QLineEdit.Normal,               # QLineEdit::EchoMode mode = QLineEdit::Normal,
                                                  comment                      #  const QString & text = QString()
@@ -402,14 +416,14 @@ class CAttachFilesTable(QtGui.QTableView):
         if QtGui.qApp.userHasRight(urAdmin):
             self.actSaveKey.setEnabled(fileOk and self.canSave())
 
-
         fileItem = self.getCurrentFileItem()
-        db = QtGui.qApp.db
-        attachRecord = fileItem.getRecord(db.table('Action_FileAttach'))
-        Signer = True if forceRef(attachRecord.value('respSigner_id')) > 0 else False
-        hasId = forceBool(attachRecord.value('id'))
+        respSigner = None
+        hasId = False
+        if fileItem._record:
+            respSigner = forceRef(fileItem._record.value('respSigner_id'))
+            hasId = forceBool(fileItem._record.value('id'))
         self.actOpenWithSignatures.setEnabled(fileOk and self.canOpen(fileItem) and forceBool(fileItem.htmlTemplate) and hasId)
-        self.actAddKey.setEnabled(fileOk and self.canSave() and Signer and hasId)
+        self.actAddKey.setEnabled(fileOk and self.canSave() and bool(respSigner) and hasId)
         self.actRename.setEnabled(fileOk and self.canRename(fileItem))
         self.actComment.setEnabled(fileOk and self.canRename(fileItem))
         self.actDelete.setEnabled(bool(fileItem) and self.canDelete(fileItem))
@@ -435,7 +449,7 @@ class CAttachFilesTable(QtGui.QTableView):
         fileItem = self.getCurrentFileItem()
         fileOk = bool(fileItem) and not fileItem.isLost
         if fileOk and self.canOpen(fileItem):
-            attachRecord = fileItem.getRecord(db.table('Action_FileAttach'))
+            attachRecord = fileItem._record
             html = fileItem.htmlTemplate
             filePath = forceString(attachRecord.value('path'))
             if forceBool(filePath):
@@ -464,7 +478,7 @@ class CAttachFilesTable(QtGui.QTableView):
 
                 for cert in listCert:
                     html = html.replace('<!--sign_' + str(cert[1]) + '-->', cert[0])
-                    certSnils = str(cert[1])[:3]+'-'+str(cert[1])[3:6]+'-'+str(cert[1])[6:9]+' '+str(cert[1])[9:]
+                    certSnils = str(cert[1])[:3] + '-' + str(cert[1])[3:6] + '-' + str(cert[1])[6:9] + ' ' + str(cert[1])[9:]
                     html = html.replace('<!--sign_' + certSnils + '-->', cert[0])
 
                 if org_signatureBytes:
@@ -607,43 +621,95 @@ class CAttachFilesTable(QtGui.QTableView):
                     api = MSCApi(QtGui.qApp.getCsp())
                     cert = QtGui.qApp.getUserCert(api)
 
-                    detachedSignatureBytes = cert.createDetachedSignature(pdfBytes)
-                    signerSnils = cert.snils()
-                    records = self.getAvailableSigner(fileItem=fileItem, snils=signerSnils)
-                    if detachedSignatureBytes and records:
-                        # records = self.getAvailableSigner(fileItem=fileItem, snils=signerSnils)
-                        # if records:
-                        for temp_record in records:
-                            signId = None
-                            # signBytes = QByteArray(detachedSignatureBytes)
-                            signerId = temp_record.value('sig')
-                            signingDatetime = toVariant(QDateTime().currentDateTime())
-                            signerTitle = toVariant(u'{0} {1}, {2}'.format(cert.surName(),
-                                                                           cert.givenName(),
-                                                                           cert.snils()))
-                            masterId = fileItem.id
+                    db = QtGui.qApp.db
+                    pSnils = ''
+                    attachRecord = fileItem.getRecord(db.table('Action_FileAttach'))
+                    master_id = forceString(attachRecord.value('master_id'))
+                    stmt = """
+                            SELECT 
+                                p1.SNILS as pSnils
+                              from ActionPropertyType apt 
 
-                            fileItem.addSignature(signId=signId,
-                                                  signBytes=detachedSignatureBytes,
-                                                  signerId=signerId,
-                                                  signDatetime=signingDatetime,
-                                                  signerTitle=signerTitle,
-                                                  masterId=masterId)
+                              LEFT JOIN ActionType at ON at.id = apt.actionType_id
+                              LEFT JOIN Action a ON at.id = a.actionType_id
 
+                              LEFT JOIN ActionProperty ap ON a.id = ap.action_id AND apt.id = ap.type_id
+                              LEFT JOIN ActionProperty_Person app ON app.id=ap.id
+                              LEFT JOIN Person p1 ON app.value = p1.id
+
+                              WHERE apt.valueDomain LIKE '%signer%'
+                              AND p1.SNILS IS NOT NULL
+                              AND p1.SNILS LIKE '%{0}%'
+                              AND a.id = {1}
+
+                             and apt.deleted = 0 and at.deleted=0
+
+                             LIMIT 1;
+                            """
+
+                    if QtGui.qApp.getUseOwnPk():  # Если ключь пользователя по снилс
+                        # Если в умолчаниях настроен ключ по снилс, сверяем снилс члена комиссии = снилс авторизовавшегося пользователя
+                        snils = QtGui.qApp.getUserSnils()
+                        stmt = stmt.format(snils, master_id)
+
+                    else:  # Произвольный ключ пользователя
+                        # Если в умолчаниях настроен произвольный ключ пользователя, снилс члена комиссии = снилс в ЭЦП в умолчаниях.
+                        snils = cert.snils()
+                        stmt = stmt.format(snils, master_id)
+
+                    query = db.query(stmt)
+                    while query.next():
+                        rec = query.record()
+                        pSnils = forceString(rec.value('pSnils'))
+
+                    if pSnils:
+                        detachedSignatureBytes = cert.createDetachedSignature(pdfBytes)
+                        signerSnils = cert.snils()
+                        records = self.getAvailableSigner(fileItem=fileItem, snils=signerSnils) # Тут recoeds выдает пустым
+                        if detachedSignatureBytes and records:
+                            # records = self.getAvailableSigner(fileItem=fileItem, snils=signerSnils)
+                            # if records:
+                            for temp_record in records:
+                                signId = None
+                                # signBytes = QByteArray(detachedSignatureBytes)
+                                signerId = temp_record.value('sig')
+                                signingDatetime = toVariant(QDateTime().currentDateTime())
+                                signerTitle = toVariant(u'{0} {1}, {2}'.format(cert.surName(),
+                                                                               cert.givenName(),
+                                                                               cert.snils()))
+                                masterId = fileItem.id
+
+                                fileItem.addSignature(signId=signId,
+                                                      signBytes=detachedSignatureBytes,
+                                                      signerId=signerId,
+                                                      signDatetime=signingDatetime,
+                                                      signerTitle=signerTitle,
+                                                      masterId=masterId)
+                            if fileItem._record:
+                                fileItem._record._dirty = True
+                                fileItem._record.changed = True
                             messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Information,
                                                            u'Подписание',
                                                            u'Документ подписан успешно',
                                                            QtGui.QMessageBox.Ok)
                             messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
                             messageBox.exec_()
+                        else:
+                            messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Information,
+                                                           u'Ошибка подписания документа',
+                                                           u'Документ уже подписан или владелец '
+                                                           u'ЭЦП отсутствует среди участников',
+                                                           QtGui.QMessageBox.Close)
+                            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+                            messageBox.exec_()
                     else:
-                        messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Information,
-                                                       u'Ошибка подписания документа',
-                                                       u'Документ уже подписан или владелец '
-                                                       u'ЭЦП отсутствует среди участников',
-                                                       QtGui.QMessageBox.Close)
-                        messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
-                        messageBox.exec_()
+                        QtGui.QMessageBox.warning(self,
+                                                  u'Внимание!',
+                                                  u'Подписать документ могут только его участники.',
+
+                                                  QtGui.QMessageBox.Ok,
+                                                  QtGui.QMessageBox.Ok)
+
 
                 except Exception, e:
                     QtGui.QMessageBox.information(self, u'Ошибка получения сертификата', anyToUnicode(e.message),
@@ -656,7 +722,6 @@ class CAttachFilesTable(QtGui.QTableView):
                                                QtGui.QMessageBox.Close)
                 messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
                 messageBox.exec_()
-
 
     def getAvailableSigner(self, fileItem, snils):
         db = QtGui.qApp.db
@@ -743,6 +808,9 @@ class CAttachFilesTable(QtGui.QTableView):
         fileBytes = interface.downloadBytes(fileItem)
         signatureBytes = userCert.createDetachedSignature(fileBytes)
         fileItem.setRespSignature(signatureBytes, QtGui.qApp.userId, QDateTime.currentDateTime())
+        if fileItem._record:
+            fileItem._record._dirty = True
+            fileItem._record.changed = True
         model.touchRow(row)
 
 
@@ -755,6 +823,9 @@ class CAttachFilesTable(QtGui.QTableView):
         fileBytes = interface.downloadBytes(fileItem)
         signatureBytes = orgCert.createDetachedSignature(fileBytes)
         fileItem.setOrgSignature(signatureBytes, QtGui.qApp.userId, QDateTime.currentDateTime())
+        if fileItem._record:
+            fileItem._record._dirty = True
+            fileItem._record.changed = True
         model.touchRow(row)
 
 

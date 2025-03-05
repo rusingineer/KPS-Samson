@@ -1,25 +1,26 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4 import QtCore, QtGui, QtSql
-from PyQt4.QtCore import *
-
-import re
-import Exchange.AttachService as AttachService
+from PyQt4 import QtGui, QtSql
+from PyQt4.QtCore import QTimer, SIGNAL, Qt, pyqtSignature, QVariant, QModelIndex
+from PyQt4.QtGui import QDialog, QAction
 
 from library.DialogBase import CConstructHelperMixin
 from library.InDocTable import CRecordListModel, CInDocTableCol, CDateInDocTableCol, CBoolInDocTableCol, CDateTimeInDocTableCol
-from library.TableModel import CTableModel, CCol, CIntCol, CDesignationCol
-from library.Utils import *
+from library.TableModel import CTableModel, CIntCol, CDesignationCol
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays, getNextWorkDay
+from library.Utils import exceptionToUnicode, forceString, toVariant, forceInt, forceRef, forceDate
+
+import Exchange.AttachService as AttachService
 
 from Ui_ExportDispPlanDatesDialog import Ui_ExportDispPlanDatesDialog
 
-class CExportDispPlanDatesDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ExportDispPlanDatesDialog):
+
+class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPlanDatesDialog):
     def __init__(self, parent):
-        QtGui.QDialog.__init__(self, parent)
+        QDialog.__init__(self, parent)
         self.addModels('PlanDates', CPlanDatesModel(self))
         self.addModels('PlanDateErrors', CPlanDateErrorsModel(self))
-        self.addObject('actReplicate', QtGui.QAction(u'Тиражировать', self))
+        self.addObject('actReplicate', QAction(u'Тиражировать', self))
         self.setupUi(self)
         self.setModels(self.tblPlanDates, self.modelPlanDates, self.selectionModelPlanDates)
         self.setModels(self.tblPlanDateErrors, self.modelPlanDateErrors, self.selectionModelPlanDateErrors)
@@ -59,7 +60,7 @@ class CExportDispPlanDatesDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Export
     def showEvent(self, event):
         QTimer.singleShot(0, self.updateList)
         
-    def disableControls(self, disabled = True):
+    def disableControls(self, disabled=True):
         if disabled:
             self.controlDisableLevel += 1
         else:
@@ -225,6 +226,7 @@ class CExportDispPlanDatesDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Export
             weekProfile = dialog.weekProfile
             model.replicateRow(row, numDays, weekProfile)
 
+
 class CDictInDocTableCol(CInDocTableCol):
     def __init__(self, title, fieldName, width, values, **params):
         CInDocTableCol.__init__(self, title, fieldName, width, **params)
@@ -289,7 +291,7 @@ class CPlanDatesModel(CRecordListModel):
         self.codeMo = None
         self.itemsByCodeMo = {}
 
-    def removeRows(self, row, count, parentIndex = QModelIndex()):
+    def removeRows(self, row, count, parentIndex=QModelIndex()):
         deletedIdList = []
         if 0<=row and row+count<=self.realRowCount():
             records = self.items()[row:row+count]
@@ -378,6 +380,7 @@ class CPlanDatesModel(CRecordListModel):
             newDate = getNextWorkDay(newDate, weekProfile)
         self.endInsertRows()
 
+
 class CPlanDateErrorsModel(CTableModel):
     def __init__(self, parent):
         CTableModel.__init__(self, parent, [
@@ -394,6 +397,7 @@ class CPlanDateErrorsModel(CTableModel):
             where = [table['planDate_id'].eq(planDate_id)]
             idList = db.getIdList(table, where=where)
         self.setIdList(idList)
+
 
 class CPlanDateReplicateDialog(QtGui.QDialog):
     WeekProfiles = (wpFiveDays, wpSixDays, wpSevenDays)

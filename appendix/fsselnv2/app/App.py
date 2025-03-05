@@ -544,7 +544,7 @@ class CApp(CBaseApp):
                      'diagnosis'         : forceString(record.value('MKB')) or None,
                      'lastName'          : forceStringEx(record.value('lastName')).upper(),
                      'firstName'         : forceStringEx(record.value('firstName')).upper(),
-                     'patrName'          : forceStringEx(record.value('patrName')).upper(),
+                     'patrName'          : forceStringEx(record.value('patrName')).upper() or None,
                      'sex'               : forceInt(record.value('sex')),
                      'birthDate'         : forceDate(record.value('birthDate')),
                      'SNILS'             : forceString(record.value('SNILS')) or None,
@@ -668,7 +668,7 @@ class CApp(CBaseApp):
                  'SNILS'             : forceString(record.value('SNILS')),
                  'lastName'          : forceStringEx(record.value('lastName')).upper(),
                  'firstName'         : forceStringEx(record.value('firstName')).upper(),
-                 'patrName'          : forceStringEx(record.value('patrName')).upper(),
+                 'patrName'          : forceStringEx(record.value('patrName')).upper() or None,
                  'sex'               : forceInt(record.value('sex')),
                  'birthDate'         : forceDate(record.value('birthDate')),
 

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Correct
+Name[ru]=Корректор_свойств
+Comment=
+Icon=/opt/client/icons/s11.png
+Exec=/opt/client/install/bin/Correct.sh
+Path=/opt/client/
+Terminal=false
+StartupNotify=false

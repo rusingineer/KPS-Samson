@@ -54,6 +54,7 @@ class CRBNomenclatureActiveSubstanceEditor(CItemEditorBaseDialog, Ui_RBNomenclat
         self.cmbUnit.setTable('rbUnit', True)
         self.tblActiveSubstanceGroups.addPopupDelRow()
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
         self.initLineEditor()
         self.setupDirtyCather()
 

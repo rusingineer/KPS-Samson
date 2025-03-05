@@ -365,6 +365,9 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
 
         chkDetailClients = params.get('chkDetailClients', False)
         chkDetailFinance = params.get('chkDetailFinance', False)
+        financeId        = params.get('financeId', None)
+        if financeId:
+            chkDetailFinance = False
         chkDetailHospitalBedProfile = params.get('chkDetailHospitalBedProfile', False)
         if chkDetailClients:
             # подразделение будет выводится как заголовок
@@ -403,11 +406,11 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
                                 table.setText(i, idx+columnShift, value, charFormat=self.boldChars)
                                 financeResult[idx] += value
                         financeList.append(key[0])
-                        financeResult = [0, 0, 0, 0]
+                        financeResult = [0, 0, 0, 0, 0, 0]
                         orgStructuresList = []
                         i = table.addRow()
                         table.setText(i, 1, key[0], charFormat=self.boldChars,  blockFormat = CReportBase.AlignCenter)
-                        table.mergeCells(i, 0, 1, 6)
+                        table.mergeCells(i, 0, 1, 8)
                 if orgStrKey not in orgStructuresList:
                     orgStructuresList.append(orgStrKey)
                     subResult = self.printOrgStructureValues(key, self._mapOrgStructureToClientValues, table, financeKey=financeKey)
@@ -486,7 +489,7 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
             table.setText(i, 0, i-self._rowsShift)
             table.setText(i, 1, self.mapHospitalBedIdToName[profileKey] if profileKey in self.mapHospitalBedIdToName.keys() else u'Профиль не определен', 
                                 charFormat=charFormat)
-            subResult = [0, 0, 0, 0]
+            subResult = [0, 0, 0, 0, 0, 0]
             if depth:
                 columnShift = 7
                 clientValues = self._clientInfo.get(key, [])
@@ -501,7 +504,7 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
 
 
     def printOrgStructureValues(self, key, valuesDict, table, depth=0, financeKey=False):
-        values = [0, 0, 0, 0]
+        values = [0, 0, 0, 0, 0, 0]
         orgStrKey = key[1] if financeKey else key[0]
         for dictKey in valuesDict.keys():
             dictOrgStrKey = dictKey[1] if financeKey else dictKey[0]
@@ -522,7 +525,7 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
         if isinstance(values, list):
             table.setText(i, 0, i-self._rowsShift)
             table.setText(i, 1, nameKey, charFormat=charFormat)
-            subResult = [0, 0, 0, 0]
+            subResult = [0, 0, 0, 0, 0, 0]
             if depth:
                 columnShift = 7
                 clientValues = self._clientInfo.get(key, [])
@@ -548,6 +551,9 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
         endDate          = params.get('endDate', QDate.currentDate())
         chkDetailClients = params.get('chkDetailClients', False)
         chkDetailFinance = params.get('chkDetailFinance', False)
+        financeId        = params.get('financeId', None)
+        if financeId:
+            chkDetailFinance = False
         chkDetailHospitalBedProfile = params.get('chkDetailHospitalBedProfile', False)
         while query.next():
             record = query.record()

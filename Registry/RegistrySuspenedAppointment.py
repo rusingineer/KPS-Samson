@@ -45,8 +45,11 @@ class CRegistrySuspenedAppointment(CDialogBase, Ui_RegistrySuspenedAppointmentDi
             note             = self.getRegistryNote()
             db = QtGui.qApp.db
             table = db.table('SuspendedAppointment')
+            tableSchedule_Item = db.table('Schedule_Item')
+            queryTable = table.innerJoin(tableSchedule_Item,
+                                                     tableSchedule_Item['id'].eq(table['appointment_id']))
             cond = [table['deleted'].eq(0),
-                    table['client_id'].eq(self.clientId)
+                    table['client_id'].eq(self.clientId), ' (date(Schedule_Item.time)>date(NOW()) OR processed = 0) '
                     ]
             if personId:
                 cond.append(table['person_id'].eq(personId))
@@ -59,7 +62,7 @@ class CRegistrySuspenedAppointment(CDialogBase, Ui_RegistrySuspenedAppointmentDi
                 cond.append(table['endDate'].ge(begDate))
             if endDate:
                 cond.append(table['begDate'].le(endDate))
-            recordSA = db.getRecordEx(table, [table['id']], cond, order='id DESC')
+            recordSA = db.getRecordEx(queryTable, [table['id']], cond, order='id DESC')
             regisrtySAId = forceRef(recordSA.value('id')) if recordSA else None
             if not regisrtySAId:
                 record = table.newRecord()

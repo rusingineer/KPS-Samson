@@ -83,6 +83,7 @@ class CRBTestList(Ui_TestListDialog, CItemsListDialog):
         cond = []
         groupId = props.get('groupId', None)
         nameContains = props.get('nameContains', None)
+        edtFederalCode = props.get('federalCode', None)
         testCode = props.get('testCode', None)
         equipmentId = props.get('equipmentId', None)
 
@@ -94,6 +95,10 @@ class CRBTestList(Ui_TestListDialog, CItemsListDialog):
                 tableEquipmentTest['hardwareTestName'].contain(unicode(nameContains)),
             ])
             cond.append(orCond)
+
+        if edtFederalCode:
+            cond.append(tableTest['federalCode'].contain(unicode(edtFederalCode)))
+
         if testCode:
             orCond = db.joinOr([
                 tableTest['code'].contain(unicode(testCode)),
@@ -243,6 +248,7 @@ class CRBTestListFilterDialog(QtGui.QDialog, Ui_ItemFilterDialog):
         self.cmbGroup.setValue(props.get('groupId', 0))
         self.edtNameContains.setText(props.get('nameContains', ''))
         self.edtCode.setText(props.get('testCode', ''))
+        self.edtFederalCode.setText(props.get('federalCode', ''))
         self.cmbEquipment.setValue(props.get('equipmentId', 0))
 
 
@@ -251,5 +257,6 @@ class CRBTestListFilterDialog(QtGui.QDialog, Ui_ItemFilterDialog):
         result['groupId'] = self.cmbGroup.value()
         result['nameContains'] = self.edtNameContains.text()
         result['testCode'] = self.edtCode.text()
+        result['federalCode'] = self.edtFederalCode.text()
         result['equipmentId'] = self.cmbEquipment.value()
         return result

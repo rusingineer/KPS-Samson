@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>976</width>
-    <height>846</height>
+    <width>1109</width>
+    <height>972</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,25 +20,31 @@
    <property name="margin">
     <number>4</number>
    </property>
-   <property name="spacing">
-    <number>4</number>
-   </property>
-   <item row="4" column="0" colspan="2">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblFullName">
      <property name="text">
-      <string>&amp;Полное наименование</string>
+      <string>Полное наименование</string>
      </property>
      <property name="buddy">
       <cstring>edtFullName</cstring>
      </property>
     </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtFullName"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblShortName">
+     <property name="text">
+      <string>Наименование</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtShortName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLineEdit" name="edtShortName"/>
    </item>
    <item row="2" column="0">
     <widget class="QLabel" name="lblTitle">
@@ -50,24 +56,8 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblShortName">
-     <property name="text">
-      <string>&amp;Наименование</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtShortName</cstring>
-     </property>
-    </widget>
-   </item>
    <item row="2" column="1">
     <widget class="QLineEdit" name="edtTitle"/>
-   </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="edtFullName"/>
-   </item>
-   <item row="1" column="1">
-    <widget class="QLineEdit" name="edtShortName"/>
    </item>
    <item row="3" column="0" colspan="2">
     <widget class="QTabWidget" name="tabWidget">
@@ -81,39 +71,42 @@
       <attribute name="title">
        <string>Основная информация</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_6">
+      <layout class="QGridLayout" name="gridLayout">
        <property name="margin">
         <number>4</number>
        </property>
-       <property name="spacing">
-        <number>4</number>
-       </property>
-       <item row="0" column="0">
-        <widget class="QLabel" name="lblAddress">
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblKPP">
          <property name="text">
-          <string>Адрес</string>
+          <string>КПП</string>
          </property>
          <property name="buddy">
-          <cstring>edtAddress</cstring>
+          <cstring>edtKPP</cstring>
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QCheckBox" name="chkKLADR">
+       <item row="5" column="1">
+        <widget class="QLineEdit" name="edtKPP">
+         <property name="inputMask">
+          <string>999999999; </string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="3">
+        <widget class="QLabel" name="lblOKFS">
          <property name="text">
-          <string>КЛАДР</string>
+          <string>ОКФС</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>cmbOKFS</cstring>
          </property>
         </widget>
        </item>
-       <item row="2" column="1" colspan="2">
-        <widget class="COrgComboBox" name="cmbHead">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="CKLADRComboBox" name="cmbKLADRCity"/>
+       <item row="22" column="1" colspan="6">
+        <widget class="QTextEdit" name="edtNotes"/>
        </item>
        <item row="2" column="0">
         <widget class="QLabel" name="lblHead">
@@ -125,14 +118,17 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="1" colspan="7">
-        <widget class="QLineEdit" name="edtAddress">
+       <item row="2" column="6">
+        <widget class="QToolButton" name="btnSelectHeadOrganisation">
          <property name="enabled">
           <bool>true</bool>
          </property>
+         <property name="text">
+          <string>...</string>
+         </property>
         </widget>
        </item>
-       <item row="3" column="2">
+       <item row="3" column="3">
         <widget class="QLabel" name="lblOKATO">
          <property name="text">
           <string>ОКАТО</string>
@@ -142,54 +138,6 @@
          </property>
          <property name="buddy">
           <cstring>edtOKATO</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="3" colspan="5">
-        <layout class="QGridLayout" name="gridLayout">
-         <item row="0" column="0">
-          <widget class="QLabel" name="lblKLADRHouse">
-           <property name="text">
-            <string>дом</string>
-           </property>
-           <property name="buddy">
-            <cstring></cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="edtKLADRHouse">
-           <property name="inputMask">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
-          <widget class="QLabel" name="lblKLADRCorpus">
-           <property name="text">
-            <string>корп</string>
-           </property>
-           <property name="buddy">
-            <cstring></cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="3">
-          <widget class="QLineEdit" name="edtKLADRCorpus">
-           <property name="inputMask">
-            <string/>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="1" column="2">
-        <widget class="CStreetComboBox" name="cmbKLADRStreet">
-         <property name="minimumSize">
-          <size>
-           <width>400</width>
-           <height>0</height>
-          </size>
          </property>
         </widget>
        </item>
@@ -203,56 +151,10 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="3">
-        <widget class="QToolButton" name="btnSelectHeadOrganisation">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="text">
-          <string>...</string>
-         </property>
-        </widget>
-       </item>
        <item row="3" column="1">
         <widget class="QLineEdit" name="edtOGRN">
          <property name="inputMask">
           <string>999999999999900; </string>
-         </property>
-        </widget>
-       </item>
-       <item row="4" column="2">
-        <widget class="QLabel" name="lblOKPF">
-         <property name="text">
-          <string>ОКПФ</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-         <property name="buddy">
-          <cstring>cmbOKPF</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="6" colspan="2">
-        <spacer>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>111</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="4" column="3" colspan="5">
-        <widget class="CRBComboBox" name="cmbOKPF"/>
-       </item>
-       <item row="3" column="3" colspan="3">
-        <widget class="QLineEdit" name="edtOKATO">
-         <property name="inputMask">
-          <string>99999999999; </string>
          </property>
         </widget>
        </item>
@@ -266,6 +168,19 @@
          </property>
         </widget>
        </item>
+       <item row="3" column="6">
+        <spacer>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>111</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
        <item row="4" column="1">
         <widget class="QLineEdit" name="edtINN">
          <property name="inputMask">
@@ -273,44 +188,53 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
-        <widget class="QLabel" name="lblKPP">
-         <property name="text">
-          <string>КПП</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtKPP</cstring>
+       <item row="3" column="4" colspan="2">
+        <widget class="QLineEdit" name="edtOKATO">
+         <property name="inputMask">
+          <string>99999999999; </string>
          </property>
         </widget>
        </item>
-       <item row="5" column="2">
-        <widget class="QLabel" name="lblOKFS">
+       <item row="4" column="3">
+        <widget class="QLabel" name="lblOKPF">
          <property name="text">
-          <string>ОКФС</string>
+          <string>ОКПФ</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
          </property>
          <property name="buddy">
-          <cstring>cmbOKFS</cstring>
+          <cstring>cmbOKPF</cstring>
          </property>
         </widget>
        </item>
-       <item row="6" column="1">
-        <widget class="QLineEdit" name="edtFSS">
-         <property name="inputMask">
-          <string>9999999999; </string>
+       <item row="15" column="1">
+        <widget class="QLineEdit" name="edtMiacCode"/>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="lblFSS">
+         <property name="text">
+          <string>СФР</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtFSS</cstring>
          </property>
         </widget>
        </item>
-       <item row="5" column="1">
-        <widget class="QLineEdit" name="edtKPP">
-         <property name="inputMask">
-          <string>999999999; </string>
+       <item row="15" column="3">
+        <widget class="QLabel" name="lblUsishCode">
+         <property name="text">
+          <string>Код ЕГИСЗ</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>edtUsishCode</cstring>
          </property>
         </widget>
        </item>
-       <item row="17" column="0">
+       <item row="16" column="0">
         <widget class="QLabel" name="lblIsHospital">
          <property name="text">
           <string>ЛПУ</string>
@@ -320,14 +244,7 @@
          </property>
         </widget>
        </item>
-       <item row="15" column="3" colspan="5">
-        <widget class="QLineEdit" name="edtTfomsExtCode">
-         <property name="toolTip">
-          <string>Код в тер.фонде</string>
-         </property>
-        </widget>
-       </item>
-       <item row="17" column="1">
+       <item row="16" column="1">
         <widget class="QComboBox" name="cmbIsMedical">
          <item>
           <property name="text">
@@ -354,17 +271,9 @@
            <string>СМП</string>
           </property>
          </item>
-         <item>
-          <property name="text">
-           <string>санаторного типа</string>
-          </property>
-         </item>
         </widget>
        </item>
-       <item row="5" column="3" colspan="5">
-        <widget class="CRBComboBox" name="cmbOKFS"/>
-       </item>
-       <item row="17" column="2">
+       <item row="16" column="3">
         <widget class="QLabel" name="lblNet">
          <property name="text">
           <string>&amp;Сеть</string>
@@ -377,45 +286,213 @@
          </property>
         </widget>
        </item>
-       <item row="15" column="1">
-        <widget class="QLineEdit" name="edtTfomsCode">
+       <item row="18" column="0">
+        <widget class="QLabel" name="lblIsActive">
+         <property name="text">
+          <string>Организация активна</string>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="1">
+        <widget class="QCheckBox" name="chkIsInsurer">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="0">
+        <widget class="QLabel" name="lblIsInsurer">
+         <property name="text">
+          <string>Страховая компания</string>
+         </property>
+         <property name="buddy">
+          <cstring>chkIsInsurer</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="19" column="1">
+        <widget class="QCheckBox" name="chkIsSupplier">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="19" column="0">
+        <widget class="QLabel" name="lblIsSupplier">
+         <property name="text">
+          <string>Поставщик</string>
+         </property>
+        </widget>
+       </item>
+       <item row="20" column="0">
+        <widget class="QLabel" name="lblArea">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Регион</string>
+         </property>
+         <property name="buddy">
+          <cstring>cmbArea</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="18" column="1">
+        <widget class="QCheckBox" name="chkIsActive">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="3">
+        <widget class="QLabel" name="lblServiceStop">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Приостановить обслуживание: </string>
+         </property>
+         <property name="buddy">
+          <cstring>chkCompulsoryServiceStop</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="4">
+        <widget class="QCheckBox" name="chkCompulsoryServiceStop">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>ОМС</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="6">
+        <spacer>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>111</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="21" column="5">
+        <widget class="QCheckBox" name="chkVoluntaryServiceStop">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>ДМС</string>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="6">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="1" column="1">
+        <widget class="CKLADRComboBox" name="cmbKLADRCity"/>
+       </item>
+       <item row="9" column="1" colspan="6">
+        <widget class="QLineEdit" name="edtChief"/>
+       </item>
+       <item row="0" column="1" colspan="6">
+        <widget class="QLineEdit" name="edtAddress">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="22" column="0">
+        <widget class="QLabel" name="lblNotes">
+         <property name="text">
+          <string>Примечания</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+         <property name="buddy">
+          <cstring>edtNotes</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1" colspan="5">
+        <widget class="COrgComboBox" name="cmbHead">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1" colspan="6">
+        <widget class="CPersonComboBoxEx" name="cmbChief"/>
+       </item>
+       <item row="20" column="1" colspan="6">
+        <widget class="CKLADRComboBox" name="cmbArea">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="11" column="1" colspan="6">
+        <widget class="QLineEdit" name="edtPhone"/>
+       </item>
+       <item row="10" column="1" colspan="6">
+        <widget class="QLineEdit" name="edtAccountant"/>
+       </item>
+       <item row="7" column="4" colspan="3">
+        <widget class="CRBComboBox" name="cmbExecutiveAuthority"/>
+       </item>
+       <item row="4" column="4" colspan="3">
+        <widget class="CRBComboBox" name="cmbOKPF"/>
+       </item>
+       <item row="5" column="4" colspan="3">
+        <widget class="CRBComboBox" name="cmbOKFS"/>
+       </item>
+       <item row="11" column="0">
+        <widget class="QLabel" name="lblPhone">
+         <property name="text">
+          <string>Телефон</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtPhone</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="4" colspan="3">
+        <widget class="QLineEdit" name="edtTfomsExtCode">
          <property name="toolTip">
           <string>Код в тер.фонде</string>
          </property>
         </widget>
        </item>
-       <item row="9" column="1" colspan="7">
-        <widget class="QLineEdit" name="edtChief"/>
+       <item row="16" column="4" colspan="3">
+        <widget class="CRBComboBox" name="cmbNet"/>
        </item>
-       <item row="13" column="1">
-        <widget class="QLineEdit" name="edtSmoCode">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-         <property name="maxLength">
-          <number>10</number>
-         </property>
-        </widget>
-       </item>
-       <item row="16" column="0">
-        <widget class="QLabel" name="lblMiacCode">
+       <item row="10" column="0">
+        <widget class="QLabel" name="lblAccountant">
          <property name="text">
-          <string>Код &amp;МИАЦ</string>
+          <string>Гл.бухгалтер</string>
          </property>
          <property name="buddy">
-          <cstring>edtMiacCode</cstring>
+          <cstring>edtAccountant</cstring>
          </property>
         </widget>
        </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="lblFSS">
-         <property name="text">
-          <string>СФР</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtFSS</cstring>
-         </property>
-        </widget>
+       <item row="15" column="4" colspan="3">
+        <widget class="QLineEdit" name="edtUsishCode"/>
        </item>
        <item row="13" column="0">
         <widget class="QLabel" name="lbSmoCode">
@@ -433,7 +510,43 @@
          </property>
         </widget>
        </item>
-       <item row="15" column="2">
+       <item row="7" column="3">
+        <widget class="QLabel" name="lblExecutiveAuthority">
+         <property name="text">
+          <string>ИОГВ</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         </property>
+         <property name="buddy">
+          <cstring>cmbOKFS</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="lblChief">
+         <property name="text">
+          <string>Руководитель</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+         <property name="buddy">
+          <cstring>edtChief</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="1">
+        <widget class="QLineEdit" name="edtSmoCode">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="maxLength">
+          <number>10</number>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="3">
         <widget class="QLabel" name="lblTfomsExtCode">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Дополнительный код в ТФОМС,&lt;br/&gt;нужно в СПб&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -452,56 +565,17 @@
          </property>
         </widget>
        </item>
-       <item row="18" column="0">
-        <widget class="QLabel" name="lblIsInsurer">
-         <property name="text">
-          <string>Страховая компания</string>
-         </property>
-         <property name="buddy">
-          <cstring>chkIsInsurer</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="17" column="3" colspan="5">
-        <widget class="CRBComboBox" name="cmbNet"/>
-       </item>
-       <item row="6" column="6" colspan="2">
-        <spacer>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>111</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="11" column="0">
-        <widget class="QLabel" name="lblPhone">
-         <property name="text">
-          <string>Телефон</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtPhone</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="10" column="1" colspan="7">
-        <widget class="QLineEdit" name="edtAccountant"/>
-       </item>
-       <item row="7" column="0">
-        <widget class="QLabel" name="lblOKVED">
-         <property name="text">
-          <string>ОКВЭД</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtOKVED</cstring>
-         </property>
-        </widget>
-       </item>
        <item row="15" column="0">
+        <widget class="QLabel" name="lblMiacCode">
+         <property name="text">
+          <string>Код &amp;МИАЦ</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtMiacCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="0">
         <widget class="QLabel" name="lblTfomsCode">
          <property name="toolTip">
           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Код в ТФОМС&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -520,20 +594,45 @@
          </property>
         </widget>
        </item>
-       <item row="10" column="0">
-        <widget class="QLabel" name="lblAccountant">
-         <property name="text">
-          <string>Гл.бухгалтер</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtAccountant</cstring>
+       <item row="14" column="1">
+        <widget class="QLineEdit" name="edtTfomsCode">
+         <property name="toolTip">
+          <string>Код в тер.фонде</string>
          </property>
         </widget>
        </item>
-       <item row="16" column="1">
-        <widget class="QLineEdit" name="edtMiacCode"/>
+       <item row="6" column="4" colspan="2">
+        <widget class="QLineEdit" name="edtOKPO">
+         <property name="inputMask">
+          <string>99999999; </string>
+         </property>
+        </widget>
        </item>
-       <item row="6" column="2">
+       <item row="7" column="0">
+        <widget class="QLabel" name="lblOKVED">
+         <property name="text">
+          <string>ОКВЭД</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblAddress">
+         <property name="text">
+          <string>Адрес</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtAddress</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1">
+        <widget class="QLineEdit" name="edtFSS">
+         <property name="inputMask">
+          <string>9999999999; </string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="3">
         <widget class="QLabel" name="lblOKPO">
          <property name="text">
           <string>ОКПО</string>
@@ -546,195 +645,60 @@
          </property>
         </widget>
        </item>
-       <item row="16" column="2">
-        <widget class="QLabel" name="lblUsishCode">
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="chkKLADR">
          <property name="text">
-          <string>Код ЕГИСЗ</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-         <property name="buddy">
-          <cstring>edtUsishCode</cstring>
+          <string>КЛАДР</string>
          </property>
         </widget>
        </item>
-       <item row="11" column="1" colspan="7">
-        <widget class="QLineEdit" name="edtPhone"/>
+       <item row="1" column="3">
+        <widget class="CStreetComboBox" name="cmbKLADRStreet"/>
        </item>
-       <item row="16" column="3" colspan="5">
-        <widget class="QLineEdit" name="edtUsishCode"/>
+       <item row="1" column="4" colspan="3">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="lblKLADRHouse">
+           <property name="text">
+            <string>дом</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtKLADRHouse"/>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblKLADRCorpus">
+           <property name="text">
+            <string>корп</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtKLADRCorpus"/>
+         </item>
+        </layout>
        </item>
-       <item row="6" column="3" colspan="3">
-        <widget class="QLineEdit" name="edtOKPO">
-         <property name="inputMask">
-          <string>99999999; </string>
+       <item row="12" column="1" colspan="6">
+        <widget class="QLineEdit" name="edtEmail"/>
+       </item>
+       <item row="12" column="0">
+        <widget class="QLabel" name="lblEmail">
+         <property name="text">
+          <string>E-mail</string>
          </property>
         </widget>
        </item>
        <item row="7" column="1">
-        <widget class="QLineEdit" name="edtOKVED"/>
-       </item>
-       <item row="23" column="0">
-        <widget class="QLabel" name="lblNotes">
-         <property name="text">
-          <string>Примечания</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-         </property>
-         <property name="buddy">
-          <cstring>edtNotes</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="23" column="1" colspan="7">
-        <widget class="QTextEdit" name="edtNotes"/>
-       </item>
-       <item row="20" column="0">
-        <widget class="QLabel" name="lblIsSupplier">
-         <property name="text">
-          <string>Поставщик</string>
-         </property>
-        </widget>
-       </item>
-       <item row="18" column="1">
-        <widget class="QCheckBox" name="chkIsInsurer">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="22" column="2">
-        <widget class="QLabel" name="lblServiceStop">
-         <property name="enabled">
+        <widget class="QLineEdit" name="edtOKVEDName">
+         <property name="readOnly">
           <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>Приостановить обслуживание: </string>
-         </property>
-         <property name="buddy">
-          <cstring>chkCompulsoryServiceStop</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="22" column="4">
-        <widget class="QCheckBox" name="chkCompulsoryServiceStop">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>ОМС</string>
-         </property>
-        </widget>
-       </item>
-       <item row="21" column="1" colspan="7">
-        <widget class="CKLADRComboBox" name="cmbArea">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="22" column="5">
-        <widget class="QCheckBox" name="chkVoluntaryServiceStop">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>ДМС</string>
-         </property>
-        </widget>
-       </item>
-       <item row="19" column="1">
-        <widget class="QCheckBox" name="chkIsActive">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="22" column="6" colspan="2">
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="19" column="0">
-        <widget class="QLabel" name="lblIsActive">
-         <property name="text">
-          <string>Организация активна</string>
-         </property>
-        </widget>
-       </item>
-       <item row="21" column="0">
-        <widget class="QLabel" name="lblArea">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>Регион</string>
-         </property>
-         <property name="buddy">
-          <cstring>cmbArea</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="20" column="1">
-        <widget class="QCheckBox" name="chkIsSupplier">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-       <item row="13" column="3" colspan="5">
-        <widget class="QLineEdit" name="edtEmail">
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>285</width>
-           <height>16777215</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-       <item row="13" column="2">
-        <widget class="QLabel" name="lblEmail">
-         <property name="layoutDirection">
-          <enum>Qt::LeftToRight</enum>
-         </property>
-         <property name="text">
-          <string>E-mail</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="0">
-        <widget class="QLabel" name="lblChief">
-         <property name="text">
-          <string>Руководитель</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtChief</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="1" colspan="7">
-        <widget class="CPersonComboBoxEx" name="cmbChief">
-         <property name="enabled">
-          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -761,6 +725,9 @@
        <string>Лицензии</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout">
+       <property name="margin">
+        <number>4</number>
+       </property>
        <item>
         <widget class="CInDocTableView" name="tblLicense"/>
        </item>
@@ -793,9 +760,6 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="1" column="0">
-        <widget class="CInDocTableView" name="tblHospitalBedProfiles"/>
-       </item>
        <item row="0" column="0">
         <widget class="QCheckBox" name="chkHBHideInactiveProfiles">
          <property name="text">
@@ -806,22 +770,27 @@
          </property>
         </widget>
        </item>
+       <item row="1" column="0">
+        <widget class="QSplitter" name="splitter">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <widget class="CInDocTableView" name="tblHospitalBedProfiles"/>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabSpecialitys">
       <attribute name="title">
        <string>Специальности</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_4">
+      <layout class="QGridLayout" name="gridLayout_5">
        <property name="margin">
         <number>4</number>
        </property>
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="1" column="0">
-        <widget class="CInDocTableView" name="tblSpecialitys"/>
-       </item>
        <item row="0" column="0">
         <widget class="QCheckBox" name="chkSpecHideInactiveProfiles">
          <property name="text">
@@ -832,22 +801,27 @@
          </property>
         </widget>
        </item>
+       <item row="1" column="0">
+        <widget class="QSplitter" name="splitter_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <widget class="CInDocTableView" name="tblSpecialitys"/>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabServices">
       <attribute name="title">
        <string>Услуги</string>
       </attribute>
-      <layout class="QGridLayout" name="gridLayout_5">
+      <layout class="QGridLayout" name="gridLayout_4">
        <property name="margin">
         <number>4</number>
        </property>
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="1" column="0">
-        <widget class="CInDocTableView" name="tblServices"/>
-       </item>
        <item row="0" column="0">
         <widget class="QCheckBox" name="chkServiceHideInactiveProfiles">
          <property name="text">
@@ -856,6 +830,14 @@
          <property name="checked">
           <bool>true</bool>
          </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QSplitter" name="splitter_3">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <widget class="CInDocTableView" name="tblServices"/>
         </widget>
        </item>
       </layout>
@@ -878,6 +860,13 @@
      </widget>
     </widget>
    </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <layoutdefault spacing="4" margin="4"/>
@@ -894,24 +883,24 @@
    <header>library/InDocTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CKLADRComboBox</class>
-   <extends>QComboBox</extends>
-   <header>KLADR/kladrComboxes.h</header>
-  </customwidget>
-  <customwidget>
    <class>COrgComboBox</class>
    <extends>QComboBox</extends>
    <header>OrgComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>CStreetComboBox</class>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>PersonComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CKLADRComboBox</class>
    <extends>QComboBox</extends>
    <header>KLADR/kladrComboxes.h</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
+   <class>CStreetComboBox</class>
    <extends>QComboBox</extends>
-   <header>PersonComboBoxEx.h</header>
+   <header>KLADR/kladrComboxes.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -920,33 +909,25 @@
   <tabstop>edtTitle</tabstop>
   <tabstop>tabWidget</tabstop>
   <tabstop>edtAddress</tabstop>
-  <tabstop>chkKLADR</tabstop>
-  <tabstop>cmbKLADRCity</tabstop>
-  <tabstop>cmbKLADRStreet</tabstop>
-  <tabstop>edtKLADRHouse</tabstop>
-  <tabstop>edtKLADRCorpus</tabstop>
   <tabstop>cmbHead</tabstop>
   <tabstop>btnSelectHeadOrganisation</tabstop>
   <tabstop>edtOGRN</tabstop>
   <tabstop>edtINN</tabstop>
   <tabstop>edtKPP</tabstop>
   <tabstop>edtFSS</tabstop>
-  <tabstop>edtOKVED</tabstop>
   <tabstop>edtOKATO</tabstop>
   <tabstop>cmbOKPF</tabstop>
   <tabstop>cmbOKFS</tabstop>
   <tabstop>edtOKPO</tabstop>
-  <tabstop>cmbChief</tabstop>
   <tabstop>edtChief</tabstop>
   <tabstop>edtAccountant</tabstop>
   <tabstop>edtPhone</tabstop>
   <tabstop>edtSmoCode</tabstop>
   <tabstop>edtTfomsCode</tabstop>
-  <tabstop>edtMiacCode</tabstop>
-  <tabstop>cmbIsMedical</tabstop>
-  <tabstop>edtEmail</tabstop>
   <tabstop>edtTfomsExtCode</tabstop>
+  <tabstop>edtMiacCode</tabstop>
   <tabstop>edtUsishCode</tabstop>
+  <tabstop>cmbIsMedical</tabstop>
   <tabstop>cmbNet</tabstop>
   <tabstop>chkIsInsurer</tabstop>
   <tabstop>chkIsActive</tabstop>
@@ -956,16 +937,18 @@
   <tabstop>chkVoluntaryServiceStop</tabstop>
   <tabstop>edtNotes</tabstop>
   <tabstop>tblOrganisationAccounts</tabstop>
-  <tabstop>tblLicense</tabstop>
   <tabstop>tblPolicySerials</tabstop>
+  <tabstop>buttonBox</tabstop>
   <tabstop>chkHBHideInactiveProfiles</tabstop>
   <tabstop>tblHospitalBedProfiles</tabstop>
+  <tabstop>tblIdentification</tabstop>
   <tabstop>chkSpecHideInactiveProfiles</tabstop>
   <tabstop>tblSpecialitys</tabstop>
   <tabstop>chkServiceHideInactiveProfiles</tabstop>
   <tabstop>tblServices</tabstop>
-  <tabstop>tblIdentification</tabstop>
-  <tabstop>buttonBox</tabstop>
+  <tabstop>cmbChief</tabstop>
+  <tabstop>cmbExecutiveAuthority</tabstop>
+  <tabstop>tblLicense</tabstop>
  </tabstops>
  <resources/>
  <connections>

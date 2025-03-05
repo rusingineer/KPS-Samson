@@ -86,12 +86,12 @@ from Reports.ReportBase       import CReportBase, createTable
 from Reports.ReportBeforeRecord           import CReportBeforeRecord
 from Reports.ReportView       import CReportViewDialog
 from RefBooks.AppointmentPurpose.Info     import CAppointmentPurposeInfo
-from Timeline.Schedule                    import (
-                                                  CSchedule,
-                                                  CScheduleItem,
-                                                  confirmAndFreeScheduleItem,
-                                                  getScheduleItemIdListForClient
-                                                 )
+from Timeline.Schedule import (
+    CSchedule,
+    CScheduleItem,
+    confirmAndFreeScheduleItem,
+    getScheduleItemIdListForClient, getScheduleItemIdFinance, getScheduleItemIdListForClient_OMS, getExceptionSpecialty
+)
 from Timeline.TimeTable                   import formatTimeRange
 from Users.Rights import (
     urAdmin,
@@ -937,20 +937,33 @@ class CResourcesDockContent(QtGui.QWidget,
             QtGui.QMessageBox.warning(self, u'Внимание!', u'Назначение приёма препятствует записи пациента')
             return False
 
+        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem):
+            QtGui.QMessageBox.warning(self, u'Внимание!', u'Запись за горизонт 14 дней разрешена только для повторной записи самому к себе')
+            return False
+
         scheduleItemIdList = getScheduleItemIdListForClient(clientId, specialityId, date, modelQueue.appointmentType)
         if scheduleItemIdList:
-            if QtGui.qApp.isReStagingInQueue():  # Повторная постановка в очередь(да, нет)
+            scheduleItemIdList_OMS = getScheduleItemIdListForClient_OMS(scheduleItemIdList)
+            exceptionSpecialty = getExceptionSpecialty(specialityId)
+            checkFinance = None
+            if scheduleItem and scheduleItem.appointmentPurposeId:
+                recordFinance = getScheduleItemIdFinance(scheduleItem)
+                if recordFinance:
+                    checkFinance = forceString(recordFinance.value('code'))
+                else:
+                    checkFinance = None
+            if QtGui.qApp.isReStagingInQueue() or (checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1 or modelQueue.appointmentType == 2:  # Повторная постановка в очередь(да, нет)
                 textMessage = u'Этот пациент уже записан к врачу этой специальности\nПодтвердите повторную запись'
             else:
                 textMessage = u'Этот пациент уже записан к врачу этой специальности'
             messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!', textMessage)
             messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
-            if QtGui.qApp.isReStagingInQueue():
-                messageBox.addButton(u'Ок', QtGui.QMessageBox.YesRole)
             messageBox.addButton(u'Отмена', QtGui.QMessageBox.NoRole)
             messageBox.setDefaultButton(messageBox.addButton(u'Просмотр', QtGui.QMessageBox.ActionRole))
+            if QtGui.qApp.isReStagingInQueue() or (checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1 or modelQueue.appointmentType == 2:
+                messageBox.addButton(u'Ок', QtGui.QMessageBox.YesRole)
             confirmation = messageBox.exec_()
-            if not QtGui.qApp.isReStagingInQueue():  # Повторная постановка в очередь(да, нет)
+            if not QtGui.qApp.isReStagingInQueue() or not checkFinance or checkFinance == '2':  # Повторная постановка в очередь(да, нет)
                 confirmation += 1
             if confirmation == 1:
                 return False
@@ -3051,6 +3064,12 @@ def isAppointmentEnabledForClient(appointmentPurposeId, personId, date, clientId
             return appointmentPurpose.enablePrimaryRecord
     return True
 
+def isAppointmentEnabledForDate(scheduleItem):
+    db = QtGui.qApp.db
+    id_ = scheduleItem.id if scheduleItem.id else '-1'
+    AppointmentPerson = db.getRecord('Schedule', ('Schedule.date<=%s or (Schedule.date<=%s and Schedule.person_id = %s ) or (SELECT f.code IS not NULL and f.code!=2 FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id   LEFT JOIN rbFinance f ON ap.finance_id = f.id WHERE si.id=%s) as check_' % (db.dateAdd('current_date', 'day', '14'),db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId, id_)),forceInt(scheduleItem.record.value('master_id')))
+    check = forceInt(AppointmentPerson.value('check_'))
+    return check
 
 def isReferralRequired(appointmentPurposeId):
     appointmentPurpose = CAppointmentPurposeCache.getItem(appointmentPurposeId)

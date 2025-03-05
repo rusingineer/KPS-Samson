@@ -14,19 +14,21 @@
 ## Модуль редактора шаблонов назначения действий
 #############################################################################
 
-import sip
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import pyqtSignature, QModelIndex, Qt, QVariant
 from PyQt4.QtGui import QKeySequence, QDoubleSpinBox
 from RefBooks.ActionTypeGroup.RBActionTypeSelectorDialog import CActionTypeSelector
 from RefBooks.ActionTypeGroup.Ui_RBActionTypeGroupEditor import Ui_ActionTypeGroupEditorDialog
-from library.Utils import forceBool, forceStringEx, toVariant, forceRef, forceInt
+from library.Utils import forceBool, forceStringEx, toVariant, forceRef, forceInt, forceString
 from library.ItemsListDialog import CItemEditorBaseDialog
 from library.interchange import getComboBoxValue
 from library.database import CTable, CSurrogateField
 from library.crbcombobox import CRBComboBox
+from library.ESKLP.SmnnComboBoxEx import CSmnnComboBoxEx
+from library.ESKLP.SmnnGrlsLfComboBoxEx import CSmnnGrlsLfComboBoxEx
 #from RefBooks.ActionTypeGroup.crbclassesMy import CRBModelDataCacheMod
 from Events.Action import CActionTypeCache
+from Events.ActionTemplateChoose import CActionTemplateComboBox
 from RefBooks.NomenclatureActiveSubstance.ActiveSubstanceComboBox import CActiveSubstanceComboBox
 from Stock.NomenclatureComboBox import CNomenclatureComboBox
 #from Stock.NomenclatureComboBox import CNomenclatureInDocTableCol
@@ -43,6 +45,39 @@ class CActionTypesList(CRecordListModel):
     Модель данных для таблицы действий в редакторе
     Связанная таблица SQL должна иметь поле master_id
     """
+    
+    class CActionTemplateInDocTableCol(CInDocTableCol):
+        def __init__(self, model):
+            CInDocTableCol.__init__(self, u'Шаблон действия', 'actionTemplate_id', 20)
+            self.model = model
+
+
+        def toString(self, val, record):
+            actionTemplateId = forceRef(val)
+            if actionTemplateId:
+                record = QtGui.qApp.db.getRecord('ActionTemplate', 'name', actionTemplateId)
+                str = forceString(record.value('name'))
+            else:
+                str = u'не задано'
+            return QVariant(str)
+
+
+        def createEditor(self, parent):
+            eventEditor = self.model.parentWidget.eventEditor
+            editor = CActionTemplateComboBox(parent)
+            return editor
+
+        def getEditorData(self, editor):
+            return QVariant(editor.value())
+
+
+        def setEditorData(self, editor, value, record):
+            eventEditor = self.model.parentWidget.eventEditor
+            actionTypeId = forceRef(record.value('actionType_id'))
+            editor.setFilter(actionTypeId, None, None, None, eventEditor.clientSex, eventEditor.clientAge)
+            editor.setValue(forceRef(value))
+            
+            
     def __init__(self, tableName, idFieldName, masterIdFieldName, parent):
         super(CActionTypesList, self).__init__(parent)
         db = QtGui.qApp.db
@@ -385,12 +420,70 @@ class CLocDosesCol(CLocPropertyCol):
             editor.setValue(0.0)
 
 
+class CLfFormInDocTableCol(CRBInDocTableCol):
+    def __init__(self, title, fieldName, width, tableName, **params):
+        CRBInDocTableCol.__init__(self, title, fieldName, width, tableName, **params)
+
+    def createEditor(self, parent):
+        editor = CSmnnGrlsLfComboBoxEx(parent)
+        editor.setOnlySmnnUUID(True)
+        editor.setOnlyExists(True)
+        editor.setOnlySmnnUUID(True)
+        return editor
+
+    def setEditorData(self, editor, value, record):
+        orgStructureId = forceRef(record.value('orgStructure_id'))
+        nomenclatureId = forceRef(record.value('nomenclature_id'))
+        smnnUUID = forceStringEx(record.value('smnnUUID'))
+        editor.setOrgStructureId(orgStructureId if orgStructureId else QtGui.qApp.currentOrgStructureId())
+        editor.setNomenclatureId(nomenclatureId)
+        editor.setNomenclatureSmnnUUID(smnnUUID)
+        editor.setValue(forceStringEx(value))
+
+
+class CSmnnInDocTableCol(CInDocTableCol):
+    def __init__(self, title, fieldName, width, **params):
+        CInDocTableCol.__init__(self, title, fieldName, width, **params)
+        self.smnnCaches = {}
+
+    def toString(self, val, record):
+        name = u''
+        smnnUUID = forceStringEx(val)
+        if smnnUUID:
+            name = self.smnnCaches.get(smnnUUID, u'')
+            if not name:
+                db = QtGui.qApp.db
+                table = db.table('esklp.Smnn')
+                record = db.getRecordEx(table, [table['code'], table['mnn'], table['form']], [table['UUID'].eq(smnnUUID)])
+                if record:
+                    name = forceStringEx(record.value('mnn'))
+                    self.smnnCaches[smnnUUID] = name
+        return toVariant(name)
+
+    def createEditor(self, parent):
+        editor = CSmnnComboBoxEx(parent)
+        editor.setOnlyExists(True)
+        return editor
+
+    def setEditorData(self, editor, value, record):
+        orgStructureId = forceRef(record.value('orgStructure_id'))
+        nomenclatureId = forceRef(record.value('nomenclature_id'))
+        editor.setOrgStructureId(orgStructureId if orgStructureId else QtGui.qApp.currentOrgStructureId())
+        editor.setNomenclatureId(nomenclatureId)
+        editor.setValue(forceStringEx(value))
+
+
+def getEditorData(self, editor):
+        return toVariant(forceStringEx(editor.value()))
+
+
 class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialog):
     """
     Диалог редактирования шаблона назначения действий.
     Задаём код, имя шаблона, доступность.
     Позволяет добавлять либо удалять действия из шаблона.
     """
+            
     def __init__(self, parent, templateId, enableOffset=False):
         super(ActionTypeGroupEditor, self).__init__(parent, 'ActionTypeGroup')
         self._templateId = templateId
@@ -406,10 +499,14 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
         self.modelActionTypes.addCol(CLocDosesCol(u'Doses', 'doses', 6, 'rbNomenclature'))
         self.modelActionTypes.addCol(CLocSignaCol(u'Signa', 'signa', 6, 'rbNomenclatureUsingType'))
         self.modelActionTypes.addCol(CLocActiveSubstanceCol(u'Действующее вещество', 'activeSubstance_id', 21, 'rbNomenclatureActiveSubstance'))
-        self.modelActionTypes.addCol(CIntInDocTableCol(u'Смещение', 'offset', 10, **{'maxLength': 3, 'inputMask': '000'}))
+        self.modelActionTypes.addCol(CActionTypesList.CActionTemplateInDocTableCol(self))
+        self.modelActionTypes.addCol(CSmnnInDocTableCol(u'МНН', 'smnnUUID', 22))
+        self.modelActionTypes.addCol(CLfFormInDocTableCol(u'Форма выпуска', 'lfForm_id',  10, 'rbLfForm'))
+        self.modelActionTypes.addCol(CRBInDocTableCol(u'Параметр расчета', 'actionPropertyTemplate_id', 10, 'ActionPropertyTemplate', showFields=CRBComboBox.showCodeAndName, filter=u'ActionPropertyTemplate.isCalcParamDoseNomenclatureExpense=1'))
+        #self.modelActionTypes.addCol(CIntInDocTableCol(u'Смещение', 'offset', 10, **{'maxLength': 3, 'inputMask': '000'}))
         self.modelActionTypes.addHiddenCol('orgStructure_id')
         self.modelActionTypes.setExtColsPresent(True)
-        self.editableCols = ['duration', 'periodicity', 'aliquoticity', 'nomenclature_id', 'doses', 'signa', 'activeSubstance_id', 'smnnUUID', 'lfForm_id', 'offset']
+        self.editableCols = ['duration', 'periodicity', 'aliquoticity', 'nomenclature_id', 'doses', 'signa', 'activeSubstance_id', 'smnnUUID', 'lfForm_id', 'actionPropertyTemplate_id', 'offset']
         self.addObject('actAddAction', QtGui.QAction(u'Добавить', self))
         self.addObject('actDelAction', QtGui.QAction(u'Удалить', self))
         self.addObject('actClearField', QtGui.QAction(u'Очистить ячейку', self))
@@ -461,8 +558,10 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
             record.setValue('doses', action.value('doses') if action.value('doses') != '----' else None)
             record.setValue('signa', action.value('signa') if action.value('signa') != '----' else None)
             record.setValue('activeSubstance_id', forceInt(action.value('activeSubstance_id')) if forceInt(action.value('activeSubstance_id')) > 0 else None)
+            record.setValue('actionTemplate_id', action.value('actionTemplateId'))
             record.setValue('smnnUUID', action.value('smnnUUID'))
             record.setValue('lfForm_id', action.value('lfForm_id'))
+            record.setValue('actionPropertyTemplate_id', action.value('actionPropertyTemplate_id'))
             record.setValue('offset', action.value('offset'))
             record.setValue('ATItemClass', forceInt(action.value('class')))
             record.setValue('extItemIndex', forceInt(action.value('proxyModelIndex')))
@@ -492,9 +591,7 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
         dialog = CActionTypeSelector(self)
         if dialog.exec_():
             addActionsIdList = dialog.modelSelectBox._modelData
-        dialog.destroy()
-        sip.delete(dialog)
-        del dialog
+        dialog.deleteLater()
 
         numitems = len(addActionsIdList)
         for i, rec in enumerate(addActionsIdList):

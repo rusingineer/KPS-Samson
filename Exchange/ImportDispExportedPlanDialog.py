@@ -5,7 +5,7 @@ from PyQt4.QtCore import *
 
 import Exchange.AttachService as AttachService
 
-from library.DialogBase import CConstructHelperMixin
+from library.DialogBase import CDialogBase
 from library.TableModel import CTableModel, CTextCol, CDateCol, CEnumCol, CBoolCol, CIntCol, CDesignationCol, CCol
 from library.Utils import *
 
@@ -16,13 +16,14 @@ from Users.Rights import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 from Ui_ImportDispExportedPlanDialog import Ui_ImportDispExportedPlanDialog
 from Ui_ImportDispExportedPlanSyncDialog import Ui_ImportDispExportedPlanSyncDialog
 
-class CImportDispExportedPlanDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ImportDispExportedPlanDialog):
+class CImportDispExportedPlanDialog(CDialogBase, Ui_ImportDispExportedPlanDialog):
     def __init__(self, parent):
-        QtGui.QDialog.__init__(self, parent)
+        CDialogBase.__init__(self, parent)
         self.addModels('ExportedPlan', CExportedPlanModel(self))
         self.addModels('ExportedPlanErrors', CExportedPlanErrorsModel(self))
         self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.setupUi(self)
+        self.setWindowFlags(Qt.Window)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblExportedPlan.createPopupMenu([self.actEditClient])
         self.pbDeleteProgress.setVisible(False)

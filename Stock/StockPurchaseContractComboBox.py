@@ -12,7 +12,6 @@
 ##
 #############################################################################
 
-import sip
 from PyQt4 import QtGui
 from PyQt4.QtCore import SIGNAL, QDate
 
@@ -59,7 +58,7 @@ class CStockPurchaseContractComboBox(CDbComboBox):
         tableStockPurchaseContract = db.table('StockPurchaseContract')
         cond = [tableStockPurchaseContract['deleted'].eq(0),
                 tableStockPurchaseContract['begDate'].dateLe(self._date),
-                db.joinOr([tableStockPurchaseContract['endDate'].dateGe(self._date), tableStockPurchaseContract['endDate'].isNull()]),
+                tableStockPurchaseContract['endDate'].dateGe(self._date),
                 tableStockPurchaseContract['supplierOrg_id'].eq(self._supplierOrgId),
                ]
         self.setFilter(db.joinAnd(cond))
@@ -75,15 +74,16 @@ class CStockPurchaseContractComboBox(CDbComboBox):
 #        return CDbComboBox.eventFilter(self, obj, event)
 
     def showPopup(self):
-        if not self._popup:
-            self._popup = CStockPurchaseContractComboBoxPopup(self)
-            self._popup.installEventFilter(self)
-            self.connect(self._popup, SIGNAL('valueSelected(int)'), self.setValue)
+        if not self.isReadOnly():
+            if not self._popup:
+                self._popup = CStockPurchaseContractComboBoxPopup(self)
+                self._popup.installEventFilter(self)
+                self.connect(self._popup, SIGNAL('valueSelected(int)'), self.setValue)
 
-        adjustPopupToWidget(self, self._popup)
-        self._popup.setup(self._supplierOrgId, self._date, self.value())
-        self._popup.show()
-        self._popup.setFocus()
+            adjustPopupToWidget(self, self._popup)
+            self._popup.setup(self._supplierOrgId, self._date, self.value())
+            self._popup.show()
+            self._popup.setFocus()
 
 
     def hidePopup(self):
@@ -92,7 +92,7 @@ class CStockPurchaseContractComboBox(CDbComboBox):
             self._popup.close()
 #            if self._deletePopupOnClose:
 #                if self._popup:
-            sip.delete(self._popup)
+            self._popup.deleteLater()
             self._popup = None
         QtGui.QComboBox.hidePopup(self)
 #        self.setFocus()

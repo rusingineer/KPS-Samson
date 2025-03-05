@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2017-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -36,6 +36,7 @@ from library.MSCAPI.xmlsig import (
 from c14n                  import exclusiveC14N
 from domUtils              import (
                                     verifyAttributeValue,
+                                    verifyAttributeValueSet,
                                     getAttributeValue,
                                     getElement,
                                     getElements,
@@ -48,10 +49,11 @@ from domUtils              import (
 class CSignatureHandler(object):
     OASIS_X509v3TOKEN           = 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3'
     C14N_EXCLUSIVE_WITHCOMMENTS = 'http://www.w3.org/2001/10/xml-exc-c14n#WithComments'
-#    SIGN_GOSTR34102001          = 'http://www.w3.org/2001/04/xmldsig-more#gostr34102001-gostr3411'
-#    HASH_GOSTR341194            = 'http://www.w3.org/2001/04/xmldsig-more#gostr3411'
-    FSSSIG = 'urn:ru:fss:integration:types:signature:v01'
-    FSSMCHD = 'urn:ru:fss:integration:types:mchd:v01'
+    C14N_EXCLUSIVE              = 'http://www.w3.org/2001/10/xml-exc-c14n#'
+    # SIGN_GOSTR34102001          = 'http://www.w3.org/2001/04/xmldsig-more#gostr34102001-gostr3411'
+    # HASH_GOSTR341194            = 'http://www.w3.org/2001/04/xmldsig-more#gostr3411'
+    FSSSIG                      = 'urn:ru:fss:integration:types:signature:v01'
+    FSSMCHD                     = 'urn:ru:fss:integration:types:mchd:v01'
 
     def __init__(self, api, userCert, actorUri, signBody, signElementId, mchd=None):
         assert userCert is not None, u'Должно быть задано userCert'
@@ -65,7 +67,7 @@ class CSignatureHandler(object):
         self.signBody = signBody
         self.signElementId = signElementId
         self.mchd = mchd
-        self.saveParts = False # for debug 
+        self.saveParts = False # for debug
 
 
     def sign(self, sw):
@@ -109,24 +111,24 @@ class CSignatureHandler(object):
         ep.setAttributeNS(OASIS.UTILITY, 'Id', wsuId)
 
 
-    def _signItem(self, header, body, wsuId, actorUri):
+    def _signItem(self, header, body, wsuId, actorUri, powerOfAttorneyId=None):
         signable = self._findElementWithWsuId(body, wsuId)
         canonicalized = exclusiveC14N(signable.node)
 
-        binarySecurityToken, digestValue, signedInfo, signatureValue  = self._addSecurityElement(header, wsuId, actorUri)
+        binarySecurityToken, digestValue, signedInfo, signatureValue = self._addSecurityElement(header, wsuId, actorUri, powerOfAttorneyId)
 
         with self.userCert.provider() as provider:
             certBytes = self._getCertBytes(provider)
             binarySecurityToken.createAppendTextNode(b64encode(certBytes))
 
-            if self.saveParts:
-                file('for.hash.' + wsuId, 'w').write(canonicalized)
+#            if self.saveParts:
+#                file('for.hash.' + wsuId, 'w').write(canonicalized)
             digest = self._hash(provider, canonicalized)
             digestValue.createAppendTextNode(b64encode(digest))
 
             canonicalizedSignedInfo = exclusiveC14N(signedInfo.node)
-            if self.saveParts:
-                file('for.sign.' + wsuId, 'w').write(canonicalizedSignedInfo)
+#            if self.saveParts:
+#                file('for.sign.' + wsuId, 'w').write(canonicalizedSignedInfo)
             signature = self._sign(provider, canonicalizedSignedInfo)
             signatureValue.createAppendTextNode(b64encode(signature))
 
@@ -135,12 +137,12 @@ class CSignatureHandler(object):
         nodes = findElementsWithAttributeValue(ep.node, OASIS.UTILITY, 'Id', wsuId)
         if len(nodes) == 0:
             raise Exception('Sign failure: element with wsu:Id="%s" not found' % wsuId)
-        if len(nodes) >1:
+        if len(nodes) > 1:
             raise Exception('Sign failure: too many elements with wsu:Id="%s" not found' % wsuId)
         return ElementProxy(ep.sw, nodes[0])
 
 
-    def _addSecurityElement(self, container, wsuId, actorUri):
+    def _addSecurityElement(self, container, wsuId, actorUri, powerOfAttorneyId=None):
         keyOid = self.userCert.keyOid()
         hashOid = getHashOidByKeyOid(keyOid)
         hashUri = getHashUriByOid(hashOid)
@@ -159,7 +161,7 @@ class CSignatureHandler(object):
 
         signedInfo = signature.createAppendElement(DSIG.BASE, 'SignedInfo')
         canonicalizationMethod = signedInfo.createAppendElement(DSIG.BASE, 'CanonicalizationMethod')
-        canonicalizationMethod.setAttributeNS(None, 'Algorithm', self.C14N_EXCLUSIVE_WITHCOMMENTS)
+        canonicalizationMethod.setAttributeNS(None, 'Algorithm', self.C14N_EXCLUSIVE)
         signatureMethod = signedInfo.createAppendElement(DSIG.BASE, 'SignatureMethod')
         signatureMethod.setAttributeNS(None, 'Algorithm', signUri)
 
@@ -167,7 +169,7 @@ class CSignatureHandler(object):
         reference.setAttributeNS(None, 'URI', '#' + wsuId)
         transforms = reference.createAppendElement(DSIG.BASE, 'Transforms')
         transform = transforms.createAppendElement(DSIG.BASE, 'Transform')
-        transform.setAttributeNS(None, 'Algorithm', self.C14N_EXCLUSIVE_WITHCOMMENTS)
+        transform.setAttributeNS(None, 'Algorithm', self.C14N_EXCLUSIVE)
         digestMethod = reference.createAppendElement(DSIG.BASE, 'DigestMethod')
         digestMethod.setAttributeNS(None, 'Algorithm', hashUri)
         digestValue = reference.createAppendElement(DSIG.BASE, 'DigestValue')
@@ -185,6 +187,15 @@ class CSignatureHandler(object):
             powerOfAttorneyLink = authority.createAppendElement(self.FSSMCHD, 'powerOfAttorneyLink')
             uuid = powerOfAttorneyLink.createAppendElement(self.FSSMCHD, 'uuid')
             uuid.createAppendTextNode(self.mchd)
+
+        # if powerOfAttorneyId:
+        #     object_ = signature.createAppendElement(DSIG.BASE, 'Object')
+        #     authority = object_.createAppendElement(self.urnFssSignature, 'authority')
+        #     authority.setNamespaceAttribute('fssSignature', self.urnFssSignature)
+        #     authority.setNamespaceAttribute('fssPoa',       self.urnFssPowerOfAttorney)
+        #     powerOfAttorneyLink = authority.createAppendElement(self.urnFssPowerOfAttorney, 'powerOfAttorneyLink')
+        #     uuid = powerOfAttorneyLink.createAppendElement(self.urnFssPowerOfAttorney, 'uuid')
+        #     uuid.createAppendTextNode(powerOfAttorneyId)
 
         return ( binarySecurityToken,
                  digestValue,
@@ -230,7 +241,7 @@ class CSignatureHandler(object):
             signature = getElement(security, DSIG.BASE, 'Signature')
             signedInfo = getElement(signature, DSIG.BASE, 'SignedInfo')
             canonicalizationMethod = getElement(signedInfo, DSIG.BASE, 'CanonicalizationMethod')
-            verifyAttributeValue(canonicalizationMethod, None, 'Algorithm', self.C14N_EXCLUSIVE_WITHCOMMENTS)
+            verifyAttributeValueSet(canonicalizationMethod, None, 'Algorithm', (self.C14N_EXCLUSIVE_WITHCOMMENTS, self.C14N_EXCLUSIVE))
 
             signatureMethod = getElement(signedInfo, DSIG.BASE, 'SignatureMethod')
             signUri = getAttributeValue(signatureMethod, None, 'Algorithm')
@@ -248,7 +259,7 @@ class CSignatureHandler(object):
             transformList = getElements(transforms, DSIG.BASE, 'Transform')
             if len(transformList) != 1:
                 raise Exception(u'контейнер %s имеет имеет неправильное количество элементов %s' % (getElementPath(transforms), 'Transform'))
-            verifyAttributeValue(transformList[0], None, 'Algorithm', self.C14N_EXCLUSIVE_WITHCOMMENTS)
+            verifyAttributeValueSet(transformList[0], None, 'Algorithm', (self.C14N_EXCLUSIVE_WITHCOMMENTS, self.C14N_EXCLUSIVE))
 
             digestMethod = getElement(reference, DSIG.BASE, 'DigestMethod')
             hashUri = getAttributeValue(digestMethod, None, 'Algorithm')
@@ -266,7 +277,8 @@ class CSignatureHandler(object):
             if getAttributeValue(reference, None, 'URI') != '#' + actorUri:
                 raise Exception(u'элемент %s имеет неправильное значение атрибута %s' % (getElementPath(reference), 'URI'))
 
-            verifyAttributeValue(reference, None, 'ValueType', self.OASIS_X509v3TOKEN)
+            # 2024-12-11: сервер не передаёт ValueType, ну да нам не очень-то и нужно...
+            # verifyAttributeValue(reference, None, 'ValueType', self.OASIS_X509v3TOKEN)
 
             signables = findElementsWithAttributeValue(body, OASIS.UTILITY, 'Id', signableId)
             if not signables:

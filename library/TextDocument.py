@@ -28,12 +28,18 @@ class CResourceLoaderMixin:
 
     def __init__(self):
         self.images = {}
+        self.printData = {}
 
 
     def setCanvases(self, canvases):
         for key,  val in canvases.iteritems():
             self.images[key] = val.image
+    
+    def setPrintData(self, printData):
+        self.printData = printData
 
+    def getPrintData(self):
+        return self.printData
 
     def loadResource(self, type_, url):
         def decode(s):

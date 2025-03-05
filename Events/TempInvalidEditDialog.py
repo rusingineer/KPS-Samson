@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -172,7 +172,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         self.addObject('btnPrint', getPrintButton(self, 'tempInvalid', u'Печать'))
 
         self.setupUi(self)
-        self.setWindowFlags(self.windowFlags() | Qt.WindowMinMaxButtonsHint | Qt.WindowSystemMenuHint)
+        self.setWindowFlags(Qt.Window)
         self.setWindowTitleEx(u'Документ временной нетрудоспособности')
         self.setWindowState(Qt.WindowMaximized)
         self.grpMainInfo.setStyleSheet('QGroupBox {font-weight: bold; color:red;}')
@@ -941,6 +941,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
 
     def checkDataEntered(self):
+        if forceString(self.cmbResult.code()) == '99':
+            return True
         result = True
         reasonId = self.cmbReason.value()
         result = result and (reasonId or self.checkInputMessage(u'причину', False, self.cmbReason))
@@ -1031,6 +1033,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                 return False
         # result = result and self.checkTempInvalidPeriodsDateKAKEntered(reasonId)
         result = result and (len(self.modelDocuments.items()) or self.checkInputMessage(u'документ', False, self.tblDocuments, 0, 0))
+        result = result and self.checkNumberOfDisabilityDocuments()
         result = result and self.checkNumberTempInvalidDocument()
         result = result and self.checkSerialNumberTempInvalidDocument()
         result = result and self.checkReason()
@@ -1119,13 +1122,14 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
     def checkReason(self):
         code = self.cmbReason.code()
-        if (code == u'05' and self.cmbExtraReason.code() != u'020' or code in [u'08', u'017', u'018', u'019']) and not self.edtBegDatePermit.date():
+        name = self.cmbReason.name()
+        if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name)) and not self.edtBegDatePermit.date():
             self.checkInputMessage(u'дату начала путёвки', False, self.edtBegDatePermit)
             return False
-        if code in [u'08', u'017', u'018', u'019'] and not self.edtEndDatePermit.date():
+        if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name and u'родам (до)' not in name and u'родам(до)' not in name)) and not self.edtEndDatePermit.date():
             self.checkInputMessage(u'дату окончания путёвки', False, self.edtEndDatePermit)
             return False
-        if code in [u'08', u'017', u'018', u'019'] and not trim(self.edtNumberPermit.text()):
+        if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name and u'родам (до)' not in name and u'родам(до)' not in name)) and not trim(self.edtNumberPermit.text()):
             self.checkInputMessage(u'номер путёвки', False, self.edtNumberPermit)
             return False
         begDatePermit = self.edtBegDatePermit.date()
@@ -1239,6 +1243,26 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             lastRecord = db.getRecordEx(table, [table['id']], [table['prev_id'].eq(itemId), table['deleted'].eq(0), table['client_id'].eq(self.clientId), table['type'].eq(self.type_)], 'endDate ASC')
             tempInvalidNextId = forceRef(lastRecord.value('id')) if lastRecord else None
         return tempInvalidNextId
+
+    
+    def checkNumberOfDisabilityDocuments(self):
+        if self.cmbDoctype.value() == CTempInvalidEditDialog.Disability:
+            items = self.modelDocuments.items()
+            internalCount = 0
+            externalCount = 0
+            for row, item in enumerate(items):
+                isExternal = forceInt(item.value('isExternal'))
+                if isExternal == 0:
+                    internalCount += 1
+                elif isExternal == 1:
+                    externalCount += 1
+                if internalCount > 1:
+                    self.checkValueMessage(u'В эпизоде ВУТ может быть только 1 внутренний документ. Проверьте внесенные данные', False, self.tblDocuments, row, item.indexOf('isExternal')) 
+                    return False
+                if externalCount > 1:
+                    self.checkValueMessage(u'В эпизоде ВУТ может быть только 1 внешний документ. Проверьте внесенные данные', False, self.tblDocuments, row, item.indexOf('isExternal'))
+                    return False
+        return True
 
 
     def checkNumberTempInvalidDocument(self):
@@ -3002,6 +3026,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         setLineEditValue(self.edtInfContact, record, 'inf_contact')
         self.on_edtOGRN_textEdited(self.edtOGRN.text())
         self.clientSex, self.clientAge, self.clientAgeTuple = self.getClientSexAge(self.clientId)
+        record.setValue('sex', self.clientSex)
         setComboBoxValue(self.cmbOtherSex,  record, 'sex')
         setSpinBoxValue(self.edtOtherAge,   record, 'age')
         self.cmbReceiver.setValue(forceRef(record.value('client_id')))
@@ -3764,12 +3789,9 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
     Col_PrevId          = 10
     Col_IssuePersonId   = 11
     Col_ExecPersonId    = 12
-    Col_ChairPersonId   = 13
-#    Col_ClientPrimumId  = 14
-#    Col_ClientSecondId  = 15
-    Col_LastId          = 14
-    Col_Note            = 15
-    Col_AnnulmentReason = 16
+    Col_LastId          = 13
+    Col_Note            = 14
+    Col_AnnulmentReason = 15
 
     def __init__(self, parent, clientCache):
         CInDocTableModel.__init__(self, 'TempInvalidDocument', 'id', 'master_id', parent)
@@ -3777,7 +3799,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
         self.execPersonCol  = CActionPersonFind(u'Закрыл',                              'execPerson_id',   20, 'vrbPersonWithSpecialityAndOrgStr')
         db = QtGui.qApp.db
         documentCaches = CTableRecordCache(db, db.forceTable('TempInvalidDocument'), u'*', capacity=None)
-        self.chairPersonCol = CActionPerson(u'Председатель ВК',                     'chairPerson_id',  20, 'vrbPersonWithSpecialityAndOrgStr', filter=u'chairPerson = 1')
         self.addCol(CBoolInDocTableCol(     u'Внешний',                             'isExternal',      3                                                  ))
         self.addCol(CBoolInDocTableCol(     u'Э',                                   'electronic',      3                                                  ).setToolTip(u'Электронный'))
         self.addCol(CTempInvalidDocumentsModel.CIssueDateInDocTableCol(     u'Дата выдачи',            'issueDate', 10))
@@ -3791,9 +3812,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
         self.addCol(CTempInvalidDocumentsModel.CLocDocumentColumn(u'ИПД',           'prev_id',         10, documentCaches=documentCaches).setToolTip(u'Идентификатор продолжения документа')).setReadOnly(True)
         self.addCol(self.issuePersonCol)
         self.addCol(self.execPersonCol)
-        self.addCol(self.chairPersonCol)
-#        self.addCol(CTempInvalidDocumentsModel.CLocClientColumn(u'Пациент 1',       'clientPrimum_id', 30, clientCaches=clientCache                       ))
-#        self.addCol(CTempInvalidDocumentsModel.CLocClientColumn(u'Пациент 2',       'clientSecond_id', 30, clientCaches=clientCache                       ))
         self.addCol(CTempInvalidDocumentsModel.CLocDocumentColumn(u'ИВД',           'last_id', 10, documentCaches=documentCaches).setToolTip(u'Идентификатор выданного документа')).setReadOnly(True)
         self.addCol(CInDocTableCol(         u'Примечание',                          'note',            10                                                 ))
         self.addCol(CRBInDocTableCol(       u'Причина аннулирования',               'annulmentReason_id',  10, 'rbTempInvalidAnnulmentReason'             ))
@@ -3808,7 +3826,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
         self.blankIdList = []
         self.numberBlankList = {}
         self.isEnabledPatient = True
-        self.chairPersonCol.setFilter(filter=u'chairPerson = 1')
         userId = QtGui.qApp.userId
         self.chairUser = forceBool(db.translate('Person', 'id', userId, 'chairPerson')) if userId else False
         self.type = None
@@ -3891,9 +3908,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
         enable = rightRegWriteInsurOfficeMark if checkedInsuranceOfficeMark else True
         self.isEnabledPatient = bool(otherPersonEnabled and enable)
         if not otherPersonEnabled and enable and not isReasonPrimary:
-#            for record in self._items:
-#                record.setValue('clientPrimum_id', toVariant(None))
-#                record.setValue('clientSecond_id', toVariant(None))
             pass
 
 
@@ -3925,9 +3939,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
                     documentsSignaturesLineD = documentsSignaturesDict.get(u'D', [])
                     if documentsSignaturesLineD and 0 in documentsSignaturesLineD and column != CTempInvalidDocumentsModel.Col_ExecPersonId:
                         return True
-#        if not self.isEnabledPatient and column in (CTempInvalidDocumentsModel.Col_ClientPrimumId,
-#                                                    CTempInvalidDocumentsModel.Col_ClientSecondId):
-#            return True
         if 0 <= row < len(self._items):
             record = self._items[row]
             isExternal = forceBool(record.value('isExternal'))
@@ -3952,8 +3963,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
                                                                    CTempInvalidDocumentsModel.Col_PlaceWork,
                                                                    CTempInvalidDocumentsModel.Col_PrevNumber,
                                                                    CTempInvalidDocumentsModel.Col_PrevId,
-#                                                                   CTempInvalidDocumentsModel.Col_ClientPrimumId,
-#                                                                   CTempInvalidDocumentsModel.Col_ClientSecondId,
                                                                    CTempInvalidDocumentsModel.Col_LastId,
                                                                    CTempInvalidDocumentsModel.Col_Note):
                         return True
@@ -3964,19 +3973,12 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
                                                                  CTempInvalidDocumentsModel.Col_LastId,
                                                                  CTempInvalidDocumentsModel.Col_Note):
                         return True
-#                    elif self.isAnnulledDublicate and not self.isEnabledPatient and column in (CTempInvalidDocumentsModel.Col_ClientPrimumId,
-#                                                                                               CTempInvalidDocumentsModel.Col_ClientSecondId):
-#                        return True
                 if forceRef(record.value('annulmentReason_id')):
                    return True
                 if record.signatures and column in ( CTempInvalidDocumentsModel.Col_Electronic,
                                                      CTempInvalidDocumentsModel.Col_IssueDate,
                                                      CTempInvalidDocumentsModel.Col_Serial,
                                                      CTempInvalidDocumentsModel.Col_Number):
-                    return True
-                if column == CTempInvalidDocumentsModel.Col_ChairPersonId:
-                    if self.chairUser and forceBool(record.value('duplicate')):
-                        return False
                     return True
                 if column == CTempInvalidDocumentsModel.Col_PlaceWork and forceInt(self._items[row].value('busyness')) == 3:
                     return True
@@ -4174,7 +4176,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
     def setEventEditor(self, eventEditor):
         # self.issuePersonCol.setEventEditor(eventEditor)
         # self.execPersonCol.setEventEditor(eventEditor)
-        self.chairPersonCol.setEventEditor(eventEditor)
         self.eventEditor = eventEditor
 
 
@@ -4639,50 +4640,6 @@ def formatWorkTempInvalid(workRecord):
     return orgShortName
 
 
-#def updateUsed(tempInvalidSerial, tempInvalidNumber, blankMovingId, defaultBlankMovingId):
-#    db = QtGui.qApp.db
-#    tableBlankTempInvalidMoving = db.table('BlankTempInvalid_Moving')
-#    tableNumb = tableBlankTempInvalidMoving
-#    tableBlankTempInvalidParty = db.table('BlankTempInvalid_Party')
-#    cond = []
-#    if not defaultBlankMovingId and tempInvalidSerial and blankMovingId:
-#        cond = [ tableBlankTempInvalidMoving['deleted'].eq(0),
-#                 tableBlankTempInvalidMoving['id'].eq(blankMovingId)]
-#    elif defaultBlankMovingId:
-#        blankMovingId = defaultBlankMovingId
-#        cond = [ tableBlankTempInvalidMoving['deleted'].eq(0),
-#                 tableBlankTempInvalidMoving['id'].eq(blankMovingId)]
-#    elif not tempInvalidSerial and blankMovingId:
-#        cond = [ tableBlankTempInvalidMoving['deleted'].eq(0),
-#                 tableBlankTempInvalidMoving['id'].eq(blankMovingId)]
-#    elif tempInvalidSerial and tempInvalidNumber:
-#        cond = [ tableBlankTempInvalidMoving['deleted'].eq(0),
-#                 tableBlankTempInvalidParty['deleted'].eq(0),
-#                 tableBlankTempInvalidParty['serial'].like(str(tempInvalidSerial)),
-#                 tableBlankTempInvalidMoving['numberFrom'].le(tempInvalidNumber),
-#                 tableBlankTempInvalidMoving['numberTo'].ge(tempInvalidNumber)]
-#        tableNumb = tableNumb.innerJoin(tableBlankTempInvalidParty, tableBlankTempInvalidParty['id'].eq(tableBlankTempInvalidMoving['blankParty_id']))
-#    elif not tempInvalidSerial and tempInvalidNumber:
-#        cond = [ tableBlankTempInvalidMoving['deleted'].eq(0),
-#                 tableBlankTempInvalidParty['deleted'].eq(0),
-#                 tableBlankTempInvalidParty['serial'].isNull(),
-#                 tableBlankTempInvalidMoving['numberFrom'].le(tempInvalidNumber),
-#                 tableBlankTempInvalidMoving['numberTo'].ge(tempInvalidNumber)]
-#        tableNumb = tableNumb.innerJoin(tableBlankTempInvalidParty, tableBlankTempInvalidParty['id'].eq(tableBlankTempInvalidMoving['blankParty_id']))
-#    recordMoving = db.getRecordEx(tableNumb, u'BlankTempInvalid_Moving.*', cond) if cond else None
-#    if recordMoving:
-#        used = forceInt(recordMoving.value('used'))
-#        blankPartyId = forceRef(recordMoving.value('blankParty_id'))
-#        recordMoving.setValue('used', toVariant(used + 1))
-#        db.updateRecord(tableBlankTempInvalidMoving, recordMoving)
-#        if blankPartyId:
-#            recordParty = db.getRecordEx(tableBlankTempInvalidParty, u'*', [tableBlankTempInvalidParty['id'].eq(blankPartyId), tableBlankTempInvalidParty['deleted'].eq(0)])
-#            if recordParty:
-#                used = forceInt(recordParty.value('used'))
-#                recordParty.setValue('used', toVariant(used + 1))
-#                db.updateRecord(tableBlankTempInvalidParty, recordParty)
-
-
 from Events.Ui_TempInvalidDocumentProlongDialog import Ui_TempInvalidDocumentProlongDialog
 
 
@@ -4723,8 +4680,6 @@ class CTempInvalidDocumentsProlongModel(CTempInvalidDocumentsModel):
     Col_IssuePersonId  = 11
     Col_ExecPersonId   = 12
     Col_ChairPersonId  = 13
-#    Col_ClientPrimumId = 14
-#    Col_ClientSecondId = 15
     Col_LastId         = 14
     Col_Note           = 15
 
@@ -4807,11 +4762,8 @@ class CTempInvalidDocumentsProlongModel(CTempInvalidDocumentsModel):
         for row, item in enumerate(includeItems):
             if not forceBool(item.value('duplicate')):
                 placeWork = forceStringEx(item.value('placeWork'))
-#                clientPrimumId = forceRef(item.value('clientPrimum_id'))
-#                clientSecondId = forceRef(item.value('clientSecond_id'))
                 for i in range(row+1, rows):
                     if placeWork == forceStringEx(includeItems[i].value('placeWork')):
-                        # if clientPrimumId == forceRef(includeItems[i].value('clientPrimum_id')) and clientSecondId == forceRef(includeItems[i].value('clientSecond_id')):
                         includeItems[i].setValue('include', QVariant(0))
         self.setItems(includeItems)
         self.reset()
@@ -5389,7 +5341,7 @@ class CTransferSubjectSelectorModel(CTableModel):
             CTextCol(u'Номер',              ['number'], 20),
             CDateCol(u'Дата изменения',     ['modifyDatetime'],    10),
             CDesignationCol(u'Врач',        ['master_id'],  [('TempInvalid', 'person_id'), ('vrbPersonWithSpeciality', 'name')], 20),
-            CDesignationCol(u'Получатель',  ['master_id'], [('TempInvalid', 'client_id'), ('vrbClient', 'name')], 40),
+            CDesignationCol(u'Получатель',  ['master_id'], [('TempInvalid', 'client_id'), ('Client', 'CONCAT(lastName, " ", firstName, " ", patrName)')], 40),
             CTextCol(u'Номер базового ЭЛН', ['prevNumber'], 20)],
                 'TempInvalidDocument')
 

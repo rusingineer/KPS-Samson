@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -37,7 +37,7 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
         self.newEventId = None
         if self.eventId and self.clientId:
             params = {}
-            actionId, orgStructureId, bedId, begDate, endDate, execDate, plannedEndDate, personId, form, relegateOrgId, docNum = self.getDataQueueEvent(self.eventId)
+            actionId, orgStructureId, bedId, begDate, endDate, execDate, plannedEndDate, personId, _, form, relegateOrgId, docNum, srcDate = self.getDataQueueEvent(self.eventId)
             params['widget'] = self
             params['clientId'] = self.clientId
             params['flagHospitalization'] = True
@@ -45,6 +45,7 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
             params['dateTime'] = None
             params['personId'] = None
             params['planningEventId'] = self.eventId
+            params['planningActionId'] = actionId
             params['prevEventId'] = self.eventId
             params['financeId'] = self.getPlanningFinanceId(self.eventId)
             params['protocolQuoteId'] = self.getProtocolQuote(self.eventId) if form == '027' else None
@@ -95,7 +96,7 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
                     tableAction['id'].isNotNull(),
                     tableActionType['deleted'].eq(0),
                     tableAPT['deleted'].eq(0),
-                    tableAPT['deleted'].like(u'источник финансирования'),
+                    tableAPT['name'].like(u'источник финансирования'),
                     tableActionProperty['deleted'].eq(0),
                     tableActionProperty['action_id'].eq(tableAction['id'])
                     ]
@@ -176,10 +177,12 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
         bedId = None
         execDate = None
         personId = None
+        setPersonId = None
         relegateOrgId = None
         outRelegateOrgId = None
-        docNum = None
+        docNum = ''
         form = ''
+        srcDate = None
         if eventId:
             db = QtGui.qApp.db
             tableAPHB = db.table('ActionProperty_HospitalBed')
@@ -198,9 +201,12 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
                     tableAction['begDate'],
                     tableAction['endDate'],
                     tableAction['plannedEndDate'],
+                    tableAction['setPerson_id'],
                     tableAction['person_id'],
+                    tableAction['directionDate'],
                     tableEvent['execDate'],
                     tableEventType['form'],
+                    tableEvent['srcDate'],
                     tableAPHB['value'].alias('bedId'),
                     tableAPSnum['value'].alias('docNum')
                     ]
@@ -287,6 +293,7 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
                 relegateOrgId = forceInt(record.value('relegateOrg_id'))
                 outRelegateOrgId = forceRef(record.value('outRelegateOrg_id'))
                 docNum = forceString(record.value('docNum'))
+                srcDate = forceDate(record.value('directionDate')) or forceDate(record.value('srcDate'))
 
             cols = [tableAction['id'],
                     tableAction['begDate'],
@@ -361,11 +368,12 @@ LIMIT 1) AS relegateOrg_id""")
                 execDate = forceDate(recordNoBed.value('execDate'))
                 plannedEndDate = forceDate(recordNoBed.value('plannedEndDate'))
                 personId = forceRef(recordNoBed.value('person_id'))
+                setPersonId = forceRef(record.value('setPerson_id'))
                 form     = forceString(recordNoBed.value('form'))
                 relegateOrgId = forceInt(record.value('relegateOrg_id'))
                 outRelegateOrgId = forceRef(record.value('outRelegateOrg_id'))
                 docNum = forceString(record.value('docNum'))
-        return actionId, orgStructureId, bedId, begDate, endDate, execDate, plannedEndDate, personId if not outRelegateOrgId else None, form, outRelegateOrgId if outRelegateOrgId else relegateOrgId, docNum
+        return actionId, orgStructureId, bedId, begDate, endDate, execDate, plannedEndDate, personId if not outRelegateOrgId else None, setPersonId,  form, outRelegateOrgId if outRelegateOrgId else relegateOrgId, docNum, srcDate
 
 
     def editReceivedQueueEvent(self, actionId, begDate, endDate, execDate, plannedEndDate, newEventId):

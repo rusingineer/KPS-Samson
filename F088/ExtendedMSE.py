@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -157,7 +157,7 @@ class CExtendedMSEWidget(QtGui.QWidget, CConstructHelperMixin, Ui_ExtendedMSEWid
         rows = self.tblExtendedMSE.selectedRowList()
         if len(rows):
             openFile = QtGui.QAction(u'Просмотр', self)
-            openFile.triggered.connect(lambda: self.openFile())
+            openFile.triggered.connect(self.openFile)
             self.menu.addAction(openFile)
             cancelDelete = None
             deleteFile = None
@@ -165,10 +165,10 @@ class CExtendedMSEWidget(QtGui.QWidget, CConstructHelperMixin, Ui_ExtendedMSEWid
                 deleted = forceInt(model.value(row, 'deleted'))
                 if deleted:
                     cancelDelete = QtGui.QAction(u'Отменить открепление', self)
-                    cancelDelete.triggered.connect(lambda: self.deleteFile(False))
+                    cancelDelete.triggered.connect(self.cancelDeleteFile)
                 else:
                     deleteFile = QtGui.QAction(u'Открепить', self)
-                    deleteFile.triggered.connect(lambda: self.deleteFile(True))
+                    deleteFile.triggered.connect(self.deleteFile)
             if cancelDelete:
                 self.menu.addAction(cancelDelete)
             if deleteFile:
@@ -185,17 +185,22 @@ class CExtendedMSEWidget(QtGui.QWidget, CConstructHelperMixin, Ui_ExtendedMSEWid
                 url = unicode(path)
                 QtGui.QDesktopServices.openUrl(QUrl.fromEncoded(url))
 
-    def deleteFile(self, delete=True):
+    def deleteFile(self):
         model = self.tblExtendedMSE.model()
         for row in self.tblExtendedMSE.selectedRowList():
-            id = forceString(model.value(row, 'id'))
-            if id:
-                if delete:
-                    model.setValue(row, 'deleted', 1)
-                else:
-                    model.setValue(row, 'deleted', 0)
+            _id = forceString(model.value(row, 'id'))
+            if _id:
+                model.setValue(row, 'deleted', 1)
             else:
+                model.removeRows(row, 1)
 
+    def cancelDeleteFile(self):
+        model = self.tblExtendedMSE.model()
+        for row in self.tblExtendedMSE.selectedRowList():
+            _id = forceString(model.value(row, 'id'))
+            if _id:
+                model.setValue(row, 'deleted', 0)
+            else:
                 model.removeRows(row, 1)
 
 
@@ -296,9 +301,9 @@ class CExtendedMSEService(CDialogBase, Ui_ExtendedMSEServiceDialog):
         openFile = QtGui.QAction(u'Просмотр', self)
         selectAll = QtGui.QAction(u'Выбрать все', self)
         clearAll = QtGui.QAction(u'Очистить выбор', self)
-        openFile.triggered.connect(lambda: self.openFile())
-        selectAll.triggered.connect(lambda: self.selectAll())
-        clearAll.triggered.connect(lambda: self.clearAll())
+        openFile.triggered.connect(self.openFile)
+        selectAll.triggered.connect(self.selectAll)
+        clearAll.triggered.connect(self.clearAll)
         self.menu.addAction(openFile)
         self.menu.addAction(selectAll)
         self.menu.addAction(clearAll)

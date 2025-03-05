@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\Samson\UP_s11\client_merge\Events\DiagnosticServiceComboBoxPopup.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\Events\DiagnosticServiceComboBoxPopup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_DiagnosticServiceComboBoxPopup(object):
     def setupUi(self, DiagnosticServiceComboBoxPopup):
         DiagnosticServiceComboBoxPopup.setObjectName(_fromUtf8("DiagnosticServiceComboBoxPopup"))
-        DiagnosticServiceComboBoxPopup.resize(469, 204)
+        DiagnosticServiceComboBoxPopup.resize(469, 334)
         self.horizontalLayout_2 = QtGui.QHBoxLayout(DiagnosticServiceComboBoxPopup)
         self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setSpacing(0)
@@ -39,9 +39,26 @@ class Ui_DiagnosticServiceComboBoxPopup(object):
         self.verticalLayout.setMargin(4)
         self.verticalLayout.setSpacing(4)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
+        self.verticalLayout_2 = QtGui.QVBoxLayout()
+        self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.tblServices = CTableView(self.tabServices)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.tblServices.sizePolicy().hasHeightForWidth())
+        self.tblServices.setSizePolicy(sizePolicy)
         self.tblServices.setObjectName(_fromUtf8("tblServices"))
-        self.verticalLayout.addWidget(self.tblServices)
+        self.verticalLayout_2.addWidget(self.tblServices)
+        self.horizontalLayout = QtGui.QHBoxLayout()
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        self.lblSearch = QtGui.QLabel(self.tabServices)
+        self.lblSearch.setObjectName(_fromUtf8("lblSearch"))
+        self.horizontalLayout.addWidget(self.lblSearch)
+        self.edtSearch = QtGui.QLineEdit(self.tabServices)
+        self.edtSearch.setObjectName(_fromUtf8("edtSearch"))
+        self.horizontalLayout.addWidget(self.edtSearch)
+        self.verticalLayout_2.addLayout(self.horizontalLayout)
+        self.verticalLayout.addLayout(self.verticalLayout_2)
         self.tabWidget.addTab(self.tabServices, _fromUtf8(""))
         self.tabSearch = QtGui.QWidget()
         self.tabSearch.setObjectName(_fromUtf8("tabSearch"))
@@ -79,6 +96,7 @@ class Ui_DiagnosticServiceComboBoxPopup(object):
         self.gridLayout.setColumnStretch(2, 2)
         self.tabWidget.addTab(self.tabSearch, _fromUtf8(""))
         self.horizontalLayout_2.addWidget(self.tabWidget)
+        self.lblSearch.setBuddy(self.edtSearch)
         self.lblName.setBuddy(self.edtName)
 
         self.retranslateUi(DiagnosticServiceComboBoxPopup)
@@ -89,6 +107,7 @@ class Ui_DiagnosticServiceComboBoxPopup(object):
 
     def retranslateUi(self, DiagnosticServiceComboBoxPopup):
         DiagnosticServiceComboBoxPopup.setWindowTitle(_translate("DiagnosticServiceComboBoxPopup", "Form", None))
+        self.lblSearch.setText(_translate("DiagnosticServiceComboBoxPopup", "Поиск ", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabServices), _translate("DiagnosticServiceComboBoxPopup", "&Услуги", None))
         self.lblName.setText(_translate("DiagnosticServiceComboBoxPopup", "&Название содержит", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabSearch), _translate("DiagnosticServiceComboBoxPopup", "&Поиск", None))

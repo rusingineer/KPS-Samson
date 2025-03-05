@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>427</width>
-    <height>328</height>
+    <width>691</width>
+    <height>525</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,16 +17,7 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
-   <property name="leftMargin">
-    <number>4</number>
-   </property>
-   <property name="topMargin">
-    <number>4</number>
-   </property>
-   <property name="rightMargin">
-    <number>4</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -42,23 +33,45 @@
        <string>&amp;Шаблон печати</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout">
-       <property name="leftMargin">
-        <number>4</number>
-       </property>
-       <property name="topMargin">
-        <number>4</number>
-       </property>
-       <property name="rightMargin">
-        <number>4</number>
-       </property>
-       <property name="bottomMargin">
+       <property name="margin">
         <number>4</number>
        </property>
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="4" column="0">
-        <widget class="QLabel" name="lblFileName">
+       <item row="6" column="1">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QCheckBox" name="chkNeedEventId">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblRequireSignerPerson">
+           <property name="text">
+            <string>Требует подписи</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblInAmbCard">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
            <horstretch>0</horstretch>
@@ -66,33 +79,11 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>Имя &amp;файла</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtFileName</cstring>
+          <string>Для отображения в Мед.карте</string>
          </property>
         </widget>
        </item>
        <item row="7" column="0">
-        <widget class="QLabel" name="lblDefault">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>&amp;Шаблон</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-         </property>
-         <property name="buddy">
-          <cstring>edtDefault</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="0">
         <widget class="QLabel" name="lblType">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -105,10 +96,21 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="1">
-        <widget class="QLineEdit" name="edtCode"/>
+       <item row="6" column="2">
+        <widget class="QComboBox" name="cmbRequireSignerPerson">
+         <item>
+          <property name="text">
+           <string>Исполнителя</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Назначившего</string>
+          </property>
+         </item>
+        </widget>
        </item>
-       <item row="6" column="1">
+       <item row="7" column="1">
         <widget class="QComboBox" name="cmbType">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -141,38 +143,6 @@
        <item row="0" column="1">
         <widget class="QLineEdit" name="edtContext"/>
        </item>
-       <item row="5" column="0">
-        <widget class="QLabel" name="lblInAmbCard">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Для отображения в Мед.карте</string>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="1" colspan="2">
-        <widget class="QTextEdit" name="edtDefault"/>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="lblName">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>На&amp;именование</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtName</cstring>
-         </property>
-        </widget>
-       </item>
        <item row="5" column="1">
         <widget class="QCheckBox" name="chkInAmbCard">
          <property name="text">
@@ -180,39 +150,14 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="lblCode">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
+       <item row="5" column="2">
+        <widget class="QCheckBox" name="chkPrintBlank">
          <property name="text">
-          <string>&amp;Код</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtCode</cstring>
+          <string>Отключить печать подложки</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="lblGroupName">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Группа</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtName</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="2">
+       <item row="7" column="2">
         <widget class="QPushButton" name="btnEdit">
          <property name="enabled">
           <bool>false</bool>
@@ -231,6 +176,35 @@
          </property>
         </widget>
        </item>
+       <item row="8" column="0">
+        <widget class="QLabel" name="lblDefault">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Шаблон</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         </property>
+         <property name="buddy">
+          <cstring>edtDefault</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="lblNeedEventId">
+         <property name="text">
+          <string>Требует идентификатор события</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1" colspan="2">
+        <widget class="QTextEdit" name="edtDefault"/>
+       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="lblContext">
          <property name="sizePolicy">
@@ -247,6 +221,70 @@
          </property>
         </widget>
        </item>
+       <item row="0" column="2">
+        <spacer>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>131</width>
+           <height>22</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Код</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="edtCode"/>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblGroupName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Группа</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtName</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblFileName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Имя &amp;файла</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtFileName</cstring>
+         </property>
+        </widget>
+       </item>
        <item row="1" column="2">
         <spacer>
          <property name="orientation">
@@ -260,6 +298,22 @@
          </property>
         </spacer>
        </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>На&amp;именование</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtName</cstring>
+         </property>
+        </widget>
+       </item>
        <item row="2" column="1" colspan="2">
         <widget class="QLineEdit" name="edtName">
          <property name="minimumSize">
@@ -269,19 +323,6 @@
           </size>
          </property>
         </widget>
-       </item>
-       <item row="0" column="2">
-        <spacer>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>131</width>
-           <height>22</height>
-          </size>
-         </property>
-        </spacer>
        </item>
        <item row="3" column="1" colspan="2">
         <widget class="QLineEdit" name="edtGroupName">
@@ -303,13 +344,6 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="2">
-        <widget class="QCheckBox" name="chkPrintBlank">
-         <property name="text">
-          <string>Отключить печать подложки</string>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabClientConsents">
@@ -317,16 +351,7 @@
        <string>&amp;Согласия пациента</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_3">
-       <property name="leftMargin">
-        <number>4</number>
-       </property>
-       <property name="topMargin">
-        <number>4</number>
-       </property>
-       <property name="rightMargin">
-        <number>4</number>
-       </property>
-       <property name="bottomMargin">
+       <property name="margin">
         <number>4</number>
        </property>
        <property name="spacing">
@@ -364,7 +389,6 @@
   <tabstop>cmbType</tabstop>
   <tabstop>btnEdit</tabstop>
   <tabstop>edtDefault</tabstop>
-  <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources/>
  <connections>

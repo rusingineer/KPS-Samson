@@ -11,20 +11,20 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+from PyQt4 import QtGui
+from PyQt4.QtCore import Qt
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-
-from library.Utils import *
-from library.interchange import *
-from library.crbcombobox import CRBComboBox
-from library.InDocTable import *
-
-from ItemsListDialogEx import *
-
-from Tables import *
 from Ui_RBService import Ui_Dialog
-from Ui_ServiceFilterDialog   import Ui_ServiceFilterDialog
+from Ui_ServiceFilterDialog import Ui_ServiceFilterDialog
+from appendix.mes.RefBooksLocal.ItemsListDialogEx import CItemEditorDialogEx
+from appendix.mes.RefBooksLocal.Tables import rbServiceGroup, rbCode, rbName, rbService_Contents
+from library.InDocTable import CInDocTableModel, CCodeNameInDocTableCol, CIntInDocTableCol, CFloatInDocTableCol
+from library.ItemsListDialog import CItemsSplitListDialogEx, CItemEditorBaseDialog
+from library.TableModel import CTextCol, CRefBookCol, CNumCol
+from library.Utils import addDots, forceStringEx, forceRef, forceDouble
+from library.crbcombobox import CRBComboBox
+from library.interchange import setLineEditValue, setRBComboBoxValue, setDoubleBoxValue, getLineEditValue, \
+    getDoubleBoxValue, getRBComboBoxValue
 
 
 def isComplexService(code):

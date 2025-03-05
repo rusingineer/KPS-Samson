@@ -12,6 +12,7 @@
 ##
 #############################################################################
 
+import math
 from PyQt4.QtCore import QDateTime, QVariant
 
 from library.blmodel.Model import CModel, CDocumentModel
@@ -268,6 +269,76 @@ class Items(list):
         self._remap()
 
 
+    def setDosageToProcentInExists(self, procent, change):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            # Заменять можно только не выполненные
+            if not item.executedDatetime and item.nomenclature:
+                newDosage = item.nomenclature.dosage
+                procentDosage = (newDosage*procent)/100.0
+                if change == 1:
+                    newDosage = math.floor(newDosage - procentDosage)
+                elif change == 2:
+                    newDosage = math.floor(newDosage + procentDosage)
+                item.nomenclature.dosage = newDosage
+                nomenclatureItem = item.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = item
+                item.setIsDirty(True)
+                self[x] = item
+        self._remap()
+
+
+    def setDosageToDateToProcentInExists(self, procent, change, date):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            # Заменять можно только не выполненные
+            if item.date == date and not item.executedDatetime and item.nomenclature:
+                newDosage = item.nomenclature.dosage
+                procentDosage = (newDosage*procent)/100.0
+                if change == 1:
+                    newDosage = math.floor(newDosage - procentDosage)
+                elif change == 2:
+                    newDosage = math.floor(newDosage + procentDosage)
+                item.nomenclature.dosage = newDosage
+                nomenclatureItem = item.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = item
+                item.setIsDirty(True)
+                self[x] = item
+                break
+        self._remap()
+
+
+    def setCalculationDosageInExists(self, calculationParam):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            # Заменять можно только не выполненные
+            if not item.executedDatetime and item.nomenclature:
+                newDosage = item.nomenclature.dosage
+                newDosage = math.floor(newDosage*calculationParam)
+                item.nomenclature.dosage = newDosage
+                nomenclatureItem = item.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = item
+                item.setIsDirty(True)
+                self[x] = item
+        self._remap()
+
+
+    def setCalculationDosageToDateInExists(self, calculationParam, date):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            # Заменять можно только не выполненные
+            if item.date == date and not item.executedDatetime and item.nomenclature:
+                newDosage = item.nomenclature.dosage
+                newDosage = math.floor(newDosage*calculationParam)
+                item.nomenclature.dosage = newDosage
+                nomenclatureItem = item.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = item
+                item.setIsDirty(True)
+                self[x] = item
+                break
+        self._remap()
+        
+    
     def setDosageInExists(self, dosage):
         self.sort(key=lambda i: i.date)
         for x, item in enumerate(self):
@@ -280,6 +351,20 @@ class Items(list):
                 self[x] = item
         self._remap()
 
+    
+    def setDosageToDateFirstItemInExists(self, dosage, date):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            # Заменять можно только не выполненные
+            if item.date == date and not item.executedDatetime and item.nomenclature:
+                item.nomenclature.dosage = dosage
+                nomenclatureItem = item.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = item
+                item.setIsDirty(True)
+                self[x] = item
+                break
+        self._remap()
+        
 
     def setDosageNomenclatureInExists(self, dosage, nomenclatureId):
         self.sort(key=lambda i: i.date)
@@ -312,6 +397,15 @@ class Items(list):
                     nomenclatureItem = item.nomenclature
                     nomenclatureItem.actionExecutionPlanItem = item
                 item.setIsDirty(True)
+                self[x] = item
+        self._remap()
+
+
+    def setIsDirtyInExists(self, value):
+        self.sort(key=lambda i: i.date)
+        for x, item in enumerate(self):
+            if not item.executedDatetime:
+                item.setIsDirty(value)
                 self[x] = item
         self._remap()
 
@@ -403,6 +497,7 @@ class Items(list):
     def updateByEP(self, ep):
         suggestedItems = executionPlanType(ep).createItems(
             ep.begDate,
+            ep.begTime,
             ep.duration,
             ep.periodicity,
             ep.aliquoticity,
@@ -454,6 +549,7 @@ class CActionExecutionPlan(CDocumentModel):
     tableName = 'ActionExecutionPlan'
 
     begDate = CDateAttribute()
+    begTime = CTimeAttribute()
     type = CIntAttribute()
     duration = CIntAttribute()
     periodicity = CIntAttribute()
@@ -461,6 +557,9 @@ class CActionExecutionPlan(CDocumentModel):
     quantity = CIntAttribute()
     daysExecutionPlan = []
     scheduleWeekendDays = CStringAttribute()
+    note = CStringAttribute()
+    smnnUUID = CStringAttribute()
+    lfFormId = CRefAttribute(name='lfForm_id')
 
 
     @property
@@ -491,6 +590,32 @@ class CActionExecutionPlan(CDocumentModel):
     def setDosageInExists(self, dosage):
         self.items.setDosageInExists(dosage)
 
+    
+    def setDosageToDateFirstItemInExists(self, dosage, date):
+        self.items.setDosageToDateFirstItemInExists(dosage, date)
+        
+    
+    def setDosageToProcentInExists(self, procent, change):
+        self.items.setDosageToProcentInExists(procent, change)
+
+
+    def setDosageToDateToProcentInExists(self, procent, change, date):
+        self.items.setDosageToDateToProcentInExists(procent, change, date)
+
+    
+
+
+    def setIsDirtyInExists(self, value):
+        self.items.setIsDirtyInExists(value)
+
+
+    def setCalculationDosageInExists(self, calculationParam):
+        self.items.setCalculationDosageInExists(calculationParam)
+
+
+    def setCalculationDosageToDateInExists(self, calculationParam, date):
+        self.items.setCalculationDosageToDateInExists(calculationParam, date)
+
 
     def setDosageNomenclatureInExists(self, dosage, nomenclatureId):
         self.items.setDosageNomenclatureInExists(dosage, nomenclatureId)
@@ -514,6 +639,30 @@ class CActionExecutionPlan(CDocumentModel):
 
     def getAliquoticity(self):
         return self.aliquoticity
+
+
+    def getNote(self):
+        return self.note
+
+
+    def setNote(self, note):
+        self.note = note
+
+
+    def getSmnnUUID(self):
+        return self.smnnUUID
+
+
+    def setSmnnUUID(self, smnnUUID):
+        self.smnnUUID = smnnUUID
+
+
+    def getLfFormId(self):
+        return self.lfFormId
+
+
+    def setLfFormId(self, lfFormId):
+        self.lfFormId = lfFormId
 
 
     def deleteItemsByDate(self, date):
@@ -582,6 +731,7 @@ class CActionExecutionPlan(CDocumentModel):
         self.items = executionPlanType(self) \
             .createItems(
                 self.begDate,
+                self.begTime,
                 self.duration,
                 self.periodicity,
                 self.aliquoticity,
@@ -672,6 +822,7 @@ class CActionExecutionPlanItem(CModel):
         'id',
         'actionExecutionPlanItemId'
     )
+    groupId = CRefAttribute(name='group_id')
     isDirty = False
 
 

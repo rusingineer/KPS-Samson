@@ -199,3 +199,20 @@ class CICDCodeComboBoxEx(CICDCodeEditEx):
             self.setText(newMKB)
         else:
             self.setText('')
+
+
+class CICDCodeEditFocusEvent(CICDCodeEditEx):
+    u"""Редактор кодов МКБ с выпадающим деревом"""
+
+    __pyqtSignals__ = ('textChanged(QString)',
+                       'textEdited(QString)',
+                       'editingFinished()'
+                      )
+
+    def __init__(self, parent=None):
+        CICDCodeEditEx.__init__(self, parent)
+
+
+    def focusOutEvent(self, event):
+        QtGui.QComboBox.focusOutEvent(self, event)
+        self.emit(SIGNAL('editingFinished()'))

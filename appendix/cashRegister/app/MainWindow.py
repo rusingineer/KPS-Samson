@@ -3,7 +3,7 @@
 
 #############################################################################
 ##
-## Copyright (C) 2017-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -31,6 +31,7 @@ from Users.Login            import CLoginDialog
 from Users.tryKerberosAuth  import tryKerberosAuth
 
 from CashRegister           import CCashRegisterWindow
+from ReportCashier          import CReportCashier
 from Ui_MainWindow          import Ui_CMainWindow
 
 
@@ -80,7 +81,37 @@ class CMainWindow(QtGui.QMainWindow, Ui_CMainWindow):
     def deviceStateChaged(self):
         app = QtGui.qApp
         reportsEnabled = app.getDeviceOk()
-        self.menuReports.setEnabled(reportsEnabled)
+        self.setDeviceReportsEnabled(reportsEnabled)
+
+
+    def setDeviceReportsEnabled(self, value):
+        app = QtGui.qApp
+        self.actReportX.setEnabled(value and app.deviceHasMethod('reportX'))
+        self.actReportLastDocument.setEnabled(value and app.deviceHasMethod('reportLastDocument'))
+        self.actReportOfdExchangeStatus.setEnabled(value and app.deviceHasMethod('reportOfdExchangeStatus'))
+        self.actReportQuantity.setEnabled(value and app.deviceHasMethod('reportQuantity'))
+        self.actReportOperators.setEnabled(value and app.deviceHasMethod('reportOperators'))
+        self.actReportHours.setEnabled(value and app.deviceHasMethod('reportHours'))
+        self.actReportShiftTotalCounters.setEnabled(value and app.deviceHasMethod('reportShiftTotalCounters'))
+        self.actReportFnTotalCounters.setEnabled(value and app.deviceHasMethod('reportFnTotalCounters'))
+        self.actReportOfdTest.setEnabled(value and app.deviceHasMethod('reportOfdTest'))
+        self.actReportCashRegisterInfo.setEnabled(value and app.deviceHasMethod('reportCashRegisterInfo'))
+        self.actReportRegistration.setEnabled(value and app.deviceHasMethod('reportRegistration'))
+
+
+    def updateActionsState(self):
+        app = QtGui.qApp
+        loggedIn = bool(app.db and app.userId)
+
+        self.actLogin.setEnabled(not loggedIn)
+        self.actLogout.setEnabled(loggedIn)
+
+
+    def findSubwindow(self, widget):
+        for subwindow in self.centralwidget.subWindowList():
+            if subwindow.widget() == widget:
+                return subwindow
+        return None
 
 
     @pyqtSignature('')
@@ -105,7 +136,6 @@ class CMainWindow(QtGui.QMainWindow, Ui_CMainWindow):
                 QtGui.qApp.setUserId(userId)
                 QtGui.qApp.preferences.appUserName = login
                 self.setUserName(QtGui.qApp.userName())
-#                self.updateActionsState()
         except database.CDatabaseException, e:
             QtGui.QMessageBox.critical(
                 self,
@@ -120,24 +150,30 @@ class CMainWindow(QtGui.QMainWindow, Ui_CMainWindow):
                 QtGui.QMessageBox.Close)
             QtGui.qApp.logCurrentException()
         finally:
+            self.updateActionsState()
             if ok:
                 QtGui.qApp.openDevice()
+                self.cashRegisterWindow = CCashRegisterWindow(self)
+                self.centralWidget().addSubWindow(self.cashRegisterWindow, Qt.Window)
+                self.cashRegisterWindow.setWindowState(Qt.WindowMaximized)
             else:
                 QtGui.qApp.closeDatabase()
                 QtGui.qApp.closeDevice()
 
-        self.cashRegisterWindow = CCashRegisterWindow(self)
-        self.centralWidget().addSubWindow(self.cashRegisterWindow, Qt.Window)
-        self.cashRegisterWindow.setWindowState(Qt.WindowMaximized)
-
-
 
     @pyqtSignature('')
     def on_actLogout_triggered(self):
+        if self.cashRegisterWindow:
+            self.cashRegisterWindow.accountsUpdateTimer.stop()
+
+        for window in self.centralwidget.subWindowList():
+            window.close()
+
         if QtGui.qApp.db:
             QtGui.qApp.clearUserId(True)
             QtGui.qApp.closeDatabase()
-            QtGui.qApp.closePort()
+
+        self.updateActionsState()
 
 
     @pyqtSignature('')
@@ -165,88 +201,90 @@ class CMainWindow(QtGui.QMainWindow, Ui_CMainWindow):
             preferences.save()
 
 
-
     @pyqtSignature('')
     def on_actReportX_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportX()
+            app.call(self, app.device.reportX)
 
 
     @pyqtSignature('')
     def on_actReportLastDocument_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportLastDocument()
+            app.call(self, app.device.reportLastDocument)
 
 
     @pyqtSignature('')
     def on_actReportOfdExchangeStatus_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportOfdExchangeStatus()
+            app.call(self, app.device.reportOfdExchangeStatus)
 
 
     @pyqtSignature('')
     def on_actReportQuantity_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportQuantity()
+            app.call(self, app.device.reportQuantity)
 
 
     @pyqtSignature('')
     def on_actReportOperators_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportOperators()
+            app.call(self, app.device.reportOperators)
+
+
+    @pyqtSignature('')
+    def on_actReportCashier_triggered(self):
+        CReportCashier(self).exec_()
 
 
     @pyqtSignature('')
     def on_actReportHours_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportHours()
+            app.call(self, app.device.reportHours)
 
 
     @pyqtSignature('')
     def on_actReportShiftTotalCounters_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportShiftTotalCounters()
+            app.call(self, app.device.reportShiftTotalCounters)
 
 
     @pyqtSignature('')
     def on_actReportFnTotalCounters_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportFnTotalCounters()
+            app.call(self, app.device.reportFnTotalCounters)
 
 
     @pyqtSignature('')
     def on_actReportOfdTest_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportOfdTest()
+            app.call(self, app.device.reportOfdTest)
 
 
     @pyqtSignature('')
     def on_actReportCashRegisterInfo_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportCashRegisterInfo()
+            app.call(self, app.device.reportCashRegisterInfo)
 
 
     @pyqtSignature('')
     def on_actReportRegistration_triggered(self):
         app = QtGui.qApp
         if app.getDeviceOk():
-            app.device.reportRegistration()
+            app.call(self, app.device.reportRegistration)
 
 
     @pyqtSignature('')
     def on_actAppPreferences_triggered(self):
-#        print " QtGui.qApp.db=%r" % (QtGui.qApp.db,)
-
         qApp = QtGui.qApp
         prevOrgId = qApp.getCurrentOrgId()
         prevOrgStructureId = qApp.getCurrentOrgStructureId()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,13 +12,14 @@
 #############################################################################
 
 import json
+
 from PyQt4 import QtGui
 from PyQt4.QtCore import QVariant
 
-
-from RefBooks.Service.Info   import CServiceInfo
 from library.CRBSearchComboBox import CRBSearchComboBox
 from library.Utils           import forceRef, forceString, forceDate
+
+from RefBooks.Service.Info   import CServiceInfo
 
 from ActionPropertyValueType import CActionPropertyValueType
 
@@ -32,7 +33,10 @@ class CServiceActionPropertyValueType(CActionPropertyValueType):
             CRBSearchComboBox.__init__(self, parent)
             db = QtGui.qApp.db
             tableService = db.table('rbService')
-            domainObj = json.loads(domain) if domain else {}
+            try:
+                domainObj = json.loads(domain) if domain else {}
+            except:
+                domainObj = {}
             groupObj = domainObj.get('group', None)
             codeObj = domainObj.get('code', None)
             nameObj = domainObj.get('name', None)
@@ -59,7 +63,7 @@ class CServiceActionPropertyValueType(CActionPropertyValueType):
                     cond.append(tableService['id'].inlist(idList))
 
             if groupObj is not None:
-                ok, groupCodes = self._checkAndNormalizeCodeObj(groupObj)
+                ok, groupCodes = CActionPropertyValueType._checkAndNormalizeCodeObj(groupObj)
                 if ok:
                     tableServiceGroup = db.table('rbServiceGroup')
                     groupIds = db.getIdList(tableServiceGroup,
@@ -71,35 +75,51 @@ class CServiceActionPropertyValueType(CActionPropertyValueType):
                     raise Exception(u'Неправильное описание group в «%s»' % domain)
 
             if codeObj is not None:
-                ok, codes = self._checkAndNormalizeCodeObj(codeObj)
+                ok, codes = CActionPropertyValueType._checkAndNormalizeCodeObj(codeObj)
                 if ok:
                     cond.append(db.joinOr([tableService['code'].like(code) for code in codes]))
                 else:
                     raise Exception(u'Неправильное описание code в «%s»' % domain)
 
             if nameObj is not None:
-                ok, names = self._checkAndNormalizeCodeObj(nameObj)
+                ok, names = CActionPropertyValueType._checkAndNormalizeCodeObj(nameObj)
                 if ok:
                     cond.append(db.joinOr([tableService['name'].like(name) for name in names]))
                 else:
                     raise Exception(u'Неправильное описание name в «%s»' % domain)
+
+            if not domainObj:
+                infisCodes = []
+                regexp = None
+                for word in domain.split(','):
+                    if word:
+                        parts = word.split(':')
+                        if len(parts) == 1:
+                            key, val = u'инфис', parts[0].strip()
+                        elif len(parts) == 2:
+                            key, val = parts[0].strip(), parts[1].strip()
+                        else:
+                            raise ValueError, self.badDomain % locals()
+                        keylower = key.lower()
+                        vallower = val.lower()
+                        if keylower == u'инфис':
+                            infisCodes.extend(vallower.split(';'))
+                        elif keylower == u'regexp':
+                            regexp = vallower
+                        else:
+                            raise ValueError, self.badKey % locals()
+                db = QtGui.qApp.db
+                cond = []
+                if regexp:
+                    cond.append(tableService['infis'].regexp(regexp))
+                elif infisCodes:
+                    cond.append(tableService['infis'].inlist(infisCodes))
 
             self.setTable('rbService', addNone=True, filter=db.joinAnd(cond) if cond else '')
 
 
         def setValue(self, value):
             CRBSearchComboBox.setValue(self, forceRef(value))
-
-
-        @staticmethod
-        def _checkAndNormalizeCodeObj(codeObj):
-            if isinstance(codeObj, (basestring, int)):
-                return True, [unicode(codeObj)]
-            if (     isinstance(codeObj, list)
-                 and all(isinstance(code, (basestring, int)) for code in codeObj)
-               ):
-                return True, [unicode(code) for code in codeObj]
-            return False, None
 
 
     @staticmethod

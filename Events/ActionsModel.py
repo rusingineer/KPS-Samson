@@ -16,24 +16,32 @@ from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant, SIGNAL
 from Events.ActionRelations.Groups import CRelationsProxyModelGroup
 
-from library.InDocTable import CRBInDocTableCol
+from library.InDocTable import CRBInDocTableCol, CEnumInDocTableCol, CIntInDocTableCol, CDateInDocTableCol, CFloatInDocTableCol, CInDocTableCol, forcePyType
 from library.Utils import (
     forceDate, forceDouble, forceInt, forceRef, forceString, toVariant, getDentitionActionTypeId,
-    forceDateTime)
+    forceDateTime, forceStringEx, forceDateTime, trim)
 
 from Events.Action import CAction, CActionType, CActionTypeCache, getActionDefaultAmountEx, getActionDuration
 from Events.ActionStatus                import CActionStatus
+from Events.ActionProperty import CActionPropertyValueTypeRegistry
 from Events.ExecutionPlan.Groups        import CActionExecutionPlanGroup, CExecutionPlanProxyModelGroup
 from Events.ExecutionPlan.ExecutionPlan import CActionExecutionPlan, CActionExecutionPlanItem
-from Events.Utils import getActionTypeIdListByClass
+from Events.Utils import getActionTypeIdListByClass, getEventMedicalAidKindId#, getLfFormIdList
 from Resources.JobTicketStatus          import CJobTicketStatus
+from RefBooks.ActionTypeGroup.RBActionTypeGroupEditor import CSmnnInDocTableCol, CLfFormInDocTableCol
+from Stock.NomenclatureComboBox import CNomenclatureInDocTableCol
 from library.blmodel.Query              import CQuery
+from library.crbcombobox import CRBComboBox, CRBModelDataCache
+
+from Users.Rights import urAccessEditCentralizedAccounting
 
 
 __all__ = [
             'CActionsModel',
             'getActionDefaultAmountEx',
-            'CGroupActionsProxyModel'
+            'CGroupActionsProxyModel',
+            'CActionsModelEx',
+            'CGroupActionsProxyModelEx'
           ]
 
 
@@ -322,6 +330,8 @@ class CActionsModel(QAbstractTableModel):
             else:
                 record = presetAction.getRecord()
                 action = presetAction
+            if action.findNomenclaturePropertyValue():
+                self.applyPropertyDependencies(action)
             self._items[row] = CActionRecordItem(record, action)
             if not presetAction:
                 record.setValue('amount', toVariant(self.getDefaultAmount(actionTypeId, record, action)))
@@ -331,6 +341,21 @@ class CActionsModel(QAbstractTableModel):
             if actionsSummaryRowRow is not None:
                 self.eventEditor.onActionChanged(actionsSummaryRowRow)
             return True
+    
+    
+    def applyPropertyDependencies(self, action):
+        propertyList = action.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureValueType():
+                property = action.getPropertyById(propertyType.id)
+                property.preApplyDependents(action)
+                property.setValue(propertyType.convertQVariantToPyValue(action.findNomenclaturePropertyValue()))
+                if property.isActionNameSpecifier():
+                    action.updateSpecifiedName()
+                property.applyDependents(action)
+                if propertyType.isJobTicketValueType():
+                    action.setPlannedEndDateOnJobTicketChanged(property.getValue())
 
 
     def appendOuterAction(self, action):
@@ -366,8 +391,8 @@ class CActionsModel(QAbstractTableModel):
         return cnt-1
 
 
-    def getFilledAction(self, record, actionTypeId, amount=None, financeId=None, contractId=None, **kwargs):
-        return CAction.getFilledAction(self.eventEditor, record, actionTypeId, amount, financeId, contractId)
+    def getFilledAction(self, record, actionTypeId, amount=None, financeId=None, contractId=None, orgStructureId=None, **kwargs):
+        return CAction.getFilledAction(self.eventEditor, record, actionTypeId, amount, financeId, contractId, orgStructureId=orgStructureId)
 
 
     def delVisit(self, record):
@@ -391,6 +416,21 @@ class CActionsModel(QAbstractTableModel):
                     visitRow = i
         if visitRow is not None:
             visitsModel.removeRows(visitRow, 1)
+
+
+    def getClientReservationToActions(self):
+        clientReservationToAction = {}
+        if self.eventEditor:
+            for record, action in self.eventEditor.getActionsModelsItemsList():
+                actionId = forceRef(record.value('id'))
+                if actionId and action:
+                    if action.nomenclatureClientReservation is not None:
+                        reservationId = forceRef(action.nomenclatureClientReservation._record.value('id'))
+                        reservationToActionLine = clientReservationToAction.get(reservationId, [])
+                        if actionId and actionId not in reservationToActionLine:
+                            reservationToActionLine.append(actionId)
+                            clientReservationToAction[reservationId] = reservationToActionLine
+        return clientReservationToAction
 
 
     def removeRows(self, row, count, parentIndex=QModelIndex(), *args, **kwargs):
@@ -423,7 +463,11 @@ class CActionsModel(QAbstractTableModel):
                                     self.cachedFreeJobTicketActionProperty.append(propertyId)
                     actionId = forceRef(record.value('id'))
                     if action.nomenclatureClientReservation is not None and not actionId:
-                        action.cancel()
+                        action.nomenclatureClientReservation.cancelEx(self.getClientReservationToActions())
+                        action.nomenclatureClientReservation = None
+                    if (action.nomenclatureExpense is not None and not actionId) or (action.nomenclatureExpense is not None and actionId and action.getNomenclatureExpenseChange()):
+                        action.nomenclatureExpense.cancel()
+                        action.nomenclatureExpense = None
                 if action.getId():
                     self.actionIdForMarkDeleted.append(action.getId())
             self.beginRemoveRows(parentIndex, row, row+count-1)
@@ -473,6 +517,7 @@ class CActionsModel(QAbstractTableModel):
                             action._record.setValue('visit_id', visitId)
                             record.setValue('visit_id', toVariant(visitId))
                 if not actionTypeDentIdList or forceRef(record.value('actionType_id')) not in actionTypeDentIdList:
+                    _id = None
                     if action.trailerIdx > 0:
                         if bool(action.trailerIdx & 1):  # нечет
                             _id = action.save(eventId, len(idList))
@@ -499,6 +544,32 @@ class CActionsModel(QAbstractTableModel):
                         for fieldName in ['id', 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'expose']:
                             record.setValue(fieldName, toVariant(action._record.value(fieldName)))
                         idList.append(_id)
+                    if _id and action.nomenclatureExpense:
+                        if action and action.actionType().isDoesNotInvolveExecutionCourse and forceInt(action.getRecord().value('status')) != CActionStatus.canceled:
+                            if action.executionPlanManager.executionPlan:
+                                currentExecutionPlanItem = action.executionPlanManager._currentItem
+                                action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(currentExecutionPlanItem))
+                                nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                                while nextExecutionPlanItem:
+                                    action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(nextExecutionPlanItem))
+                                    nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                                if not nextExecutionPlanItem and not action.executionPlanManager.hasItemsToDo():
+                                    if action.nomenclatureClientReservation:
+                                        action.nomenclatureClientReservation.cancel()
+                                action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(currentExecutionPlanItem))
+                            else:
+                                nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                                if not nextExecutionPlanItem and action.executionPlanManager.currentItem and not action.executionPlanManager.hasItemsToDo():
+                                    if action.nomenclatureClientReservation:
+                                        action.nomenclatureClientReservation.cancel()
+                                elif action and action.actionType().isDoesNotInvolveExecutionCourse and forceInt(action.getRecord().value('status')) == CActionStatus.finished:
+                                    if action.nomenclatureClientReservation:
+                                        action.nomenclatureClientReservation.cancel()
+                        else:
+                            nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                            if not nextExecutionPlanItem and not action.executionPlanManager.hasItemsToDo():
+                                if action.nomenclatureClientReservation:
+                                    action.nomenclatureClientReservation.cancel()
         if QtGui.qApp.controlNomenclatureExpense():
             message = u''
             tableNomenclature = db.table('rbNomenclature')
@@ -737,7 +808,7 @@ class CActionsModel(QAbstractTableModel):
                         if not forceDate(record.value('endDate')):
                             return actionType.checkReceivedMovingLeaved(u'Действие "Движение" не может появится при наличии не законченного действия "Поступление"')
                         return True
-            return actionType.checkReceivedMovingLeaved(u'Действие "Движение" не должно применяться пока нет действия действия "Поступление"')
+            return actionType.checkReceivedMovingLeaved(u'Действие "Движение" не должно применяться пока нет действия "Поступление"')
         return True
 
 
@@ -1225,7 +1296,7 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
             if parentActionType.class_ != relatedActionType.class_:
                 required.append(relatedActionType.class_)
         required = set(required)
-        if (len(group.items) > 1 or required) and group.getItem(proxyRow) == group.firstItem and not removeRelated and not unbind:
+        if isinstance(group, CRelationsProxyModelGroup) and (len(group.items) > 1 or required) and group.getItem(proxyRow) == group.firstItem and not removeRelated and not unbind:
             res = QtGui.QMessageBox().warning(
                                             None,
                                             u'Внимание!',
@@ -1262,6 +1333,13 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
         for item in reversed(sorted(group.proxyRows)):
             self._removeRow(item, removeRelated = True, unbind = True) 
 
+
+    def showIdentificationInfo(self, proxyRow):
+        if self._mapProxyRow2Group and proxyRow < len(self._mapProxyRow2Group):
+            actionTypeId = self._mapProxyRow2Group[proxyRow].actionTypeId
+            if actionTypeId:
+                from library.IdentificationModel import identificationInfo
+                identificationInfo(self._parent, actionTypeId, 'ActionType_Identification', 'ActionType')
     
 
     def touchGrouping(self, proxyRow):
@@ -1334,8 +1412,11 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
             ifRelated = kwargs.pop('related')
         else:
             ifRelated = True
+        subgroup = None
+        if 'subgroup' in kwargs.keys():
+            subgroup = kwargs.pop('subgroup')
         result = self._actionModel.addRow(*args, **kwargs)
-        group, _ = self._addNewItem()
+        group, _ = self._addNewItem(subgroup)
         self.emitRowIndexActivated(self._groups.getGroupProxyRow(group))
         if ifRelated: 
             self.addRelatedActions(args[0], index = None)
@@ -1474,3 +1555,805 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
             CQuery.delete(
                 CActionExecutionPlanItem, itemsCond
             )
+
+
+
+
+class CGroupActionsProxyModelEx(CGroupActionsProxyModel):
+    __groupingAllowed__ = True
+
+    __pyqtSignals__ = (
+        'amountChanged(int)',
+        'itemsCountChanged()'
+    )
+
+
+    def __init__(self, parent):
+        actionModel = CActionsModelEx(parent)
+
+        CGroupActionsProxyModel.__init__(self, parent)
+        QtGui.QProxyModel.setModel(self, actionModel)
+
+        self._parent = parent
+        self._actionModel = actionModel
+
+        self._groups = CGroups(self)
+        self._mapProxyRow2Group = {}
+        self._mapModelRow2ProxyRow = {}
+        self._nomenclatureAnalogCache = {}
+
+        boldFont = QtGui.QFont()
+        boldFont.setWeight(QtGui.QFont.Bold)
+
+        self._qBoldFont = QVariant(boldFont)
+
+        italicFont = QtGui.QFont()
+        italicFont.setItalic(QtGui.QFont.StyleItalic)
+        self._qItalicFont = QVariant(italicFont)
+
+        self._groupItemsShift = u' ' * 3
+
+        self.connect(self._actionModel, SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self._emitDataChanged)
+        self.connect(self._actionModel, SIGNAL('amountChanged(int)'), self._emitAmountChanged)
+        self.connect(self._actionModel, SIGNAL('itemsCountChanged()'), self._emitItemsCountChanged)
+
+
+    def columnCount(self, index=None):
+        return len(self._actionModel._cols)
+
+
+    def rowCount(self, index=None):
+        count = 0
+        for group in self._groups.groupsIterator:
+            count += len(group) if group.expanded else 1
+        return count
+
+    
+    def flags(self, index):
+        row = index.row()
+        proxyColumn = index.column()
+        if row not in self._mapProxyRow2Group and row == len(self._groups):
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        elif row not in self._mapProxyRow2Group:
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        else:
+            group = self._mapProxyRow2Group[row]
+            if group:
+                proxyRow = group._mapProxyRow2ModelRow[row]
+                action = group._mapRow2Item[proxyRow].action
+                if not action:
+                    return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+                if not action.executionPlanManager.hasItemsToDo():
+                    return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+                record = group._mapRow2Item[proxyRow].record
+                if not record:
+                    return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+                status = forceInt(record.value('status')) if record else -1
+                if status in (CActionStatus.started, CActionStatus.appointed) and QtGui.qApp.userHasRight(urAccessEditCentralizedAccounting) and proxyColumn in (self._actionModel.Col_Nomenclature, self._actionModel.Col_Doses):
+                    return self._actionModel.flags(self._actionModel.index(proxyRow, proxyColumn))
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    
+
+    def data(self, index, role=Qt.DisplayRole):
+        row = index.row()
+        if row not in self._mapProxyRow2Group:
+            return QVariant()
+
+        group = self._mapProxyRow2Group[row]
+        modelRow = group.getModelRow(row, self._actionModel)
+
+        modelIndex = self._actionModel.index(modelRow, index.column())
+
+        #isHeadItem = group.isHeadItem(row, self._actionModel)
+
+        #if role == Qt.DisplayRole and not isHeadItem:
+        #    value = forceString(self._actionModel.data(modelIndex, role))
+        #    return QVariant(self._groupItemsShift+value)
+
+        #elif role == Qt.FontRole:
+        #    items = self._actionModel.items()
+        #    if 0<= row < len(items):
+        #        record, action = items[row]
+        #        if isHeadItem and group.canBeGrouped():
+        #            if action and ((action.trailerIdx > 0 and not bool(action.trailerIdx & 1)) or forceRef(record.value('prevAction_id'))):
+        #                self._qBoldFont.setItalic(QtGui.QFont.StyleItalic)
+        #            return self._qBoldFont
+        #        if action and ((action.trailerIdx > 0 and not bool(action.trailerIdx & 1)) or forceRef(record.value('prevAction_id'))):
+        #            return self._qItalicFont
+
+        return self._actionModel.data(modelIndex, role)
+
+
+    def setData(self, index, value, *args, **kwargs):
+        row = index.row()
+        proxyColumn = index.column()
+        if row not in self._mapProxyRow2Group and row == len(self._groups):
+            modelRow = len(self._actionModel.items())
+        elif row not in self._mapProxyRow2Group:
+            return False
+        else:
+            group = self._mapProxyRow2Group[row]
+            modelRow = group.getModelRow(row, self._actionModel)
+        index = self._actionModel.index(modelRow, proxyColumn)
+        if proxyColumn in (self._actionModel.Col_Nomenclature, self._actionModel.Col_Doses):
+            items = self._actionModel.items()
+            if 0<= row < len(items):
+                group = self._mapProxyRow2Group[row]
+                proxyRow = group._mapProxyRow2ModelRow[row]
+                action = group._mapRow2Item[proxyRow].action
+                record = group._mapRow2Item[proxyRow].record
+                if not group or not action:
+                    return False
+                isExistsDoneByIndex = action.executionPlanManager.hasItemsToDo()
+                if proxyColumn == self._actionModel.Col_Nomenclature and isExistsDoneByIndex:
+                    newNomenclatureId = forceRef(value)
+                    oldNomenclatureId = action.findNomenclaturePropertyValue()
+                    if oldNomenclatureId != newNomenclatureId:
+                        self._actionModel.blockSignals(True)
+                        result = self._actionModel.setData(index, value, *args, **kwargs)
+                        if not result:
+                            return False
+                        group.setIsDirty(newNomenclatureId and not oldNomenclatureId)
+                        action.setNomenclaturePropertyValue(newNomenclatureId)
+                        nomenclatureOldAnalogId = self.getNomenclatureAnalog(oldNomenclatureId) if oldNomenclatureId else None #0014428:0058806
+                        nomenclatureAnalogId = self.getNomenclatureAnalog(newNomenclatureId) if newNomenclatureId else None
+                        if nomenclatureOldAnalogId != nomenclatureAnalogId or not nomenclatureOldAnalogId or not nomenclatureAnalogId:
+                            #if not action.getSmnnUUIDPropertyValue() or not action.getSmnnGrlsLfPropertyValue():
+                                group = self.updateDosageNomenclatureByIndex(action, group)
+                            #else:
+                            #    action = self._setItemsNomenclature(action, group)
+                            #    group = self.setNomenclatureInExists(action, group)
+                        elif nomenclatureOldAnalogId and nomenclatureOldAnalogId == nomenclatureAnalogId:
+                            action = self._setItemsNomenclature(action, group)
+                            group = self.setNomenclatureInExists(action, group)
+                        if not trim(action.findSignaPropertyValue()): #0011445:0056953:пункт 1
+                            action.setSignaPropertyValue(self.getSignaToNomenclatureId(newNomenclatureId, action))
+                            action.setSignaCommentPropertyValue(action.findSignaCommentTypePropertyText())
+                        #action, group = self.updateSmnn_SmnnGrlslf(action, group, newNomenclatureId, oldNomenclatureId)
+                        self._actionModel.blockSignals(False)
+                        index = self.index(proxyRow, proxyColumn)
+                        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                        #self.emitRowIndexActivated(proxyRow)
+                        return True
+                isNotExecutedItemByDate = action.executionPlanManager.hasItemsToDo()
+                if proxyColumn == self._actionModel.Col_Doses and isNotExecutedItemByDate:
+                    oldDosage = action.findDosagePropertyValue()
+                    newDosage = forceDouble(value)
+                    if oldDosage != newDosage:
+                        self._actionModel.blockSignals(True)
+                        result = self._actionModel.setData(index, value, *args, **kwargs)
+                        if not result:
+                            self._actionModel.blockSignals(False)
+                            return False
+                        begDate = forceDate(record.value('begDate'))
+                        if begDate:
+                            action.setDosagePropertyValue(newDosage)
+                            group = self._setItemsDefaultToDateFirstItemDosesValueAndNomenclature(action, group, begDate)
+                            if newDosage != oldDosage:
+                                group = self.updateDosageToDateFirstItemInExists(index, group, newDosage, begDate)
+                                group.updateSpecifiedName()
+                        self._actionModel.blockSignals(False)
+                        index = self.index(proxyRow, proxyColumn)
+                        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                        #self.emitRowIndexActivated(proxyRow)
+                        return True
+        return False
+
+
+    def setModelActionsProxyGroupExpanded(self):
+        for row, group in self._mapProxyRow2Group.items():
+            if not self.getExpandedByRow(row):
+                group.setExpanded(not group.expanded)
+                self._resetData()
+
+    
+    def getSignaToNomenclatureId(self, nomenclatureId, action):
+        if nomenclatureId and action:
+            db = QtGui.qApp.db
+            table = db.table('rbNomenclature')
+            tableUsingType = db.table('rbNomenclature_UsingType')
+            tableRBUsingType = db.table('rbNomenclatureUsingType')
+            queryTable = table.innerJoin(tableUsingType, tableUsingType['master_id'].eq(table['id']))
+            queryTable = queryTable.innerJoin(tableRBUsingType, tableRBUsingType['id'].eq(tableUsingType['usingType_id']))
+            record = db.getRecordEx(queryTable, [tableRBUsingType['id'].alias('usingTypeId'), tableRBUsingType['name'].alias('usingType')], [table['id'].eq(nomenclatureId)], order=tableUsingType['idx'].name())
+            if action.isNomenclatureUsingTypeActionPropertyValueType():
+                return forceRef(record.value('usingTypeId')) if record else None
+            else:
+                return forceString(record.value('usingType')) if record else u''
+        return u''
+        
+
+    def updateDosageByIndex(self, index, group, dosage):
+        if not index.isValid():
+            return
+        if group:
+            group.setDosageInExists(dosage)
+
+    
+    def updateDosageToProcentByIndex(self, group, procent, change):
+        if group:
+            group.setDosageToProcentInExists(procent, change)
+    
+    
+    def updateDosageToDateToProcentByIndex(self, group, procent, change, date):
+        if group and date:
+            group.setDosageToDateToProcentInExists(procent, change, date)
+        return group
+            
+
+    def _setItemsDefaultDosesValueAndNomenclature(self, action, group):
+        doses = action.findDosagePropertyValue()
+        nomenclatureId = action.findNomenclaturePropertyValue()
+        actionEP = group.headItem.action
+        for epItem in actionEP.getExecutionPlan().items:
+            if epItem.nomenclature:
+                epItem.nomenclature.dosage = doses
+                epItem.nomenclature.nomenclatureId = nomenclatureId
+                nomenclatureItem = epItem.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = epItem
+                epItem.setIsDirty(True)
+        return group
+
+
+    def setNomenclatureInExists(self, action, group):
+        if action:
+            nomenclatureId = action.findNomenclaturePropertyValue()
+            group.setNomenclatureInExists(nomenclatureId)
+        return group
+
+
+    def _setItemsNomenclature(self, action, group):
+        nomenclatureId = action.findNomenclaturePropertyValue()
+        actionEP = group.headItem.action
+        for epItem in actionEP.getExecutionPlan().items:
+            if epItem.nomenclature and not epItem.executedDatetime:
+                epItem.nomenclature.nomenclatureId = nomenclatureId
+                nomenclatureItem = epItem.nomenclature
+                nomenclatureItem.actionExecutionPlanItem = epItem
+                epItem.setIsDirty(True)
+        return action
+
+
+    def updateDosageNomenclatureByIndex(self, action, group):
+        if action and group:
+            dosage = action.findDosagePropertyValue()
+            nomenclatureId = action.findNomenclaturePropertyValue()
+            group.setDosageNomenclatureInExists(dosage, nomenclatureId)
+        return group
+
+
+    def existsDoneByIndex(self, group, date):
+        items = group.getItemsByDate(date)
+        if not items:
+            return False
+        for item in items:
+            if item.executedDatetime:
+                return True
+        return False
+
+    
+    def hasNotExecutedItemByDate(self, group, date):
+        items = group.getItemsByDate(date)
+        if not items:
+            return False
+        for item in items:
+            if not item.executedDatetime:
+                return True
+        return False
+
+
+    def getCalculationParamValueProperties(self, clientId):
+        if not clientId:
+            return {}
+        valuePropertyToTemplateItems = {}
+        propertyIdHeader = []
+        db = QtGui.qApp.db
+        tableMonitoring = db.table('Client_Monitoring')
+        tableAPTemplate = db.table('ActionPropertyTemplate')
+        queryTable = tableMonitoring.innerJoin(tableAPTemplate, tableAPTemplate['id'].eq(tableMonitoring['propertyTemplate_id']))
+        cond = [tableAPTemplate['isCalcParamDoseNomenclatureExpense'].eq(1),
+                tableMonitoring['deleted'].eq(0),
+                tableAPTemplate['deleted'].eq(0),
+                tableMonitoring['client_id'].eq(clientId)
+                ]
+        cols = [tableAPTemplate['id'],
+                tableAPTemplate['name']
+                ]
+        records = db.getRecordList(queryTable, cols, cond, order='ActionPropertyTemplate.code, ActionPropertyTemplate.name')
+        for record in records:
+            templateId = forceRef(record.value('id'))
+            if templateId and templateId not in propertyIdHeader:
+                propertyIdHeader.append(templateId)
+        if len(propertyIdHeader) > 1:
+            valuePropertyToTemplateItems = self.getCalculationParamValuePropertyToTemplateItems(clientId, valuePropertyToTemplateItems, propertyIdHeader)
+        templateIdList = db.getDistinctIdList(tableAPTemplate, [tableAPTemplate['id']], [tableAPTemplate['isCalcParamDoseNomenclatureExpense'].eq(1)])
+        if templateIdList:
+            valuePropertyToTemplateItems = self.getCalculationParamValuePropertyToTemplateItems(clientId, valuePropertyToTemplateItems, templateIdList)
+        return valuePropertyToTemplateItems
+
+
+    def getCalculationParamValuePropertyToTemplateItems(self, clientId, valuePropertyToTemplateItems, templateIdList):
+        if clientId and templateIdList:
+            db = QtGui.qApp.db
+            tableEvent = db.table('Event')
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            tableActionProperty = db.table('ActionProperty')
+            tableActionPropertyType = db.table('ActionPropertyType')
+            tableMonitoring = db.table('Client_Monitoring')
+            tableAPTemplate = db.table('ActionPropertyTemplate')
+            queryTable = tableEvent.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+            queryTable = queryTable.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            queryTable = queryTable.innerJoin(tableActionProperty, tableActionProperty['action_id'].eq(tableAction['id']))
+            queryTable = queryTable.innerJoin(tableActionPropertyType, tableActionPropertyType['actionType_id'].eq(tableActionType['id']))
+            queryTable = queryTable.innerJoin(tableAPTemplate, tableAPTemplate['id'].eq(tableActionPropertyType['template_id']))
+            queryTable = queryTable.innerJoin(tableMonitoring, tableMonitoring['propertyTemplate_id'].eq(tableAPTemplate['id']))
+            cond = [tableEvent['client_id'].eq(clientId),
+                    tableAPTemplate['isCalcParamDoseNomenclatureExpense'].eq(1),
+                    tableEvent['deleted'].eq(0),
+                    tableAction['deleted'].eq(0),
+                    tableAction['endDate'].isNotNull(),
+                    tableActionPropertyType['template_id'].isNotNull(),
+                    tableActionType['deleted'].eq(0),
+                    tableActionPropertyType['deleted'].eq(0),
+                    tableAPTemplate['deleted'].eq(0),
+                    tableMonitoring['deleted'].eq(0),
+                    tableActionProperty['deleted'].eq(0),
+                    tableActionPropertyType['template_id'].inlist(templateIdList),
+                    tableActionProperty['type_id'].eq(tableActionPropertyType['id'])
+                    ]
+            cols = [u'DISTINCT ActionPropertyType.typeName, ActionPropertyType.valueDomain',]
+            records = db.getRecordList(queryTable, cols, cond)
+            cols = [tableAction['endDate'],
+                    tableActionPropertyType['template_id'],
+                    tableActionPropertyType['typeName'],
+                    tableActionPropertyType['valueDomain']
+                    ]
+            for record in records:
+                queryTableProperty = queryTable
+                typeName = forceString(record.value('typeName'))
+                valueDomain = forceString(record.value('valueDomain'))
+                propertyType = CActionPropertyValueTypeRegistry.get(typeName, valueDomain)
+                if propertyType:
+                    tablePropertyType = db.table(propertyType.getTableName())
+                    queryTableProperty = queryTableProperty.leftJoin(tablePropertyType, db.joinAnd([tablePropertyType['id'].eq(tableActionProperty['id']), tablePropertyType['value'].trim()+' IS NOT NULL']))
+                    cols.append(tablePropertyType['value'].alias('value'+typeName))
+                    queryTable = queryTableProperty
+            if len(cols) > 4:
+                order = [u'Action.endDate DESC']
+                records = db.getDistinctRecordList(queryTable, cols, cond, order)
+                for record in records:
+                    templateId = forceRef(record.value('template_id'))
+                    endDate = forceDate(record.value('endDate'))
+                    if templateId and endDate:
+                        typeName = forceString(record.value('typeName'))
+                        valueDomain = forceString(record.value('valueDomain'))
+                        value = record.value('value'+typeName)
+                        propertyType = CActionPropertyValueTypeRegistry.get(typeName, valueDomain)
+                        if propertyType:
+                            valueProperty = propertyType.convertQVariantToPyValue(value) if type(value) == QVariant else value
+                            if valueProperty:
+                                if type(valueProperty) is int:
+                                    reportLine = valuePropertyToTemplateItems.setdefault(templateId, (0, None))
+                                    if not reportLine[1] or reportLine[1] < endDate:
+                                        reportLine = (valueProperty, endDate)
+                                        valuePropertyToTemplateItems[templateId] = reportLine
+                                elif type(valueProperty) is float:
+                                    reportLine = valuePropertyToTemplateItems.setdefault(templateId, (0.0, None))
+                                    if not reportLine[1] or reportLine[1] < endDate:
+                                        reportLine = (valueProperty, endDate)
+                                        valuePropertyToTemplateItems[templateId] = reportLine
+        return valuePropertyToTemplateItems
+
+
+    def calculationDosageByIndex(self, group, calculationParam):
+        if group:
+            group.setCalculationDosageInExists(calculationParam)
+
+
+    def calculationDosageToDateByIndex(self, group, calculationParam, date):
+        if group and date:
+            group.setCalculationDosageToDateInExists(calculationParam, date)
+        return group
+            
+
+    def updateSmnn_SmnnGrlslf(self, action, group, nomenclatureId, oldNomenclatureId):
+        if nomenclatureId and nomenclatureId != oldNomenclatureId:
+            oldSmnnUUID = action.getSmnnUUIDPropertyValue()
+            db = QtGui.qApp.db
+            tableEsklp_Smnn = db.table('esklp.Smnn')
+            tableNC = db.table('rbNomenclature')
+            tableESKLP_Klp = db.table('esklp.Klp')
+            cond = []
+            order = u'esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form'
+            queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+            queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+            cond.append(tableNC['id'].eq(nomenclatureId))
+            records = db.getRecordList(queryTable, [tableEsklp_Smnn['UUID']], cond, order=order)
+            newSmnnUUID = ''
+            if len(records) == 1:
+                record = records[0]
+                newSmnnUUID = forceStringEx(record.value('UUID')) if record else ''
+            if oldSmnnUUID != newSmnnUUID:
+                group.setSmnnUUID(newSmnnUUID, updateExecutionPlan=False)
+                action.setSmnnUUIDPropertyValue(newSmnnUUID)
+            if newSmnnUUID:
+                oldSmnnGrlsLfId = action.getSmnnGrlsLfPropertyValue()
+                lfFormIdList = getLfFormIdList(nomenclatureId = nomenclatureId, smnnUUID = newSmnnUUID)
+                if len(lfFormIdList) == 1:
+                    newSmnnGrlsLfId = lfFormIdList[0]
+                    if oldSmnnGrlsLfId != newSmnnGrlsLfId:
+                        group.setLfFormId(newSmnnGrlsLfId, updateExecutionPlan=False)
+                        action.setSmnnGrlsLfPropertyValue(newSmnnGrlsLfId)
+                elif oldSmnnGrlsLfId not in lfFormIdList:
+                    group.setLfFormId(None, updateExecutionPlan=False)
+                    action.setSmnnGrlsLfPropertyValue(None)
+            else:
+                group.setLfFormId(None, updateExecutionPlan=False)
+                action.setSmnnGrlsLfPropertyValue(None)
+        return action, group
+
+
+    def getNomenclatureAnalog(self, nomenclatureId):
+        if nomenclatureId not in self._nomenclatureAnalogCache.keys():
+            db = QtGui.qApp.db
+            record = db.getRecord('rbNomenclature', 'analog_id', nomenclatureId)
+            analogId = forceRef(record.value('analog_id')) if record else None
+            self._nomenclatureAnalogCache[nomenclatureId] = analogId
+        return self._nomenclatureAnalogCache.get(nomenclatureId, None)
+    
+    
+    def emitCellChanged(self, row, column):
+        index = self.index(row, column)
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+        
+
+class CActionsModelEx(CActionsModel):
+    Col_ActionType = 0
+    Col_smnnUUID   = 5
+    Col_Nomenclature = 7
+    Col_Doses = 7
+    Col_Signa = 11
+    Col_SignaComment = 12
+
+    __pyqtSignals__ = ('amountChanged(int)',
+                      )
+    
+    class CLocActionPropertyTemplateInDocTableCol(CRBInDocTableCol):
+        def __init__(self, title, fieldName, width, tableName, **params):
+            CRBInDocTableCol.__init__(self, title, fieldName, width, tableName, **params)
+
+        def toString(self, val, record):
+            cache = CRBModelDataCache.getData(self.tableName, True)
+            text = cache.getStringById(forceInt(val), self.showFields)
+            return toVariant('' if (text=='0' or not text) else text)
+        
+
+    class CLocSignaInDocTableCol(CInDocTableCol):
+        def __init__(self, title, fieldName, width, tableName, **params):
+            CInDocTableCol.__init__(self, title, fieldName, width, **params)
+
+        def toString(self, val, record):
+            text = forceStringEx(val)
+            if text:
+                return toVariant('' if (text=='0' or not text) else text)
+            return toVariant('')
+
+    class CLocSignaCommentInDocTableCol(CInDocTableCol):
+        _SIGNA  = 3
+        def __init__(self, title, fieldName, width, **params):
+            CInDocTableCol.__init__(self, title, fieldName, width, readOnly=True)
+            self.caches = {}
+
+        def toString(self, val, record):
+            actionId = forceRef(val)
+            if actionId:
+                action = self.caches.get(actionId, None)
+                if not action:
+                    action = CAction.getActionById(actionId)
+                    self.caches[actionId] = action
+                if action:
+                    return toVariant(action.findSignaCommentPropertyText())
+            return QVariant()
+
+        def toSortString(self, val, record):
+            return forcePyType(self.toString(val, record))
+
+        def toStatusTip(self, val, record):
+            return self.toString(val, record)
+
+    class CLocNomenclatureInDocTableCol(CNomenclatureInDocTableCol):
+        def __init__(self, title, fieldName, width, **params):
+            CNomenclatureInDocTableCol.__init__(self, title, fieldName, width, **params)
+
+        def createEditor(self, parent):
+            editor = CNomenclatureInDocTableCol.createEditor(self, parent)
+            editor.setOnlySmnn(True)
+            editor.setOnlyNomenclature(True)
+            return editor
+
+        def setEditorData(self, editor, value, record):
+            actionTypeId = forceRef(record.value('actionType_id'))
+            actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
+            isSMNN = False
+            isOnlyMnnEsklpFormVisible = False
+            smnnUUID = None
+            smnnGrlsLfId = None
+            smnnName = ''
+            if actionType:
+                for propertyType in actionType.getPropertiesById().values():
+                    if propertyType.isNomenclatureSmnnActionPropertyValueType() or propertyType.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                        isSMNN = True
+                        break
+            if isSMNN:
+                smnnGrlsLfId = forceRef(record.value('lfForm_id'))
+                smnnUUID = forceStringEx(record.value('smnnUUID'))
+                smnnName = forceStringEx(record.value('smnnName'))
+                isOnlyMnnEsklpFormVisible = bool(smnnUUID) and bool(smnnGrlsLfId)
+            editor.setIsOnlyMnnEsklpFormVisible(isOnlyMnnEsklpFormVisible)
+            editor.setNomenclatureSmnnUUID(smnnUUID)
+            editor.setNomenclatureSmnnName(smnnName if smnnName is not None else '')
+            editor.setLfFormId(smnnGrlsLfId)
+            editor.setOnlyExists(actionType.isNomenclatureExpense if actionType else True)
+            financeId = forceRef(record.value('finance_id'))
+            medicalAidKindId = forceRef(record.value('medicalAidKind_id'))
+            if not medicalAidKindId:
+                eventTypeId = forceRef(record.value('eventType_id'))
+                medicalAidKindId = getEventMedicalAidKindId(eventTypeId) if eventTypeId else None
+            supplierId = forceRef(record.value('orgStructure_id'))
+            editor.setFinanceId(financeId)
+            editor.setMedicalAidKindId(medicalAidKindId)
+            editor.setOrgStructureId(supplierId if supplierId else QtGui.qApp.currentOrgStructureId())
+            editor.getFilterData()
+            editor.setFilter(editor._filter)
+            editor.setValue(forceRef(value))
+    
+    class CLocDosesInDocTableCol(CFloatInDocTableCol):
+        def __init__(self, title, fieldName, width, **params):
+            CFloatInDocTableCol.__init__(self, title, fieldName, width, **params)
+
+        def toString(self, val, record):
+            dosesName = forceStringEx(record.value('dosesName'))
+            return toVariant(dosesName)
+        
+        def createEditor(self, parent):
+            editor = QtGui.QDoubleSpinBox(parent)
+            editor.setMaximum(10000)
+            editor.setMinimum(0)
+            editor.setDecimals(2)
+            return editor
+
+        def setEditorData(self, editor, value, record):
+            val = forceDouble(value)
+            editor.setValue(val)
+
+        def getEditorData(self, editor):
+            return toVariant(editor.value())
+    
+    class CLocLfFormInDocTableCol(CLfFormInDocTableCol):
+        def __init__(self, title, fieldName, width, tableName, **params):
+            CLfFormInDocTableCol.__init__(self, title, fieldName, width, tableName, **params)
+
+        def toString(self, val, record):
+            cache = CRBModelDataCache.getData(self.tableName, True)
+            text = cache.getStringById(forceInt(val), self.showFields)
+            lfFormName = forceStringEx(record.value('lfFormName'))
+            return toVariant('') if forceString(text).lower() == u'не задано' else toVariant('')#lfFormName)
+
+        def setEditorData(self, editor, value, record):
+            orgStructureId = forceRef(record.value('orgStructure_id'))
+            nomenclatureId = forceRef(record.value('nomenclature_id'))
+            smnnUUID = forceStringEx(record.value('smnnUUID'))
+            editor.setOrgStructureId(orgStructureId if orgStructureId else QtGui.qApp.currentOrgStructureId())
+            editor.setNomenclatureId(nomenclatureId)
+            editor.setNomenclatureSmnnUUID(smnnUUID)
+            editor.setValue(forceRef(value))
+
+    class CLocActionTypeGroupInDocTableCol(CRBInDocTableCol):
+        def __init__(self, title, fieldName, width, tableName, **params):
+            CRBInDocTableCol.__init__(self, title, fieldName, width, tableName, **params)
+
+        def toString(self, val, record):
+            cache = CRBModelDataCache.getData(self.tableName, True)
+            text = cache.getStringById(forceInt(val), self.showFields)
+            return toVariant('' if (text=='0' or not text) else text)
+        
+    def __init__(self, parent, actionTypeClass=None):
+        CActionsModel.__init__(self, parent, actionTypeClass=actionTypeClass)
+        self.actionTypeClass = None
+        self.actionTypeIdList = []
+        self.disabledActionTypeIdList = []
+        self._cols = []
+        self._items = []
+        self._loadedActionIdListWithEndDate = []
+        self.eventEditor = None
+        if actionTypeClass is not None:
+            self.setActionTypeClass(actionTypeClass)
+        self.idxFieldName = 'idx'
+        self.readOnly = False
+        self.ttjForDeleteIdList = []
+        self.cachedFreeJobTicket = []
+        self.cachedFreeJobTicketActionProperty = []
+        self.actionIdForMarkDeleted = []
+        self.addCol(CRBInDocTableCol(u'Тип действия', 'actionType_id', 14, 'ActionType', showFields=CRBComboBox.showName).setReadOnly(True))
+        self.addCol(CEnumInDocTableCol(u'Статус', 'status', 10, CActionStatus.names)).setReadOnly(True)
+        self.addCol(self.CLocActionTypeGroupInDocTableCol(u'Схема', 'actionTypeGroup_id', 14, 'ActionTypeGroup', showFields=CRBComboBox.showCode).setReadOnly(True))
+        self.addCol(CDateInDocTableCol(u'Дата назначения', 'directionDate', 10).setReadOnly(True))
+        self.addCol(CDateInDocTableCol(u'Дата начала', 'begDate', 10).setReadOnly(True))
+        self.addCol(CSmnnInDocTableCol(u'МНН', 'smnnUUID', 22).setReadOnly(True))
+        self.addCol(self.CLocLfFormInDocTableCol(u'Форма выпуска', 'lfForm_id',  10, 'rbLfForm').setReadOnly(True))
+        self.addCol(self.CLocNomenclatureInDocTableCol(u'ЛС',  'nomenclature_id', 15, showFields = CRBComboBox.showName).setReadOnly(not QtGui.qApp.userHasRight(urAccessEditCentralizedAccounting)))
+        self.addCol(CDateInDocTableCol(u'План', 'plannedEndDate', 10).setReadOnly(True))
+        self.addCol(self.CLocActionPropertyTemplateInDocTableCol(u'Параметр расчета', 'actionPropertyTemplate_id', 10, 'ActionPropertyTemplate', addNone=False, showFields=CRBComboBox.showCode, filter=u'ActionPropertyTemplate.isCalcParamDoseNomenclatureExpense=1').setReadOnly(True))
+        self.addCol(self.CLocDosesInDocTableCol(u'Доза', 'doses', 10).setReadOnly(not QtGui.qApp.userHasRight(urAccessEditCentralizedAccounting)))
+        self.addCol(self.CLocSignaInDocTableCol(u'СП', 'signa', 10, 'rbNomenclatureUsingType', addNone=False, showFields=CRBComboBox.showName).setReadOnly(True))
+        self.addCol(self.CLocSignaCommentInDocTableCol(u'Комментарий к СП', 'id', 20).setReadOnly(True))
+        self.addCol(CIntInDocTableCol(u'Д', 'duration', 10).setReadOnly(True))
+        self.addCol(CIntInDocTableCol(u'И', 'periodicity', 10).setReadOnly(True))
+        self.addCol(CIntInDocTableCol(u'К', 'aliquoticity', 10).setReadOnly(True))
+        self.addCol(CInDocTableCol(u'Примечание', 'note', 20).setReadOnly(True))
+        self.table = QtGui.qApp.db.table('Action')
+
+    def cols(self):
+        return self._cols
+    
+
+    def addCol(self, col):
+        self._cols.append(col)
+        return col
+
+
+    def columnCount(self, index=None):
+        return len(self._cols)
+
+
+    def rowCount(self, index=None):
+        return len(self._items)
+    
+    
+    def sort(self, column, ascending):
+        col = self._cols[column]
+        self._items.sort(key=lambda item: col.toSortString(item[0].value(col.fieldName()), item[0]), reverse=not ascending)
+        self.emitRowsChanged(0, len(self._items)-1)
+
+
+    def headerData(self, section, orientation, role = Qt.DisplayRole):
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                return self._cols[section].title()
+            if role == Qt.ToolTipRole:
+                return self._cols[section].toolTip()
+            if role == Qt.WhatsThisRole:
+                return self._cols[section].whatsThis()
+        return QVariant()
+
+    
+    def flags(self, index):
+        if self.readOnly:
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        row = index.row()
+        if self.isExposed(row):
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        column = index.column()
+        if column in (self.Col_Nomenclature, self.Col_Doses) and QtGui.qApp.userHasRight(urAccessEditCentralizedAccounting):
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsEditable
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+    
+
+    def data(self, index, role=Qt.DisplayRole):
+        column = index.column()
+        row = index.row()
+        if 0 <= row < len(self._items):
+            if role == Qt.EditRole:
+                col = self._cols[column]
+                record = self._items[row][0]
+                return record.value(col.fieldName())
+            if role == Qt.DisplayRole:
+                col = self._cols[column]
+                record = self._items[row][0]
+                #if column == CActionsModelEx.Col_ActionType:
+                #    outName = forceString(record.value('specifiedName'))
+                #    actionTypeId = forceRef(record.value('actionType_id'))
+                #    if actionTypeId:
+                #        actionType = CActionTypeCache.getById(actionTypeId)
+                #        if actionType:
+                #            outName = actionType.name + ' ' + outName if outName else actionType.name
+                #            if actionType.showBegDate:
+                #                outName += ', ' + forceString(forceDate(record.value('begDate')))
+                #            return QVariant(outName)
+                return col.toString(record.value(col.fieldName()), record)
+            if role == Qt.StatusTipRole:
+                col = self._cols[column]
+                record = self._items[row][0]
+                return col.toStatusTip(record.value(col.fieldName()), record)
+            if role == Qt.TextAlignmentRole:
+                col = self._cols[column]
+                return col.alignment()
+            if role == Qt.CheckStateRole:
+                col = self._cols[column]
+                record = self._items[row][0]
+                return col.toCheckState(record.value(col.fieldName()), record)
+            if role == Qt.ForegroundRole:
+                col = self._cols[column]
+                record = self._items[row][0]
+                return col.getForegroundColor(record.value(col.fieldName()), record)
+        return QVariant()
+
+
+    def actionTypeId(self, row):
+        if 0 <= row < len(self._items):
+            return forceInt(self._items[row][CActionsModelEx.Col_ActionType].value('actionType_id'))
+        else:
+            return None
+
+
+    def setActionTypeClass(self, actionTypeClass):
+        self.actionTypeClass = actionTypeClass
+        self.actionTypeIdList = getActionTypeIdListByClass(actionTypeClass)
+        self._cols[CActionsModelEx.Col_ActionType].filter = 'class=%d'%actionTypeClass
+
+
+    def setData(self, index, value, role=Qt.EditRole, presetAction=None):
+        if not index.isValid():
+            return False
+        if role == Qt.EditRole:
+            row = index.row()
+            if row >= 0 and row < len(self._items):
+                column = index.column()
+                record = self._items[row][0]
+                actionTypeId = forceRef(record.value('actionType_id'))
+                if actionTypeId is None:
+                    return False
+                if actionTypeId and not ( self.checkMaxOccursLimit(actionTypeId) and
+                                          self.checkMovingNoLeaved(actionTypeId) and
+                                          self.checkMovingAfterReceived(actionTypeId) and
+                                          self.checkLeavedAfterMoving(actionTypeId) and
+                                          self.checkLeavedAfterMovingDate(actionTypeId) ):
+                    return False
+                action = self._items[row][1]
+                if column == self.Col_Nomenclature:
+                    newNomenclatureId = forceRef(value)
+                    oldNomenclatureId = forceRef(record.value('nomenclature_id'))
+                    if oldNomenclatureId != newNomenclatureId:
+                        action.setNomenclaturePropertyValue(newNomenclatureId)
+                    return True
+                elif column == self.Col_Doses:
+                    oldDosage = action.findDosagePropertyValue()
+                    newDosage = forceDouble(value)
+                    if oldDosage != newDosage:
+                        action.setDosagePropertyValue(newDosage)
+                    return True
+                self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                self.emitItemsCountChanged()
+            return False
+
+
+    def createEditor(self, index, parent):
+        column = index.column()
+        if hasattr(self._cols[column], 'setIndex'):
+            self._cols[column].setIndex(index)
+        return self._cols[column].createEditor(parent)
+
+
+    def setEditorData(self, column, editor, value, record):
+        return self._cols[column].setEditorData(editor, value, record)
+
+
+    def getEditorData(self, column, editor):
+        return self._cols[column].getEditorData(editor)
+
+
+    def afterUpdateEditorGeometry(self, editor, index):
+        pass
+    
+    def emitRowDataChanged(self, row):
+        index1 = self.index(row, 0)
+        index2 = self.index(row, self.columnCount())
+        self.emit(QtCore.SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index1, index2)
+
+
+    def emitAllDataChanged(self):
+        index1 = self.index(0, 0)
+        index2 = self.index(self.rowCount(), self.columnCount())
+        self.emit(QtCore.SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index1, index2)
+

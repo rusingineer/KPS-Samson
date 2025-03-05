@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,15 +14,45 @@
 
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, SIGNAL, QVariant
+from PyQt4.QtCore import Qt, QDate, SIGNAL, QVariant, pyqtSignal
+from PyQt4.QtGui import QComboBox
 
 from Reports.ReportBase import CReportBase, createTable
 
 from library.InDocTable import CFloatInDocTableCol, CLocItemDelegate
 from library.Utils      import (forceRef, forceString, forceInt, forceDouble, forceDate,
-                                forceBool, formatName, formatSex, formatDate)
+                                forceBool, formatName, formatSex, formatDate, forceStringEx)
 from Users.Rights       import urAccessStockAgreeRequirements
 from Reports.ReportView import CReportViewDialog
+
+contractTypeDict = {
+    1: u'купля продажа',
+    2: u'комиссия',
+    3: u'агентский договор',
+    4: u'передача на безвозмездной основе',
+    5: u'возврат контрактному производителю',
+    6: u'государственное лекарственное обеспечение',
+    7: u'договор консигнации',
+    8: u'собственные средства',
+}
+
+reasonDestructionTypeDict = {
+    0: u'не задано',
+    1: u'недоброкачественный ЛП',
+    2: u'контрафактный ЛП',
+    3: u'фальсифицированный ЛП',
+    4: u'ЛП, утративший потребительские свойства',
+    5: u'ЛП с истекшим сроком годности',
+    6: u'ЛП, отозванный производителем/держателем регистрационного удостоверения',
+    7: u'ЛП, исключенный из Государственного реестра лекарственных средств'
+}
+
+destructionTypeDict = {
+    0: u'не задано',
+    1: u'по решению владельца',
+    2: u'по решению Росздравнадзора',
+    3: u'по решению суда',
+}
 
 
 def getNomenclatureAnalogies(nomenclatureId):
@@ -136,7 +166,34 @@ def getBatchRecords(nomenclatureId, financeId=None, shelfTime=None, batch=None, 
     return res
 
 
-def getBatchShelfTimeFinance(nomenclatureId, financeId=None, shelfTime=None, batch=None, filter=[], medicalAidKind=None, setShelfTimeCond=True, isStockUtilization=False, condHaving=[], isStockRequsition=False, orgStructureId=None):
+def getBatchSGTINRecords(nomenclatureId, financeId=None, shelfTime=None, batch=None, filter=[], medicalAidKind=None, setShelfTimeCond=True, isStockUtilization=False, filterFor=None, isStrictMedicalAidKindId=False):
+    db = QtGui.qApp.db
+    havCond = [u'qnt>0'] if isStockUtilization else []
+    if medicalAidKind is not None:
+        if medicalAidKind == 0:
+            havCond = [u'qnt>0', u'medicalAidKind_id is NULL', u'shelfTime >= CURDATE()']
+        else:
+            havCond = [u'qnt>0', u'medicalAidKind_id=%s OR medicalAidKind_id is NULL'%medicalAidKind, u'shelfTime >= CURDATE()']
+    if not setShelfTimeCond and havCond and medicalAidKind is not None:
+        havCond.pop()
+        havCond.pop()
+    stmt = getExistsNomenclatureToSGTINStmt(nomenclatureId,
+                                            financeId=financeId,
+                                            medicalAidKindId = medicalAidKind,
+                                            batch=batch,
+                                            shelfTime=shelfTime,
+                                            filter = filter,
+                                            otherHaving = havCond,
+                                            filterFor=filterFor,
+                                            isStrictMedicalAidKindId=isStrictMedicalAidKindId)
+    res = []
+    query = db.query(stmt)
+    while query.next():
+        res.append(query.record())
+    return res
+
+
+def getBatchShelfTimeFinance(nomenclatureId, financeId=None, shelfTime=None, batch=None, filter=[], medicalAidKind=None, setShelfTimeCond=True, isStockUtilization=False, condHaving=[], isStockRequsition=False, orgStructureId=None, orderBy=None):
     recordBatch = None
     recordShelfTime = None
     recordFinance = None
@@ -161,6 +218,7 @@ def getBatchShelfTimeFinance(nomenclatureId, financeId=None, shelfTime=None, bat
                                         orgStructureId=orgStructureId,
                                         shelfTime=shelfTime,
                                         filter = filter,
+                                        orderBy = orderBy,
                                         otherHaving = havCond,
                                         isStockRequsition = isStockRequsition)
     query = db.query(stmt)
@@ -173,6 +231,54 @@ def getBatchShelfTimeFinance(nomenclatureId, financeId=None, shelfTime=None, bat
         recordPrice = forceDouble(record.value('price'))
         return recordBatch, recordShelfTime, recordFinance, recordMedicalAidKind, recordPrice
     return recordBatch, recordShelfTime, recordFinance, recordMedicalAidKind, recordPrice
+
+
+def getBatchShelfTimeFinanceQnt(nomenclatureId, financeId=None, shelfTime=None, batch=None, filter=[], medicalAidKind=None, setShelfTimeCond=True, isStockUtilization=False, condHaving=[], isStockRequsition=False, orgStructureId=None, orderBy=None, unitId=None, precision=-1):
+    recordBatch = None
+    recordShelfTime = None
+    recordFinance = None
+    recordMedicalAidKind = None
+    recordPrice = 0
+    recordQnt = 0
+    db = QtGui.qApp.db
+    havCond = [u'qnt>0'] if isStockUtilization else []
+    if medicalAidKind is not None:
+        if medicalAidKind == 0:
+            havCond = [u'qnt>0', u'medicalAidKind_id is NULL', u'(shelfTime >= CURDATE() OR shelfTime is NULL)']
+        else:
+            havCond = [u'qnt>0', u'medicalAidKind_id=%s OR medicalAidKind_id is NULL'%medicalAidKind, u'(shelfTime >= CURDATE() OR shelfTime is NULL)']
+    if not setShelfTimeCond and havCond and medicalAidKind is not None:
+        havCond.pop()
+        havCond.pop()
+    if condHaving:
+        havCond.append(condHaving)
+    stmt = getExistsNomenclatureStmt(   nomenclatureId,
+                                        financeId=financeId,
+                                        medicalAidKindId = medicalAidKind,
+                                        batch=batch,
+                                        orgStructureId=orgStructureId,
+                                        shelfTime=shelfTime,
+                                        filter = filter,
+                                        orderBy = orderBy,
+                                        otherHaving = havCond,
+                                        isStockRequsition = isStockRequsition)
+    query = db.query(stmt)
+    if query.next():
+        record = query.record()
+        recordNomenclatureId = forceRef(record.value('nomenclature_id'))
+        recordBatch = forceString(record.value('batch'))
+        recordShelfTime = forceDate(record.value('shelfTime'))
+        recordFinance = forceRef(record.value('finance_id'))
+        recordMedicalAidKind = forceRef(record.value('medicalAidKind_id'))
+        recordPrice = forceDouble(record.value('price'))
+        recordQnt = forceDouble(record.value('qnt'))
+        if unitId is not None:
+            if precision >= 0:
+                recordQnt = round(applyNomenclatureUnitRatio(recordQnt, recordNomenclatureId, unitId), precision)
+            else:
+                recordQnt = applyNomenclatureUnitRatio(recordQnt, recordNomenclatureId, unitId)
+        return recordBatch, recordShelfTime, recordFinance, recordMedicalAidKind, recordPrice, recordQnt
+    return recordBatch, recordShelfTime, recordFinance, recordMedicalAidKind, recordPrice, recordQnt
 
 
 def getRemainingHistory(nomenclatureId, **kwargs):
@@ -443,12 +549,22 @@ def getExistsNomenclatureIdList(orgStructureId=None, financeId=None, medicalAidK
     query = db.query(stmt)
     while query.next():
         nomenclatureId = forceRef(query.record().value('nomenclature_id'))
-        if nomenclatureId:
+        if nomenclatureId and nomenclatureId not in result:
             result.append(nomenclatureId)
     return result
 
 
 # ##################################################################################
+
+def getNomenclatureSimpleUnitRatio(nomenclatureId, sourceUnitId, targetUnitId):
+    db = QtGui.qApp.db
+    tableNUR = db.table('rbNomenclature_UnitRatio')
+    cond = [tableNUR['sourceUnit_id'].eq(sourceUnitId),
+            tableNUR['targetUnit_id'].eq(targetUnitId),
+            tableNUR['deleted'].eq(0),
+            tableNUR['master_id'].eq(nomenclatureId)]
+    record = db.getRecordEx(tableNUR, 'ratio', cond)
+    return forceInt(record.value('ratio')) if record else None
 
 
 def getNomenclatureUnitRatio(nomenclatureId, sourceUnitId, targetUnitId):
@@ -498,7 +614,7 @@ def applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId, revert=False):
     return qnt * ratio
 
 
-def getExistsNomenclatureAmount(nomenclatureId, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, price=None, isStockUtilization=False, isStockRequsition=False, precision=2):
+def getExistsNomenclatureAmount(nomenclatureId, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, price=None, isStockUtilization=False, isStockRequsition=False, precision=-1, isStrictMedicalAidKindId=False):
     db = QtGui.qApp.db
     qnt = 0
     stmt = getExistsNomenclatureStmt(   nomenclatureId,
@@ -515,18 +631,84 @@ def getExistsNomenclatureAmount(nomenclatureId, financeId=None, batch=None, orgS
                                         isStockUtilization=isStockUtilization,
                                         isStockRequsition=isStockRequsition)
     query = db.query(stmt)
-    if query.next():
-        medicalAidKindId = forceRef(query.record().value('medicalAidKind_id'))
-        if not qnt:
-            qnt = forceDouble(query.record().value('qnt'))
-            if unitId is not None:
-                qnt = round(applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId), precision)
-        if medicalAidKindId:
-            qnt = forceDouble(query.record().value('qnt'))
-            if unitId is not None:
-                qnt = round(applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId), precision)
-                return qnt
-            return qnt
+    while query.next():
+        record = query.record()
+        recQnt = forceDouble(record.value('qnt'))
+        if recQnt:
+            #resQnt = recordList.get((recNomenclatureId,  recFinanceId, recMedicalAidKindId), 0)
+            recNomenclatureId = forceRef(record.value('nomenclature_id'))
+            recFinanceId = forceRef(record.value('finance_id'))
+            recMedicalAidKindId = forceRef(record.value('medicalAidKind_id'))
+            #resultList.append([(recNomenclatureId,  recFinanceId, recMedicalAidKindId), recQnt])
+            #recordList[(recNomenclatureId,  recFinanceId, recMedicalAidKindId)] = resQnt + recQnt
+            if isStockRequsition: #0013144 (isStockRequsition)
+                if nomenclatureId == recNomenclatureId and ((((not financeId) and QtGui.qApp.controlSMFinance() != 2) or financeId == recFinanceId) and medicalAidKindId == recMedicalAidKindId) or ((not isStrictMedicalAidKindId) and financeId == recFinanceId):
+                    qnt += recQnt
+            elif financeId: #0012562:0044803
+                if (nomenclatureId, financeId, medicalAidKindId) == (recNomenclatureId,  recFinanceId, recMedicalAidKindId):
+                    qnt += recQnt
+                elif nomenclatureId == recNomenclatureId:
+                    if QtGui.qApp.controlSMFinance() == 2:
+                        if financeId == recFinanceId and (medicalAidKindId == recMedicalAidKindId or not isStrictMedicalAidKindId):
+                            qnt += recQnt
+                    else:
+                        if financeId == recFinanceId and (medicalAidKindId == recMedicalAidKindId or not isStrictMedicalAidKindId):
+                            qnt += recQnt
+                        elif medicalAidKindId == recMedicalAidKindId or not isStrictMedicalAidKindId:
+                            qnt += recQnt
+            elif exact:
+                if (nomenclatureId, financeId, medicalAidKindId) == (recNomenclatureId,  recFinanceId, recMedicalAidKindId):
+                    qnt += recQnt
+                elif nomenclatureId == recNomenclatureId and medicalAidKindId == recMedicalAidKindId or not isStrictMedicalAidKindId:
+                    qnt += recQnt
+
+    if unitId is not None:
+        if precision >= 0:
+            qnt = round(applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId), precision)
+        else:
+            qnt = applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId)
+    return qnt
+
+
+def getExistsNomenclatureAmountEx(nomenclatureId, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, price=None, isStockUtilization=False, isStockRequsition=False, precision=-1, isStrictMedicalAidKindId=False):
+    db = QtGui.qApp.db
+    qnt = 0
+    stmt = getExistsNomenclatureStmt(   nomenclatureId,
+                                        financeId=financeId,
+                                        batch=batch,
+                                        orgStructureId=orgStructureId,
+                                        unitId=unitId,
+                                        medicalAidKindId=medicalAidKindId,
+                                        shelfTime=shelfTime,
+                                        exact=exact,
+                                        filter=filter,
+                                        otherHaving=otherHaving,
+                                        price=price,
+                                        isStockUtilization=isStockUtilization,
+                                        isStockRequsition=isStockRequsition)
+    shelfTime = forceDate(shelfTime)
+    query = db.query(stmt)
+    while query.next():
+        record = query.record()
+        recQnt = forceDouble(record.value('qnt'))
+        if recQnt:
+            recNomenclatureId = forceRef(record.value('nomenclature_id'))
+            recFinanceId = forceRef(record.value('finance_id'))
+            recMedicalAidKindId = forceRef(record.value('medicalAidKind_id'))
+            recBatch = forceStringEx(record.value('batch'))
+            recShelfTime = forceDate(record.value('shelfTime'))
+            recPrice= forceDouble(record.value('price'))
+            if isStockRequsition: #0013144 (isStockRequsition)
+                if nomenclatureId == recNomenclatureId and ((((not financeId) and QtGui.qApp.controlSMFinance() != 2) or financeId == recFinanceId) and medicalAidKindId == recMedicalAidKindId) or ((not isStrictMedicalAidKindId) and financeId == recFinanceId):
+                    qnt += recQnt
+            elif exact:
+                if (nomenclatureId, financeId, medicalAidKindId, batch, shelfTime, price) == (recNomenclatureId,  recFinanceId, recMedicalAidKindId, recBatch, recShelfTime, recPrice):
+                    qnt += recQnt
+    if unitId is not None:
+        if precision >= 0:
+            qnt = round(applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId), precision)
+        else:
+            qnt = applyNomenclatureUnitRatio(qnt, nomenclatureId, unitId)
     return qnt
 
 
@@ -553,7 +735,7 @@ def getExistsNomenclatureAmountSum(nomenclatureId, financeId=None, batch=None, o
     return sumQnt
 
 
-def getExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, filterFor=None, isStrictMedicalAidKindId=False, price=None, isStockUtilization=False, nomenclatureIdList=[], isStockRequsition=False, isFinanceComboBoxFilter=False):
+def getExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, filterFor=None, isStrictMedicalAidKindId=False, price=None, isStockUtilization=False, nomenclatureIdList=[], isStockRequsition=False, isFinanceComboBoxFilter=False, inventoryFillFilter={}):
     db = QtGui.qApp.db
     tableStockTrans = db.table('StockTrans')
     tableSMI = db.table('StockMotion_Item')
@@ -641,7 +823,7 @@ def getExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=None, o
             creCond.append(tableStockTrans['creFinance_id'].eq(financeId))
             creCondFinanceTrans.append(tableStockTrans['creFinance_id'].eq(financeId))
             ossCond.append(tableOrgStructureStock['finance_id'].eq(financeId))
-    elif exact:
+    elif exact and not isStockRequsition: #0014606
         debCond.append(tableStockTrans['debFinance_id'].isNull())
         creCond.append(tableStockTrans['creFinance_id'].isNull())
         creCondFinanceTrans.append(tableStockTrans['creFinance_id'].isNull())
@@ -649,7 +831,7 @@ def getExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=None, o
     if medicalAidKindId and not isStrictMedicalAidKindId:
         debCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
         creCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
-        creCondFinanceTrans.append(tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId))
+        creCondFinanceTrans.append(db.joinOr([tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId), tableSMI['oldMedicalAidKind_id'].isNull()]))
     elif medicalAidKindId and isStrictMedicalAidKindId:
         debCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
         creCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
@@ -700,10 +882,34 @@ def getExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=None, o
     if medicalAidKindId:
         sqlGroupByBatchT = sqlGroupByBatchT + u'medicalAidKind_id, '
     order = u'OrgStructure.code, rbNomenclature.code, rbNomenclature.name, %s rbFinance.code'%sqlGroupByBatchT
+
+    joinCondTInvFill = u''
+    joinCondTAddInvFill = u''
+    if inventoryFillFilter:
+        nomenclatureClassId = inventoryFillFilter.get('classId', None)
+        nomenclatureKindId = inventoryFillFilter.get('kindId', None)
+        nomenclatureTypeId = inventoryFillFilter.get('typeId', None)
+        nomenclatureName   = inventoryFillFilter.get('name', None)
+        if nomenclatureTypeId:
+            joinCondTAddInvFill = u' AND rbNomenclature.type_id = %s '%(str(nomenclatureTypeId))
+        if nomenclatureName:
+            joinCondTAddInvFill += u' AND (rbNomenclature.name LIKE %s OR rbNomenclature.originName LIKE %s) '%(u'\'%%%s%%\''%(forceString(nomenclatureName)), u'\'%%%s%%\''%(forceString(nomenclatureName)))
+        if nomenclatureKindId or nomenclatureClassId:
+            if nomenclatureKindId:
+                joinCondTInvFill = u' INNER JOIN rbNomenclatureType ON (rbNomenclatureType.id = rbNomenclature.type_id AND rbNomenclatureType.kind_id = %s) '%(str(nomenclatureKindId))
+            if nomenclatureClassId and not nomenclatureKindId:
+                joinCondTInvFill = u' INNER JOIN rbNomenclatureType ON rbNomenclatureType.id = rbNomenclature.type_id INNER JOIN rbNomenclatureKind ON (rbNomenclatureKind.id = rbNomenclatureType.kind_id AND rbNomenclatureKind.class_id = %s) '%(str(nomenclatureClassId))
+            elif nomenclatureClassId and nomenclatureKindId:
+                joinCondTInvFill += u' INNER JOIN rbNomenclatureKind ON (rbNomenclatureKind.id = rbNomenclatureType.kind_id AND rbNomenclatureKind.class_id = %s) '%(str(nomenclatureClassId))
     if nomenclatureIdList:
-        joinCondT = u'INNER JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id AND rbNomenclature.id IN (%s))'%(u','.join(str(nomenclatureId) for nomenclatureId in nomenclatureIdList if nomenclatureId))
+        joinCondT = u'INNER JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id AND rbNomenclature.id IN (%s)%s) '%(u','.join(str(nomenclatureId) for nomenclatureId in nomenclatureIdList if nomenclatureId), joinCondTAddInvFill)
+    elif joinCondTAddInvFill:
+        joinCondT = u'INNER JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id%s) '%(joinCondTAddInvFill)
     else:
-        joinCondT = u'LEFT JOIN rbNomenclature ON rbNomenclature.id = T.nomenclature_id'
+        joinCondT = u'LEFT JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id) '
+    if joinCondTInvFill:
+        joinCondT += joinCondTInvFill
+
     stmt = u'''
 SELECT T.orgStructure_id,
    T.nomenclature_id,
@@ -793,6 +999,295 @@ LEFT JOIN OrgStructure_Stock ON OrgStructure_Stock.master_id = T.orgStructure_id
       AND OrgStructure_Stock.nomenclature_id = T.nomenclature_id
       AND OrgStructure_Stock.finance_id = T.finance_id
 GROUP BY orgStructure_id, nomenclature_id, %(groupByBatchT)s finance_id, medicalAidKind_id
+HAVING (%(havCond)s)
+ORDER BY %(orderBy)s
+''' % {
+    'debCond' : db.joinAnd(debCond) if debCond else '1',
+    'creCond' : db.joinAnd(creCond) if creCond else '1',
+    'creCondFinanceTrans' : db.joinAnd(creCondFinanceTrans) if creCondFinanceTrans else '1',
+    'ossCond' : db.joinAnd(ossCond) if ossCond else '1',
+    'havCond' : db.joinAnd(havCond),
+    'groupByBatch' : sqlGroupByBatch,
+    'joinCondT'      : joinCondT,
+    'groupByBatchT' : sqlGroupByBatchT,
+    'batchFields'  : batchFields,
+    'unitCol':unitCol,
+    'unitParams':unitParams,
+    'orderBy': orderBy if orderBy else order
+    }
+    return stmt
+
+
+def getExistsNomenclatureToSGTINStmt(nomenclatureId=None, financeId=None, batch=None, orgStructureId=None, unitId=None, medicalAidKindId=None, shelfTime=None, exact=False, filter=[], havCond=None, orderBy=None, otherHaving=None, filterFor=None, isStrictMedicalAidKindId=False, price=None, isStockUtilization=False, nomenclatureIdList=[], isStockRequsition=False, isFinanceComboBoxFilter=False, inventoryFillFilter={}):
+    db = QtGui.qApp.db
+    tableStockTrans = db.table('StockTrans')
+    tableSMI = db.table('StockMotion_Item')
+    tableOrgStructureStock = db.table('OrgStructure_Stock')
+
+    debCond = []
+    creCond = []
+    creCondFinanceTrans = []
+    ossCond = []
+
+    date = QDate.currentDate()
+    orgStructureId = orgStructureId or QtGui.qApp.currentOrgStructureId()
+#    inventoryLastDate = getInventoryLastDate(orgStructureId)
+#    if inventoryLastDate:
+#        debCond.append(tableStockTrans['date'].dateGe(inventoryLastDate))
+#        creCond.append(tableStockTrans['date'].dateGe(inventoryLastDate))
+#        creCondFinanceTrans.append(tableStockTrans['date'].dateGe(inventoryLastDate))
+    if date:
+        debCond.append(tableStockTrans['date'].dateLe(date))
+        creCond.append(tableStockTrans['date'].dateLe(date))
+        creCondFinanceTrans.append(tableStockTrans['date'].dateLe(date))
+    if orgStructureId:
+        debCond.append(tableStockTrans['debOrgStructure_id'].eq(orgStructureId))
+        creCond.append(tableStockTrans['creOrgStructure_id'].eq(orgStructureId))
+        creCondFinanceTrans.append(tableStockTrans['creOrgStructure_id'].eq(orgStructureId))
+        ossCond.append(tableOrgStructureStock['master_id'].eq(orgStructureId))
+    else:
+        debCond.append(tableStockTrans['debOrgStructure_id'].isNotNull())
+        creCond.append(tableStockTrans['creOrgStructure_id'].isNotNull())
+        creCondFinanceTrans.append(tableStockTrans['creOrgStructure_id'].isNotNull())
+    if nomenclatureId and isinstance(nomenclatureId, list):
+        debCond.append(tableStockTrans['debNomenclature_id'].inlist(nomenclatureId))
+        creCond.append(tableStockTrans['creNomenclature_id'].inlist(nomenclatureId))
+        creCondFinanceTrans.append(tableStockTrans['creNomenclature_id'].inlist(nomenclatureId))
+        ossCond.append(tableOrgStructureStock['nomenclature_id'].inlist(nomenclatureId))
+    elif nomenclatureId:
+        debCond.append(tableStockTrans['debNomenclature_id'].eq(nomenclatureId))
+        creCond.append(tableStockTrans['creNomenclature_id'].eq(nomenclatureId))
+        creCondFinanceTrans.append(tableStockTrans['creNomenclature_id'].eq(nomenclatureId))
+        ossCond.append(tableOrgStructureStock['nomenclature_id'].eq(nomenclatureId))
+
+    batchFields = 'StockTrans.batch AS batch, StockTrans.shelfTime AS shelfTime, StockTrans.price AS price, '
+    sqlGroupByBatch = 'shelfTime, batch, price, '
+    sqlGroupByBatchT = 'T.shelfTime, T.batch, T.price, '
+
+    if price is not None:
+        t = tableStockTrans['price'].eq(price)
+        debCond.append(t)
+        creCondFinanceTrans.append(t)
+        creCond.append(t)
+    if batch:
+        t = tableStockTrans['batch'].eq(batch)
+        debCond.append(t)
+        creCondFinanceTrans.append(t)
+        creCond.append(t)
+    elif exact:
+        t = tableStockTrans['batch'].eq('')
+        debCond.append(t)
+        creCondFinanceTrans.append(t)
+        creCond.append(t)
+    if filterFor != UTILIZATION or not isStockUtilization:
+        if shelfTime:
+            t = tableStockTrans['shelfTime'].ge(shelfTime)
+            debCond.append(t)
+            creCond.append(t)
+            creCondFinanceTrans.append(t)
+        elif exact:
+            t = db.joinOr([tableStockTrans['shelfTime'].isNull(), tableStockTrans['shelfTime'].ge(date)])
+            debCond.append(t)
+            creCond.append(t)
+            creCondFinanceTrans.append(t)
+    if financeId: #0012562:0044803
+        if isStockRequsition or isFinanceComboBoxFilter: #0013144 (isStockRequsition), #0013272 (isFinanceComboBoxFilter)
+            debCond.append(tableStockTrans['debFinance_id'].eq(financeId))
+            creCond.append(tableStockTrans['creFinance_id'].eq(financeId))
+            creCondFinanceTrans.append(tableStockTrans['creFinance_id'].eq(financeId))
+            ossCond.append(tableOrgStructureStock['finance_id'].eq(financeId))
+        elif QtGui.qApp.controlSMFinance() == 1:
+            debCond.append(db.joinOr([tableStockTrans['debFinance_id'].eq(financeId), tableStockTrans['debFinance_id'].isNull()]))
+            creCond.append(db.joinOr([tableStockTrans['creFinance_id'].eq(financeId), tableStockTrans['creFinance_id'].isNull()]))
+            creCondFinanceTrans.append(db.joinOr([tableStockTrans['creFinance_id'].eq(financeId), tableStockTrans['creFinance_id'].isNull()]))
+            ossCond.append(db.joinOr([tableOrgStructureStock['finance_id'].eq(financeId), tableOrgStructureStock['finance_id'].isNull()]))
+        elif QtGui.qApp.controlSMFinance() == 2:
+            debCond.append(tableStockTrans['debFinance_id'].eq(financeId))
+            creCond.append(tableStockTrans['creFinance_id'].eq(financeId))
+            creCondFinanceTrans.append(tableStockTrans['creFinance_id'].eq(financeId))
+            ossCond.append(tableOrgStructureStock['finance_id'].eq(financeId))
+    elif exact and not isStockRequsition: #0014606
+        debCond.append(tableStockTrans['debFinance_id'].isNull())
+        creCond.append(tableStockTrans['creFinance_id'].isNull())
+        creCondFinanceTrans.append(tableStockTrans['creFinance_id'].isNull())
+        ossCond.append(tableOrgStructureStock['finance_id'].isNull())
+    if medicalAidKindId and not isStrictMedicalAidKindId:
+        debCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
+        creCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
+        creCondFinanceTrans.append(db.joinOr([tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId), tableSMI['oldMedicalAidKind_id'].isNull()]))
+    elif medicalAidKindId and isStrictMedicalAidKindId:
+        debCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
+        creCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
+        creCondFinanceTrans.append(tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId))
+    elif exact:
+        debCond.append(tableSMI['medicalAidKind_id'].isNull())
+        creCond.append(tableSMI['medicalAidKind_id'].isNull())
+        creCondFinanceTrans.append(tableSMI['oldMedicalAidKind_id'].isNull())
+    if otherHaving:
+        havCond = otherHaving
+    elif isStockUtilization:
+        havCond = ['`qnt` > 0.0001']
+    else:
+        havCond = ['`qnt` > 0.0001 and ((shelfTime>=curDate()) OR shelfTime is NULL)']
+
+    if filter:
+        debCond.append(filter)
+        creCond.append(filter)
+
+    if unitId:
+        unitCol = '%s AS unitId' %unitId
+        unitParams = '''
+(SELECT
+            rbNomenclature_UnitRatio.ratio
+        FROM
+            rbNomenclature_UnitRatio
+        WHERE
+            rbNomenclature_UnitRatio.sourceUnit_id = RBUSource.id
+                AND rbNomenclature_UnitRatio.targetUnit_id =  %(unitId)s
+                AND rbNomenclature_UnitRatio.master_id = rbNomenclature.id) AS `ratio`,
+(SELECT
+        rbUnit.name
+    FROM
+        rbNomenclature_UnitRatio
+            LEFT JOIN
+        rbUnit ON rbUnit.id = rbNomenclature_UnitRatio.targetUnit_id
+    WHERE
+        rbNomenclature_UnitRatio.sourceUnit_id = RBUSource.id
+            AND rbNomenclature_UnitRatio.targetUnit_id = %(unitId)s
+            AND rbNomenclature_UnitRatio.master_id = rbNomenclature.id) AS `unitName`
+        '''%{
+        'unitId':unitId,
+        }
+    else:
+        unitCol = 'RBUSource.id AS `unitId`'
+        unitParams = '1'
+
+    if medicalAidKindId:
+        sqlGroupByBatchT = sqlGroupByBatchT + u'medicalAidKind_id, '
+    order = u'OrgStructure.code, rbNomenclature.code, rbNomenclature.name, %s rbFinance.code'%sqlGroupByBatchT
+
+    joinCondTInvFill = u''
+    joinCondTAddInvFill = u''
+    if inventoryFillFilter:
+        nomenclatureClassId = inventoryFillFilter.get('classId', None)
+        nomenclatureKindId = inventoryFillFilter.get('kindId', None)
+        nomenclatureTypeId = inventoryFillFilter.get('typeId', None)
+        nomenclatureName   = inventoryFillFilter.get('name', None)
+        if nomenclatureTypeId:
+            joinCondTAddInvFill = u' AND rbNomenclature.type_id = %s '%(str(nomenclatureTypeId))
+        if nomenclatureName:
+            joinCondTAddInvFill += u' AND (rbNomenclature.name LIKE %s OR rbNomenclature.originName LIKE %s) '%(u'\'%%%s%%\''%(forceString(nomenclatureName)), u'\'%%%s%%\''%(forceString(nomenclatureName)))
+        if nomenclatureKindId or nomenclatureClassId:
+            if nomenclatureKindId:
+                joinCondTInvFill = u' INNER JOIN rbNomenclatureType ON (rbNomenclatureType.id = rbNomenclature.type_id AND rbNomenclatureType.kind_id = %s) '%(str(nomenclatureKindId))
+            if nomenclatureClassId and not nomenclatureKindId:
+                joinCondTInvFill = u' INNER JOIN rbNomenclatureType ON rbNomenclatureType.id = rbNomenclature.type_id INNER JOIN rbNomenclatureKind ON (rbNomenclatureKind.id = rbNomenclatureType.kind_id AND rbNomenclatureKind.class_id = %s) '%(str(nomenclatureClassId))
+            elif nomenclatureClassId and nomenclatureKindId:
+                joinCondTInvFill += u' INNER JOIN rbNomenclatureKind ON (rbNomenclatureKind.id = rbNomenclatureType.kind_id AND rbNomenclatureKind.class_id = %s) '%(str(nomenclatureClassId))
+    if nomenclatureIdList:
+        joinCondT = u'INNER JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id AND rbNomenclature.id IN (%s)%s) '%(u','.join(str(nomenclatureId) for nomenclatureId in nomenclatureIdList if nomenclatureId), joinCondTAddInvFill)
+    elif joinCondTAddInvFill:
+        joinCondT = u'INNER JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id%s) '%(joinCondTAddInvFill)
+    else:
+        joinCondT = u'LEFT JOIN rbNomenclature ON (rbNomenclature.id = T.nomenclature_id) '
+    if joinCondTInvFill:
+        joinCondT += joinCondTInvFill
+
+    stmt = u'''
+SELECT T.orgStructure_id,
+   T.nomenclature_id,
+   T.batch,
+   T.shelfTime,
+   T.price,
+   T.medicalAidKind_id,
+   T.finance_id,
+   T.sgtin,
+   sum(T.`qnt`) AS `qnt`,
+   sum(T.`sum`) AS `sum`
+FROM
+(
+SELECT debOrgStructure_id AS orgStructure_id,
+       debNomenclature_id AS nomenclature_id,
+       %(batchFields)s
+       StockMotion_Item.medicalAidKind_id,
+       debFinance_id      AS finance_id,
+       StockMotion_Item.sgtin,
+       sum(StockTrans.qnt) AS `qnt`,
+       sum(StockTrans.`sum`) AS `sum`
+FROM StockTrans
+LEFT JOIN StockMotion_Item ON StockMotion_Item.id = StockTrans.stockMotionItem_id
+LEFT JOIN StockMotion ON StockMotion.id = StockMotion_Item.master_id
+WHERE %(debCond)s AND StockMotion.deleted = 0 AND (StockMotion_Item.deleted=0) AND (StockMotion.type != 2)
+GROUP BY debOrgStructure_id, debNomenclature_id, %(groupByBatch)s debFinance_id, medicalAidKind_id, sgtin
+
+UNION ALL
+SELECT creOrgStructure_id AS orgStructure_id,
+       creNomenclature_id AS nomenclature_id,
+       %(batchFields)s
+       StockMotion_Item.medicalAidKind_id,
+       creFinance_id      AS finance_id,
+       StockMotion_Item.sgtin,
+       -sum(StockTrans.qnt)          AS `qnt`,
+       -sum(StockTrans.`sum`)        AS `sum`
+FROM StockTrans
+LEFT JOIN StockMotion_Item ON StockMotion_Item.id = StockTrans.stockMotionItem_id
+LEFT JOIN StockMotion ON StockMotion.id = StockMotion_Item.master_id
+WHERE %(creCond)s AND StockMotion.deleted = 0 AND (StockMotion_Item.deleted=0) AND (StockMotion.type != 2)
+GROUP BY creOrgStructure_id, creNomenclature_id, %(groupByBatch)s creFinance_id, medicalAidKind_id, sgtin
+
+UNION ALL
+    SELECT debOrgStructure_id AS orgStructure_id,
+       debNomenclature_id AS nomenclature_id,
+       %(batchFields)s
+       StockMotion_Item.medicalAidKind_id,
+       debFinance_id      AS finance_id,
+       StockMotion_Item.sgtin,
+       sum(StockTrans.qnt)           AS `qnt`,
+       sum(StockTrans.`sum`)         AS `sum`
+FROM StockTrans
+LEFT JOIN StockMotion_Item ON StockMotion_Item.id = StockTrans.stockMotionItem_id
+LEFT JOIN StockMotion ON StockMotion.id = StockMotion_Item.master_id
+WHERE %(debCond)s AND StockMotion.deleted = 0 AND (StockMotion_Item.deleted=0) AND (StockMotion.type = 2)
+GROUP BY debOrgStructure_id, debNomenclature_id, %(groupByBatch)s debFinance_id, medicalAidKind_id, sgtin
+
+UNION ALL
+SELECT creOrgStructure_id AS orgStructure_id,
+       creNomenclature_id AS nomenclature_id,
+       %(batchFields)s
+       StockMotion_Item.oldMedicalAidKind_id AS medicalAidKind_id,
+       StockMotion_Item.oldFinance_id      AS finance_id,
+       StockMotion_Item.sgtin,
+       -sum(StockTrans.qnt)          AS `qnt`,
+       -sum(StockTrans.`sum`)        AS `sum`
+FROM StockTrans
+LEFT JOIN StockMotion_Item ON StockMotion_Item.id = StockTrans.stockMotionItem_id
+LEFT JOIN StockMotion ON StockMotion.id = StockMotion_Item.master_id
+WHERE %(creCondFinanceTrans)s AND StockMotion.deleted = 0 AND (StockMotion_Item.deleted=0) AND (StockMotion.type = 2)
+GROUP BY creOrgStructure_id, creNomenclature_id, %(groupByBatch)s creFinance_id, medicalAidKind_id, sgtin
+
+UNION ALL
+SELECT master_id          AS orgStructure_id,
+       nomenclature_id    AS nomenclature_id,
+       ''                 AS batch,
+       NULL               AS shelfTime,
+       0                  AS price,
+       NULL               AS medicalAidKind_id,
+       finance_id         AS finance_id,
+       ''                 AS sgtin,
+       0                  AS `qnt`,
+       0                  AS `sum`
+FROM OrgStructure_Stock
+WHERE %(ossCond)s
+GROUP BY master_id, nomenclature_id, finance_id, medicalAidKind_id, sgtin
+) AS T
+LEFT JOIN OrgStructure ON OrgStructure.id = T.orgStructure_id
+%(joinCondT)s
+LEFT JOIN rbUnit AS RBUSource ON rbNomenclature.defaultStockUnit_id = RBUSource.id
+LEFT JOIN rbFinance ON rbFinance.id = T.finance_id
+LEFT JOIN OrgStructure_Stock ON OrgStructure_Stock.master_id = T.orgStructure_id
+      AND OrgStructure_Stock.nomenclature_id = T.nomenclature_id
+      AND OrgStructure_Stock.finance_id = T.finance_id
+GROUP BY orgStructure_id, nomenclature_id, %(groupByBatchT)s finance_id, medicalAidKind_id, sgtin
 HAVING (%(havCond)s)
 ORDER BY %(orderBy)s
 ''' % {
@@ -934,7 +1429,7 @@ def getPriceExistsNomenclatureStmt(nomenclatureId=None, financeId=None, batch=No
     if medicalAidKindId and not isStrictMedicalAidKindId:
         debCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
         creCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKindId), tableSMI['medicalAidKind_id'].isNull()]))
-        creCondFinanceTrans.append(tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId))
+        creCondFinanceTrans.append(db.joinOr([tableSMI['oldMedicalAidKind_id'].eq(medicalAidKindId), tableSMI['oldMedicalAidKind_id'].isNull()]))
     elif medicalAidKindId and isStrictMedicalAidKindId:
         debCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
         creCond.append(tableSMI['medicalAidKind_id'].eq(medicalAidKindId))
@@ -1104,7 +1599,7 @@ INTERNAL_CONSUMPTION = 9
 FILTER_FOR_BATCH_FOR_COMBOBOX = 10
 
 
-def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMotionItem=None, filterFor=None, financeId=None, clientId=None,  first=True, medicalAidKind = None):
+def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMotionItem=None, filterFor=None, financeId=None, clientId=None,  first=True, medicalAidKind = None, oldUnitId=None):
     db = QtGui.qApp.db
     table = db.table('StockTrans')
     tableSMI = db.table('StockMotion_Item')
@@ -1214,7 +1709,7 @@ def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMot
         debCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKind), tableSMI['medicalAidKind_id'].isNull()]))
         creCond.append(db.joinOr([tableSMI['medicalAidKind_id'].eq(medicalAidKind), tableSMI['medicalAidKind_id'].isNull()]))
         creCondTrans.append(db.joinOr([tableSMI['oldMedicalAidKind_id'].eq(medicalAidKind), tableSMI['medicalAidKind_id'].isNull()]))
-    elif not filterFor == UTILIZATION and not filterFor == INTERNAL_CONSUMPTION and not filterFor == FILTER_FOR_BATCH_FOR_COMBOBOX:
+    elif filterFor and filterFor != UTILIZATION and filterFor != INTERNAL_CONSUMPTION and filterFor != FILTER_FOR_BATCH_FOR_COMBOBOX:
         debCond.append(tableSMI['medicalAidKind_id'].isNull())
         creCond.append(tableSMI['medicalAidKind_id'].isNull())
         creCondTrans.append(tableSMI['medicalAidKind_id'].isNull())
@@ -1238,7 +1733,9 @@ def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMot
                 StockMotion_Item.batch,
                 StockMotion_Item.shelfTime,
                 StockMotion_Item.price,
-                StockMotion_Item.medicalAidKind_id
+                StockMotion_Item.medicalAidKind_id,
+                StockMotion_Item.unit_id,
+                StockMotion_Item.qnt
             FROM
                 StockMotion
                     LEFT JOIN
@@ -1260,6 +1757,7 @@ def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMot
             }
         reservationQuery = db.query(reservationStmt)
         while reservationQuery.next():
+            resQnt = False
             reservationRecord = reservationQuery.record()
             if reservationRecord:
                 financeId = forceRef(reservationRecord.value('finance_id'))
@@ -1267,7 +1765,22 @@ def findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=None, stockMot
                 shelfTime = forceDate(reservationRecord.value('shelfTime'))
                 medicalAidKindId = forceRef(reservationRecord.value('medicalAidKind_id'))
                 price = forceDouble(reservationRecord.value('price'))
-                if financeId or batch or shelfTime or price:
+                if qnt > 0 and oldUnitId:
+                    unitId = forceRef(reservationRecord.value('unit_id'))
+                    smiQnt = forceDouble(reservationRecord.value('qnt'))
+                    if oldUnitId == unitId:
+                        if smiQnt >= qnt:
+                            resQnt = True
+                    elif oldUnitId != unitId:
+                        if unitId is not None:
+                            ratio = getRatio(nomenclatureId, oldUnitId, unitId)
+                            if ratio is not None:
+                                smiQnt = smiQnt/ratio
+                            if smiQnt >= qnt:
+                                resQnt = True
+                else:
+                    resQnt = True
+                if resQnt and (financeId or batch or shelfTime or price):
                     reservationClient = True
                     return financeId, batch, shelfTime, medicalAidKindId, price, reservationClient
 
@@ -1517,7 +2030,7 @@ def getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=None, fina
             unitId = forceRef(record.value('unit_id'))
             price = forceDouble(record.value('price'))
             smiQnt = forceDouble(record.value('smiQnt'))
-            if oldUnitId == unitId and price ==  oldPrice:
+            if oldUnitId == unitId and price == oldPrice:
                 qnt += smiQnt
             elif oldUnitId != unitId:
                 if unitId is not None:
@@ -1669,9 +2182,9 @@ def checkNomenclatureExists(self, keys, item, supplierId=None):
     medicalAidKindName = item[2]
     rows = item[3]
     row = rows[0] if len(rows) > 0 else -1
-    existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
+    existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
     prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
-    if (round(existsQnt, 2) + round(prevQnt, 2)) - round(qnt, 2) < 0:
+    if (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt()) < 0:
         nomenclatureName = self.modelItems.getNomenclatureNameById(nomenclatureId)
         if existsQnt > 0:
             message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(   existsQnt,
@@ -1759,9 +2272,48 @@ class CSummaryInfoModelMixin:
     def getSummaryInfo(self):
         totalQnt = 0.0
         totalSum = 0.0
-        cnt = 0
+        totalVat = 0.0
+        cnt = len(self._items)
         for item in self._items:
             totalQnt += forceDouble(item.value('qnt'))
             totalSum += forceDouble(item.value('sum'))
-            cnt += 1
-        return u'Количество позиций: %d, Количество: %.2f, Сумма: %.2f' % (cnt, totalQnt, totalSum)
+            totalVat += forceDouble(item.value('vat'))
+        return u'Количество позиций: %d, Количество: %.2f, Сумма: %.2f, Сумма НДС: %.2f' % (cnt, totalQnt, totalSum, totalVat)
+
+
+class CPlaceOfBusinessComboBox(QComboBox):
+    popupShow = pyqtSignal()
+
+    def __init__(self, parent):
+        QtGui.QComboBox.__init__(self, parent)
+        self.readOnly = False
+
+    def setReadOnly(self, value=False):
+        self.readOnly = value
+
+    def isReadOnly(self):
+        return self.readOnly
+
+    def showPopup(self):
+        if not self.isReadOnly():
+            self.popupShow.emit()
+            super(CPlaceOfBusinessComboBox, self).showPopup()
+
+
+class CContractTypeComboBox(QComboBox):
+    def setItems(self):
+        self.insertItem(0, u'не задано')
+        for k, v in contractTypeDict.items():
+            self.insertItem(k, u'%s | %s' % (k, v))
+
+
+class CDestructionTypeComboBox(QComboBox):
+    def setItems(self):
+        for k, v in destructionTypeDict.items():
+            self.insertItem(k, u'%s | %s' % (k, v))
+
+
+class CReasonDestructionTypeComboBox(QComboBox):
+    def setItems(self):
+        for k, v in reasonDestructionTypeDict.items():
+            self.insertItem(k, u'%s | %s' % (k, v))

@@ -23,7 +23,7 @@ from library.InDocTable      import CInDocTableModel, CFloatInDocTableCol
 from library.Utils           import forceDouble, forceRef, toVariant, forceDate, forceString, forceBool
 from library.Counter         import CCounterController
 from Stock.StockModel        import CStockMotionType
-from Stock.Utils             import getPriceNomenclatureStmt, getNomenclatureUnitRatio, CStockCache, getStockMotionNumberCounterId, getExistsNomenclatureAmount, UTILIZATION, INTERNAL_CONSUMPTION
+from Stock.Utils             import getPriceNomenclatureStmt, getNomenclatureUnitRatio, CStockCache, getStockMotionNumberCounterId, getExistsNomenclatureAmountEx, UTILIZATION, INTERNAL_CONSUMPTION
 
 
 class CStockMotionItemsCopyPasteMixin(object):
@@ -151,7 +151,7 @@ class CStockMotionBaseDialog(CItemEditorBaseDialog, CStockCache):
         if hasattr(self, 'edtReason'):
             getLineEditValue(   self.edtReason, record, 'reason')
         if hasattr(self, 'edtReasonDate'):
-            setDateEditValue(self.edtReasonDate, record, 'reasonDate')
+            getDateEditValue(self.edtReasonDate, record, 'reasonDate')
         if hasattr(self, 'cmbSupplier'):
             getRBComboBoxValue( self.cmbSupplier,       record, 'supplier_id')
             getRBComboBoxValue( self.cmbSupplierPerson, record, 'supplierPerson_id')
@@ -219,6 +219,7 @@ class CStockMotionBaseDialog(CItemEditorBaseDialog, CStockCache):
         finally:
             if not counterController:
                 if result:
+                    self.parent().applyMotionsFilter()
                     QtGui.qApp.delAllCounterValueIdReservation()
                 else:
                     QtGui.qApp.resetAllCounterValueIdReservation()
@@ -250,6 +251,22 @@ class CNomenclatureItemsBaseModel(CInDocTableModel):
             self.stockDocumentType = stockDocumentType
 
 
+        def getExistsValue(self, record):
+            price = forceDouble(record.value('price'))
+            nomenclatureId = forceRef(record.value('nomenclature_id'))
+            unitId = forceRef(record.value('unit_id'))
+            ratio = self.model.getRatio(nomenclatureId, None, unitId)
+            if ratio is not None:
+                price = price*ratio
+            financeId = forceRef(record.value('finance_id'))
+            batch = forceString(record.value('batch'))
+            shelfTime = forceDate(record.value('shelfTime'))
+            shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
+            medicalAidKindId = forceRef(record.value('medicalAidKind_id'))
+            key = (nomenclatureId, financeId, batch, unitId, shelfTime, medicalAidKindId, price)
+            return self._cache.get(key, 0)
+
+
         def toString(self, val, record):
             price = forceDouble(record.value('price'))
             nomenclatureId = forceRef(record.value('nomenclature_id'))
@@ -268,11 +285,11 @@ class CNomenclatureItemsBaseModel(CInDocTableModel):
 #            deltaQnt = prevQnt - qnt
             key = (nomenclatureId, financeId, batch, unitId, shelfTime, medicalAidKindId, price)
             if self.isUpdateValue:
-                existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=self.stockDocumentType == CStockMotionType.utilization, precision=QtGui.qApp.numberDecimalPlacesQnt(), isStockRequsition=self.isStockRequsition)
+                existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=self.stockDocumentType == CStockMotionType.utilization, isStockRequsition=self.isStockRequsition)
                 self._cache[key] = existsQnt# + deltaQnt
             else:
                 if key not in self._cache:
-                    existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=self.stockDocumentType == CStockMotionType.utilization, precision=QtGui.qApp.numberDecimalPlacesQnt(), isStockRequsition=self.isStockRequsition)
+                    existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=self.stockDocumentType == CStockMotionType.utilization, isStockRequsition=self.isStockRequsition)
                     self._cache[key] = existsQnt# + deltaQnt
             self.isUpdateValue = False
             return QVariant(self._toString(QVariant(self._cache[key])))

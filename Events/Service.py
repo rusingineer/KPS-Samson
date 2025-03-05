@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,16 +15,18 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QDate
 
 from Accounting.Tariff import CTariff
-from library.PrintInfo import CDateInfo, CRBInfo, CInfo, CRBInfoWithIdentification
 
 from library.AgeSelector import parseAgeSelector, checkAgeSelector
-from library.PrintInfo import CInfo, CRBInfo, CDateInfo
+from library.Identification import getIdentification
+from library.PrintInfo import CInfo, CRBInfo, CDateInfo, CRBInfoWithIdentification
 from library.Utils import (
     forceString,
     forceDouble,
     forceInt,
     forceDate,
-    calcAgeTuple, forceRef, forceBool,
+    calcAgeTuple,
+    forceRef,
+    forceBool
 )
 
 
@@ -169,10 +171,10 @@ class CTariffInfo(CInfo):
 
 
 
-    def getPrice(self, amount, execDate, isVisit=False, eventInfo=None, actionInfo=None):
+    def getPrice(self, amount, execDate, isVisit=False, eventInfo=None, actionInfo=None, isEvent_CSG=False, csgBegDate=None):
         from Accounting.Utils import getContractDescr
         from Accounting.Utils import unpackExposeDiscipline
-        from Accounting.AccountBuilder import evalPriceForKrasnodarA13, evalPriceForMurmansk2015Hospital
+        from Accounting.AccountBuilder import evalPriceForKrasnodarA13, evalPriceEventCSGForKrasnodar, evalPriceActionsForKrasnodar, evalPriceForMurmansk2015Hospital
         db = QtGui.qApp.db
 
         if self._load(isVisit,  execDate):
@@ -180,19 +182,18 @@ class CTariffInfo(CInfo):
                 amount = self._maxAmount
             if self._price:
                 if self._tariffType == CTariff.ttEventByMESLen:
-                    sum = 0
+                    summa = 0
                     for fragStart, fragSum, fragPrice in self._frags:
-                        if amount>=fragStart:
-                            sum = fragSum + (amount-fragStart)*fragPrice
+                        if amount >= fragStart:
+                            summa = fragSum + (amount - fragStart) * fragPrice
                             break
-                    price = sum/amount if amount else self._price
-                    return sum
-                elif self._tariffType == CTariff.ttVisitsByMES: #визиты по МЭС
+                    price = summa / amount if amount else self._price
+                    return summa
+                elif self._tariffType == CTariff.ttVisitsByMES:  # визиты по МЭС
                     return self._price
-                elif  self._tariffType == CTariff.ttKrasnodarA13 and eventInfo is not None and eventInfo._loaded:
+                elif self._tariffType == CTariff.ttKrasnodarA13 and eventInfo is not None and eventInfo._loaded:
                     if not self._contractDescr:
                         self._contractDescr = getContractDescr(self._masterId)
-                    amount = 1.0
                     clientId = eventInfo._clientId
                     eventId = eventInfo.id
                     eventTypeId = eventInfo.getEventTypeId()
@@ -200,8 +201,36 @@ class CTariffInfo(CInfo):
                     eventEndDate = eventInfo._execDate.date
                     relativeId = eventInfo._relative._id
                     infis = forceString(db.translate('rbService', 'id', self._serviceId, 'infis'))
-                    price, coeff, usedCoeffDict = evalPriceForKrasnodarA13(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, eventBegDate, eventEndDate, relativeId, infis)
-                    sum    = round(price, 2)
+
+                    spr13Code =  forceString(db.translate('rbMedicalAidType', 'id', eventInfo.eventType.medicalAidType.id, 'regionalCode'))
+                    if spr13Code in ['11', '12', '301', '302', '401', '402']:
+                        group = 1
+                    elif spr13Code in ['41', '411', '42', '422', '43', '51', '511', '52', '522', '71', '72', '90']:
+                        group = 2
+                    else:
+                        group = 0
+                    db = QtGui.qApp.db
+                    records = db.getRecordList('soc_spr89')
+                    mapBaseTariff = dict()
+                    baseTariff = 0
+                    for record in records:
+                        begDate = forceDate(record.value('DATN'))
+                        endDate = forceDate(record.value('DATO'))
+                        codeGR = forceInt(record.value('CODE_GR'))
+                        tariff = forceDouble(record.value('B_TARIFF'))
+                        key = (begDate, endDate, codeGR)
+                        mapBaseTariff[key] = tariff
+                    for (begDate, endDate, codeGR) in mapBaseTariff.keys():
+                        if codeGR == group and begDate <= eventEndDate and (eventEndDate <= endDate or endDate.isNull()):
+                            baseTariff = mapBaseTariff[(begDate, endDate, codeGR)]
+                            break
+
+                    if isEvent_CSG:
+                        price, coeff, usedCoeffDict = evalPriceEventCSGForKrasnodar(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, csgBegDate if csgBegDate else eventBegDate, execDate, relativeId, infis, baseTariff)
+                    else:
+                        price, coeff, usedCoeffDict = evalPriceForKrasnodarA13(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, eventBegDate, execDate, relativeId, infis, baseTariff)
+
+                    sum = round(price, 2)
                     return sum
                 elif self._tariffType == CTariff.ttMurmansk2015Hospital and eventInfo is not None and eventInfo._loaded:
                     if not self._contractDescr:
@@ -219,7 +248,8 @@ class CTariffInfo(CInfo):
                     sum    = round(price, 2)
                     return sum
                 elif self._tariffType in [CTariff.ttActionAmount, CTariff.ttActionUET] and eventInfo is not None and actionInfo is not None and eventInfo._loaded:
-                    action = db.getRecord("vAction LEFT JOIN Person ON Person.id = vAction.person_id LEFT JOIN Event ON Event.id = vAction.event_id \
+                    actionId = actionInfo.id
+                    record = db.getRecord("vAction LEFT JOIN Person ON Person.id = vAction.person_id LEFT JOIN Event ON Event.id = vAction.event_id \
                             left join Client on Client.id = Event.client_id left join Account_Item ON Account_Item.event_id = Event.id and Account_Item.action_id = vAction.id \
                             and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0 \
                             left join EventType on EventType.id = Event.eventType_id \
@@ -227,23 +257,21 @@ class CTariffInfo(CInfo):
                             left join rbEventProfile ep on ep.id = EventType.eventProfile_id",
                           """Event.id as eventId, Event.setDate, Event.result_id, Event.eventType_id, Event.client_id, vAction.id, vAction.actionType_id, Event.eventType_id, 
                           vAction.event_id, vAction.exposeDate, vAction.amount, vAction.MKB, Person.tariffCategory_id, Event.execDate, 
-                          Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbMedicalAidType.regionalCode as matCode, ep.regionalCode as eventProfile""", actionInfo.id)
-                    orgId = forceRef(action.value('org_id'))
-                    exposeDate = forceDate(action.value('exposeDate'))
-                    execDate = forceDate(action.value('execDate'))
-                    # birthDate = forceDate(action.value('birthDate'))
-                    setDate = forceDate(action.value('setDate'))
-                    # MKB = forceString(action.value('MKB'))
-                    # tariffCategoryId = forceRef(action.value('tariffCategory_id'))
-                    # eventTypeId = forceRef(action.value('eventType_id'))
-                    eventId = forceRef(action.value('eventId'))
+                          Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbMedicalAidType.regionalCode as matCode, ep.regionalCode as eventProfile""", actionId)
+                    orgId = forceRef(record.value('org_id'))
+                    exposeDate = forceDate(record.value('exposeDate'))
+                    eventEndDate = forceDate(record.value('execDate'))
+                    eventBegDate = forceDate(record.value('setDate'))
+                    eventTypeId = forceRef(record.value('eventType_id'))
+                    eventId = forceRef(record.value('eventId'))
                     serviceRecord = db.getRecord('rbService', ['infis', u"name like 'Обращен%' AS isObr"], self._serviceId)
                     serviceInfis = forceString(serviceRecord.value('infis'))
-                    isObr = forceInt(serviceRecord.value('isObr'))
-                    uet = amount * self._uet if self._tariffType == CTariff.ttActionUET else 0
-                    medicalAidTypeCode = forceString(action.value('matCode'))
-                    eventProfileRegionalCode = forceString(action.value('eventProfile'))
-                    price = self._price
+                    serviceIsObr = forceInt(serviceRecord.value('isObr'))
+                    medicalAidTypeCode = forceString(record.value('matCode'))
+                    eventProfileRegionalCode = forceString(record.value('eventProfile'))
+                    isInternalOrg = False
+                    price = summa = self._price
+
                     if not self._contractDescr:
                         self._contractDescr = getContractDescr(self._masterId)
                         self.exposeBySourceOrg, self.exposeByOncology, self.exposeByBatch, self.exposeByEvent, self.exposeByMonth, self.exposeByClient, self.exposeByInsurer = unpackExposeDiscipline(self._contractDescr.exposeDiscipline)
@@ -282,57 +310,74 @@ class CTariffInfo(CInfo):
                         return None, None
 
                     (payerId, insurerArea) = getPayer(eventInfo._clientId, execDate, eventId) if self.exposeByInsurer else (self._contractDescr.payerId, '00')
+                    isTFOMS = payerId == self._contractDescr.payerId
+
+                    if medicalAidTypeCode in ['271', '272'] and isTFOMS:
+                        medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
 
                     if orgId:
                         orgCode = forceString(db.translate('Organisation', 'id', orgId, 'infisCode'))
-                        internalOrg = db.getCount("OrgStructure", "bookkeeperCode", "TRIM(bookkeeperCode) = '{0}'".format(orgCode))
+                        isInternalOrg = bool(db.getCount("OrgStructure", "bookkeeperCode", "TRIM(bookkeeperCode) = '{0}'".format(orgCode)))
 
-                    if QtGui.qApp.defaultKLADR()[:2] == u'23':
-                        isTwoYears = db.getCount(
-                            "Action a left join ActionType at on at.id = a.actionType_id left join rbService s on s.id = at.nomenclativeService_id",
-                            'a.id',
-                            "a.event_id = %d and a.deleted = 0 and s.infis in ('B04.047.001.092', 'B04.026.001.093')" % eventId)
-                        # с 2017-09-01 для инокраевых пациентов в пол-ках с прикрепленным населением меняем УОМП
-                        if execDate >= QDate(2017, 9, 1) and medicalAidTypeCode in ['271', '272'] and payerId == self._contractDescr.payerId:
-                            medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
-                        # тарификация услуг обращения/посещения для поликлиники
-                        if execDate >= QDate(2019, 3, 1) and medicalAidTypeCode in ['21', '22'] and serviceInfis[:3] in ['B01', 'B02', 'B04', 'B05'] \
-                                and not isObr and db.getCount(u"""Event e
-                                    LEFT JOIN soc_obr u ON u.spec = '{codeSpec}'
-                                    left join rbService rs on rs.infis in (u.kusl, u.kusl2)
-                                    left join ActionType at on at.nomenclativeService_id = rs.id
-                                    left join Action a on a.event_id = e.id and a.actionType_id = at.id""".format(codeSpec=serviceInfis[4:7]),
-                                    "a.id",
-                                    "e.id = {aEvent_id} and e.deleted = 0 and a.deleted = 0".format(aEvent_id=eventId)):
-                            price = 0
-                        # для ранее оказанных и внешних услуг  - цена равна 0
-                        elif setDate > exposeDate and not isTwoYears or orgId and medicalAidTypeCode != '211' or orgId and not internalOrg:
-                            price = 0
-                        # обнуление простых услуг для детских профосмотров
-                        elif medicalAidTypeCode in ['232', '252', '262'] and execDate >= QDate(2019, 3, 1) and serviceInfis[:7] not in ['B04.031', 'B04.026']:
-                            price = 0
-                        elif medicalAidTypeCode in ['232', '252', '262'] and execDate < QDate(2019, 3, 1) and serviceInfis[:3] not in ['B01', 'B04'] and uet == 0:
-                            price = 0
-                        # обнуление простых услуг для дисп. взрослых
-                        elif medicalAidTypeCode == '261' and execDate >= QDate(2019, 3, 1) and serviceInfis[:7] not in ['B04.047', 'B04.026']:
-                            price = 0
-                        elif medicalAidTypeCode == '261' and execDate < QDate(2019, 3, 1) and serviceInfis[:3] not in ['B01', 'B04']:
-                            price = 0
-                        # обнуление стоимости услуг для выполненного этапа взрослой дисп.
-                        elif medicalAidTypeCode == '211' and eventProfileRegionalCode in ['8008', '8014']:
-                            isCompleted = not db.getCount("Action a left join ActionType at on at.id = a.actionType_id left join rbService s on s.id = at.nomenclativeService_id",
-                                'a.id',
-                                "a.event_id = %d and a.deleted = 0 and s.infis in ('B04.026.001.062', 'B04.047.001.061', 'B04.047.001.092', 'B04.026.001.093')" % eventId)
-                            if isCompleted:
-                                if serviceInfis[:7] not in ['B04.026', 'B04.047']:
-                                    price, sum = 0, 0
-                        # обнуление стоимости у краевых застрахованных участковой службы
-                        elif medicalAidTypeCode in ['271', '272'] and exposeDate >= QDate(2017, 1, 1) and payerId != self._contractDescr.payerId:
-                            price = 0
-                        # обнуление стоимости для ковидной диспансеризации
-                        elif medicalAidTypeCode == '233' and serviceInfis in ['B04.047.002', 'B04.047.004', 'B04.026.002']:
-                            price = 0
-                    return price * amount
+                    serviceHasObr = serviceIsObr
+                    if medicalAidTypeCode in ['21', '22'] and serviceInfis[:3] in ['B01', 'B02', 'B04', 'B05'] and not serviceIsObr:
+                        stmt = u"""select a.id
+                                from Event e
+                                LEFT JOIN soc_obr u ON u.spec = '{codeSpec}'
+                                left join rbService rs on rs.infis in (u.kusl, u.kusl2)
+                                left join ActionType at on at.nomenclativeService_id = rs.id
+                                left join Action a on a.event_id = e.id and a.actionType_id = at.id
+                                where e.id = {aEvent_id} and e.deleted = 0 and a.deleted = 0
+                                and rs.infis not in ('B02.001.005', 'B02.001.006', 'B02.031.010', 'B02.047.009', 'B02.047.010')""".format(
+                            aEvent_id=eventId, codeSpec=serviceInfis[4:7])
+                        query = QtGui.qApp.db.query(stmt)
+                        serviceHasObr = query.size() > 0
+
+                    eventHasReab = False
+                    if medicalAidTypeCode == '21':
+                        stmt = u"""select a.id
+                                from Action a
+                                left join ActionType at on at.id = a.actionType_id
+                                left join rbService rs on rs.id = at.nomenclativeService_id
+                                where a.id = {aEvent_id} and a.deleted = 0
+                                and rs.infis in ('B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
+                                   'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
+                                   'B05.070.010', 'B05.070.011', 'B05.070.012')""".format(aEvent_id=eventId)
+                        query = QtGui.qApp.db.query(stmt)
+                        eventHasReab = query.size() > 0
+
+                    isProfCompleted = False
+                    if medicalAidTypeCode == '261' and eventProfileRegionalCode in ['8011']:
+                        stmt = u"""select a.id
+                                from Action a
+                                left join ActionType at on at.id = a.actionType_id
+                                left join rbService rs on rs.id = at.nomenclativeService_id
+                                where a.id = {aEvent_id} and a.deleted = 0
+                                and rs.infis in ('B04.047.002', 'B04.026.002')""".format(aEvent_id=eventId)
+                        query = QtGui.qApp.db.query(stmt)
+                        isProfCompleted = query.size() == 0
+
+                    isDispCompleted = False
+                    if medicalAidTypeCode == '211' and eventProfileRegionalCode in ['8008', '8014']:
+                        stmt = u"""select a.id
+                                from Action a
+                                left join ActionType at on at.id = a.actionType_id
+                                left join rbService rs on rs.id = at.nomenclativeService_id
+                                where a.id = {aEvent_id} and a.deleted = 0
+                                and rs.infis in ('B04.026.001.062', 'B04.047.001.061', 'B04.047.001.092', 'B04.026.001.093')""".format(aEvent_id=eventId)
+                        query = QtGui.qApp.db.query(stmt)
+                        isDispCompleted = query.size() == 0
+
+                    eventTypeIdentification = None
+                    if medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']:
+                        eventTypeIdentification = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+
+                    price, summa = evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOMS, medicalAidTypeCode,
+                                                 eventProfileRegionalCode, eventTypeIdentification, eventBegDate,
+                                                 eventEndDate, exposeDate, serviceInfis, amount, price, summa,
+                                                 serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted,
+                                                 isDispCompleted)
+                    return summa
                 else:
                     return self._price * amount
         return 0

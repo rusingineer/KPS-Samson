@@ -59,7 +59,7 @@ from library.Utils import (agreeNumberAndWord, copyFields, forceDate, forceDoubl
 
 from Accounting.FormProgressDialog import CContractFormProgressDialog, CFormProgressDialog
 from Accounting.Tariff import CTariff
-from Accounting.Utils import getContractDescr, packExposeDiscipline, unpackExposeDiscipline
+from Accounting.Utils import getContractDescr, packExposeDiscipline, unpackExposeDiscipline, roundMath
 from Events.ActionsSelector import CEnableCol
 from Events.EventInfo              import CContractInfo,  CContractInfoList
 from Exchange.ExportTariffsR23 import ExportTariffsR23
@@ -211,6 +211,7 @@ class CContractsList(CContractItemsListDialog):
         self.edtBegDate.setDate(QDate(currentDate.year(), 1, 1))
         self.edtEndDate.setDate(QDate(currentDate.year(), 12, 31))
         self.cmbFinanceSource.setTable('rbFinance', addNone=True)
+        self.cmbEventType.setTable('EventType', addNone=True)
         self.getGroupingText()
         self.getResolutionText()
         self.filterParams = {}
@@ -478,6 +479,7 @@ class CContractsList(CContractItemsListDialog):
         self.filterParams['edtBegDate'] = self.edtBegDate.date()
         self.filterParams['edtEndDate'] = self.edtEndDate.date()
         self.filterParams['enableInAccounts'] = self.cmbEnableInAccounts.currentIndex()
+        self.filterParams['eventType_id'] = self.cmbEventType.value()
         return self.filterParams
 
 
@@ -492,7 +494,7 @@ class CContractsList(CContractItemsListDialog):
         self.edtBegDate.setDate(self.filterParams.get('edtBegDate', QDate(currentDate.year(), 1, 1)))
         self.edtEndDate.setDate(self.filterParams.get('edtEndDate', QDate(currentDate.year(), 12, 31)))
         self.cmbEnableInAccounts.setCurrentIndex(self.filterParams.get('enableInAccounts', 0))
-
+        self.cmbEventType.setValue(self.filterParams.get('eventType_id', None))
 
     def getGroupingText(self):
         domain = u'\'не определено\','
@@ -517,13 +519,15 @@ class CContractsList(CContractItemsListDialog):
 
 
     def resetFilterContract(self):
-        self.cmbFinanceSource.setCurrentIndex(0)
+        # self.cmbFinanceSource.setCurrentIndex(0)
+        self.cmbFinanceSource.setCode(0)
         self.cmbGrouping.setCurrentIndex(0)
         self.cmbResolution.setCurrentIndex(0)
         self.cmbPriceList.setCurrentIndex(0)
         currentDate = QDate.currentDate()
         self.edtBegDate.setDate(QDate(currentDate.year(), 1, 1))
         self.edtEndDate.setDate(QDate(currentDate.year(), 12, 31))
+        self.cmbEventType.setCode(0)
 
 
     def getTblItemsIdList(self, order = None, itemId=None):
@@ -536,6 +540,7 @@ class CContractsList(CContractItemsListDialog):
         edtBegDate = self.filterParams.get('edtBegDate', None)
         edtEndDate = self.filterParams.get('edtEndDate', None)
         enableInAccounts = self.filterParams.get('enableInAccounts', 0)
+        eventType_id = self.filterParams.get('eventType_id', None)
 
         db = QtGui.qApp.db
         tableContract = db.table('Contract')
@@ -563,6 +568,8 @@ OR (Contract.begDate <= %s AND Contract.endDate > %s )'''%(db.formatDate(edtBegD
         elif edtEndDate:
             cond.append(tableContract['begDate'].isNotNull())
             cond.append(tableContract['begDate'].dateLe(edtEndDate))
+        if eventType_id:
+            cond.append(u'''Contract.id in (select master_id from Contract_Specification where eventType_id = %s and deleted = 0 )'''%eventType_id)
         if order:
             idList = db.getDistinctIdList(tableContract, u'id', cond, order)
         else:
@@ -721,9 +728,14 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
         self.cmbTariffType.addItem(u'Не задано')
         self.cmbTariffType.addItems(CTariff.tariffTypeNames)
 
+        self.cmbCounter.setTable('rbCounter')
+
         customizePrintButton(self.btnPrint, 'contract')
         self.chkExposeDisciplineByOncology.setVisible(False)
 
+        self.lastAddDialogDate = None
+        self.edtBegDate.setDateRange(QDate(1900, 1, 1), QDate(7999, 12, 31))
+        self.edtEndDate.setDateRange(QDate(1900, 1, 1), QDate(7999, 12, 31))
 
     def freezeHeadFields(self):
         self.cmbFinance.setDisabled(True)
@@ -775,6 +787,7 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
         setCheckBoxValue(self.chkOnlyEventsPassedExpertise, record, 'isOnlyEventsPassedExpertise')
         setCheckBoxValue(self.chkExposeByAccountType, record, 'isExposeByAccountType')
         setComboBoxValue(self.cmbPayType,  record, 'payType')
+        setRBComboBoxValue(self.cmbCounter, record, 'counter_id')
         exposeDiscipline = forceInt(record.value('exposeDiscipline'))
         (
           exposeBySourceOrg,
@@ -861,6 +874,7 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
         getCheckBoxValue(self.chkExposeByAccountType, record, 'isExposeByAccountType')
 
         getComboBoxValue(self.cmbPayType,  record, 'payType')
+        getRBComboBoxValue(self.cmbCounter, record, 'counter_id')
         getCheckBoxValue(self.chkDisableInAccounts,      record, 'disableInAccounts')
         getCheckBoxValue(self.chkExposeExternalServices, record, 'exposeExternalServices')
         getCheckBoxValue(self.chkExposeIfContinuedEventFinished, record, 'exposeIfContinuedEventFinished')
@@ -1172,6 +1186,13 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
             for record in dialog.newRecords:
                 record.setValue('id', None)    
                 self.modelTariffs._items.append(record)
+            updatedList = []
+            for item in self.modelTariffs.items():
+                if forceRef(item.value('id')) in dialog.updatedRecords.keys():
+                    updatedList.append(dialog.updatedRecords[forceRef(item.value('id'))])
+                else:
+                    updatedList.append(item)
+            self.modelTariffs.setItems(updatedList)
             self.modelTariffs.reset()
             self.modelTariffs.applyFilter(self)
         
@@ -1300,7 +1321,8 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
             if uet > 0.0:
                 isDirty = True
                 price = forceDouble(item.value('price'))
-                item.setValue('price', toVariant(price*uet))
+                price = roundMath(price*uet, self.edtPricePrecision.value())
+                item.setValue('price', toVariant(price))
                 self.modelTariffs.emitCellChanged(row, item.indexOf('price'))
                 self.modelTariffs.items()[row].modified = True
 
@@ -1546,7 +1568,7 @@ class CTariffModel(CInDocTableModel):
             item = self._items[row]
             match = True
             if filter_kusl_valid:
-                kuslId = item.value(5).toInt()[0]
+                kuslId = item.value('service_id').toInt()[0]
                 match = match and (kuslId in kuslIdList)
             if filter_date_valid:
                 data = QDate.fromString(self.index(row, 9).data().toString(), "dd.MM.yyyy")
@@ -2917,7 +2939,7 @@ class CTariffCoefficientsModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Contract_Coefficient', 'id', 'master_id', parent)
         self.addHiddenCol('matter')
-        self.addCol(CRBInDocTableCol(u'Тип', 'coefficientType_id', 30, 'rbContractCoefficientType')).setSortable(True)
+        self.addCol(CRBInDocTableCol(u'Тип', 'coefficientType_id', 30, 'rbContractCoefficientType',showFields=CRBComboBox.showCodeAndName)).setSortable(True)
         self.addCol(CDateInDocTableCol(u'Дата введения', 'begDate',10, precision=6)).setSortable(True)
         self.addCol(CBoolInDocTableCol(u'Действующий', 'isActive',  4)).setSortable(True)
         self.addCol(CFloatInDocTableCol(u'Значение', 'value', 10, precision=2))

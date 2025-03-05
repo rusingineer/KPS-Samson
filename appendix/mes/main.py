@@ -14,33 +14,23 @@
 #############################################################################
 
 
-import sys
-from sys import *
 import codecs
+import locale
+import os
+import sys
 import traceback
 
-from PyQt4 import QtCore, QtGui, QtSql
-from PyQt4.QtCore import *
-from PyQt4.QtSql import *
+from PyQt4 import QtGui, QtCore, QtSql
+from PyQt4.QtCore import SIGNAL, Qt, QObject, pyqtSignature, QSettings, QByteArray, QDateTime, QDir
 
-from library.Utils          import *
-from library.database       import *
-from library.Preferences    import CPreferences
-from preferences.connection import CConnectionDialog
-from library.crbcombobox    import CRBComboBox
-from library.Calendar       import CCalendarInfo
-from Reports.MesDescription import showMesDescription
-from Reports.ReportView     import CReportViewDialog
-
-from appendix.mes.MesInfo    import *
-from appendix.mes.Ui_MesList import Ui_MainWindow
-from appendix.mes.MesEdit import MesEditor, CServicesModel
-from appendix.mes.CSG        import CCSGTableModel, CCSGMKBModel, CCSGServicesModel, CCSGEditor
-
-from library.DialogBase                     import CConstructHelperMixin
-from library.InDocTable import CRecordListModel, CBoolInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
-
-from appendix.mes.RefBooksLocal.RBVisitType import CRBVisitTypeList
+from Reports.ReportBase import CReportBase, createTable
+from Reports.ReportView import CReportViewDialog
+from appendix.mes.CSG import CCSGTableModel, CCSGMKBModel, CCSGServicesModel, CCSGEditor
+from appendix.mes.ExchangeLocal.ExportXML import ExportXML
+from appendix.mes.ExchangeLocal.ImportXML import ImportXML
+from appendix.mes.MesEdit import MesEditor
+from appendix.mes.MesInfo import CMesInfo, CMesModel
+from appendix.mes.RefBooksLocal.MesKSG import CMesKSGList
 from appendix.mes.RefBooksLocal.RBBloodPreparation import CRBBloodPreparationList
 from appendix.mes.RefBooksLocal.RBBloodPreparationType import CRBBloodPreparationTypeList
 from appendix.mes.RefBooksLocal.RBEquipment import CRBEquipmentList
@@ -54,10 +44,15 @@ from appendix.mes.RefBooksLocal.RBNutrientGroup import CRBNutrientGroupList
 from appendix.mes.RefBooksLocal.RBService import CRBServiceList
 from appendix.mes.RefBooksLocal.RBServiceGroup import CRBServiceGroupList
 from appendix.mes.RefBooksLocal.RBSpeciality import CRBSpecialityList
-from appendix.mes.RefBooksLocal.MesKSG import CMesKSGList
-
-from appendix.mes.Exchange.ImportXML import ImportXML
-from appendix.mes.Exchange.ExportXML import ExportXML
+from appendix.mes.RefBooksLocal.RBVisitType import CRBVisitTypeList
+from appendix.mes.Ui_MesList import Ui_MainWindow
+from library.Calendar import CCalendarInfo
+from library.DialogBase import CConstructHelperMixin
+from library.InDocTable import CRecordListModel, CInDocTableCol
+from library.Preferences import CPreferences
+from library.Utils import forceString, forceInt, forceBool, anyToUnicode
+from library.database import CMySqlDatabase
+from preferences.connection import CConnectionDialog
 
 title = u'САМСОН'
 subtitle = u'Редактор МЭС'
@@ -78,13 +73,13 @@ class CModelMKB(CRecordListModel):
     def __init__(self,  parent):
         CRecordListModel.__init__(self, parent)
         self.addCol(CInDocTableCol(u'Код диагноза',    'diagnosis_code', 10).setReadOnly().setSortable(True))
-        self.addCol(CInDocTableCol(u'Диагноз', 'diagnosis', 6)).setReadOnly()
+        # self.addCol(CInDocTableCol(u'Диагноз', 'diagnosis', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Доп.код диагноза', 'additional_diagnosis_code', 6)).setReadOnly()
-        self.addCol(CInDocTableCol(u'Доп.диагноз', 'additional_diagnosis', 6)).setReadOnly()
+        # self.addCol(CInDocTableCol(u'Доп.диагноз', 'additional_diagnosis', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Код соп. диагноза', 'sop_diagnosis_code', 6)).setReadOnly()
-        self.addCol(CInDocTableCol(u'Соп.диагноз', 'sop_diagnosis', 6)).setReadOnly()
+        # self.addCol(CInDocTableCol(u'Соп.диагноз', 'sop_diagnosis', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Код осложнения диагноза',    'diagnosis_complication_code', 10).setReadOnly().setSortable(True))
-        self.addCol(CInDocTableCol(u'Диагноз осложнения', 'diagnosis_of_complications', 6)).setReadOnly()
+        # self.addCol(CInDocTableCol(u'Диагноз осложнения', 'diagnosis_of_complications', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Группировка', 'grouping', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Сочетаемость', 'compatibility', 6)).setReadOnly()
         self.addCol(CInDocTableCol(u'Доп.критерий', 'additional_criteria', 6)).setReadOnly()
@@ -386,7 +381,7 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     def __init__(self, app):
         QtGui.QMainWindow.__init__(self)
-        self.qApp = app
+        self.application = app
         QtGui.qApp = app
 
         self.openDbSetup()
@@ -445,7 +440,7 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 #        self.openDb()
         self.setTableParam()
 
-        if self.qApp.db:
+        if self.application.db:
             self.cmbGroup.setTable('mrbMESGroup', filter='deleted=0')
 
         self.tblCSGList.setModel(self.tableModelCSGList)
@@ -553,21 +548,21 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def MKBQuery(self):
         stmt = u"""
         SELECT MES_mkb.mkb as diagnosis_code,
-        s11.MKB.DiagName as diagnosis,
+        /*s11.MKB.DiagName as diagnosis,*/
         MES_mkb.mkb2 as sop_diagnosis_code,
-        MKB_mkb2.DiagName as sop_diagnosis,
+        /*MKB_mkb2.DiagName as sop_diagnosis,*/
         MES_mkb.mkb3 as diagnosis_complication_code,
-        MKB_mkb3.DiagName as diagnosis_of_complications,
+        /*MKB_mkb3.DiagName as diagnosis_of_complications,*/
         MES_mkb.groupingMKB AS grouping,
         IF(MES_mkb.blendingMKB = 0, 'основной и дополнительный', IF(MES_mkb.blendingMKB = 1, 'основной', 'дополнительный')) AS compatibility,
         MES_mkb.krit as additional_criteria,
         DATE(MES_mkb.begDate) as start_date,
         DATE(MES_mkb.endDate) as end_date
         FROM MES_mkb
-        LEFT JOIN s11.MKB on s11.MKB.DiagID = LEFT(MES_mkb.mkb, 5)
+        /*LEFT JOIN s11.MKB on s11.MKB.DiagID = LEFT(MES_mkb.mkb, 5)
         LEFT JOIN s11.MKB AS MKB_mkbEx on MKB_mkbEx.DiagID = LEFT(MES_mkb.mkbEx, 5)
         LEFT JOIN s11.MKB AS MKB_mkb2 on MKB_mkb2.DiagID = LEFT(MES_mkb.mkb2, 5)
-        LEFT JOIN s11.MKB AS MKB_mkb3 on MKB_mkb3.DiagID = LEFT(MES_mkb.mkb3, 5)
+        LEFT JOIN s11.MKB AS MKB_mkb3 on MKB_mkb3.DiagID = LEFT(MES_mkb.mkb3, 5)*/
         WHERE MES_mkb.master_id = %s
         and MES_mkb.deleted = 0
         """%self.mes.id
@@ -987,7 +982,7 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         password = settings.value('password', QtCore.QVariant('dbpassword')).toString()
         connectionName = settings.value('database', QtCore.QVariant('mes')).toString()
         try:
-            self.qApp.db = CMySqlDatabase(server, port, database, user, password, connectionName)
+            self.application.db = CMySqlDatabase(server, port, database, user, password, connectionName)
             self.emit(SIGNAL('dbConnectionChanged(bool)'), True)
             #QtGui.qApp.calendarInfo.load()
             #QtGui.qApp.calendarInfo.load()
@@ -1014,7 +1009,7 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.tblCSGList.addPopupDelRow()
             self.updateCSGList()
         except Exception, e:
-            self.qApp.db = None
+            self.application.db = None
             QtGui.QMessageBox.critical(self,
                                             u'Произошла ошибка',
                                             unicode(e),
@@ -1033,11 +1028,11 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         password = settings.value('password', QtCore.QVariant('dbpassword')).toString()
         connectionName = settings.value('database', QtCore.QVariant('mes')).toString()
         try:
-            self.qApp.db = CMySqlDatabase(server, port, database, user, password, connectionName)
+            self.application.db = CMySqlDatabase(server, port, database, user, password, connectionName)
             self.emit(SIGNAL('dbConnectionChanged(bool)'), True)
             #QtGui.qApp.calendarInfo.load()
         except Exception, e:
-            self.qApp.db = None
+            self.application.db = None
             QtGui.QMessageBox.critical(self,
                                             u'Произошла ошибка',
                                             unicode(e),
@@ -1052,7 +1047,7 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         try:
             self.updateMain()
         except Exception, e:
-            self.qApp.db = None
+            self.application.db = None
             QtGui.QMessageBox.critical(self,
                                             u'Произошла ошибка',
                                             unicode(e),
@@ -1061,8 +1056,8 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     def closeDb(self):
-        if self.qApp.db:
-            connectionName = self.qApp.db.db.databaseName()
+        if self.application.db:
+            connectionName = self.application.db.db.databaseName()
             self.tblCSGList.setModel(None)
             self.tblCSGDiagnosis.setModel(None)
             self.tblCSGService.setModel(None)
@@ -1071,22 +1066,22 @@ class mainWin(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             del self.modelCSGService
             self.txtCSGBrowser.setHtml('')
             self.lblCountCSG.setText(u'')
-            self.qApp.db.db.close()
-            self.qApp.db.close()
+            self.application.db.db.close()
+            self.application.db.close()
             self.mesModel.clear()
             self.mesModel.reset()
             self.textInfo.setHtml('')
             self.lblCount.setText(u'')
             QtSql.QSqlDatabase.removeDatabase(connectionName)
-            self.qApp.db.db = None
-            self.qApp.db = None
+            self.application.db.db = None
+            self.application.db = None
             self.emit(SIGNAL('dbConnectionChanged(bool)'), False)
             #QtGui.qApp.calendarInfo.clear()
 
 
     def updateMain(self):
         row = self.mesView.currentIndex().row()
-        self.mesModel.setParam(self.qApp.db, self.filter)
+        self.mesModel.setParam(self.application.db, self.filter)
         self.lblCount.setText(u'В списке %d записей'%self.mesModel.rowCount())
         if (not self.mesView.currentRow()) and self.mesModel.rowCount(): # такая фигня всегда при обновлении запроса к модели
             self.mesView.setCurrentRow(row if row > 0 else 0)
@@ -1469,6 +1464,9 @@ class MesEditorApp(QtGui.QApplication):
         self.calendarInfo = CCalendarInfo(self)
         self.mainWindow = mainWin(self)
         self.logDir = os.path.join(unicode(QDir.toNativeSeparators(QDir.homePath())), '.samson-vista')
+
+    def getGlobalPreference(self, code):
+        return None
 
     def userHasRight(self, action):
         u'Мы ничего страшного не делаем, поэтому пользователь может ВСЁ!'

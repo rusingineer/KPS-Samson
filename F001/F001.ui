@@ -1167,7 +1167,7 @@ p, li { white-space: pre-wrap; }
       </widget>
       <widget class="CAmbCardPage" name="tabAmbCard">
        <attribute name="title">
-        <string>Мед.карта</string>
+        <string>Мед.&amp;карта</string>
        </attribute>
       </widget>
       <widget class="QWidget" name="tabSummaryActionTable">
@@ -1188,12 +1188,12 @@ p, li { white-space: pre-wrap; }
       </widget>
       <widget class="CEventCashPage" name="tabCash">
        <attribute name="title">
-        <string>Оплата</string>
+        <string>&amp;Оплата</string>
        </attribute>
       </widget>
       <widget class="QWidget" name="tabExport">
        <attribute name="title">
-        <string>Экспорт</string>
+        <string>&amp;Экспорт</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_55">
         <property name="margin">
@@ -1223,7 +1223,7 @@ p, li { white-space: pre-wrap; }
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_8">
             <item>
-             <widget class="CInDocTableView" name="tblExport_FileAttach"/>
+             <widget class="CInDocExportTableView" name="tblExport_FileAttach"/>
             </item>
            </layout>
           </widget>
@@ -1233,7 +1233,7 @@ p, li { white-space: pre-wrap; }
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_7">
             <item>
-             <widget class="CInDocTableView" name="tblExport_VIMIS">
+             <widget class="CInDocExportTableView" name="tblExport_VIMIS">
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
@@ -1342,24 +1342,19 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CRBComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/crbcombobox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CInDocTableView</class>
+   <class>CTableView</class>
    <extends>QTableView</extends>
-   <header>library/InDocTable.h</header>
+   <header>library/TableView.h</header>
   </customwidget>
   <customwidget>
    <class>CDateEdit</class>
    <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
+   <header>library/DateEdit.h</header>
   </customwidget>
   <customwidget>
-   <class>CContractComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
   </customwidget>
   <customwidget>
    <class>CTextBrowser</class>
@@ -1367,14 +1362,9 @@ p, li { white-space: pre-wrap; }
    <header>library/TextBrowser.h</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/PersonComboBoxEx.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CActionsPage</class>
+   <class>CAmbCardPage</class>
    <extends>QWidget</extends>
-   <header>Events/ActionsPage.h</header>
+   <header>Events/AmbCardPage.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -1384,10 +1374,14 @@ p, li { white-space: pre-wrap; }
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CEventCashPage</class>
-   <extends>QWidget</extends>
-   <header>Events/EventCashPage.h</header>
-   <container>1</container>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CICDCodeEditEx</class>
+   <extends>QLineEdit</extends>
+   <header>library/ICDCodeEdit.h</header>
   </customwidget>
   <customwidget>
    <class>CROComboBox</class>
@@ -1395,14 +1389,26 @@ p, li { white-space: pre-wrap; }
    <header>library/ROComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>CTableView</class>
-   <extends>QTableView</extends>
-   <header>library/TableView.h</header>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
   <customwidget>
-   <class>CICDCodeEditEx</class>
+   <class>CContractComboBox</class>
    <extends>QComboBox</extends>
-   <header>library/ICDCodeEdit.h</header>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionsPage</class>
+   <extends>QWidget</extends>
+   <header>Events/ActionsPage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CEventCashPage</class>
+   <extends>QWidget</extends>
+   <header>Events/EventCashPage.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>CICDMorphologyCodeEditEx</class>
@@ -1410,15 +1416,14 @@ p, li { white-space: pre-wrap; }
    <header>library/ICDMorphologyCodeEdit.h</header>
   </customwidget>
   <customwidget>
-   <class>CAmbCardPage</class>
-   <extends>QWidget</extends>
-   <header>Events/AmbCardPage.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>CTNMSComboBox</class>
    <extends>QComboBox</extends>
    <header>library/TNMS/TNMSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CInDocExportTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

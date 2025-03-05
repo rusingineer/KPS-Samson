@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -279,6 +279,13 @@ class CField(object):
             return self.isNull()
         else:
             return 'DATE('+self.name()+')=DATE('+unicode(self.formatValue(val)+')')
+
+
+    def dateNe(self, val):
+        if val is None:
+            return self.isNull()
+        else:
+            return 'DATE(' + self.name() + ')!=DATE(' + unicode(self.formatValue(val) + ')')
 
 
     def dateLe(self, val):
@@ -903,9 +910,10 @@ class CDatabase(object):
                 QtGui.qApp.isBusyReconnect = 0
 
     def checkdb(self):
-        if self.isCloseApp == 0:
-            if self.parentGl is not None:
-                self.reconnectDB()
+        if hasattr(QtGui.qApp, 'disableCheckDB') and not QtGui.qApp.disableCheckDB():
+            if self.isCloseApp == 0:
+                if self.parentGl is not None:
+                    self.reconnectDB()
         if not self.isOpen():
             raise CDatabaseException(CDatabase.errDatabaseIsNotOpen)
 
@@ -1311,8 +1319,7 @@ class CDatabase(object):
                     fields.append(self.escapeFieldName(record.fieldName(i)))
                 values.append(self.formatValue(record.field(i)))
             valuesList.append('(' + (', '.join(values)) + ')')
-        stmt = ('INSERT IGNORE INTO ' + table.name() + '(' + (', '.join(fields)) + ') ' + 'VALUES ' + ', '.join(
-            valuesList))
+        stmt = ('INSERT IGNORE INTO ' + table.name() + '(' + (', '.join(fields)) + ') ' + 'VALUES ' + ', '.join(valuesList))
         query = self.query(stmt)
         return query
 
@@ -1787,7 +1794,7 @@ class CMySqlDatabase(CDatabase):
         table.beforeUpdate(record)
         fieldsCount = record.count()
         idFieldNameIndex = record.indexOf(table.idFieldName())
-        if idFieldNameIndex<0:
+        if idFieldNameIndex < 0:
             raise CDatabaseException(CDatabase.errNoIdField % table.name())
         if record.isNull(idFieldNameIndex):
             raise CDatabaseException(CDatabase.errIdFieldIsNull % table.name())
@@ -1796,12 +1803,14 @@ class CMySqlDatabase(CDatabase):
         cond   = ''
         recordId = None
         for i in xrange(fieldsCount):
-            pair = self.escapeFieldName(record.fieldName(i)) + '=?'
             if i == idFieldNameIndex:
-                cond = pair
+                cond = self.escapeFieldName(record.fieldName(i)) + '=?'
                 recordId = record.value(i)
+            elif record.value(i).typeName() == 'QByteArray' and not record.value(i).isNull():
+                parts.append(self.escapeFieldName(record.fieldName(i)) + '=UNHEX(?)')
+                values.append(record.value(i).toByteArray().toHex())
             else:
-                parts.append(pair)
+                parts.append(self.escapeFieldName(record.fieldName(i)) + '=?')
                 values.append(record.value(i))
         values.append(recordId)
         stmt = 'UPDATE ' + table.name() + ' SET ' + ', '.join(parts) + ' WHERE ' + cond
@@ -1818,13 +1827,19 @@ class CMySqlDatabase(CDatabase):
         table.beforeInsert(record)
         fieldsCount = record.count()
         fields = []
+        placeholders = []
         values = []
         for i in range(fieldsCount):
             value = record.value(i)
-            if not record.value(i).isNull():
+            if not value.isNull():
                 fields.append(self.escapeFieldName(record.fieldName(i)))
-                values.append(value)
-        stmt = 'INSERT INTO ' +  table.name() + '(' + ', '.join(fields) + ') '+'VALUES (' + ', '.join(['?']*len(fields)) + ')'
+                if value.typeName() == 'QByteArray':
+                    values.append(value.toByteArray().toHex())
+                    placeholders.append('UNHEX(?)')
+                else:
+                    values.append(value)
+                    placeholders.append('?')
+        stmt = 'INSERT INTO ' + table.name() + '(' + ', '.join(fields) + ') ' + 'VALUES (' + ', '.join(placeholders) + ')'
         preparedQuery = self.preparedQueryCache.get(stmt)
         for i, value in enumerate(values):
             preparedQuery.bindValue(i, values[i])

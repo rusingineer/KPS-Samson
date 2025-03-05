@@ -46,9 +46,11 @@ class CAppPreferencesDialog(QtGui.QDialog, Ui_appPreferencesDialog):
         self.chkPrintDuplicate.setChecked(forceBool(props.get('printDuplicate', False)))
         self.edtCashBox.setText(forceString(props.get('cashBox',  '')))
         self.chkVatTaxPayer.setChecked(forceBool(props.get('vatTaxPayer', False)))
+
+        self.cmbDriver.setCurrentIndex(forceInt(props.get('driver', 0)))
         self.edtPassword.setText(forceString(props.get('password', '')))
         self.edtOperatorPassword.setText(forceString(props.get('operatorPassword', '')))
-
+        self.edtSysAdminPassword.setText(forceString(props.get('sysAdminPassword', '')))
         (self.getLinkButton(forceString(props.get('link', 'usb'))) or self.rbUsb).setChecked(True)
         self.edtSerialPort.setText(forceString(props.get('serialPort',  '/dev/ttyACM0')))
         self.setSerialBaudrate(forceInt(props.get('serialBaudrate', 0)))
@@ -77,12 +79,13 @@ class CAppPreferencesDialog(QtGui.QDialog, Ui_appPreferencesDialog):
         result['cashBox']                = toVariant(self.edtCashBox.text())
         result['vatTaxPayer']            = toVariant(self.chkVatTaxPayer.isChecked())
 
+        result['driver']                 = toVariant(self.cmbDriver.currentIndex())
         result['password']               = toVariant(self.edtPassword.text())
         result['operatorPassword']       = toVariant(self.edtOperatorPassword.text())
+        result['sysAdminPassword']       = toVariant(self.edtSysAdminPassword.text())
         result['link']                   = toVariant(self.getLinkName())
         result['serialPort']             = toVariant(self.edtSerialPort.text())
         result['serialBaudrate']         = toVariant(int(self.cmbSerialBaudrate.currentText()))
-
         result['usbPort']                = toVariant(self.edtUsbPort.text())
         result['tcpIpHost']              = toVariant(self.edtTcpIpHost.text())
         result['tcpIpPort']              = toVariant(self.edtTcpIpPort.text())
@@ -132,3 +135,31 @@ class CAppPreferencesDialog(QtGui.QDialog, Ui_appPreferencesDialog):
         if orgId:
             self.cmbOrganisation.setValue(orgId)
 
+
+    @pyqtSignature('int')
+    def on_cmbDriver_currentIndexChanged(self, index):
+        if index == 1: # АТОЛ
+            self.lblPassword.setEnabled(True)
+            self.edtPassword.setEnabled(True)
+            self.lblOperatorPassword.setEnabled(True)
+            self.edtOperatorPassword.setEnabled(True)
+            self.lblSysAdminPassword.setEnabled(False)
+            self.lblSysAdminPassword.setEnabled(False)
+            self.edtPassword.setInputMask('99999999;')
+            self.edtOperatorPassword.setInputMask('99999999;')
+        elif index == 2: # Штрих
+            self.lblPassword.setEnabled(False)
+            self.edtPassword.setEnabled(False)
+            self.lblOperatorPassword.setEnabled(True)
+            self.edtOperatorPassword.setEnabled(True)
+            self.lblSysAdminPassword.setEnabled(True)
+            self.edtSysAdminPassword.setEnabled(True)
+            self.edtOperatorPassword.setInputMask('99;')
+            self.edtSysAdminPassword.setInputMask('99;')
+        else:
+            self.lblPassword.setEnabled(False)
+            self.edtPassword.setEnabled(False)
+            self.lblOperatorPassword.setEnabled(False)
+            self.edtOperatorPassword.setEnabled(False)
+            self.lblSysAdminPassword.setEnabled(False)
+            self.lblSysAdminPassword.setEnabled(False)

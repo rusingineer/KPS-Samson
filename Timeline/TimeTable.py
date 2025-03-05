@@ -13,16 +13,18 @@
 #############################################################################
 
 import pickle
+from math import ceil
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QByteArray, QDate, QMimeData, QModelIndex, QObject, QTime, QVariant, SIGNAL
+from Orgs.PersonSubstitution import CPeriodDialog
 
 from library.crbcombobox import CRBComboBox
 from library.InDocTable  import CRecordListModel, CInDocTableView, CInDocTableCol, CRBLikeEnumInDocTableCol, CRBInDocTableCol, CNotCleanTimeInDocTableCol, CIntInDocTableCol
-from library.Utils import firstYearDay, forceString, forceRef
+from library.Utils import firstYearDay, forceString, forceRef, forceInt, forceTime, toVariant
 from Users.Rights        import urAccessEditTimeLine
 from Timeline.Schedule   import CSchedule, getPeriodLength
-
+from Users.Rights import (urAdmin, urCanChangePersonSubstitution)
 
 def formatTimeRange(range): # должно переехать. куда-нибуть
     if range:
@@ -30,6 +32,57 @@ def formatTimeRange(range): # должно переехать. куда-нибу
         return u'%s - %s' % (start.toString('HH:mm'), finish.toString('HH:mm'))
     else:
         return ''
+
+
+def checkDurationAndCapacity(value, parent, checkCapacity=False, begTime=None, endTime=None):
+    if not checkCapacity:
+        time = forceTime(value)
+        zeroDuration = QTime.fromString('00:00', 'hh:mm')
+        if time != zeroDuration:
+            minTime = QTime.fromString('00:05', 'hh:mm')
+            maxTime = QTime.fromString('00:50', 'hh:mm')
+            if not (minTime <= time <= maxTime):
+                allowedTime = max(minTime if (minTime > time) else 0, maxTime if (time > maxTime) else 0)
+                if QtGui.QMessageBox.question(parent, u'Внимание!',
+                                              u'Длительность одного талона не может быть {0} {1} минут.\n'
+                                              u'Установить длительность {1} минут?'.format(
+                                                  u'менее' if allowedTime.minute() == 5 else u'более',
+                                                  allowedTime.minute()),
+                                              QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                              QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                    return toVariant(allowedTime)
+                else:
+                    return toVariant(zeroDuration)
+        else:
+            return False
+    else:
+        capacity = forceInt(value)
+        if capacity:
+            workPeriodDuration = max(0, begTime.secsTo(endTime))
+            duration = workPeriodDuration // capacity
+            if duration != 0:
+                if not (300 <= duration <= 3000):
+                    if duration < 300:
+                        allowedCapacity = int(ceil(float(workPeriodDuration) / 300.0))
+                        formMassage = u'не более'
+                        formMassage1 = u'менее 5 минут'
+                    else:
+                        formMassage = u'не менее'
+                        formMassage1 = u'более 50 минут'
+                        allowedCapacity = int(ceil(float(workPeriodDuration) / 3000.0))
+                    if QtGui.QMessageBox.question(parent, u'Внимание!',
+                                                  u'Длительность одного талона не может быть {2}.\n'
+                                                  u'Согласно требованиям доступно {0} {1} талона(ов), создать?'.format(
+                                                      formMassage, allowedCapacity, formMassage1),
+                                                  QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                  QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                        return toVariant(allowedCapacity)
+                    else:
+                        return toVariant(0)
+            else:
+                return toVariant(0)
+        else:
+            return False
 
 
 class CTimeTableModel(CRecordListModel):
@@ -57,6 +110,7 @@ class CTimeTableModel(CRecordListModel):
         self.numHomeDays = self.numHomeFact = self.numHomePlan = self.numHomeTime = \
         self.numExpDays  = self.numExpFact  = self.numExpPlan  = self.numExpTime = 0
         self.readOnly = False
+        self._parent = parent
 
 
     def setReadOnly(self, value):
@@ -117,6 +171,28 @@ class CTimeTableModel(CRecordListModel):
             schedule = self._items[row]
             if not schedule.isFreeToChange():
                 return False
+            if column == 3:
+                begTime = forceTime(value)
+                if begTime != schedule.begTime:
+                    if schedule.capacity != 0 and schedule.duration == QTime.fromString('00:00', 'hh:mm'):
+                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, begTime, schedule.endTime)
+                        if checkCapacity:
+                            schedule.capacity = checkCapacity
+            if column == 4:
+                endTime = forceTime(value)
+                if endTime != schedule.endTime:
+                    if schedule.capacity != 0 and schedule.duration == QTime.fromString('00:00', 'hh:mm'):
+                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, schedule.begTime, endTime)
+                        if checkCapacity:
+                            schedule.capacity = checkCapacity
+            if column == 5:
+                checkValue = checkDurationAndCapacity(value, self._parent)
+                if checkValue:
+                    value = checkValue
+            if column == 6:
+                checkValue = checkDurationAndCapacity(value, self._parent, True, schedule.begTime, schedule.endTime)
+                if checkValue:
+                    value = checkValue
             schedule.cleanItems()
         if column == 1: # назначение приема
             row = index.row()
@@ -148,13 +224,32 @@ class CTimeTableModel(CRecordListModel):
                             if item.clientId is None and item.appointmentPurposeId:
                                 item.appointmentPurposeId = value
                         return CRecordListModel.setData(self, index, value, role)
+        if column == 9 and (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)) and forceInt(value) != 0:
+            #print(forceInt(value))# Причина отсутствия
+            row = index.row()
+            item = self._items[row]
+            if QtGui.QMessageBox.question(QtGui.qApp.mainWindow,
+                                                    u'Внимание!',
+                                                    u'Заполнить период замещения отсутствующего сотрудника?',
+                                                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                    QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                dialog = CPeriodDialog()
+                data = {
+                    'begDate': item.date,
+                    'endDate': item.date,
+                    'person_id': None,
+                    'record': None,
+                    'absencePerson': item.personId,
+                }
+                dialog.loadData(data)
+                dialog.exec_()
         return CRecordListModel.setData(self, index, value, role)
 
 
-    def setPersonAndMonth(self, personId, year, month, selectedDate = None):
+    def setPersonAndMonth(self, personId, year, month, selectedDate = None, isCanSaveData = True):
         self.selectedDate = selectedDate
         if self.personId != personId or self.year != year or self.month != month:
-            if self.personId:
+            if self.personId and isCanSaveData:
                 self.saveData()
             self.personId = personId
             self.year = year
@@ -163,7 +258,6 @@ class CTimeTableModel(CRecordListModel):
             self.personId = personId
             self.daysInMonth = self.begDate.daysInMonth()
             self.loadData()
-
 
     def loadData(self):
         self.redDays = []
@@ -458,11 +552,11 @@ class CTimeTableModel(CRecordListModel):
         elif period in (3, 4, 5, 6): # неделя, две, три или четыре
             # В соответствии с ISO 8601, недели начинаются с понедельника
             # и первый четверг года всегда находится в первой неделе этого года.
-            firstDayOfYear = firstYearDay(begDate)
-            firstMondayOfYear = firstDayOfYear.addDays((0, -1, -2, -3, 3, 2, 1)[firstDayOfYear.dayOfWeek()-1])
+            firstDayOfMonth = QDate(begDate.year(), begDate.month(), 1)
+            firstMondayOfMonth = firstDayOfMonth.addDays((0, -1, -2, -3, 3, 2, 1)[firstDayOfMonth.dayOfWeek()-1])
             for day in xrange(begDate.day(), endDate.day()+1):
                 date = QDate(self.year, self.month, day)
-                idx = firstMondayOfYear.daysTo(date) % periodLength
+                idx = firstMondayOfMonth.daysTo(date) % periodLength
                 if fillRedDays or day not in self.redDays:
                     templates = templateByDay[idx]
                 else:

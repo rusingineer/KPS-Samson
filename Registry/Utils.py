@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -19,15 +19,11 @@ from PyQt4.QtCore import Qt, QDate, QVariant, SIGNAL, QDateTime
 from datetime import timedelta, datetime
 
 from Exchange import AttachService
-from RefBooks.Codes        import *
 from RefBooks.DeathPlaceType.Info import CDeathPlaceTypeInfo
 from RefBooks.DocumentType.Descr import getDocumentTypeDescr
 from RefBooks.NomenclatureActiveSubstance.Info import CNomenclatureActiveSubstanceInfo
-from RefBooks.QuotaType.List    import getQuotaTypeClassNameList
-from KLADR.KLADRModel      import getCityName, getExactCityName, getStreetName, getKladrTreeModel, getOKATO, getDistrictName
-from Orgs.PersonInfo       import CPersonInfo, CSpecialityInfo
-from Orgs.Utils            import *
-from Users.Rights          import *
+from KLADR.KLADRModel      import getExactCityName
+from Orgs.PersonInfo       import CSpecialityInfo
 from library.Counter import CCounterController
 from library.Identification import getIdentificationByCode, getIdentificationInfoById
 from library.database      import decorateString
@@ -48,14 +44,14 @@ from RefBooks.QuotaType.List    import getQuotaTypeClassNameList
 from RefBooks.BloodType.Info    import CBloodTypeInfo
 from RefBooks.DocumentType.Info import CDocumentTypeInfo
 from RefBooks.RiskFactor.Info   import CRBRiskFactorInfo
-from Users.Rights          import (urRegWriteInsurOfficeMark,
-                                   urRegEditTempInvalidWithInsurance,
-                                   urRegEditTempInvalidNoInsurance,
-                                   urEditOtherpeopleAction,
-                                   urEditClosedEvent,
-                                   urEditAfterInvoicingEvent,
-                                   urEditSubservientPeopleAction,
-                                   )
+from Users.Rights import (urRegWriteInsurOfficeMark,
+                          urRegEditTempInvalidWithInsurance,
+                          urRegEditTempInvalidNoInsurance,
+                          urEditOtherpeopleAction,
+                          urEditClosedEvent,
+                          urEditAfterInvoicingEvent,
+                          urEditSubservientPeopleAction, urDeleteEventWithTissue, urDeleteEventWithJobTicket,
+                          )
 
 
 expertiseClass = [(u'Нетрудоспособность', u'inspection_disability%'),
@@ -63,7 +59,7 @@ expertiseClass = [(u'Нетрудоспособность', u'inspection_disabil
                   ]
 
 
-_identification = namedtuple('identification', ('code', 'name', 'urn', 'version', 'value', 'note', 'checkDate'))
+_identification = namedtuple('identification', ('code', 'name', 'urn', 'version', 'value', 'note', 'checkDate', 'value_spr', 'name_spr', 'record'))
 
 def replaceMask(val, repFrom, repTo):
     return unicode('REPLACE(' + val + ',' + repFrom + ',' + repTo + ')')
@@ -410,7 +406,7 @@ def getAddress(addressId, freeInput=None, addressDate=None):
         result.number = forceString(houseRecord.value('number'))
         result.index_ = forceString(houseRecord.value('INDEX'))
         result.corpus = forceString(houseRecord.value('corpus'))
-        result.index = getHouseIndex(houseId)
+        result.index = getHouseIndex(houseId, result.number+result.corpus)
     return result
 
 
@@ -426,7 +422,7 @@ def getInfisForStreetKLADRCode(KLADRStreetCode):
     return ''
 
 
-def getHouseIndex(houseId):
+def getHouseIndex(houseId, number):
     if not houseId:
         return ''
     db = QtGui.qApp.db
@@ -439,6 +435,7 @@ def getHouseIndex(houseId):
     cond = [ tableStreet['actuality'].eq('00'),
              tableHouse['deleted'].eq(0),
              tableHouse['id'].eq(houseId),
+             tableDoma['NAME'].contain(number)
            ]
     record = db.getRecordEx(queryTable, tableDoma['INDEX'], cond)
     if record:
@@ -665,7 +662,7 @@ def getAttachRecord(clientId, temporary):
 
 def getClientAttachEx(clientId, isTemporary, date=None):
     db = QtGui.qApp.db
-    if date and not QtGui.qApp.showingAttach():
+    if date and not QtGui.qApp.showingAttach(): # not QtGui.qApp.showingAttach() - считаю это не корректным
         funcCall = 'getClientAttachIdForDate(%d,%d,%s)' % (clientId, 1 if isTemporary else 0, db.formatDate(date))
     else:
         funcCall = 'getClientAttachId(%d,%d)' % (clientId, 1 if isTemporary else 0)
@@ -996,6 +993,51 @@ def getClientObservationStatus(clientId):
                 return [code, color]
     return None
 
+def getDispensarySpecialties(clientId):
+    if clientId:
+        date = QDate.currentDate()
+        db = QtGui.qApp.db
+        tableDiagnosis = db.table('Diagnosis')
+        tableDiagnostic = db.table('Diagnostic')
+        tableDispNabMKB = db.table('soc_DispNabMKB')
+        tableRBDispanser = db.table('rbDispanser')
+        tablePerson = db.table('Person')
+        tableRBSpeciality = db.table('rbSpeciality')
+        cond = [tableDiagnosis['client_id'].eq(clientId),
+                tableDiagnosis['deleted'].eq(0),
+                tableDiagnostic['deleted'].eq(0),
+                db.joinOr([db.joinAnd([tableDiagnostic['endDate'].isNotNull(), tableDiagnostic['endDate'].le(date)]),
+                            db.joinAnd([tableDiagnostic['endDate'].isNull(), tableDiagnostic['setDate'].le(date)])]),
+                tableRBDispanser['observed'].eq(1)
+                ]
+        queryTable = tableDiagnosis.innerJoin(tableDiagnostic, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
+        queryTable = queryTable.innerJoin(tableDispNabMKB, tableDispNabMKB['code'].eq(tableDiagnosis['MKB']))
+        queryTable = queryTable.innerJoin(tableRBDispanser, tableRBDispanser['id'].eq(tableDiagnostic['dispanser_id']))
+        queryTable = queryTable.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnosis['dispanserPerson_id']))
+        queryTable = queryTable.leftJoin(tableRBSpeciality, tableRBSpeciality['id'].eq(tablePerson['speciality_id']))
+        cond.append(u'''NOT EXISTS(SELECT DC.id
+                                FROM Diagnostic AS DC
+                                INNER JOIN Diagnosis AS DS ON DS.id = DC.diagnosis_id
+                                INNER JOIN rbDispanser AS rbDP ON rbDP.id = DC.dispanser_id
+                                WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= {} AND DC.deleted = 0 AND rbDP.name LIKE '{}')
+                        OR EXISTS(SELECT DC.id
+                                FROM Diagnostic AS DC
+                                INNER JOIN Diagnosis AS DS ON DS.id = DC.diagnosis_id
+                                INNER JOIN rbDispanser AS rbDP ON rbDP.id = DC.dispanser_id
+                                WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= {} AND DC.deleted = 0 AND rbDP.name LIKE '{}')''' .format(db.formatDate(date), 
+                                                                                                                                                 u'%снят%', 
+                                                                                                                                                 db.formatDate(date), 
+                                                                                                                                                 u'%взят повторно%'))
+        records = db.getRecordListGroupBy(queryTable, [u'rbSpeciality.name'], where=cond, group = u'rbSpeciality.name', order='Diagnostic.endDate DESC')
+        specialties = []
+        for record in records:
+            specialty = forceString(record.value('name'))
+            if specialty:
+                specialties.append(specialty)
+        return u', '.join(specialty for specialty in specialties)
+    return None
+        
+
 
 def getVaccineInfectionIdList(vaccineId):
     db = QtGui.qApp.db
@@ -1259,7 +1301,7 @@ def checkClientAttachService(personInfo):
             for attachment in result['attachlist']:
                 db = QtGui.qApp.db
                 stmt = """select shortName from Organisation
-                            where Organisation.infisCode='%s'""" % attachment['mo']
+                            where Organisation.infisCode='%s' AND isMedical = 3 AND isInsurer = 0 AND isActive = 1 AND deleted = 0""" % attachment['mo']
                 query = db.query(stmt)
                 moName = ''
                 while query.next():
@@ -1407,8 +1449,11 @@ def selectAppropriateEpidCase(clientInfo, takenTissueJournalId):
                 td = currTd
     return actualEpidCase
 
-
-def getClientInfo(clientId, hasRegAddress=True, hasLocAddress=True, date=None, dateAttaches=None):
+# consents - Для отображения result.consents, тт 2625,
+# для события в consents передается словарь с begDate и endDate, чтобы отображать согласие, которое попадает в
+# даты события. По умолчанию, отображает те согласия, у которых нет даты окончания согласия и если она есть то
+# должна быть больше чем сегодняшний день
+def getClientInfo(clientId, hasRegAddress=True, hasLocAddress=True, date=None, dateAttaches=None, consents=None, eventId=None):
     db = QtGui.qApp.db
     table  = db.table('Client')
     record = db.getRecord(table, '*', clientId)
@@ -1426,14 +1471,70 @@ def getClientInfo(clientId, hasRegAddress=True, hasLocAddress=True, date=None, d
     result.birthPlace  = forceString(record.value('birthPlace'))
     result.SNILS       = forceString(record.value('SNILS'))
     result.notes       = forceString(record.value('notes'))
-    result.attaches    = getClientAttaches(clientId, dateAttaches)
+    listAttaches = getClientAttaches(clientId, dateAttaches)
+    templistAttached = []
+    for item in listAttaches:
+        if item['endDate']:
+            if QtGui.qApp.showingAttach():
+                templistAttached.append(item)
+        else:
+            templistAttached.append(item)
+    result.attaches = templistAttached if len(templistAttached)>0 else []
+    # result.attaches    = getClientAttaches(clientId, dateAttaches)
+    
     # result.allAttaches    = getClientAttaches(clientId)
     result.socStatuses = getClientSocStatuses(clientId)
     result.quoting     = getActualClientQuoting(clientId)
     result.identification = formatClientIdentification(getClientIdentifications(clientId))
     result.clientDocumentLocation = getClientDocumentLocation(clientId)
     result.clientObservationStatus = getClientObservationStatus(clientId)
+    result.dispensarySpecialties = getDispensarySpecialties(clientId)
     result.clientConsents = getClientConsentsEx(clientId, date)
+    temp_list_consents = []
+    for item in result.clientConsents:
+        if not (item.value('endDate').toDate()) and item.value('endDate').toString() == u'': # нет даты окончания согласия
+            if not consents:
+                temp_list_consents.append(item)
+                continue
+            else:
+                if consents['endDate']: # дата окончания события
+                    if (item.value('date').toDate() >= consents['begDate'] \
+                    and item.value('date').toDate() <= consents['endDate']) or \
+                        (item.value('date').toDate() <= consents['begDate'] and \
+                         item.value('date').toDate() <= consents['endDate']):
+                        temp_list_consents.append(item)
+                        continue
+                else:
+                    if item.value('date').toDate() >= consents['begDate']: # как будто бы такого случая вообще не будет, но это не точно
+                        temp_list_consents.append(item)
+                        continue
+        else: # есть дата окончания согласия
+            if not consents:
+                if item.value('endDate').toDate() >= QDate.currentDate():
+                    temp_list_consents.append(item)
+                    continue
+            else:
+                if consents['endDate']: # дата окончания события
+                    if ((item.value('endDate').toDate() >= consents['begDate']      \
+                    and item.value('endDate').toDate() <= consents['endDate'])      \
+                    or (item.value('endDate').toDate() >= consents['begDate']          \
+                     and item.value('date').toDate() <= consents['begDate'])     \
+                    ) or \
+                    ((item.value('date').toDate() >= consents['begDate'] \
+                    and item.value('date').toDate() <= consents['endDate'])
+                    or (item.value('date').toDate() >= consents['endDate'] \
+                    and item.value('endDate').toDate() <= consents['endDate'])
+                    ) or \
+                    (item.value('date').toDate() <= consents['begDate'] \
+                    and  item.value('endDate').toDate() >= consents['endDate']):
+                        temp_list_consents.append(item)
+                        continue
+                else:
+                    if not (item.value('endDate').toDate() < consents['begDate']):
+                        temp_list_consents.append(item)
+                        continue
+
+    result.clientConsents = temp_list_consents if len(temp_list_consents)>0 else []
     result.clientContingentTypeId = getClientContingentTypeId(clientId)
     result.contacts = getClientPhones(clientId)
     result.clientContingentTypeIdList = getClientContingentTypeIdList(clientId)
@@ -1449,7 +1550,7 @@ def getClientInfo(clientId, hasRegAddress=True, hasLocAddress=True, date=None, d
 #    else:
 #        result.document = None
 
-    policyRecord = getClientCompulsoryPolicy(clientId, date)
+    policyRecord = getClientCompulsoryPolicy(clientId, date, eventId)
     result.compulsoryPolicyRecord = policyRecord
     result.compulsoryPolicy = u''
     result.voluntaryPolicy = u''
@@ -1565,6 +1666,55 @@ def getClientInfoEx(clientId, date=None):
     clientInfo.attaches = formatAttaches(clientInfo.attaches, date)
     return clientInfo
 
+def formatAttachAsHTML_SynchronizeAttachment(attach, clientId, atDate):
+    td = forceDate(atDate) if atDate else QDate.currentDate()
+    bold = False
+    txt = attach['name']
+    color = '#ffa500'
+    organisationName = getOrganisationShortName(attach['LPU_id'])
+    orgstructureIdList, uch, mocode = getWebattach(clientId)
+    orgStructureWebIdTrue = attach[
+                                'orgStructure_id'] in orgstructureIdList  # any(attach['orgStructure_id'] == org_id for org_id in orgstructureIdList)
+    orgStructureWebId = orgstructureIdList[0] if orgstructureIdList else None
+    orgUch = organisationName + u' (' + forceString(
+        QtGui.qApp.db.translate('OrgStructure', 'id', attach['orgStructure_id'], 'code')) + u')'
+    orgUchWeb = ''
+    if orgStructureWebId:
+        orgUchWeb = organisationName + u' (' + forceString(
+            QtGui.qApp.db.translate('OrgStructure', 'id', orgStructureWebId, 'code')) + u')'
+    if attach['outcome'] or attach['endDate'].isValid() and attach['endDate'] <= td:
+
+
+        txt = '<font color=red>' + txt + ' ' + orgUch + forceString(attach['endDate']) +'</font>'
+        # txt = txt + ' '
+        if orgStructureWebId or orgStructureWebIdTrue:
+            txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (
+                orgUchWeb if orgStructureWebId else orgUch)
+        elif attach['name'] != u'умер':
+            if uch and mocode:
+                txt += u'''код МО: %s участок: %s''' % (mocode, uch)
+            # else:
+            #     txt += u' (не прикреплен)'
+    elif orgStructureWebIdTrue:
+        txt = txt + ' ' + orgUch
+        color = 'green'
+    elif orgStructureWebId:
+        if not attach['orgStructure_id']:
+            txt = u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (orgUchWeb)
+        else:
+            txt = txt + ' ' + orgUch
+            txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (orgUchWeb)
+    elif uch and mocode:
+        if orgUch:
+            txt = txt + ' ' + orgUch
+        else:
+            txt += u' Отсутствуют данные'
+        txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> код МО: %s участок: %s</font>''' % (mocode, uch)
+    else:
+        txt = txt + ' ' + orgUch + u'</font> <BR><font color=black>Прикрепление в ТФОМС:<font color=#ffa500> Информация отсутствует</font>'
+
+    return u'Прикрепление в МИС: <font color="%s">%s%s%s</font>' % (
+    color, '<B>' if bold else '', txt, '</B>' if bold else '')
 
 def formatAttachAsHTML(attach, atDate):
     td = forceDate(atDate) if atDate else QDate.currentDate()
@@ -1590,12 +1740,53 @@ def formatAttachAsHTML(attach, atDate):
             color = 'red' if attach['endDate'] < td else 'green'
         else:
             color = 'green'
-    return u'<font color="%s">%s%s%s</font>' % (color,  '<B>' if bold else '',  txt,  '</B>' if bold else '')
+    return u'Прикрепление: <font color="%s">%s%s%s</font>' % (color,  '<B>' if bold else '',  txt,  '</B>' if bold else '')
 
+def formatAttachesAsHTML(attaches, clientId, atDate):
+    if QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'):
+        return ', '.join([formatAttachAsHTML_SynchronizeAttachment(x, clientId, atDate) for x in attaches])
+    else:
+        return ', '.join([formatAttachAsHTML(x, atDate) for x in attaches])
 
-def formatAttachesAsHTML(attaches,  atDate):
-    return ', '.join([formatAttachAsHTML(x,  atDate) for x in attaches])
+def getWebattach(clientId):
+    db = QtGui.qApp.db
+    stmt = u'''SELECT 
+  o.id  AS id,
+  sa.attach_area AS uch,
+  sa.attach_mo AS mocode
+FROM soc_attachments sa
+ LEFT JOIN OrgStructure o ON o.infisinternalcode=sa.attach_area 
+WHERE sa.client_id = "{0}"'''.format(clientId)
+    idlist = []
+    uch = mocode = ''
+    result = db.query(stmt)
+    while result.next():
+        record = result.record()
+        idlist.append(forceRef(record.value('id')))
+        uch = forceString(record.value('uch'))
+        mocode = forceString(record.value('mocode'))
+    return idlist, uch, mocode
 
+def getWebattachAsHTML(clientId):
+    txt = ''
+    orgstructureIdList, uch, mocode = getWebattach(clientId)
+    orgStructureWebId = orgstructureIdList[0] if orgstructureIdList else None
+    if orgStructureWebId:
+        record = QtGui.qApp.db.getRecordEx('OrgStructure', 'organisation_id, code', 'id = %d' % orgStructureWebId)
+        if record:
+            orgWebId = forceRef(record.value('organisation_id'))
+            orgStructureWebCode = forceString(record.value('code'))
+            orgUchWeb = getOrganisationShortName(orgWebId) + u' (' + orgStructureWebCode + u')'
+            txt += u'''Прикрепление в МИС: <font color=#ffa500>Информация отсутствует</font>
+                           <BR>Прикрепление в ТФОМС: <font color=#ffa500>%s</font>''' % (
+                orgUchWeb)
+    elif uch and mocode:
+        txt += u'''<BR>Прикрепление в МИС:
+                        <font color=black>Прикрепление в ТФОМС: </font><font color=#ffa500> код МО: %s участок: %s</font>''' % (
+            mocode, uch)
+    else:
+        txt += u'''Прикрепление в МИС: '''
+    return txt
 
 def formatAttach(attach,  atDate):
     # td = forceDate(atDate) if atDate else QDate.currentDate()
@@ -1696,8 +1887,8 @@ def getClientMiniInfo(clientId, atDate=None):
         return ''
 
 
-def getClientBanner(clientId, atDate=None, aDateAttaches=None):
-    info = getClientInfo(clientId, date=atDate, dateAttaches=aDateAttaches)
+def getClientBanner(clientId, atDate=None, aDateAttaches=None, aConsents=None):
+    info = getClientInfo(clientId, date=atDate, dateAttaches=aDateAttaches, consents=aConsents)
     return formatClientBanner(info, atDate)
 
 
@@ -1976,12 +2167,12 @@ def getClientHospitalOrgStructureAndBeds(clientId):
         resultStr = (u' отделение: %s;' % orgStructureName) if orgStructureName else u''
     if recordBed:
         # nameOS = forceString(recordBed.value('nameOS'))
-        codeOS = forceString(recordBed.value('codeOS'))
+        # codeOS = forceString(recordBed.value('codeOS'))
         codeBed = forceString(recordBed.value('codeBed'))
         # nameBed = forceString(recordBed.value('nameBed'))
         codeBedProfile = forceString(recordBed.value('codeBedProfile'))
         nameBedProfile = forceString(recordBed.value('nameBedProfile'))
-        resultStr += u' койка: %s, %s (%s-%s)' % (codeOS, codeBed, codeBedProfile, nameBedProfile)
+        resultStr += u' койка: %s (%s-%s)' % (codeBed, codeBedProfile, nameBedProfile)
     if u'moving' in flatCode.lower():
         resultFlatCode = 1
     elif u'planning' in flatCode.lower():
@@ -2020,6 +2211,7 @@ def formatClientBanner(info, atDate=None):
     documentLocation = getClientDocumentLocation(id)
     clientObservationStatus   = info.get('clientObservationStatus', u'')
     hospitalBed, busy         = getClientHospitalOrgStructureAndBeds(id)
+    dispensarySpecialties = info.get('dispensarySpecialties', u'')
     clientConsents            = formatClientConsents(info.get('clientConsents', []))
     clientContingent          = ''
     allergy                   = info.get('allergy') #tt1304
@@ -2048,14 +2240,22 @@ def formatClientBanner(info, atDate=None):
     if clientObservationStatus and len(clientObservationStatus) == 2:
         bannerStatusObservation = u''' [Статус: <B><font color=%s>%s</font></B>] ''' % (clientObservationStatus[1],
                                                                                         clientObservationStatus[0])
+    AttachesAsHTML = formatAttachesAsHTML(attaches, id, atDate)
+    if not AttachesAsHTML and QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'):
+        AttachesAsHTML = getWebattachAsHTML(id)
+    elif AttachesAsHTML == '':
+        AttachesAsHTML = u'Прикрепление:'
+
 
     bannerHTML=u'''<B>%s </B>Код:&nbsp;<B><font size=+1 color=blue>%s</font></B> %s
 			 <br><B><font size=+1>%s</font></B>, дата рождения:&nbsp;<B>%s</B> (%s) пол:&nbsp;<B>%s</B>
 			 %s
 			 <br>СНИЛС:&nbsp;<B>%s</B> Документ:&nbsp;<B>%s</B> 
 			 %s
+			 %s
+    
 			 <br>Статус:&nbsp;%s 
-			 <br>Прикрепление:&nbsp;%s 
+			 <br>%s 
 			 <br>Полис ОМС&nbsp;<B>%s</B>
 			 <BR>Адрес регистрации:&nbsp;<B>%s</B> 
 			 <br>Адрес проживания:&nbsp;<B>%s</B>
@@ -2067,8 +2267,9 @@ def formatClientBanner(info, atDate=None):
 					u'<br>Наблюдаемый контингент: <B>%s</B>' % clientContingent if clientContingent else u'',
 					SNILS, document,
 					u'<br>Согласия: <B>%s</B>' % clientConsents if clientConsents else u'',
+                    u'<br>Д-учет: <font color=#990000><B>%s</B></font>' % dispensarySpecialties if dispensarySpecialties else u'',
 					formatSocStatuses(socStatuses, True),
-					formatAttachesAsHTML(attaches, atDate),
+                    AttachesAsHTML if AttachesAsHTML else '',
 					compulsoryvoluntaryPolicy,
 					regAddress,
 					locAddress,
@@ -2146,7 +2347,7 @@ def formatClientString(info, atDate=None):
 				 name, birthDate, age, sex,
 				 SNILS, document,
 				 formatSocStatuses(socStatuses),
-				 formatAttachesAsHTML(attaches,  atDate),
+				 formatAttachesAsHTML(attaches, id, atDate),
 				 compulsoryPolicy, (u', Полис ДМС ' if voluntaryPolicy else u''), voluntaryPolicy,
 				 regAddress,
 				 locAddress,
@@ -2474,6 +2675,7 @@ class CClientInfo(CInfo):
         self._modifyDatetime = CDateTimeInfo(None)
         self._modifyPerson = self.getInstance(CPersonInfo, None)
         self._begDate = CDateInfo(None)
+        self._endDate = CDateInfo(None)
         self._platform = ''
         self._server = ''
         self._clientEvents = []
@@ -2549,6 +2751,7 @@ class CClientInfo(CInfo):
             self._epidCases = self.getInstance(CClientEpidCaseInfoList, self._id)
             self._riskFactors = self.getInstance(CClientRiskFactorInfoList, self._id)
             self._begDate = CDateInfo(record.value('begDate'))
+            self._endDate = CDateInfo(record.value('endDate'))
             self._platform = platform.system()
             self._server = forceString(QtGui.qApp.preferences.dbServerName)
             self._researchList = self.getInstance(CClientResearchInfoList, self._id)
@@ -2659,6 +2862,7 @@ class CClientInfo(CInfo):
     epidCases         = property(lambda self: self.load()._epidCases)
     riskFactors       = property(lambda self: self.load()._riskFactors)
     begDate    = property(lambda self: self.load()._begDate)
+    endDate    = property(lambda self: self.load()._endDate)
     platform    = property(lambda self: self.load()._platform)
     server    = property(lambda self: self.load()._server)
     clientEvents    = property(lambda self: self.load()._clientEvents)
@@ -2709,7 +2913,7 @@ class CClientMedicalExemptionInfoList(CInfoList):
     def _load(self):
         db = QtGui.qApp.db
         table = db.table('ClientMedicalExemption')
-        idList = db.getIdList(table, 'id', table['client_id'].eq(self.clientId), 'id')
+        idList = db.getIdList(table, 'id', [table['client_id'].eq(self.clientId), table['deleted'].eq(0)], 'id')
         self._items = [ self.getInstance(CClientMedicalExemptionInfo, id) for id in idList ]
         return True
 
@@ -2872,8 +3076,8 @@ class CClientVaccinationProbeInfo(CInfo):
         record = db.getRecord('ClientVaccinationProbe', '*', self._id)
         if record:
             self._probe = self.getInstance(CRBVaccinationProbeInfo, forceRef(record.value('probe_id')))
-            code, name, urn, version, value, note, checkDate = getIdentificationInfoById('rbVaccinationProbe', forceRef(record.value('probeIdentificationIBP_id')))
-            self._probeIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate))
+            code, name, urn, version, value, note, checkDate,value_spr, name_spr, record_ = getIdentificationInfoById('rbVaccinationProbe', forceRef(record.value('probeIdentificationIBP_id')))
+            self._probeIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate),value_spr, name_spr, record)
             self._datetime = CDateTimeInfo(forceDate(record.value('datetime')))
             self._dose = forceDouble(record.value('dose'))
             self._seria = forceString(record.value('seria'))
@@ -2890,7 +3094,7 @@ class CClientVaccinationProbeInfo(CInfo):
             self._infections = self.getInstance(CClientVaccinationProbeInfectionInfoList, infectionIdList)
         else:
             self._probe = self.getInstance(CRBVaccinationProbeInfo, None)
-            self._probeIdentificationIBP = _identification(None, None, None, None, None, None, None)
+            self._probeIdentificationIBP = _identification(None, None, None, None, None, None, None, None, None, None)
             self._datetime = CDateTimeInfo()
             self._dose = 0.0
             self._seria = ''
@@ -2963,8 +3167,8 @@ class CClientVaccinationInfo(CInfo):
             result = False
 
         self._vaccine          = self.getInstance(CRBVaccineInfo, forceRef(record.value('vaccine_id')))
-        code, name, urn, version, value, note, checkDate = getIdentificationInfoById('rbVaccine', forceRef(record.value('vaccineIdentificationIBP_id')))
-        self._vaccineIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate))
+        code, name, urn, version, value, note, checkDate,value_spr, name_spr, record_ = getIdentificationInfoById('rbVaccine', forceRef(record.value('vaccineIdentificationIBP_id')))
+        self._vaccineIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate),value_spr, name_spr, record)
         self._vaccinationType  = forceString(record.value('vaccinationType'))
         self._datetime         = CDateTimeInfo(forceDateTime(record.value('datetime')))
         self._dose             = forceDouble(record.value('dose'))
@@ -2975,7 +3179,7 @@ class CClientVaccinationInfo(CInfo):
         self._transitionType   = self.getInstance(CRBVaccineSchemaTransitionTypeInfo,
                                                   forceRef(record.value('transitionType_id')))
         self._relegateOrg      = self.getInstance(COrgInfo, forceRef(record.value('relegateOrg_id')))
-        self._infections       = self.getInstance(CRBInfectionInfoList, forceRef(record.value('vaccine_id')))
+        self._infections = self.getInstance(CRBInfectionInfoList, forceRef(record.value('vaccine_id')))
 
         return result
 
@@ -3034,7 +3238,7 @@ class CClientVaccinationProbeInfectionInfoList(CInfoList):
         self.idList = idList
 
     def _load(self):
-        self._items = [ self.getInstance(CClientVaccinationInfectionInfo, id) for id in self.idList ]
+        self._items = [self.getInstance(CClientVaccinationInfectionInfo, id) for id in self.idList]
         return True
 
     def __str__(self):
@@ -3053,7 +3257,7 @@ class CClientVaccinationInfectionInfoList(CInfoList):
         db = QtGui.qApp.db
         table = db.table('rbInfection_rbVaccine')
         idList = db.getIdList(table, 'id', table['vaccine_id'].eq(self.vaccineId), 'id')
-        self._items = [ self.getInstance(CClientVaccinationInfectionInfo, id) for id in idList ]
+        self._items = [self.getInstance(CClientVaccinationInfectionInfo, id) for id in idList]
         return True
 
 
@@ -3642,6 +3846,8 @@ class CClientWorkInfo(COrgInfo):
         self._stage = ''
         self._hurts = []
         self._hurtFactors = []
+        self._organisation = None
+        self._shortName = ''
 
 
     def _load(self):
@@ -3730,6 +3936,11 @@ class CClientWorkHurtInfo(CInfo, CIdentificationInfoMixin):
         return CIdentificationInfoMixin.identifyInfoByUrn(self, urn)
 
 
+    def identifyInfoByUrnList(self, urn):
+        self.getHurtId()
+        return CIdentificationInfoMixin.identifyInfoByUrnList(self, urn)
+
+
     def identifyInfoByCode(self, code):
         self.getHurtId()
         return CIdentificationInfoMixin.identifyInfoByCode(self, code)
@@ -3755,6 +3966,7 @@ class CClientWorkHurtInfo(CInfo, CIdentificationInfoMixin):
             self._stage = 0
             self._factors = []
             return False
+
 
     code  = property(lambda self: self.load()._code)
     name  = property(lambda self: self.load()._name)
@@ -4977,12 +5189,12 @@ class CClientContingentKindInfo(CInfo):
         self._note = ''
 
     def _load(self):
-        record = QtGui.qApp.db.getRecord('ClientContingentKind', 'contingentKind_id, begDate, endDate, reason, speciality_id, org_id, MKB, note', self.clientContingentKindId)
+        record = QtGui.qApp.db.getRecord('ClientContingentKind', 'contingentKind_id, begDate, endDate, contingentKindRemoval_id, speciality_id, org_id, MKB, note', self.clientContingentKindId)
         if record:
             self._contingentKind = self.getInstance(CContingentKindInfo, forceRef(record.value('contingentKind_id')))
             self._begDate = CDateInfo(forceDate(record.value('begDate')))
             self._endDate = CDateInfo(forceDate(record.value('endDate')))
-            self._reason = forceInt(record.value('reason'))
+            self._reason = forceInt(record.value('contingentKindRemoval_id'))
             if 0 <= self._reason < len(CClientContingentKindInfo.reasons):
                 self._reasonName = CClientContingentKindInfo.reasons[self._reason]
             self._speciality = self.getInstance(CSpecialityInfo, forceRef(record.value('speciality_id')))
@@ -5843,7 +6055,11 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
     def getActionIdxLast(db, eventId, actionTypeClass):
         tableAction = db.table('Action')
         tableActionType = db.table('ActionType')
-        recordAction = db.getRecordEx(tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id'])), 'MAX(Action.idx) AS idxLast', [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0), tableActionType['deleted'].eq(0), tableActionType['class'].eq(actionTypeClass)])
+        recordAction = db.getRecordEx(
+            tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id'])), 
+            'MAX(Action.idx) AS idxLast', 
+            [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0), tableActionType['deleted'].eq(0), 
+             tableActionType['class'].eq(actionTypeClass)])
         return forceInt(recordAction.value('idxLast')) if recordAction else -1
 
     def saveNewAction(db, eventId, actionTypeId, action, idxLastDict):
@@ -5869,6 +6085,7 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
     newActionIdList = []
     currentRow = currentTable.currentRow()
     if eventId and currentWidget >= 0:
+        actionTypes = []
         isCheckAddOutsideActions = False
         isCloseEventByAction = False
         formClass = getEventFormClass(eventId)
@@ -5881,6 +6098,7 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
             dialog.load(eventId)
             record = db.getRecordEx(tableEvent, '*', [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
             dialog.setRecord(record)
+            clientId = forceRef(record.value('client_id')) if record else None
             mesId = forceRef(record.value('MES_id')) if record else None
             mesSpecificationId = forceRef(record.value('mesSpecification_id')) if record else None
             dialog.tabMes.cmbMes.setValue(toVariant(mesId))
@@ -5894,8 +6112,29 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
             dialog.tabWidget.setCurrentWidget(tabWidgetList[currentWidget])
             actionTypes, actionTypeClasses, hasTblActions, widget = getNewActionTypes(dialog)
             updateTabList = []
+            notAddedActions = []
             isEventCSGRequired = getEventCSGRequired(dialog.eventTypeId)
             actionsTabsList = dialog.getActionsTabsList()
+            from Events.ActionCreateDialog import CActionCreateDialog
+            showEditorForEveryAction = True
+            
+            for actionTypeId, action, csgRecord in actionTypes:
+                res = True
+                actionType = CActionTypeCache.getById(actionTypeId)
+                if u'moving' in actionType.flatCode.lower():
+                    for record in dialog.modelActionsSummary._items:
+                        if action:
+                            actionTypeItem = CActionTypeCache.getById(forceString(record.value('actionType_id')))
+                            if actionTypeItem and (u'received' in actionTypeItem.flatCode.lower()):
+                                if not forceDate(record.value('endDate')):
+                                    res = actionType.checkReceivedMovingLeaved(u'Действие "Движение" не может появится при наличии не законченного действия "Поступление"')
+                                    break
+                                break
+                    else:
+                        res = actionType.checkReceivedMovingLeaved(u'Действие "Движение" не должно применяться пока нет действия "Поступление"')
+                if not res:
+                    actionTypes.remove((actionTypeId, action, csgRecord))
+            
             relatedItems = {}
             for actionTypeId, action, csgRecord in actionTypes:
                 relatedActionTypes = CActionTypeCache.getById(actionTypeId).getRelatedActionTypes()
@@ -5908,40 +6147,57 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
                         relatedItems[action].append((actionType, item, None))
             for items in relatedItems.values():
                 actionTypes.extend(items)
-            if len(actionTypeClasses) > 1:
-                if hasTblActions:
-                    model = dialog.tblActions.model()
-                    for actionTypeId, action, csgRecord in actionTypes:
-                        class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
-                        actionsTab = actionsTabsList[class_]
-                        if actionsTab not in updateTabList:
-                            updateTabList.append(actionsTab)
-                        index = model.index(model.rowCount()-1, 0)
-                        model.setData(index, toVariant(actionTypeId), presetAction=action)
-                        if isEventCSGRequired:
-                            actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
-                    model.emitAllChanged()
-                else:
-                    for actionTypeId, action, csgRecord in actionTypes:
-                        class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
-                        actionsTab = actionsTabsList[class_]
-                        if actionsTab not in updateTabList:
-                            updateTabList.append(actionsTab)
-                        model = actionsTab.tblAPActions.model()
-                        model.addRow(actionTypeId, presetAction=action)
-                        if isEventCSGRequired:
-                            actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
-            else:
+            if showEditorForEveryAction:
+                model = None
                 for actionTypeId, action, csgRecord in actionTypes:
-                    class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
-                    actionsTab = actionsTabsList[class_]
-                    if actionsTab not in updateTabList:
-                        updateTabList.append(actionsTab)
-                    model = actionsTab.tblAPActions.model()
-                    index = model.index(model.rowCount()-1, 0)
-                    model.setData(index, toVariant(actionTypeId), presetAction=action)
-                    if isEventCSGRequired:
-                        actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                    createDialog = None
+                    try:
+                        createDialog = CActionCreateDialog(dialog)
+                        createDialog.load(action.getRecord(), action, clientId)
+                        if createDialog.exec_():
+                            if len(actionTypeClasses) > 1:
+                                if hasTblActions:
+                                    model = dialog.tblActions.model()
+                                    for actionTypeId, action, csgRecord in actionTypes:
+                                        class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                        actionsTab = actionsTabsList[class_]
+                                        if actionsTab not in updateTabList:
+                                            updateTabList.append(actionsTab)
+                                        index = model.index(model.rowCount()-1, 0)
+                                        model.setData(index, toVariant(actionTypeId), presetAction=action)
+                                        if isEventCSGRequired:
+                                            actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                                    model.emitAllChanged()
+                                else:
+                                    for actionTypeId, action, csgRecord in actionTypes:
+                                        class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                        actionsTab = actionsTabsList[class_]
+                                        if actionsTab not in updateTabList:
+                                            updateTabList.append(actionsTab)
+                                        model = actionsTab.tblAPActions.model()
+                                        model.addRow(actionTypeId, presetAction=action)
+                                        if isEventCSGRequired:
+                                            actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                            else:
+                                for actionTypeId, action, csgRecord in actionTypes:
+                                    class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                    actionsTab = actionsTabsList[class_]
+                                    if actionsTab not in updateTabList:
+                                        updateTabList.append(actionsTab)
+                                    model = actionsTab.tblAPActions.model()
+                                    index = model.index(model.rowCount()-1, 0)
+                                    model.setData(index, toVariant(actionTypeId), presetAction=action)
+                                    if isEventCSGRequired:
+                                        actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                        else:
+                            notAddedActions.append((actionTypeId, action, csgRecord))
+                    finally:
+                        createDialog.deleteLater()
+                if model:
+                    model.emitAllChanged()
+            
+            for item in notAddedActions:
+                actionTypes.remove(item)
             for actionsTab in updateTabList:
                 actionsTab.updateActionEditor()
                 actionsTab.onActionCurrentChanged()

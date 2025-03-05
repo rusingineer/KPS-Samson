@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DialogOdli</class>
+ <widget class="QWidget" name="DialogOdli">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1090</width>
+    <height>852</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Обмен данными лабораторных исследований</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>Фильтр</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_4">
+      <item row="0" column="0">
+       <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0,0">
+        <item row="0" column="2">
+         <widget class="QLabel" name="lblEndDate">
+          <property name="text">
+           <string>по</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="CDateEdit" name="cmbDate"/>
+        </item>
+        <item row="0" column="3">
+         <widget class="CDateEdit" name="cmbEndDate"/>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblBegDate">
+          <property name="text">
+           <string>Дата создания направления с</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblStatus">
+          <property name="text">
+           <string>Статус </string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="cmbStatus">
+          <item>
+           <property name="text">
+            <string/>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Не выгружен в ЛИС</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Заказ успешно выгружен в ЛИС</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Результат загружен из ЛИС</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Исследование отменено</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="10" column="0">
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="2">
+         <widget class="QPushButton" name="btnCancel_2">
+          <property name="text">
+           <string>Сбросить</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QPushButton" name="btnAply">
+          <property name="text">
+           <string>Применить </string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout"/>
+      </item>
+      <item row="3" column="0">
+       <layout class="QGridLayout" name="gridLayout_6">
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblClient">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Пациент</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="Client"/>
+        </item>
+       </layout>
+      </item>
+      <item row="6" column="0">
+       <layout class="QGridLayout" name="gridLayout_7">
+        <item row="0" column="0">
+         <widget class="QLabel" name="lblNumber">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Номер направления</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="Number"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="CTableView" name="tblActionODLI">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="lblRecordsCount">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="gridLayout_5">
+     <property name="horizontalSpacing">
+      <number>9</number>
+     </property>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="btnOk">
+       <property name="text">
+        <string>Отправить и получить результаты</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="btnClose">
+       <property name="text">
+        <string>Отменить </string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QComboBox</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

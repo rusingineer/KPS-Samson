@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,12 +15,13 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QEvent, QVariant, SIGNAL
 
+from library.Utils           import trim
+from library.Utils           import forceRef, forceDate
+
 from Orgs.OrgComboBox        import COrgComboBox
 from Orgs.Orgs               import selectOrganisation
 from Orgs.Utils              import getOrganisationInfisAndShortName,  COrgInfo
-from library.Utils           import forceRef, forceDate, trim
 
-from library.Utils           import forceRef, forceDate
 
 from ActionPropertyValueType import CActionPropertyValueType
 
@@ -193,6 +194,8 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
         isMed = None
         isDirection = None
         isFilterName = None
+        isSMP = None
+        isSanatorium = None
         netCodes = []
         infisCodes = []
         for word in domain.split(','):
@@ -215,6 +218,10 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
                         isMed = True
                     elif vallower in (u'напр', u'направитель'):
                         isDirection = True
+                    elif vallower == u'смп':
+                        isSMP = True
+                    elif vallower == u'санаторий':
+                        isSanatorium = True
                     else:
                         raise ValueError, self.badValue % locals()
                 elif keylower == u'сеть':
@@ -243,14 +250,18 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
         if isInsurer:
             cond.append('isInsurer')
         if isHospital:
-            cond.append('isMedical=2')
+            cond.append('isMedical= 2 ')
         if isMed:
-            cond.append('isMedical!=0')
+            cond.append('isMedical != 0')
+        if isSMP:
+            cond.append('isMedical = 4')
+        if isSanatorium:
+            cond.append('isMedical = 5')
         if isFilterName:
             cond.append(table['fullName'].contain(isFilterName))
         if netCodes:
             tableNet = db.table('rbNet')
-            contNet  = [ tableNet['code'].inlist(netCodes), tableNet['name'].inlist(netCodes)]
+            contNet = [tableNet['code'].inlist(netCodes), tableNet['name'].inlist(netCodes)]
             netIdList = db.getIdList(tableNet, 'id', db.joinOr(contNet))
             cond.append(table['net_id'].inlist(netIdList))
         if infisCodes:
@@ -272,4 +283,3 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
 
     def toInfo(self, context, v):
         return context.getInstance(COrgInfo, forceRef(v))
-

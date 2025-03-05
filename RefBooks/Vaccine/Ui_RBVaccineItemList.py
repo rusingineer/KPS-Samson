@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/RefBooks/RBVaccineItemList.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\RefBooks\Vaccine\RBVaccineItemList.ui'
 #
-# Created by: PyQt4 UI code generator 4.12.1
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -25,16 +25,28 @@ except AttributeError:
 class Ui_RBVaccineItemList(object):
     def setupUi(self, RBVaccineItemList):
         RBVaccineItemList.setObjectName(_fromUtf8("RBVaccineItemList"))
-        RBVaccineItemList.resize(554, 449)
-        self.gridLayout = QtGui.QGridLayout(RBVaccineItemList)
-        self.gridLayout.setMargin(4)
-        self.gridLayout.setSpacing(4)
-        self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        self.buttonBox = QtGui.QDialogButtonBox(RBVaccineItemList)
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close)
-        self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridLayout.addWidget(self.buttonBox, 2, 2, 1, 1)
+        RBVaccineItemList.resize(556, 499)
+        self.verticalLayout_5 = QtGui.QVBoxLayout(RBVaccineItemList)
+        self.verticalLayout_5.setObjectName(_fromUtf8("verticalLayout_5"))
+        self.horizontalLayout = QtGui.QHBoxLayout()
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem)
+        self.label_2 = QtGui.QLabel(RBVaccineItemList)
+        self.label_2.setObjectName(_fromUtf8("label_2"))
+        self.horizontalLayout.addWidget(self.label_2)
+        self.edtCode = QtGui.QLineEdit(RBVaccineItemList)
+        self.edtCode.setObjectName(_fromUtf8("edtCode"))
+        self.horizontalLayout.addWidget(self.edtCode)
+        self.label_3 = QtGui.QLabel(RBVaccineItemList)
+        self.label_3.setObjectName(_fromUtf8("label_3"))
+        self.horizontalLayout.addWidget(self.label_3)
+        self.edtName = QtGui.QLineEdit(RBVaccineItemList)
+        self.edtName.setObjectName(_fromUtf8("edtName"))
+        self.horizontalLayout.addWidget(self.edtName)
+        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout.addItem(spacerItem1)
+        self.verticalLayout_5.addLayout(self.horizontalLayout)
         self.splitter = QtGui.QSplitter(RBVaccineItemList)
         self.splitter.setOrientation(QtCore.Qt.Vertical)
         self.splitter.setObjectName(_fromUtf8("splitter"))
@@ -74,10 +86,18 @@ class Ui_RBVaccineItemList(object):
         self.tblVaccineSchemaTransitions = CTableView(self.pnlVaccineSchemaTransitions)
         self.tblVaccineSchemaTransitions.setObjectName(_fromUtf8("tblVaccineSchemaTransitions"))
         self.verticalLayout_4.addWidget(self.tblVaccineSchemaTransitions)
-        self.gridLayout.addWidget(self.splitter, 0, 0, 2, 3)
+        self.verticalLayout_5.addWidget(self.splitter)
+        self.horizontalLayout_2 = QtGui.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.label = QtGui.QLabel(RBVaccineItemList)
         self.label.setObjectName(_fromUtf8("label"))
-        self.gridLayout.addWidget(self.label, 2, 1, 1, 1)
+        self.horizontalLayout_2.addWidget(self.label)
+        self.buttonBox = QtGui.QDialogButtonBox(RBVaccineItemList)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close)
+        self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
+        self.horizontalLayout_2.addWidget(self.buttonBox)
+        self.verticalLayout_5.addLayout(self.horizontalLayout_2)
 
         self.retranslateUi(RBVaccineItemList)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), RBVaccineItemList.accept)
@@ -90,16 +110,8 @@ class Ui_RBVaccineItemList(object):
 
     def retranslateUi(self, RBVaccineItemList):
         RBVaccineItemList.setWindowTitle(_translate("RBVaccineItemList", "Dialog", None))
+        self.label_2.setText(_translate("RBVaccineItemList", "код содержит", None))
+        self.label_3.setText(_translate("RBVaccineItemList", "название содержит", None))
         self.label.setText(_translate("RBVaccineItemList", "Всего", None))
 
 from library.TableView import CTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    RBVaccineItemList = QtGui.QDialog()
-    ui = Ui_RBVaccineItemList()
-    ui.setupUi(RBVaccineItemList)
-    RBVaccineItemList.show()
-    sys.exit(app.exec_())
-

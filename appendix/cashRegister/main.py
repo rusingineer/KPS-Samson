@@ -3,7 +3,7 @@
 
 #############################################################################
 ##
-## Copyright (C) 2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,7 +21,7 @@ from  optparse import OptionParser
 from PyQt4 import QtGui
 from PyQt4.QtCore import QTranslator
 
-import library.patches
+import library.patches # noqa
 
 from app.App        import CApp
 from app.MainWindow import CMainWindow

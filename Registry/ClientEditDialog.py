@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,9 +11,12 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+import base64
 import datetime
+import json
 import urlparse
+import uuid
+
 
 import requests
 from PyQt4 import QtGui, QtSql
@@ -32,14 +35,18 @@ from PyQt4.QtCore                           import (
 
 from Events.Utils import checkDiagnosis
 from Exchange.ExchangeScanPromobot import scanning
+from Orgs.OrgStructComboBoxes import COrgStructureTreePurpose
+from library.Identification import getIdentification
 from library.MKBExSubclassComboBox import CMKBExSubclassCol
+from library.MSCAPI import MSCApi
 from library.RBTreeComboBox import CRBTreeInDocTableCol
 from library.crbcombobox                      import CRBModelDataCache, CRBComboBox
-from library.database                         import CTableRecordCache
+from library.database import CTableRecordCache, decorateString
 from library.DbComboBox                       import CDbModel
 from library.InDocTable import (CInDocTableModel, CDateInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol,
                                 CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol,
-                                CRecordListModel, )
+                                CRecordListModel, CBoolInDocTableCol, CSelectStrInDocTableCol,
+                                CMKBListInDocTableModel)
 from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
 from library.interchange                      import setComboBoxValue, setLineEditValue, setSpinBoxValue, setTextEditValue
 from library.ItemsListDialog                  import CItemEditorBaseDialog
@@ -71,7 +78,7 @@ from Orgs.OrgStructureCol                     import COrgStructureInDocTableCol
 import Exchange.AttachService as AttachService
 
 from Orgs.Utils import advisePolicyType, findOrgStructuresByHouseAndFlat, getOKVEDName, getOrganisationInfo, \
-    getOrganisationInfisAndShortName, getOrgStructureDescendants
+    getOrganisationInfisAndShortName, getOrgStructureDescendants, getOrgStructureIdentification
 from Quoting.QuotaTypeComboBox                import CQuotaTypeComboBox
 from Registry.ClientRelationComboBox          import CClientRelationComboBox
 from Registry.HurtModels                      import CWorkHurtFactorsModel, CWorkHurtsModel
@@ -98,12 +105,13 @@ from Users.Rights import (
     urRegEditClientVisibleTabEpidemic, urRegEditClientAttachEndDateOwnAreaOnly,
     urRegReadClientVisibleContingentKindOwnAreaOnly, urRegCreateClientContingentKindOwnAreaOnly,
     urRegEditClientContingentKindOpenOwnAreaOnly, urRegEditClientContingentKindClosedOwnAreaOnly,
-    urRegCreateClientAttachOwnAreaOnly, )
+    urRegCreateClientAttachOwnAreaOnly, urRegEditClientHospitalization,)
 from RefBooks.DocumentType.Descr            import getDocumentTypeDescr
 from RefBooks.ActionType.List               import CActionPropertyTemplateCol
 from RefBooks.NomenclatureActiveSubstance.ActiveSubstanceComboBox import CActiveSubstanceComboBox
+from RefBooks.ObservationSubgroup.ObservationSubgroupComboBox import CObservationSubgroupInDocTableCol
 from Registry.Ui_ClientEditDialog             import Ui_Dialog
-
+from datetime import date, timedelta
 
 class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
     prevAddress = None
@@ -157,6 +165,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.addModels('ForcedTreatment', CClientForcedTreatmentModel(self))
         self.addModels('Suicide', CClientSuicideModel(self))
         self.addModels('ContingentKind', CClientContingentKindModel(self))
+        self.addModels('Hospitalization', CClientHospitalizationModel(self))
 
 # ui
         self.setupUi(self)
@@ -209,35 +218,37 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.tabConsent.setEnabled(QtGui.qApp.userHasRight(urEnableTabConsent))  # Редактирование Согласия
         self.tabMonitoring.setEnabled(QtGui.qApp.userHasRight(urEnableTabClientMonitoring))  # Редактирование Мониторинг
         self.tabEpidCase.setEnabled(QtGui.qApp.userHasRight(urEnableTabClientEpidemic))  # Редактирование ЭпидНаблюдение
+        self.tabHospitalization.setEnabled(QtGui.qApp.userHasRight(urRegEditClientHospitalization))  # имеет доступ к вкладке "Сведения о госпитализациях"
 
-        self.tabIndex = 1
-        self.userTabWidgetRights(urRegEditClientVisibleTabSocStatus)  # Видит вкладку Соц.статус
-        self.userTabWidgetRights(urRegEditClientVisibleTabAttach)  # Видит вкладку Прикрепление
-        self.userTabWidgetRights(urRegEditClientVisibleTabWork)  # Видит вкладку Занятость
-        self.userTabWidgetRights(urRegEditClientVisibleTabChangeJournalInfo)  # Видит вкладку Журнал изменений
-        self.userTabWidgetRights(urRegEditClientVisibleTabFeature)  # Видит вкладку Особенности
-        self.userTabWidgetRights(urRegEditClientVisibleTabResearch)  # Видит вкладку Обследования
-        self.userTabWidgetRights(urRegEditClientVisibleTabDangerous)  # Видит вкладку Общ. опасность
+        self.userTabWidgetRights(self.tabSocStatus, urRegEditClientVisibleTabSocStatus)  # Видит вкладку Соц.статус
+        self.userTabWidgetRights(self.tabAttach, urRegEditClientVisibleTabAttach)  # Видит вкладку Прикрепление
+        self.userTabWidgetRights(self.tabWork, urRegEditClientVisibleTabWork)  # Видит вкладку Занятость
+        self.userTabWidgetRights(self.tabChangeJournal, urRegEditClientVisibleTabChangeJournalInfo)  # Видит вкладку Журнал изменений
+        self.userTabWidgetRights(self.tabFeature, urRegEditClientVisibleTabFeature)  # Видит вкладку Особенности
+        self.userTabWidgetRights(self.tabResearch, urRegEditClientVisibleTabResearch)  # Видит вкладку Обследования
+        self.userTabWidgetRights(self.tabDangerous, urRegEditClientVisibleTabDangerous)  # Видит вкладку Общ. опасность
+
+        # Видит вкладку Контингент
         if QtGui.qApp.userHasRight(urRegEditClientVisibleTabContingentKind):
-            self.userTabWidgetRights(urRegEditClientVisibleTabContingentKind)  # Видит вкладку Контингент
+            self.userTabWidgetRights(self.tabContingentKind, urRegEditClientVisibleTabContingentKind)
         elif QtGui.qApp.userHasRight(urRegReadClientVisibleContingentKindOwnAreaOnly) and (self.rightOwnAreaOnly and self.contingentVisible):
-            self.userTabWidgetRights(urRegReadClientVisibleContingentKindOwnAreaOnly)
+            self.userTabWidgetRights(self.tabContingentKind, urRegReadClientVisibleContingentKindOwnAreaOnly)
         else:
-            self.tabWidget.removeTab(self.tabIndex)
-        self.userTabWidgetRights(urRegEditClientVisibleTabIdentification)  # Видит вкладку Идентификаторы
-        self.userTabWidgetRights(urRegEditClientVisibleTabRelations)  # Видит вкладку Связи
-        self.userTabWidgetRights(urRegEditClientVisibleTabContacts)  # Видит вкладку Прочее
-        self.userTabWidgetRights(urRegEditClientVisibleTabQuoting)  # Видит вкладку Квоты
-        self.userTabWidgetRights(urRegEditClientVisibleTabDeposit)  # Видит вкладку Депозитная карта
-        self.userTabWidgetRights(urRegEditClientVisibleTabConsent)  # Видит вкладку Согласия
-        self.userTabWidgetRights(urRegEditClientVisibleTabMonitoring)  # Видит вкладку Мониторинг
-        self.userTabWidgetRights(urRegEditClientVisibleTabEpidemic)  # Видит вкладку ЭпидНаблюдение
+            self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabContingentKind))
 
-        self.tabHistoryIndex = 0
-        self.userTabHistoryWidgetRights(urRegEditClientVisibleTabDocs)
-        self.userTabHistoryWidgetRights(urRegEditClientVisiblePolicy)
-        self.userTabHistoryWidgetRights(urRegEditClientVisibleAddress)
-        self.userTabHistoryWidgetRights(urRegEditClientVisibleHistory)
+        self.userTabWidgetRights(self.tabIdentification, urRegEditClientVisibleTabIdentification)  # Видит вкладку Идентификаторы
+        self.userTabWidgetRights(self.tabRelations, urRegEditClientVisibleTabRelations)  # Видит вкладку Связи
+        self.userTabWidgetRights(self.tabContacts, urRegEditClientVisibleTabContacts)  # Видит вкладку Прочее
+        self.userTabWidgetRights(self.tabQuoting, urRegEditClientVisibleTabQuoting)  # Видит вкладку Квоты
+        self.userTabWidgetRights(self.tabDeposit, urRegEditClientVisibleTabDeposit)  # Видит вкладку Депозитная карта
+        self.userTabWidgetRights(self.tabConsent, urRegEditClientVisibleTabConsent)  # Видит вкладку Согласия
+        self.userTabWidgetRights(self.tabMonitoring, urRegEditClientVisibleTabMonitoring)  # Видит вкладку Мониторинг
+        self.userTabWidgetRights(self.tabEpidCase, urRegEditClientVisibleTabEpidemic)  # Видит вкладку ЭпидНаблюдение
+
+        self.userTabHistoryWidgetRights(self.tabDocsIdentification, urRegEditClientVisibleTabDocs)
+        self.userTabHistoryWidgetRights(self.tabDocsPolicy, urRegEditClientVisiblePolicy)
+        self.userTabHistoryWidgetRights(self.tabAddresses, urRegEditClientVisibleAddress)
+        self.userTabHistoryWidgetRights(self.tabPersonalInfo, urRegEditClientVisibleHistory)
 
 # tables to rb and combo-boxes
         self.cmbDocType.setTable('rbDocumentType', True, 'group_id IN (SELECT id FROM rbDocumentTypeGroup WHERE code=\'1\')')
@@ -264,7 +275,6 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.setModels(self.tblWorkHurtFactors, self.modelWorkHurtFactors, self.selectionModelWorkHurtFactors)
         self.setModels(self.tblIdentificationDocs, self.modelIdentificationDocs, self.selectionModelIdentificationDocs)
         self.setModels(self.tblPolicies, self.modelPolicies, self.selectionModelPolicies)
-        self.setModels(self.tblPersonalInfo, self.modelPersonalInfo, self.selectionModelPersonalInfo)
         self.setModels(self.tblStatusObservation, self.modelStatusObservation, self.selectionModelStatusObservation)
         self.setModels(self.tblPersonalInfo, self.modelPersonalInfo, self.selectionModelPersonalInfo)
         self.setModels(self.tblContacts, self.modelContacts, self.selectionModelContacts)
@@ -287,6 +297,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.setModels(self.tblForcedTreatment, self.modelForcedTreatment, self.selectionModelForcedTreatment)
         self.setModels(self.tblSuicide, self.modelSuicide, self.selectionModelSuicide)
         self.setModels(self.tblContingentKind, self.modelContingentKind, self.selectionModelContingentKind)
+        self.setModels(self.tblHospitalization, self.modelHospitalization, self.selectionModelHospitalization)
 
 # popup menus
         self.tblSocStatuses.addPopupDelRow()
@@ -311,7 +322,6 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.tblIdentificationDocs.addPopupRecordProperies()
         self.tblPolicies.addPopupRecordProperies()
        # self.tblSocStatuses.addPopupRecordProperies()
-        self.tblPersonalInfo.addPopupRecordProperies()
         self.tblStatusObservation.addPopupRecordProperies()
         self.tblPersonalInfo.addPopupRecordProperies()
         self.tblContacts.addPopupDelRow()
@@ -328,11 +338,13 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.tblRiskFactors.addPopupRecordProperies()
         self.tblClientIdentification.addPopupDelRow()
         self.tblClientIdentification.addPopupRecordProperies()
+        self.tblClientIdentification.setDelRowsChecker(self.modelClientIdentification.delRowsChecker)
         self.tblClientQuoting.addPopupSelectAllRow()
         self.tblClientQuoting.addPopupClearSelectionRow()
         self.actDelClientQuotingRows = QtGui.QAction(u'Удалить выделенное', self.tblClientQuoting)
         self.tblClientQuoting.popupMenu().addAction(self.actDelClientQuotingRows)
         self.tblClientConsents.addPopupDelRow()
+        self.tblHospitalization.addPopupDelRow()
         self.connect(self.actDelClientQuotingRows, SIGNAL('triggered()'), self.deleteClientQuotingRows)
 #        self.tblClientQuoting.addPopupDelRow()
         self.tblClientQuoting.addPopupRecordProperies()
@@ -344,7 +356,14 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.connect(self.actDelMessage, SIGNAL('triggered()'), self.deleteQuotaDiscussionMessage)
         self.connect(self.tblAddressesReg.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setAddressOrderByColumn)
         self.connect(self.tblAddressesLoc.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setAddressOrderByColumn)
-
+        if QtGui.qApp.gis_oms_enable():
+            self.actGetAttachMOData = QtGui.QAction(u'Прикрепление в ФЕРЗЛ', self.tblAttaches)
+            self.connect(self.actGetAttachMOData, SIGNAL('triggered()'), self.getAttachMOData)
+            self.tblAttaches.addPopupAction(self.actGetAttachMOData)
+            self.connect(self.tblAttaches._popupMenu, SIGNAL('aboutToShow()'), self.on_tblAttachesPopupMenuAboutToShow)
+            self.btn_FERZL.setEnabled(True)
+            self.btn_FERZL.setVisible(True)
+            self.hide_show_btn_findNR()
         self.tblClientQuotingDiscussion.addPopupAction(self.actNewMessage)
         self.tblClientQuotingDiscussion.addPopupAction(self.actEditMessage)
         self.tblClientQuotingDiscussion.addPopupAction(self.actDelMessage)
@@ -369,6 +388,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.edtBirthDate.setDate(QDate())
         self.edtAddressDate.setDate(QDate())
         self.edtBegDate.setDate(QDate().currentDate())
+        self.edtEndDate.setDate(QDate())
 # etc
         if not QtGui.qApp.userHasRight(urRegEditClientDeathDate):
             self.chkDeathDate.setEnabled(False)
@@ -415,6 +435,14 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.clientLocHousesList = CClientHousesList(parent)
         # Preferences
         self.widgetsVisible()
+        
+    def on_tblAttachesPopupMenuAboutToShow(self):
+        model = self.tblAttaches.model()
+        isReadOnly = model.getReadOnly()
+        rowCount = model.realRowCount() if hasattr(model, 'realRowCount') else model.rowCount()
+        row = self.tblAttaches.currentIndex().row()
+        self.actGetAttachMOData.setEnabled(0 <= row < rowCount and not isReadOnly)
+        self.tblAttaches.on_popupMenu_aboutToShow()
 
 
     def widgetsVisible(self):
@@ -487,6 +515,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabMonitoring))
         if not QtGui.qApp.showingClientCardTabEpidCase():
             self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabEpidCase))
+        if not QtGui.qApp.gis_oms_enable():
+            self.btn_FERZL.setEnabled(False)
+            self.btn_FERZL.setVisible(False)
+            self.btn_findNR.setEnabled(False)
+            self.btn_findNR.setVisible(False)
 
 
     def addPopupDelRowHistory(self):
@@ -656,18 +689,14 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         return True
 
     # Проверка на доступ к отображению вкладок
-    def userTabWidgetRights(self, right):
+    def userTabWidgetRights(self, tab, right):
         if not QtGui.qApp.userHasRight(right):
-            self.tabWidget.removeTab(self.tabIndex)
-        else:
-            self.tabIndex += 1
+            self.tabWidget.removeTab(self.tabWidget.indexOf(tab))
 
     # Проверка на доступ к отображению вкладок
-    def userTabHistoryWidgetRights(self, right):
+    def userTabHistoryWidgetRights(self, tab, right):
         if not QtGui.qApp.userHasRight(right):
-            self.tabChangeJournalInfo.removeTab(self.tabHistoryIndex)
-        else:
-            self.tabHistoryIndex += 1
+            self.tabChangeJournalInfo.removeTab(self.tabChangeJournalInfo.indexOf(tab))
 
     #Возвращает последний полис СМК
     def getPolicy(self,policy):
@@ -875,6 +904,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.tblForcedTreatment.setModel(None)
         self.tblSuicide.setModel(None)
         self.tblContingentKind.setModel(None)
+        self.tblHospitalization.setModel(None)
 
         del self.modelSocStatuses
         del self.modelAttaches
@@ -948,6 +978,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 self.modelForcedTreatment.saveItems(id)
                 self.modelSuicide.saveItems(id)
                 self.modelContingentKind.saveItems(id)
+                self.modelHospitalization.saveItems(id)
                 workRecord, work, workRecordChanged = self.getWorkRecord(id)
                 if workRecordChanged and workRecord is not None:
                     isWillInserted = workRecord.isNull('id')
@@ -1088,6 +1119,10 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.edtBegDate.setDate(QDate().currentDate())
         else:
             self.edtBegDate.setDate(forceDate(record.value('begDate')))
+        if not forceDate(record.value('endDate')):
+            self.edtEndDate.setDate(QDate())
+        else:
+            self.edtEndDate.setDate(forceDate(record.value('endDate')))
             
         deathDateTime = forceDateTime(record.value('deathDate'))
         if deathDateTime:
@@ -1178,6 +1213,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.modelForcedTreatment.loadItems(id)
         self.modelSuicide.loadItems(id)
         self.modelContingentKind.loadItems(id)
+        self.modelHospitalization.loadItems(id)
         if self.__regAddress:
             self.modelClientQuoting.setRegCityCode(self.__regAddress['KLADRCode'])
             self.modelClientQuoting.setDistrictCode(
@@ -1216,6 +1252,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
     def on_edtBirthDate_dateChanged(self, date):
         self.clientBirthDate = date
         self.syncPersonalInfo()
+        if self.edtBirthDate.date():
+            self.hide_show_btn_findNR()
 
 
     @pyqtSignature('QDate')
@@ -1338,6 +1376,12 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
 
         self.getFactSumList()
         self.modelDeposit.reset()
+
+    @pyqtSignature('QItemSelection, QItemSelection')
+    def on_selectionModelContingentKind_selectionChanged(self, selected, deselected):
+        if selected.indexes():
+            record = self.modelContingentKind.getRecordByRow(selected.indexes()[0].row())
+            self.modelContingentKind.setRemovalReasonFilter(record)
 
 
     def getFactSumList(self):
@@ -1519,7 +1563,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.edtCompulsoryPolisSerial.setText(serial)
             self.edtCompulsoryPolisNumber.setText(number)
             self.updateCompulsoryPolicyCompanyArea([insurerArea])
-            self.cmbCompulsoryPolisCompany.setValue(insurer)
+            self.cmbCompulsoryPolisCompany.setValue(insurer, isFirst=True)
             self.cmbCompulsoryPolisType.setValue(polisType)
             self.cmbCompulsoryPolisKind.setValue(polisKind)
             self.edtCompulsoryPolisName.setText(name)
@@ -1716,6 +1760,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         record.setValue('deathReason_id', toVariant(self.cmbDeathReason.value() if self.chkDeathDate.isChecked() else None))
         record.setValue('deathPlaceType_id', toVariant(self.cmbDeathPlaceType.value() if self.chkDeathDate.isChecked() else None))
         record.setValue('begDate', toVariant(self.edtBegDate.date()))
+        record.setValue('endDate', toVariant(self.edtEndDate.date()))
         record.setValue('forcedTreatmentBegDate', toVariant(self.edtForcedTreatmentBegDate.date() if self.chkForcedTreatmentBegDate.isChecked() else None))
         return record
 
@@ -1874,7 +1919,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         result = result and self.checkResearch()
         result = result and self.checkDangerous()
         result = result and self.checkContingentKind()
-#        result = result and self.checkDeposit()
+        result = result and self.checkClientContingentKind()
         return result
 
 
@@ -1929,6 +1974,13 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         for row, item in enumerate(self.modelClientConsents.items()):
             if not forceRef(item.value('representerClient_id')):
                 return self.checkInputMessage(u'подписавшего', False, self.tblClientConsents, row, 5)
+        return True
+
+
+    def checkClientContingentKind(self):
+        for row, item in enumerate(self.modelContingentKind.items()):
+            if not forceDate(item.value('begDate')):
+                return self.checkInputMessage(u'дату постановки', False, self.tblContingentKind, row, 3)
         return True
 
 
@@ -2306,12 +2358,12 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         serial = forceStringEx(edtSerial.text())
         number = forceStringEx(edtNumber.text())
         insurerId = cmbPolisCompany.value()
-        polisCompanyIsEmpty = not (insurerId or forceStringEx(edtPolisName.text()))
+        polisCompanyIsEmpty = not (insurerId and insurerId != cmbPolisCompany.invalidValue or not insurerId and forceStringEx(edtPolisName.text()))
         begDate = edtPolisBegDate.date()
         endDate = edtPolisEndDate.date()
 
         if not polisCompanyIsEmpty or serial or number or begDate or endDate:
-            result = not polisCompanyIsEmpty or self.checkInputMessage(u'страховую компанию', False, cmbPolisCompany)
+            result = not polisCompanyIsEmpty or self.checkInputMessage(u'страховую компанию', True if insurerId and insurerId == cmbPolisCompany.invalidValue else False, cmbPolisCompany)
             if isCompulsory:
                 policyKindId = cmbPolisKind.value()
                 policyKindCode = forceString(cmbPolisKind.code())
@@ -2881,11 +2933,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             endDate = forceDate(record.value('endDate'))
             if endDate.isValid() and endDate < begDate:
                 return self.checkValueMessage(u'Дата снятия не может быть меньше даты постановки', False, self.tblContingentKind, row, record.indexOf('endDate'))
-            reason = forceInt(record.value('reason'))
+            reason = forceInt(record.value('contingentKindRemoval_id'))
             if reason > 0 and not endDate.isValid():
                 return self.checkInputMessage(u'дату снятия', False, self.tblContingentKind, row, record.indexOf('endDate'))
             if endDate.isValid() and reason <= 0:
-                return self.checkInputMessage(u'причину снятия', False, self.tblContingentKind, row, record.indexOf('reason'))
+                return self.checkInputMessage(u'причину снятия', False, self.tblContingentKind, row, record.indexOf('contingentKindRemoval_id'))
             if forceBool(record.value('MKB')):
                 mkb = forceString(record.value('MKB'))
                 # specialityId = forceRef(record.value('speciality_id'))
@@ -3101,7 +3153,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             }
             try:
                 return AttachService.clientAttach(client_id, personInfo, attachInfo)
-            except Exception, e:
+            except Exception as e:
                 raise Exception(u'Не удалось прикрепить пациента: %s' % unicode(e))
 
         def clientDeAttach(date, type):
@@ -3701,11 +3753,9 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
 
         insurerId = forceRef(self.cmbCompulsoryPolisCompany.value())
         infisCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', insurerId, 'infisCode'))
-        if infisCode:
-            person['smoCode'] = infisCode
+        person['smoCode'] = infisCode
         OKATO = forceString(QtGui.qApp.db.translate('Organisation', 'id', insurerId, 'OKATO'))
-        if OKATO:
-            person['terrCode'] = OKATO
+        person['terrCode'] = OKATO
         return person
 
     @pyqtSignature('int')
@@ -3965,6 +4015,97 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.searchPolicy()
 
 
+    def getAttachMOData(self):
+        try:
+            from Registry.Ferzl_service import Ferzl_service
+            service = Ferzl_service()
+            serviceUrl = service.url + u'/oms/services'
+            model = self.tblAttaches.model()
+            row = self.tblAttaches.currentIndex().row()
+            recordRow = model.items()[row]
+            itemId = forceRef(recordRow.value('id'))
+            dateAttachB = forceDate(recordRow.value('begDate'))
+            dateAttachE = forceDate(recordRow.value('endDate'))
+            attachMethod = 2 if forceString(QtGui.qApp.db.translate('rbAttachType', 'id', forceRef(recordRow.value('attachType_id')), 'code')) == '2' else 1
+            orgId = forceRef(recordRow.value('LPU_id'))
+            orgStructureId = forceRef(recordRow.value('orgStructure_id'))
+            moId = getIdentification('Organisation', orgId, 'urn:oid:1.2.643.5.1.13.13.11.1461', raiseIfNonFound=False)
+            regKLADRCode = self.cmbRegStreet.code()
+            locKLADRCode = self.cmbLocStreet.code()
+            guid = str(uuid.uuid5(uuid.UUID(bytes='ClientAttach'.ljust(16, '\0')), repr(forceInt(itemId))))
+
+            dataJson = {}
+            dataJson['data'] = {}
+            dataJson['data']['dateApplication'] = str(QDate.currentDate().toString('yyyy-MM-dd'))
+            dataJson['data']['enp'] = ''
+            if self.edtCompulsoryPolisNumber.text():
+                dataJson['data']['enp'] = str(self.edtCompulsoryPolisNumber.text())
+            dataJson['data']['dateAttachB'] = str(dateAttachB.toString('yyyy-MM-dd'))
+            if not dateAttachE.isNull():
+                dataJson['data']['dateAttachE'] = str(dateAttachE.toString('yyyy-MM-dd'))
+            dataJson['data']['attachMethod'] = attachMethod
+            dataJson['data']['areaType'] = 1
+            dataJson['data']['moId'] = moId
+            dataJson['data']['moCode'] = forceString(QtGui.qApp.db.translate('Organisation', 'id', orgId, 'smoCode'))
+            dataJson['data']['moDepId'] = getOrgStructureIdentification(orgStructureId, 'urn:oid:1.2.643.5.1.13.13.99.2.114')
+            dataJson['data']['addr'] = []
+            dataJson['data']['applicationCont'] = []
+            if regKLADRCode:
+                address = {}
+                address['okato'] = getOKATO(self.cmbRegCity.code(), regKLADRCode, self.edtRegHouse.text())[:5]
+                address['oksm'] = 'RUS'
+                query = QtGui.qApp.db.query("SELECT fias.GetObjectGuidByKladr(%s)" % decorateString(regKLADRCode[:15]))
+                address['aoguid'] = ''
+                if query.first():
+                    address['aoguid'] = forceString(query.value(0))
+                address['addressType'] = 1
+                address['validFrom'] = str(self.edtAddressDate.date().toString('yyyy-MM-dd'))
+                dataJson['data']['addr'].append(address)
+            if locKLADRCode:
+                address = {}
+                address['okato'] = getOKATO(self.cmbLocCity.code(), locKLADRCode, self.edtLocHouse.text())[:5]
+                address['oksm'] = 'RUS'
+                query = QtGui.qApp.db.query("SELECT fias.GetObjectGuidByKladr(%s)" % decorateString(locKLADRCode[:15]))
+                address['aoguid'] = ''
+                if query.first():
+                    address['aoguid'] = forceString(query.value(0))
+                address['addressType'] = 2
+                dataJson['data']['addr'].append(address)
+            for row, record in enumerate(self.modelContacts.items()):
+                contactTypeId = forceRef(record.value('contactType_id'))
+                if contactTypeId is not None:
+                    contactTypeCode = forceString(QtGui.qApp.db.translate('rbContactType', 'id', contactTypeId, 'code'))
+                    contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contactTypeCode)
+                    if contactType:
+                        contactText = forceString(record.value('contact'))
+                        description = forceString(record.value('notes'))
+                        dataJson['data']['applicationCont'].append({'contactType': contactType, 'contactText': contactText, 'description':description})
+            
+            content = requests.post(serviceUrl + '/AttachMoData', json=json.loads(json.dumps(dataJson)))
+            if content.status_code != 200:
+                message = u'Ошибка сервисов. Код ошибки: '+ forceString(content.status_code) + u' - ' + forceString(content.reason)+u'. AttachMoData'
+                msgbx = service.showMessageBox(message, isError=True)
+                if msgbx == QtGui.QMessageBox.Cancel:
+                    return
+            if content:
+                api = MSCApi(QtGui.qApp.getCsp())
+                certUser = QtGui.qApp.getUserCert(api)
+                data = content.text.encode('utf-8').replace("<?xml version='1.0' encoding='utf8'?>\n", '')
+                detachedSignatureBytesUser = certUser.createDetachedSignature(data)
+                dictForJson = {
+                                'guid': guid,
+                               'sign': base64.b64encode(detachedSignatureBytesUser),
+                               'certificate': base64.b64encode(detachedSignatureBytesUser),
+                               'data': data}
+                result = service.registerAttachMo(dictForJson)
+                if result.get('result', None):
+                    QtGui.QMessageBox().information(self,u'Прикрепление в ФЕРЗЛ',u'Прикрепление успешно отправлено в ФЕРЗЛ', QtGui.QMessageBox.Ok)
+
+
+        except Exception, e:
+            QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(e), QtGui.QMessageBox.Close)
+
+
     def searchPolicyInFederalService(self, servicesURL):
         servicesURL = urlparse.urljoin(servicesURL, '/api/IdentityPatient/fhir/')
         db = QtGui.qApp.db
@@ -4011,7 +4152,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                         tableIdentityPatient['lastName'].eq(forceString(self.edtLastName.text())),
                         tableIdentityPatient['firstName'].eq(forceString(self.edtFirstName.text())),
                         tableIdentityPatient['patrName'].eq(forceString(self.edtPatrName.text())),
-                        tableIdentityPatient['birthDate'].eq(self.edtBirthDate.date())]
+                        tableIdentityPatient['birthDate'].eq(self.edtBirthDate.date()), u" (errorMessageResponse IS NULL OR errorMessageResponse !='Отсутствуют данные по запросу') "]
                 if messageBox.clickedButton() == btnSearchByDocument:
                     cond.extend([tableIdentityPatient['documentTypeCode'].eq(docTypeRegionalCode),
                                  tableIdentityPatient['serial'].eq(docSeria),
@@ -4075,14 +4216,16 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                         newInsurerName = None
 
                         record = db.getRecordEx(tableOrg, 'id, shortName',
-                                                [tableOrg['deleted'].eq(0), tableOrg['OKATO'].eq(newInsuranceArea),
+                                                [tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1),
+                                                 tableOrg['OKATO'].eq(newInsuranceArea),
                                                  tableOrg['smoCode'].eq(newInsurerCode)], 'id')
                         if record:
                             newInsurerId = forceRef(record.value(0))
                             newInsurerName = forceString(record.value(1))
                         else:
                             record = db.getRecordEx(tableOrg, 'id, shortName',
-                                                    [tableOrg['deleted'].eq(0), tableOrg['OKATO'].eq(newInsuranceArea)],
+                                                    [tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1),
+                                                     tableOrg['OKATO'].eq(newInsuranceArea)],
                                                     'id')
                             if record:
                                 newInsurerId = forceRef(record.value(0))
@@ -4272,6 +4415,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 elif covidSeverity == 4:
                     covidSeverityTitle = u'Степень тяжести перенесенного COVID-19: крайне тяжелое течение'
 
+            socStatusCode = descr.SOC
+            socStatus = u''
+            if socStatusCode:
+                socStatus = forceString(db.translate('rbSocStatusType', 'code', socStatusCode, 'name'))
+
             msgbox = QtGui.QMessageBox()
             msgbox.setIcon(QtGui.QMessageBox.Information)
             msgbox.setWindowFlags(msgbox.windowFlags() | Qt.WindowStaysOnTopHint)
@@ -4286,6 +4434,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 u'вид:   %s\n'\
                 u'действителен с %s по %s\n'\
                 u'%s\n'\
+                u'%s\n'\
                 u'Обновить данные?\n\n%s' % (
                     nameCase(descr.lastName), nameCase(descr.firstName), nameCase(descr.patrName) if descr.patrName else '', [u'---', u'М', u'Ж'][descr.sex], forceString(descr.birthDate),
                     descr.snils,
@@ -4297,6 +4446,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     forceString(descr.begDate),
                     forceString(descr.endDate),
                     covidSeverityTitle,
+                    socStatus,
                     ddInfoStr))
 
             btnUpdate = QtGui.QPushButton()
@@ -4349,6 +4499,32 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     newRecord.setValue('checkDate', toVariant(QDateTime().currentDateTime()))
                     self.modelPolicies.insertRecord(row, newRecord)
                     self.setPolicyRecord(newRecord, True)
+                    socStatusExist = False
+                    socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+                    if socStatusCode:
+                        socStatusCodeId = forceInt(db.translate('rbSocStatusType', 'code', socStatusCode, 'id'))
+                    else:
+                        socStatusCodeId = None
+                    socStatusTypeIds = db.getIdList(table='rbSocStatusType', where="code in (035, 065)")
+                    for modelRow, item in enumerate(self.modelSocStatuses.items()):
+                        typeId = forceInt(item.value('socStatusType_id'))
+                        classId = forceInt(item.value('socStatusClass_id'))
+                        if (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId != typeId:
+                            socStatusExist = True
+                            if socStatusCodeId:
+                                item.setValue('socStatusClass_id', QVariant(socStatusClassId))
+                                item.setValue('socStatusType_id', QVariant(socStatusCodeId))
+                            else:
+                                self.modelSocStatuses.removeRow(modelRow)
+                            item.changed = True
+                        elif (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId == typeId:
+                            socStatusExist = True
+                    if not socStatusExist and socStatusCodeId and socStatusClassId:
+                        record = self.modelSocStatuses.getEmptyRecord()
+                        record.setValue('socStatusClass_id', QVariant(socStatusClassId))
+                        record.setValue('socStatusType_id', QVariant(socStatusCodeId))
+                        record.changed = True
+                        self.modelSocStatuses.addRecord(record)
                 elif msgbox.clickedButton() == btnUpdate:
                     self.cmbCompulsoryPolisCompany.setValue(hicId)
                     if descr.policySerial:
@@ -4366,6 +4542,32 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     self.syncPolicy(True)
                     row = self.modelPolicies.getCurrentCompulsoryPolicyRow(descr.policySerial, descr.policyNumber)
                     self.modelPolicies.setValue(row, 'checkDate', toVariant(QDateTime().currentDateTime()))
+                    socStatusExist = False
+                    socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+                    if socStatusCode:
+                        socStatusCodeId = forceInt(db.translate('rbSocStatusType', 'code', socStatusCode, 'id'))
+                    else:
+                        socStatusCodeId = None
+                    socStatusTypeIds = db.getIdList(table='rbSocStatusType', where="code in (035, 065)")
+                    for modelRow, item in enumerate(self.modelSocStatuses.items()):
+                        typeId = forceInt(item.value('socStatusType_id'))
+                        classId = forceInt(item.value('socStatusClass_id'))
+                        if (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId != typeId:
+                            socStatusExist = True
+                            if socStatusCodeId:
+                                item.setValue('socStatusClass_id', QVariant(socStatusClassId))
+                                item.setValue('socStatusType_id', QVariant(socStatusCodeId))
+                            else:
+                                self.modelSocStatuses.removeRow(modelRow)
+                            item.changed = True
+                        elif (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId == typeId:
+                            socStatusExist = True
+                    if not socStatusExist and socStatusCodeId and socStatusClassId:
+                        record = self.modelSocStatuses.getEmptyRecord()
+                        record.setValue('socStatusClass_id', QVariant(socStatusClassId))
+                        record.setValue('socStatusType_id', QVariant(socStatusCodeId))
+                        record.changed = True
+                        self.modelSocStatuses.addRecord(record)
                 self.syncPolicy(True)
                 return True
         else:
@@ -4741,6 +4943,330 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         return canRemove
 
 
+    @pyqtSignature('')
+    def on_btn_FERZL_clicked(self):
+        from Registry.Ferzl_service import Ferzl_service
+        try:
+            service = Ferzl_service()
+            param_dict = {}
+            if self.edtDocSerialLeft.text() != u'' or self.edtDocSerialRight.text() != u'' or self.edtDocNumber.text() != u"":
+                docTypeId = self.cmbDocType.value()
+                docTypeCode = None
+                if docTypeId:
+                    docTypeCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', docTypeId, 'regionalCode'))
+                param_dict['dudlType'] = docTypeCode
+            if param_dict.get('dudlType', None):
+                if int(param_dict.get('dudlType')) == 14:
+                    if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
+                        param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + ' ' + self.edtDocSerialRight.text())
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
+                    else:
+                        if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
+                            param_dict['dudlSer'] = self.edtDocSerialRight.text()
+                            param_dict['dudlNum'] = self.edtDocNumber.text()
+                        elif self.edtDocSerialLeft.text() and  not(self.edtDocSerialRight.text()):
+                            param_dict['dudlSer'] = self.edtDocSerialLeft.text()
+                            param_dict['dudlNum'] = self.edtDocNumber.text()
+
+                elif int(param_dict.get('dudlType')) == 3:
+                    if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
+                        param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + '-' + self.edtDocSerialRight.text())
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
+
+                    else:
+                        if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
+                            param_dict['dudlSer'] = self.edtDocSerialRight.text()
+                            param_dict['dudlNum'] = self.edtDocNumber.text()
+                        elif self.edtDocSerialLeft.text() and  not(self.edtDocSerialRight.text()):
+                            param_dict['dudlSer'] = self.edtDocSerialLeft.text()
+                            param_dict['dudlNum'] = self.edtDocNumber.text()
+                else:
+                    param_dict['dudlNum'] = self.edtDocNumber.text()
+            # policyKind = self.cmbCompulsoryPolisKind.value()
+            # if policyKind == 2:
+            #     param_dict['pcyType'] = u'С'
+            #     serial = self.edtCompulsoryPolisSerial.text()
+            #     number = self.edtCompulsoryPolisNumber.text()
+            #     if serial:
+            #         param_dict['pcySer'] = serial
+            #     if number:
+            #         param_dict['pcyNum'] = number
+            # elif policyKind == 4:
+            #     param_dict['pcyType'] = u'Э'
+            #     enp = self.edtCompulsoryPolisNumber.text()
+            #     if enp:
+            #         param_dict['enp'] = enp
+            # elif policyKind == 5:
+            #     param_dict['pcyType'] = u'К'
+            # elif policyKind == 3:
+            #     param_dict['pcyType'] = u'П'
+            #     enp = self.edtCompulsoryPolisNumber.text()
+            #     if enp:
+            #         param_dict['enp'] = enp
+            # elif policyKind == 1:
+            #     param_dict['pcyType'] = u'В'
+            enp = self.edtCompulsoryPolisNumber.text()
+            param_dict['enp'] = enp
+            param_dict['dt'] = forceString(date.today().strftime('%Y-%m-%d'))
+            param_dict['show'] = u'ATTACH PERSON OMS_POLICY'
+            external_id = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(self.getClientId())))
+            param_dict['external_id'] = external_id
+            result_service = service.getPersonDataFrom(param_dict)
+            
+            if result_service:
+                if result_service.get('result',None):
+                    # print(result_service)
+                    elements = result_service.get('elements', None)
+                    if elements:
+                        if self.edtLastName.text() == u'' and not self.edtLastName.text():
+                            surname = elements.get('surname', None)
+                            if surname:
+                                self.edtLastName.setText(forceString(surname))
+                        if self.edtFirstName.text() == u'' and not self.edtFirstName.text():
+                            firstname = elements.get('firstName', None)
+                            if firstname:
+                                self.edtFirstName.setText(forceString(firstname))
+                        if self.edtPatrName.text() == u'' and not self.edtPatrName.text():
+                            patr = elements.get('patronymic', None)
+                            if patr:
+                                self.edtPatrName.setText(patr)
+                        if self.edtBirthDate.date().isNull():
+                            birthdate = elements.get('birthDay', None)
+                            if birthdate:
+                                birthdate = datetime.datetime.strptime(birthdate, '%d.%m.%Y')
+                                self.edtBirthDate.setDate(forceDate(birthdate))
+                        gender = elements.get('gender', None)
+                        if gender:
+                            if self.cmbSex.currentIndex() != forceInt(gender):
+                                self.cmbSex.setCurrentIndex(forceInt(gender))
+                        deathDate = elements.get('deathDate', None)
+                        if deathDate:
+                            if self.edtDeathDate.date().isNull():
+                                self.chkDeathDate.setChecked(True)
+                                deathDate = datetime.datetime.strptime(deathDate, "%d.%m.%Y")
+                                self.edtDeathDate.setDate(forceDate(deathDate))
+                        policy = elements.get('policy', None)
+                        if policy and len(policy)>0:
+                            polis = policy[0]
+                            enp = polis.get('policy_enp', None)
+                            pcySer = polis.get('policy_pcySer', None)
+                            pcyNum = polis.get('policy_pcyNum', None)
+                            polisDateB = polis.get('policy_pcyDateB', None)
+                            polisDateE = polis.get('policy_pcyDateE', None)
+                            pcyType = polis.get('policy_pcyType', None)
+                            if enp:
+                                self.edtCompulsoryPolisNumber.setText(enp)
+                            elif pcyNum or pcySer:
+                                if pcyNum:
+                                    self.edtCompulsoryPolisNumber.setText(pcyNum)
+                                if pcySer:
+                                    self.edtCompulsoryPolisSerial.setText(pcySer)
+                            if polisDateB:
+                                polisDateB = datetime.datetime.strptime(polisDateB, "%d.%m.%Y")
+                                self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
+                            if polisDateE:
+                                polisDateE = datetime.datetime.strptime(polisDateE, "%d.%m.%Y")
+                                self.edtCompulsoryPolisEndDate.setDate(forceDate(polisDateE))
+                            if pcyType:
+                                pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "
+                                if pcyType == u'П':
+                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'3')
+                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                    if pcyType_query.next():
+                                        pcyType_id = pcyType_query.record().value('id')
+                                        if pcyType_id:
+                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                                elif pcyType == u'С':
+                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'1')
+                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                    if pcyType_query.next():
+                                        pcyType_id = pcyType_query.record().value('id')
+                                        if pcyType_id:
+                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                                elif pcyType == u'В':
+                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'2')
+                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                    if pcyType_query.next():
+                                        pcyType_id = pcyType_query.record().value('id')
+                                        if pcyType_id:
+                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                                elif pcyType == u'Э':
+                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'4')
+                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                    if pcyType_query.next():
+                                        pcyType_id = pcyType_query.record().value('id')
+                                        if pcyType_id:
+                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                                elif pcyType == u'К':
+                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'5')
+                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                    if pcyType_query.next():
+                                        pcyType_id = pcyType_query.record().value('id')
+                                        if pcyType_id:
+                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                            insurfCode = polis.get('policy_insurfCode', None)
+                            insurfOrgn = polis.get('policy_insurfOgrn', None)
+                            insurfOkato = polis.get('policy_okato', None)
+                            insurfName = polis.get('policy_insurfName', None)
+                            if insurfCode or insurfOrgn:
+                                insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 and 3=3"
+                                if insurfCode:
+                                    insurf_request = insurf_request.replace(u'1=1', u"smoCode = '" + forceString(insurfCode)+ u"'")
+                                if insurfOrgn:
+                                    insurf_request = insurf_request.replace(u'2=2', u"OGRN = '" + forceString(insurfOrgn)+ u"'")
+                                if insurfOkato:
+                                    insurf_request = insurf_request.replace(u'3=3', u"OKATO = '" + forceString(insurfOkato)+ u"'")
+                                insurf_query = QtGui.qApp.db.query(insurf_request)
+                                if insurf_query.next():
+                                    insurf_id = insurf_query.record().value('id')
+                                    if insurf_id:
+                                        self.cmbCompulsoryPolisCompany.setValue(forceInt(insurf_id))
+                                else:
+                                    insurf_string = u""
+                                    if insurfCode:
+                                        insurf_string = insurf_string + forceString(insurfCode)
+                                    if insurf_string != u"":
+                                        if insurfName:
+                                            insurf_string = insurf_string + u' - ' + forceString(insurfName)
+                                    else:
+                                        if insurfName:
+                                            insurf_string = insurf_string + forceString(insurfName)
+                                    self.edtCompulsoryPolisName.setText(insurf_string)
+
+                        oip = elements.get('oip', None)
+                        if oip:
+                            request_identification = u"SELECT id FROM rbAccountingSystem  WHERE code = 'FERZL_patient'"
+                            query_identification = QtGui.qApp.db.query(request_identification)
+                            if query_identification.next():
+                                accountingSystemId = query_identification.record().value('id')
+                                exists = False
+                                if accountingSystemId:
+                                    for row, item in enumerate(self.modelClientIdentification.items()):
+                                        if forceInt(item.value('accountingSystem_id')) == forceInt(accountingSystemId):
+                                            exists = True
+                                            item.setValue('identifier', toVariant(forceString(oip)))
+                                            item.setValue('client_id', toVariant(forceRef(self.getClientId())))
+                                            self.modelClientIdentification.emitRowChanged(row)
+                                            break
+                                    if not exists:
+                                        record = self.modelClientIdentification.getEmptyRecord()
+                                        record.setValue('accountingSystem_id', toVariant(forceRef(accountingSystemId)))
+                                        record.setValue('identifier', toVariant(forceString(oip)))
+                                        record.setValue('client_id', toVariant(forceRef(self.getClientId())))
+                                        self.modelClientIdentification.items().append(record)
+
+
+
+        except Exception as e:
+            print(str(e))
+
+    def hide_show_btn_findNR(self):
+        if QtGui.qApp.gis_oms_enable():
+            date_birth = self.edtBirthDate.date()
+            current_date = date.today()
+            # last_month = date(current_date.year, current_date.month-1, current_date.day)
+            ninety_days_ago = current_date - timedelta(days=90)
+            if ninety_days_ago <= date(date_birth.year(), date_birth.month(), date_birth.day()) <= current_date:
+            # if last_month <= date(date_birth.year(), date_birth.month(), date_birth.day()) <= current_date:
+                self.btn_findNR.setVisible(True)
+            else:
+                self.btn_findNR.setVisible(False)
+
+    
+    @pyqtSignature('')
+    def on_btn_findNR_clicked(self):
+        from Registry.Ferzl_service import Ferzl_service
+        try:
+            services = Ferzl_service()
+            param_dict = {}
+            if self.edtLastName.text():
+                param_dict['surnameEstim'] = self.edtLastName.text()
+            param_dict['gender'] = self.cmbSex.currentIndex() if self.cmbSex.currentIndex() != 0 else None
+            if not self.edtBirthDate.date().isNull():
+                date_birth = self.edtBirthDate.date()
+                param_dict['birthdaySince'] = forceString((date(date_birth.year(),date_birth.month(),date_birth.day()) - timedelta(days=15)).strftime('%Y-%m-%d'))
+                param_dict['birthdayTill'] = forceString((date(date_birth.year(),date_birth.month(),date_birth.day())+ timedelta(days=15)).strftime('%Y-%m-%d'))
+            external_id = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(self.getClientId())))
+            param_dict['external_id'] = external_id
+
+            found_nrs = services.findNRs(param_dict)
+
+            if found_nrs and found_nrs != QtGui.QMessageBox.Cancel:
+                elements = found_nrs.get('elements', None)
+                if elements:
+                    surname = elements.get('surnameEstim', None)
+                    if surname:
+                        self.edtLastName.setText(surname)
+                    birthDate = elements.get('birthday', None)
+                    if birthDate:
+                        birthDate = datetime.datetime.strptime(birthDate, "%d.%m.%Y")
+                        self.edtBirthDate.setDate(forceDate(birthDate))
+                    deathDate = elements.get('deathday', None)
+                    if deathDate:
+                        deathDate = datetime.datetime.strptime(deathDate, "%d.%m.%Y")
+                        self.chkDeathDate.setChecked(True)
+                        self.edtDeathDate.setDate(forceDate(deathDate))
+                    gender = elements.get('gender', None)
+                    if gender:
+                        self.cmbSex.setCurrentIndex(forceInt(gender))
+                    seqTotal = elements.get('seqTotal', None)
+                    if seqTotal:
+                        if forceInt(seqTotal) > 1:
+                            seqNum = elements.get('seqNum', None)
+                            if seqNum:
+                                self.edtBirthNumber.setValue(forceInt(seqNum))
+                        else:
+                            self.edtBirthNumber.setValue(0)
+                    nbWeight = elements.get('nbWeight', None)
+                    if nbWeight:
+                        self.edtBirthWeight.setValue(forceInt(nbWeight))
+                    nbHeight = elements.get('nbHeight', None)
+                    if nbHeight:
+                        self.edtBirthHeight.setValue(forceInt(nbHeight))
+                    docs = elements.get('docs', None)
+                    if docs and len(docs) > 0:
+                        doc = docs[0]
+                        type = doc.get('type', None)
+                        if type:
+                            if type == u'33':
+                                docType_request = u"SELECT master_id FROM rbDocumentType_Identification where value = '249' "
+                                docType_query = QtGui.qApp.db.query(docType_request)
+                                if docType_query.next():
+                                    docType_record = docType_query.record().value('master_id')
+                                    if docType_record:
+                                        self.cmbDocType.setValue(forceInt(docType_record))
+                                        docSer = doc.get('docSer', None)
+                                        if docSer:
+                                            self.edtDocSerialLeft.setText(docSer)
+                                        docNum = doc.get('docNum', None)
+                                        if docNum:
+                                            self.edtDocNumber.setText(docNum)
+                    oip = elements.get('oip', None)
+                    if oip:
+                        request_identification = u"SELECT id FROM rbAccountingSystem  WHERE code = 'FERZL_patient'"
+                        query_identification = QtGui.qApp.db.query(request_identification)
+                        if query_identification.next():
+                            needed_id = query_identification.record().value('id')
+                            exists = False
+                            if needed_id:
+                                for row, item in enumerate(self.modelClientIdentification.items()):
+                                    if forceInt(item.value('accountingSystem_id')) == forceInt(needed_id):
+                                        exists = True
+                                        item.setValue(u'identifier', toVariant(forceString(oip)))
+                                        item.setValue(u'client_id', toVariant(forceRef(self.getClientId())))
+                                        self.modelClientIdentification.emitRowChanged(row)
+                                        break
+                                if not exists:
+                                    record_identification = self.tblClientIdentification.model().getEmptyRecord()
+                                    record_identification.setValue(u'accountingSystem_id', toVariant(forceInt(needed_id)))
+                                    record_identification.setValue(u'identifier', toVariant(oip))
+                                    record_identification.setValue(u'note', toVariant(forceString(u"ГИС ОМС ФЕРЗЛ")))
+                                    self.tblClientIdentification.model().addRecord(record_identification)
+
+
+        except Exception as e:
+            print(str(e))
+
 def checkSNILSEntered(self):
     SNILS = unformatSNILS(forceStringEx(self.edtSNILS.text()))
     if SNILS:
@@ -4869,9 +5395,6 @@ class CSocStatusTypeInDocTableCol(CRBInDocTableCol):
         socStatusClassId = forceRef(record.value('socStatusClass_id'))
         filter = ('class_id = %d' % socStatusClassId) if socStatusClassId else 'class_id is NULL'
         editor.setFilter(filter)
-#        editor.setShowFields(self.showFields)
-        if forceInt(socStatusClassId) == 8:
-            editor.setSort(1)
         editor.setValue(forceInt(value))
 
 
@@ -4911,7 +5434,7 @@ class CSocStatusesModel(CInDocTableModel):
         items = self.items()
         savedItems = []
         for record in items:
-            savedItems.append(QtSql.QSqlRecord(item))
+            savedItems.append(QtSql.QSqlRecord(record))
             for n in self.documentFields.split(','):
                 record.remove(record.indexOf(n))
         CInDocTableModel.saveItems(self, clientId)
@@ -5052,35 +5575,17 @@ class CPolyclinicInDocTableCol(CInDocTableCol):
 
 class COrgStructureInDocTableColEx(COrgStructureInDocTableCol):
     def setEditorData(self, editor, value, record):
+        editor.setOrgId(forceRef(record.value('LPU_id')))
         db = QtGui.qApp.db
-        # editor.setOrgId(forceRef(record.value('LPU_id')))
-        attachTypeId = forceRef(record.value('attachType_id'))
-        attach = db.getIdList('rbAttachType', 'id', '(code = 1 OR code = 2) AND temporary = 0 AND outcome = 0 AND finance_id = 2')
-        attype = False
-        for x in attach:
-            if attachTypeId and int(x) == int(attachTypeId):
-                attype = True
-        if forceRef(record.value('LPU_id')) and attype:
-            editor.setOrgId(forceRef(record.value('LPU_id')))
-            idListRecords = db.getIdList('OrgStructure', 'id', 'areaType IS NOT NULL AND areaType > 0')
-            parentsList = []
-            for id in idListRecords:
-                newParent = id
-                while newParent != 0:
-                    parent = self.parentsPath(newParent)
-                    newParent = parent
-                    parentsList.append(newParent)
-            table = db.table('OrgStructure')
-            idListRecords.extend(parentsList)
-            editor.setFilter(table['id'].inlist(idListRecords))
-        else:
-            editor.setOrgId(forceRef(record.value('LPU_id')))
+        table = db.table('rbAttachType')
+        if db.getRecordEx(table, 'id', db.joinAnd([table['id'].eq(forceRef(record.value('attachType_id'))),
+                                                   table['code'].inlist(['1', '2']),
+                                                   table['temporary'].eq(0),
+                                                   table['outcome'].eq(0),
+                                                   table['finance_id'].eq(2)])):
+            editor.setPurpose(COrgStructureTreePurpose.areaSelector)
         editor.setValue(forceInt(value))
 
-    def parentsPath(self, childId):
-        db = QtGui.qApp.db
-        parent = db.getIdList('OrgStructure', 'parent_id', 'id={0}'.format(forceString(childId)))
-        return parent[0]
 
 class CClientRelationInDocTableCol(CInDocTableCol):
     def __init__(self, title, fieldName, width, tableName, **params):
@@ -5149,15 +5654,14 @@ class CAttachesModel(CInDocTableModel):
     class CRBDeAttachTypeInDocTableCol(CRBInDocTableCol):
         def setEditorData(self, editor, value, record):
             actualDate = forceDate(record.value('endDate'))
-            if actualDate.isValid():
-                db = QtGui.qApp.db
-                rbDeAttachTypeTable = db.table('rbDeAttachType')
-                filter = db.joinAnd([db.joinOr([rbDeAttachTypeTable['endDate'].ge(actualDate),
-                                               rbDeAttachTypeTable['endDate'].isNull()]),
-                                     rbDeAttachTypeTable['begDate'].le(actualDate)])
-                editor.setFilter(filter)
-            else:
-                editor.setFilter('')
+            if not actualDate or not actualDate.isValid():
+                actualDate = QDate().currentDate()
+            db = QtGui.qApp.db
+            rbDeAttachTypeTable = db.table('rbDeAttachType')
+            cond = db.joinAnd([db.joinOr([rbDeAttachTypeTable['endDate'].ge(actualDate),
+                                          rbDeAttachTypeTable['endDate'].isNull()]),
+                               rbDeAttachTypeTable['begDate'].le(actualDate)])
+            editor.setFilter(cond)
             editor.setValue(forceInt(value))
 
 
@@ -5902,10 +6406,12 @@ class CClientIdentificationModel(CInDocTableModel):
         self.addCol(CDateInDocTableCol(u'Дата подтверждения',  'checkDate', 15, canBeEmpty=True))
         self.addCol(CInDocTableCol(u'Примечание',  'note', 15, maxLength=128))
         self.isEditable = {}
-        flagsList = QtGui.qApp.db.getRecordList('rbAccountingSystem', 'id, isEditable', where="domain='Client'")
+        self.isDeletable = {}
+        flagsList = QtGui.qApp.db.getRecordList('rbAccountingSystem', 'id, isEditable, isDeletable', where="domain='Client'")
         if flagsList:
             for x in flagsList:
                 self.isEditable[forceRef(x.value(0))] = forceBool(x.value(1))
+                self.isDeletable[forceRef(x.value(0))] = forceBool(x.value(2))
 
 
     def flags(self, index = QModelIndex()):
@@ -5934,6 +6440,9 @@ class CClientIdentificationModel(CInDocTableModel):
         index = self.index(row, column)
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
 
+
+    def saveItems(self, client_id):
+        return CInDocTableModel.saveItems(self, client_id)
 
     def setData(self, index, value, role=Qt.EditRole):
         items = self.items()
@@ -5968,6 +6477,18 @@ class CClientIdentificationModel(CInDocTableModel):
                 record.setValue('checkDate',         toVariant(QDate.currentDate()))
                 self.emitDataChanged(row, 2) # колонка checkDate
         return result
+
+
+    def delRowsChecker(self, rows):
+        items = self.items()
+        for row in rows:
+            record = items[row]
+            isNew = record.isNull('id')
+            accountingSystemId = forceRef(record.value('accountingSystem_id'))
+            if not isNew and accountingSystemId and not self.isDeletable.get(accountingSystemId, False):
+                return False
+        return True
+
 
     @classmethod
     def needUniqueValue(cls, accountingSystemId):
@@ -6693,24 +7214,56 @@ class CClientSuicideModel(CInDocTableModel):
         return CInDocTableModel.setData(self, index, value, role)
 
 
-class CClientContingentKindModel(CInDocTableModel):
+class CClientContingentKindModel(CMKBListInDocTableModel):
+    reasons = (
+        u'',
+        u'1 - стойкая ремиссия/выздоровление',
+        u'2 - смена места жительства',
+        u'3 - неявка более 12 мес',
+        u'4 - лишение свободы более 12 мес',
+        u'5 - смена контингента',
+        u'6 - смерть',
+        u'7 - по заявлению',
+    )
     def __init__(self, parent):
-        self.parent = parent
-        CInDocTableModel.__init__(self, 'ClientContingentKind', 'id', 'client_id', parent)
+        CMKBListInDocTableModel.__init__(self, 'ClientContingentKind', 'id', 'client_id', parent)
         rightOwnAreaOnly = parent.getRightOwnAreaOnly()
         self.hasCreateRight = (QtGui.qApp.userHasRight(urRegCreateClientContingentKindOwnAreaOnly) and rightOwnAreaOnly)
         self.hasEditOpenRight = (QtGui.qApp.userHasRight(urRegEditClientContingentKindOpenOwnAreaOnly) and rightOwnAreaOnly)
         self.hasEditCloseRight = (QtGui.qApp.userHasRight(urRegEditClientContingentKindClosedOwnAreaOnly) and rightOwnAreaOnly)
         self.addCol(CRBInDocTableCol(u'Вид', 'contingentKind_id', 30, 'rbContingentKind', showFields=CRBComboBox.showNameAndCode, order='code')).setSortable()
+        self.addCol(CRBInDocTableCol(u'Группа наблюдения', 'observationGroup_id', 30, 'rbObservationGroup', showFields=CRBComboBox.showCode))
+        self.addCol(CObservationSubgroupInDocTableCol(u'Подгруппа наблюдения', u'observationSubgroups', 30))
         self.addCol(CDateInDocTableCol(u'Дата постановки', 'begDate', 15)).setSortable()
         self.addCol(CDateInDocTableCol(u'Дата снятия', 'endDate', 15, canBeEmpty=True)).setSortable()
-        self.addCol(CEnumInDocTableCol(u'Причина снятия', 'reason', 20, CClientContingentKindInfo.reasons))
+        self.addCol(CRBInDocTableCol(u'Причина снятия', 'contingentKindRemoval_id', 20, 'rbContingentKindRemoval', showFields=CRBComboBox.showNameAndCode, order='code', filter='deleted=0'))
         self.addCol(CRBInDocTableCol(u'Специальность', 'speciality_id', 30, 'rbSpeciality', showFields=CRBComboBox.showNameAndCode, order='code'))
         self.addCol(CAPLikeOrgInDocTableCol(u'Организация', 'org_id', 30)).setFilter('deleted = 0')
         self.addCol(CICDExInDocTableCol(u'МКБ', 'MKB', 7))
         if QtGui.qApp.isExSubclassMKBVisible():
             self.addCol(CMKBExSubclassCol(u'РСК', 'exSubclassMKB', 10)).setToolTip(u'Расширенная субклассификация МКБ')
         self.addCol(CInDocTableCol(u'Примечание', 'note', 30))
+        
+        
+    def setRemovalReasonFilter(self, record):
+        db = QtGui.qApp.db
+        filter = u'deleted=0'
+        filter += u' AND (contingentKind_id is NULL {})'.format(
+            "or contingentKind_id = {}".format(
+                forceString(record.value('contingentKind_id'))
+                ) if forceString(record.value('contingentKind_id')) else ''
+            )
+        if forceString(record.value('endDate')):
+            filter+= u''' 
+            AND ((begDate is NULL) or (begDate<={0}))
+            AND ((endDate is NULL) or (endDate>={0}))
+            '''.format(db.formatDate(forceDate(record.value('endDate'))))
+        else:
+            filter+= u''' 
+            AND ((endDate is NULL) or (endDate>={}))
+            '''.format(db.formatDate((QDate.currentDate())))
+        self._cols[5].setFilter(filter)
+
 
     def flags(self, index=QModelIndex()):
         result = CInDocTableModel.flags(self, index)
@@ -6724,6 +7277,7 @@ class CClientContingentKindModel(CInDocTableModel):
                         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
         return result
 
+
     def setData(self, index, value, role=Qt.EditRole):
         isCreate = False
         isEditClose = False
@@ -6731,6 +7285,10 @@ class CClientContingentKindModel(CInDocTableModel):
         hasOpen = False
         column = index.column()
         row = index.row()
+        if row == len(self._items):
+            if value.isNull():
+                return False
+            self._addEmptyItem()
         for item in self.items():
             if not item.isEmpty():
                 if not forceString(item.value('endDate')) and forceBool(item.value('id')):
@@ -6742,8 +7300,8 @@ class CClientContingentKindModel(CInDocTableModel):
         elif 0 <= row < len(self.items()):
             if forceBool(self.items()[row].value('id')):
                 db = QtGui.qApp.db
-                record = db.getRecord('ClientContingentKind', 'endDate, reason', forceInt(self.items()[row].value('id')))
-                isEditClose = forceBool(forceString(record.value('endDate'))) or forceBool(record.value('reason'))
+                record = db.getRecord('ClientContingentKind', 'endDate, contingentKindRemoval_id', forceInt(self.items()[row].value('id')))
+                isEditClose = forceBool(forceString(record.value('endDate'))) or forceBool(record.value('contingentKindRemoval_id'))
 
             if not forceBool(self.items()[row].value('id')):
                 isCreate = True
@@ -6794,6 +7352,112 @@ class CClientContingentKindModel(CInDocTableModel):
             if self.cols()[record.indexOf('exSubclassMKB')].MKB != newMKB:
                 record.setValue('exSubclassMKB', toVariant(u''))
                 self.emitRowChanged(index.row())
+
+
+class CClientHospitalizationModel(CInDocTableModel):
+    purposes = (
+        u'',
+        u'лечение',
+        u'принудительное лечение',
+        u'трудовая экспертиза',
+        u'военная экспертиза',
+        u'судебная экспертиза',
+        u'наркологическая экспертиза',
+        u'другая экспертиза',
+        u'прочие цели',
+    )
+    def __init__(self, parent):
+        CInDocTableModel.__init__(self, 'ClientHospitalization', 'id', 'client_id', parent)
+        self.addCol(CIntInDocTableCol(u'№', 'idx', 5, readOnly=True))
+        self.addCol(CEnumInDocTableCol(u'Цель госпитализации', 'purpose', 20, CClientHospitalizationModel.purposes))
+        self.addCol(CDateInDocTableCol(u'Дата поступления', 'begDate', 20))
+        self.addCol(CDateInDocTableCol(u'Дата выбытия', 'endDate', 20))
+        self.addCol(CICDExInDocTableCol(u'Диагноз поступления', 'receivedMKB', 20))
+        self.addCol(CIntInDocTableCol(u'Дней госпитализации', 'bedDays', 20, readOnly=True))
+        self.addCol(CSelectStrInDocTableCol(u'Кем направлен', 'whoDirected', 30, (u'', u'участковый врач', u'скорая помощь', u'неотложная помощь', u'полиция')))
+        self.addCol(CBoolInDocTableCol(u'Первично', 'isPrimary', 5))
+        self.addCol(CIntInDocTableCol(u'№ мед, свед.', 'medicalNumber', 20, high=2147483647))
+        self.addCol(CAPLikeOrgInDocTableCol(u'Куда поступил', 'receivedOrg_id', 20))
+        self.addCol(CAPLikeOrgInDocTableCol(u'Куда направлен', 'leavedOrg_id', 20))
+        self.addCol(CICDExInDocTableCol(u'Диагноз выписки', 'leavedMKB', 20))
+        self.addCol(CBoolInDocTableCol(u'Мед. сведения получены', 'infoTransmitted', 5))
+        self.dataChanged.connect(self._updateIdxAndBedDays)
+        self.rowsRemoved.connect(self._updateIdxAndBedDays)
+
+
+    def _updateIdxAndBedDays(self, *args, **kwargs):
+        for i, record in enumerate(self.items()):
+            record.setValue('idx', i+1)
+            begDate = forceDate(record.value('begDate'))
+            endDate = forceDate(record.value('endDate'))
+            if begDate and endDate:
+                record.setValue('bedDays', begDate.daysTo(endDate))
+        self.reset()
+
+
+    def loadItems(self, masterId):
+        db = QtGui.qApp.db
+        cols = []
+        for col in self._cols:
+            if not col.external() and col.fieldName() != 'bedDays':
+                cols.append(col.fieldName())
+        cols.extend(['0 as bedDays', 'id', 'client_id', 'idx'])
+        table = self._table
+        filter = [
+            table['client_id'].eq(masterId),
+            table['deleted'].eq(0),
+        ]
+        if self._filter:
+            filter.append(self._filter)
+        self._items = db.getRecordList(table, cols, filter, order='idx, id')
+        for record in self.items():
+            begDate = forceDate(record.value('begDate'))
+            endDate = forceDate(record.value('endDate'))
+            if begDate and endDate:
+                record.setValue('bedDays', begDate.daysTo(endDate))
+        self.reset()
+
+
+    def saveItems(self, masterId):
+        if self._items is not None:
+            db = QtGui.qApp.db
+            table = self._table
+            idList = []
+            for idx, record in enumerate(self._items):
+                record.setValue('client_id', masterId)
+                record.setValue('idx', idx+1)
+                outRecord = QtSql.QSqlRecord(record)  # copy
+                outRecord.remove(outRecord.indexOf('bedDays'))
+                id = db.insertOrUpdate(table, outRecord)
+                record.setValue('id', toVariant(id))
+                idList.append(id)
+                self.saveDependence(idx, id)
+
+            filter = [table['client_id'].eq(masterId),
+                      'NOT ('+table['id'].inlist(idList)+')']
+            if self._filter:
+                filter.append(self._filter)
+            db.deleteRecord(table, filter)
+
+
+    def getEmptyRecord(self):
+        record = QtSql.QSqlRecord()
+        record.append(QtSql.QSqlField('idx', QVariant.Int))
+        record.append(QtSql.QSqlField('purpose', QVariant.Int))
+        record.append(QtSql.QSqlField('begDate', QVariant.Date))
+        record.append(QtSql.QSqlField('endDate', QVariant.Date))
+        record.append(QtSql.QSqlField('receivedMKB', QVariant.String))
+        record.append(QtSql.QSqlField('bedDays', QVariant.Int))
+        record.append(QtSql.QSqlField('whoDirected', QVariant.String))
+        record.append(QtSql.QSqlField('isPrimary', QVariant.Bool))
+        record.append(QtSql.QSqlField('medicalNumber', QVariant.Int))
+        record.append(QtSql.QSqlField('receivedOrg_id', QVariant.Int))
+        record.append(QtSql.QSqlField('leavedOrg_id', QVariant.Int))
+        record.append(QtSql.QSqlField('leavedMKB', QVariant.String))
+        record.append(QtSql.QSqlField('infoTransmitted', QVariant.Bool))
+        record.append(QtSql.QSqlField('client_id', QVariant.Int))
+        record.append(QtSql.QSqlField('id', QVariant.Int))
+        return record
 
 
 class CAPLikeOrgInDocTableCol(CInDocTableCol):

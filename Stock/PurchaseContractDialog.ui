@@ -20,15 +20,8 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="5" column="1" colspan="7">
-    <widget class="CRBComboBox" name="cmbFinance">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
+   <item row="1" column="1" colspan="7">
+    <widget class="QLineEdit" name="edtName"/>
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblNumber">
@@ -40,17 +33,17 @@
      </property>
     </widget>
    </item>
-   <item row="8" column="0">
-    <widget class="QLabel" name="lblConfirmationOrder">
-     <property name="text">
-      <string>Порядок подтверждения</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbConfirmationOrder</cstring>
+   <item row="5" column="1" colspan="7">
+    <widget class="CRBComboBox" name="cmbFinance">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
      </property>
     </widget>
    </item>
-   <item row="8" column="1" colspan="5">
+   <item row="9" column="1" colspan="5">
     <widget class="QComboBox" name="cmbConfirmationOrder">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -75,7 +68,214 @@
      </item>
     </widget>
    </item>
-   <item row="9" column="0" colspan="8">
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblFinanceSource">
+     <property name="text">
+      <string>Источник финансирования</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="4">
+    <widget class="QLabel" name="lblDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Дата</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="1" colspan="7">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QLabel" name="lblConfirmationOrder">
+     <property name="text">
+      <string>Порядок подтверждения</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbConfirmationOrder</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0" colspan="8">
+    <widget class="QLabel" name="lblSummaryInfo">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="6">
+    <widget class="COrgComboBox" name="cmbSupplierOrg"/>
+   </item>
+   <item row="3" column="7">
+    <widget class="QToolButton" name="btnSelectOrganisation">
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblSupplierOrg">
+     <property name="text">
+      <string>Внешний поставщик</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbSupplierOrg</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="CDateEdit" name="edtBegDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="6" colspan="2">
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="2" column="1" colspan="7">
+    <widget class="QLineEdit" name="edtTitle"/>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblFinance">
+     <property name="text">
+      <string>Тип финансирования</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbFinance</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="7">
+    <widget class="CRBComboBox" name="cmbFinanceSource"/>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblPeriodDate">
+     <property name="text">
+      <string>Период действия с</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtBegDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="3">
+    <widget class="QLineEdit" name="edtNumber"/>
+   </item>
+   <item row="8" column="1" colspan="7">
+    <widget class="QCheckBox" name="chkState">
+     <property name="text">
+      <string>Является государственным</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblTitle">
+     <property name="text">
+      <string>Наименование для печати</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtTitle</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="3">
+    <widget class="CDateEdit" name="edtEndDate">
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="5">
+    <widget class="CDateEdit" name="edtDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="2">
+    <widget class="QLabel" name="label">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>по</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblName">
+     <property name="text">
+      <string>Наименование</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="4" colspan="4">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="10" column="0" colspan="8">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
       <number>0</number>
@@ -121,205 +321,15 @@
      </widget>
     </widget>
    </item>
-   <item row="11" column="1" colspan="7">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="10" column="0" colspan="8">
-    <widget class="QLabel" name="lblSummaryInfo">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="7">
-    <widget class="QToolButton" name="btnSelectOrganisation">
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="6" colspan="2">
-    <spacer name="horizontalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblTitle">
-     <property name="text">
-      <string>Наименование для печати</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtTitle</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="4" colspan="4">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblName">
-     <property name="text">
-      <string>Наименование</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtName</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="4">
-    <widget class="QLabel" name="lblDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Дата</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="5">
-    <widget class="CDateEdit" name="edtDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1" colspan="7">
-    <widget class="QLineEdit" name="edtTitle"/>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="lblSupplierOrg">
-     <property name="text">
-      <string>Внешний поставщик</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbSupplierOrg</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1" colspan="6">
-    <widget class="COrgComboBox" name="cmbSupplierOrg"/>
-   </item>
-   <item row="4" column="3">
-    <widget class="CDateEdit" name="edtEndDate">
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1" colspan="3">
-    <widget class="QLineEdit" name="edtNumber"/>
-   </item>
-   <item row="1" column="1" colspan="7">
-    <widget class="QLineEdit" name="edtName"/>
-   </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblPeriodDate">
-     <property name="text">
-      <string>Период действия с</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtBegDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="2">
-    <widget class="QLabel" name="label">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>по</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1">
-    <widget class="CDateEdit" name="edtBegDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="lblFinance">
-     <property name="text">
-      <string>Тип финансирования</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbFinance</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="1" colspan="7">
-    <widget class="QCheckBox" name="chkState">
-     <property name="text">
-      <string>Является государственным</string>
-     </property>
-    </widget>
-   </item>
    <item row="6" column="0">
-    <widget class="QLabel" name="lblFinanceSource">
+    <widget class="QLabel" name="lblContractType">
      <property name="text">
-      <string>Источник финансирования</string>
+      <string>Тип договора</string>
      </property>
     </widget>
    </item>
    <item row="6" column="1" colspan="7">
-    <widget class="CRBComboBox" name="cmbFinanceSource"/>
+    <widget class="CContractTypeComboBox" name="cmbContractType"/>
    </item>
   </layout>
  </widget>
@@ -343,6 +353,11 @@
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CContractTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Stock/Utils.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

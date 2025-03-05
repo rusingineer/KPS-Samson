@@ -27,7 +27,8 @@ from Exchange.Cimport import CDBFimport
 from Exchange.Utils import dbfCheckNames, tbl, xmlCheckNames
 from Reports.ReportBase import CReportBase, createTable
 from Reports.ReportView import CReportViewDialog
-from Registry.Utils import getClientPolicyEx
+from Registry.Utils import getClientPolicyEx, getClientSocStatuses, getSocStatusClassList, getCleintSocStatusType, \
+    getSocStatusTypeClasses
 from zipfile import is_zipfile, ZipFile
 from Exchange.ExportR23Native import CExportPage1, updateInternalHash, CExportR23NoKeysDialog, updateInternalHashFLK
 from Exchange.Ui_ImportPayRefuseR23 import Ui_Dialog
@@ -110,15 +111,27 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
 
     @pyqtSignature('')
     def on_btnSelectFile_clicked(self):
-        if self.isPreControl:
-            filter = u'zip Archive (va*.zip)'
+        result = False
+        fstr = ""
+        if self.tabImportType.currentIndex() == 2:
+            result = QtGui.QMessageBox().question(self,
+                                        u'Внимание!',
+                                        u'Хотите выбрать всю папку с файлами?',
+                                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes
+        if not result:
+            if self.isPreControl:
+                filter = u'zip Archive (va*.zip)'
+            else:
+                filter = u'zip Archive (v*.zip)'
+            fileNames = QtGui.QFileDialog.getOpenFileNames(
+                self, u'Укажите файл с данными', self.edtFileName.text(), filter)
+            if len(fileNames):
+                fstr = " ".join(['"%s"' % QDir.toNativeSeparators(f) for f in fileNames])
         else:
-            filter = u'zip Archive (v*.zip)'
-        fileNames = QtGui.QFileDialog.getOpenFileNames(
-            self, u'Укажите файл с данными', self.edtFileName.text(), filter)
-        if len(fileNames):
-            fstr = " ".join(['"%s"' % QDir.toNativeSeparators(f) for f in fileNames])
-            self.edtFileName.setText(fstr)
+            fstr = QtGui.QFileDialog.getExistingDirectory(
+                self, u'Укажите файл с данными', self.edtFileName.text())
+        self.edtFileName.setText(fstr)
 
 
     def load_zip(self, fileName):
@@ -126,8 +139,8 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             if is_zipfile(forceString(fileName)):
                 archive = ZipFile(forceString(fileName), 'r')
                 names = archive.namelist()
-                rxDbf = QRegExp('^[PUDNROICEM]\\d{1,5}.dbf', Qt.CaseInsensitive) #transit
-                rxXml = QRegExp('^[PUDNROICEM]\\d{1,5}.xml', Qt.CaseInsensitive)
+                rxDbf = QRegExp('^[PUDNROICEML]\\d{1,5}.dbf', Qt.CaseInsensitive) #transit
+                rxXml = QRegExp('^[PUDNROICEML]\\d{1,5}.xml', Qt.CaseInsensitive)
                 found = False
                 dbfnames = [] #transit
                 xmlnames = []
@@ -154,7 +167,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                 self.err2log(u'Выбранный файл отсутствует или не является архивом')
                 self.dbfFileNames = {} #transit
                 self.xmlFileNames = {}
-        except Exception, e:
+        except Exception as e:
             self.err2log(u'Ошибка распаковки архива: Невозможно распаковать архив\n' + unicode(e))
             self.dbfFileNames = {} #transit
             self.xmlFileNames = {}
@@ -238,11 +251,12 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             updateInternalHash('C', 'CID', self.RecordList['C'], dats, CExportPage1.fieldListKeyC)
             updateInternalHash('E', 'EID', self.RecordList['E'], dats, CExportPage1.fieldListKeyE)
             updateInternalHash('M', 'MID', self.RecordList['M'], dats, CExportPage1.fieldListKeyM)
+            updateInternalHash('L', 'LID', self.RecordList['L'], dats, CExportPage1.fieldListKeyL)
 
             self.db.query(u"""UPDATE soc_Account_RowKeys sark
                     INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
                     set sark.`key` = t.RKEY
-                    WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M') and sark.internalKey = t.internalKey and t.RKEY is not null""")
+                    WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L') and sark.internalKey = t.internalKey and t.RKEY is not null""")
 
             self.db.query(u"""UPDATE soc_Account_RowKeys sark
                     INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.alt_row_id = sark.alt_row_id AND t.typeFile = sark.typeFile
@@ -445,11 +459,12 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                 updateInternalHash('C', 'CID', self.RecordList['C'], dats, CExportPage1.fieldListKeyC)
                 updateInternalHash('E', 'EID', self.RecordList['E'], dats, CExportPage1.fieldListKeyE)
                 updateInternalHash('M', 'MID', self.RecordList['M'], dats, CExportPage1.fieldListKeyM)
+                updateInternalHash('L', 'LID', self.RecordList['L'], dats, CExportPage1.fieldListKeyL)
 
                 self.db.query(u"""UPDATE soc_Account_RowKeys sark
                         INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.row_id = sark.row_id AND t.typeFile = sark.typeFile
                         set sark.`key` = t.RKEY
-                        WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M') and sark.internalKey = t.internalKey and t.RKEY is not null""")
+                        WHERE t.typeFile in ('P', 'U', 'R', 'O', 'I', 'C', 'E', 'M', 'L') and sark.internalKey = t.internalKey and t.RKEY is not null""")
 
                 self.db.query(u"""UPDATE soc_Account_RowKeys sark
                         INNER JOIN tmp_internalKeys t ON t.event_id = sark.event_id AND t.alt_row_id = sark.alt_row_id AND t.typeFile = sark.typeFile
@@ -608,7 +623,18 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             self.statistic = u'обработано: %d; без ошибок: %d; с ошибками: %d; не найдено: %d'
         else:
             self.statistic = u'обработано: %d; оплаченых: %d; отказаных: %d; не найдено: %d'
-        fileNames = re.findall('"(.+?)"', self.edtFileName.text())
+        
+        # print self.edtFileName.text()
+        if self.tabImportType.currentIndex() == 2 and os.path.isdir(self.edtFileName.text()):
+            if self.isPreControl:
+                filter = u'va*.zip'
+            else:
+                filter = u'v*.zip'
+            dir = QDir(self.edtFileName.text())
+            fileNames = dir.entryList([filter], QDir.Files)
+            fileNames = [dir.absoluteFilePath(f) for f in fileNames]
+        else:
+            fileNames = re.findall('"(.+?)"', self.edtFileName.text())
 
         if not len(fileNames):
             return
@@ -697,7 +723,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
         self.errorPrefix = u'Строка %d (%s %s %s): ' % (self.progressBar.value(), lastName,  firstName,  patrName)
 
         accountType = forceString(row['VS'])
-        if accountType not in ['3', 'f', 'b', 'j', 'n', 'r', 'b1', 'b2', 'b3', 'b4', 'b5', 'bk', 'bm', 'bu', 'be', 'bg', 'bh', 'bo', 'bv']:
+        if accountType not in ['3', 'f', 'b', 'j', 'n', 'r', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'bk', 'bm', 'bu', 'be', 'bg', 'bh', 'bo', 'bv', 'bp', 'bd']:
             self.err2log(u'тип счёта не возвратный, код "%s"' % accountType)
             return
 
@@ -928,6 +954,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             newBegDate = QDate.fromString(row.get('DATNP'), 'yyyy-MM-dd') if row.get('DATNP') else QDate()
             newEndDate = QDate.fromString(row.get('DATOP'), 'yyyy-MM-dd') if row.get('DATOP') else QDate()
             newSnils = forceString(row.get('SNILSF')).replace('-', '').replace(' ', '')
+            svoSocStatus = forceString(row.get('SOC'))
 
             if self.updateClient(clientId, newLastName, newFirstName, newPatrName, newSex, newBirthDate, newSnils, clientRecord):
                 self.err2log(u'<b><font color=blue>Обновлены</font></b> личные данные клиента' u' %s.' % clientId)
@@ -1052,6 +1079,90 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             else:
                 self.err2log(u'<b><font color=silver>Без изменений:</font></b> `%s`' % forceInt(clientId))
                 msg.append(u'Без изменений `%s`' % clientId)
+
+            if clientId:
+                svoSocStatusExists = False
+                svoSocStatusClient = ''
+                socStatuses = getClientSocStatuses(clientId)
+                socStatusesMap = {}
+                for socStatus in socStatuses:
+                    socStatusesMap[socStatus] = forceString(self.db.translate('rbSocStatusType', 'id', socStatus, 'code'))
+                svoSocStatusExists = '035' in socStatusesMap.values() or '065' in socStatusesMap.values()
+                if svoSocStatusExists:
+                    svoSocStatusClient = '035' if '035' in socStatusesMap.values() else '065'
+
+                if svoSocStatusExists and svoSocStatus == '000':
+                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+
+                    tableSocStatus = self.db.table('ClientSocStatus')
+                    socStatusRecord = self.db.getRecordEx(
+                        tableSocStatus, '*',
+                        [
+                            tableSocStatus['deleted'].eq(0),
+                            tableSocStatus['client_id'].eq(clientId),
+                            tableSocStatus['socStatusClass_id'].eq(socStatusSvoClassId)
+                        ]
+                    )
+                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('deleted', toVariant(1))
+                    self.db.updateRecord(tableSocStatus, socStatusRecord)
+                    self.err2log(u'<b><font color=green>Удаляем</font></b>'u' соц статус %s.' % (svoSocStatusClient))
+                    msg.append(u'Удалён соц статус %s.' % (svoSocStatusClient))
+                elif svoSocStatus != '000' and not svoSocStatusExists:
+                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+
+                    tableSocStatus = self.db.table('ClientSocStatus')
+                    socStatusRecord = tableSocStatus.newRecord()
+                    socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('deleted', toVariant(0))
+                    socStatusRecord.setValue('client_id', toVariant(clientId))
+                    socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
+                    socStatusRecord.setValue('socStatusType_id', toVariant(forceInt(self.db.translate('rbSocStatusType', 'code', svoSocStatus, 'id'))))
+                    socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
+                    socStatusRecord.setValue('note', toVariant(''))
+
+                    self.db.insertRecord(tableSocStatus, socStatusRecord)
+                    self.err2log(u'<b><font color=green>Добавляем</font></b>'u' соц статус %s.' % (svoSocStatus))
+                    msg.append(u'Добавлен соц статус %s.' % (svoSocStatus))
+
+                elif svoSocStatus != '000' and svoSocStatus != svoSocStatusClient:
+                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+
+                    tableSocStatus = self.db.table('ClientSocStatus')
+                    socStatusRecord = self.db.getRecordEx(
+                        tableSocStatus, '*',
+                        [
+                            tableSocStatus['deleted'].eq(0),
+                            tableSocStatus['client_id'].eq(clientId),
+                            tableSocStatus['socStatusClass_id'].eq(socStatusSvoClassId)
+                        ]
+                    )
+                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('deleted', toVariant(1))
+                    self.db.updateRecord(tableSocStatus, socStatusRecord)
+
+                    socStatusRecord = tableSocStatus.newRecord()
+                    socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                    socStatusRecord.setValue('deleted', toVariant(0))
+                    socStatusRecord.setValue('client_id', toVariant(clientId))
+                    socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
+                    socStatusRecord.setValue('socStatusType_id', toVariant(forceInt(self.db.translate('rbSocStatusType', 'code', svoSocStatus, 'id'))))
+                    socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
+                    socStatusRecord.setValue('note', toVariant(''))
+
+                    self.db.insertRecord(tableSocStatus, socStatusRecord)
+                    self.err2log(u'<b><font color=green>Меняем</font></b>'u' соц статус с %s на %s.' % (svoSocStatus, svoSocStatusClient))
+                    msg.append(u'Изменён соц статус с %s на %s.' % (svoSocStatus, svoSocStatusClient))
+
+                # else:
+                #     self.err2log(u'<b><font color=silver>Соц статус без изменений:</font></b> `%s`' % forceInt(clientId))
+                #     msg.append(u'Соц статус без изменений `%s`' % clientId)
+            # else:
+            #     self.err2log(u'<b><font color=silver>Соц статус без изменений:</font></b> `%s`' % forceInt(clientId))
+            #     msg.append(u'Соц статус без изменений `%s`' % clientId)
+
         else:
             self.err2log(u'<b><font color=silver>Пациент не найден:</font></b> `%s`' % forceInt(clientId))
             msg.append(u'Пациент не найден: `%s`' % forceInt(clientId))
@@ -1250,66 +1361,60 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
         msgstr = u'<br/>'.join(msg)
         self.printdata.append([u'%s %s %s' % (lastName,  firstName,  patrName), msgstr])
 
-    def findOrgByInfis(self, infis):
-        u"""Возвращает id и область страховой."""
-        if not infis:
-            return (None, None)
-
-        result = self.orgCache.get(infis, -1)
-
-        if result == -1:
-            result = (None, None)
-            table = self.db.table('Organisation')
-            record = self.db.getRecordEx(table, 'id, area', [table['deleted'].eq(0),
-                                         table['infisCode'].eq(infis)], 'id')
-
-            if record:
-                result = (forceRef(record.value(0)), forceString(record.value(1)))
-                self.orgCache[infis] = result
-
-        return result
+    # def findOrgByInfis(self, infis):
+    #     u"""Возвращает id и область страховой."""
+    #     if not infis:
+    #         return (None, None)
+    #
+    #     result = self.orgCache.get(infis, -1)
+    #
+    #     if result == -1:
+    #         result = (None, None)
+    #         table = self.db.table('Organisation')
+    #         record = self.db.getRecordEx(table, 'id, area', [table['deleted'].eq(0),
+    #                                      table['infisCode'].eq(infis)], 'id')
+    #
+    #         if record:
+    #             result = (forceRef(record.value(0)), forceString(record.value(1)))
+    #             self.orgCache[infis] = result
+    #
+    #     return result
 
     def findOrgByOGRN(self, ogrn):
         u"""Возвращает id и область страховой."""
         if not ogrn:
-            return (None, None)
-
+            return None, None
         result = self.orgCache.get(ogrn, -1)
-
         if result == -1:
             result = (None, None)
             table = self.db.table('Organisation')
-            record = self.db.getRecordEx(table, 'id, area',  [table['deleted'].eq(0),
+            record = self.db.getRecordEx(table, 'id', [table['deleted'].eq(0),
                                          table['OGRN'].eq(ogrn),
                                          table['isInsurer'].eq(1),
                                          table['head_id'].isNull(),
-                                         table['infisCode'].ne(''),
-                                         table['infisCode'].isNotNull(),
+                                         table['area'].eq('2300000000000'),
                                          table['isActive'].eq(1)], 'id')
-
             if record:
-                result = (forceRef(record.value(0)), forceString(record.value(1)))
+                result = (forceRef(record.value(0)), '2300000000000')
                 self.orgCache[ogrn] = result
-
         return result
 
     def findOrgByOKATO(self, okato):
         u"""Возвращает id и область страховой."""
         if not okato:
-            return (None, None)
-
+            return None, None
         result = self.orgInoCache.get(okato, -1)
-
         if result == -1:
             result = (None, None)
             table = self.db.table('Organisation')
             record = self.db.getRecordEx(table, 'id, area',  [table['deleted'].eq(0),
-                                         table['OKATO'].eq(okato), table['isActive'].eq(1)], 'id')
-
+                                                              table['OKATO'].eq(okato),
+                                                              table['isActive'].eq(1),
+                                                              table['isInsurer'].eq(1),
+                                                              table['head_id'].isNull()], 'id')
             if record:
                 result = (forceRef(record.value(0)), forceString(record.value(1)))
                 self.orgInoCache[okato] = result
-
         return result
 
     def findOKATObyOrg(self, orgId):
@@ -1323,7 +1428,9 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             table = self.db.table('Organisation')
             record = self.db.getRecordEx(table,
                                          'okato',
-                                         [table['deleted'].eq(0), table['id'].eq(orgId), table['isActive'].eq(1)],
+                                         [table['deleted'].eq(0), table['id'].eq(orgId),
+                                          table['isActive'].eq(1), table['isInsurer'].eq(1),
+                                          table['head_id'].isNull()],
                                          'okato'
                                          )
 

@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-
-import Exchange.AttachService as AttachService
+from PyQt4 import QtGui
+from PyQt4.QtCore import Qt, QDate, QObject, SIGNAL, QTimer, pyqtSignature, QVariant
+from PyQt4.QtGui import QAction
 
 from library.Calendar import monthName
-from library.DialogBase import CConstructHelperMixin
-from library.TableModel import CTableModel, CCol, CTextCol, CIntCol, CDateCol, CDesignationCol
-from library.Utils import *
+from library.DialogBase import CDialogBase
+from library.TableModel import CTableModel, CCol, CTextCol, CIntCol, CDesignationCol
+from library.Utils import exceptionToUnicode, forceRef, forceString, forceInt, forceBool, forceDate
+
+import Exchange.AttachService as AttachService
 
 from Registry.ClientEditDialog import CClientEditDialog
 
@@ -16,15 +17,17 @@ from Users.Rights import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 
 from Ui_ExportDispPlanDiagnosisDialog import Ui_ExportDispPlanDiagnosisDialog
 
-class CExportDispPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ExportDispPlanDiagnosisDialog):
+
+class CExportDispPlanDiagnosisDialog(CDialogBase, Ui_ExportDispPlanDiagnosisDialog):
     def __init__(self, parent):
-        QtGui.QDialog.__init__(self, parent)
+        CDialogBase.__init__(self, parent)
         self.initialized = False
         self.addModels('DispPlan', CDispPlanModel(self))
         self.addModels('DispPlanErrors', CDispPlanErrorsModel(self))
-        self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
-        self.addObject('actDeletePlanExport', QtGui.QAction(u'Удалить признак экспорта', self))
+        self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actDeletePlanExport', QAction(u'Удалить признак экспорта', self))
         self.setupUi(self)
+        self.setWindowFlags(Qt.Window)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblDispPlan.createPopupMenu([self.actEditClient, self.actDeletePlanExport])
         self.pbExportProgress.setVisible(False)
@@ -45,7 +48,7 @@ class CExportDispPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Ex
     def showEvent(self, event):
         QTimer.singleShot(0, self.updateList)
         
-    def disableControls(self, disabled = True):
+    def disableControls(self, disabled=True):
         self.sbYear.setDisabled(disabled)
         self.cmbMonthFrom.setDisabled(disabled)
         self.cmbMonthTo.setDisabled(disabled)
@@ -87,6 +90,7 @@ class CExportDispPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Ex
     def export(self):
         successCount = 0
         errorCount = 0
+        notAcceptedCount = 0
         totalCount = len(self.exportableIdList)
         self.pbExportProgress.setVisible(True)
         self.pbExportProgress.setValue(0)
@@ -221,6 +225,7 @@ class CExportDispPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Ex
         if deleted:
             self.updateList()
 
+
 class CDispPlanModel(CTableModel):
     class CInfoCol(CTextCol):
         def __init__(self, title, infoField, infoDict, defaultWidth, alignment='l'):
@@ -307,9 +312,12 @@ class CDispPlanModel(CTableModel):
                 select max(Attach.id)
                 from ClientAttach as Attach
                     left join rbAttachType as AttachType on AttachType.id = Attach.attachType_id
+                    left join OrgStructure o on o.id = Attach.orgStructure_id
                 where Attach.client_id = Client.id
                     and Attach.deleted = 0
                     and AttachType.code in ('1', '2')
+                    and Attach.endDate is null
+                    and o.areaType > 0
             )
             left join Diagnosis on Diagnosis.id = DDP.diagnosis_id
             left join Person on Person.id = DDP.person_id

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -111,9 +111,8 @@ __all__ = ( 'getNextAccountNumber',
           )
 
 
-def getNextAccountNumber(contractNumber):
-    if QtGui.qApp.checkGlobalPreference(u'23:accNum', u'да'):
-        counterId = forceRef(QtGui.qApp.db.translate('rbCounter', 'code', 'accnum', 'id'))
+def getNextAccountNumber(contractNumber, counterId=None):
+    if counterId:
         res = QtGui.qApp.getDocumentNumber(None, counterId)
     else:
         stmt = 'SELECT MAX(CAST(SUBSTR(number, %d) AS SIGNED)) AS seqNumber FROM Account WHERE number LIKE \'%s-%%\'' % (len(contractNumber)+2, contractNumber)       
@@ -691,11 +690,13 @@ class CAccountsModel(CTableModel):
             CDesignationCol(u'Плательщик', ['payer_id'], ('Organisation', 'CONCAT(infisCode, \' | \', shortName)'), 8),
             CDesignationCol(u'Тип реестра', ['type_id'], ('rbAccountType', 'CONCAT(regionalCode, \' | \', name)'), 8),
             CEnumCol(u'Ед. учета МП', ['group_id'], [u'', u'Койко-день', u'Койко-день', u'Посещение', u'Посещение',
-                                                    u'Посещение', u'Посещение', u'День лечения', u'Вызов бригады СМП',
-                                                    u'Койко-день', u'День лечения', u'Посещение', u'Посещение',
-                                                    u'Посещение', u'Посещение', u'Посещение', u'Посещение', u'Посещение',
-                                                    u'Услуга', u'Услуга', u'Услуга', u'Услуга', u'День лечения', u'Услуга',
-                                                    u'Посещение', u'Посещение', u'Посещение', u'Посещение', u'Посещение', u'Посещение'], 20),
+                                                     u'Посещение', u'Посещение', u'День лечения', u'Вызов бригады СМП',
+                                                     u'Койко-день', u'День лечения', u'Посещение', u'Посещение',
+                                                     u'Посещение', u'Посещение', u'Посещение', u'Посещение',
+                                                     u'Посещение', u'Услуга', u'Услуга', u'Услуга', u'Услуга',
+                                                     u'День лечения', u'Услуга', u'Посещение', u'Посещение',
+                                                     u'Посещение', u'Посещение', u'Посещение', u'Посещение', u'Услуга',
+                                                     u'Посещение', u'Посещение', u'Посещение'], 20),
             CNumCol(u'Количество', ['amount'], 20, 'r'),
             CNumCol(u'Количество событий', ['amountEvents'], 20, 'r'),
             CNumCol(u'УЕТ', ['uet'], 20, 'r'),
@@ -780,6 +781,7 @@ class CAccountItemsModel(CTableModel):
             CRefBookCol(u'Ед.Уч.',     ['unit_id'],  'rbMedicalAidUnit', 10),
             CNumCol(u'Кол-во',         ['amount'], 10, 'r'),
             CNumCol(u'УЕТ',            ['uet'],    10, 'r'),
+            CTextCol(u'КСЛП', ['usedCoefficients'], 10, 'r'),
             CSumCol(u'Сумма',          ['sum'],    10, 'r'),
             CSumCol(u'Выставлено',     ['exposedSum'], 10, 'r'),
             CSumCol(u'Оплачено',       ['payedSum'],    10, 'r'),
@@ -866,7 +868,7 @@ class CAccountItemsModel(CTableModel):
                 if eventId:
                     code = None
                     if actionId:
-                        stmt = u"""SELECT IF(ep.regionalCode in ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019')
+                        stmt = u"""SELECT IF(ep.regionalCode in ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019', '8020', '8021', '8022')
                                     or mt.regionalCode in ('31', '32'),
                                     IF(IFNULL(a.MKB, '') <> '', a.MKB, d.MKB), d.MKB) AS MKB
                                 from Event e
@@ -1146,7 +1148,7 @@ class CLocMKBColumn(CCol):
         eventCSG_id = forceRef(values[4])
         if eventId:
             if actionId:
-                stmt = u"""SELECT IF(ep.regionalCode in ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017')
+                stmt = u"""SELECT IF(ep.regionalCode in ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019', '8020', '8021', '8022')
                     or mt.regionalCode in ('31', '32'), 
                     IF(IFNULL(a.MKB, '') <> '', a.MKB, d.MKB), d.MKB) AS MKB
                 from Event e
@@ -1290,7 +1292,8 @@ class CContractDescr:
                                       'regionalTariffRegulationFactor',
                                       'isOnlyEventsPassedExpertise',
                                       'isExposeByAccountType',
-                                      'format_id'), contractId)
+                                      'format_id',
+                                      'counter_id'), contractId)
         self.id = contractId
         self.number = forceString(record.value('number'))
         self.date   = forceDate(record.value('date'))
@@ -1317,6 +1320,7 @@ class CContractDescr:
         self.onlyInspectedEvents = forceBool(record.value('isOnlyEventsPassedExpertise'))
         self.exposeByAccountType = forceBool(record.value('isExposeByAccountType'))
         self.formatId = forceRef(record.value('format_id'))
+        self.counterId = forceRef(record.value('counter_id'))
         self.prog = None
         if self.formatId:
             self.prog = forceString(db.translate('rbAccountExportFormat', 'id', self.formatId, 'prog'))
@@ -2766,7 +2770,7 @@ def isInterruptedCase(eventId):
             from Event e
             left join rbResult as EventResult on EventResult.id = e.result_id
             where e.id = {eventId}
-                  and EventResult.regionalCode in ('102', '105', '107', '108', '110', '202', '205', '207', '208')""".format(eventId=eventId)
+                  and EventResult.regionalCode in ('102', '103', '105', '107', '108', '110', '202', '203', '205', '207', '208')""".format(eventId=eventId)
     result = None
     query = db.query(stmt)
     while query.next():
@@ -2827,7 +2831,7 @@ def hasSevereMKB(eventId):
             Left join Diagnosis ds on ds.id = dc.diagnosis_id
             left join soc_severeMKB s on ds.MKB like concat(s.mkb, '%')
             where dc.event_id = {eventId}
-                AND dc.diagnosisType_id IN (SELECT id FROM rbDiagnosisType WHERE code in ('3', '9'))
+                AND dc.diagnosisType_id IN (SELECT id FROM rbDiagnosisType WHERE code = '9')
                 AND dc.deleted = 0
                 AND s.begDate <= e.execDate
                 AND (s.endDate is null OR s.endDate >= e.execDate)

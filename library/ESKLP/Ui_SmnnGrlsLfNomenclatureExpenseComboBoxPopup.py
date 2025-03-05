@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_ekslp\library\ESKLP\SmnnGrlsLfNomenclatureExpenseComboBoxPopup.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_test\library\ESKLP\SmnnGrlsLfNomenclatureExpenseComboBoxPopup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #

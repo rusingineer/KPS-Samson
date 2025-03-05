@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -55,6 +55,9 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         self.setModels(self.tblCSGs, self.modelCSGs, self.selectionModelCSGs)
         self.setModels(self.tblCSGSubItems, self.modelCSGSubItems, self.selectionModelCSGSubItems)
         self.btnCheckMes.setMenu(self.mnuBtnCheckMes)
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.btnCheckMes.setVisible(False)
+            self.btnShowMes.setVisible(False)
         self.eventId = None
         self.eventTypeId = None
         self.mesWidgets = [self.lblMes, self.cmbMes, self.lblMesSpecification, self.cmbMesSpecification, self.btnCheckMes, self.btnShowMes]

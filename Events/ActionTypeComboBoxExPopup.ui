@@ -29,7 +29,7 @@
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tabClientRelation">
       <attribute name="title">
@@ -58,33 +58,76 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="6" column="1" colspan="4">
-        <widget class="QCheckBox" name="chkPreferableOrgStructure">
+       <item row="3" column="1" colspan="4">
+        <widget class="CActionServiceTypeComboBox" name="cmbServiceType"/>
+       </item>
+       <item row="7" column="1" colspan="4">
+        <widget class="QComboBox" name="cmbSex">
+         <item>
+          <property name="text">
+           <string>не задано</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Мужской</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Женский</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="9" column="1">
+        <widget class="QSpinBox" name="spbAgeFor"/>
+       </item>
+       <item row="4" column="1" colspan="4">
+        <widget class="QCheckBox" name="chkPreferable">
          <property name="text">
-          <string>Признак &quot;является предпочитаемой&quot; для подразделения</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
+          <string>Признак &quot;является предпочитаемой&quot; для ЛПУ</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="1" colspan="4">
-        <widget class="QLineEdit" name="edtCode"/>
+       <item row="9" column="2">
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>по</string>
+         </property>
+        </widget>
        </item>
-       <item row="11" column="0" colspan="2">
-        <spacer>
+       <item row="9" column="4">
+        <spacer name="horizontalSpacer">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>231</width>
+           <width>40</width>
            <height>20</height>
           </size>
          </property>
         </spacer>
        </item>
-       <item row="11" column="4">
+       <item row="9" column="3">
+        <widget class="QSpinBox" name="spbAgeTo">
+         <property name="maximum">
+          <number>150</number>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblOrgStructure">
+         <property name="text">
+          <string>Подразделение</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1" colspan="4">
+        <widget class="COrgStructureComboBox" name="cmbOrgStructure"/>
+       </item>
+       <item row="12" column="4">
         <widget class="QDialogButtonBox" name="buttonBox">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -103,7 +146,10 @@
          </property>
         </widget>
        </item>
-       <item row="10" column="0">
+       <item row="2" column="1" colspan="4">
+        <widget class="QLineEdit" name="edtNomenclatureCode"/>
+       </item>
+       <item row="11" column="0">
         <spacer>
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -116,9 +162,6 @@
          </property>
         </spacer>
        </item>
-       <item row="2" column="1" colspan="4">
-        <widget class="QLineEdit" name="edtNomenclatureCode"/>
-       </item>
        <item row="1" column="0">
         <widget class="QLabel" name="lblName">
          <property name="text">
@@ -126,15 +169,15 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="1" colspan="4">
-        <widget class="QLineEdit" name="edtName"/>
-       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="lblCode">
          <property name="text">
           <string>Код</string>
          </property>
         </widget>
+       </item>
+       <item row="1" column="1" colspan="4">
+        <widget class="QLineEdit" name="edtName"/>
        </item>
        <item row="2" column="0">
         <widget class="QLabel" name="lblNomenclatureCode">
@@ -164,74 +207,41 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="1" colspan="4">
-        <widget class="CActionServiceTypeComboBox" name="cmbServiceType"/>
-       </item>
-       <item row="7" column="1" colspan="4">
-        <widget class="QComboBox" name="cmbSex">
-         <item>
-          <property name="text">
-           <string>не задано</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Мужской</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>Женский</string>
-          </property>
-         </item>
-        </widget>
-       </item>
-       <item row="4" column="1" colspan="4">
-        <widget class="QCheckBox" name="chkPreferable">
+       <item row="6" column="1" colspan="4">
+        <widget class="QCheckBox" name="chkPreferableOrgStructure">
          <property name="text">
-          <string>Признак &quot;является предпочитаемой&quot; для ЛПУ</string>
+          <string>Признак &quot;является предпочитаемой&quot; для подразделения</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
-       <item row="9" column="1">
-        <widget class="QSpinBox" name="spbAgeFor"/>
+       <item row="0" column="1" colspan="4">
+        <widget class="QLineEdit" name="edtCode"/>
        </item>
-       <item row="9" column="2">
-        <widget class="QLabel" name="label">
-         <property name="text">
-          <string>по</string>
-         </property>
-        </widget>
-       </item>
-       <item row="9" column="3">
-        <widget class="QSpinBox" name="spbAgeTo">
-         <property name="maximum">
-          <number>150</number>
-         </property>
-        </widget>
-       </item>
-       <item row="9" column="4">
-        <spacer name="horizontalSpacer">
+       <item row="12" column="0" colspan="2">
+        <spacer>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
-           <width>40</width>
+           <width>231</width>
            <height>20</height>
           </size>
          </property>
         </spacer>
        </item>
-       <item row="5" column="0">
-        <widget class="QLabel" name="lblOrgStructure">
+       <item row="10" column="1" colspan="4">
+        <widget class="QCheckBox" name="chkShowInForm">
          <property name="text">
-          <string>Подразделение</string>
+          <string>Разрешается выбор в формах ввода событий</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
-       </item>
-       <item row="5" column="1" colspan="4">
-        <widget class="COrgStructureComboBox" name="cmbOrgStructure"/>
        </item>
       </layout>
      </widget>

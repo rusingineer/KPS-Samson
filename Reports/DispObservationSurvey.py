@@ -119,7 +119,7 @@ MainRows = [
 ]
 
 
-def selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, filterAddressType):
+def selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, filterAddressType, socStatusClassId, socStatusTypeId, orgStructureId, specialityId, attachOrgStructureId):
     stmt = u"""
 SELECT
     COUNT(DISTINCT Diagnosis.id) AS count,
@@ -136,6 +136,13 @@ LEFT JOIN Client ON Client.id = Diagnosis.client_id
 LEFT JOIN ClientAddress AS ClientAddress0 ON ClientAddress0.client_id = Diagnosis.client_id
                         AND ClientAddress0.id = (SELECT MAX(id) FROM ClientAddress AS CA0 WHERE CA0.Type=%d
                                                  and CA0.client_id = Diagnosis.client_id AND CA0.deleted = 0)
+left JOIN ClientAttach ca ON ca.id = (
+              SELECT MAX(ClientAttach.id)
+                    FROM ClientAttach
+                    INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
+                    WHERE client_id = Client.id
+                      AND ClientAttach.deleted = 0
+                      AND NOT rbAttachType.TEMPORARY)
 LEFT JOIN ProphylaxisPlanning ON Diagnosis.`MKB` = ProphylaxisPlanning.`MKB`
                                  AND Client.`id` = ProphylaxisPlanning.`client_id`
                                  AND ProphylaxisPlanning.deleted = 0 
@@ -143,6 +150,7 @@ LEFT JOIN ProphylaxisPlanning ON Diagnosis.`MKB` = ProphylaxisPlanning.`MKB`
                                  AND %s
 LEFT JOIN rbProphylaxisPlanningType ON rbProphylaxisPlanningType.`id` = ProphylaxisPlanning.`prophylaxisPlanningType_id`
 LEFT JOIN Address ON Address.id = ClientAddress0.address_id
+LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = Diagnosis.dispanserPerson_id
 %s
 WHERE
     %s
@@ -153,6 +161,8 @@ GROUP BY
     tableDiagnosis       = db.table('Diagnosis')
     tableClient          = db.table('Client')
     tableClientDispanser = db.table('rbDispanser')
+    tablePerson = db.table('vrbPersonWithSpeciality')
+    tableClientAttach = db.table('ClientAttach').alias('ca')
     cond = []
     cond.append(tableDiagnosis['deleted'].eq(0))
     cond.append(tableDiagnosis['mod_id'].isNull())
@@ -171,6 +181,16 @@ GROUP BY
 
     if personId:
         cond.append(tableDiagnosis['dispanserPerson_id'].eq(personId))
+    elif orgStructureId:
+        cond.append(tablePerson['orgStructure_id'].inlist(getOrgStructureDescendants(orgStructureId)))
+    else:
+        cond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
+    if specialityId:
+        cond.append(tablePerson['speciality_id'].eq(specialityId))
+    if attachOrgStructureId:
+        orgStructureList = getOrgStructureDescendants(attachOrgStructureId)
+        cond.append(tableClientAttach['orgStructure_id'].inlist(orgStructureList))
+
     if MKBFilter == 1:
         cond.append(tableDiagnosis['MKB'].ge(MKBFrom))
         cond.append(tableDiagnosis['MKB'].le(MKBTo))
@@ -189,9 +209,9 @@ GROUP BY
         cond.append(tableClient['sex'].eq(sex))
     if ageFrom <= ageTo:
         if ageFrom != 0:
-            cond.append('Diagnosis.endDate >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)' % ageFrom)
+            cond.append(' ADDDATE(Client.birthDate, INTERVAL %d YEAR)<= %s ' % (ageFrom,db.formatDate(date) ))
         if ageTo != 150:
-            cond.append('Diagnosis.endDate < SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)' % (ageTo+1))
+            cond.append(' ADDDATE(Client.birthDate, INTERVAL %d YEAR)> %s ' % (ageTo + 1, db.formatDate(date)))
     if areaIdEnabled:
         if areaId:
             orgStructureIdList = getOrgStructureDescendants(areaId)
@@ -203,6 +223,18 @@ GROUP BY
                     tableOrgStructureAddress['house_id'].eq(tableAddress['house_id']),
                   ]
         cond.append(db.existsStmt(tableOrgStructureAddress, subCond))
+
+    if socStatusTypeId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusType_id=%d' % socStatusTypeId)
+        cond.append('EXISTS('+subStmt+')')
+    elif socStatusClassId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusClass_id=%d' % socStatusClassId)
+        cond.append('EXISTS('+subStmt+')')
+
 
     date = date if date else QDate.currentDate()
     firstDay = firstYearDay(date)
@@ -258,9 +290,15 @@ class CDispObservationSurvey(CReport):
         filterAddressType = params.get('filterAddressType', 0)
         isPrintOnlyFilledRows = params.get('isPrintOnlyFilledRows', False)
 
+        socStatusClassId = params.get('socStatusClassId', None)
+        socStatusTypeId = params.get('socStatusTypeId', None)
+        orgStructureId = params.get('orgStructureId', None)
+        specialityId = params.get('specialityId', None)
+        attachOrgStructureId = params.get('attachOrgStructureId', None)
+
         rowSize = 7
         reportMainData = [[0]*rowSize for row in xrange(len(MainRows))]
-        query = selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, filterAddressType)
+        query = selectData(date, workOrgId, sex, ageFrom, ageTo, areaIdEnabled, areaId, MKBFilter, MKBFrom, MKBTo, personId, filterAddressType, socStatusClassId, socStatusTypeId, orgStructureId, specialityId, attachOrgStructureId)
 
         while query.next():
             record    = query.record()

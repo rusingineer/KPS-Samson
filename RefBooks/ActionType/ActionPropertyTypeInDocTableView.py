@@ -120,23 +120,32 @@ class CActionTypeDelegate(CActionTypeBaseDelegate):
 
 
 class CActionPropertyTypeInDocTableView(CInDocTableView):
-    ciSetting = 9
 
     def __init__(self, parent):
         CInDocTableView.__init__(self, parent)
-        self.constructorDelegate = CActionTypeDelegate(self.fontMetrics().height(), self, isValueDomain=True)
         self.enableColsMove()
-        self.setItemDelegateForColumn(self.ciSetting, self.constructorDelegate)
+        self.ciSetting = None
+        self.constructorDelegate = None
 
-
-    def savePreferences(self):  # Не сохранять измененный порядок столбцов
+    def savePreferences(self): #Не сохранять измененный порядок столбцов
         self.horizontalHeader().setMovable(False)
         return CInDocTableView.savePreferences(self)
+    
+    
+    def setSettingDelegate(self, column): #Устанавливать делегат только для нужного экземпляра
+        self.constructorDelegate = CActionTypeDelegate(self.fontMetrics().height(), self, isValueDomain=True)
+        self.setItemDelegateForColumn(column, self.constructorDelegate)
+        self.ciSetting = column
+        
 
+    def setSettingDelegate(self, column):  # Устанавливать делегат только для нужного экземпляра
+        self.constructorDelegate = CActionTypeDelegate(self.fontMetrics().height(), self, isValueDomain=True)
+        self.setItemDelegateForColumn(column, self.constructorDelegate)
+        self.ciSetting = column
 
     def sizeHintForRow(self, row):
         model = self.model()
-        if model:
+        if model and self.ciSetting:
             index = model.index(row, self.ciSetting)
             return self.constructorDelegate.sizeHint(None, index).height()*1+1
         return -1

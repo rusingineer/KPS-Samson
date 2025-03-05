@@ -23,7 +23,6 @@ from Events.Action           import CActionType
 from Events.ActionStatus     import CActionStatus
 from Events.Utils import CEventTypeDescription, checkTissueJournalStatusByActions
 from F088.F0882022EditDialog import CF0882022EditDialog
-from Users.Rights            import urLoadActionTemplate, urEditOtherpeopleAction, urSaveActionTemplate
 
 
 class CF0882022CreateDialog(CF0882022EditDialog):
@@ -140,13 +139,6 @@ class CF0882022CreateDialog(CF0882022EditDialog):
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
 
-        if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)):
-            actionTemplateTreeModel = self.actionTemplateCache.getModel(actionType.id)
-            self.btnLoadTemplate.setModel(actionTemplateTreeModel)
-        else:
-            self.btnLoadTemplate.setEnabled(False)
-        self.btnSaveAsTemplate.setEnabled(QtGui.qApp.userHasRight(urSaveActionTemplate))
-
         canEdit = not self.action.isLocked() if self.action else True
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,
                        self.cmbStatus, self.edtBegDate, self.edtBegTime,
@@ -159,8 +151,6 @@ class CF0882022CreateDialog(CF0882022EditDialog):
                       ):
                 widget.setEnabled(canEdit)
         self.edtAmount.setEnabled(actionType.amountEvaluation == 0 and canEdit)
-        if not QtGui.qApp.userHasRight(urLoadActionTemplate) and not (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)) and not canEdit:
-            self.btnLoadTemplate.setEnabled(False)
 
         canEditPlannedEndDate = canEdit and actionType.defaultPlannedEndDate not in (CActionType.dpedBegDatePlusAmount,
                                                                                      CActionType.dpedBegDatePlusDuration)

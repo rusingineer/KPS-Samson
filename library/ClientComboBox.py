@@ -153,7 +153,10 @@ class CClientModel(QAbstractTableModel):
         self.loadData()
 
     def getId(self, rowIndex):
-        return self._idList[rowIndex]
+        if self._idList:
+            return self._idList[rowIndex]
+        else:
+            return  None
 
 class CClientComboBox(CRBComboBox):
     def __init__(self, parent):

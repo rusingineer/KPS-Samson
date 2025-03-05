@@ -41,6 +41,7 @@ class CActionsTableView(CInDocTableView):
         self._parent = None
 
     def setModel(self, model):
+        self._addIdentificationInfoAction()
         if getattr(model, '__groupingAllowed__', False):
             self._addTouchGroupingAction()
             self.connect(model, SIGNAL("rowIndexActivated(int)"), self._on_groupRowActivated)
@@ -56,6 +57,14 @@ class CActionsTableView(CInDocTableView):
     def setParentWidget(self, parent):
         self._parent = parent
 
+    def _addIdentificationInfoAction(self):
+        if self._popupMenu is None:
+            self.createPopupMenu()
+        self._actIdentificationInfo = QtGui.QAction(u'Показать идентификаторы действия', self)
+        self._popupMenu.addAction(self._actIdentificationInfo)
+        self.connect(self._actIdentificationInfo, SIGNAL('triggered()'), self.on_actIdentificationInfo_triggered)
+        self.addAction(self._actIdentificationInfo)
+    
     def _addTouchGroupingAction(self):
         if self._popupMenu is None:
             self.createPopupMenu()
@@ -77,6 +86,12 @@ class CActionsTableView(CInDocTableView):
         else:
             self._actTouchGrouping.setText(u'Раскрыть элементы')
 
+    @pyqtSignature('QModelIndex')
+    def on_actIdentificationInfo_triggered(self, index=None):
+        row = index.row() if index else self.currentIndex().row()
+        model = self.model()
+        model.showIdentificationInfo(row)
+    
     @pyqtSignature('QModelIndex')
     def on_touchGrouping(self, index=None):
         row = index.row() if index else self.currentIndex().row()
@@ -139,9 +154,9 @@ class CActionsTableView(CInDocTableView):
         index = self.currentIndex()
         if index.isValid():
             row = index.row()
-            items = self.model()._actionModel.items()
-            if 0 <= row < len(items):
-                oldRecord, oldAction = items[row]
+            items = self.model()._mapProxyRow2Group
+            if 0 <= row < len(self.model()._actionModel.items()):
+                oldRecord, oldAction = items[row].getItem(row)
                 dialog = CActionEditDialog(self)
                 dialog.save = lambda: True
                 dialog.setForceClientId(self._parent.clientId())
@@ -155,7 +170,7 @@ class CActionsTableView(CInDocTableView):
                         del eventInfo._actions._items[i]
                 dialog.setEventInfo(eventInfo)
                 if dialog.exec_():
-                    items[row]._data = CActionRecordItem(dialog.getRecord(), dialog.action)
+                    items[row].getItem(row)._data = CActionRecordItem(dialog.getRecord(), dialog.action)
                     self._parent.onActionCurrentChanged()
                     if hasattr(self._parent.eventEditor, 'modelActionsSummary'):
                         self._parent.eventEditor.modelActionsSummary.regenerate()

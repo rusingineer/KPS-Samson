@@ -62,7 +62,7 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                        'actionAmountChanged(double)',
                       )
 
-    column = [u'Назначено', u'Значение',  u'Ед.изм.',  u'Норма', u'Оценка']
+    column = [u'Назначено', u'Значение',  u'Ед.изм.',  u'Норма', u'Оценка', u'Комментарий']
     visibleAll = 0
     visibleInJobTicket = 1
     ciIsAssigned   = 0
@@ -70,6 +70,7 @@ class CActionPropertiesTableModel(QAbstractTableModel):
     ciUnit       = 2
     ciNorm       = 3
     ciEvaluation = 4
+    ciComment = 5
 
 
     def __init__(self, parent, visibilityFilter=0):
@@ -161,7 +162,7 @@ class CActionPropertiesTableModel(QAbstractTableModel):
 
 
     def columnCount(self, index = None):
-        return 5
+        return 6
 
 
     def rowCount(self, index = QModelIndex()):
@@ -228,6 +229,8 @@ class CActionPropertiesTableModel(QAbstractTableModel):
         if self.readOnly or (self.action and self.action.isLocked()):
             if propertyType.isImage():
                 return Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsEnabled
+            elif propertyType.isUrl():
+                return Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
             else:
                 return Qt.ItemIsEnabled|Qt.ItemIsSelectable
         else:
@@ -246,6 +249,10 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                         return Qt.ItemIsSelectable|Qt.ItemIsEnabled
                     elif propertyType.defaultEvaluation in (2, 3):# 2-полуавтомат, 3-ручное
                         return Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsEnabled
+                elif column == self.ciComment:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
+            elif propertyType.isUrl():
+                return Qt.ItemIsSelectable | Qt.ItemIsEditable | Qt.ItemIsEnabled
             return Qt.ItemIsSelectable|Qt.ItemIsEnabled
 
 
@@ -271,6 +278,8 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                 else:
                     s = ('%+d'%evaluation) if evaluation else '0'
                 return toVariant(s)
+            elif column == self.ciComment:
+                return QVariant(property.getComment())
             else:
                 return QVariant()
         elif role == Qt.CheckStateRole:
@@ -291,6 +300,8 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                 return toVariant(property.getNorm())
             elif column == self.ciEvaluation:
                 return toVariant(property.getEvaluation())
+            elif column == self.ciComment:
+                return toVariant(property.getComment())
             else:
                 return QVariant()
         elif role == Qt.TextAlignmentRole:
@@ -412,6 +423,9 @@ class CActionPropertiesTableModel(QAbstractTableModel):
             self.propertyTypeList.sort(key = lambda x: conv_data(self.action.getPropertyById(x.id).getNorm()), reverse = flag)
         if column == self.ciEvaluation:
             self.propertyTypeList.sort(key = lambda x: conv_data(self.action.getPropertyById(x.id).getEvaluation()), reverse = flag)
+        if column == self.ciComment:
+            self.propertyTypeList.sort(key=lambda x: conv_data(self.action.getPropertyById(x.id).getComment()),
+                                       reverse=flag)
         self.reset()
 
 
@@ -439,6 +453,10 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                     return True
             elif column == self.ciEvaluation:
                 property.setEvaluation(None if value.isNull() else forceInt(value))
+                self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                return True
+            elif column == self.ciComment:
+                property.setComment(forceString(value))
                 self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
                 return True
         elif role == Qt.CheckStateRole:
@@ -692,11 +710,30 @@ class CActionPropertyDelegate(CActionPropertyBaseDelegate):
         model = index.model()
         row = index.row()
         propertyType = model.getPropertyType(row)
-        editor = propertyType.createEditor(model.action, parent, model.clientId, model.eventTypeId)
+        isReadOnly = False
+        if propertyType.isUrl():
+            isReadOnly = self.checkIsUrlReadOnly(row, model)
+        editor = propertyType.createEditor(model.action, parent, model.clientId, model.eventTypeId, isReadOnly)
         editor.setStatusTip(forceString(model.data(index, Qt.StatusTipRole)))
         self.connect(editor, SIGNAL('commit()'), self.commit)
         self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
         return editor
+
+
+    def checkIsUrlReadOnly(self, row, model):
+        if not model.action._locked:
+            propertyType = model.getPropertyType(row)
+            if propertyType.canChangeOnlyOwner == 0:
+                return False
+            elif propertyType.canChangeOnlyOwner == 1:
+                setPersonId = forceRef(model.action.getRecord().value('setPerson_id'))
+                return setPersonId != QtGui.qApp.userId
+            elif propertyType.canChangeOnlyOwner == 2:
+                person_id = forceRef(model.action.getRecord().value('person_id'))
+                return person_id != QtGui.qApp.userId
+        else:
+            return True
+        return True
 
 
     def setEditorData(self, editor, index):
@@ -781,6 +818,37 @@ class CActionPropertyEvaluationDelegate(CActionPropertyBaseDelegate):
 
     def sizeHint(self, option, index):
         return QSize(10, self.lineHeight)
+# ################################################
+
+class CActionPropertyCommentDelegate(CActionPropertyDelegate):
+    def __init__(self, lineHeight, parent=None):
+        CActionPropertyDelegate.__init__(self, lineHeight, parent)
+
+    def createEditor(self, parent, option, index):
+        editor = QtGui.QTextEdit(parent)
+        editor.setLineWrapMode(QtGui.QTextEdit.WidgetWidth)
+        editor.setWordWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
+        return editor
+
+    def setEditorData(self, editor, index):
+        model = index.model()
+        value = model.data(index, Qt.EditRole)
+        editor.setPlainText(forceStringEx(value))
+        editor.moveCursor(QtGui.QTextCursor.End)
+
+    def setModelData(self, editor, model, index):
+        model = index.model()
+        model.setData(index, QVariant(editor.toPlainText()))
+
+    def alignment(self):
+        return QVariant(Qt.AlignLeft + Qt.AlignTop)
+
+    #def insertFromMimeData(self, mimeData):
+    #    if (mimeData.hasText()):
+    #        text = mimeData.text()
+    #        self.insertPlainText(text)
+    #    else:
+    #        QtGui.QTextEdit.insertFromMimeData(self, mimeData)
 
 # ################################################
 
@@ -833,6 +901,8 @@ class CActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
         self.setItemDelegateForColumn(CActionPropertiesTableModel.ciValue, self.valueDelegate)
         self.evaluationDelegate = CActionPropertyEvaluationDelegate(self.fontMetrics().height(), self)
         self.setItemDelegateForColumn(CActionPropertiesTableModel.ciEvaluation, self.evaluationDelegate)
+        self.commentDelegate = CActionPropertyCommentDelegate(self.fontMetrics().height(), self)
+        self.setItemDelegateForColumn(CActionPropertiesTableModel.ciComment, self.commentDelegate)
         self.setEditTriggers(QtGui.QAbstractItemView.AllEditTriggers)
         self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int,int,int)'), self.resizeRowsToContents)
         self.connect(self.valueDelegate, SIGNAL('sizeHintChanged(const QModelIndex &)'), self.valueDelegateSizeHintChanged)

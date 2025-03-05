@@ -18,7 +18,7 @@ from Orgs.Utils                            import COrgStructureInfo, COrgInfo
 from Orgs.PersonInfo                       import CPersonInfo
 from RefBooks.Finance.Info                 import CFinanceInfo
 from RefBooks.MedicalAidKind.Info          import CMedicalAidKindInfo
-from RefBooks.NomenclatureActiveSubstance.Info import CNomenclatureActiveSubstanceInfo
+from RefBooks.FinanceSource.Info           import CFinanceSourceInfo
 from RefBooks.Unit.Info                    import CUnitInfo
 from Registry.Utils                        import CClientInfo
 from Stock.NomenclatureComboBox            import getFeaturesAndValues
@@ -38,8 +38,10 @@ from library.Utils                         import (
                                                    forceInt,
                                                    forceRef,
                                                    forceString,
+                                                   forceStringEx,
                                                   )
 from library.RLS.RLSInfo                   import CRLSInfo
+from library.ESKLP.SmnnInfo                import CSmnnInfo
 
 
 class CStockMotionItemReasonInfo(CRBInfo):
@@ -59,7 +61,11 @@ class CStockMotionItemInfo(CInfo):
         self._shelfTime    = CDateInfo(forceDate(record.value('shelfTime')))
         self._finance      = self.getInstance(CFinanceInfo, forceRef(record.value('finance_id')))
         self._qnt          = forceDouble(record.value('qnt'))
+        self._price        = forceDouble(record.value('price'))
         self._sum          = forceDouble(record.value('sum'))
+        self._oldQnt       = forceDouble(record.value('oldQnt'))
+        self._oldPrice     = forceDouble(record.value('oldPrice'))
+        self._oldSum       = forceDouble(record.value('oldSum'))
         self._isOut        = forceInt(record.value('isOut'))
         self._isOutString  = (u'затрата', u'получение')[self._isOut] if self._isOut in (0, 1) else u''
         self._note         = forceString(record.value('note'))
@@ -67,8 +73,6 @@ class CStockMotionItemInfo(CInfo):
         self._reason       = self.getInstance(CStockMotionItemReasonInfo, forceRef(record.value('reason_id')))
         self._medicalAidKind = self.getInstance(CMedicalAidKindInfo, forceRef(record.value('medicalAidKind_id')))
         self._disposalMethod = self.getInstance(CDisposalMethodInfo, forceRef(record.value('disposalMethod_id')))
-        if forceDouble(record.value('qnt')):
-            self._price = forceDouble(record.value('sum')) / forceDouble(record.value('qnt'))
         return self
 
 
@@ -96,7 +100,11 @@ class CStockMotionItemInfo(CInfo):
             self._shelfTime      = CDateInfo()
             self._finance        = self.getInstance(CFinanceInfo, None)
             self._qnt            = 0
+            self._price          = 0
             self._sum            = 0
+            self._oldQnt         = 0
+            self._oldPrice       = 0
+            self._oldSum         = 0
             self._isOut          = None
             self._isOutString    = u''
             self._note           = u''
@@ -104,20 +112,23 @@ class CStockMotionItemInfo(CInfo):
             self._reason         = self.getInstance(CStockMotionItemReasonInfo, None)
             self._medicalAidKind = self.getInstance(CMedicalAidKindInfo, None)
             self._disposalMethod = self.getInstance(CDisposalMethodInfo, None)
-            self._price = 0
             return False
 
-    sum = property(lambda self: self.load()._sum)
-    qnt = property(lambda self: self.load()._qnt)
+    idx = property(lambda self: self.load()._idx)
     nomenclature = property(lambda self: self.load()._nomenclature)
     batch = property(lambda self: self.load()._batch)
     isOut = property(lambda self: self.load()._isOutString)
-    note = property(lambda self: self.load()._note)
     shelfTime = property(lambda self: self.load()._shelfTime)
     finance = property(lambda self: self.load()._finance)
+    qnt = property(lambda self: self.load()._qnt)
+    price = property(lambda self: self.load()._price)
+    sum = property(lambda self: self.load()._sum)
+    oldQnt = property(lambda self: self.load()._oldQnt)
+    oldPrice = property(lambda self: self.load()._oldPrice)
+    oldSum = property(lambda self: self.load()._oldSum)
+    note = property(lambda self: self.load()._note)
     unit = property(lambda self: self.load()._unit)
     reason = property(lambda self: self.load()._reason)
-    price = property(lambda self: self.load()._price)
     medicalAidKind = property(lambda self: self.load()._medicalAidKind)
     disposalMethod = property(lambda self: self.load()._disposalMethod)
 
@@ -199,6 +210,8 @@ class CStockMotionInfo(CInfo):
             self._type       = stockMotionType[forceInt(record.value('type'))][0]
             self._number     = forceString(record.value('number'))
             self._date       = CDateTimeInfo(forceDateTime(record.value('date')))
+            self._invoiceNumber = forceString(record.value('invoiceNumber'))
+            self._invoiceDate = CDateInfo(forceDateTime(record.value('invoiceDate')))
             self._reason     = forceString(record.value('reason'))
             self._reasonDate = CDateInfo(forceDate(record.value('reasonDate')))
             self._receiver   = self.getInstance(COrgStructureInfo, forceInt(record.value('receiver_id')))
@@ -224,6 +237,8 @@ class CStockMotionInfo(CInfo):
             self._type       = None
             self._number     = ''
             self._date       = CDateTimeInfo()
+            self._invoiceNumber = ''
+            self._invoiceDate = CDateInfo()
             self._reason     = ''
             self._reasonDate = CDateInfo()
             self._receiver   = self.getInstance(COrgStructureInfo, None)
@@ -252,6 +267,8 @@ class CStockMotionInfo(CInfo):
     type = property(lambda self: self.load()._type)
     number = property(lambda self: self.load()._number)
     date = property(lambda self: self.load()._date)
+    invoiceNumber = property(lambda self: self.load()._invoiceNumber)
+    invoiceDate = property(lambda self: self.load()._invoiceDate)
     reason = property(lambda self: self.load()._reason)
     reasonDate = property(lambda self: self.load()._reasonDate)
     receiver = property(lambda self: self.load()._receiver)
@@ -391,6 +408,7 @@ class CStockRequisitionsInfo(CInfo):
             self._date       = CDateTimeInfo(forceDateTime(record.value('date')))
             self._deadline   = CDateTimeInfo(forceDateTime(record.value('deadline')))
             self._receiver   = self.getInstance(COrgStructureInfo, forceInt(record.value('recipient_id')))
+            self._recipientPerson   = self.getInstance(CPersonInfo, forceInt(record.value('recipientPerson_id')))
             self._supplier   = self.getInstance(COrgStructureInfo, forceInt(record.value('supplier_id')))
             self._note       = forceString(record.value('note'))
             self._items      = self.getInstance(CStockRequisitionsItemInfoList, self.id)
@@ -413,6 +431,7 @@ class CStockRequisitionsInfo(CInfo):
             self._date = CDateTimeInfo()
             self._deadline = CDateTimeInfo()
             self._receiver = self.getInstance(COrgStructureInfo, None)
+            self._recipientPerson   = self.getInstance(CPersonInfo, None)
             self._supplier = self.getInstance(COrgStructureInfo, None)
             self._note     = u''
             self._items    = []
@@ -428,6 +447,7 @@ class CStockRequisitionsInfo(CInfo):
     date = property(lambda self: self.load()._date)
     deadline = property(lambda self: self.load()._deadline)
     receiver = property(lambda self: self.load()._receiver)
+    recipientPerson = property(lambda self: self.load()._recipientPerson)
     supplier = property(lambda self: self.load()._supplier)
     note = property(lambda self: self.load()._note)
     items = property(lambda self: self.load()._items)
@@ -457,10 +477,6 @@ class CNomenclatureTypeInfo(CRBInfo):
     tableName = 'rbNomenclatureType'
 
 
-class CLFUnitInfo(CRBInfo):
-    tableName = 'rbUnit'
-
-
 # Какое скверное имя таблицы :(
 # rbLfForm - это «Формы выпуска лекарственных препаратов»
 # должно быть rbDosageForm
@@ -473,17 +489,24 @@ class CLFFormInfo(CRBInfo):
         if record:
             self._code = forceString(record.value('code'))
             self._name = forceString(record.value('name'))
-            self._latinName = forceString(record.value('latinName'))
+            self._dosage = forceStringEx(record.value('dosage'))
+            self._isESKLP = forceInt(record.value('isESKLP'))
             self._initByRecord(record)
             return True
         else:
             self._code = ''
             self._name = ''
-            self._latinName = ''
+            self._dosage = ''
+            self._isESKLP = 0
             self._initByNull()
             return False
 
-    latinName = property(lambda self: self.load()._latinName)
+
+    code = property(lambda self: self.load()._code)
+    name = property(lambda self: self.load()._name)
+    dosage  = property(lambda self: self.load()._dosage)
+    isESKLP = property(lambda self: self.load()._isESKLP)
+
 
 class CNomenclatureInfo(CRBInfoWithIdentification):
     tableName = 'rbNomenclature'
@@ -505,11 +528,10 @@ class CNomenclatureInfo(CRBInfoWithIdentification):
         self._dosageValue                      = forceString(record.value('dosageValue'))
         self._dosageUnit                       = self.getInstance(CUnitInfo,  forceRef(record.value('unit_id')))
         self._lfForm                           = self.getInstance(CLFFormInfo, forceRef(record.value('lfForm_id')))
-        self._unit                             = self.getInstance(CLFUnitInfo, forceRef(record.value('unit_id')))
         self._inDate                           = CDateInfo(forceDate(record.value('inDate')))
         self._exDate                           = CDateInfo(forceDate(record.value('exDate')))
         self._completeness                     = forceString(record.value('completeness'))
-        self._features                         = getFeaturesAndValues(nomenclatureId = record.value('id'))
+        self._features                         = getFeaturesAndValues(nomenclatureId=record.value('id'))
         self._analogues                        = [] # эта строчка вешает экспорт счетов по ковиду self.getAnalogues(nomenclatureId=id, analogId=forceInt(record.value('analog_id')))
         self._note                             = forceString(record.value('note'))
         self._composition                      = self.getInstance(CNomenclatureCompositionInfoList, id)
@@ -531,7 +553,6 @@ class CNomenclatureInfo(CRBInfoWithIdentification):
         self._dosageValue                      = ''
         self._dosageUnit                       = self.getInstance(CUnitInfo,  None)
         self._lfForm                           = self.getInstance(CLFFormInfo, None)
-        self._unit                             = ''
         self._inDate                           = CDateInfo()
         self._exDate                           = CDateInfo()
         self._completeness                     = ''
@@ -577,8 +598,8 @@ class CNomenclatureInfo(CRBInfoWithIdentification):
     trnCode                         = property(lambda self: self.load()._trnCode)
     dosageValue                     = property(lambda self: self.load()._dosageValue)
     dosageUnit                      = property(lambda self: self.load()._dosageUnit)
+    unit                            = property(lambda self: self.load()._dosageUnit)
     lfForm                          = property(lambda self: self.load()._lfForm)
-    unit                            = property(lambda self: self.load()._unit)
     inDate                          = property(lambda self: self.load()._inDate)
     exDate                          = property(lambda self: self.load()._exDate)
     completeness                    = property(lambda self: self.load()._completeness)
@@ -600,10 +621,16 @@ class CStockPurchaseContractItemInfo(CInfo):
         self._RLSInfo        = self.getInstance(CRLSInfo, forceRef(record.value('nomenclature_id')))
         self._batch          = forceString(record.value('batch'))
         self._shelfTime      = CDateInfo(forceDate(record.value('shelfTime')))
+        self._comparisonDate = CDateTimeInfo(forceDateTime(record.value('comparisonDate')))
         self._medicalAidKind = self.getInstance(CMedicalAidKindInfo, forceRef(record.value('medicalAidKind_id')))
         self._qnt            = forceDouble(record.value('qnt'))
+        self._remainPurchaseQnt = forceDouble(record.value('remainPurchaseQnt'))
         self._unit           = self.getInstance(CUnitInfo, forceRef(record.value('unit_id')))
         self._sum            = forceDouble(record.value('sum'))
+        self._smnnUUID       = forceStringEx(record.value('smnnUUID'))
+        self._smnn           = self.getInstance(CSmnnInfo, self._smnnUUID)
+        self._lfForm         = self.getInstance(CLFFormInfo, forceRef(record.value('lfForm_id')))
+        self._note           = forceString(record.value('note'))
         return self
 
 
@@ -624,10 +651,16 @@ class CStockPurchaseContractItemInfo(CInfo):
             self._RLSInfo        = self.getInstance(CRLSInfo, None)
             self._batch          = u''
             self._shelfTime      = CDateInfo()
+            self._comparisonDate = CDateTimeInfo()
             self._medicalAidKind = self.getInstance(CMedicalAidKindInfo, None)
             self._qnt            = 0
+            self._remainPurchaseQnt = 0
             self._unit           = self.getInstance(CUnitInfo, None)
             self._sum            = 0
+            self._smnnUUID       = None
+            self._smnn           = self.getInstance(CSmnnInfo, None)
+            self._lfForm         = self.getInstance(CLFFormInfo, None)
+            self._note           = ''
             return False
 
     idx = property(lambda self: self.load()._idx)
@@ -635,10 +668,16 @@ class CStockPurchaseContractItemInfo(CInfo):
     RLSInfo = property(lambda self: self.load()._RLSInfo)
     batch = property(lambda self: self.load()._batch)
     shelfTime = property(lambda self: self.load()._shelfTime)
+    comparisonDate = property(lambda self: self.load()._comparisonDate)
     medicalAidKind = property(lambda self: self.load()._medicalAidKind)
     qnt = property(lambda self: self.load()._qnt)
+    remainPurchaseQnt = property(lambda self: self.load()._remainPurchaseQnt)
     unit = property(lambda self: self.load()._unit)
     sum = property(lambda self: self.load()._sum)
+    smnnUUID = property(lambda self: self.load()._smnnUUID)
+    smnn = property(lambda self: self.load()._smnn)
+    lfForm = property(lambda self: self.load()._lfForm)
+    note = property(lambda self: self.load()._note)
 
 
 class CStockPurchaseContractItemInfoList(CInfoList):
@@ -717,10 +756,21 @@ class CStockPurchaseContractInfo(CInfo):
         self._begDate     = CDateInfo()
         self._endDate     = CDateInfo()
         self._finance     =  None
+        self._financeSource = self.getInstance(CFinanceSourceInfo, None)
         self._isState     = 0
         self._confirmationOrder = 0
         self._items       = []
         self._additionallyAgreement = []
+        self._type       = 0
+        self._reason     = ''
+        self._reasonDate = CDateInfo()
+        self._type       = None
+        self._receiver   = self.getInstance(COrgStructureInfo, None)
+        self._supplier   = self.getInstance(COrgStructureInfo, None)
+        self._note       = ''
+        self._supplierPerson   = self.getInstance(CPersonInfo, None)
+        self._receiverPerson   = self.getInstance(CPersonInfo, None)
+        self._supplierOrgPerson = ''
 
 
     def setRecord(self, record):
@@ -731,11 +781,21 @@ class CStockPurchaseContractInfo(CInfo):
             self._name        = forceString(record.value('name'))
             self._title       = forceString(record.value('title'))
             self._supplierOrg =  self.getInstance(COrgInfo, forceInt(record.value('supplierOrg_id')))
-            self._begDate     = CDateInfo(forceDate(record.value('reasonDate')))
-            self._endDate     = CDateInfo(forceDate(record.value('reasonDate')))
+            self._begDate     = CDateInfo(forceDate(record.value('begDate')))
+            self._endDate     = CDateInfo(forceDate(record.value('endDate')))
             self._finance     = self.getInstance(CFinanceInfo, forceRef(record.value('finance_id')))
+            self._financeSource = self.getInstance(CFinanceSourceInfo, forceRef(record.value('financeSource_id')))
             self._isState     = forceInt(record.value('isState'))
             self._confirmationOrder = forceInt(record.value('confirmationOrder'))
+            self._type       = forceInt(record.value('type'))
+            self._reason     = forceString(record.value('reason'))
+            self._reasonDate = CDateInfo(forceDate(record.value('reasonDate')))
+            self._receiver   = self.getInstance(COrgStructureInfo, forceInt(record.value('receiver_id')))
+            self._supplier   = self.getInstance(COrgStructureInfo, forceInt(record.value('supplier_id')))
+            self._note       = forceString(record.value('note'))
+            self._supplierPerson   = self.getInstance(CPersonInfo, forceInt(record.value('supplierPerson_id')))
+            self._receiverPerson   = self.getInstance(CPersonInfo, forceInt(record.value('receiverPerson_id')))
+            self._supplierOrgPerson = forceString(record.value('supplierOrgPerson'))
             self._items      = self.getInstance(CStockPurchaseContractItemInfoList, self.id)
             self._additionallyAgreement = self.getInstance(CStockPCAdditionallyAgreementInfoList, self.id)
             self.setOkLoaded()
@@ -765,8 +825,18 @@ class CStockPurchaseContractInfo(CInfo):
     begDate = property(lambda self: self.load()._begDate)
     endDate = property(lambda self: self.load()._endDate)
     finance = property(lambda self: self.load()._finance)
+    financeSource = property(lambda self: self.load()._financeSource)
     isState = property(lambda self: self.load()._isState)
     confirmationOrder = property(lambda self: self.load()._confirmationOrder)
+    type = property(lambda self: self.load()._type)
+    reason = property(lambda self: self.load()._reason)
+    reasonDate = property(lambda self: self.load()._reasonDate)
+    receiver = property(lambda self: self.load()._receiver)
+    supplier = property(lambda self: self.load()._supplier)
+    note = property(lambda self: self.load()._note)
+    supplierPerson = property(lambda self: self.load()._supplierPerson)
+    receiverPerson = property(lambda self: self.load()._receiverPerson)
+    supplierOrgPerson = property(lambda self: self.load()._supplierOrgPerson)
     items = property(lambda self: self.load()._items)
     additionallyAgreement = property(lambda self: self.load()._additionallyAgreement)
 
@@ -780,6 +850,37 @@ class CStockPurchaseContractInfoList(CInfoList):
     def _load(self):
         self._items = [ self.getInstance(self._class, id) for id in self._idList ]
         return True
+
+
+class CNomenclatureActiveSubstanceInfo(CRBInfoWithIdentification):
+    tableName = 'rbNomenclatureActiveSubstance'
+
+    def setRecord(self, record):
+        if record:
+            self._code     = forceString(record.value('code'))
+            self._name     = forceString(record.value('name'))
+            self._mnnLatin = forceString(record.value('mnnLatin'))
+            self._unit     = self.getInstance(CUnitInfo, forceRef(record.value('unit_id')))
+            self.setOkLoaded()
+
+
+    def _load(self):
+        db = QtGui.qApp.db
+        cols = '`code`, `name`, `mnnLatin`, `unit_id`'
+        record = db.getRecord('rbNomenclatureActiveSubstance', cols, self.id) if self.id else None
+        if record:
+            self.setRecord(record)
+            return True
+        else:
+            self._code      = u''
+            self._name      = u''
+            self._mnnLatin  = u''
+            self._unit      = self.getInstance(CUnitInfo, None)
+            return False
+
+    # code и name наследованы от CRBInfo
+    mnnLatin = property(lambda self: self.load()._mnnLatin)
+    unit     = property(lambda self: self.load()._unit)
 
 
 class CNomenclatureCompositionInfoList(CInfoList):

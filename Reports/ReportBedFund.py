@@ -20,7 +20,7 @@ from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
 from Reports.ReportSetupDialog import CReportSetupDialog
 from Reports.ReportView import CPageFormat
-from library.Utils import forceInt, forceString, forceDate, calcAge, forceRef
+from library.Utils import forceInt, forceString, forceDate, calcAge, forceRef, forceBool
 
 
 def selectData(params):
@@ -56,6 +56,7 @@ def selectData(params):
   LEFT JOIN ActionType at ON at.id = Action.actionType_id AND at.deleted = 0
   WHERE ActionProperty_HospitalBed.value = OrgStructure_HospitalBed.id
     AND at.flatCode = 'moving'
+    AND Action.status in (0, 2)
     AND (Action.`endDate` IS NULL OR Action.`endDate` > '{0}')
     AND (Action.begDate < '{1}')
   ORDER BY Action.`begDate` DESC LIMIT 1
@@ -90,6 +91,7 @@ def selectData(params):
             tableOrgStructureHospitalBed['code'].alias('OSHBCode'),
             tableOrgStructureHospitalBed['name'].alias('OSHBName'),
             tableOrgStructureHospitalBed['relief'].alias('OSHBrelief'),
+            tableOrgStructureHospitalBed['isPermanent'],
             tableRbHospitalBedType['name'].alias('typeName'),
             tableOrgStructureHospitalBed['sex'].alias('clientSex'),
             tableClient['lastName'].alias('clientLastName'),
@@ -102,7 +104,7 @@ def selectData(params):
             tableAction['endDate'].alias('clientEndDate'),
             tableEvent['id'].alias('eventId')
             ]
-    cond = ["OrgStructure_HospitalBed.`endDate` IS NULL OR OrgStructure_HospitalBed.`endDate` > '{0}'".format(" ".join([db.formatDate(endDate), db.formatTime(endTime)]).replace("'", ""))]
+    cond = ["OrgStructure_HospitalBed.deleted = 0 AND (OrgStructure_HospitalBed.`endDate` IS NULL OR OrgStructure_HospitalBed.`endDate` > '{0}')".format(" ".join([db.formatDate(endDate), db.formatTime(endTime)]).replace("'", ""))]
     if descendantsIdList:
         cond.append(tableOrgStructureHospitalBed['master_id'].inlist(descendantsIdList))
 
@@ -152,7 +154,7 @@ class CReportBedFund(CReport):
 
         return rows
 
-    def loadData(self, hospitalBedId, ignoreEventID):
+    def loadData(self, hospitalBedId, ignoreEventID, endDate):
         sex = [u'', u'М', u'Ж']
         items = []
         db = QtGui.qApp.db
@@ -199,6 +201,10 @@ class CReportBedFund(CReport):
                  tableAction['status'].inlist([0, 1]),
                  tableEvent['deleted'].eq(0),
                ]
+        if endDate:
+            cond.append(tableAction['begDate'].le(endDate))
+            cond.append(db.joinOr([tableAction['endDate'].gt(endDate), tableAction['endDate'].isNull()]))
+
         records = db.getRecordList(queryTable, cols, cond)
         for record in records:
             if forceRef(record.value('eventId')) != ignoreEventID:
@@ -231,18 +237,23 @@ class CReportBedFund(CReport):
             ('3%', [u'№', u'1'], CReportBase.AlignLeft),
             ('15%', [u'Отделение', u'2'], CReportBase.AlignLeft),
             ('25%', [u'Койка', u'3'], CReportBase.AlignRight),
-            ('3%', [u'Смены', u'4'], CReportBase.AlignRight),
-            ('10%', [u'Тип койки', u'5'], CReportBase.AlignRight),
-            ('3%', [u'Пол', u'6'], CReportBase.AlignRight),
-            ('3%', [u'Свободно/Занято', u'7'], CReportBase.AlignRight),
-            ('18%', [u'ФИО', u'8'], CReportBase.AlignRight),
-            ('3%', [u'Возраст', u'9'], CReportBase.AlignRight),
-            ('10%', [u'Дата поступления', u'10'], CReportBase.AlignRight),
-            ('5%', [u'Предварительный диагноз (МКБ)', u'11'], CReportBase.AlignRight),
-            # ('5%', [u'Предварительный диагноз (Доп.МКБ)', u'12'], CReportBase.AlignRight),
+            ('5%', [u'Штат', u'4'], CReportBase.AlignRight),
+            ('3%', [u'Смены', u'5'], CReportBase.AlignRight),
+            ('10%', [u'Тип койки', u'6'], CReportBase.AlignRight),
+            ('3%', [u'Пол', u'7'], CReportBase.AlignRight),
+            ('3%', [u'Свободно/Занято', u'8'], CReportBase.AlignRight),
+            ('18%', [u'ФИО', u'9'], CReportBase.AlignRight),
+            ('3%', [u'Возраст', u'10'], CReportBase.AlignRight),
+            ('10%', [u'Дата поступления', u'11'], CReportBase.AlignRight),
+            ('5%', [u'Предварительный диагноз (МКБ)', u'12'], CReportBase.AlignRight),
         ]
         recordsList = selectData(params)
 
+        endDate = params.get('endDate', QDate())
+        endTime = params.get('endTime', QTime())
+        if not endTime.isNull():
+            endDateTime = QDateTime(endDate, endTime)
+            endDate = endDateTime
 
         self.dumpParams(cursor, params)
         cursor.insertBlock()
@@ -255,7 +266,6 @@ class CReportBedFund(CReport):
             col_num = 0
             for record in recordsList:
                 eventId = forceInt(record.value('eventId'))
-                # masterId = forceString(record.value('masterOrgStructure'))
                 orgStructureName = forceString(record.value('orgStructureName'))
                 OSHBId = forceString(record.value('OSHBId'))
                 code = forceString(record.value('OSHBCode'))
@@ -278,32 +288,31 @@ class CReportBedFund(CReport):
                 if birthDate:
                     age = calcAge(birthDate, params.get('endDate', QDate()))
                 MKB = forceString(record.value('clientMKB'))
-                # MKBEx = forceString(record.value('clientMKBEx'))
                 clientBegDate = forceString(record.value('clientBegDate'))
-                # clientEndDate = forceString(record.value('clientEndDate'))
+                isPermanent = u'[ш] 'if forceBool(record.value('isPermanent')) else u'[]'
 
                 n = table.addRow()
                 col_num += 1
                 table.setText(n, 0, col_num)
                 table.setText(n, 1, orgStructureName)
                 table.setText(n, 2, code + u" " + name)
-                table.setText(n, 3, relief)
-                table.setText(n, 4, typeName)
+                table.setText(n, 3, isPermanent)
+                table.setText(n, 4, relief)
+                table.setText(n, 5, typeName)
 
                 if fullName.replace(" ", "") == "":
-                    table.setText(n, 6, u'Свободно')
+                    table.setText(n, 7, u'Свободно')
                 else:
-                    table.setText(n, 6, u'Занято')
+                    table.setText(n, 7, u'Занято')
 
-                    table.setText(n, 5, clientSex)
-                    table.setText(n, 7, fullName)
-                    table.setText(n, 8, age)
-                    table.setText(n, 9, clientBegDate)
-                    table.setText(n, 10, MKB)
-                    # table.setText(n, 11, MKBEx)
+                    table.setText(n, 6, clientSex)
+                    table.setText(n, 8, fullName)
+                    table.setText(n, 9, age)
+                    table.setText(n, 10, clientBegDate)
+                    table.setText(n, 11, MKB)
 
                 if int(relief) > 1:
-                    items = self.loadData(OSHBId, eventId)
+                    items = self.loadData(OSHBId, eventId, endDate)
                     if items:
                         for item in items:
                             n = table.addRow()
@@ -311,14 +320,14 @@ class CReportBedFund(CReport):
                             table.setText(n, 1, u'    ')
                             table.setText(n, 2, u'    ')
                             table.setText(n, 3, u'    ')
-                            table.setText(n, 4, u'   ')
-                            table.setText(n, 5, clientSex)
-                            table.setText(n, 6, u'Занято')
-                            table.setText(n, 7, item[1])
-                            table.setText(n, 8, calcAge(item[3]))
-                            table.setText(n, 9, item[9])
-                            table.setText(n, 10, item[10])
-                            # table.setText(n, 11, u'   ')
+                            table.setText(n, 4, u'    ')
+                            table.setText(n, 5, u'   ')
+                            table.setText(n, 6, clientSex)
+                            table.setText(n, 7, u'Занято')
+                            table.setText(n, 8, item[1])
+                            table.setText(n, 9, calcAge(item[3]))
+                            table.setText(n, 10, item[9])
+                            table.setText(n, 11, item[10])
 
                     ost = int(relief) - (len(items) + 1)
                     for _ in xrange(ost):
@@ -328,13 +337,12 @@ class CReportBedFund(CReport):
                         table.setText(n, 2, u'    ')
                         table.setText(n, 3, u'    ')
                         table.setText(n, 4, u'    ')
-                        table.setText(n, 5, u'   ')
-                        table.setText(n, 6, u'Свободно')
-                        table.setText(n, 7, u'   ')
+                        table.setText(n, 5, u'    ')
+                        table.setText(n, 6, u'   ')
+                        table.setText(n, 7, u'Свободно')
                         table.setText(n, 8, u'   ')
                         table.setText(n, 9, u'   ')
                         table.setText(n, 10, u'   ')
-                        # table.setText(n, 11, u'   ')
-
+                        table.setText(n, 11, u'   ')
 
         return doc

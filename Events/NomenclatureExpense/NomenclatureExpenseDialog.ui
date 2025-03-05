@@ -17,183 +17,7 @@
    <item>
     <widget class="QWidget" name="wgtFilters" native="true">
      <layout class="QGridLayout" name="gridLayout">
-      <item row="5" column="0">
-       <widget class="QCheckBox" name="chkActual">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string>Только актуальные</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="lblNomenclature">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>ЛС</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QCheckBox" name="chkPeriod">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string>Период</string>
-        </property>
-        <property name="tristate">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="lblActionType">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Тип действия</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="2">
-       <spacer name="horizontalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="0" column="2">
-       <widget class="CActionTypeComboBox" name="cmbActionType"/>
-      </item>
-      <item row="6" column="0">
-       <widget class="QCheckBox" name="chkIgnoreTime">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string>Игнорировать время</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="2">
-       <widget class="CNomenclatureComboBox" name="cmbNomenclature"/>
-      </item>
-      <item row="8" column="0">
-       <widget class="QCheckBox" name="chkCurrentEvent">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="layoutDirection">
-         <enum>Qt::LeftToRight</enum>
-        </property>
-        <property name="text">
-         <string>Текущее событие</string>
-        </property>
-        <property name="autoRepeat">
-         <bool>false</bool>
-        </property>
-        <property name="autoExclusive">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="lblOrgStructure">
-        <property name="text">
-         <string>Подразделение</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2">
-       <widget class="CStorageComboBox" name="cmbOrgStructure"/>
-      </item>
-      <item row="5" column="2">
-       <widget class="QWidget" name="wgtYear" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="margin">
-          <number>0</number>
-         </property>
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="lblYear">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string>Год</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="edtYear">
-           <property name="minimum">
-            <number>1970</number>
-           </property>
-           <property name="maximum">
-            <number>3000</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="6" column="2">
+      <item row="7" column="2">
        <widget class="QWidget" name="wgtMonth" native="true">
         <layout class="QHBoxLayout" name="horizontalLayout_6">
          <property name="spacing">
@@ -289,7 +113,197 @@
         </layout>
        </widget>
       </item>
-      <item row="4" column="2">
+      <item row="6" column="2">
+       <widget class="QWidget" name="wgtYear" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="margin">
+          <number>0</number>
+         </property>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblYear">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Год</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="CSpinBox" name="edtYear">
+           <property name="minimum">
+            <number>1970</number>
+           </property>
+           <property name="maximum">
+            <number>3000</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblOrgStructure">
+        <property name="text">
+         <string>Подразделение</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="lblNomenclature">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>ЛС</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QLabel" name="lblActionType">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Тип действия</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QCheckBox" name="chkPeriod">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Период</string>
+        </property>
+        <property name="tristate">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="2">
+       <widget class="CActionTypeComboBox" name="cmbActionType"/>
+      </item>
+      <item row="3" column="2">
+       <widget class="CNomenclatureComboBox" name="cmbNomenclature"/>
+      </item>
+      <item row="9" column="2">
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="9" column="0">
+       <widget class="QCheckBox" name="chkCurrentEvent">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Текущее событие</string>
+        </property>
+        <property name="autoRepeat">
+         <bool>false</bool>
+        </property>
+        <property name="autoExclusive">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="2">
+       <widget class="CStorageComboBox" name="cmbOrgStructure"/>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="chkActual">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Только актуальные</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QCheckBox" name="chkIgnoreTime">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Игнорировать время</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0" colspan="3">
+       <widget class="QCheckBox" name="chkRequiresFillingNomenclature">
+        <property name="text">
+         <string>Требует заполнения ЛС</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0" colspan="2">
+       <widget class="QPushButton" name="btnReset">
+        <property name="text">
+         <string>Сбросить</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="2">
        <widget class="QWidget" name="wgtPeriod" native="true">
         <property name="enabled">
          <bool>false</bool>
@@ -349,10 +363,13 @@
         </layout>
        </widget>
       </item>
-      <item row="9" column="0" colspan="2">
-       <widget class="QPushButton" name="btnReset">
+      <item row="2" column="2">
+       <widget class="CRBComboBox" name="cmbSchema"/>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="lblSchema">
         <property name="text">
-         <string>Сбросить</string>
+         <string>Схема</string>
         </property>
        </widget>
       </item>
@@ -446,23 +463,35 @@
    <extends>QComboBox</extends>
    <header>Orgs/OrgStructComboBoxes.h</header>
   </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>library/SpinBox.h</header>
+  </customwidget>
  </customwidgets>
  <tabstops>
   <tabstop>cmbActionType</tabstop>
   <tabstop>cmbOrgStructure</tabstop>
+  <tabstop>cmbSchema</tabstop>
   <tabstop>cmbNomenclature</tabstop>
   <tabstop>chkPeriod</tabstop>
   <tabstop>edtBegDate</tabstop>
   <tabstop>edtEndDate</tabstop>
   <tabstop>chkActual</tabstop>
+  <tabstop>edtYear</tabstop>
+  <tabstop>chkIgnoreTime</tabstop>
   <tabstop>cmbMonth</tabstop>
-  <tabstop>buttonBox</tabstop>
+  <tabstop>chkRequiresFillingNomenclature</tabstop>
   <tabstop>chkCurrentEvent</tabstop>
   <tabstop>btnReset</tabstop>
-  <tabstop>chkIgnoreTime</tabstop>
-  <tabstop>edtYear</tabstop>
   <tabstop>tblNomenclatureExpense</tabstop>
   <tabstop>tblNomenclatureExpenseDays</tabstop>
+  <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources/>
  <connections>

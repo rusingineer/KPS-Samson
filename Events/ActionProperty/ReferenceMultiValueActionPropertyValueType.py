@@ -48,6 +48,7 @@ class CReferenceMultiActionPropertyValueType(CActionPropertyValueType):
 
 
     def _initRB(self):
+        import re
         self._data = CRBModelDataCache.getData(self._tableName,
                                                self._addNone,
                                                self._filter,
@@ -58,8 +59,8 @@ class CReferenceMultiActionPropertyValueType(CActionPropertyValueType):
             _id = self._data.getId(itemIndex)
             shown = u' | '.join([unicode(self._data.getCode(itemIndex)), unicode(self._data.getName(itemIndex))])
 
-            self._mapId2Shown[str(_id)] = shown
-            self._mapShown2Id[shown] = unicode(_id)
+            self._mapId2Shown[str(_id)] = re.sub(r"\s+", " ", shown)
+            self._mapShown2Id[re.sub(r"\s+", " ", shown)] = unicode(_id)
 
 
     class CPropEditor(CRBMultivalueComboBox):
@@ -76,23 +77,12 @@ class CReferenceMultiActionPropertyValueType(CActionPropertyValueType):
             table = db.table(tableName)
             _filter = ''
             if codeObj is not None:
-                ok, codes = self._checkAndNormalizeCodeObj(codeObj)
+                ok, codes = CActionPropertyValueType._checkAndNormalizeCodeObj(codeObj)
                 if ok:
                     _filter = db.joinOr([table['code'].like(code) for code in codes])
                 else:
                     raise Exception(u'Неправильное описание code в «%s»' % domain)
             self.setTable(tableName, filter=_filter)
-
-
-        @staticmethod
-        def _checkAndNormalizeCodeObj(codeObj):
-            if isinstance(codeObj, (basestring, int)):
-                return True, [unicode(codeObj)]
-            if (isinstance(codeObj, list)
-                    and all(isinstance(code, (basestring, int)) for code in codeObj)
-            ):
-                return True, [unicode(code) for code in codeObj]
-            return False, None
 
 
         def setValue(self, value):

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,7 +17,6 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QObject, QTime, QString, pyqtSignature, SIGNAL
 
-from Events.ActionStatus import CActionStatus
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays
 from library.Counter import CCounterController
 from library.database import CTableRecordCache
@@ -44,11 +43,14 @@ from Events.Utils import (
     hasEventAssistant,
     hasEventCurator,
     isEventLong,
-    getActionTypeIdListByFlatCode
+    getEventTypeRelCounter,
+    getEventTypeRelOrg,
+    getEventMesCodeMask,
+    getEventMesNameMask,
+    getEventMesRequired
 )
-from Orgs.Orgs import selectOrganisation
 
-from Events.SelectPlanningOpenEvents import CSelectPlanningOpenEvents
+from Orgs.Orgs import selectOrganisation
 
 
 from Events.Ui_PreCreateEventDialog import Ui_PreCreateEventDialog
@@ -57,6 +59,7 @@ from Events.Ui_PreCreateEventDialog import Ui_PreCreateEventDialog
 class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
     _orgId          = None
     _relegateOrgId  = None
+    _srcNumber      = None
     _relegatePersonId = None
 #    _eventTypeFilter= {}
     _eventTypeId    = None
@@ -115,7 +118,6 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
             filter6 = ''
 
         filter = 'EventType.deleted = 0 AND EventType.isActive = 1 AND ' + filter1 + ' AND ' + filter2 + filter3 + filter4 + filter5 + filter6
-        self.cmbEventType.setHeaderVisible(True)
         self.cmbEventType.setTable('EventType',
                                    False,
                                    filter
@@ -126,10 +128,13 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         if not CPreCreateEventDialog._orgId:
             self.loadDefaults()
         self.isSrcRegion = False
+        self.setRelegateVisible(CPreCreateEventDialog._eventTypeId, self.params)
         db = QtGui.qApp.db
         self.organisationCache = CTableRecordCache(db, db.forceTable('Organisation'), u'*', capacity=None)
         self.cmbSrcCity.setAreaSelectable(True)
-        self.cmbSrcCity.setCode(QtGui.qApp.defaultKLADR())
+        # self.cmbSrcCity.setCode(QtGui.qApp.defaultKLADR())
+        self.lblMes.setVisible(False)
+        self.cmbMes.setVisible(False)
         self.cmbSrcRegion.setEnabled(True)
         self.cmbOrg.setValue(CPreCreateEventDialog._orgId)
         self.cmbEventType.setValue(CPreCreateEventDialog._eventTypeId)
@@ -142,9 +147,6 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         self.cmbTissueType.setValue(CPreCreateEventDialog._tissueTypeId)
         self.chkSelectPreviousActions.setChecked(CPreCreateEventDialog._selectPreviousActions)
         self.chkUseCurrentDate.setChecked(False if params.get('actionListToNewEvent', None) else CPreCreateEventDialog._useCurrentDate)
-
-        self.on_cmbEventType_currentIndexChanged(0)
-        
         self.cmbPerson.setOrgStructureId(orgStructureId if orgStructureId else QtGui.qApp.currentOrgStructureId())
         self.cmbPerson.setBegDate(self.edtEventSetDate.date())
         self.cmbPerson.setValue(personId if personId else CPreCreateEventDialog._personId)
@@ -152,6 +154,13 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         self.cmbEventType.setFocus(Qt.OtherFocusReason)
         #if self.edtExternalId.isEnabled():
         self.edtExternalId.setText(externalId)
+        self.setupDatesAndTimes()
+        self.setupAssistant()
+        self.setupCurator()
+        self.setupExternal()
+        self.setupTissue()
+        self.setupSelectPreviousActions()
+        self.setVoucherVisible()
 
         if not CPreCreateEventDialog._connected:
             QtGui.qApp.connect(QtGui.qApp, SIGNAL('dbConnectionChanged(bool)'), CPreCreateEventDialog.onConnectionChanged)
@@ -181,6 +190,8 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         self.lblSrcCity.setVisible(showSrcToVoucher)
         self.cmbSrcCity.setVisible(showSrcToVoucher)
         if isResolutionOfDirection:
+            if not QtGui.qApp.counterController():
+                QtGui.qApp.setCounterController(CCounterController(self))
             srcOrgId         = params.get('srcOrgId', None)
             srcPerson        = params.get('srcPerson', '')
             srcNumber        = params.get('srcNumber', '')
@@ -188,16 +199,20 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
             relegateOrgId    = params.get('relegateOrgId', None)
             relegatePersonId = params.get('relegatePersonId', None)
             srcMKB           = params.get('srcMKB', '')
+            CPreCreateEventDialog._relegateOrgId = getEventTypeRelOrg(eventTypeId)
             if not relegateOrgId:
-                relegateOrgId = srcOrgId
+                relegateOrgId = CPreCreateEventDialog._relegateOrgId if CPreCreateEventDialog._relegateOrgId else srcOrgId
             self.cmbRelegateOrg.setValue(relegateOrgId)
             self.cmbRelegatePerson.setOrganisationId(relegateOrgId if relegateOrgId else CPreCreateEventDialog._relegateOrgId)
             self.cmbRelegatePerson.setValue(relegatePersonId)
             if not relegatePersonId and srcPerson:
                 self.edtRelegatePerson.setText(srcPerson)
-            self.edtSrcNumber.setText(srcNumber)
             self.edtSrcMKB.setText(srcMKB)
             self.edtSrcDate.setDate(srcDate)
+            self.edtSrcNumber.setText(srcNumber)
+        else:
+            self.cmbRelegateOrg.setValue(None)
+            self.edtSrcNumber.setText('')
 
 
     def setVoucherVisible(self):
@@ -252,7 +267,8 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
 
 
     def exec_(self):
-        QtGui.qApp.setCounterController(CCounterController(self))
+        if not QtGui.qApp.counterController():
+            QtGui.qApp.setCounterController(CCounterController(self))
         result = CDialogBase.exec_(self)
         if not result:
             QtGui.qApp.resetAllCounterValueIdReservation()
@@ -273,6 +289,7 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         CPreCreateEventDialog._relegateOrgId = getPref(prefs, 'relegateOrgId', None)
         CPreCreateEventDialog._relegatePersonId = getPref(prefs, 'relegatePersonId', None)
         selectPreviousActions = bool(getPref(prefs, 'selectPreviousActions', False))
+        CPreCreateEventDialog._srcNumber = getPref(prefs, 'srcNumber', '')
         if infisCode:
             CPreCreateEventDialog._orgId = forceRef(db.translate('Organisation', 'infisCode', infisCode, 'id'))
         if not CPreCreateEventDialog._orgId:
@@ -306,7 +323,7 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
 
         tissueTypeId = self.cmbTissueType.value()
         selectPreviousActions = self.chkSelectPreviousActions.isChecked()
-
+        SrcNumber = self.edtSrcNumber.text()
         prefs = getPref(QtGui.qApp.preferences.appPrefs, 'PreCreateEvent', {})
         if CPreCreateEventDialog._orgId != orgId:
             CPreCreateEventDialog._orgId = orgId
@@ -338,9 +355,13 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         if CPreCreateEventDialog._selectPreviousActions != selectPreviousActions:
             CPreCreateEventDialog._selectPreviousActions = selectPreviousActions
             setPref(prefs, 'selectPreviousActions', selectPreviousActions)
-        if relegateOrgId and CPreCreateEventDialog._relegateOrgId != relegateOrgId:
+        if CPreCreateEventDialog._relegateOrgId != relegateOrgId:
             CPreCreateEventDialog._relegateOrgId = relegateOrgId
             setPref(prefs, 'relegateOrgId', relegateOrgId)
+        if CPreCreateEventDialog._srcNumber != SrcNumber:
+            CPreCreateEventDialog._srcNumber = SrcNumber
+            srcNumberCode = forceString(db.translate('rbCounter_Value', 'value', SrcNumber, 'master_id')) if SrcNumber else ''
+            setPref(prefs, 'srcNumber', srcNumberCode)
         if relegatePersonId and CPreCreateEventDialog._relegatePersonId != relegatePersonId:
             CPreCreateEventDialog._relegatePersonId = relegatePersonId
             setPref(prefs, 'relegatePersonId', relegatePersonId)
@@ -350,12 +371,31 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         setPref(QtGui.qApp.preferences.appPrefs, 'PreCreateEvent', prefs)
 
 
+    def checkSpecialityId(self):
+        personId = self.cmbPerson.value()
+        if personId:
+            eventTypeId = self.cmbEventType.value()
+            if not eventTypeId:
+                return False
+            if getEventTypeForm(eventTypeId) == '090':
+                specialityId = forceRef(QtGui.qApp.db.translate('Person', 'id', personId, 'speciality_id'))
+                if not specialityId:
+                    QtGui.QMessageBox.warning(self,
+                                              u'Внимание!',
+                                              u'У ответственного за событие не указана специальность. Выберите врача со специальностью!',
+                                              QtGui.QMessageBox.Ok,
+                                              QtGui.QMessageBox.Ok)
+                    self.cmbPerson.setFocus(Qt.OtherFocusReason)
+                    return False
+        return True
+
+
     def saveData(self):
         result = True
         if QtGui.qApp.defaultNeedPreCreateEventPerson():
             result = bool(self.cmbPerson.value()) or self.checkInputMessage(u'ответственного врача', False, self.cmbPerson)
         result = result and (self.cmbEventType.value() or self.checkInputMessage(u'цель обращения', False, self.cmbEventType))
-        if result and self.checkOrGenerateUniqueEventExternalId() and self.checkOrGenerateUniqueEventVoucherNumber():
+        if result and self.checkOrGenerateUniqueEventExternalId() and self.checkOrGenerateUniqueEventVoucherNumber() and self.checkSpecialityId():
             self.saveDefaults()
             CPreCreateEventDialog._eventSetDate = self.edtEventSetDate.date()
             CPreCreateEventDialog._eventDate    = self.edtEventDate.date()
@@ -616,6 +656,10 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         return self.cmbTissueType.value() if self.cmbTissueType.isEnabled() else None
 
 
+    def mesId(self):
+        return self.cmbMes.value()
+
+
     def selectPreviousActions(self):
         return self.chkSelectPreviousActions.isChecked() and self.chkSelectPreviousActions.isEnabled()
 
@@ -716,58 +760,7 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
 
     @pyqtSignature('')
     def on_btnCopyRelegateOrgId_clicked(self):
-        actionTypeIdList = getActionTypeIdListByFlatCode(u'planning%')
-        if self.clientId and actionTypeIdList:
-            db = QtGui.qApp.db
-            tableAction = db.table('Action')
-            tableActionType = db.table('ActionType')
-            tableEvent = db.table('Event')
-            table = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
-            table = table.innerJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
-            cols = [tableAction['id']]
-            cond = [tableEvent['client_id'].eq(self.clientId),
-                    tableAction['deleted'].eq(0),
-                    tableAction['status'].notInlist(
-                        [CActionStatus.finished, CActionStatus.canceled, CActionStatus.refused]),
-                    tableActionType['deleted'].eq(0),
-                    tableEvent['deleted'].eq(0),
-                    tableActionType['id'].inlist(actionTypeIdList)
-                    ]
-            actionIdList = db.getIdList(table, cols, cond, 'Action.begDate')
-            if actionIdList:
-                dialog = CSelectPlanningOpenEvents(self, actionIdList, self.clientId)
-                try:
-                    dialog.exec_()
-                    if dialog.btnResult == 1 and dialog.resultActionId:
-                        itemByName = dialog.model.itemByName[dialog.resultActionId]
-                        srcOrgId = itemByName['relegateOrgId']
-                        srcNumber = itemByName['srcNumber']
-                        srcDate = itemByName['srcDate']
-                        relegateOrgId = itemByName['relegateOrgId']
-                        relegatePersonId = itemByName['relegatePersonId']
-                        eventId = itemByName['eventId']
-                        srcPerson = itemByName['srcPerson']
-                        orgStructureId = itemByName['orgStructureId']
-
-                        if QtGui.qApp.currentOrgId() == relegateOrgId:
-                            srcPerson = None
-                        else:
-                            relegatePersonId = None
-                        if not relegateOrgId:
-                            relegateOrgId = srcOrgId
-
-                        self.cmbRelegateOrg.setValue(relegateOrgId)
-                        self.cmbRelegatePerson.setOrganisationId(relegateOrgId if relegateOrgId else CPreCreateEventDialog._relegateOrgId)
-                        self.cmbRelegatePerson.setValue(relegatePersonId)
-                        if not relegatePersonId and srcPerson:
-                            self.edtRelegatePerson.setText(srcPerson)
-                        self.edtSrcNumber.setText(srcNumber)
-                        self.edtSrcDate.setDate(srcDate)
-                        self._eventId = eventId
-                        self._orgStructureId = orgStructureId
-                        self._planningActionId = dialog.resultActionId
-                finally:
-                    dialog.deleteLater()
+        pass
 
 
     @pyqtSignature('')
@@ -826,6 +819,8 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
     @pyqtSignature('int')
     def on_cmbEventType_currentIndexChanged(self, idx):
         eventTypeId = self.cmbEventType.value()
+        CPreCreateEventDialog._srcNumber = getEventTypeRelCounter(eventTypeId)
+        CPreCreateEventDialog._relegateOrgId = getEventTypeRelOrg(eventTypeId)
         self.setRelegateVisible(eventTypeId, self.params)
         self.setVoucherVisible()
         if eventTypeId:
@@ -833,6 +828,9 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
             tableEventType = db.table('EventType')
             record = db.getRecordEx(tableEventType, [tableEventType['form']], [tableEventType['deleted'].eq(0), tableEventType['id'].eq(eventTypeId)])
             form = forceString(record.value('form')) if record else ''
+            if CPreCreateEventDialog._srcNumber:
+                SrcNumberId = forceString(QtGui.qApp.getDocumentNumber(self.clientId, CPreCreateEventDialog._srcNumber))
+                self.edtSrcNumber.setText(SrcNumberId)
             if form == '027':
                 tableEvent = db.table('Event')
                 record = db.getRecordEx(tableEvent, [tableEvent['curator_id'], tableEvent['assistant_id']], [tableEvent['eventType_id'].eq(eventTypeId), tableEvent['deleted'].eq(0)], 'Event.id DESC')
@@ -841,6 +839,21 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
                     CPreCreateEventDialog._curatorId   = forceRef(record.value('curator_id'))
                     self.cmbAssistantId.setValue(CPreCreateEventDialog._assistantId)
                     self.cmbCuratorId.setValue(CPreCreateEventDialog._curatorId)
+            if form == '131' and getEventMesRequired(eventTypeId):
+                self.lblMes.setVisible(True)
+                self.cmbMes.setVisible(True)
+                self.cmbMes.setMESCodeTemplate(getEventMesCodeMask(eventTypeId))
+                self.cmbMes.setMESNameTemplate(getEventMesNameMask(eventTypeId))
+                self.cmbMes.updateFilter()
+                self.cmbMes.setCurrentIndex(1)
+                self.cmbMes.setValue(self.cmbMes._model.getId(self.cmbMes.currentIndex()))
+            else:
+                self.lblMes.setVisible(False)
+                self.cmbMes.setVisible(False)
+                self.cmbMes.setValue(None)
+        else:
+            self.lblMes.setVisible(False)
+            self.cmbMes.setVisible(False)
         self.setupDatesAndTimes()
         self.setupAssistant()
         self.setupCurator()

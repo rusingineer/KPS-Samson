@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Registry\ClientVaccinationCardDialog.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Registry\ClientVaccinationCardDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_ClientVaccinationCardDialog(object):
     def setupUi(self, ClientVaccinationCardDialog):
         ClientVaccinationCardDialog.setObjectName(_fromUtf8("ClientVaccinationCardDialog"))
-        ClientVaccinationCardDialog.resize(591, 464)
+        ClientVaccinationCardDialog.resize(882, 582)
         ClientVaccinationCardDialog.setCursor(QtGui.QCursor(QtCore.Qt.ArrowCursor))
         ClientVaccinationCardDialog.setMouseTracking(False)
         self.verticalLayout_9 = QtGui.QVBoxLayout(ClientVaccinationCardDialog)
@@ -205,11 +205,25 @@ class Ui_ClientVaccinationCardDialog(object):
         self.verticalLayout_11.addWidget(self.tblMedicalExemptionInfections)
         self.verticalLayout_12.addWidget(self.tabMedicalExemptionSplitter)
         self.tabWidget.addTab(self.tabMedicalExemption, _fromUtf8(""))
+        self.tabCert = QtGui.QWidget()
+        self.tabCert.setObjectName(_fromUtf8("tabCert"))
+        self.certLayout = QtGui.QVBoxLayout(self.tabCert)
+        self.certLayout.setMargin(0)
+        self.certLayout.setSpacing(0)
+        self.certLayout.setObjectName(_fromUtf8("certLayout"))
+        self.tabWidget.addTab(self.tabCert, _fromUtf8(""))
+        self.tabPlanning = QtGui.QWidget()
+        self.tabPlanning.setObjectName(_fromUtf8("tabPlanning"))
+        self.planningLayout = QtGui.QVBoxLayout(self.tabPlanning)
+        self.planningLayout.setMargin(0)
+        self.planningLayout.setSpacing(0)
+        self.planningLayout.setObjectName(_fromUtf8("planningLayout"))
+        self.tabWidget.addTab(self.tabPlanning, _fromUtf8(""))
         self.gridLayout.addWidget(self.splitter_2, 0, 0, 1, 1)
         self.verticalLayout_9.addWidget(self.splitter_5)
         self.buttonBox = QtGui.QDialogButtonBox(ClientVaccinationCardDialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
         self.verticalLayout_9.addWidget(self.buttonBox)
 
@@ -235,12 +249,14 @@ class Ui_ClientVaccinationCardDialog(object):
         self.txtClientInfoBrowser.setHtml(_translate("ClientVaccinationCardDialog", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Tahoma\'; font-size:9pt; font-weight:400; font-style:normal;\">\n"
+"</style></head><body style=\" font-family:\'.AppleSystemUIFont\'; font-size:13pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'MS Shell Dlg 2\'; font-size:8pt;\"><br /></p></body></html>", None))
         self.lblFilterVaccinationCalendar.setText(_translate("ClientVaccinationCardDialog", "План", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabVaccination), _translate("ClientVaccinationCardDialog", "Прививки", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabProbe), _translate("ClientVaccinationCardDialog", "Пробы", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalExemption), _translate("ClientVaccinationCardDialog", "Медотводы", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCert), _translate("ClientVaccinationCardDialog", "Сертификат", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPlanning), _translate("ClientVaccinationCardDialog", "Планирование", None))
 
 from library.RBCheckTable import CRBCheckTableView
 from library.TableView import CTableView

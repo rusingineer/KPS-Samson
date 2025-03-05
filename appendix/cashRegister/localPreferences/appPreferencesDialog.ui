@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>375</width>
-    <height>373</height>
+    <height>398</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -294,127 +294,7 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="9" column="0">
-        <widget class="QLabel" name="lblTcpIpPort">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>По&amp;рт</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtTcpIpPort</cstring>
-         </property>
-        </widget>
-       </item>
        <item row="8" column="0">
-        <widget class="QLabel" name="lblTcpIpHost">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>&amp;Адрес</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtTcpIpHost</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="10" column="0" colspan="3">
-        <widget class="QRadioButton" name="rbBluetooth">
-         <property name="text">
-          <string>&amp;Bluetooth</string>
-         </property>
-        </widget>
-       </item>
-       <item row="11" column="0">
-        <widget class="QLabel" name="lblBluetoothMacAddress">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>MAC &amp;адрес</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtBluetoothMacAddress</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0" colspan="3">
-        <widget class="QRadioButton" name="rbUsb">
-         <property name="text">
-          <string>Порт &amp;USB</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="0" colspan="3">
-        <widget class="QRadioButton" name="rbTcpIp">
-         <property name="text">
-          <string>&amp;TCP/IP</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0" colspan="3">
-        <widget class="QRadioButton" name="rbSerialPort">
-         <property name="text">
-          <string>&amp;Последовательный порт</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="lblOperator">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Пароль опе&amp;ратора</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtOperatorPassword</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="lblPassword">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Пароль &amp;доступа</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtPassword</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="6" column="0">
         <widget class="QLabel" name="lblUsbPort">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -430,20 +310,7 @@
          </property>
         </widget>
        </item>
-       <item row="12" column="0">
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="9" column="1" colspan="2">
+       <item row="11" column="1" colspan="2">
         <widget class="QSpinBox" name="edtTcpIpPort">
          <property name="enabled">
           <bool>false</bool>
@@ -468,7 +335,146 @@
          </property>
         </widget>
        </item>
-       <item row="8" column="1" colspan="2">
+       <item row="11" column="0">
+        <widget class="QLabel" name="lblTcpIpPort">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>По&amp;рт</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtTcpIpPort</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="0">
+        <widget class="QLabel" name="lblTcpIpHost">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Адрес</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtTcpIpHost</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="12" column="0" colspan="3">
+        <widget class="QRadioButton" name="rbBluetooth">
+         <property name="text">
+          <string>&amp;Bluetooth</string>
+         </property>
+        </widget>
+       </item>
+       <item row="13" column="0">
+        <widget class="QLabel" name="lblBluetoothMacAddress">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>MAC &amp;адрес</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtBluetoothMacAddress</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="3">
+        <widget class="QRadioButton" name="rbUsb">
+         <property name="text">
+          <string>Порт &amp;USB</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="0" colspan="3">
+        <widget class="QRadioButton" name="rbTcpIp">
+         <property name="text">
+          <string>&amp;TCP/IP</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0" colspan="3">
+        <widget class="QRadioButton" name="rbSerialPort">
+         <property name="text">
+          <string>Последовательный пор&amp;т</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblOperatorPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Пароль опе&amp;ратора</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtOperatorPassword</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Пароль доступа</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtPassword</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="0">
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="10" column="1" colspan="2">
         <widget class="QLineEdit" name="edtTcpIpHost">
          <property name="enabled">
           <bool>false</bool>
@@ -482,7 +488,7 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="1" colspan="2">
+       <item row="8" column="1" colspan="2">
         <widget class="QLineEdit" name="edtUsbPort">
          <property name="toolTip">
           <string>Расположение USB-устройства в системе,
@@ -497,8 +503,11 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="1" colspan="2">
+       <item row="1" column="1" colspan="2">
         <widget class="QLineEdit" name="edtPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -515,8 +524,11 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="1" colspan="2">
+       <item row="2" column="1" colspan="2">
         <widget class="QLineEdit" name="edtOperatorPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
            <horstretch>0</horstretch>
@@ -529,11 +541,11 @@
 Если не указан или пуст, используется пароль по умолчанию с максимальными правами в зависимости от модели.</string>
          </property>
          <property name="inputMask">
-          <string>99999999; </string>
+          <string notr="true">99999999; </string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1" colspan="2">
+       <item row="5" column="1" colspan="2">
         <widget class="QLineEdit" name="edtSerialPort">
          <property name="enabled">
           <bool>false</bool>
@@ -548,7 +560,7 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1" colspan="2">
+       <item row="6" column="1" colspan="2">
         <widget class="QComboBox" name="cmbSerialBaudrate">
          <property name="enabled">
           <bool>false</bool>
@@ -619,7 +631,7 @@
          </item>
         </widget>
        </item>
-       <item row="3" column="0">
+       <item row="5" column="0">
         <widget class="QLabel" name="lblSerialPort">
          <property name="enabled">
           <bool>false</bool>
@@ -638,7 +650,7 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="6" column="0">
         <widget class="QLabel" name="lblSerialBaudrate">
          <property name="enabled">
           <bool>false</bool>
@@ -657,7 +669,7 @@
          </property>
         </widget>
        </item>
-       <item row="11" column="1">
+       <item row="13" column="1">
         <widget class="QLineEdit" name="edtBluetoothMacAddress">
          <property name="enabled">
           <bool>false</bool>
@@ -671,6 +683,88 @@
          </property>
          <property name="text">
           <string>:::::</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="cmbDriver">
+         <item>
+          <property name="text">
+           <string>-</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>АТОЛ</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Штрих-М</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblDriver">
+         <property name="text">
+          <string>&amp;Драйвер</string>
+         </property>
+         <property name="buddy">
+          <cstring>cmbDriver</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblSysAdminPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Пароль &amp;администратора</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtSysAdminPassword</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="edtSysAdminPassword">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Пароль пользователя по умолчанию.
+Требуется для доступа к специфичным командам и режимам ККТ.
+Если не указан или пуст, используется пароль по умолчанию с максимальными правами в зависимости от модели.</string>
+         </property>
+         <property name="inputMask">
+          <string notr="true">99; </string>
          </property>
         </widget>
        </item>
@@ -717,8 +811,10 @@
   <tabstop>chkPrintDuplicate</tabstop>
   <tabstop>edtCashBox</tabstop>
   <tabstop>chkVatTaxPayer</tabstop>
+  <tabstop>cmbDriver</tabstop>
   <tabstop>edtPassword</tabstop>
   <tabstop>edtOperatorPassword</tabstop>
+  <tabstop>edtSysAdminPassword</tabstop>
   <tabstop>rbSerialPort</tabstop>
   <tabstop>edtSerialPort</tabstop>
   <tabstop>cmbSerialBaudrate</tabstop>

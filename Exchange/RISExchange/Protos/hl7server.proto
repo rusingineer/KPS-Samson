@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.smartcity.hl7server";
+option java_outer_classname = "HL7ServerProto";
+option objc_class_prefix = "HLW";
+
+package hl7server;
+
+
+service Communication {
+    rpc ExecCommand (MessageRequest) returns (MessageReply) {
+    }
+}
+
+message MessageRequest {
+    string command = 1;
+    int32 messageID = 2;
+}
+
+message MessageReply {
+    int32 code = 1;
+    string status = 2;
+}

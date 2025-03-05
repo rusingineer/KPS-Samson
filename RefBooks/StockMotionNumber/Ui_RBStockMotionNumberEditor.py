@@ -76,6 +76,7 @@ class Ui_StockMotionNumberEditorDialog(object):
         self.cmbStockMotionType.addItem(_fromUtf8(""))
         self.cmbStockMotionType.addItem(_fromUtf8(""))
         self.cmbStockMotionType.addItem(_fromUtf8(""))
+        self.cmbStockMotionType.addItem(_fromUtf8(""))
         self.gridLayout.addWidget(self.cmbStockMotionType, 2, 1, 1, 1)
         self.buttonBox = QtGui.QDialogButtonBox(StockMotionNumberEditorDialog)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
@@ -125,6 +126,7 @@ class Ui_StockMotionNumberEditorDialog(object):
         self.cmbStockMotionType.setItemText(8, _translate("StockMotionNumberEditorDialog", "Внутреннее потребление", None))
         self.cmbStockMotionType.setItemText(9, _translate("StockMotionNumberEditorDialog", "Требование", None))
         self.cmbStockMotionType.setItemText(10, _translate("StockMotionNumberEditorDialog", "Накладная от поставщика", None))
+        self.cmbStockMotionType.setItemText(11, _translate("StockMotionNumberEditorDialog", "Списание остаточных количеств", None))
         self.lblStockMotionType_3.setText(_translate("StockMotionNumberEditorDialog", "Код", None))
         self.lblOrgStructure.setText(_translate("StockMotionNumberEditorDialog", "Подразделение", None))
 

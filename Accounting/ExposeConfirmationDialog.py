@@ -32,7 +32,12 @@ class CExposeConfirmationDialog(CDialogBase, Ui_ExposeConfirmationDialog):
         else:
             self.chkFilterPaymentByOrgStructure.setChecked(False)
             self.chkFilterPaymentByOrgStructure.setEnabled(False)
-        self.chkMesCheck.setChecked(True)
+        if QtGui.qApp.defaultKLADR()[:2] == '23':
+            self.chkMesCheck.setVisible(False)
+            self.chkMesCheck.setChecked(False)
+        else:
+            self.chkMesCheck.setVisible(True)
+            self.chkMesCheck.setChecked(True)
         self.chkOnlyDispCOVID.setChecked(False)
         self.chkOnlyResearchOnCOVID.setChecked(False)
         self.buttonBox.button(QtGui.QDialogButtonBox.Cancel).setDefault(True)

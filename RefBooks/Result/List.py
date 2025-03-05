@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,9 +11,9 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
 from library.interchange     import getCheckBoxValue, getLineEditValue, getRBComboBoxValue, setCheckBoxValue, setLineEditValue, setRBComboBoxValue, setDateEditValue, getDateEditValue
-from library.ItemsListDialog import CItemsListDialog, CItemEditorDialog
+from library.ItemsListDialog import CItemsListDialog
 from library.TableModel      import CBoolCol, CRefBookCol, CTextCol, CDateCol
 
 from RefBooks.Tables         import rbCode, rbEventTypePurpose, rbName, rbResult, rbBegDate, rbEndDate
@@ -42,15 +42,15 @@ class CRBResultList(CItemsListDialog):
 # ##########################################################################
 #
 
-class CRBResultEditor(Ui_ItemEditorDialog, CItemEditorDialog):
+class CRBResultEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentification):
     def __init__(self,  parent):
-        CItemEditorDialog.__init__(self, parent, rbResult)
+        CItemEditorDialogWithIdentification.__init__(self, parent, rbResult)
         self.setWindowTitleEx(u'Результат обращения')
         self.cmbEventPurpose.setTable(rbEventTypePurpose, False)
 
 
     def setRecord(self, record):
-        CItemEditorDialog.setRecord(self, record)
+        CItemEditorDialogWithIdentification.setRecord(self, record)
         setRBComboBoxValue( self.cmbEventPurpose, record, 'eventPurpose_id')
         setLineEditValue(   self.edtFederalCode,  record, 'federalCode')
         setLineEditValue(   self.edtUsishCode,    record, 'usishCode')
@@ -61,7 +61,7 @@ class CRBResultEditor(Ui_ItemEditorDialog, CItemEditorDialog):
 
 
     def getRecord(self):
-        record = CItemEditorDialog.getRecord(self)
+        record = CItemEditorDialogWithIdentification.getRecord(self)
         getRBComboBoxValue( self.cmbEventPurpose, record, 'eventPurpose_id')
         getLineEditValue(   self.edtFederalCode,  record, 'federalCode')
         getLineEditValue(   self.edtUsishCode,    record, 'usishCode')

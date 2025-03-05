@@ -1,0 +1,497 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html><head>
+<meta charset="windows-1251">
+</head> 
+
+<body style="font-size: 7pt; color: black;">
+{setPageSize('A4')}
+{setOrientation('P')}
+{setMargins(5)}
+
+
+{for: action in event.actions}
+{if: action.flatCode == "deathCurcumstance"}{: currentAction = action}{end:} 
+{end:} 
+
+
+
+
+<div align="right">Приложение № 2<br>
+к приказу Минздравсоцразвития России<br>
+от 26декабря 2008 г. № 782н<br></div>
+
+
+<div align="center">
+<b>КОРЕШОК МЕДИЦИНСКОГО СВИДЕТЕЛЬСТВА О СМЕРТИ <br>
+К УЧЕТНОЙ ФОРМЕ № 106/У-08<br>
+СЕРИЯ __________ №_________</b><br>
+Дата выдачи «<u>{action.endDate.date.toString(u"dd")}</u>» <u>{action.endDate.date.toString(u"MM")}</u> <u>{action.endDate.date.toString(u"yyyy")}</u> г.<br>
+<b>(окончательного, предварительного, взамен предварительного, взамен окончательного) <br>
+(подчеркнуть)<br>
+серия________ №______ «___» ______________20___ г. </b><br>
+</div>
+<div align="left">
+
+
+1. Фамилия, имя, отчество умершего(ей):&nbsp;<u>{client.fullName} </u><br>
+2. Пол: {if: client.sex == u'М' }<u>{end:}мужской 1{if: client.sex == u'М' }</u>{end:},{if: client.sex == u'Ж'}<u>{end:}женский 2{if: client.sex == u'Ж'}</u>{end:} <br>
+3. Дата рождения : число <u>{client.birthDate.date.toString(u"dd")}</u>, месяц <u>{client.birthDate.date.toString(u"MM")}</u>, год<u>{client.birthDate.date.toString(u"yyyy")}</u> <br>
+4. Дата смерти : число <u>{currentAction[u"дата смерти"].value.date.toString(u"dd") }</u>, месяц <u>{currentAction[u"дата смерти"].value.date.toString(u"MM") }</u>, год <u>{currentAction[u"дата смерти"].value.date.toString(u"yyyy") }</u>, время _______________<br>
+5. Место постоянного жительства (регистрации) умершего(ей) : <u> {client.locAddress}</u> <br>
+
+
+6. Смерть наступила:
+{if: currentAction[u"смерть наступила"].value == u'на месте проишествия' }<u>{end:} на месте происшествия 1 ,{if: currentAction[u"смерть наступила"].value == u'на месте проишествия' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в машине скорой помощи' }<u>{end:} в машине скорой помощи 2 ,{if: currentAction[u"смерть наступила"].value == u'в машине скорой помощи' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в стационаре' }<u>{end:}в стационаре 3 ,{if: currentAction[u"смерть наступила"].value == u'в стационаре' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'дома' }<u>{end:}дома 4 ,{if: currentAction[u"смерть наступила"].value == u'дома' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в другом месте' }<u>{end:} в другом месте 5{if: currentAction[u"смерть наступила"].value == u'в другом месте' }</u>{end:}
+
+
+<br>
+
+
+
+
+
+
+
+
+{if: client.birthDate.date.daysTo(currentAction[u"дата смерти"].value.date)<366}
+Для детей, умерших в возрасте до 1 года: <br>
+7. Дата рождения: число <u>{client.birthDate.date.toString(u"dd")}</u>, месяц <u>{client.birthDate.date.toString(u"MM")}</u>, год <u>{client.birthDate.date.toString(u"yyyy")}</u>, число месяцев __________, дней жизни ____________ <br>
+8. Место рождения <u>{currentAction[u"место рождения"].value}</u><br>
+9. Фамилия, имя, отчество матери:&nbsp; {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+&nbsp;{rel.other.fullName};
+{end:}
+{end:}
+{end:}<br>
+
+<br><br><br><br><br><br><br><br><br>
+<div align="center">
+линия отреза
+<hr><br>
+</div>
+<div align="left">
+<table cellspadding=0 cellspacing=40 width=100% border="1">
+<tr>
+
+
+<td>Министерство здравоохранения и социального развития 
+Российской Федерации <br>
+
+
+
+
+Наименование медицинской организации <br>
+<u>{currentOrganisation.fullName}</u> <br>
+адрес <u>{currentOrganisation.address}</u> <br>
+Код по ОКПО _____________________________________ <br>
+Для врача, занимающегося частной практикой: <br>
+номер лицензии на медицинскую деятельность ____________ <br>
+адрес _______________________________________________ </td>
+
+
+<td>Код формы по ОКУД ___________________ <br>
+
+
+
+
+Медицинская документация <br>
+Учетная форма № 106/у-08 <br>
+Утверждена приказом Минздравсоцразвития России <br>
+от 26.12.2008 г. № 782н</td> </tr>
+</table>
+
+
+<div align="center">
+<b>МЕДИЦИНСКОЕ СВИДЕТЕЛЬСТВО О СМЕРТИ <br>
+СЕРИЯ ____________ №______ </b><br>
+Дата выдачи «<u>{action.endDate.date.toString(u"dd")}</u>» <u>{action.endDate.date.toString(u"MM")}</u> <u>{action.endDate.date.toString(u"yyyy")}</u> г.<br>
+<b>(окончательное, предварительное, взамен предварительного, взамен окончательного (подчеркнуть)<br>
+серия __________№___ «___» __________ 20___ г. </b><br>
+</div>
+<div align="left">
+1. Фамилия, имя, отчество умершего(ей)<u>{client.fullName}</u><br>
+2. Пол: {if: client.sex == u'М' }<u>{end:}мужской 1{if: client.sex == u'М' }</u>{end:},{if: client.sex == u'Ж'}<u>{end:}женский 2{if: client.sex == u'Ж'}</u>{end:} <br>
+3. Дата рождения : число <u>{client.birthDate.date.toString(u"dd")}</u>, месяц <u>{client.birthDate.date.toString(u"MM")}</u>, год<u>{client.birthDate.date.toString(u"yyyy")}</u><br>
+4. Дата смерти : число <u>{currentAction[u"дата смерти"].value.date.toString(u"dd") }</u>, месяц <u>{currentAction[u"дата смерти"].value.date.toString(u"MM") }</u>, год <u>{currentAction[u"дата смерти"].value.date.toString(u"yyyy") }</u>, время ________________<br>
+5. Место постоянного жительства (регистрации) умершего(ей) : <u>{client.locAddress}</u> <br>
+6. Местность: {:incity = (str(client.locAddress.KLADRCode)[8:11] == '000')} {if: incity}<u>городская - 1</u>; сельская - 2{else:}городская - 1; <u>сельская - 2</u>{end:} <br>
+7. Место смерти: <u>{currentAction[u"место смерти"].value}</u> <br>
+8. Местность: 
+
+
+{if: currentAction[u"местность"].value == u'городская' }<u>{end:}городская 1 ,{if: currentAction[u"местность"].value == u'городская' }</u>{end:}
+
+
+{if: currentAction[u"местность"].value == u'сельская' }<u>{end:} сельская 2{if: currentAction[u"местность"].value == u'сельская' }</u>{end:} <br>
+9. Смерть наступила: {if: currentAction[u"смерть наступила"].value == u'на месте проишествия' }<u>{end:} на месте происшествия 1 ,{if: currentAction[u"смерть наступила"].value == u'на месте проишествия' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в машине скорой помощи' }<u>{end:} в машине скорой помощи 2 ,{if: currentAction[u"смерть наступила"].value == u'в машине скорой помощи' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в стационаре' }<u>{end:}в стационаре 3 ,{if: currentAction[u"смерть наступила"].value == u'в стационаре' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'дома' }<u>{end:}дома 4 ,{if: currentAction[u"смерть наступила"].value == u'дома' }</u>{end:}
+
+
+{if: currentAction[u"смерть наступила"].value == u'в другом месте' }<u>{end:} в другом месте 5{if: currentAction[u"смерть наступила"].value == u'в другом месте' }</u>{end:}
+<br>
+{if: client.birthDate.date.daysTo(currentAction[u"дата смерти"].value.date)<31}
+10. Для детей, умерших в возрасте от 168 час. до 1 месяца:
+
+
+{if: currentAction[u"для детей до 1 месяца"].value == u'доношенный' }<u>{end:}доношенный (37-41 недель) 1 ,{if: currentAction[u"для детей до 1 месяца"].value == u'доношенный' }</u>{end:}
+
+
+{if: currentAction[u"для детей до 1 месяца"].value == u'недоношенный' }<u>{end:} недоношенный (менее 37 недель) 2 ,{if: currentAction[u"для детей до 1 месяца"].value == u'недоношенный' }</u>{end:}
+
+
+{if: currentAction[u"для детей до 1 месяца"].value == u'переношенный' }<u>{end:}переношенный (42 недель и более) 3 .{if: currentAction[u"для детей до 1 месяца"].value == u'переношенный' }</u>{end:} <br>
+{end:}
+{if: client.birthDate.date.daysTo(currentAction[u"дата смерти"].value.date)<366}
+11. Для детей, умерших в возрасте от 168 час. до 1 года:<br>
+масса тела ребенка при рождении <u>{currentAction[u"масса тела при рождении"].value}</u> грамм 1 ,
+
+
+каким по счету был ребенок у матери (считая умерших и не считая мертворожденных) <u>{currentAction[u"каким по счету был ребенок у матери"].value}</u> 2 ,
+
+
+дата рождения матери {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+
+
+
+
+&nbsp;<u>{rel.other.birthDate}</u>;
+{end:}
+{end:}
+3 , возраст матери (полных лет) {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+&nbsp;<u>{rel.other.age}</u>;
+{end:}
+{end:} 4 , 
+фамилия матери {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+&nbsp;<u>{rel.other.lastName}</u>;
+{end:}
+{end:} 5 , имя {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+&nbsp;<u>{rel.other.firstName}</u>;
+{end:}
+{end:} 6 , отчество {for: rel in client.relations}
+{if: rel.other.sex==u"Ж"}
+&nbsp;<u>{rel.other.patrName}</u>;
+{end:}
+{end:} 7 <br>
+
+
+
+
+12.* Семейное положение: 
+
+
+{if: currentAction[u"семейное положение"].value == u'состоял(а) в зарегестрированном браке' }<u>{end:}состоял(а) в зарегистрированном браке 1 ,{if: currentAction[u"семейное положение"].value == u'состоял(а) в зарегестрированном браке' }</u>{end:}
+
+
+{if: currentAction[u"семейное положение"].value == u'не состоял(а) в зарегестрированном браке' }<u>{end:}не состоял(а) в зарегистрированном браке 2 ,{if: currentAction[u"семейное положение"].value == u'не состоял(а) в зарегестрированном браке' }</u>{end:}
+
+
+{if: currentAction[u"семейное положение"].value == u'неизвестно' }<u>{end:}неизвестно 3 .{if: currentAction[u"семейное положение"].value == u'неизвестно' }</u>{end:}<br>
+
+
+
+
+13.* Образование: профессиональное: 
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o06"}<u>{end:}{end:}{end:}{end:}{end:}{end:}высшее 1 , {for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o06"}<u>{end:}{end:}{end:}{end:}{end:}{end:}
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o05"}<u>{end:}{end:}{end:}{end:}{end:}{end:}неполное высшее 2 ,{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o05"}</u>{end:}{end:}{end:}{end:}{end:}{end:}
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o04"}<u>{end:}{end:}{end:}{end:}{end:}{end:}среднее 3 ,{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o04"}</u>{end:}{end:}{end:}{end:}{end:}{end:}
+
+
+начальное 4 ;
+
+
+общее: 
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o02"}<u>{end:}{end:}{end:}{end:}{end:}{end:}среднее (полное) 5 , {for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o02"}</u>{end:}{end:}{end:}{end:}{end:}{end:}
+
+
+основное 6 ,
+
+
+начальное 7 ;
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o00"}<u>{end:}{end:}{end:}{end:}{end:}{end:} не имеет начального образования 8 ;{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o00"}</u>{end:}{end:}{end:}{end:}{end:}{end:}
+
+
+{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o08"}<u>{end:}{end:}{end:}{end:}{end:}{end:}неизвестно 9 .{for: rel in client.relations}{if: rel.other.sex==u"Ж"}{if: len(rel.other.socStatuses)}{for: s in reversed(rel.other.socStatuses)}{if: (u"образование" in s.classes)}{if: s.code==u"o08"}</u>{end:}{end:}{end:}{end:}{end:}{end:} <br>
+
+
+
+
+14.* Занятость: был(а) занят(а) в экономике: 
+
+
+{if: currentAction[u"занятость"].value == u'руководители и специалисты высшего уровня квалификации' }<u>{end:}руководители и специалисты высшего уровня квалификации 1 ,{if: currentAction[u"занятость"].value == u'руководители и специалисты высшего уровня квалификации' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'прочие специалисты' }<u>{end:}прочие специалисты 2 ,{if: currentAction[u"занятость"].value == u'прочие специалисты' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'квалифицированные рабочие' }<u>{end:}квалифицированные рабочие 3 ,{if: currentAction[u"занятость"].value == u'квалифицированные рабочие' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'неквалифицированные рабочие' }<u>{end:} неквалифицированные рабочие 4 ,{if: currentAction[u"занятость"].value == u'неквалифицированные рабочие' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'занятые на военной службе' }<u>{end:} занятые на военной службе 5 ;{if: currentAction[u"занятость"].value == u'занятые на военной службе' }</u>{end:} 
+
+
+не был(а) занят(а) в экономике: 
+{if: currentAction[u"занятость"].value == u'пенсионеры' }<u>{end:}пенсионеры 6 ,{if: currentAction[u"занятость"].value == u'пенсионеры' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'студенты и учащиеся' }<u>{end:}студенты и учащиеся 7 , {if: currentAction[u"занятость"].value == u'студенты и учащиеся' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'работавшие в личном подсобном хозяйстве' }<u>{end:} работавшие в личном подсобном хозяйстве 8 , {if: currentAction[u"занятость"].value == u'работавшие в личном подсобном хозяйстве' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'безработные' }<u>{end:}безработные 9 ,{if: currentAction[u"занятость"].value == u'безработные' }</u>{end:}
+
+
+{if: currentAction[u"занятость"].value == u'прочие' }<u>{end:} прочие 10 .{if: currentAction[u"занятость"].value == u'прочие' }</u>{end:}<br>
+
+
+
+
+{end:}
+
+
+15. Смерть произошла: 
+
+
+{if: currentAction[u"смерть произошла"].value == u'от заболевания' }<u>{end:}от заболевания 1 ; {if: currentAction[u"смерть произошла"].value == u'от заболевания' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'несчастного случая не связанного с производством' }<u>{end:} несчастного случая: не связанного с производством 2 ,{if: currentAction[u"смерть произошла"].value == u'несчастного случая не связанного с производством' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'несчастного случая связанного с производством' }<u>{end:} связанного с производством 3 ;{if: currentAction[u"смерть произошла"].value == u'несчастного случая связанного с производством' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'убийства' }<u>{end:}убийства 4 ;{if: currentAction[u"смерть произошла"].value == u'убийства' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'самоубийства' }<u>{end:}самоубийства 5 ;{if: currentAction[u"смерть произошла"].value == u'самоубийства' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'в ходе военных действий' }<u>{end:}в ходе действий: военных 6 {if: currentAction[u"смерть произошла"].value == u'в ходе военных действий' }</u>{end:}, 
+{if: currentAction[u"смерть произошла"].value == u'в ходе террористических действий' }<u>{end:}террористических 7 ;{if: currentAction[u"смерть произошла"].value == u'в ходе террористических действий' }</u>{end:}
+
+
+{if: currentAction[u"смерть произошла"].value == u'род смерти не установлен' }<u>{end:} род смерти не установлен 8 .{if: currentAction[u"смерть произошла"].value == u'род смерти не установлен' }</u>{end:}<br>
+_________________________<br>
+* В случае смерти детей, возраст которых указан а пунктах 10-11, пункты. 12 - 14 заполняются в отношении их матерей.<br>
+<p style="page-break-after: always"></p>
+
+
+<div align="right">Оборотная сторона</div><br>
+
+
+<table><tr><td>10. Причины смерти: 
+</td><td>Приблизительный период времени между началом патологического процесса и смертью </td>
+<td>Код по МКБ-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td></tr>
+<tr><td>I.а)<u>{currentAction[u"болезнь или состояние приведшее к смерти"].value}</u></td> 
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(а)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(а)"].value}</u>
+</td>
+</tr>
+<tr><td>(болезнь или состояние, непосредственно приведшее к смерти) </td> <td>&nbsp;</td></tr>
+<tr><td>б)<u>{currentAction[u"паталогическое состояние которое привело к возникновение вышеуказанной причины"].value}</u></td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(б)"].value}</u></td>
+<td>
+<u>{currentAction[u"код МКБ(б)"].value}</u>
+</td></tr>
+<tr><td>(патологическое состояние, которое привело к возникновению вышеуказанной причины) </td> <td>&nbsp;</td></tr>
+<tr><td>в)<u>{currentAction[u"первоначальная причина смерти указывается последней"].value}</u></td> 
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(в)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(в)"].value}</u>
+</td></tr>
+<tr><td>(первоначальная причина смерти указывается последней) </td> <td>&nbsp;</td></tr>
+<tr><td>г)<u>{currentAction[u"внешняя причина при травмах и отравлениях"].value}</u></td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(г)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(г)"].value}</u>
+</td></tr>
+<tr><td>(внешняя причина при травмах и отравлениях) </td> <td>&nbsp;</td></tr>
+<tr><td>II. Прочие важные состояния, способствовавшие смерти, но не связанные с болезнью или 
+патологическим состоянием, приведшим к ней, включая употребление алкоголя, наркотических средств, психотропных и других токсических веществ, содержание их в крови, а также операции 
+(название, дата) </td><td> &nbsp; </td><td> &nbsp; </td></tr>
+<tr><td><u>{currentAction[u"прочие важные состояние,способствовавшие смерти,но не связанные с болезнью"].value}</u> </td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью"].value}</u> </td>
+<td><u>{currentAction[u"код МКБ"].value}</u></td>
+</td>
+</td></tr>
+</table>
+
+
+11. В случае смерти в результате ДТП: смерть наступила –
+
+
+{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 30 суток' }<u>{end:} в течение 30 суток 1 ,{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 30 суток' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 7 суток' }<u>{end:}из них в течение 7 суток 2 .{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 7 суток' }</u>{end:}<br>
+
+
+12. В случае смерти беременной (независимо от срока и локализации) 1 , 
+
+
+{if: currentAction[u"в случае смерти беременной"].value == u'в процессе родов(аборта)' }<u>{end:}в процессе родов (аборта) 2 ,{if: currentAction[u"в случае смерти беременной"].value == u'в процессе родов(аборта)' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти беременной"].value == u'в течение 42 дней после окончания беременности(аборта)' }<u>{end:}в течение 42 дней после окончания беременности,родов (аборта) 3 ; {if: currentAction[u"в случае смерти беременной"].value == u'в течение 42 дней после окончания беременности(аборта)' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти беременной"].value == u'в течение 43-365 дней после окончания беременности(родов)' }<u>{end:} кроме того в течение 43-365 дней после окончания беременности, родов 4 {if: currentAction[u"в случае смерти беременной"].value == u'в течение 43-365 дней после окончания беременности(родов)' }</u>{end:} <br>
+
+
+13. Фамилия, имя, отчество врача (фельдшера, акушерки), заполнившего Медицинское свидетельство о смерти <u>{action.person.fullName}</u> Подпись_________________________ <br>
+14. Фамилия, имя, отчество получателя <u>{currentAction[u"ФИО получателя"].value}</u> <br>
+Документ, удостоверяющий личность получателя (серия, номер, кем выдан)<u>{currentAction[u"документ получателя (серия,номер,кем выдан)"].value}</u> <br><br>
+«_____»______________ 20 ___ г Подпись получателя __________________________ <br>
+<div align="center">линия отреза</div>
+<hr>
+<div align="left">
+16. В случае смерти от несчастного случая, убийства, самоубийства, от военных и террористических действий, при неустановленном роде смерти - указать дату травмы (отравления), а также место и обстоятельства, при которых произошла травма (отравление) <u>{currentAction[u"в случае смерти от несчастного случая,убийства,самоубийства,военных или террористических действий"].value}</u> <br>
+
+
+
+
+17. Причины смерти установлены: 
+
+
+{if: currentAction[u"причины смерти установлены"].value == u'врачом установившим смерть' }<u>{end:}врачом, только установившим смерть 1 , {if: currentAction[u"причины смерти установлены"].value == u'врачом установившим смерть' }</u>{end:}
+
+
+{if: currentAction[u"причины смерти установлены"].value == u'лечащим врачом' }<u>{end:}лечащим врачом 2 , {if: currentAction[u"причины смерти установлены"].value == u'лечащим врачом' }</u>{end:}
+
+
+{if: currentAction[u"причины смерти установлены"].value == u'фельдшером(акушеркой)' }<u>{end:}фельдшером (акушеркой) 3 , {if: currentAction[u"причины смерти установлены"].value == u'фельдшером(акушеркой)' }</u>{end:}
+
+
+{if: currentAction[u"причины смерти установлены"].value == u'патологоанатомом' }<u>{end:}патологоанатомом 4 ,{if: currentAction[u"причины смерти установлены"].value == u'патологоанатомом' }</u>{end:}
+
+
+{if: currentAction[u"причины смерти установлены"].value == u'судебно-медицинским экспертом' }<u>{end:}судебно-медицинским экспертом 5 .{if: currentAction[u"причины смерти установлены"].value == u'судебно-медицинским экспертом' }</u>{end:}
+
+
+<br>
+18. Я, врач (фельдшер, акушерка) ,
+(фамилия, имя, отчество)<u> {action.person.fullName}</u>
+должность<u> {action.person.post}</u> ,
+удостоверяю, что на основании: 
+
+
+{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'осмотра трупа' }<u>{end:}осмотра трупа 1 , {if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'осмотра трупа' }</u>{end:}
+
+
+{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'записей в медицинской документации' }<u>{end:} записей в медицинской документации 2 ,{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'записей в медицинской документации' }</u>{end:}
+
+
+{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'предшествующего наблюдения за больным' }<u>{end:} предшествующего наблюдения за больным(ой) 3 ,{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'предшествующего наблюдения за больным'}</u>{end:}
+
+
+{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'вскрытия' }<u>{end:} вскрытия 4{if: currentAction[u"на основании чего была определена последовательность патологических процессов,приведших к смерти"].value == u'вскрытия' }</u>{end:}
+
+
+мною определена последовательность патологических процессов (состояний), приведших к смерти, и установлены причины смерти.<br>
+
+
+19. <table><tr><td> Причины смерти: 
+</td><td>Приблизительный период времени между началом патологического процесса и смертью </td>
+<td>Код по МКБ-10&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </td></tr>
+<tr><td>I.а)<u>{currentAction[u"болезнь или состояние приведшее к смерти"].value}</u></td> 
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(а)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(а)"].value}</u>
+</td>
+</tr>
+<tr><td>(болезнь или состояние, непосредственно приведшее к смерти) </td> <td>&nbsp;</td></tr>
+<tr><td>б)<u>{currentAction[u"паталогическое состояние которое привело к возникновение вышеуказанной причины"].value}</u></td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(б)"].value}</u></td>
+<td>
+<u>{currentAction[u"код МКБ(б)"].value}</u>
+</td></tr>
+<tr><td>(патологическое состояние, которое привело к возникновению вышеуказанной причины) </td> <td>&nbsp;</td></tr>
+<tr><td>в)<u>{currentAction[u"первоначальная причина смерти указывается последней"].value}</u></td> 
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(в)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(в)"].value}</u>
+</td></tr>
+<tr><td>(первоначальная причина смерти указывается последней) </td> <td>&nbsp;</td></tr>
+<tr><td>г)<u>{currentAction[u"внешняя причина при травмах и отравлениях"].value}</u></td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью(г)"].value}</u> </td>
+<td>
+<u>{currentAction[u"код МКБ(г)"].value}</u>
+</td></tr>
+<tr><td>(внешняя причина при травмах и отравлениях) </td> <td>&nbsp;</td></tr>
+<tr><td>II. Прочие важные состояния, способствовавшие смерти, но не связанные с болезнью или 
+патологическим состоянием, приведшим к ней, включая употребление алкоголя, наркотических средств, психотропных и других токсических веществ, содержание их в крови, а также операции 
+(название, дата) </td><td> &nbsp; </td><td> &nbsp; </td></tr>
+<tr><td><u>{currentAction[u"прочие важные состояние,способствовавшие смерти,но не связанные с болезнью"].value}</u> </td>
+<td><u>{currentAction[u"приблизительный период времени между началом патологии и смертью"].value}</u> </td>
+<td><u>{currentAction[u"код МКБ"].value}</u></td>
+</td>
+</td></tr>
+</table>
+20. В случае смерти в результате ДТП: смерть наступила – {if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 30 суток' }<u>{end:} в течение 30 суток 1 ,{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 30 суток' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 7 суток' }<u>{end:}из них в течение 7 суток 2 .{if: currentAction[u"в случае смерти в результате ДТП смерть наступила"].value == u'в течение 7 суток' }</u>{end:}.<br>
+21. В случае смерти беременной (независимо от срока и локализации) 1 , {if: currentAction[u"в случае смерти беременной"].value == u'в процессе родов(аборта)' }<u>{end:}в процессе родов (аборта) 2 ,{if: currentAction[u"в случае смерти беременной"].value == u'в процессе родов(аборта)' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти беременной"].value == u'в течение 42 дней после окончания беременности(аборта)' }<u>{end:}в течение 42 дней после окончания беременности,родов (аборта) 3 ; {if: currentAction[u"в случае смерти беременной"].value == u'в течение 42 дней после окончания беременности(аборта)' }</u>{end:}
+
+
+{if: currentAction[u"в случае смерти беременной"].value == u'в течение 43-365 дней после окончания беременности(родов)' }<u>{end:} кроме того в течение 43-365 дней после окончания беременности, родов 4 {if: currentAction[u"в случае смерти беременной"].value == u'в течение 43-365 дней после окончания беременности(родов)' }</u>{end:}.<br>
+22. Фамилия, имя, отчество врача (фельдшера, акушерки), заполнившего Медицинское свидетельство о смерти<br> <u>{action.person.fullName}</u> Подпись ____________________________<br>
+Руководитель медицинской организации,<br>
+частнопрактикующий врач (подчеркнуть)________________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<u>{currentOrganisation.chief}</u><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(подпись)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(фамилия, имя, отчество) <br>
+Печать <br>
+
+
+<b><hr></b>
+23. Свидетельство проверено врачом, ответственным за правильность заполнения медицинских свидетельств. <br>
+«___» ___________ 20 ___ г. _____________________________ _____________________________________________<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(подпись)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;(фамилия, имя, отчество врача) 
+</div>
+</div>
+</div>
+</div>
+</body></html> 

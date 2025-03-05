@@ -64,12 +64,11 @@ class CCounterActionPropertyValueType(CActionPropertyValueType):
         if counterId:
             try:
                 value = QtGui.qApp.getDocumentNumber(clientId, counterId)
-            except:
+            except Exception, e:
                 QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
                                            u'Внимание!',
-                                           u'Произошла ошибка при получении значения счетчика!',
+                                           u'Произошла ошибка при получении значения счетчика\n%s' % e,
                                            QtGui.QMessageBox.Ok)
-                return None
         return value
 
 

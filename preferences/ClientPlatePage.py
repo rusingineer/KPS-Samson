@@ -31,6 +31,10 @@ class CClientPlatePage(Ui_clientPlatePage, QtGui.QWidget):
         QtGui.QWidget.__init__(self, parent)
         self.setupUi(self)
         self.cmbTFAccountingSystemId.setTable('rbAccountingSystem', True)
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.lblTFAccountingSystemId.setVisible(False)
+            self.cmbTFAccountingSystemId.setVisible(False)
+
 
 
     def setProps(self, props):

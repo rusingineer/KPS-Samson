@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -57,6 +57,7 @@ from library.Utils                import (calcAge,
                                           trim,
                                          )
 from library.TableModel           import sortDataModel, sortDateTimeModel
+from library.Counter import CCounterController
 from Events.Action                import (CAction,
                                           CActionType,
                                           CActionTypeCache,
@@ -68,6 +69,7 @@ from Events.ActionStatus          import CActionStatus
 from Events.ActionPropertiesTable import CActionPropertiesTableModel
 from Events.ActionTypeDialog      import CActionTypeDialogTableModel
 from Events.AmbCardDialog         import CAmbCardDialog
+from Events.ActionsSelector       import selectActionTypes
 from Resources.GroupJobAppointmentDialog import CGroupJobAppointmentDialog
 from Resources.TreatmentAppointmentDialog import CTreatmentAppointmentDialog
 from Events.CreateEvent           import requestNewEvent, saveTransferData
@@ -81,6 +83,11 @@ from Events.Utils                 import (cutFeed,
                                           getDiagnosisId2,
                                           getActionTypeIdListByFlatCode,
                                           getChiefId,
+                                          getEventCSGRequired,
+                                          getEventShowTime,
+                                          checkTissueJournalStatusByActions,
+                                          getEventPrevEventTypeId,
+                                          getPrevEventIdByEventTypeId
                                          )
 from F003.ExecPersonListEditorDialog import CExecPersonListEditorDialog
 from HospitalBeds.CheckPeriodActions         import CCheckPeriodActions
@@ -122,9 +129,11 @@ from Registry.Utils               import (CCheckNetMixin,
                                           getClientInfo,
                                           getClientInfoEx,
                                           getClientPhonesEx,
+                                          canAddActionToExposedEvent,
                                          )
 from Registry.StatusObservationClientEditor import CStatusObservationClientEditor
 from Registry.ClientVaccinationCard         import openClientVaccinationCard
+from Registry.UpdateEventTypeByEvent   import CUpdateEventTypeByEvent
 from Reports.ReportBase           import CReportBase, createTable
 from Reports.ReportView           import CReportViewDialog
 from Reports.ReportThermalSheet   import CReportThermalSheet
@@ -164,12 +173,14 @@ from Users.Rights                 import (urAdmin,
                                           urRegTabWriteAmbCard,
                                           urEditEventJournalOfPerson,
                                           urGroupEditorLocatAccountDocument,
+                                          urUpdateEventTypeByEvent,
                                           urHBEditReceivedMKB,
                                           urHBActionEdit,
                                           urCanReadClientVaccination,
                                           urCanEditClientVaccination,
                                           urAccessTreatmentAppointment,
-                                          urNomenclatureExpenseLaterDate
+                                          urNomenclatureExpenseLaterDate,
+                                          urHBEditAction
                                          )
 from HospitalBeds.RelatedEventListDialog       import CRelatedEventListDialog
 from ThermalSheet.TemperatureListEditor import CTemperatureListEditorDialog
@@ -196,6 +207,8 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def on_tblAmbCardMiscActions_popupMenuAboutToShow(self): CAmbCardMixin.on_tblAmbCardMiscActions_popupMenuAboutToShow(self)
     @pyqtSignature('')
     def on_actAmbCardActionTypeGroupId_triggered(self): CAmbCardMixin.on_actAmbCardActionTypeGroupId_triggered(self)
+    @pyqtSignature('')
+    def on_actAmbCardOpenActionELMK_triggered(self): CAmbCardMixin.on_actAmbCardOpenActionELMK_triggered(self)
     @pyqtSignature('QModelIndex')
     def on_tblAmbCardStatusActions_doubleClicked(self, *args): CAmbCardMixin.on_tblAmbCardStatusActions_doubleClicked(self, *args)
     @pyqtSignature('QModelIndex')
@@ -372,7 +385,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         db = QtGui.qApp.db
         self.organisationCache = CTableRecordCache(db, db.forceTable('Organisation'), u'*', capacity=None)
         self.cmbSrcCity.setAreaSelectable(True)
-        self.cmbSrcCity.setCode(QtGui.qApp.defaultKLADR())
+        # self.cmbSrcCity.setCode(QtGui.qApp.defaultKLADR())
         self.cmbSrcRegion.setEnabled(True)
         self.cmbEventType.setTable('EventType', True, filter=u'(EventType.medicalAidType_id IN (SELECT rbMedicalAidType.id from rbMedicalAidType where rbMedicalAidType.code IN (\'8\')))')
         self.cmbProfileDirections.setTable('rbHospitalBedProfile', addNone = False, specialValues = [(-1, u'-', u'не задано'), (0, u'0', u'не указан')])
@@ -1142,6 +1155,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def setupHospitalBedsMenu(self):  # + +
         self.addObject('mnuHospitalBeds', QtGui.QMenu(self))
         self.addObject('actOpenEvent', QtGui.QAction(u'Открыть обращение', self))
+        self.addObject('actAddAction', QtGui.QAction(u'Добавить действие', self))
         self.addObject('actGroupJobAppointment', QtGui.QAction(u'Групповое назначение', self))
         self.addObject('actEditMKB', QtGui.QAction(u'Изменить диагноз направителя', self))
         self.addObject('actAmbCardShow',    QtGui.QAction(u'Открыть медицинскую карту', self))
@@ -1158,6 +1172,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.addObject('actEditPatronFeatures', QtGui.QAction(u'Открыть редактор особенностей лица по уходу', self))
         self.addObject('actOpenClientDocumentTrackingHistory', QtGui.QAction(u'Открыть журнал хранения учетных документов', self))
         self.addObject('actDocumentLocationGroupEditor', QtGui.QAction(u'Групповой редактор места нахождения учетного документа', self))
+        self.addObject('actUpdateEventTypeByEvent', QtGui.QAction(u'Изменить тип события', self))
         self.addObject('actEventJournalOfPerson', QtGui.QAction(u'Журнал назначения лечащего врача', self))
         self.addObject('actOpenPlanningEditor', QtGui.QAction(u'Открыть редактор действия планирование', self))
         self.actStatusObservationClient.setShortcut('Shift+F5')
@@ -1165,6 +1180,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actTemperatureListEditor.setShortcut(Qt.Key_F2)
         self.actPeriodActionsDialog.setShortcut(Qt.Key_F3)
         self.mnuHospitalBeds.addAction(self.actOpenEvent)
+        self.mnuHospitalBeds.addAction(self.actAddAction)
         self.mnuHospitalBeds.addAction(self.actGroupJobAppointment)
         self.mnuHospitalBeds.addAction(self.actEditMKB)
         self.mnuHospitalBeds.addAction(self.actAmbCardShow)
@@ -1183,6 +1199,8 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.mnuHospitalBeds.addAction(self.actEditPatronFeatures)
         self.mnuHospitalBeds.addAction(self.actOpenClientDocumentTrackingHistory)
         self.mnuHospitalBeds.addAction(self.actDocumentLocationGroupEditor)
+        self.mnuHospitalBeds.addAction(self.actUpdateEventTypeByEvent)
+        self.actUpdateEventTypeByEvent.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urUpdateEventTypeByEvent]))
         self.mnuHospitalBeds.addAction(self.actEventJournalOfPerson)
         self.mnuHospitalBeds.addAction(self.actOpenPlanningEditor)
 
@@ -1190,11 +1208,13 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def setupEditActionEventMenu(self):  # + +
         self.addObject('mnuEditActionEvent', QtGui.QMenu(self))
         self.addObject('actEditActionEvent', QtGui.QAction(u'Открыть обращение', self))
+        self.addObject('actAddActionEvent', QtGui.QAction(u'Добавить действие', self))
         self.addObject('actAmbCardShowToAction', QtGui.QAction(u'Открыть медицинскую карту', self))
         self.addObject('actEditClientInfo', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actEditStatusObservationClient', QtGui.QAction(u'Изменить статус наблюдения пациента', self))
         self.addObject('actTranslateStatusActionInBeginClass', QtGui.QAction(u'Перевести статус действия в начато', self))
         self.mnuEditActionEvent.addAction(self.actEditActionEvent)
+        self.mnuEditActionEvent.addAction(self.actAddActionEvent)
         self.mnuEditActionEvent.addAction(self.actAmbCardShowToAction)
         self.mnuEditActionEvent.addAction(self.actEditClientInfo)
         self.mnuEditActionEvent.addAction(self.actEditStatusObservationClient)
@@ -1494,7 +1514,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.edtVoucherNumber.setText(u'')
         self.cmbSrcRegion.setValue(None)
         self.cmbSrcOrg.setValue(None)
-        self.cmbSrcCity.setCode(QtGui.qApp.defaultKLADR())
+        self.cmbSrcCity.setCode('')
         self.edtVoucherNumber.setCursorPosition(len(trim(self.edtVoucherNumber.text())))
 
 
@@ -2521,12 +2541,7 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
 
     @pyqtSignature('')
     def on_btnDayClientInvoices_clicked(self):
-        filterDlg = CDateTimeInputDialog(self, timeVisible=False)
-        if not QtGui.qApp.userHasRight(urNomenclatureExpenseLaterDate):
-            filterDlg.setMaximumDate(QDate.currentDate())
-            filterDlg.setCurrentDate(True)
-        filterDlg.exec_()
-        date = filterDlg.date()
+        date = QDateTime.currentDateTime()
 
         orgStructureId = self.getTreeOrgSructureId()
         clientIds = [i[self.modelPresence.clientIdColumn] for i in self.modelPresence.items]
@@ -4294,11 +4309,16 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actOpenClientDocumentTrackingHistory.setEnabled(app.userHasAnyRight([urRegTabReadLocationCard, urEditLocationCard]))
         self.actDocumentLocationGroupEditor.setVisible(widgetIndex in (1, 4))
         self.actDocumentLocationGroupEditor.setEnabled(True if app.userHasRight(urGroupEditorLocatAccountDocument) else False)
+        self.actUpdateEventTypeByEvent.setEnabled(isBusy and widgetIndex > self.tabWidget.indexOf(self.tabFund) and (isAdmin or app.userHasRight(urUpdateEventTypeByEvent)))
         self.actEventJournalOfPerson.setEnabled(widgetIndex == 1 and app.isCheckEventJournalOfPerson() and QtGui.qApp.userHasRight(urEditEventJournalOfPerson))
         self.actEventJournalOfPerson.setVisible(widgetIndex == 1 and app.isCheckEventJournalOfPerson())
         self.actOpenPlanningEditor.setVisible(forceBool(widgetIndex == 6))
         self.actOpenPlanningEditor.setEnabled(forceBool(widgetIndex == 6))
-
+        self.actAddAction.setVisible(forceBool(self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.tabPresence)))
+        if self.actAddAction.isVisible():
+            currentActionsTable = self.getCurrentWidgetActionsClasses()
+            isClosedEvent = self.getEventIsClosed(currentActionsTable.model().getEventId(currentActionsTable.currentRow()))
+            self.actAddAction.setEnabled(forceBool(self.tabWidget.currentIndex() == self.tabWidget.indexOf(self.tabPresence)) and isBusy and app.userHasRight(urHBEditAction) and not isClosedEvent)
 
     @pyqtSignature('')
     def on_mnuEditActionEvent_aboutToShow(self):  # + +
@@ -4313,7 +4333,11 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actEditClientInfo.setEnabled(currentIndex.row() >= 0 and (isHBReadClientInfo or isHBEditClientInfo))
         self.actEditStatusObservationClient.setEnabled(currentIndex.row() >= 0)
         self.actTranslateStatusActionInBeginClass.setEnabled(currentIndex.row() >= 0 and self.getIsAppointed())
-
+        currentActionsTable = self.getCurrentWidgetActionsClasses()
+        self.actAddActionEvent.setEnabled(
+            currentIndex.row() >= 0 and app.userHasRight(urHBEditAction) and
+            not self.getEventIsClosed(currentActionsTable.model().getEventId(currentActionsTable.currentRow()))
+        )
 
     def getIsAppointed(self):
         isAppointed = False
@@ -4403,6 +4427,58 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def on_actDocumentLocationGroupEditor_triggered(self):
         self.openDocumentLocationgroupEditor()
 
+    @pyqtSignature('')
+    def on_actUpdateEventTypeByEvent_triggered(self):
+        eventId = self.getCurrentEventId(self.tabWidget.currentIndex())
+        if eventId:
+            db = QtGui.qApp.db
+            accountItemId = forceRef(db.translate('Account_Item', 'event_id', eventId, 'id'))
+            if accountItemId:
+                QtGui.QMessageBox.warning(self, u'Внимание!',
+                                          u'По событию выставлен счёт, поэтому его тип не может быть изменён.',
+                                          QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+            else:
+                self.updateEventTypeByEvent(eventId)
+
+    def updateEventTypeByEvent(self, eventId):
+        if QtGui.qApp.userHasAnyRight([urAdmin, urUpdateEventTypeByEvent]):
+            db = QtGui.qApp.db
+            tableET = db.table('Event')
+            record = db.getRecordEx(tableET, '*', [tableET['id'].eq(eventId), tableET['deleted'].eq(0)])
+            eventTypeId = forceRef(record.value('eventType_id')) if record else None
+            oldPrevEventId = forceRef(record.value('prevEvent_id')) if record else None
+            clientId = forceRef(record.value('client_id')) if record else None
+            if eventTypeId:
+                tableETE = db.table('EventType_Event')
+                cols = [tableETE['eventType_id']
+                        ]
+                cond = [tableETE['master_id'].eq(eventTypeId)
+                        ]
+                eventTypeIdList = db.getDistinctIdList(tableETE, cols, cond, 'EventType_Event.id')
+                if eventTypeIdList:
+                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId)
+                    try:
+                        if dialog.exec_():
+                            newEventTypeId = dialog.getNewEventTypeId()
+                            if newEventTypeId:
+                                record.setValue('eventType_id', toVariant(newEventTypeId))
+                                idList = set([])
+                                idListParents = set(db.getTheseAndParents(tableET, 'prevEvent_id',
+                                                                          [eventId if eventId else self.prevEventId]))
+                                idList ^= idListParents
+                                idListDescendant = set(db.getDescendants(tableET, 'prevEvent_id',
+                                                                         eventId if eventId else self.prevEventId))
+                                idList ^= idListDescendant
+                                if len(idList) < 2:
+                                    prevEventTypeId = getEventPrevEventTypeId(newEventTypeId)
+                                    prevEventId = getPrevEventIdByEventTypeId(prevEventTypeId,
+                                                                              clientId) if prevEventTypeId else None
+                                    if prevEventTypeId and oldPrevEventId != prevEventId:
+                                        record.setValue('prevEvent_id', toVariant(prevEventId))
+                            db.updateRecord(tableET, record)
+                            self.on_selectionModelOrgStructure_currentChanged(None, None)
+                    finally:
+                        dialog.deleteLater()
 
     @pyqtSignature('')
     def on_actEventJournalOfPerson_triggered(self):
@@ -4713,7 +4789,6 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         except:
             pass
 
-
     @pyqtSignature('')
     def on_actEditActionEvent_triggered(self):
         currentActionsTable = self.getCurrentActionsTable()
@@ -4746,7 +4821,44 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         elif actionId:
             currentActionsTable.setCurrentItemId(actionId)
 
+    @pyqtSignature('')
+    def on_actAddAction_triggered(self):
+        widgetIndex = self.tabWidget.currentIndex()
+        if widgetIndex == self.tabWidget.indexOf(self.tabPresence):
+            if self.tabWidgetActionsClasses.currentIndex() == self.tabWidgetActionsClasses.indexOf(self.tabActionList):
+                eventId = self.getCurrentEventId(widgetIndex)
+                if eventId:
+                    currentTable, currentRow, newActionIdList = self.addActionTabPresence(eventId, 0)
+                    # for actionId in newActionIdList:
+                    #     if actionId and QtGui.qApp.userHasAnyRight([urHBActionEdit]):
+                    #         self.editAction(actionId)
+                    self.updateActionsList({}, [self.getCurrentEventId(self.tabWidget.indexOf(self.tabPresence))])
+                    currentTable.setCurrentRow(currentRow)
 
+    @pyqtSignature('')
+    def on_actAddActionEvent_triggered(self):
+        widgetIndex = self.tabWidgetActionsClasses.currentIndex()
+        if widgetIndex in [self.tabWidgetActionsClasses.indexOf(self.tabActionsStatus),
+                           self.tabWidgetActionsClasses.indexOf(self.tabActionsDiagnostic),
+                           self.tabWidgetActionsClasses.indexOf(self.tabActionsCure),
+                           self.tabWidgetActionsClasses.indexOf(self.tabActionsMisc)]:
+            currentActionsTable = self.getCurrentWidgetActionsClasses()
+            actionId = currentActionsTable.currentItemId()
+            if actionId:
+                db = QtGui.qApp.db
+                table = db.table('Action')
+                record = db.getRecordEx(table, [table['event_id']], [table['id'].eq(actionId), table['deleted'].eq(0)])
+                eventId = forceRef(record.value('event_id')) if record else None
+                if eventId and canAddActionToExposedEvent(self, eventId):
+                    currentTable, currentRow, newActionIdList = self.addActionTabPresence(eventId, widgetIndex)
+                    # for actionId in newActionIdList:
+                    #     if actionId:
+                    #         self.editAction(actionId)
+                    self.cmbFilterActionType.setClass(widgetIndex - 1)
+                    self.cmbFilterActionType.setValue(self.__actionTypeIdListByClassPage[widgetIndex - 1])
+                    self.on_buttonBoxAction_apply()
+                    currentTable.setCurrentRow(currentRow)
+    
     @pyqtSignature('')
     def on_actOpenEvent_triggered(self):
         QtGui.qApp.callWithWaitCursor(self, self.openEvent)
@@ -5651,3 +5763,284 @@ class CHealthResortDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             return self.modelQueue.rowCount()
         return 0
 
+    def addActionTabPresence(self, eventId, currentWidget):
+        def removeExtCols(db, srcRecord):
+            tableAction = db.table('Action')
+            record = tableAction.newRecord()
+            for i in xrange(record.count()):
+                record.setValue(i, srcRecord.value(record.fieldName(i)))
+            return record
+
+        def getActionIdxLast(db, eventId, actionTypeClass):
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            recordAction = db.getRecordEx(tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id'])), 'MAX(Action.idx) AS idxLast', [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0), tableActionType['deleted'].eq(0), tableActionType['class'].eq(actionTypeClass)])
+            return forceInt(recordAction.value('idxLast')) if recordAction else -1
+
+        def saveNewAction(db, eventId, actionTypeId, action, idxLastDict):
+            actionType = CActionTypeCache.getById(actionTypeId)
+            actionTypeClass = actionType.class_
+            idxLast = idxLastDict.get(actionTypeClass, -1)
+            if idxLast < 0:
+                idxLast = getActionIdxLast(db, eventId, actionTypeClass) + 1
+                idxLastDict[actionTypeClass] = idxLast
+            else:
+                idxLast += 1
+                idxLastDict[actionTypeClass] = idxLast
+            outRecord = removeExtCols(db, action.getRecord())
+            if outRecord:
+                action._record = outRecord
+                id = action.save(eventId, idx=idxLast, checkModifyDate=False)
+                if id:
+                    if id not in newActionIdList:
+                        newActionIdList.append(id)
+                    action.getRecord().setValue('id', toVariant(id))
+                    checkTissueJournalStatusByActions([(action.getRecord(), action)])
+            return idxLastDict
+        newActionIdList = []
+        currentRow = None
+        if eventId and currentWidget >= 0:
+            actionTypes = []
+            currentTable = self.getCurrentWidgetActionsClasses()
+            currentRow = currentTable.currentRow()
+            isCheckAddOutsideActions = False
+            isCloseEventByAction = False
+            formClass = getEventFormClass(eventId)
+            dialog = formClass(self)
+            QtGui.qApp.setCounterController(CCounterController(self))
+            QtGui.qApp.setJTR(dialog)
+            try:
+                db = QtGui.qApp.db
+                tableEvent = db.table('Event')
+                dialog.load(eventId)
+                record = db.getRecordEx(tableEvent, '*', [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
+                dialog.setRecord(record)
+                clientId = forceRef(record.value('client_id')) if record else None
+                mesId = forceRef(record.value('MES_id')) if record else None
+                mesSpecificationId = forceRef(record.value('mesSpecification_id')) if record else None
+                dialog.tabMes.cmbMes.setValue(toVariant(mesId))
+                dialog.tabMes.cmbMesSpecification.setValue(toVariant(mesSpecificationId))
+                tabWidgetList = [dialog.tabToken,
+                                 dialog.tabStatus,
+                                 dialog.tabDiagnostic,
+                                 dialog.tabCure,
+                                 dialog.tabMisc
+                                ]
+                dialog.tabWidget.setCurrentWidget(tabWidgetList[currentWidget])
+                actionTypes, actionTypeClasses, hasTblActions, widget = self.getNewActionTypes(dialog)
+                updateTabList = []
+                notAddedActions = []
+                isEventCSGRequired = getEventCSGRequired(dialog.eventTypeId)
+                actionsTabsList = dialog.getActionsTabsList()
+                from Events.ActionCreateDialog import CActionCreateDialog
+                showEditorForEveryAction = True
+                
+                for actionTypeId, action, csgRecord in actionTypes:
+                    res = True
+                    actionType = CActionTypeCache.getById(actionTypeId)
+                    if u'moving' in actionType.flatCode.lower():
+                        for record in dialog.modelActionsSummary._items:
+                            if action:
+                                actionTypeItem = CActionTypeCache.getById(forceString(record.value('actionType_id')))
+                                if actionTypeItem and (u'received' in actionTypeItem.flatCode.lower()):
+                                    if not forceDate(record.value('endDate')):
+                                        res = actionType.checkReceivedMovingLeaved(u'Действие "Движение" не может появится при наличии не законченного действия "Поступление"')
+                                        break
+                                    break
+                        else:
+                            res = actionType.checkReceivedMovingLeaved(u'Действие "Движение" не должно применяться пока нет действия "Поступление"')
+                    if not res:
+                        actionTypes.remove((actionTypeId, action, csgRecord))
+                        
+                relatedItems = {}
+                for actionTypeId, action, csgRecord in actionTypes:
+                    relatedActionTypes = CActionTypeCache.getById(actionTypeId).getRelatedActionTypes()
+                    relatedItems[action] = []
+                    for actionType, isRequired in relatedActionTypes.items():
+                        if isRequired:
+                            itemRecord = db.table('Action').newRecord()
+                            itemRecord.setValue('actionType_id', actionType)
+                            item = CAction.getFilledAction(dialog, itemRecord, actionType)
+                            relatedItems[action].append((actionType, item, None))
+                for items in relatedItems.values():
+                    actionTypes.extend(items)
+                if showEditorForEveryAction:
+                    model = None
+                    for actionTypeId, action, csgRecord in actionTypes:
+                        createDialog = None
+                        try:
+                            createDialog = CActionCreateDialog(dialog)
+                            createDialog.load(action.getRecord(), action, clientId)
+                            if createDialog.exec_():
+                                if len(actionTypeClasses) > 1:
+                                    if hasTblActions:
+                                        model = dialog.tblActions.model()
+                                        for actionTypeId, action, csgRecord in actionTypes:
+                                            class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                            actionsTab = actionsTabsList[class_]
+                                            if actionsTab not in updateTabList:
+                                                updateTabList.append(actionsTab)
+                                            index = model.index(model.rowCount()-1, 0)
+                                            model.setData(index, toVariant(actionTypeId), presetAction=action)
+                                            if isEventCSGRequired:
+                                                actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                                        model.emitAllChanged()
+                                    else:
+                                        for actionTypeId, action, csgRecord in actionTypes:
+                                            class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                            actionsTab = actionsTabsList[class_]
+                                            if actionsTab not in updateTabList:
+                                                updateTabList.append(actionsTab)
+                                            model = actionsTab.tblAPActions.model()
+                                            model.addRow(actionTypeId, presetAction=action)
+                                            if isEventCSGRequired:
+                                                actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                                else:
+                                    for actionTypeId, action, csgRecord in actionTypes:
+                                        class_ = forceInt(QtGui.qApp.db.translate('ActionType', 'id', actionTypeId, 'class'))
+                                        actionsTab = actionsTabsList[class_]
+                                        if actionsTab not in updateTabList:
+                                            updateTabList.append(actionsTab)
+                                        model = actionsTab.tblAPActions.model()
+                                        index = model.index(model.rowCount()-1, 0)
+                                        model.setData(index, toVariant(actionTypeId), presetAction=action)
+                                        if isEventCSGRequired:
+                                            actionsTab.cmbCSG.addActionToCSG(action.getRecord(), csgRecord)
+                            else:
+                                notAddedActions.append((actionTypeId, action, csgRecord))
+                        finally:
+                            createDialog.deleteLater()
+                    if model:
+                        model.emitAllChanged()
+                for item in notAddedActions:
+                    actionTypes.remove(item)
+                for actionsTab in updateTabList:
+                    actionsTab.updateActionEditor()
+                    actionsTab.onActionCurrentChanged()
+                if len(actionTypeClasses) == 1:
+                    dialog.tabWidget.setCurrentWidget(widget)
+                isEventCSGRequired = getEventCSGRequired(dialog.eventTypeId)
+                actionList = []
+                for actionTypeId, action, csgRecord in actionTypes:
+                    if action:
+                        isActionClose = bool(action.getType().closeEvent)
+                        if isActionClose and not isCloseEventByAction:
+                            isCloseEventByAction = isActionClose
+                        actionList.append((action.getRecord(), action))
+                if actionList:
+                    showTime = getEventShowTime(dialog.eventTypeId)
+                    if showTime:
+                        begDateEvent = QDateTime(dialog.edtBegDate.date(), dialog.edtBegTime.time())
+                        endDateEvent = QDateTime(dialog.edtEndDate.date(), dialog.edtEndTime.time())
+                    else:
+                        begDateEvent = dialog.edtBegDate.date()
+                        endDateEvent = dialog.edtEndDate.date()
+                    isCheckAddOutsideActions = dialog.checkAddOutsideActionsDataEntered(begDateEvent, endDateEvent, actionList)
+                dialog.done(0)
+            finally:
+                QtGui.qApp.unsetJTR(dialog)
+                QtGui.qApp.delAllCounterValueIdReservation()
+                QtGui.qApp.setCounterController(None)
+                dialog.destroy()
+                dialog.deleteLater()
+            if isCheckAddOutsideActions:
+                isAddAction = False
+                idxLastDict = {}
+                if len(actionTypes) > 0:
+                    for actionTypeId, action, csgRecord in actionTypes:
+                        if action:
+                            if isEventCSGRequired and csgRecord:
+                                action.getRecord().setValue('eventCSG_id', csgRecord.value('id'))
+                            idxLastDict = saveNewAction(db, forceRef(action.getRecord().value('event_id')), actionTypeId, action, idxLastDict)
+                            if action in relatedItems.keys() and action.getId():
+                                for item in relatedItems[action]:
+                                    item[1].setMasterId(action.getId())
+                                    item[1].getRecord().setValue('master_id', action.getId())
+                                    item[1].getRecord().setValue('person_id', action.getRecord().value('person_id'))
+                            isAddAction = True
+                if isCloseEventByAction and isAddAction:
+                    recordEvent = db.getRecordEx(tableEvent, 'Event.*', [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
+                    if recordEvent:
+                        eventExecDate = forceDate(recordEvent.value('execDate'))
+                        if not eventExecDate:
+                            self.checkValueMessage(u'Добавлено Мероприятие требующее закрытия Случая Обслуживания! Для этого откройте на редактирование Случай Обслуживания и внесите необходимые правки.', False, None)
+                if len(newActionIdList) > 1:
+                    if currentWidget > 0:
+                        self.cmbFilterActionType.setClass(currentWidget-1)
+                        self.cmbFilterActionType.setValue(self.__actionTypeIdListByClassPage[currentWidget-1])
+                        self.on_buttonBoxAction_apply()
+                    else:
+                        self.updateActionsList({}, [self.getCurrentEventId(self.tabWidget.indexOf(self.tabPresence))])
+                    currentTable.setCurrentRow(currentRow)
+        return currentTable, currentRow, newActionIdList
+
+    def getCurrentWidgetActionsClasses(self):
+        index = self.tabWidgetActionsClasses.currentIndex()
+        return [self.tblPresence, self.tblActionsStatus, self.tblActionsDiagnostic, self.tblActionsCure, self.tblActionsMisc][index]
+
+    def getNewActionTypes(self, dialog):
+        if dialog.isReadOnly():
+            return [], [], False, None
+        if hasattr(dialog, 'tabWidget'):
+            widget = dialog.tabWidget.currentWidget()
+            cond = []
+            widgetClass = {}
+            if hasattr(dialog, 'tabToken'):
+                cond.append(dialog.tabToken)
+                widgetClass[dialog.tabToken] = [0, 1, 2, 3]
+            if hasattr(dialog, 'tabMes'):
+                cond.append(dialog.tabMes)
+                widgetClass[dialog.tabMes] = [0, 1, 2, 3]
+            if hasattr(dialog, 'tabStatus'):
+                cond.append(dialog.tabStatus)
+                widgetClass[dialog.tabStatus] = [0]
+            if hasattr(dialog, 'tabDiagnostic'):
+                cond.append(dialog.tabDiagnostic)
+                widgetClass[dialog.tabDiagnostic] = [1]
+            if hasattr(dialog, 'tabCure'):
+                cond.append(dialog.tabCure)
+                widgetClass[dialog.tabCure] = [2]
+            if hasattr(dialog, 'tabMisc'):
+                cond.append(dialog.tabMisc)
+                widgetClass[dialog.tabMisc] = [3]
+            if widget not in cond:
+                return [], [], False, None
+        else:
+            return [], [], False, None
+        if hasattr(dialog, 'tblActions'):
+            hasTblActions = True
+        else:
+            hasTblActions = False
+        orgStructureId = QtGui.qApp.currentOrgStructureId()
+        financeCode = forceStringEx(QtGui.qApp.db.translate('rbFinance', 'id', dialog.eventFinanceId, 'code'))
+        if financeCode:
+            financeCode = financeCode in ('3', '4')
+        existsActionTypesList = []
+        if hasattr(dialog, 'modelActionsSummary'):
+            for item in dialog.modelActionsSummary.items():
+                existsActionTypesList.append(forceRef(item.value('actionType_id')))
+        actionTypeClasses = widgetClass.get(widget, [0, 1, 2, 3])
+        actionTypes = selectActionTypes( dialog if len(actionTypeClasses) != 1 else widget,
+                                         dialog,
+                                         actionTypeClasses,
+                                         orgStructureId,
+                                         dialog.eventTypeId,
+                                         dialog.contractId,
+                                         dialog.getMesId(),
+                                         financeCode,
+                                         dialog._id,
+                                         existsActionTypesList,
+                                         visibleTblSelected=True,
+                                         contractTariffCache=dialog.contractTariffCache,
+                                         clientMesInfo=dialog.getClientMesInfo(),
+                                         eventDate = dialog.edtBegDate.date() if dialog.edtBegDate.date() else dialog.edtEndDate.date(),
+                                       )
+        return actionTypes, actionTypeClasses, hasTblActions, widget
+
+    def getEventIsClosed(self, eventId):
+        if eventId:
+            db = QtGui.qApp.db
+            tableEvent = db.table('Event')
+            record = db.getRecordEx(tableEvent, [tableEvent['isClosed']], [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
+            return forceBool(record.value('isClosed')) if record else True
+        return True

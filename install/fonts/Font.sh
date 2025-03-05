@@ -1,8 +1,8 @@
 #!/bin/bash
 NOW=$(date +%Y%m%d-%T)
 f=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-echo "[$(date +%Y%m%d-%T)] ======= Óñòàíîâêà øðèôòîâ Font.sh v1.0 ======="
-
+echo "[$(date +%Y%m%d-%T)] ======= Ð£ÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐ° ÑˆÑ€Ð¸Ñ„Ñ‚Ð¾Ð² Font.sh v1.0 ======="
+cd $f
 dir=/usr/share/fonts
 
 if [ ! -f $dir/code39/code39.ttf ]; then
@@ -16,10 +16,13 @@ fi
 if [ ! -f $dir/pt-root/pt-root-ui_regular.ttf ]; then
 	echo install fonts pt-root...
 	mkdir -p $dir/pt-root
-	cp pt-root-ui_bold.ttf   $dir/pt-root/
-	cp pt-root-ui_light.ttf   $dir/pt-root/
-	cp pt-root-ui_medium.ttf   $dir/pt-root/
-	cp pt-root-ui_regular.ttf   $dir/pt-root/
+	cp pt-root*.ttf   $dir/pt-root/
 fi
  
-echo "[$(date +%Y%m%d-%T)] ======= Óñòàíîâêà øðèôòîâ Font.sh v1.0 =======" >> /root/.install.ver
+if [ ! -f $dir/Liberation/LiberationMono-Regular.ttf ]; then
+	echo install fonts Liberation...
+	mkdir -p $dir/Liberation
+	cp Liberation*.ttf   $dir/Liberation/
+fi
+ 
+#echo "[$(date +%Y%m%d-%T)] ======= Ð£ÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐ° ÑˆÑ€Ð¸Ñ„Ñ‚Ð¾Ð² Font.sh v1.0 =======" >> /root/.install.ver

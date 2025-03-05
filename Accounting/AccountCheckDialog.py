@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -100,9 +100,6 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
         ('202', 0):
             (u'202 - не заполнено поле "Имя"',
              u"IFNULL(Client.firstName, '') = ''"),
-        ('203', 0):
-            (u'203 - не заполнено поле "Отчество"',
-             u"IFNULL(Client.patrName, '') = ''"),
         ('204', 0):
             (u'204 - не заполнено поле "Пол"',
              u"Client.sex is null"),
@@ -146,7 +143,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
             left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             left join Person p on p.id = COALESCE(a.person_id, e.execPerson_id)
@@ -157,7 +155,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
             left join rbService s on s.id = v.service_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.tariffType = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.tariffType = 0
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(v.date) between ct.begDate and ct.endDate
                 or DATE(v.date) >= ct.begDate and ct.endDate is null)
@@ -169,7 +168,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
-            left join Contract_Tariff ct on ct.master_id = e.contract_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
                 or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
@@ -232,7 +232,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
             left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             where e.id = Event.id and a.deleted = 0 and s.id is not null
@@ -241,7 +242,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
             left join rbService s on s.id = v.service_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.tariffType = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.tariffType = 0
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(v.date) between ct.begDate and ct.endDate
                 or DATE(v.date) >= ct.begDate and ct.endDate is null)
@@ -251,7 +253,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
-            left join Contract_Tariff ct on ct.master_id = e.contract_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
                 or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
@@ -278,7 +281,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
             left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             where e.id = Event.id and a.deleted = 0 and s.id is not null
@@ -287,7 +291,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
             left join rbService s on s.id = v.service_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.tariffType = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.tariffType = 0
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(v.date) between ct.begDate and ct.endDate
                 or DATE(v.date) >= ct.begDate and ct.endDate is null)
@@ -297,7 +302,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
-            left join Contract_Tariff ct on ct.master_id = e.contract_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
                 or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
@@ -321,7 +327,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
             left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             where e.id = Event.id and a.deleted = 0 and s.id is not null and ct.price is not null
@@ -337,21 +344,21 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
         ('263', 0):
             (u'263 - поле "Код направившей медицинской организации (заказчика) в системе ОМС" не заполнено',
             u"""(rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
-                    or rbMedicalAidType.regionalCode in ('211', '233') and rbEventProfile.regionalCode in ('8009', '8015', '8019')
+                    or rbMedicalAidType.regionalCode in ('211', '233', '244') and rbEventProfile.regionalCode in ('8009', '8015', '8019', '8021')
                     or eti.id is not null)
                and rbFinance.code = '2' and Event.`order` = 1 and ifnull(RelegateOrg.infisCode, '') = ''"""
              ),
         ('264', 0):
             (u'264 -  поле "Номер направления" не заполнено или содержит недопустимый символ',
             u"""(rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
-                    or rbMedicalAidType.regionalCode in ('211', '233') and rbEventProfile.regionalCode in ('8009', '8015', '8019')
+                    or rbMedicalAidType.regionalCode in ('211', '233', '244') and rbEventProfile.regionalCode in ('8009', '8015', '8019', '8021')
                     or eti.id is not null)
                and rbFinance.code = '2' and Event.`order` = 1 and (length(ifnull(Event.srcNumber, '')) = 0 or Event.srcNumber not REGEXP '^[0-9]+_?[0-9]+$')"""
              ),
         ('265', 0):
             (u'265 -  поле "Дата направления" не заполнено',
             u"""(rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
-                    or rbMedicalAidType.regionalCode in ('211', '233') and rbEventProfile.regionalCode in ('8009', '8015', '8019')
+                    or rbMedicalAidType.regionalCode in ('211', '233', '244') and rbEventProfile.regionalCode in ('8009', '8015', '8019', '8021')
                     or eti.id is not null)
                and rbFinance.code = '2' and Event.`order` = 1 and Event.srcDate is null"""
              ),
@@ -449,6 +456,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 and exists(select a.id
                 from Action a
                 left join Event e1 on e1.id = a.event_id
+                LEFT JOIN Contract c1 ON c1.id=e1.contract_id
+                LEFT JOIN rbFinance f1 ON f1.id=c1.finance_id
                 left join ActionType at on at.id = a.actionType_id
                 left join rbService s on s.id = at.nomenclativeService_id
                 left join Event e2 on e2.client_id = e1.client_id and e2.id <> e1.id 
@@ -456,10 +465,13 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                     and date_add(e2.execDate, INTERVAL -1 DAY) and e2.deleted = 0
                 left join EventType et2 on et2.id = e2.eventType_id
                 left join rbMedicalAidType mt2 ON et2.medicalAidType_id = mt2.id
+                LEFT JOIN Contract c2 ON c2.id=e2.contract_id
+                LEFT JOIN rbFinance f2 ON f2.id=c2.finance_id
                 where a.event_id = Event.id and a.deleted = 0
                 and s.infis REGEXP 'B0[124]'
                 and mt2.regionalCode in ('11', '12', '41', '42', '51', '52', '71', '72', '90', '301', '302', '411', '422', '511', '522')
-                and e2.MES_id is not null)
+                and e2.MES_id is not null
+                AND f1.id=f2.id and f2.code = '2')
             """
              ),
         ('347', 1):
@@ -548,7 +560,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
              ), #34216
         ('355', 0):
             (u'355 - дублирование посещения в один день к врачу одной специальности, в персональном счете',
-            u"""exists(select COUNT(a2.id), substr(s2.infis, 1, 7), date(a2.endDate)
+            u"""exists(select COUNT(DISTINCT a2.id), substr(s2.infis, 1, 7), date(a2.endDate)
             from Event e2
             left join EventType et2 on et2.id = e2.eventType_id
             left join Action a2 on a2.event_id = e2.id and a2.deleted = 0
@@ -565,7 +577,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             where e2.id = Event.id and isPos(s2.infis, mt2.regionalCode, ct2.price) = 1
             AND substr(s2.name,1,31) <> 'Обращение по поводу заболевания'
             group by substr(s2.infis, 1, 7), date(a2.endDate)
-            having count(a2.id) > 1)
+            having count(DISTINCT a2.id) > 1)
             """
              ),
         ('374', 0):
@@ -602,7 +614,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 left join Person p on p.id = coalesce(a.person_id, v.person_id, e.execPerson_id)
                 left join rbSpeciality sp on p.speciality_id = sp.id
                 where ai.event_id = Event.id and ai.master_id in ({master_id}) and ai.deleted = 0
-                    and a.org_id is null and (sp.federalCode = '' or sp.federalCode is null))
+                    and a.org_id is null and (sp.regionalCode = '' or sp.regionalCode is null))
             """
              ),
         ('835', 2):
@@ -610,38 +622,42 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             u"""exists(select ct.id from Event e
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
-            left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN ActionType_Service ats ON ats.master_id = a.actionType_id
+            left join rbService s on s.id = ats.service_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             left join Person p on p.id = coalesce(a.person_id, e.execPerson_id)
             left join rbSpeciality sp on p.speciality_id = sp.id
             where e.id = Event.id and a.deleted = 0 and s.id is not null
-                and ct.price is not null and a.org_id is null and (sp.federalCode = '' or sp.federalCode is null)
+                and ct.price is not null and a.org_id is null and (sp.regionalCode = '' or sp.regionalCode is null)
             union all
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
             left join rbService s on s.id = v.service_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.tariffType = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.tariffType = 0
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(v.date) between ct.begDate and ct.endDate
                 or DATE(v.date) >= ct.begDate and ct.endDate is null)
             left join Person p on p.id = v.person_id
             left join rbSpeciality sp on p.speciality_id = sp.id
             where e.id = Event.id and v.deleted = 0 and s.id is not null
-               and ct.price is not null and (sp.federalCode = '' or sp.federalCode is null)
+               and ct.price is not null and (sp.regionalCode = '' or sp.regionalCode is null)
             union all
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
-            left join Contract_Tariff ct on ct.master_id = e.contract_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
                 or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
                 and ct.tariffType = 13
             left join Person p on p.id = e.execPerson_id
             left join rbSpeciality sp on p.speciality_id = sp.id
-            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and (sp.federalCode = '' or sp.federalCode is null))
+            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and (sp.regionalCode = '' or sp.regionalCode is null))
             """
              ),
         ('846', 0):
@@ -726,8 +742,10 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             u"""exists(select ct.id from Event e
             left join Action a on a.event_id = e.id
             left join ActionType at on at.id = a.actionType_id
-            left join rbService s on s.id = at.nomenclativeService_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.service_id = s.id and ct.deleted = 0
+            LEFT JOIN ActionType_Service ats ON ats.master_id = a.actionType_id
+            left join rbService s on s.id = ats.service_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             left join Person p on p.id = coalesce(a.person_id, e.execPerson_id)
@@ -740,7 +758,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
             left join rbService s on s.id = v.service_id
-            left join Contract_Tariff ct on ct.master_id = e.contract_id and ct.tariffType = 0
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id) and ct.tariffType = 0
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(v.date) between ct.begDate and ct.endDate
                 or DATE(v.date) >= ct.begDate and ct.endDate is null)
@@ -754,7 +773,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
-            left join Contract_Tariff ct on ct.master_id = e.contract_id
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
                 and ct.service_id = s.id and ct.deleted = 0
                 and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
                 or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
@@ -778,9 +798,10 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
         ('1000', 0):
             (u'1000 - КОВИД-19. В персональном счете не заполнен файл E или заполнен не корректно для случаев лечения COVID-19',
              """Diagnosis.MKB in ('U07.1', 'U07.2') 
-              AND 
-              EXISTS(SELECT NULL FROM mes.MES m
-                        WHERE m.code like 'G%%' and substr(m.code, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'))
+              AND IFNULL(eti.value, '') <> 'av'
+              AND
+              (EXISTS(SELECT NULL FROM mes.MES m
+                        WHERE Event.MES_id = m.id AND m.code like 'G%%' and substr(m.code, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'))
                AND NOT EXISTS(SELECT NULL
                       FROM Action A1
                       WHERE A1.event_id = Event.id
@@ -793,7 +814,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
               
               OR 
               NOT EXISTS(SELECT NULL FROM mes.MES m
-                        WHERE m.code like 'G%%' or substr(m.code, 4, 8) in ('st36.013', 'st36.014', 'st36.015'))
+                        WHERE Event.MES_id = m.id AND (m.code like 'G%%' or substr(m.code, 4, 8) in ('st36.013', 'st36.014', 'st36.015')))
                AND NOT EXISTS (SELECT NULL FROM Action a
                                 LEFT JOIN ActionType at on at.id = a.actionType_id
                                 LEFT JOIN rbService s on s.id = at.nomenclativeService_id
@@ -808,6 +829,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                                                 FROM ActionType AT1
                                                 WHERE AT1.flatCode = 'List_covid'
                                                 AND AT1.deleted = 0)))
+              )
              """
              ),
         ('1002', 0):
@@ -909,6 +931,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
         self.mnuFLC.addAction(self.actEditClientFLC)
 
         self.setupUi(self)
+        self.setWindowFlags(Qt.Window)
 
         if fromExportFLC:
             self.tabWidget.removeTab(0)
@@ -1159,14 +1182,14 @@ left join soc_spr11 s11 on s11.code = DiagnosticResult.regionalCode and (s11.cod
     and rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402')
             or s11.code_gr = '2' and rbMedicalAidType.regionalCode in ('41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
             or s11.code_gr = '3' and rbMedicalAidType.regionalCode in ('01', '02', '111', '112', '21', '22', '211',
-                '222', '201', '202', '241', '232', '233', '252', '242', '262', '261', '32', '31', '60', '80', '271', '272')
+                '222', '201', '202', '241', '232', '233', '244', '252', '242', '262', '261', '32', '31', '60', '80', '271', '272')
             or s11.code_gr = '5' and rbMedicalAidType.regionalCode in ('801', '802'))
             and s11.datn <= Event.execDate and (s11.dato >= Event.execDate or s11.dato is null)
 left join soc_spr12 s12 on s12.code = EventResult.regionalCode and (s12.code_gr = '1'
     and rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402')
             or s12.code_gr = '2' and rbMedicalAidType.regionalCode in ('41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
             or s12.code_gr = '3' and rbMedicalAidType.regionalCode in ('01', '02', '111', '112', '21', '22', '211',
-                '222', '201', '202', '241', '232', '233', '252', '242', '262', '261', '32', '31', '60', '80', '271', '272')
+                '222', '201', '202', '241', '232', '233', '244', '252', '242', '262', '261', '32', '31', '60', '80', '271', '272')
             or s12.code_gr = '5' and rbMedicalAidType.regionalCode in ('801', '802'))
             and s12.datn <= Event.execDate and (s12.dato >= Event.execDate or s12.dato is null)
 left join soc_checkSpr12 scs12 on scs12.code = EventResult.regionalCode and Event.execDate between scs12.begDate and scs12.endDate
@@ -1318,11 +1341,21 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
     @pyqtSlot()
     def on_mnuAccountItems_aboutToShow(self):
         isAccountant = QtGui.qApp.userHasAnyRight(accountantRightList)
-        currentRow = self.tblAccountItems.currentIndex().row()
-        itemPresent = currentRow >= 0 and isAccountant
-        self.actEditClient.setEnabled(currentRow >= 0)
-        self.actOpenEvent.setEnabled(currentRow >= 0)
+        currentRows = self.tblAccountItems.selectedRowList()
+        itemPresent = currentRows != [] and isAccountant
+        self.actEditClient.setEnabled(currentRows != [])
+        self.actOpenEvent.setEnabled(currentRows != [])
         self.actDeleteEventFromAccount.setEnabled(itemPresent and self.twAccounts.currentWidget() == self.tabAccount)
+        if len(currentRows) == 1:
+            self.actEditClient.setVisible(True)
+            self.actOpenEvent.setVisible(True)
+            self.actDeleteEventFromAccount.setText(u'Удалить первичный документ из реестра')
+            self.actDeleteEventFromAccount.setVisible(True)
+        elif len(currentRows) > 1:
+            self.actEditClient.setVisible(False)
+            self.actOpenEvent.setVisible(False)
+            self.actDeleteEventFromAccount.setText(u'Удалить выбранные первичные документы из реестра')
+            self.actDeleteEventFromAccount.setVisible(True)
 
 
     @pyqtSlot()
@@ -1390,12 +1423,19 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
     def on_actDeleteEventFromAccount_triggered(self):
         db = QtGui.qApp.db
         tableAccountItem = db.table('Account_Item')
-        row = self.tblAccountItems.currentIndex().row()
-        record = self.modelAccountItemsCheck.getRecordByRow(row)
-        eventId = forceRef(record.value('event_id'))
-        accountRecord = self.modelAccountCheck.getRecordByRow(0)
-        accountId = forceRef(accountRecord.value('id'))
-        if eventId and accountId:
+        rows = self.tblAccountItems.selectedRowList()
+        rows.sort()
+        records = []
+        eventIds = []
+        accountIds = []
+        for index, row in enumerate(rows):
+            records.append(self.modelAccountItemsCheck.getRecordByRow(row))
+            eventIds.append(forceRef(records[index].value('event_id')))
+            accountIds.extend(db.getDistinctIdList(tableAccountItem, tableAccountItem['master_id'].name(),
+                                                   tableAccountItem['event_id'].eq(eventIds[index])))
+        eventIds.reverse()
+        accountIds.reverse()
+        if eventIds and accountIds:
             message = u'Вы действительно хотите удалить первичный документ из реестра?'
             if QtGui.QMessageBox().question(self, u'Внимание!', message, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                             QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
@@ -1403,13 +1443,15 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
                 try:
                     db.transaction()
                     try:
-                        itemList = db.getDistinctIdList(tableAccountItem, tableAccountItem['id'].name(),
-                                                        [tableAccountItem['master_id'].eq(accountId),
-                                                        tableAccountItem['event_id'].eq(eventId)])
-                        clearPayStatus(accountId, itemList)
-                        db.deleteRecordSimple(tableAccountItem, tableAccountItem['id'].inlist(itemList))
-                        self.modelAccountItemsCheck.removeRow(row)
-                        updateAccount(accountId)
+                        for index, row in enumerate(reversed(rows)):
+                            itemList = db.getDistinctIdList(tableAccountItem, tableAccountItem['id'].name(),
+                                                            [tableAccountItem['master_id'].eq(accountIds[index]),
+                                                            tableAccountItem['event_id'].eq(eventIds[index])])
+                            clearPayStatus(accountIds[index], itemList)
+                            db.deleteRecordSimple(tableAccountItem, tableAccountItem['id'].inlist(itemList))
+                            updateAccount(accountIds[index])
+                            self.modelAccountItemsCheck.removeRow(row)
+                        db.commit()
                     except:
                         db.rollback()
                         QtGui.qApp.logCurrentException()

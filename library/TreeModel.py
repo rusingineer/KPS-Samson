@@ -218,7 +218,7 @@ class CTreeModel(QAbstractItemModel):
 
 
     def parentByItem(self, childItem):
-        parentItem = childItem.parent() if childItem else None
+        parentItem = childItem.parent() if childItem and hasattr(childItem, '_parent') else None
         if not parentItem or (parentItem == self.getRootItem() and not self.rootItemVisible):
             return QModelIndex()
         return self.createIndex(parentItem.row(), 0, parentItem)

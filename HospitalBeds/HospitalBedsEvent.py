@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, pyqtSignature, QAbstractTableModel, QVariant
+from PyQt4.QtCore import Qt, pyqtSignature, QAbstractTableModel, QVariant, QDateTime
 
 from library.DialogBase    import CDialogBase
 from library.Utils         import forceDate, forceInt, forceRef, forceString, toVariant
@@ -120,10 +120,13 @@ class CHospitalBedsEventModel(QAbstractTableModel):
                 tablePersonWithSpeciality['name'],
                 tableEventType['name'].alias('eventType')
                ]
+        currentDate = QDateTime.currentDateTime()
         cond = [ tableAPHB['value'].eq(self.hospitalBedId),
                  tableAction['deleted'].eq(0),
-                 tableAction['status'].inlist([0, 1]),
+                 tableAction['status'].eq(0),
                  tableEvent['deleted'].eq(0),
+                 db.joinOr([tableAction['begDate'].le(currentDate)]),
+                 db.joinOr([tableAction['endDate'].gt(currentDate), tableAction['endDate'].isNull()])
                ]
         records = db.getRecordList(queryTable, cols, cond)
         for record in records:

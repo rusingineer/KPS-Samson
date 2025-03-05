@@ -24,70 +24,55 @@
        <string>Основная информация</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_2">
-       <item row="2" column="0">
-        <widget class="QCheckBox" name="chkAge">
-         <property name="text">
-          <string>Возраст</string>
-         </property>
-        </widget>
-       </item>
-       <item row="15" column="1" colspan="4">
-        <layout class="QHBoxLayout" name="horizontalLayout_7">
+       <item row="7" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="horizontalLayout_11">
          <item>
-          <widget class="CDateEdit" name="edtBegDate">
-           <property name="enabled">
-            <bool>false</bool>
+          <widget class="QCheckBox" name="chkChkShowInForm">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
-           <property name="displayFormat">
-            <string>dd.MM.yyyy</string>
-           </property>
-           <property name="calendarPopup">
-            <bool>true</bool>
+           <property name="text">
+            <string/>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="lblActionTypeValidTo">
+          <widget class="QCheckBox" name="chkShowInForm">
            <property name="enabled">
             <bool>false</bool>
            </property>
            <property name="text">
-            <string> по </string>
+            <string>Разрешается выбор в формах ввода событий</string>
            </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="CDateEdit" name="endEndDate">
-           <property name="enabled">
-            <bool>false</bool>
+           <property name="checkable">
+            <bool>true</bool>
            </property>
-           <property name="displayFormat">
-            <string>dd.MM.yyyy</string>
-           </property>
-           <property name="calendarPopup">
+           <property name="checked">
             <bool>true</bool>
            </property>
           </widget>
          </item>
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
        </item>
-       <item row="0" column="0">
-        <widget class="QCheckBox" name="chkSex">
-         <property name="text">
-          <string>Пол</string>
+       <item row="20" column="1" colspan="3">
+        <widget class="QSpinBox" name="edtMaxOccursInEvent">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>0 - нет ограничения</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
          </property>
         </widget>
        </item>
@@ -225,117 +210,95 @@
          </layout>
         </widget>
        </item>
-       <item row="20" column="0">
-        <widget class="QCheckBox" name="chkExposeDateSelector">
+       <item row="2" column="0">
+        <widget class="QCheckBox" name="chkAge">
          <property name="text">
-          <string>В счёт включать по дате</string>
+          <string>Возраст</string>
          </property>
         </widget>
        </item>
-       <item row="15" column="0">
+       <item row="17" column="1" colspan="4">
+        <layout class="QHBoxLayout" name="horizontalLayout_7">
+         <item>
+          <widget class="CDateEdit" name="edtBegDate">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="displayFormat">
+            <string>dd.MM.yyyy</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblActionTypeValidTo">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string> по </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="CDateEdit" name="endEndDate">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="displayFormat">
+            <string>dd.MM.yyyy</string>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="chkSex">
+         <property name="text">
+          <string>Пол</string>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="0">
         <widget class="QCheckBox" name="chkActionTypeValidFrom">
          <property name="text">
           <string>Действует</string>
          </property>
         </widget>
        </item>
-       <item row="16" column="0">
+       <item row="18" column="0">
         <widget class="QCheckBox" name="chkContext">
          <property name="text">
           <string>Контекст печати</string>
          </property>
         </widget>
        </item>
-       <item row="18" column="1" colspan="3">
-        <widget class="QSpinBox" name="edtMaxOccursInEvent">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="toolTip">
-          <string>0 - нет ограничения</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       <item row="22" column="0">
+        <widget class="QCheckBox" name="chkExposeDateSelector">
+         <property name="text">
+          <string>В счёт включать по дате</string>
          </property>
         </widget>
        </item>
-       <item row="7" column="0" colspan="5">
-        <layout class="QHBoxLayout" name="horizontalLayout_11">
-         <item>
-          <widget class="QCheckBox" name="chkChkShowInForm">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkShowInForm">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Разрешается выбор в формах ввода событий</string>
-           </property>
-           <property name="checkable">
-            <bool>true</bool>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="4" column="0" colspan="5">
-        <layout class="QHBoxLayout" name="horizontalLayout_8">
-         <item>
-          <widget class="QCheckBox" name="chkChkShowTime">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkShowTime">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Показывать в интерфейсе время назначения/начала/окончания</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="16" column="1" colspan="4">
-        <widget class="QLineEdit" name="edtContext">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="maxLength">
-          <number>64</number>
-         </property>
-        </widget>
-       </item>
-       <item row="20" column="1" colspan="4">
+       <item row="22" column="1" colspan="4">
         <widget class="QComboBox" name="cmbExposeDateSelector">
          <property name="enabled">
           <bool>false</bool>
@@ -367,6 +330,50 @@
          </item>
         </widget>
        </item>
+       <item row="18" column="1" colspan="4">
+        <widget class="QLineEdit" name="edtContext">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="maxLength">
+          <number>64</number>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="horizontalLayout_8">
+         <item>
+          <widget class="QCheckBox" name="chkChkShowTime">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chkShowTime">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Показывать в интерфейсе время назначения/начала/окончания</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="23" column="0">
+        <widget class="QCheckBox" name="chkNeedAttachFile">
+         <property name="text">
+          <string>Требует прикрепления файла</string>
+         </property>
+        </widget>
+       </item>
        <item row="3" column="0" colspan="5">
         <layout class="QHBoxLayout" name="horizontalLayout_13">
          <item>
@@ -394,14 +401,7 @@
          </item>
         </layout>
        </item>
-       <item row="21" column="0">
-        <widget class="QCheckBox" name="chkNeedAttachFile">
-         <property name="text">
-          <string>Требует прикрепления файла</string>
-         </property>
-        </widget>
-       </item>
-       <item row="17" column="0" colspan="5">
+       <item row="19" column="0" colspan="5">
         <layout class="QHBoxLayout" name="horizontalLayout_12">
          <item>
           <widget class="QCheckBox" name="chkPreferable">
@@ -423,33 +423,6 @@
            </property>
            <property name="text">
             <string>Является предпочитаемым(-ой)</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item row="8" column="0" colspan="5">
-        <layout class="QHBoxLayout" name="statusLayout">
-         <item>
-          <widget class="QCheckBox" name="chkChkEditStatus">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkEditStatus">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Редактировать состояние</string>
            </property>
           </widget>
          </item>
@@ -483,6 +456,47 @@
          </item>
         </widget>
        </item>
+       <item row="8" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="statusLayout">
+         <item>
+          <widget class="QCheckBox" name="chkChkEditStatus">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chkEditStatus">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Редактировать состояние</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="21" column="0">
+        <widget class="QCheckBox" name="chkServiceType">
+         <property name="text">
+          <string>Вид услуги</string>
+         </property>
+        </widget>
+       </item>
+       <item row="21" column="1" colspan="4">
+        <widget class="CActionServiceTypeComboBox" name="cmbServiceType">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
        <item row="6" column="0" colspan="5">
         <layout class="QHBoxLayout" name="horizontalLayout_10">
          <item>
@@ -509,20 +523,6 @@
           </widget>
          </item>
         </layout>
-       </item>
-       <item row="19" column="0">
-        <widget class="QCheckBox" name="chkServiceType">
-         <property name="text">
-          <string>Вид услуги</string>
-         </property>
-        </widget>
-       </item>
-       <item row="19" column="1" colspan="4">
-        <widget class="CActionServiceTypeComboBox" name="cmbServiceType">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-        </widget>
        </item>
        <item row="5" column="0" colspan="5">
         <layout class="QHBoxLayout" name="horizontalLayout_9">
@@ -551,7 +551,7 @@
          </item>
         </layout>
        </item>
-       <item row="18" column="0">
+       <item row="20" column="0">
         <widget class="QCheckBox" name="chkMaxOccursInEvent">
          <property name="text">
           <string>Макс. количество в событии</string>
@@ -612,33 +612,6 @@
          </item>
         </layout>
        </item>
-       <item row="10" column="0" colspan="5">
-        <layout class="QHBoxLayout" name="endDateLayout">
-         <item>
-          <widget class="QCheckBox" name="chkChkEditEndDate">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="chkEditEndDate">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Редактировать дату выполнения</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
        <item row="9" column="0" colspan="5">
         <layout class="QHBoxLayout" name="begDateLayout">
          <item>
@@ -661,6 +634,33 @@
            </property>
            <property name="text">
             <string>Редактировать дату начала</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item row="10" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="endDateLayout">
+         <item>
+          <widget class="QCheckBox" name="chkChkEditEndDate">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chkEditEndDate">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Редактировать дату выполнения</string>
            </property>
           </widget>
          </item>
@@ -693,6 +693,41 @@
          </item>
         </layout>
        </item>
+       <item row="23" column="1" colspan="4">
+        <widget class="QComboBox" name="cmbNeedAttachFile">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <item>
+          <property name="text">
+           <string>не требовать</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>требовать по Исполнителю</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>требовать по Назначившему</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="24" column="0" colspan="5">
+        <spacer name="verticalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
        <item row="14" column="0" colspan="5">
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
@@ -720,40 +755,59 @@
          </item>
         </layout>
        </item>
-       <item row="22" column="0" colspan="5">
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
+       <item row="15" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QCheckBox" name="chkChkEditSetPerson">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chkEditSetPerson">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Редактировать назначившего</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
-       <item row="21" column="1" colspan="4">
-        <widget class="QComboBox" name="cmbNeedAttachFile">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
+       <item row="16" column="0" colspan="5">
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <property name="text">
-           <string>не требовать</string>
-          </property>
+          <widget class="QCheckBox" name="chkChkEditOrg">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
          </item>
          <item>
-          <property name="text">
-           <string>требовать по Исполнителю</string>
-          </property>
+          <widget class="QCheckBox" name="chkEditOrg">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Редактировать место выполнения</string>
+           </property>
+          </widget>
          </item>
-         <item>
-          <property name="text">
-           <string>требовать по Назначившему</string>
-          </property>
-         </item>
-        </widget>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -2219,6 +2273,22 @@
     <hint type="destinationlabel">
      <x>445</x>
      <y>576</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkMKBRequired</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbMKBRequired</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>131</x>
+     <y>349</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>468</x>
+     <y>349</y>
     </hint>
    </hints>
   </connection>

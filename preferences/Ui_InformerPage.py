@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\soc-inform\preferences\InformerPage.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\preferences\InformerPage.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -30,20 +30,23 @@ class Ui_InformerPage(object):
         self.gridLayout.setMargin(4)
         self.gridLayout.setSpacing(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
+        self.chkInformerShowPersonSNILS = QtGui.QCheckBox(InformerPage)
+        self.chkInformerShowPersonSNILS.setObjectName(_fromUtf8("chkInformerShowPersonSNILS"))
+        self.gridLayout.addWidget(self.chkInformerShowPersonSNILS, 12, 0, 1, 1)
         self.chkInformerShowByUserArea = QtGui.QCheckBox(InformerPage)
         self.chkInformerShowByUserArea.setObjectName(_fromUtf8("chkInformerShowByUserArea"))
         self.gridLayout.addWidget(self.chkInformerShowByUserArea, 14, 0, 1, 1)
         spacerItem = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem, 16, 0, 1, 1)
-        self.chkInformerShowPersonSNILS = QtGui.QCheckBox(InformerPage)
-        self.chkInformerShowPersonSNILS.setObjectName(_fromUtf8("chkInformerShowPersonSNILS"))
-        self.gridLayout.addWidget(self.chkInformerShowPersonSNILS, 12, 0, 1, 1)
+        self.gridLayout.addItem(spacerItem, 17, 0, 1, 1)
         self.chkInformerShowNoSNILS = QtGui.QCheckBox(InformerPage)
         self.chkInformerShowNoSNILS.setObjectName(_fromUtf8("chkInformerShowNoSNILS"))
         self.gridLayout.addWidget(self.chkInformerShowNoSNILS, 13, 0, 1, 1)
         self.chkInformerShowByUserNotArea = QtGui.QCheckBox(InformerPage)
         self.chkInformerShowByUserNotArea.setObjectName(_fromUtf8("chkInformerShowByUserNotArea"))
         self.gridLayout.addWidget(self.chkInformerShowByUserNotArea, 15, 0, 1, 1)
+        self.chkDisableCheckDB = QtGui.QCheckBox(InformerPage)
+        self.chkDisableCheckDB.setObjectName(_fromUtf8("chkDisableCheckDB"))
+        self.gridLayout.addWidget(self.chkDisableCheckDB, 16, 0, 1, 1)
 
         self.retranslateUi(InformerPage)
         QtCore.QMetaObject.connectSlotsByName(InformerPage)
@@ -51,8 +54,9 @@ class Ui_InformerPage(object):
 
     def retranslateUi(self, InformerPage):
         InformerPage.setWindowTitle(_translate("InformerPage", "Информатор", None))
-        self.chkInformerShowByUserArea.setText(_translate("InformerPage", "Фильтровать уведомления по участку пользователя", None))
         self.chkInformerShowPersonSNILS.setText(_translate("InformerPage", "Фильтровать уведомления по СНИЛСу пользователя", None))
+        self.chkInformerShowByUserArea.setText(_translate("InformerPage", "Фильтровать уведомления по участку пользователя", None))
         self.chkInformerShowNoSNILS.setText(_translate("InformerPage", "Показывать уведомления без СНИЛС", None))
         self.chkInformerShowByUserNotArea.setText(_translate("InformerPage", "Фильтровать уведомления по пациентам без участка", None))
+        self.chkDisableCheckDB.setText(_translate("InformerPage", "Отключить восстановление связи с БД", None))
 

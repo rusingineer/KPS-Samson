@@ -11,7 +11,6 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-import sip
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, SIGNAL, QDateTime
@@ -137,9 +136,7 @@ class CF088AddActions29InDocTableView(CInDocTableView):
                     self.setCurrentRow(0)
                 self.model().reset()
         finally:
-            dialog.destroy()
-            sip.delete(dialog)
-            del dialog
+            dialog.deleteLater()
 
 
     def on_deleteRows(self):

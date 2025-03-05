@@ -749,7 +749,6 @@ class CDentitionModel(QAbstractTableModel):
 
 
     def teethIsSet(self):
-        allIsEmpty = True
         if self.asAdult:
             defaultTeethValues = self.adultDefaultTeethValues
         else:
@@ -757,10 +756,10 @@ class CDentitionModel(QAbstractTableModel):
         for row in defaultTeethValues.keys():
             for column in range(self.columnCount()):
                 value = forceStringEx(self.data(self.index(row, column)))
-                if value:
-                    allIsEmpty = False
-                    break
-        return not allIsEmpty
+                if not value:
+                    defaultValue = self._defaultValue(self.asAdult, row, column)
+                    self.setData(self.index(row, column), defaultValue)
+        return True
 
 
     def getPenultimateItemAction(self):

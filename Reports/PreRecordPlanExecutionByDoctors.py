@@ -33,6 +33,7 @@ def selectData(params):
     useSchedulePeriod = params.get('useSchedulePeriod', False)
     begScheduleDate   = params.get('begScheduleDate', None)
     endScheduleDate   = params.get('endScheduleDate', None)
+    orgStructureType  = params.get('orgStructureType', None)
     orgStructureId    = params.get('orgStructureId', None)
     specialityId      = params.get('specialityId', None)
     personId          = params.get('personId', None)
@@ -42,14 +43,16 @@ def selectData(params):
 
     db = QtGui.qApp.db
     tablePerson = db.table('Person')
+    tableOrgStructure = db.table('OrgStructure')
     tableSchedule = db.table('Schedule')
     tableScheduleItem = db.table('Schedule_Item')
 
-    cond = [ tableSchedule['deleted'].eq(0),
-                tableSchedule['appointmentType'].eq(appointmentType),
-             tableScheduleItem['deleted'].eq(0),
-             tableScheduleItem['client_id'].isNotNull(),
-           ]
+    cond = [tableSchedule['deleted'].eq(0),
+            tableSchedule['appointmentType'].eq(appointmentType),
+            tableScheduleItem['deleted'].eq(0),
+            tableScheduleItem['client_id'].isNotNull(),
+            tableOrgStructure['type'].eq(orgStructureType)
+            ]
 
     if useRecordPeriod:
         if begRecordDate:
@@ -95,6 +98,7 @@ def selectData(params):
                  Schedule_Item
                  LEFT JOIN Schedule     ON Schedule.id = Schedule_Item.master_id
                  LEFT JOIN Person       ON Person.id = Schedule.person_id
+                 LEFT JOIN OrgStructure ON OrgStructure.id = Person.orgStructure_id
                  LEFT JOIN Person AS RP ON RP.id = Schedule_Item.recordPerson_id
                  LEFT JOIN rbPost       ON rbPost.id = RP.post_id
                  WHERE %(whereCond)s
@@ -127,6 +131,7 @@ class CPreRecordPlanExecutionByDoctors(CReport):
         useSchedulePeriod   = params.get('useSchedulePeriod', False)
         begScheduleDate     = params.get('begScheduleDate', None)
         endScheduleDate     = params.get('endScheduleDate', None)
+        orgStructureType    = params.get('orgStructureType', None)
         orgStructureId      = params.get('orgStructureId', None)
         specialityId        = params.get('specialityId', None)
         personId            = params.get('personId', None)
@@ -140,6 +145,7 @@ class CPreRecordPlanExecutionByDoctors(CReport):
         if useSchedulePeriod:
             if begScheduleDate or endScheduleDate:
                 description.append(dateRangeAsStr(u'период планируемого приёма', begScheduleDate, endScheduleDate))
+        description.append(u'тип подразделения: ' + {0: u'Амбулатория', 1: u'Стационар', 2: u'Скорая помощь', 3: u'Мобильная станция', 4: u'Приемное отделение стационара'}.get(orgStructureType, ''))
         if orgStructureId:
             description.append(u'подразделение: ' + getOrgStructureFullName(orgStructureId))
         else:
@@ -622,9 +628,11 @@ class CPreRecordDoctorsDialog(CDialogBase, Ui_PreRecordPlanExecutionByDoctorsDia
         self.chkRecordPeriod.setChecked(params.get('useRecordPeriod', True))
         self.edtBegRecordDate.setDate(params.get('begRecordDate', firstMonthDay(date)))
         self.edtEndRecordDate.setDate(params.get('endRecordDate', lastMonthDay(date)))
-        self.chkSchedulePeriod.setChecked(params.get('useSchedulePeriod', False))
-        self.edtBegScheduleDate.setDate(params.get('begScheduleDate', firstMonthDay(date)))
-        self.edtEndScheduleDate.setDate(params.get('endScheduleDate', lastMonthDay(date)))
+        self.chkSchedulePeriod.setChecked(params.get('useSchedulePeriod', True))
+        self.edtBegScheduleDate.setDate(params.get('begScheduleDate', QDate.currentDate()))
+        self.edtEndScheduleDate.setDate(params.get('endScheduleDate', QDate.currentDate()))
+        self.cmbOrgStructureType.setCurrentIndex(params.get('orgStructureType', 0))
+        self.cmbOrgStructureType.setCurrentIndex(params.get('orgStructureType', 0))
         self.cmbOrgStructure.setValue(params.get('orgStructureId', None))
         self.cmbSpeciality.setValue(params.get('specialityId', None))
         self.cmbPerson.setValue(params.get('personId', None))
@@ -644,6 +652,7 @@ class CPreRecordDoctorsDialog(CDialogBase, Ui_PreRecordPlanExecutionByDoctorsDia
                     useSchedulePeriod = self.chkSchedulePeriod.isChecked(),
                     begScheduleDate   = self.edtBegScheduleDate.date(),
                     endScheduleDate   = self.edtEndScheduleDate.date(),
+                    orgStructureType  = self.cmbOrgStructureType.currentIndex(),
                     orgStructureId    = self.cmbOrgStructure.value(),
                     specialityId      = self.cmbSpeciality.value(),
                     personId          = self.cmbPerson.value(),

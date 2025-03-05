@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,17 +15,19 @@ from PyQt4.QtCore import pyqtSignature, Qt, QVariant, SIGNAL, QDate
 
 from library.DialogBase import CDialogBase
 from library.TableModel import CTableModel, CBoolCol, CDateCol, CEnumCol, CRefBookCol, CTextCol
-from library.Utils import forceRef, forceInt, forceDate, forceString
+from library.Utils import forceRef, forceInt, forceString
 
 from Events.Action import CAction
-from Events.ActionPropertiesTable import CActionPropertiesTableModel
 from Events.ActionStatus import CActionStatus
 from Events.ActionTypeCol import CActionTypeCol
-from Events.Utils import setActionPropertiesColumnVisible, getActionTypeDescendants
+from Events.Utils import getActionTypeDescendants
+
+from F088.F088ActionPropertiesCheckTable import CF088ActionPropertiesCheckTableModel
 
 from Orgs.Utils import getOrgStructurePersonIdList
 
 from Events.Ui_PropertyEditorAmbCardDialog import Ui_PropertyEditorAmbCardDialog
+from library.crbcombobox import CRBModelDataCache
 
 
 class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
@@ -38,10 +40,10 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
         self.actionProperty = actionProperty
 
         self.addModels('Actions', CAmbCardActionsCheckTableModel(self))
-        self.addModels('ActionProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionProperties', CF088ActionPropertiesCheckTableModel(self))
         self.addObject('actPrintActions', QtGui.QAction(u'Преобразовать в текст и вставить в блок', self))
         self.setupUi(self)
-
+        self.unitData = CRBModelDataCache.getData('rbUnit', True)
         self.setWindowTitle(self.actionProperty.type().name)
         propValue = self.actionProperty.getValue()
         if propValue:
@@ -51,11 +53,14 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
 
         self.tblActions.createPopupMenu([self.actPrintActions])
-        self.tblActionProperties.setEditTriggers(QtGui.QAbstractItemView.SelectedClicked
-                                                 | QtGui.QAbstractItemView.DoubleClicked)
+        self.tblActionProperties.setEditTriggers(QtGui.QAbstractItemView.SelectedClicked | QtGui.QAbstractItemView.DoubleClicked)
         self.tblActionProperties.model().setReadOnly(True)
         self.tblActionProperties.addPopupCopyCell()
         self.tblActionProperties.addPopupSeparator()
+        self.actInsertPropertyText = QtGui.QAction(u'Преобразовать в текст и вставить в блок', self)
+        self.actInsertPropertyText.setObjectName('actInsertPropertyText')
+        self.connect(self.actInsertPropertyText, SIGNAL('triggered()'), self.on_actInsertPropertyText_triggered)
+        self.tblActionProperties.addPopupAction(self.actInsertPropertyText)
 
         self.cmbSpeciality.setTable('rbSpeciality')
         self.cmbGroup.setClasses([0, 1, 2, 3])
@@ -120,7 +125,7 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
     @pyqtSignature('')
     def on_actPrintActions_triggered(self):
         selectedIdList = self.modelActions.getSelectedIdList()
-        actionDictValues = self.getSelectedActions(selectedIdList)
+        actionDictValues = self.getSelectedActionProperties(selectedIdList)
         if actionDictValues:
             oldValue = self.edtPropertyText.toPlainText()
             oldValue = oldValue.replace('\0', '')
@@ -128,35 +133,63 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
             newValue = newValue.replace('\0', '')
             value = (oldValue + u'\n' + newValue) if oldValue else newValue
             self.edtPropertyText.setText(value)
+            self.modelActionProperties.reset()
+            self.modelActions.enableIdList = []
 
 
-    @staticmethod
-    def getSelectedActions(selectedIdList):
+    @pyqtSignature('')
+    def on_actInsertPropertyText_triggered(self):
+        selectedIdList = [self.modelActionProperties.getCurrentActionId()]
+        actionDictValues = self.getSelectedActionProperties(selectedIdList)
+        if actionDictValues:
+            oldValue = self.edtPropertyText.toPlainText()
+            oldValue = oldValue.replace('\0', '')
+            newValue = u'\n'.join((val[1]) for val in actionDictValues if val)
+            newValue = newValue.replace('\0', '')
+            value = (oldValue + u'\n' + newValue) if oldValue else newValue
+            self.edtPropertyText.setText(value)
+            self.modelActionProperties.reset()
+            self.modelActions.enableIdList.remove(self.modelActionProperties.getCurrentActionId())
+
+
+    def getSelectedActionProperties(self, selectedIdList):
         actionDict = {}
         db = QtGui.qApp.db
         table = db.table('Action')
-        for _id in selectedIdList:
-            if _id and _id not in actionDict.keys():
-                record = db.getRecordEx(table, '*', [table['id'].eq(_id), table['deleted'].eq(0)])
-                if record:
-                    action = CAction(record=record)
-                    if action:
-                        endDate = forceDate(record.value('endDate'))
-                        actionType = action.getType()
-                        actionLine = [u'', u'']
-                        valuePropertyList = []
-                        actionLine[0] = unicode(endDate.toString('dd.MM.yyyy')) + u' ' + actionType.name + u': '
-                        propertiesById = action.getPropertiesById()
-                        properties = propertiesById.values()
-                        properties.sort(key=lambda item: item.type().idx)
-                        for prop in properties:
-                            propType = prop.type()
+        for actionId in selectedIdList:
+            record = db.getRecordEx(table, '*', [table['id'].eq(actionId), table['deleted'].eq(0)])
+            if record:
+                action = CAction(record=record)
+                if action:
+                    endDate = action.getEndDate()
+                    actionType = action.getType()
+                    actionLine = [u'', u'']
+                    valuePropertyList = []
+                    actionLine[0] = unicode(endDate.toString('dd.MM.yyyy')) + u' ' + actionType.name + u': '
+                    propertiesById = action.getPropertiesById()
+                    properties = propertiesById.values()
+                    properties.sort(key=lambda prop: prop.type().idx)
+
+                    actionsPropertiesRegistry = self.modelActions.actionsPropertiesRegistry.get(actionId, None)
+                    selectedProperties = actionsPropertiesRegistry.getItems() if actionsPropertiesRegistry else []
+                    if selectedProperties:
+                        actionsPropertiesRegistry.setItems([])
+                    includeItems = self.modelActions.includeItems.get(actionId, {})
+                    for key in includeItems.keys():
+                        includeItems[key] = False
+
+                    for prop in properties:
+                        propType = prop.type()
+                        propertyId = prop.getId()
+                        if propertyId in selectedProperties or not selectedProperties:
                             if prop.getValue() and not propType.isJobTicketValueType():
-                                valuePropertyList.append(propType.name + u' - ' + (
-                                    forceString(prop.getText()) if not propType.isBoolean() else (
-                                        u'Да' if prop.getValue() else u'Нет')))
-                        actionLine[1] = u'; '.join(val for val in valuePropertyList if val)
-                        actionDict[_id] = actionLine
+                                propName = forceString(propType.name)
+                                propValue = forceString(prop.getText()) if not propType.isBoolean() else (u'Да' if prop.getValue() else u'Нет')
+                                propUnit = forceString(self.unitData.getNameById(prop.getUnitId())) if prop.getUnitId() else ''
+                                valuePropertyList.append(u' '.join([propName, '-', propValue, propUnit]))
+                    actionLine[1] = u'; '.join(val for val in valuePropertyList if val)
+                    actionDict[actionId] = actionLine
+
         actionDictValues = actionDict.values()
         actionDictValues.sort(key=lambda x: x[0])
         return actionDictValues
@@ -184,13 +217,22 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
             clientAge = self.clientAge
             action = CAction(record=record)
             tbl.model().setAction2(action, clientId, clientSex, clientAge, eventTypeId=self.eventTypeId)
-            setActionPropertiesColumnVisible(action.actionType(), tbl)
+            self.setActionPropertiesColumnVisible(action.actionType(), tbl)
+            currentActionId = self.modelActionProperties.getCurrentActionId()
+            if currentActionId:
+                self.modelActionProperties.includeRows = self.modelActions.includeItems.get(currentActionId, {})
             tbl.resizeColumnsToContents()
             tbl.resizeRowsToContents()
             tbl.horizontalHeader().setStretchLastSection(True)
             tbl.loadPreferencesLoc(tbl.preferencesLocal, row)
         else:
             tbl.model().setAction2(None, None)
+
+    def setActionPropertiesColumnVisible(self, actionType, propertiesView):
+        propertiesView.setColumnHidden(1, not actionType.propertyAssignedVisible)
+        propertiesView.setColumnHidden(3, not actionType.propertyUnitVisible)
+        propertiesView.setColumnHidden(4, not actionType.propertyNormVisible)
+        propertiesView.setColumnHidden(5, not actionType.propertyEvaluationVisible)
 
 
     @pyqtSignature('QAbstractButton*')
@@ -228,6 +270,42 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
         self.tblActions.setModel(None)
         del self.modelActionProperties
         del self.modelActions
+
+    @pyqtSignature('QModelIndex, QModelIndex')
+    def on_modelActionProperties_dataChanged(self, topLeft, bottomRight):
+        indexAction = self.tblActions.currentIndex()
+        if indexAction.isValid():
+            rowAction = indexAction.row()
+            if rowAction >= 0 and rowAction < len(self.modelActions.idList()):
+                indexProperty = topLeft
+                if indexProperty.isValid():
+                    columnProperty = indexProperty.column()
+                    if columnProperty == 0:
+                        rowProperty = indexProperty.row()
+                        if 0 <= rowProperty < len(self.modelActionProperties.propertyTypeList):
+                            isChecked = self.modelActionProperties.includeRows[rowProperty]
+                            actionId = self.modelActions._idList[rowAction]
+                            actionsPropertiesRegistry = self.modelActions.actionsPropertiesRegistry.get(actionId, None)
+                            if not actionsPropertiesRegistry:
+                                actionsPropertiesRegistry = CActionsPropertiesRegistry()
+                            property = self.modelActionProperties.getProperty(rowProperty)
+                            if property:
+                                record = property.getRecord()
+                                if record:
+                                    propertyId = forceRef(record.value('id'))
+                                    if propertyId:
+                                        if bool(isChecked):
+                                            actionsPropertiesRegistry.addItem(propertyId)
+                                            if actionId not in self.modelActions.enableIdList:
+                                                self.modelActions.enableIdList.append(actionId)
+                                        else:
+                                            actionsPropertiesRegistry.removeItem(propertyId)
+                                        self.modelActions.includeItems[actionId] = self.modelActionProperties.includeRows
+                                        self.modelActions.actionsPropertiesRegistry[actionId] = actionsPropertiesRegistry
+                                        if actionsPropertiesRegistry and len(actionsPropertiesRegistry.getItems()) > 0:
+                                            self.modelActions.setData(indexAction, QVariant(Qt.Checked), role=Qt.CheckStateRole)
+                                        else:
+                                            self.modelActions.setData(indexAction, QVariant(Qt.Unchecked), role=Qt.CheckStateRole)
 
 
 class CAmbCardActionsCheckTableModel(CTableModel):
@@ -359,3 +437,30 @@ class CAmbCardActionsCheckTableModel(CTableModel):
 
     def getSelectedIdList(self):
         return self.enableIdList
+
+
+class CActionsPropertiesRegistry:
+    def __init__(self):
+        self.items = []
+
+    def getItems(self):
+        return self.items
+
+
+    def setItems(self, items):
+        self.items = items
+
+
+    def addItem(self, item):
+        if item and item not in self.items:
+            self.items.append(item)
+
+
+    def addItems(self, items):
+        self.items.extend(items)
+
+
+    def removeItem(self, item):
+        if item and item in self.items:
+            items = self.items
+            self.items = list(set(items)-set([item]))

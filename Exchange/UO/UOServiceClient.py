@@ -68,3 +68,14 @@ class CUOServiceClient(object):
                 'actionId': action.getId(),
             }
         )
+
+    def updatemedserviceprofile(self, id):
+        result = self.client.call(
+            'updatemedserviceprofile',
+            params={
+                'medProfId': id,
+            }
+        )
+        if not result.get('result', ''):
+            return Exception(u"Неизвестная ошибка")
+        return result['result']

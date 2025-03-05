@@ -569,11 +569,15 @@ class CDentitionVisitsModel(CEventVisitsModel):
                     record, action = eventEditor.actionDentitionList.get((date.toPyDateTime(), personId, eventId), (None, None))
                 if action:
                     action._record = self.removeActionExtCols(record)
-                    record = action.getRecord()
-                    record.setValue('visit_id', toVariant(id))
-                    actionIdList.append(action.save(masterId))
+                    actionRecord = action.getRecord()
+                    actionRecord.setValue('visit_id', toVariant(id))
+                    _id = action.save(masterId)
+                    actionIdList.append(_id)
+                    # для обновления данных в модели при нажатии кнопки "применить"
+                    for fieldName in ['id', 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'expose']:
+                        record.setValue(fieldName, toVariant(action._record.value(fieldName)))
                     if not eventId:
-                        eventEditor.actionDentitionList[(date.toPyDateTime(), personId, forceRef(masterId))] = (record, action)
+                        eventEditor.actionDentitionList[(date.toPyDateTime(), personId, forceRef(masterId))] = (actionRecord, action)
 
                 if not eventId:
                     record, action = eventEditor.actionParodentiumList.pop((date.toPyDateTime(), personId, eventId), (None, None))
@@ -581,11 +585,15 @@ class CDentitionVisitsModel(CEventVisitsModel):
                     record, action = eventEditor.actionParodentiumList.get((date.toPyDateTime(), personId, eventId), (None, None))
                 if action:
                     action._record = self.removeActionExtCols(record)
-                    record = action.getRecord()
-                    record.setValue('visit_id', toVariant(id))
-                    actionIdList.append(action.save(masterId))
+                    actionRecord = action.getRecord()
+                    actionRecord.setValue('visit_id', toVariant(id))
+                    _id = action.save(masterId)
+                    actionIdList.append(_id)
+                    # для обновления данных в модели при нажатии кнопки "применить"
+                    for fieldName in ['id', 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'expose']:
+                        record.setValue(fieldName, toVariant(action._record.value(fieldName)))
                     if not eventId:
-                        eventEditor.actionParodentiumList[(date.toPyDateTime(), personId, forceRef(masterId))] = (record, action)
+                        eventEditor.actionParodentiumList[(date.toPyDateTime(), personId, forceRef(masterId))] = (actionRecord, action)
 
             filterAction = [tableAction[masterIdFieldName].eq(masterId),
                             'NOT ('+tableAction[idFieldName].inlist(actionIdList)+')',
@@ -604,5 +612,6 @@ class CDentitionVisitsModel(CEventVisitsModel):
         table = db.table('Action')
         record = table.newRecord()
         for i in xrange(record.count()):
-            record.setValue(i, srcRecord.value(record.fieldName(i)))
+            fieldName = record.fieldName(i)
+            record.setValue(fieldName, srcRecord.value(fieldName))
         return record

@@ -20,12 +20,42 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="6" column="1">
-    <widget class="QCheckBox" name="chkHighlightInvalidDate">
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="chkOnlyDoctors">
      <property name="text">
       <string/>
      </property>
     </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Подсвечивать выходные и праздничные даты</string>
+     </property>
+     <property name="buddy">
+      <cstring>chkHighlightRedDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="3">
+    <widget class="QToolButton" name="btnSelectTemplateDir">
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtTemplateDir"/>
+   </item>
+   <item row="5" column="1">
+    <widget class="QCheckBox" name="chkHighlightRedDate">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="3">
+    <widget class="CKLADRComboBox" name="cmbProvince"/>
    </item>
    <item row="6" column="0">
     <widget class="QLabel" name="label_2">
@@ -37,49 +67,10 @@
      </property>
     </widget>
    </item>
-   <item row="9" column="1">
-    <widget class="QCheckBox" name="chkPersonFilterInCmb">
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="chkHighlightInvalidDate">
      <property name="text">
       <string/>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="10" column="2" colspan="2">
-    <spacer name="horizontalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="10" column="0">
-    <widget class="QLabel" name="lblPersonnelByDblClick">
-     <property name="text">
-      <string>Открывать список сотрудников по двойному щелчку</string>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="0">
-    <widget class="QLabel" name="lblTemplateDir">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Каталог с шаблонами печати документов</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtTemplateDir</cstring>
      </property>
     </widget>
    </item>
@@ -103,10 +94,65 @@
      </property>
     </spacer>
    </item>
+   <item row="9" column="1">
+    <widget class="QCheckBox" name="chkPersonFilterInCmb">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0">
+    <widget class="QLabel" name="lblTemplateDir">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Каталог с шаблонами печати документов</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtTemplateDir</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblDefaultCity">
+     <property name="minimumSize">
+      <size>
+       <width>130</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>&amp;Нас.пункт по умолчанию</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbDefaultCity</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="0">
+    <spacer name="spacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>61</width>
+       <height>149</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="0" column="1" colspan="2">
     <widget class="CPolyclinicComboBox" name="cmbOrganisation"/>
    </item>
-   <item row="15" column="0">
+   <item row="14" column="0">
     <widget class="QLabel" name="lblFTPUrl">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -122,39 +168,10 @@
      </property>
     </widget>
    </item>
-   <item row="11" column="0" colspan="4">
+   <item row="10" column="0" colspan="4">
     <widget class="Line" name="line_3">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-   </item>
-   <item row="18" column="0">
-    <spacer name="spacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>61</width>
-       <height>149</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblDefaultCity">
-     <property name="minimumSize">
-      <size>
-       <width>130</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>&amp;Нас.пункт по умолчанию</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbDefaultCity</cstring>
      </property>
     </widget>
    </item>
@@ -199,6 +216,13 @@
    <item row="2" column="1" colspan="3">
     <widget class="CKLADRComboBox" name="cmbDefaultCity"/>
    </item>
+   <item row="7" column="0" colspan="4">
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblOrganisation">
      <property name="sizePolicy">
@@ -231,14 +255,7 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="0" colspan="4">
-    <widget class="Line" name="line_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-   </item>
-   <item row="15" column="1" colspan="2">
+   <item row="14" column="1" colspan="2">
     <widget class="QLineEdit" name="edtFTPUrl"/>
    </item>
    <item row="0" column="3">
@@ -270,6 +287,13 @@
      </property>
     </spacer>
    </item>
+   <item row="13" column="0" colspan="4">
+    <widget class="Line" name="line_4">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
    <item row="9" column="2" colspan="2">
     <spacer name="horizontalSpacer_3">
      <property name="orientation">
@@ -290,13 +314,6 @@
      </property>
     </widget>
    </item>
-   <item row="14" column="0" colspan="4">
-    <widget class="Line" name="line_4">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-   </item>
    <item row="6" column="2" colspan="2">
     <spacer name="horizontalSpacer_5">
      <property name="orientation">
@@ -310,71 +327,27 @@
      </property>
     </spacer>
    </item>
-   <item row="5" column="1">
-    <widget class="QCheckBox" name="chkHighlightRedDate">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtTemplateDir"/>
-   </item>
-   <item row="3" column="1" colspan="3">
-    <widget class="CKLADRComboBox" name="cmbProvince"/>
-   </item>
-   <item row="8" column="1">
-    <widget class="QCheckBox" name="chkOnlyDoctors">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Подсвечивать выходные и праздничные даты</string>
-     </property>
-     <property name="buddy">
-      <cstring>chkHighlightRedDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="3">
-    <widget class="QToolButton" name="btnSelectTemplateDir">
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-   </item>
-   <item row="10" column="1">
-    <widget class="QCheckBox" name="chkPersonnelByDblClick">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="16" column="0" colspan="4">
-    <widget class="Line" name="line_5">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-    </widget>
-   </item>
-   <item row="17" column="1" colspan="2">
+   <item row="16" column="1" colspan="2">
     <widget class="QLineEdit" name="edtBrowserDir"/>
    </item>
-   <item row="17" column="0">
+   <item row="16" column="0">
     <widget class="QLabel" name="lblPathBrowser">
      <property name="text">
       <string>Адрес браузера в системе</string>
      </property>
     </widget>
    </item>
-   <item row="17" column="3">
+   <item row="16" column="3">
     <widget class="QToolButton" name="btnSelectBrowserDir">
      <property name="text">
       <string>...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="15" column="0" colspan="4">
+    <widget class="Line" name="line_5">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
     </widget>
    </item>
@@ -407,7 +380,6 @@
   <tabstop>chkHighlightInvalidDate</tabstop>
   <tabstop>chkOnlyDoctors</tabstop>
   <tabstop>chkPersonFilterInCmb</tabstop>
-  <tabstop>chkPersonnelByDblClick</tabstop>
   <tabstop>edtTemplateDir</tabstop>
   <tabstop>btnSelectTemplateDir</tabstop>
  </tabstops>

@@ -31,7 +31,7 @@ class CHospitalBedTreeItem(CTreeItemWithId):
 
 
     def flags(self):
-        return Qt.NoItemFlags if self._isBusy else (Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+        return Qt.NoItemFlags if self._isBusy == 2 else (Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
 
     def data(self, column):
@@ -186,7 +186,7 @@ class CHospitalBedRootTreeItem(CTreeItemWithId):
             id   = forceInt(record.value('id'))
             code = forceString(record.value('code'))
             name = forceString(record.value('name'))
-            isBusy = forceBool(record.value('isBusy'))
+            isBusy = forceInt(record.value('isBusy'))
             sex = forceInt(record.value('sex'))
             isPermanent = u'[ш] 'if forceBool(record.value('isPermanent')) else u'[]'
             orgSructureId = forceString(record.value('master_id'))
@@ -244,6 +244,17 @@ class CHospitalBedRootTreeItem(CTreeItemWithId):
 class CHospitalBedModel(CTreeModel):
     def __init__(self, parent=None, filter={}):
         CTreeModel.__init__(self, parent, CHospitalBedRootTreeItem(filter))
+
+    def data(self, index, role):
+        if index.isValid() and role in (Qt.DisplayRole, Qt.EditRole):
+            item = index.internalPointer()
+            if item:
+                return item.data(index.column())
+        if role == Qt.BackgroundColorRole:
+            item = index.internalPointer()
+            if item and hasattr(item, '_isBusy') and item._isBusy == 1:
+                return toVariant(QtGui.QColor(255, 250, 205))
+        return QVariant()
 
 
 #    def headerData(self, section, orientation, role):

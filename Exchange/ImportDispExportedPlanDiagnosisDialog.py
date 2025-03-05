@@ -4,8 +4,9 @@ from PyQt4 import QtCore, QtGui, QtSql
 from PyQt4.QtCore import *
 
 import Exchange.AttachService as AttachService
+from Reports.ReportView import CReportViewDialog
 
-from library.DialogBase import CConstructHelperMixin
+from library.DialogBase import CDialogBase
 from library.TableModel import CTableModel, CTextCol, CDateCol, CEnumCol, CBoolCol, CIntCol, CDesignationCol
 from library.Utils import *
 
@@ -15,13 +16,14 @@ from Users.Rights import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 
 from Ui_ImportDispExportedPlanDiagnosisDialog import Ui_ImportDispExportedPlanDiagnosisDialog
 
-class CImportDispExportedPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ImportDispExportedPlanDiagnosisDialog):
+class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedPlanDiagnosisDialog):
     def __init__(self, parent):
-        QtGui.QDialog.__init__(self, parent)
+        CDialogBase.__init__(self, parent)
         self.addModels('ExportedPlan', CExportedPlanModel(self))
         self.addModels('ExportedPlanErrors', CExportedPlanErrorsModel(self))
         self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.setupUi(self)
+        self.setWindowFlags(Qt.Window)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblExportedPlan.createPopupMenu([self.actEditClient])
         self.pbDeleteProgress.setVisible(False)
@@ -37,6 +39,26 @@ class CImportDispExportedPlanDiagnosisDialog(QtGui.QDialog, CConstructHelperMixi
         header.setSortIndicator(0, Qt.AscendingOrder)
         QObject.connect(header, SIGNAL('sectionClicked(int)'), self.setSort)
         self.update()
+
+    def getReportHeader(self):
+        return self.objectName()
+
+    def getFilterAsText(self):
+        return u''
+
+    def contentToHTML(self):
+        #reportHeader = self.getReportHeader()
+        self.tblExportedPlan.setReportHeader(u"Список граждан из ТФОМС, запланированных на диспансерные осмотры")
+        reportDescription = self.getFilterAsText()
+        self.tblExportedPlan.setReportDescription(reportDescription)
+        return self.tblExportedPlan.contentToHTML()
+
+    @pyqtSignature('')
+    def on_btnPrint_clicked(self):
+        html = self.contentToHTML()
+        view = CReportViewDialog(self)
+        view.setText(html)
+        view.exec_()
 
     def disableControls(self, disabled = True):
         self.sbYear.setDisabled(disabled)

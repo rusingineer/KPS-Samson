@@ -54,6 +54,9 @@ from JobTicketActionPropertyValueType           import CJobTicketActionPropertyV
 from MedicalAidProfileActionPropertyValueType   import CMedicalAidProfileActionPropertyValueType
 from NomenclatureActionPropertyValueType        import CNomenclatureActionPropertyValueType
 from NomenclatureActiveSubstanceActionPropertyValueType import CNomenclatureActiveSubstanceActionPropertyValueType
+from NomenclatureSmnnActionPropertyValueType    import CNomenclatureSmnnActionPropertyValueType
+from NomenclatureSmnnGrlsLfActionPropertyValueType import CNomenclatureSmnnGrlsLfActionPropertyValueType
+from NomenclatureCalculationParamActionPropertyValueType import CNomenclatureCalculationParamActionPropertyValueType
 from NomenclatureUsingTypeActionPropertyValueType import CNomenclatureUsingTypeActionPropertyValueType
 from OrganisationActionPropertyValueType        import COrganisationActionPropertyValueType
 from OrgStructureActionPropertyValueType        import COrgStructureActionPropertyValueType
@@ -64,6 +67,7 @@ from PhaseMenstrualActionPropertyValueType      import CPhaseMenstrualActionProp
 from PulseActionPropertyValueType               import CPulseActionPropertyValueType
 from RadiationDoseActionPropertyValueType       import CRadiationDoseActionPropertyValueType
 from ReferenceActionPropertyValueType           import CReferenceActionPropertyValueType
+from ReferenceColumnsActionPropertyValueType    import CReferenceColumnsActionPropertyValueType
 from RLSActionPropertyValueType                 import CRLSActionPropertyValueType
 from SamplingActionPropertyValueType            import CSamplingActionPropertyValueType
 from SocStatusActionPropertyValueType           import CSocStatusActionPropertyValueType
@@ -110,6 +114,9 @@ CActionPropertyValueTypeRegistry.register(CJobTicketActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CMedicalAidProfileActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CNomenclatureActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CNomenclatureActiveSubstanceActionPropertyValueType)
+CActionPropertyValueTypeRegistry.register(CNomenclatureSmnnActionPropertyValueType)
+CActionPropertyValueTypeRegistry.register(CNomenclatureSmnnGrlsLfActionPropertyValueType)
+CActionPropertyValueTypeRegistry.register(CNomenclatureCalculationParamActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CNomenclatureUsingTypeActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(COrganisationActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(COrgStructureActionPropertyValueType)
@@ -120,6 +127,7 @@ CActionPropertyValueTypeRegistry.register(CPhaseMenstrualActionPropertyValueType
 CActionPropertyValueTypeRegistry.register(CPulseActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CRadiationDoseActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CReferenceActionPropertyValueType)
+CActionPropertyValueTypeRegistry.register(CReferenceColumnsActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CRLSActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CSamplingActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CSocStatusActionPropertyValueType)

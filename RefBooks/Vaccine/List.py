@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QModelIndex, QRegExp, SIGNAL
+from PyQt4.QtCore import Qt, QModelIndex, QRegExp, SIGNAL, pyqtSignature
 
 from library.AgeSelector         import parseAgeSelectorInt
 from library.crbcombobox         import CRBModelDataCache
@@ -23,7 +23,8 @@ from library.InDocTable          import CInDocTableCol, CRBInDocTableCol, CInDoc
 from library.interchange         import getDoubleBoxValue, getLineEditValue, setDoubleBoxValue, setLineEditValue
 from library.ItemsListDialog     import CItemEditorBaseDialog, CItemsListDialog
 from library.TableModel          import CTableModel, CDesignationCol, CRefBookCol, CSumDecimalPlaceCol, CTextCol
-from library.Utils               import forceRef, forceStringEx, toVariant
+from library.Utils               import forceRef, forceStringEx, toVariant, forceString, formatRecordsCount
+
 
 from RefBooks.Tables             import rbCode, rbName
 
@@ -139,6 +140,43 @@ class CRBVaccineList(Ui_RBVaccineItemList, CItemsListDialog):
             self.modelVaccineSchemaTransitions.setIdList(idList)
 
 
+    def select(self, props):
+        table = self.model.table()
+        cond  = []
+        codeStart=forceString(self.edtCode.text())
+        if codeStart:
+            cond.append(table['code'].contain(codeStart))
+        namePart=forceString(self.edtName.text())
+        if namePart:
+            cond.append(table['name'].contain(namePart))
+        return QtGui.qApp.db.getIdList(table.name(), 'id', where=cond, order=self.order)
+
+
+    def renewListAndSetTo(self, itemId=None):
+        if itemId is None:
+            itemId = self.currentItemId()
+        idList = self.select(self.props)
+        try:
+            i = idList.index(itemId)
+        except:
+            i = 0
+
+        self.model.setIdList(idList)
+        self.tblItems.setCurrentRow(max(0, i))
+        self.label.setText(formatRecordsCount(len(idList)))
+
+
+    @pyqtSignature('QString')
+    def on_edtCode_textChanged(self, text):
+        self.renewListAndSetTo()
+
+
+
+    @pyqtSignature('QString')
+    def on_edtName_textChanged(self, text):
+        self.renewListAndSetTo()
+
+
 #
 # ##########################################################################
 #
@@ -181,6 +219,7 @@ class CRBVaccineEditor(Ui_RBVaccineEditor, CItemEditorBaseDialog):
         self.tblVaccineSchemaTransitions.addPopupDelRow()
         self.tblVaccineSchemes.addPopupDelRow()
         self.tblVaccineIdentification.addPopupDelRow()
+        self.tblVaccineIdentification.setDelRowsChecker(self.modelVaccineIdentification.delRowsChecker)
 
 
     def setEditable(self, value):

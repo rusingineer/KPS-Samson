@@ -2,7 +2,7 @@
 
 #############################################################################
 ##
-## Copyright (C) 2017-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, SIGNAL, pyqtSignature, QDate, QMetaObject, QModelIndex, QTimer
+from PyQt4.QtCore import Qt, SIGNAL, pyqtSignature, QDate, QDateTime, QMetaObject, QModelIndex, QTimer
 
 from library.DialogBase       import CConstructHelperMixin
 from library.PreferencesMixin import CDialogPreferencesMixin
@@ -25,7 +25,6 @@ from Accounting.Utils         import setActionPayStatus, updateAccounts
 from Events.Utils             import getPayStatusMaskByCode, CFinanceType, CPayStatus
 from Orgs.Utils               import getOrgStructureDescendants
 
-#from Atol.AtolErrors import EAtolError
 
 from SumCol          import CSumCol
 from Payment         import CPaymentDialog
@@ -97,7 +96,7 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
     def updateSessionButtons(self):
         if QtGui.qApp.getDeviceOk():
             sessionState = QtGui.qApp.device.getSessionState()
-            sessionIsOpen = sessionState['state'] != 0
+            sessionIsOpen = sessionState['state'] != QtGui.qApp.device.ssClosed
             self.btnOpenSession.setEnabled(not sessionIsOpen)
             self.btnCloseSession.setEnabled(sessionIsOpen)
             self.btnPrintDuplicate.setEnabled(True)
@@ -220,7 +219,6 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
         device.cutReceipt()
 
 
-
     def setFirstAccountAsCurrent(self):
         self.setFirstAccountAsCurrentExt(self.tblAccounts)
 
@@ -236,6 +234,7 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
         self.edtAccountEndDate.setDate(today)
         self.cmbAccountOrgStructure.setValue(app.getCurrentOrgStructureId())
         self.cmbAccountAuthor.setValue(app.getAuthorId())
+
 
 
     def fillAccountsFilter(self):
@@ -280,7 +279,7 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
         if sessionState['state'] == device.ssExpired:
             # если смена просрочена, то закрываем её
             device.closeSession()
-            sessionState = device.getSessionInfo()
+            sessionState = device.getSessionState()
 
         if sessionState['state'] == device.ssClosed:
 #            device.setOperatorName(QtGui.qApp.userInfo.name())
@@ -405,12 +404,17 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
         db = QtGui.qApp.db
         tableEventPayment = db.table('Event_Payment')
         today = QDate.currentDate()
+        now   = QDateTime.currentDateTime()
         operationId = self.__getCashOperation(isRefund)
         for eventId, sum in mapEventIdToSum.iteritems():
             if eventId and sum != 0:
                 record = tableEventPayment.newRecord()
+                record.setValue('createDatetime',   now)
                 record.setValue('createPerson_id',  QtGui.qApp.userId)
+                record.setValue('modifyDatetime',   now)
+                record.setValue('modifyPerson_id',  QtGui.qApp.userId)
                 record.setValue('master_id',        eventId)
+                # record.setValue('dateTime',         now)
                 record.setValue('date',             today)
                 record.setValue('cashOperation_id', operationId)
                 record.setValue('sum',              sum if not isRefund else -sum)
@@ -771,7 +775,12 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
     def on_btnTakeFromCash_clicked(self):
         QtGui.qApp.call(self, self.takeFromCash)
 
-
+    def closeEvent(self, event):
+        self.accountsUpdateTimer.stop()
+        self.parent().parent().parent().on_actLogout_triggered()
+        pass
+        # self._parent.on_actLogout_triggered()
+        # QtGui.QWidget.closeEvent(self, event)
 
 
 ########################################################################
@@ -922,7 +931,7 @@ class CAccountsTableModel( CRecordListModel ):
             return
 
         # качественный алгоритм сравнения последовательносей имеет сложнось n*m, и сравнимый расход памяти
-        # попробыем сэкономить :)
+        # попробуем сэкономить :)
 
         newAccountIdSet = set( forceRef(item.value('account_id')) for item in newItems )
         oldIdx = newIdx = 0

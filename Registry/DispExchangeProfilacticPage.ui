@@ -528,6 +528,112 @@
              </layout>
             </item>
             <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QCheckBox" name="chkSocStatuses">
+                <property name="text">
+                 <string>Соц.статус</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkSocStatusesCondition">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Не имеет соц.статуса</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_38" stretch="0,2,0,2">
+              <item>
+               <widget class="QLabel" name="lblFilterSocStatusesBegDate">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>С</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="CDateEdit" name="edtFilterSocStatusesBegDate">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="displayFormat">
+                 <string notr="true">dd.MM.yyyy</string>
+                </property>
+                <property name="calendarPopup">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblFilterSocStatusesEndDate">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>по</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="CDateEdit" name="edtFilterSocStatusesEndDate">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="displayFormat">
+                 <string notr="true">dd.MM.yyyy</string>
+                </property>
+                <property name="calendarPopup">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="CSocStatusComboBox" name="cmbSocStatusesClass">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="CRBComboBox" name="cmbSocStatusesType">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QCheckBox" name="chkForPlanning">
               <property name="text">
                <string>Подлежащие планированию</string>
@@ -752,6 +858,16 @@
    <class>CTableView</class>
    <extends>QTableView</extends>
    <header>library/TableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CSocStatusComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Registry/SocStatusComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

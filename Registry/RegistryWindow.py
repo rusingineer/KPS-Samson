@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,12 +15,14 @@
 ## Обслуживание пациентов: Реестр пациентов + список событий + ....
 ##
 #############################################################################
+import json
 
 from PyQt4         import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QMetaObject, QObject, QRegExp, QVariant, pyqtSignature, SIGNAL, QTime, QByteArray
 
 from Surveillance.SurveillanceDialog import CSurveillanceDialog, CConsistsDiagnosisModel, CRemoveDiagnosisModel
 from Events.ActionsSelector import selectActionTypes
+from library.Attach.AttachedFile import CAttachedFilesModel
 from library.Counter import CCounterController
 from Events.TeethEventInfo import CEmergencyTeethEventInfo
 from library.crbcombobox                    import CRBModel, CRBModelDataCache
@@ -28,7 +30,7 @@ from library.database                       import addCondLike, undotLikeMask, C
 from library.DateEdit                       import CDateEdit
 from library.DialogBase                     import CConstructHelperMixin
 from library.ICDUtils                       import MKBwithoutSubclassification
-from library.InDocTable import CRecordListModel, CBoolInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
+from library.InDocTable import CRBLikeEnumInDocTableCol, CRecordListModel, CBoolInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
 from library.Pacs.Explorer                  import CPacsExplorer
 from library.PreferencesMixin               import CDialogPreferencesMixin
 from library.PrintInfo                      import CDateInfo, CInfoContext, CTimeInfo
@@ -46,7 +48,7 @@ from library.RecordLock                     import CRecordLockMixin
 from library.Utils import (addDots, addDotsBefore, agreeNumberAndWord, copyFields, exceptionToUnicode, forceBool,
                            forceDate, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDays,
                            formatNum, formatRecordsCount, formatRecordsCount2, formatSex, formatSNILS, getPref, quote,
-                           smartDict, toVariant, trim, calcAgeTuple, getPrefBool)
+                           smartDict, toVariant, trim, calcAgeTuple, getPrefBool, anyToUnicode)
 
 from Accounting.AccountingDialog import CAccountingDialog
 from DataCheck.RegistryControlDoubles import CRegistryControlDoubles
@@ -54,9 +56,12 @@ from DataCheck.RegistryClientListControlDoubles import CRegistryClientListContro
 from Events.Action                          import CActionTypeCache, CAction, CActionType, initActionProperties
 from Events.ActionStatus                    import CActionStatus
 from Events.ActionEditDialog                import CActionEditDialog
+from Events.ActionGroupSignDialog import CActionGroupSignDialog
 from F088.F088EditDialog                    import CF088EditDialog
 from F088.F0882022EditDialog                import CF0882022EditDialog
 from F088.F088CreateDialog                  import CF088CreateDialog
+from F090.F090CreateDialog                  import createF090
+from F090.F090EditDialog                    import CF090EditDialog
 from Events.ActionInfo import CLocActionInfoList, CActionTypeInfo, CActionInfo
 from Events.ActionPropertiesTable           import CActionPropertiesTableModel
 from Events.ActionTypeDialog                import CActionTypeDialogTableModel
@@ -114,7 +119,8 @@ from Registry.RegistryTable                 import (CActionsTableModel,
                                                     CExpertTempInvalidDocumentsTableModel,
                                                     CExpertTempInvalidPeriodsTableModel,
                                                     CExpertTempInvalidTableModel,
-                                                    CVisitsTableModel
+                                                    CVisitsTableModel,
+                                                    CEventExportFileTableModel
                                                     )
 from Registry.ShowScheduleItemInfo          import showScheduleItemInfo
 from Registry.SimplifiedClientSearch        import CSimplifiedClientSearch
@@ -140,6 +146,8 @@ from Timeline.Schedule                      import CSchedule, confirmAndFreeSche
 from FastSearchDialog import CFastSearchDialog
 from Users.Rights import (urAdmin,
                           urRegTabEditExpertMC,
+                          urCanOpenAnyAttachedFile,
+                          urCanOpenOwnAttachedFile,
                           urBatchRegLocatCardProcess,
                           urCanEditClientVaccination,
                           urCanReadClientVaccination,
@@ -202,15 +210,20 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addModels('EventDiagnostics', CEventDiagnosticsTableModel(self))
         self.addModels('EventActions', CEventActionsTableModel(self))
         self.addModels('EventVisits', CEventVisitsTableModel(self))
+        self.addModels('EventExportFile', CEventExportFileTableModel(self))
         self.addModels('ActionsStatus', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ActionsStatusProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionsStatusAttachedDocuments', CAttachedFilesModel(self))
         self.addModels('ListOptionActionProperty', CCheckActionPropertiesTableModel(self))
         self.addModels('ActionsDiagnostic', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ActionsDiagnosticProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionsDiagnosticAttachedDocuments', CAttachedFilesModel(self))
         self.addModels('ActionsCure', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ActionsCureProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionsCureAttachedDocuments', CAttachedFilesModel(self))
         self.addModels('ActionsMisc', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ActionsMiscProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionsMiscAttachedDocuments', CAttachedFilesModel(self))
         self.addModels('ExpertTempInvalid', CExpertTempInvalidTableModel(self, self.modelClients.recordCache()))
         self.addModels('ExpertTempInvalidRelation', CExpertTempInvalidTableModel(self, self.modelClients.recordCache()))
         self.addModels('ExpertTempInvalidPeriods',    CExpertTempInvalidPeriodsTableModel(self))
@@ -281,6 +294,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actEditExpertMCEvent', QtGui.QAction(u'Редактировать обращение', self))
         self.addObject('actExpertPrint',  CPrintAction(u'Напечатать список документов ВУТ', None, self, self))
         self.addObject('actExpertEditClient',  QtGui.QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actExpertTempInvalidChangeToOpen', QtGui.QAction(u'Изменить состояние продленного эпизода', self))
         self.addObject('actExpertTempInvalidNext',       QtGui.QAction(u'Следующий эпизод', self))
         self.addObject('actExpertTempInvalidPrev',       QtGui.QAction(u'Предыдущий эпизод', self))
         self.addObject('actExpertTempInvalidDelete',     QtGui.QAction(u'Удалить эпизод', self))
@@ -341,7 +355,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actNotify',  QtGui.QAction(u'Оповещение', self))
         self.addObject('actNotifyFromTabActions', QtGui.QAction(u'Оповещение', self))
         self.addObject('actNotificationLog', QtGui.QAction(u'Журнал оповещений пациента', self))
+        self.addObject('actActionGroupSign', QtGui.QAction(u'Групповое подписание и прикрепление', self))
         self.addObject('mnuPrint', QtGui.QMenu(self))
+        self.addObject('actSendEventFPUMP', QtGui.QAction(u'Выгрузить событие в "ГИС ОМС ФПУМП"', self))
         self.mnuPrint.addAction(self.actPrintClient)
         self.mnuPrint.addAction(self.actPrintClientPs)
         self.mnuPrint.addAction(self.actPrintClientLabel)
@@ -480,6 +496,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblVisitsBySchedules.horizontalHeader().moveSection(8, 2)
         self.setModels(self.tblCanceledSchedules, self.modelCanceledSchedules, self.selectionModelCanceledSchedules)
         self.tblCanceledSchedules.horizontalHeader().moveSection(8, 2)
+        self.tblCanceledSchedules.setSortingEnabled(True)
 #        self.tblExternalNotification.resizeColumnsToContents()
 #        self.tblExternalNotification.resizeRowsToContents()
         self.tblExternalNotification.horizontalHeader().setStretchLastSection(True)
@@ -488,16 +505,22 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblEventDiagnostics.setModel(self.modelEventDiagnostics)
         self.tblEventActions.setModel(self.modelEventActions)
         self.tblEventVisits.setModel(self.modelEventVisits)
+        self.setModels(self.tblEventExportFile, self.modelEventExportFile, self.selectionModelEventExportFile)
+        self.tblEventExportFile.setSortingEnabled(True)
 
         self.setModels(self.tblActionsStatus, self.modelActionsStatus, self.selectionModelActionsStatus)
         self.setModels(self.tblActionsStatusProperties, self.modelActionsStatusProperties, self.selectionModelActionsStatusProperties)
+        self.setModels(self.tblActionsStatusAttachedDocuments, self.modelActionsStatusAttachedDocuments, self.selectionModelActionsStatusAttachedDocuments)
         self.setModels(self.tblListOptionActionProperty, self.modelListOptionActionProperty, self.selectionModelListOptionActionProperty)
         self.setModels(self.tblActionsDiagnostic, self.modelActionsDiagnostic, self.selectionModelActionsDiagnostic)
         self.setModels(self.tblActionsDiagnosticProperties, self.modelActionsDiagnosticProperties, self.selectionModelActionsDiagnosticProperties)
+        self.setModels(self.tblActionsDiagnosticAttachedDocuments, self.modelActionsDiagnosticAttachedDocuments, self.selectionModelActionsDiagnosticAttachedDocuments)
         self.setModels(self.tblActionsCure, self.modelActionsCure, self.selectionModelActionsCure)
         self.setModels(self.tblActionsCureProperties, self.modelActionsCureProperties, self.selectionModelActionsCureProperties)
+        self.setModels(self.tblActionsCureAttachedDocuments, self.modelActionsCureAttachedDocuments, self.selectionModelActionsCureAttachedDocuments)
         self.setModels(self.tblActionsMisc, self.modelActionsMisc, self.selectionModelActionsMisc)
         self.setModels(self.tblActionsMiscProperties, self.modelActionsMiscProperties, self.selectionModelActionsMiscProperties)
+        self.setModels(self.tblActionsMiscAttachedDocuments, self.modelActionsMiscAttachedDocuments, self.selectionModelActionsMiscAttachedDocuments)
         self.setModels(self.tblExpertTempInvalid, self.modelExpertTempInvalid, self.selectionModelExpertTempInvalid)
         self.setModels(self.tblExpertTempInvalidRelation, self.modelExpertTempInvalidRelation, self.selectionModelExpertTempInvalidRelation)
         self.setModels(self.tblExpertTempInvalidPeriods, self.modelExpertTempInvalidPeriods, self.selectionModelExpertTempInvalidPeriods)
@@ -654,7 +677,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkClientMKB, [self.edtClientMKBFrom, self.edtClientMKBTo]),
             (self.chkFilterExternalNotification, [self.lblENbegDate, self.lblENendDate, self.edtExternalNotificationBegDate, self.edtExternalNotificationEndDate]),
             (self.chkFilterClientResearch, [self.cmbFilterClientResearchKind, self.lblCRBegDate, self.lblCREndDate, self.edtFilterClientResearchBegDate, self.edtFilterClientResearchEndDate]),
-            (self.chkFilterIdentification,        [self.cmbFilterIdentification]),
+            (self.chkFilterIdentification,        [self.cmbFilterIdentification])
             ]
 
         self.tblActionsStatus.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
@@ -731,9 +754,10 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.cmbFilterEventCreatePerson.setSpecialityPresent(False)
         self.cmbFilterEventModifyPerson.setSpecialityPresent(False)
 
-        self.cmbFilterAccountingSystem.setTable('rbAccountingSystem',  True)
+        self.cmbFilterAccountingSystem.setTable('rbAccountingSystem',  True, 'domain = \'client\'')
         self.cmbFilterAccountingSystem.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystem', 0)))
-
+        self.edtFilterVaccinationBegDate.canBeEmpty(False)
+        self.edtFilterVaccinationEndDate.canBeEmpty(False)
         self.cmbFilterIdentification.setTable('rbAccountingSystem', True, 'domain = \'client\'')
         self.cmbFilterIdentification.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystemClient', 0)))
 
@@ -872,7 +896,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterActionModifyPerson, [self.cmbFilterActionModifyPerson]),
             (self.chkFilterActionModifyDate, [self.edtFilterActionBegModifyDate, self.edtFilterActionEndModifyDate]),
             (self.chkFilterActionPayStatus, [self.cmpFilterActionPayStatusCode, self.cmbFilterActionPayStatusFinance]),
-            (self.chkTakeIntoAccountProperty, [self.chkFilledProperty, self.chkThresholdPenaltyGrade]),
+            (self.chkTakeIntoAccountProperty, [self.chkFilledProperty, self.chkThresholdPenaltyGrade, self.chkFilledProperty, self.cmbFilledProperty,self.lblListProperty,self.cmbListPropertyCond,self.tblListOptionActionProperty, self.edtThresholdPenaltyGrade]),
             (self.chkThresholdPenaltyGrade, [self.edtThresholdPenaltyGrade]),
 #            (self.chkListProperty, [self.cmbListPropertyCond, self.tblListOptionActionProperty]),
             (self.chkFilledProperty, [self.cmbFilledProperty, self.lblListProperty, self.cmbListPropertyCond, self.tblListOptionActionProperty]),
@@ -880,7 +904,10 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterActionPayer, [self.cmbFilterActionPayer, self.btnFilterActionSelectPayer]),
             (self.chkFilterActionContract, [self.edtFilterActionContract, self.btnFilterActionContract]),
             (self.chkFilterActionExport, [self.cmbFilterActionExportStatus, self.cmbFilterActionExportSystem]),
+            (self.chkFilterActionAttachedFiles, [self.cmbFilterActionAttachedFiles, self.cmbFilterActionTypeDoc, self.cmbFilterActionSigned, self.lblActionTypeDoc, self.lblActionSigned,
+                                                 self.chkFilterActionFileAttach, self.edtFilterActionFileAttach]),
             (self.chkFilterActionAwaitingSigningForOrganisation, []),
+            (self.chkFilterActionFileAttach, [self.edtFilterActionFileAttach]),
             ]
 
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetDate, False)
@@ -908,8 +935,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionPayer, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionContract, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExport, False)
-
-
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionAttachedFiles, False)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, False)
+        
         self.__actionTypeIdListByClassPage = [None] * 4
 
         self.cmbFilterVisitsType.setTable('rbVisitType', False)
@@ -1006,8 +1034,6 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.cmbFilterExpertExportFSS.setEnabled(self.chkFilterExpertExportFSS.isChecked())
 
         QMetaObject.connectSlotsByName(self)  # т.к. в setupUi параметр не self
-        for i in range(7):
-            self.tblClients.setColumnHidden(6+i, True)
 
         self.tblActionsStatusProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblActionsDiagnosticProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
@@ -1017,10 +1043,34 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblExpertProtocolsPropertiesMC.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblExpertMSIProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.TFAccountingSystemId = QtGui.qApp.TFAccountingSystemId()
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.chkFilterTFConfirmed.setVisible(False)
+            self.chkFilterTFUnconfirmed.setVisible(False)
+
         if not self.TFAccountingSystemId:
             self.chkFilterTFUnconfirmed.setEnabled(False)
             self.chkFilterTFConfirmed.setEnabled(False)
-
+        
+        attachedDocsTables = [
+            self.tblActionsStatusAttachedDocuments, 
+            self.tblActionsDiagnosticAttachedDocuments, 
+            self.tblActionsCureAttachedDocuments,
+            self.tblActionsMiscAttachedDocuments
+            ]
+        
+        for tab in attachedDocsTables:
+            acts = [tab.actAddKey, tab.actAdd, tab.actRename, tab.actComment, tab.actDelete, tab.actSignAsResp, tab.actSignAsOrg]
+            for act in acts:
+                act.setVisible(False)
+            tab.horizontalHeader().setStretchLastSection(True)
+            tab.resizeColumnsToContents()
+            tab.resizeRowsToContents()
+        
+        self.tabActionsStatusAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
+        self.tabActionsDiagnosticAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
+        self.tabActionsCureAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
+        self.tabActionsMiscAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
+        
         self.__filter = {}
         self.__filterEventContractId = None
         self.filterEventContractParams = {}
@@ -1093,20 +1143,23 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblEvents.addPopupAction(self.actAddActionEvent)
         self.tblEvents.addPopupAction(self.actJobTicketsEvent)
         self.tblEvents.addPopupAction(self.actCreateRelatedAction)
+        self.tblEvents.addPopupAction(self.actBatchRegLocatCard)
+        if forceString(QtGui.qApp.getGlobalPreference('useServiceGISOMS')) == u'да':
+            self.tblEvents.addPopupAction(self.actSendEventFPUMP)
         self.tblEvents.addPopupDelRow()
         self.tblEventActions.addPopupAction(self.actOpenAccountingByAction)
         self.tblEventVisits.addPopupAction(self.actOpenAccountingByVisit)
-        self.tblActionsStatus.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions])
+        self.tblActionsStatus.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
         self.tblActionsStatus.addPopupAction(self.actOpenAccountingBySingleActionStatus)
         self.tblVisits.createPopupMenu([self.actEditVisitEvent])
         self.tblVisits.addPopupAction(self.actOpenAccountingBySingleVisits)
-        self.tblActionsDiagnostic.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions])
+        self.tblActionsDiagnostic.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
         self.tblActionsDiagnostic.addPopupAction(self.actOpenAccountingBySingleActionDiagnostic)
-        self.tblActionsCure.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions])
+        self.tblActionsCure.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
         self.tblActionsCure.addPopupAction(self.actOpenAccountingBySingleActionCure)
-        self.tblActionsMisc.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions])
+        self.tblActionsMisc.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
         self.tblActionsMisc.addPopupAction(self.actOpenAccountingBySingleActionMisc)
-        self.tblExpertTempInvalid.createPopupMenu([self.actExpertTempInvalidNext, self.actExpertTempInvalidPrev, '-', self.actExpertTempInvalidDelete])
+        self.tblExpertTempInvalid.createPopupMenu([self.actExpertTempInvalidChangeToOpen, '-', self.actExpertTempInvalidNext, self.actExpertTempInvalidPrev, '-', self.actExpertTempInvalidDelete])
         self.tblExpertTempInvalidRelation.createPopupMenu([self.actExpertTempInvalidNext, self.actExpertTempInvalidPrev, '-', self.actExpertTempInvalidDelete])
         self.tblExpertDisability.createPopupMenu([self.actExpertDisabilityNext, self.actExpertDisabilityPrev, '-', self.actExpertDisabilityDelete])
         self.tblExpertDisabilityRelation.createPopupMenu([self.actExpertDisabilityNext, self.actExpertDisabilityPrev, '-', self.actExpertDisabilityDelete])
@@ -1177,6 +1230,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblEventActions.enableColsMove()
         self.tblEventVisits.enableColsHide()
         self.tblEventVisits.enableColsMove()
+        self.tblEventExportFile.enableColsHide()
+        self.tblEventExportFile.enableColsMove()
         # self.setSortable(self.tblEventDiagnostics, lambda: self.updateEventDiagnostics(self.currentEventId()))
         # self.setSortable(self.tblEventActions, lambda: self.updateEventActions(self.currentEventId()))
         # self.setSortable(self.tblEventVisits, lambda: self.updateEventVisits(self.currentEventId()))
@@ -2480,21 +2535,18 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                     cond.append(tableDocumentTypeForTracking['documentTypeForTracking_id'].eq(documentTypeForTracking))
                 if documentTypeForTrackingNumber:
                     cond.append(tableDocumentTypeForTracking['documentNumber'].eq(forceString(documentTypeForTrackingNumber)))
-            if documentLocation:
+            if self.chkFilterDocumentLocation.isChecked():
                 tableDocumentLocation = db.table('Client_DocumentTrackingItem')
                 if not documentTypeForTracking:
                     tableDocumentTypeForTracking = db.table('Client_DocumentTracking')
                     table = table.leftJoin(tableDocumentTypeForTracking, tableClient['id'].eq(tableDocumentTypeForTracking['client_id']))
+                    cond.append(tableDocumentTypeForTracking['deleted'].eq(0))
                 table = table.leftJoin(tableDocumentLocation, tableDocumentTypeForTracking['id'].eq(tableDocumentLocation['master_id']))
-                if begDateFilterDocumentLocation==QDate.currentDate() and endDateFilterDocumentLocation==QDate.currentDate():
-                    tableDocumentLocationLimit = db.table('Client_DocumentTrackingItem').alias('tableDocumentLocationLimit')
+                if documentLocation:
                     cond.append(tableDocumentLocation['documentLocation_id'].eq(documentLocation))
-                    cond.append(tableDocumentLocation['id'].eqEx('(%s)'%db.selectStmt(tableDocumentLocationLimit, tableDocumentLocationLimit['id'], tableDocumentLocationLimit['master_id'].eq(tableDocumentLocation['master_id']), "CONCAT_WS(' ', documentLocationDate, documentLocationTime) DESC", limit=1)))
-                else:
-                    cond.append(tableDocumentLocation['documentLocation_id'].eq(documentLocation))
-                if begDateFilterDocumentLocation and begDateFilterDocumentLocation!=QDate.currentDate():
+                if begDateFilterDocumentLocation:
                     cond.append(tableDocumentLocation['documentLocationDate'].ge(begDateFilterDocumentLocation))
-                if endDateFilterDocumentLocation and endDateFilterDocumentLocation!=QDate.currentDate():
+                if endDateFilterDocumentLocation:
                     cond.append(tableDocumentLocation['documentLocationDate'].le(endDateFilterDocumentLocation))
                 if personDocumentLocation:
                     cond.append(tableDocumentLocation['person_id'].eq(personDocumentLocation))
@@ -2707,6 +2759,12 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                     cond.append(tableIdentification['accountingSystem_id'].eq(identificationId))    
                 cond.append(tableIdentification['deleted'].eq(0))
 
+            archive = filter.get('archive', 0)
+            if archive == 0:
+                cond.append(tableClient['endDate'].isNull())
+            elif archive == 1:
+                cond.append(tableClient['endDate'].isNotNull())
+                
             clientsLimit = forceInt(QtGui.qApp.preferences.appPrefs.get('clientsLimit', 10000))
             getIdList = db.getDistinctIdList if table != tableClient else db.getIdList
             sort = []
@@ -2787,213 +2845,269 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
 
 
     def appendVaccinationClientCond(self, filter, clientCond):
+        u''' Добавляет в clientCond условия по фильтрам из вкладки Иммунизация (Картотека) '''
         vaccinationBegDate     = filter.get('vaccinationBegDate',     None)
         vaccinationEndDate     = filter.get('vaccinationEndDate',     None)
         vaccinationCalendarId  = filter.get('vaccinationCalendarId',  None)
-        infectionIdList        = filter.get('infectionIdList',        None)
-        vaccineIdList          = filter.get('vaccineIdList',          None)
+        infectionIdList        = filter.get('infectionIdList',        [])
+        vaccineIdList          = filter.get('vaccineIdList',          [])
         vaccinationSeria       = filter.get('vaccinationSeria',       None)
-        vaccinationType        = filter.get('vaccinationType',        None)
+        vaccinationType        = filter.get('vaccinationType',        [])
         vaccinationContingent  = filter.get('vaccinationContingent',  None)
-        vaccinationPerson      = filter.get('vaccinationPerson',      None)
         medicalExemption       = filter.get('medicalExemption',       None)
         medicalExemptionTypeId = filter.get('medicalExemptionTypeId', None)
 
         db = QtGui.qApp.db
+        tableClient = db.table('Client')
 
-        if vaccinationContingent is not None:
-            cond = []
-            tableVaccineSchema = db.table('rbVaccine_Schema')
-            tableClientVaccination = db.table('ClientVaccination')
-            table = tableClientVaccination
-            cond.append(tableClientVaccination['client_id'].eq(db.table('Client')['id']))
-            cond.append(tableClientVaccination['deleted'].eq(0))
+        tableClientVaccination = db.table('ClientVaccination')
+        tableVaccineSchema = db.table('rbVaccine_Schema')
+        tableInfectionVaccine = db.table('rbInfection_rbVaccine')
+        tableVaccinationCalendarInfection = db.table('rbVaccinationCalendar_Infection')
 
-            vaccinationTypeOrder = [
-                forceString(r.value('vaccinationType')) for r in \
-                db.getRecordList('rbVaccine_Schema', 'DISTINCT vaccinationType', order='id DESC')
-            ]
-            infectionOrder = [
-                forceString(r.value('vaccinationType')) for r in \
-                db.getRecordList('rbVaccinationCalendar_Infection', 'DISTINCT vaccinationType', order='id DESC')
-            ]
-            if vaccinationPerson:
-                cond.append(tableClientVaccination['person_id'].eq(vaccinationPerson))
+        tableClientMedicalExemption = db.table('ClientMedicalExemption')
+        tableClientMedicalExemptionInfection = db.table('ClientMedicalExemption_Infection')
 
-            # период
-            if vaccinationContingent == 2:
-                if vaccinationType and vaccineIdList and vaccinationBegDate and vaccinationEndDate:
-                    record = db.getRecordEx('rbVaccine_Schema', 'age', [
-                        tableVaccineSchema['master_id'].inlist(vaccineIdList),
-                        tableVaccineSchema['vaccinationType'].eq(vaccinationType),
-                    ])
-                    age = forceString(record.value('age')) if record else ''
-                    if age and vaccinationTypeOrder.index(vaccinationType) == 0:
-                        clientCond.append(db.joinOr([
-                            'isSexAndAgeSuitable(Client.sex,Client.birthDate,Client.sex,%s,%s)'%(
-                                decorateString(age), decorateString(vaccinationBegDate.toString(Qt.ISODate))),
-                            'isSexAndAgeSuitable(Client.sex,Client.birthDate,Client.sex,%s,%s)'%(
-                                decorateString(age), decorateString(vaccinationEndDate.toString(Qt.ISODate))),
-                        ]))
-                    elif vaccinationTypeOrder.index(vaccinationType) > 0:
-                        prevVaccinationTypes = vaccinationTypeOrder[:vaccinationTypeOrder.index(vaccinationType)]
-                        clientCond.append(
-                            'EXISTS(SELECT NULL'
-                            ' FROM ClientVaccination CV'
-                            ' JOIN rbVaccine_Schema ON CV.vaccine_id = rbVaccine_Schema.master_id'
-                            ' WHERE CV.deleted = 0 AND CV.client_id = Client.id'
-                            ' AND rbVaccine_Schema.vaccinationType IN (%s))' % \
-                                ','.join(map(decorateString, prevVaccinationTypes)))
-                    clientCond.append(
-                        'NOT EXISTS(SELECT NULL'
-                        ' FROM ClientVaccination CV'
-                        ' WHERE CV.deleted = 0 AND CV.client_id = Client.id'
-                        ' AND CV.vaccinationType = %s)' % decorateString(vaccinationType))
 
-                elif vaccinationCalendarId and infectionIdList and vaccinationBegDate and vaccinationEndDate:
-                    tableCalendarInfection = db.table('rbVaccinationCalendar_Infection')
-                    calendarInfectionCond = [
-                        tableCalendarInfection['infection_id'].inlist(infectionIdList),
-                        tableCalendarInfection['master_id'].eq(vaccinationCalendarId),
-                        tableCalendarInfection['age'].ne(''),
+        # получить предыдущие типы прививок из rbVaccine_Schema
+        def getPrevVaccinationTypes(vaccineId, vaccinationType):
+            if not vaccinationType:
+                return []
+            stmt = '''SELECT vaccinationType
+                FROM rbVaccine_Schema
+                WHERE master_id = %d AND id < (
+                    SELECT id
+                    FROM rbVaccine_Schema
+                    WHERE master_id = %d AND vaccinationType = %s
+                    ORDER BY id
+                    LIMIT 1
+                )'''
+            query = db.query(stmt % (
+                forceInt(vaccineId),
+                forceInt(vaccineId),
+                decorateString(vaccinationType)),
+            )
+            items = []
+            while query.next():
+                items.append(forceString(query.value(0)))
+            return items
+
+        # получить предыдущие типы прививок по инфекции из rbVaccinationCalendar_Infection
+        def getPrevInfectionVaccinationTypes(vaccinationCalendarId, infectionId, vaccinationType):
+            if not vaccinationType:
+                return []
+            stmt = '''SELECT vaccinationType
+                FROM rbVaccinationCalendar_Infection
+                WHERE infection_id = %d AND master_id = %d
+                    AND id < (
+                        SELECT id
+                        FROM rbVaccinationCalendar_Infection
+                        WHERE infection_id = %d AND master_id = %d
+                            AND vaccinationType = %s
+                        ORDER BY id
+                        LIMIT 1
+                    )'''
+            query = db.query(stmt % (
+                forceInt(infectionId),
+                forceInt(vaccinationCalendarId),
+                forceInt(infectionId),
+                forceInt(vaccinationCalendarId),
+                decorateString(vaccinationType),
+            ))
+            items = []
+            while query.next():
+                items.append(forceString(query.value(0)))
+            return items
+
+
+        ##########################################
+        # Контингент
+        ##########################################
+        cond = [
+            tableClientVaccination['client_id'].eq(tableClient['id']),
+            tableClientVaccination['deleted'].eq(0),
+        ]
+        if vaccinationBegDate:
+            cond.append(tableClientVaccination['datetime'].dateGe(vaccinationBegDate))
+        if vaccinationEndDate:
+            cond.append(tableClientVaccination['datetime'].dateLe(vaccinationEndDate))
+        if vaccinationSeria:
+            cond.append(tableClientVaccination['seria'].eq(vaccinationSeria))
+        if vaccinationType:
+            cond.append(tableClientVaccination['vaccinationType'].eq(vaccinationType))
+        if vaccineIdList:
+            cond.append(tableClientVaccination['vaccine_id'].inlist(vaccineIdList))
+
+        if vaccinationContingent == 0:  # не привиты
+            clientCond.append(db.notExistsStmt(tableClientVaccination, cond))
+        elif vaccinationContingent == 1:  # привиты
+            clientCond.append(db.existsStmt(tableClientVaccination, cond))
+        elif vaccinationContingent == 2:  # подлежат
+            clientCond.append(tableClient['deathDate'].isNull())
+
+            if vaccineIdList:
+                cond = []  # игнорируем стандартные, при Контингент=Подлежат совсем другие правила
+                for vaccineId in vaccineIdList:
+                    cond = [
+                        tableClientVaccination['client_id'].eq(tableClient['id']),
+                        tableClientVaccination['deleted'].eq(0),
+                        tableClientVaccination['vaccine_id'].eq(vaccineId),
+                    ]
+                    prevVaccinationTypes = getPrevVaccinationTypes(vaccineId, vaccinationType)
+                    if prevVaccinationTypes:
+                        # должен быть проведен последний предыдущий тип прививки этой вакцины, если он есть
+                        cond.append(tableClientVaccination['vaccinationType'].eq(prevVaccinationTypes[-1]))
+                        clientCond.append(db.existsStmt(tableClientVaccination, cond))
+                    elif vaccinationType:
+                        # задан тип прививки, но предыдущих нет - проверить отсутствие только этого типа прививки
+                        cond.append(tableClientVaccination['vaccinationType'].eq(vaccinationType))
+                        clientCond.append(db.notExistsStmt(tableClientVaccination, cond))
+                    else:
+                        # иначе подходят все пациенты без этой прививки или пациенты с любым типом этой прививки
+                        # т.е. не проверяем ClientVaccination
+                        pass
+                    # если выбран План - нужно проверить на соответствие полу из плана (в rbVaccine_Schema только возраст)
+                    if vaccinationCalendarId:
+                        calendarCond = [
+                            tableVaccinationCalendarInfection['master_id'].eq(vaccinationCalendarId),
+                        ]
+                        if vaccinationType:
+                            calendarCond.append(
+                                tableVaccinationCalendarInfection['vaccinationType'].eq(vaccinationType)
+                            )
+                        sexList = db.getDistinctIdList(tableVaccinationCalendarInfection, 'sex', calendarCond)
+                        if len(sexList) > 0 and (0 not in sexList):
+                            clientCond.append(tableClient['sex'].inlist(sexList))
+                    # также нужно проверить возраст на дату начала или окончания периода
+                    # (на текущую дату, если период не задан)
+                    ageCond = [ tableVaccineSchema['master_id'].eq(vaccineId), ]
+                    if vaccinationType:
+                        ageCond.append(tableVaccineSchema['vaccinationType'].eq(vaccinationType))
+                    for record in db.getDistinctRecordList(tableVaccineSchema, 'age', ageCond):
+                        age = decorateString(record.value('age').toString())
+                        if not age:
+                            continue
+                        if vaccinationBegDate and vaccinationEndDate:
+                            begDate = decorateString(vaccinationBegDate.toString(Qt.ISODate))
+                            endDate = decorateString(vaccinationEndDate.toString(Qt.ISODate))
+                            clientCond.append(db.joinOr([
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,%s)' % (age, begDate),
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,%s)' % (age, endDate),
+                            ]))
+                        else:
+                            clientCond.append(
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,NOW())' % age
+                            )
+
+            elif vaccinationCalendarId and infectionIdList:
+                cond = []  # игнорируем стандартные, при Контингент=Подлежат совсем другие правила
+                for infectionId in infectionIdList:
+                    prevVaccinationTypes = getPrevInfectionVaccinationTypes(
+                        vaccinationCalendarId, infectionId, vaccinationType)
+                    # получаем список прививок по инфекции
+                    vaccineIdList = db.getIdList(tableInfectionVaccine, 'vaccine_id',
+                        tableInfectionVaccine['infection_id'].eq(infectionId))
+                    cond = [
+                        tableClientVaccination['client_id'].eq(tableClient['id']),
+                        tableClientVaccination['deleted'].eq(0),
+                        tableClientVaccination['vaccine_id'].inlist(vaccineIdList),
+                    ]
+                    if prevVaccinationTypes:
+                        # должен быть проведен последний предыдущий тип прививки этой вакцины, если он есть
+                        cond.append(tableClientVaccination['vaccinationType'].eq(prevVaccinationTypes[-1]))
+                        clientCond.append(db.existsStmt(tableClientVaccination, cond))
+                    elif vaccinationType:
+                        # задан тип прививки, но предыдущих нет - проверить отсутствие только этого типа прививки
+                        cond.append(tableClientVaccination['vaccinationType'].eq(vaccinationType))
+                        clientCond.append(db.notExistsStmt(tableClientVaccination, cond))
+                    else:
+                        # иначе подходят все пациенты без этой прививки или пациенты с любым типом этой прививки
+                        # т.е. не проверяем ClientVaccination
+                        pass
+                    # также нужно проверить пол и возраст на дату начала или окончания периода
+                    # (на текущую дату, если период не задан)
+                    ageCond = [
+                        tableVaccinationCalendarInfection['master_id'].eq(vaccinationCalendarId),
+                        tableVaccinationCalendarInfection['infection_id'].eq(infectionId),
                     ]
                     if vaccinationType:
-                        calendarInfectionCond.append(tableCalendarInfection['vaccinationType'].eq(vaccinationType))
-                    vaccinationTypes = [
-                        (forceString(r.value('vaccinationType')), forceString(r.value('age'))) for r in \
-                        db.getRecordList(tableCalendarInfection,
-                            cols='vaccinationType, age',
-                            where=calendarInfectionCond)
-                    ]
-                    vType, age = '', ''
-                    index = 0
-                    for item in vaccinationTypes:
-                        i = infectionOrder.index(item[0])
-                        if i > index:
-                            index = i
-                            vType, age = item
-                    if age and index >= 0:
-                        clientCond.append(db.joinOr([
-                            'isSexAndAgeSuitable(Client.sex,Client.birthDate,Client.sex,%s,%s)'%(
-                                decorateString(age),
-                                decorateString(vaccinationBegDate.toString(Qt.ISODate))),
-                            'isSexAndAgeSuitable(Client.sex,Client.birthDate,Client.sex,%s,%s)'%(
-                                decorateString(age),
-                                decorateString(vaccinationEndDate.toString(Qt.ISODate))),
-                        ]))
-                    if index > 0:
-                        if vaccinationType:
-                            clientCond.append(
-                                'NOT EXISTS(SELECT NULL'
-                                ' FROM ClientVaccination CV'
-                                ' WHERE CV.deleted = 0 AND CV.client_id = Client.id'
-                                ' AND CV.vaccinationType = %s)' % \
-                                    decorateString(vaccinationType))
+                        prevVaccinationTypes.append(vaccinationType)
+                    if prevVaccinationTypes:
+                        ageCond.append(tableVaccinationCalendarInfection['vaccinationType'].inlist(prevVaccinationTypes))
+                    sexList = set()
+                    for record in db.getDistinctRecordList(tableVaccinationCalendarInfection, 'vaccinationType, sex, age', ageCond):
+                        sex = forceInt(record.value('sex'))
+                        age = decorateString(record.value('age').toString())
+                        sexList.add(sex)
+                        if not age:
+                            continue
+                        if vaccinationType and vaccinationType != forceString(record.value('vaccinationType')):
+                            # предыдущие типы прививок нужны только для пола
+                            # возраст определять для текущего типа прививки (если указан)
+                            continue
+                        if vaccinationBegDate and vaccinationEndDate:
+                            begDate = decorateString(vaccinationBegDate.toString(Qt.ISODate))
+                            endDate = decorateString(vaccinationEndDate.toString(Qt.ISODate))
+                            clientCond.append(db.joinOr([
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,%s)' % (age, begDate),
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,%s)' % (age, endDate),
+                            ]))
                         else:
-                            prevVaccinationTypes = infectionOrder[:index]
                             clientCond.append(
-                                'EXISTS(SELECT NULL'
-                                ' FROM ClientVaccination CV'
-                                ' JOIN rbVaccine_Schema ON CV.vaccine_id = rbVaccine_Schema.master_id'
-                                ' WHERE CV.deleted = 0 AND CV.client_id = Client.id'
-                                ' AND rbVaccine_Schema.vaccinationType IN (%s))' % \
-                                    ','.join(map(decorateString, prevVaccinationTypes)))
-            else:
-                if vaccinationBegDate:
-                    cond.append(tableClientVaccination['datetime'].dateGe(vaccinationBegDate))
-                if vaccinationEndDate:
-                    cond.append(tableClientVaccination['datetime'].dateLe(vaccinationEndDate))
+                                'isSexAndAgeSuitable(0,Client.birthDate,0,%s,NOW())' % age
+                            )
+                    if len(sexList) > 0 and (0 not in sexList):
+                        clientCond.append(tableClient['sex'].inlist(sexList))
 
-            # вакцины
-            if not vaccineIdList and infectionIdList:
-                vaccineIdList = self.modelFilterVaccine.idList()
-            if vaccineIdList:
-                if vaccinationContingent == 2:  # подлежат
-                    if vaccinationBegDate is None or vaccinationEndDate is None:
-                        # фильтр периода не применен
-                        vaccinationAgeCond = [
-                            tableVaccineSchema['master_id'].inlist(vaccineIdList),
-                            tableVaccineSchema['age'].ne(''),
-                        ]
-                        if vaccinationType:
-                            vaccinationAgeCond.append(tableVaccineSchema['vaccinationType'].eq(vaccinationType))
-                        recordList = db.getRecordList('rbVaccine_Schema', 'DISTINCT age', vaccinationAgeCond)
-                        ageSuitableCond = [
-                            (   'isSexAndAgeSuitable(Client.sex,Client.birthDate,Client.sex,%s,NOW())' %
-                                decorateString(r.value('age').toString())
-                            ) for r in recordList
-                        ]
-                        if ageSuitableCond:
-                            clientCond.append(db.joinOr(ageSuitableCond))
-                else:
-                    cond.append(tableClientVaccination['vaccine_id'].inlist(vaccineIdList))
+        ##########################################
+        # Медотводы
+        ##########################################
+        cond = [
+            tableClientMedicalExemption['client_id'].eq(tableClient['id']),
+            tableClientMedicalExemption['deleted'].eq(0),
+        ]
 
-            if vaccinationSeria:
-                cond.append(tableClientVaccination['seria'].eq(vaccinationSeria))
-            if vaccinationType and vaccinationContingent != 2:
-                cond.append(tableClientVaccination['vaccinationType'].eq(vaccinationType))
+        if vaccinationBegDate and vaccinationEndDate:
+            # дата окончания не указана для постоянных медотводов, ставим для удобства
+            endDate = "IFNULL(ClientMedicalExemption.endDate, DATE('2100-01-01'))"
+            begDate = "ClientMedicalExemption.date"
+            filterBegDate = decorateString(vaccinationBegDate.toString(Qt.ISODate))
+            filterEndDate = decorateString(vaccinationEndDate.toString(Qt.ISODate))
+            # даты медотвода могут частично входить в диапазон дат из фильтра
+            cond.append(db.joinOr([
+                # дата начала из фильтра находится внутри периода медотвода
+                '%s BETWEEN %s AND %s' % (filterBegDate, begDate, endDate),
+                # дата окончания из фильтра находится внутри периода медотвода
+                '%s BETWEEN %s AND %s' % (filterEndDate, begDate, endDate),
+                # период медотвода находится внутри периода дат из фильтра
+                '%s >= %s AND %s <= %s' % (begDate, filterBegDate, endDate, filterEndDate),
+                # период дат из фильтра находится внутри периода медотвода
+                '%s <= %s AND %s >= %s' % (begDate, filterBegDate, endDate, filterEndDate),
+            ]))
 
-            if medicalExemption is None:
-                if vaccinationContingent == 0:    # не привиты
-                    clientCond.append(db.notExistsStmt(table, cond))
-                elif vaccinationContingent == 1:  # привиты
-                    clientCond.append(db.existsStmt(table, cond))
-                elif vaccinationContingent == 2:  # подлежат
-                    if not vaccineIdList:
-                        clientCond.append('FALSE')  # в этом случае отобразить пустой список
-                return
-            else:
-                if vaccinationContingent == 0:    # не привиты
-                    vaccinationStmt = db.notExistsStmt(table, cond)
-                elif vaccinationContingent == 1:  # привиты
-                    vaccinationStmt = db.existsStmt(table, cond)
-                elif vaccinationContingent == 2:  # подлежат
-                    vaccinationStmt = db.existsStmt(table, cond)
+        if medicalExemptionTypeId:
+            cond.append(tableClientMedicalExemption['medicalExemptionType_id'].eq(medicalExemptionTypeId))
 
-        if medicalExemption is not None:
-            cond = []
-            tableClientMedicalExemption          = db.table('ClientMedicalExemption')
-            tableClientMedicalExemptionInfection = db.table('ClientMedicalExemption_Infection')
-            table = tableClientMedicalExemption
-            cond.append(tableClientMedicalExemption['client_id'].eq(db.table('Client')['id']))
-            cond.append(tableClientMedicalExemption['deleted'].eq(0))
-            if vaccinationBegDate:
-                cond.append(tableClientMedicalExemption['date'].dateGe(vaccinationBegDate))
-            if vaccinationEndDate:
-                cond.append(tableClientMedicalExemption['date'].dateLe(vaccinationEndDate))
-            if medicalExemptionTypeId:
-                cond.append(tableClientMedicalExemption['medicalExemptionType_id'].eq(medicalExemptionTypeId))
-            if infectionIdList:
-                table = tableClientMedicalExemption.leftJoin(
-                                    tableClientMedicalExemptionInfection,
-                                    tableClientMedicalExemptionInfection['master_id'].eq(tableClientMedicalExemption['id'])
-                                                                                  )
-                cond.append(tableClientMedicalExemptionInfection['infection_id'].inlist(infectionIdList))
-            elif vaccinationCalendarId:
-                table = tableClientMedicalExemption.leftJoin(
-                                    tableClientMedicalExemptionInfection,
-                                    tableClientMedicalExemptionInfection['master_id'].eq(tableClientMedicalExemption['id'])
-                                                                                  )
-                cond.append(tableClientMedicalExemptionInfection['infection_id'].inlist(self.modelFilterInfection.idList()))
+        table = tableClientMedicalExemption
+        if infectionIdList:
+            table = table.leftJoin(tableClientMedicalExemptionInfection,
+                                tableClientMedicalExemptionInfection['master_id'].eq(tableClientMedicalExemption['id']))
+            cond.append(tableClientMedicalExemptionInfection['infection_id'].inlist(infectionIdList))
+        elif vaccinationCalendarId:
+            table = table.leftJoin(tableClientMedicalExemptionInfection,
+                                tableClientMedicalExemptionInfection['master_id'].eq(tableClientMedicalExemption['id']))
+            cond.append(tableClientMedicalExemptionInfection['infection_id'].inlist(self.modelFilterInfection.idList()))
 
-            if vaccinationContingent:
-                if medicalExemption == 0: # Привиты + нет медотводов
-                    clientCond.append(vaccinationStmt + u' AND ' + db.notExistsStmt(table, cond))
-                    return
-                elif medicalExemption == 2: # временный
-                    cond.append(tableClientMedicalExemption['endDate'].isNotNull())
-                elif medicalExemption == 3: # постоянный
-                    cond.append(tableClientMedicalExemption['endDate'].isNull())
-                clientCond.append(vaccinationStmt + u' AND ' + db.existsStmt(table, cond))
-            else:
-                if medicalExemption == 0: # нет медотводов
-                    clientCond.append(db.notExistsStmt(table, cond))
-                    return
-                elif medicalExemption == 2: # временный
-                    cond.append(tableClientMedicalExemption['endDate'].isNotNull())
-                elif medicalExemption == 3: # постоянный
-                    cond.append(tableClientMedicalExemption['endDate'].isNull())
-                clientCond.append(db.existsStmt(table, cond))
+        if medicalExemption == 0:  # нет медотводов
+            clientCond.append(db.notExistsStmt(table, cond))
+        elif medicalExemption == 1: # есть медотвод
+            clientCond.append(db.existsStmt(table, cond))
+        elif medicalExemption == 2:  # временный
+            cond.append(tableClientMedicalExemption['endDate'].isNotNull())
+            clientCond.append(db.existsStmt(table, cond))
+        elif medicalExemption == 3:  # постоянный
+            cond.append(tableClientMedicalExemption['endDate'].isNull())
+            clientCond.append(db.existsStmt(table, cond))
 
 
     def appendContingentTypeCond(self, table, filter, cond, isEventJoined, isSocStatusJoined):
@@ -4009,7 +4123,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             cond.append('''EXISTS(SELECT Diagnosis.id
             FROM Diagnosis INNER JOIN Diagnostic ON Diagnostic.diagnosis_id=Diagnosis.id
             WHERE Diagnostic.event_id = Event.id AND Diagnosis.deleted = 0 AND Diagnostic.deleted = 0 AND Diagnostic.character_id = {})'''.format(filter['diseaseCharacter']))
-
+        
         visibleCond = []
         clientIds = filter.get('clientIds', None)
         hasRightOwnAreaOnly = self.hasRightOwnAreaOnly(clientIds)
@@ -4290,7 +4404,6 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             self.updateEventDiagnostics(eventId)
             self.updateEventActions(eventId)
             self.updateEventVisits(eventId)
-
             context = getEventContext(eventTypeId)
             additionalCustomizePrintButton(self, self.btnEventPrint, context)
         else:
@@ -4298,7 +4411,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             self.tblEventActions.setIdList([])
             self.tblEventVisits.setIdList([])
 
-
+        self.modelEventExportFile.loadData(eventId)
         self.lblEventIdValue.setText(str(eventId) if eventId else '')
 
         if prevEventId:
@@ -4418,16 +4531,6 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             queryTable = queryTable.innerJoin(tableActionTypeST, tableActionTypeST['id'].eq(tableAction['actionType_id']))
             cond.append(tableActionTypeST['deleted'].eq(0))
             cond.append(tableActionTypeST['serviceType'].eq(actionTypeServiceType))
-        if 'actionAttachedFiles' in filter:
-            actionAttachedFiles = filter.get('actionAttachedFiles')
-            tableActionFileAttach = db.table('Action_FileAttach')
-            existCond = [tableAction['id'].eq(tableActionFileAttach['master_id']),
-                         tableActionFileAttach['deleted'].eq(0),
-                         tableActionFileAttach['path'].like(u'%.pdf')]
-            if actionAttachedFiles == 1:
-                cond.append(db.existsStmt(tableActionFileAttach, existCond))
-            elif actionAttachedFiles == 2:
-                cond.append(db.notExistsStmt(tableActionFileAttach, existCond))
         if 'clientIds' in filter:
             clientIds = filter.get('clientIds')
             cond.append(tableEvent['client_id'].inlist(clientIds))
@@ -4686,7 +4789,37 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
                 cond.append(tableActionExport['id'].isNotNull())
             else:
                     cond.append(tableActionExport['id'].isNull())
-
+        
+        if 'attachedFile' in filter:
+            tableActionFileAttach = db.table('Action_FileAttach')
+            queryTable = queryTable.leftJoin(tableActionFileAttach, tableActionFileAttach['master_id'].eq(tableAction['id']))
+            cond.append('''Action_FileAttach.id IS {}NULL'''.format("" if filter.get('attachedFile', None) != 1 else "NOT "))
+            if 'typeDoc' in filter:
+                typeDoc = filter.get('typeDoc', None)
+                if typeDoc != u'Все':
+                    if typeDoc == u'Прочие':
+                        cond.append("Action_FileAttach.path NOT LIKE '%.pdf' AND path NOT LIKE '%.xml' AND path NOT LIKE '%.sms'")
+                    else:
+                        cond.append("Action_FileAttach.path LIKE '%.{0}'".format(typeDoc))
+            if 'signed' in filter:
+                signedIndex = filter.get('signed', 0)
+                if signedIndex == 1:
+                    cond.append(tableActionFileAttach['respSignatureBytes'].isNull())
+                elif signedIndex == 2:
+                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNull())
+                elif signedIndex == 3:
+                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNotNull())
+                elif signedIndex == 4:
+                    cond.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
+                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNull())
+                elif signedIndex == 5:
+                    cond.append(db.joinOr([tableActionFileAttach['respSignatureBytes'].isNull(),
+                                        tableActionFileAttach['orgSignatureBytes'].isNull()]))
+                elif signedIndex == 6:
+                    cond.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
+            if 'ActionFileAttach_id' in filter:
+                attach_file_id = filter.get('ActionFileAttach_id',0) 
+                cond.append(tableActionFileAttach['id'].eq(attach_file_id))
         # for key, value in self.getCurrentActionsTable().model().headerSortingCol.items():
         #     if value:
         #         ASC = u'ASC'
@@ -5751,6 +5884,15 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             return forceRef(currentItem.value('prev_id'))
         return None
 
+    
+    def getExpertState(self, table):
+        tempInvalidId = table.currentItemId()
+        if tempInvalidId:
+            model = table.model()
+            currentItem = model.recordCache().get(tempInvalidId)
+            return forceInt(currentItem.value('state'))
+        return None
+    
 
     def getExpertNextDocId(self, table):
         tempInvalidId = table.currentItemId()
@@ -6426,7 +6568,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                 if row not in selectedRows:
                     selectedRows.append(row)
 
-        self.lblClientsCount.setText(self.realCount1 +  u', из них выделено ' + forceString(len(selectedRows)))
+        self.lblClientsCount.setText(self.realCount1 + u', из них выделено ' + forceString(len(selectedRows)))
 
 
 
@@ -6735,6 +6877,49 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('')
+    def on_actActionGroupSign_triggered(self):
+        currentTabIndex = self.tabWidgetActionsClasses.currentIndex()
+        actionIdList = []
+        if currentTabIndex == 0:
+            actionIdList = self.modelActionsStatus.idList()
+        elif currentTabIndex == 1:
+            actionIdList = self.modelActionsDiagnostic.idList()
+        elif currentTabIndex == 2:
+            actionIdList = self.modelActionsCure.idList()
+        elif currentTabIndex == 3:
+            actionIdList = self.modelActionsMisc.idList()
+        else:
+            QtGui.QMessageBox.critical(self, u'Ошибка', u'Выбрана неизвестная вкладка с Действиями')
+
+        lockIdList = []
+        excludedActionIdList = []
+        alreadyLockedCount = 0
+        lockErrorCount = 0
+        for actionId in actionIdList:
+            appLockId, message = self.tryLock('Action', actionId, shorted=1)
+            if appLockId:
+                lockIdList.append(appLockId)
+            else:
+                excludedActionIdList.append(actionId)
+                if message == u'Не удалось установить блокировку':
+                    lockErrorCount += 1
+                if message.startswith(u'Данные'):
+                    alreadyLockedCount += 1
+        if len(excludedActionIdList) > 0:
+            QtGui.QMessageBox.information(self, u'Внимание',
+                (u'Из списка были исключены Действия, заблокированные другими пользователями (%d шт)'
+                u' или блокировку на которые установить не удалось (%d шт)') % (alreadyLockedCount, lockErrorCount))
+
+        actionIdList = list(set(actionIdList) - set(excludedActionIdList))
+        try:
+            dialog = CActionGroupSignDialog(self)
+            dialog.setActionIdList(actionIdList)
+            dialog.exec_()
+        finally:
+            for lockId in lockIdList:
+                self.releaseLock(lockId)
+    
+    @pyqtSignature('')
     def on_actSimplifiedClientSearch_triggered(self):
         if QtGui.qApp.defaultKLADR()[:2] == u'23':
             dlg = CFastSearchDialog(self)
@@ -6756,6 +6941,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                         filter['birthDate'] = QDate(year, int(mm), int(dd))
                     if int(yy) > 100:
                         filter['birthDate'] = QDate(int(yy), int(mm), int(dd))
+                filter['archive'] = self.cmbFilterArchive.currentIndex()
                 self.updateClientsList(filter)
                 self.focusClients()
         else:
@@ -7445,6 +7631,13 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.on_buttonBoxClient_reset()
             self.identCard = None
 
+    @pyqtSignature('bool')
+    def on_chkFilterActionFileAttach_toggled(self, checked):
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, checked)
+        self.edtFilterActionFileAttach.setEnabled(checked)
+
+        
+
 #    @pyqtSignature('')
     def on_buttonBoxClient_apply(self):
         filter = {}
@@ -7551,6 +7744,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                 filter['contingentMKBTo'] = contingentMKBTo if contingentMKBTo else None  
             if self.chkFilterContingentSpeciality.isChecked():
                 filter['contingentSpeciality'] = self.cmbFilterContingentSpeciality.value()
+        filter['archive'] = self.cmbFilterArchive.currentIndex()
         if self.chkFilterCreatePerson.isChecked():
             filter['createPersonIdEx'] = self.cmbFilterCreatePerson.value()
         if self.chkFilterCreateDate.isChecked():
@@ -7652,8 +7846,17 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['clientResearchEndDate'] = self.edtFilterClientResearchEndDate.date()
         if self.chkFilterIdentification.isChecked():
             filter['identification'] = self.cmbFilterIdentification.value()
-        filter.update(self.getVaccinationClientFilter())
 
+        vaccineIdList = self.modelFilterVaccine.getCheckedIdList()
+        infectionIdList = self.modelFilterInfection.getCheckedIdList()
+        vaccinationCalendarId = None
+        if self.chkFilterVaccinationCalendar.isChecked():
+            vaccinationCalendarId = self.cmbFilterVaccinationCalendar.value()
+        if infectionIdList and not vaccinationCalendarId and not vaccineIdList:
+            QtGui.QMessageBox.warning(self, u'Внимание', u'Выберите "План" и/или "Вакцины"')
+            return
+        
+        filter.update(self.getVaccinationClientFilter())
         self.updateClientsList(filter)
         self.focusClients()
 
@@ -7728,6 +7931,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                 self.deactivateFilterWdgets(s[1])
                 chk.setChecked(False)
         self.chkFilterSNILS.setChecked(QtGui.qApp.getOpeningSnilsCardindex())
+        self.cmbFilterArchive.setCurrentIndex(0)
         self.tblFilterInfection.uncheckAll()
         self.tblFilterVaccine.uncheckAll()
 
@@ -7766,12 +7970,119 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('')
+    def on_actSendEventFPUMP_triggered(self):
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableContract = db.table('Contract')
+        tableFinance = db.table('rbFinance')
+        table = tableEvent.leftJoin(tableContract, tableEvent['contract_id'].eq(tableContract['id']))
+        table = table.leftJoin(tableFinance, tableContract['finance_id'].eq(tableFinance['id']))
+        record = db.getRecordList(table, [tableEvent['execDate'], tableFinance['code']],
+                                  tableEvent['id'].eq(self.currentEventId()))
+        endDate = forceDate(record[0].value(0))
+        financeCode = forceString(record[0].value(1))
+        curDate = QDate.currentDate()
+        monthAgoDate = QDate(curDate.year(), curDate.month() - 1, curDate.day())
+        if financeCode != '2' or endDate is None:
+            note = u''
+            if financeCode != '2':
+                note += u'Выгрузке подлежат только события по ОМС!'
+            if endDate is None:
+                if len(note):
+                    note += u'\n'
+                note += u'Выгрузке подлежат только завершённые события!'
+            QtGui.QMessageBox.critical(self, u'Ошибка!', note, QtGui.QMessageBox.Ok)
+        else:
+            import urlparse
+            url = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
+            if url:
+                url = url.replace('\\\\', '//')
+                url = urlparse.urljoin(url, '/api/personalized_accounting')
+                url += '/$export_specific_event?event_id={0}'.format(self.currentEventId())
+            if not url:
+                QtGui.QMessageBox.critical(self, u'Внимание!', u'Не указан IP адрес сервера сервиса!', QtGui.QMessageBox.Ok)
+            else:
+                import requests
+                resp = requests.get(url=url)
+                if resp:
+                    result = json.loads(resp.content)
+                    if result.get('success_events') and len(result.get('success_events')):
+                        success_result = result['success_events'][0]
+                        if success_result['type_action'] == u'update':
+                            message_text = anyToUnicode(u'Обновление СЭФД на событие произведено успешно!')
+                        else:
+                            message_text = anyToUnicode(u'Создание СЭФД на событие произведено успешно!')
+                        message_text += anyToUnicode(u'\nИдентификатор СЭФД в ФПУМП: ') + success_result['id_fpump']
+                        message_text += anyToUnicode(u'.\nВерсия СЭФД в ФПУМП: ') + success_result['version_revision'] + u'.'
+                        QtGui.QMessageBox.information(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
+                    else:
+                        if result.get('errors'):
+                            message_text = anyToUnicode(u'При выгрузке произошла ошибка:\n') + forceString(result['errors'][0]['error'])
+                        elif result.get('error'):
+                            message_text = forceString(result['error'])
+                        else:
+                            message_text = anyToUnicode(u'При выгрузке произошла ошибка!')
+                        QtGui.QMessageBox.warning(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
+                else:
+                    QtGui.QMessageBox.critical(self, u'Внимание!', u'Ошибка выгрузки события!', QtGui.QMessageBox.Ok)
+
+
+    @pyqtSignature('')
     def on_actEventOpenClientVaccinationCard_triggered(self):
         clientId = self.currentClientId()
         if not clientId:
             clientId = self.selectedClientId()
         if clientId:
             openClientVaccinationCard(self, clientId)
+
+
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableContract = db.table('Contract')
+        tableFinance = db.table('rbFinance')
+        table = tableEvent.leftJoin(tableContract, tableEvent['contract_id'].eq(tableContract['id']))
+        table = table.leftJoin(tableFinance, tableContract['finance_id'].eq(tableFinance['id']))
+        record = db.getRecordList(table, [tableEvent['execDate'], tableFinance['code']], tableEvent['id'].eq(self.currentEventId()))
+        endDate = forceDate(record[0].value(0))
+        financeCode = forceString(record[0].value(1))
+        curDate = QDate.currentDate()
+        monthAgoDate = QDate(curDate.year(), curDate.month() - 1, curDate.day())
+        if financeCode != '2' or endDate is None:
+            note = u''
+            if financeCode != '2':
+                note += u'Выгрузке подлежат только события по ОМС!'
+            if endDate is None:
+                if len(note):
+                    note += u'\n'
+                note += u'Выгрузке подлежат только завершённые события!'
+            QtGui.QMessageBox.critical(self, u'Ошибка!', note, QtGui.QMessageBox.Ok)
+        else:
+            import requests
+            url = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
+            url = (url + u'api/personalized_accounting') if url[-1] == u'/' else (url + u'/api/personalized_accounting')
+            url += '/$export_specific_event?event_id={0}'.format(self.currentEventId())
+            resp = requests.get(url=url)
+            if resp:
+                result = json.loads(resp.content)
+                if result.get('success_events') and len(result.get('success_events')):
+                    success_result = result['success_events'][0]
+                    if success_result['type_action'] == u'update':
+                        message_text = anyToUnicode(u'Обновление СЭФД на событие произведено успешно!')
+                    else:
+                        message_text = anyToUnicode(u'Создание СЭФД на событие произведено успешно!')
+                    message_text += anyToUnicode(u'\nИдентификатор СЭФД в ФПУМП: ') + success_result['id_fpump']
+                    message_text += anyToUnicode(u'.\nВерсия СЭФД в ФПУМП: ') + success_result['version_revision'] + u'.'
+                    QtGui.QMessageBox.information(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
+                else:
+                    if result.get('errors'):
+                        message_text = anyToUnicode(u'При выгрузке произошла ошибка:\n') + forceString(result['errors'][0]['error'])
+                    elif result.get('error'):
+                        message_text = forceString(result['error'])
+                    else:
+                        message_text = anyToUnicode(u'При выгрузке произошла ошибка!')
+                    QtGui.QMessageBox.warning(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
+            else:
+                QtGui.QMessageBox.critical(self, u'Внимание!', u'Ошибка выгрузки события!', QtGui.QMessageBox.Ok)
 
 
     @pyqtSignature('')
@@ -7892,7 +8203,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             clientCount = self.modelEvents.getClientCount()
             labelText += ', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
         else:
-            labelText =  u'список пуст'
+            labelText = u'список пуст'
         self.lblEventsCount.setText(labelText)
         self.eventCount = formatRecordsCount(count)
         # self.realCount(realCount)
@@ -7904,16 +8215,88 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.on_btnEventEdit_clicked()
 
 
+    def editF090ActionToEventId(self, actionId):
+        newActionId = None
+        dialog = CF090EditDialog(self)
+        try:
+            dialog.load(actionId)
+            dialog.protectWidgetFromEdit(False)
+            dialog.exec_()
+            if dialog.isBtnSave:
+                # self.updateActionsList(self.__actionFilter, dialog.itemId())
+                QtGui.qApp.emitCurrentClientInfoChanged()
+                newActionId = dialog.itemId()
+            else:
+                # self.updateActionInfo(actionId)
+                self.updateClientsListRequest = True
+        finally:
+            dialog.deleteLater()
+        return newActionId
+
+
+    def createF090ActionToEventId(self, eventId):
+        newActionId = None
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        recordEvent = db.getRecordEx(tableEvent, '*', [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
+        resultF090, eventF090Id, newActionId = createF090(self, recordEvent=recordEvent)
+        if resultF090:
+            # self.updateActionsList(self.__actionFilter, newActionId)
+            QtGui.qApp.emitCurrentClientInfoChanged()
+        else:
+            self.updateClientsListRequest = True
+        return newActionId
+
+
     @pyqtSignature('')
     def on_btnEventEdit_clicked(self):
         eventId = self.currentEventId()
         if eventId:
-            eventId = editEvent(self, eventId)
+            if self.getEventTypeIdF090(eventId):
+                actionId = self.getF090ActionIdToEventId(eventId)
+                if actionId and canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(self, actionId):
+                    if forceBool(self.getF090ActionTypeId(actionId)):
+                        self.editF090ActionToEventId(actionId)
+                    else:
+                        self.createF090ActionToEventId(eventId)
+            else:
+                editEvent(self, eventId)
         else:
             eventId = self.requestNewEvent()
         if eventId:
             self.updateEventListAfterEdit(eventId)
         self.focusEvents()
+
+
+    def getEventTypeIdF090(self, eventId):
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        queryTable = tableEventType.innerJoin(tableEvent, tableEvent['eventType_id'].eq(tableEventType['id']))
+        cond = [tableEvent['id'].eq(eventId),
+                tableEvent['deleted'].eq(0),
+                tableEventType['deleted'].eq(0),
+                tableEventType['form'].eq(u'090')
+                ]
+        record = db.getRecordEx(queryTable, [tableEvent['eventType_id'].alias('eventTypeId')], cond)
+        return forceRef(record.value('eventTypeId')) if record else None
+
+
+    def getF090ActionIdToEventId(self, eventId):
+        if eventId:
+            db = QtGui.qApp.db
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            queryTable = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            cond = [tableAction['event_id'].eq(eventId),
+                    tableAction['deleted'].eq(0),
+                    tableActionType['deleted'].eq(0),
+                    tableActionType['flatCode'].like(u'%medical_examination'),
+                    ]
+            record = db.getRecordEx(queryTable, [tableAction['id'].alias('actionId')], cond)
+            return forceRef(record.value('actionId')) if record else None
+        return None
+    
 
     def on_btnEventEditTemplate_clicked(self, eventId):
         if eventId:
@@ -8679,7 +9062,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         if self.chkFilterEventContract.isChecked() and self.__filterEventContractId:
             filter['contractId'] = self.__filterEventContractId
         if self.chkFilterEventExpertId.isChecked():
-           filter['eventExpertId'] = self.cmbFilterEventExpertId.value()
+            filter['eventExpertId'] = self.cmbFilterEventExpertId.value()
         if self.chkFilterEventExpertiseDate.isChecked():
            filter['begExpertiseDate'] = self.edtFilterEventBegExpertiseDate.date()
            filter['endExpertiseDate'] = self.edtFilterEventEndExpertiseDate.date()
@@ -8773,6 +9156,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         actionId = self.tblActionsStatus.currentItemId()
         self.updateActionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblActionsStatusProperties, previous)
+        self.tabAmbCardContent.updateAmbCardAttachedFiles(current, self.tblActionsStatusAttachedDocuments, previous)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -8780,6 +9164,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         actionId = self.tblActionsDiagnostic.currentItemId()
         self.updateActionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblActionsDiagnosticProperties, previous)
+        self.tabAmbCardContent.updateAmbCardAttachedFiles(current, self.tblActionsDiagnosticAttachedDocuments, previous)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -8787,6 +9172,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         actionId = self.tblActionsCure.currentItemId()
         self.updateActionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblActionsCureProperties, previous)
+        self.tabAmbCardContent.updateAmbCardAttachedFiles(current, self.tblActionsCureAttachedDocuments, previous)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -8794,6 +9180,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         actionId = self.tblActionsMisc.currentItemId()
         self.updateActionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblActionsMiscProperties, previous)
+        self.tabAmbCardContent.updateAmbCardAttachedFiles(current, self.tblActionsMiscAttachedDocuments, previous)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -8831,6 +9218,12 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.updateMedicalCommissionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblExpertMSIProperties, previous)
 
+    def getClientId(self, event_id):
+        stmt = "SELECT c.id FROM Event e LEFT JOIN Client c ON c.id = e.client_id WHERE e.id = {0};".format(event_id)
+        query = QtGui.qApp.db.query(stmt)
+        if query.next():
+            record = query.record()
+            return record.value(0).toInt()[0]
 
     def getClientId(self, event_id):
         stmt = "SELECT c.id FROM Event e LEFT JOIN Client c ON c.id = e.client_id WHERE e.id = {0};".format(event_id)
@@ -8955,10 +9348,10 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         eventId = self.tblEvents.currentItemId()
         if eventId and canAddActionToExposedEvent(self, eventId):
             currentTable, currentRow, newActionIdList = addActionTabPresence(self, eventId, 0, self.tblEvents)
-            for actionId in newActionIdList:
-                if actionId:
-                    self.editAction(actionId)
-                currentTable.setCurrentRow(currentRow)
+            #for actionId in newActionIdList:
+            #    if actionId:
+            #        self.editAction(actionId)
+            #    currentTable.setCurrentRow(currentRow)
             self.updateEventListAfterEdit(eventId)
             self.focusEvents()
 
@@ -9023,40 +9416,40 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     def updateEventTypeByEvent(self, eventId):
         if QtGui.qApp.userHasAnyRight([urAdmin, urUpdateEventTypeByEvent]):
-                db = QtGui.qApp.db
-                tableET = db.table('Event')
-                record = db.getRecordEx(tableET, '*', [tableET['id'].eq(eventId), tableET['deleted'].eq(0)])
-                eventTypeId = forceRef(record.value('eventType_id')) if record else None
-                oldPrevEventId = forceRef(record.value('prevEvent_id')) if record else None
-                clientId    = forceRef(record.value('client_id')) if record else None
-                if eventTypeId:
-                    tableETE = db.table('EventType_Event')
-                    cols = [tableETE['eventType_id']
-                            ]
-                    cond = [tableETE['master_id'].eq(eventTypeId)
-                            ]
-                    eventTypeIdList = db.getDistinctIdList(tableETE, cols, cond, 'EventType_Event.id')
-                    if eventTypeIdList:
-                        dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId)
-                        try:
-                            if dialog.exec_():
-                                newEventTypeId = dialog.getNewEventTypeId()
-                                if newEventTypeId:
-                                    record.setValue('eventType_id', toVariant(newEventTypeId))
-                                    idList = set([])
-                                    idListParents = set(db.getTheseAndParents(tableET, 'prevEvent_id', [eventId if eventId else self.prevEventId]))
-                                    idList ^= idListParents
-                                    idListDescendant = set(db.getDescendants(tableET, 'prevEvent_id', eventId if eventId else self.prevEventId))
-                                    idList ^= idListDescendant
-                                    if len(idList) < 2:
-                                        prevEventTypeId = getEventPrevEventTypeId(newEventTypeId)
-                                        prevEventId = getPrevEventIdByEventTypeId(prevEventTypeId, clientId)
-                                        if oldPrevEventId != prevEventId:
-                                            record.setValue('prevEvent_id', toVariant(prevEventId))
-                                db.updateRecord(tableET, record)
-                                self.updateEventListAfterEdit(eventId)
-                        finally:
-                            dialog.deleteLater()
+            db = QtGui.qApp.db
+            tableET = db.table('Event')
+            record = db.getRecordEx(tableET, '*', [tableET['id'].eq(eventId), tableET['deleted'].eq(0)])
+            eventTypeId = forceRef(record.value('eventType_id')) if record else None
+            oldPrevEventId = forceRef(record.value('prevEvent_id')) if record else None
+            clientId    = forceRef(record.value('client_id')) if record else None
+            if eventTypeId:
+                tableETE = db.table('EventType_Event')
+                cols = [tableETE['eventType_id']
+                        ]
+                cond = [tableETE['master_id'].eq(eventTypeId)
+                        ]
+                eventTypeIdList = db.getDistinctIdList(tableETE, cols, cond, 'EventType_Event.id')
+                if eventTypeIdList:
+                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId)
+                    try:
+                        if dialog.exec_():
+                            newEventTypeId = dialog.getNewEventTypeId()
+                            if newEventTypeId:
+                                record.setValue('eventType_id', toVariant(newEventTypeId))
+                                idList = set([])
+                                idListParents = set(db.getTheseAndParents(tableET, 'prevEvent_id', [eventId if eventId else self.prevEventId]))
+                                idList ^= idListParents
+                                idListDescendant = set(db.getDescendants(tableET, 'prevEvent_id', eventId if eventId else self.prevEventId))
+                                idList ^= idListDescendant
+                                if len(idList) < 2:
+                                    prevEventTypeId = getEventPrevEventTypeId(newEventTypeId)
+                                    prevEventId = getPrevEventIdByEventTypeId(prevEventTypeId, clientId) if prevEventTypeId else None
+                                    if prevEventTypeId and oldPrevEventId != prevEventId:
+                                        record.setValue('prevEvent_id', toVariant(prevEventId))
+                            db.updateRecord(tableET, record)
+                            self.updateEventListAfterEdit(eventId)
+                    finally:
+                        dialog.deleteLater()
 
 
     @pyqtSignature('')
@@ -9157,8 +9550,15 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         if actionId:
             eventId = forceRef(QtGui.qApp.db.translate('Action', 'id', actionId, 'event_id'))
             if eventId:
-                if editEvent(self, eventId):
-                    self.on_buttonBoxAction_apply()
+                if self.getEventTypeIdF090(eventId):
+                    actionId = self.getF090ActionIdToEventId(eventId)
+                    if actionId and canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(self, actionId):
+                        if forceBool(self.getF090ActionTypeId(actionId)):
+                            if self.editF090ActionToEventId(actionId):
+                                self.on_buttonBoxAction_apply()
+                else:
+                    if editEvent(self, eventId):
+                        self.on_buttonBoxAction_apply()
 
 
     @pyqtSignature('')
@@ -9181,10 +9581,48 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_btnActionEdit_clicked(self):
         actionId = self.currentActionId()
         if actionId and canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(self, actionId):
-            actionId = self.editAction(actionId)
+            if forceBool(self.getF090ActionTypeId(actionId)):
+                self.editF090Action(actionId)
+            else:
+                self.editAction(actionId)
             self.updateActionsList(self.__actionFilter, actionId)
             QtGui.qApp.emitCurrentClientInfoChanged()
         self.focusActions()
+
+
+    def getF090ActionTypeId(self, actionId):
+        if actionId:
+            db = QtGui.qApp.db
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            queryTable = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            cond = [tableAction['id'].eq(actionId),
+                    tableAction['deleted'].eq(0),
+                    tableActionType['deleted'].eq(0),
+                    tableActionType['flatCode'].like(u'%medical_examination'),
+                    ]
+            record = db.getRecordEx(queryTable, [tableActionType['id'].alias('actionTypeId')], cond)
+            return forceRef(record.value('actionTypeId')) if record else None
+        return None
+
+
+    def editF090Action(self, actionId):
+        newActionId = None
+        dialog = CF090EditDialog(self)
+        try:
+            dialog.load(actionId)
+            dialog.protectWidgetFromEdit(False)
+            dialog.exec_()
+            if dialog.isBtnSave:
+                self.updateActionsList(self.__actionFilter, dialog.itemId())
+                QtGui.qApp.emitCurrentClientInfoChanged()
+                newActionId = dialog.itemId()
+            else:
+                self.updateActionInfo(actionId)
+                self.updateClientsListRequest = True
+        finally:
+            dialog.deleteLater()
+        return newActionId
 
 
     def expertMedicalCommissionActionEdit(self):
@@ -9617,7 +10055,23 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExport, checked)
         self.onChkFilterToggled(self.sender(), checked)
-
+    
+    
+    @pyqtSignature('bool')
+    def on_chkFilterActionAttachedFiles_toggled(self, checked):
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionAttachedFiles, checked)
+        self.cmbFilterActionAttachedFiles.setEnabled(checked)
+        self.chkFilterActionFileAttach.setEnabled(checked)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, checked & self.chkFilterActionFileAttach.isChecked())
+        if self.cmbFilterActionAttachedFiles.isEnabled() and self.cmbFilterActionAttachedFiles.currentIndex() == 1:
+            self.cmbFilterActionTypeDoc.setEnabled(True)
+            self.cmbFilterActionSigned.setEnabled(True)
+            self.chkFilterActionFileAttach.setEnabled(True)
+        else:
+            self.cmbFilterActionTypeDoc.setEnabled(False)
+            self.cmbFilterActionSigned.setEnabled(False)
+            self.chkFilterActionFileAttach.setEnabled(False)
+            self.chkFilterActionFileAttach.setChecked(False)
 
     @pyqtSignature('')
     def on_btnFilterActionContract_clicked(self):
@@ -9703,6 +10157,18 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('int')
     def on_cmbFilterActionExecSetSpeciality_currentIndexChanged(self, index):
         self.cmbFilterActionExecSetPerson.setSpecialityId(self.cmbFilterActionExecSetSpeciality.value())
+    
+    
+    @pyqtSignature('int')
+    def on_cmbFilterActionAttachedFiles_currentIndexChanged(self, index):
+        active = True if index == 1 else False
+        self.cmbFilterActionTypeDoc.setEnabled(active)
+        self.cmbFilterActionSigned.setEnabled(active)
+        self.chkFilterActionFileAttach.setEnabled(active)
+        if not self.chkFilterActionFileAttach.isEnabled():
+            self.chkFilterActionFileAttach.setChecked(False)
+        self.edtFilterActionFileAttach.setEnabled(active)
+        self.setChildElementsVisible(self.chkListOnActionsPage , self.edtFilterActionFileAttach, active)
 
 
     @pyqtSignature('bool')
@@ -9884,6 +10350,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.chkFilterActionPayer.setChecked(False)
             self.chkFilterActionContract.setChecked(False)
             self.chkFilterActionExport.setChecked(False)
+            self.chkFilterActionAttachedFiles.setChecked(False)
+            self.chkFilterActionFileAttach.setChecked(False)
         self.onChkFilterToggled(self.chkFilterActionId, checked)
 
 
@@ -9944,7 +10412,6 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['actionExportStatus'] = self.cmbFilterActionExportStatus.currentIndex()
             filter['actionExportSystem'] = self.cmbFilterActionExportSystem.value()
 
-        filter['actionAttachedFiles'] = self.cmbFilterActionAttachedFiles.currentIndex()
         if self.chkFilterActionUncoordinated.isChecked():
             filter['uncoordinated'] = self.chkFilterActionUncoordinated.isChecked()
         if self.chkFilterActionMKB.isChecked():
@@ -10005,6 +10472,14 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         if self.chkThresholdPenaltyGrade.isChecked():
             filter['thresholdPenaltyGrade'] = self.edtThresholdPenaltyGrade.text()
         filter['awaitingSigningForOrganisation'] = self.chkFilterActionAwaitingSigningForOrganisation.isChecked()
+        if self.chkFilterActionAttachedFiles.isChecked():
+            filter['attachedFile'] = self.cmbFilterActionAttachedFiles.currentIndex()
+            if self.cmbFilterActionTypeDoc.isEnabled():
+                filter['typeDoc'] = forceString(self.cmbFilterActionTypeDoc.currentText())
+            if self.cmbFilterActionSigned.isEnabled():
+                filter['signed'] = self.cmbFilterActionSigned.currentIndex()
+            if self.chkFilterActionFileAttach.isChecked():
+                filter['ActionFileAttach_id'] = forceInt(self.edtFilterActionFileAttach.text())
         self.updateActionsList(filter)
         self.focusEvents()
 
@@ -10170,7 +10645,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                                          tableTempInvalidDocument['deleted'].eq(0)],
                                         tableTempInvalidDocument['idx'].name())
                 tempInvalidId = forceRef(record.value('master_id')) if record else None
-                currentTable.loadData(tempInvalidId)
+                currentTable.loadData(tempInvalidId, documentId)
                 self.setClientInfoBrowserExpert(tempInvalidId)
                 if tempInvalidId:
                     idList = db.getDistinctIdList(tablePeriod, 'id', tablePeriod['master_id'].eq(tempInvalidId),
@@ -10193,7 +10668,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                         self.getCurrentExpertRelationDocumentsExTable().setIdList(documentRelationIdList)
             else:
                 self.getCurrentTempDocumentsExPeriodsTable().setIdList([])
-                currentTable.loadData(None)
+                currentTable.loadData(None, None)
                 if isFilterExpertLinked and noPrev:
                     self.getCurrentExpertRelationDocumentsExTable().setIdList([])
 
@@ -10279,6 +10754,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 #        tempInvalidId = self.tblExpertTempInvalid.currentItemId()
         prevId = self.getExpertPrevDocId(self.tblExpertTempInvalid)
         nextId = self.getExpertNextDocId(self.tblExpertTempInvalid)
+        state = self.getExpertState(self.tblExpertTempInvalid)
+        self.actExpertTempInvalidChangeToOpen.setEnabled(state == 2)
         self.actExpertTempInvalidNext.setEnabled(bool(nextId))
         self.actExpertTempInvalidPrev.setEnabled(bool(prevId))
         # self.actExpertTempInvalidConcurrently.setEnabled(self.isEnabledExpertConcurrently(self.tblExpertTempInvalid))
@@ -10306,6 +10783,38 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.actExpertVitalRestrictionDelete.setEnabled(bool(tempInvalidId) and getRightEditTempInvalid(tempInvalidId))
 
 
+    @pyqtSignature('')
+    def on_actExpertTempInvalidChangeToOpen_triggered(self):
+        tempInvalidId = self.tblExpertTempInvalid.currentItemId()
+        if tempInvalidId:
+            db = QtGui.qApp.db
+            tableInvalidDocument = db.table('TempInvalidDocument')
+            record = db.getRecordEx(tableInvalidDocument, 
+                                    [tableInvalidDocument['last_id'], tableInvalidDocument['isExternal']], 
+                                    [tableInvalidDocument['deleted'].eq(0), 
+                                     tableInvalidDocument['master_id'].eq(tempInvalidId)], 
+                                    'id desc')
+            lastId = forceInt(record.value('last_id'))
+            isExternal = forceBool(record.value('isExternal'))
+            if lastId == 0 and not isExternal:
+                res = QtGui.QMessageBox.warning(self,
+                            u'Внимание!',
+                            u'Изменить состояние с Продлен на Открыт?',
+                            QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                            QtGui.QMessageBox.Cancel)
+                if res == QtGui.QMessageBox.Ok:
+                    model = self.tblExpertTempInvalid.model()
+                    currentItem = model.recordCache().get(tempInvalidId)
+                    currentItem.setValue('state', 0)
+                    tableInvalid = db.table('TempInvalid')
+                    db.updateRecord(tableInvalid, currentItem)
+            else:
+                QtGui.QMessageBox().information(self, u'Предупреждение!',
+                                                    u'Статус не может быть изменен, элн имеет продолжение.',
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok)
+    
+    
     @pyqtSignature('')
     def on_actExpertTempInvalidNext_triggered(self):
         self.onExpertDocNext(self.tblExpertTempInvalid)
@@ -10387,6 +10896,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.actAddActionEvent.setEnabled(self.modelEvents.rowCount()>0)
         self.actJobTicketsEvent.setEnabled(self.modelEvents.rowCount()>0)
         self.actCreateRelatedAction.setEnabled(bool(self.currentClientId()))
+        # self.actSendEventFPUMP.setEnabled(forceString(QtGui.qApp.getGlobalPreference('useServiceGISOMS')) == u'да')
 
 
     @pyqtSignature('')
@@ -12491,8 +13001,10 @@ class CCanceledSchedulesModel(CRecordListModel):
         self.addCol(CDateTimeInDocTableCol( u'Дата и время изменения',  'modifyDatetime', 20)).setReadOnly()
         self.addCol(CRBInDocTableCol(       u'Изменил',                 'modifyPerson_id', 20, 'vrbPersonWithSpeciality')).setReadOnly()
         self.addCol(CRBInDocTableCol        (u'Врач',                'person_id', 20, 'vrbPersonWithSpeciality')).setReadOnly()
+        self.addCol(CRBLikeEnumInDocTableCol(u'Тип', 'appointmentType',  20, CSchedule.atNames)).setReadOnly()
         self.addCol(CInDocTableCol(         u'Примечания',              'note', 6)).setReadOnly()
         self.order = u'Schedule_Item.time DESC'
+        self.headerSortingCol = {}
 
 
     def loadData(self, clientId):
@@ -12508,6 +13020,7 @@ class CCanceledSchedulesModel(CRecordListModel):
                      Schedule_Item.recordPerson_id,
                      Schedule_Item.modifyPerson_id,
                      Schedule_Item.modifyDatetime,
+                     Schedule.appointmentType,
                      Schedule_Item.note,
                      Schedule.person_id
                     FROM
@@ -12521,7 +13034,7 @@ class CCanceledSchedulesModel(CRecordListModel):
             query = db.query(stmt%dict(cols        = (', %s'%(','.join(col for col in cols if col))) if cols else '',
                                        queryTable = (''.join(tq for tq in tableQuery if tq)) if tableQuery else '',
                                        clientId    = clientId,
-                                       currentDate = db.formatDate(QDate.currentDate()),
+                                       currentDate = db.formatDate(QDate.currentDate().addDays(1)),
                                        order       = self.order
                                       )
                             )
@@ -12536,6 +13049,16 @@ class CCanceledSchedulesModel(CRecordListModel):
     def getScheduleItemId(self, row):
         item = self.items()[row]
         return forceRef(item.value('id'))
+    
+    
+    def sort(self, col, order=Qt.AscendingOrder):
+        self.headerSortingCol = {col: order}
+        reverse = order == Qt.DescendingOrder
+        if col in [0, 2, 4]:
+            self.items().sort(key=lambda x: forceDateTime(x.value(self.cols()[col].fieldName())) if x else None, reverse=reverse)
+        else:
+            self.items().sort(key=lambda x: forceString(self.cols()[col].toString(x.value(self.cols()[col].fieldName()), x)) if x else None, reverse=reverse)
+        self.reset()
 
 
 class CRegistryExpertPrintReport(CReport):

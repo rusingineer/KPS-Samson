@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ExportXML_Wizard_1</class>
+ <widget class="QDialog" name="ExportXML_Wizard_1">
+  <property name="windowModality">
+   <enum>Qt::NonModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>766</width>
+    <height>272</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Выбор экспортируемых МЭСов</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="1" column="0" colspan="2">
+    <widget class="CInDocTableView" name="tblItems">
+     <property name="whatsThis">
+      <string comment="ура!">список записей</string>
+     </property>
+     <property name="tabKeyNavigation">
+      <bool>false</bool>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>564</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="2" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="btnSelectAll">
+       <property name="text">
+        <string>Выбрать все</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnClearSelection">
+       <property name="text">
+        <string>Очистить</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="lblCodeFilter">
+       <property name="text">
+        <string>Код</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edtCodeFilter"/>
+     </item>
+     <item>
+      <widget class="QLabel" name="lblNameFilter">
+       <property name="text">
+        <string>Наименование</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edtNameFilter"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnFilter">
+       <property name="text">
+        <string>Применить</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>library/InDocTable.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>edtCodeFilter</tabstop>
+  <tabstop>edtNameFilter</tabstop>
+  <tabstop>btnFilter</tabstop>
+  <tabstop>tblItems</tabstop>
+  <tabstop>btnSelectAll</tabstop>
+  <tabstop>btnClearSelection</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

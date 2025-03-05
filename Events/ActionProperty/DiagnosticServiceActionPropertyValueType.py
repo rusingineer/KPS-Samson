@@ -168,6 +168,8 @@ class CDiagnosticServicePopup(QtGui.QFrame, Ui_DiagnosticServiceComboBoxPopup):
         self.tblServices.loadPreferences(preferences)
         self._customFilter = None
         self.serviceId = None
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabSearch))
+
 
     def sort(self, col):
         sortAscending = self.tableModel.headerSortingCol.get(col, False)
@@ -246,10 +248,38 @@ class CDiagnosticServicePopup(QtGui.QFrame, Ui_DiagnosticServiceComboBoxPopup):
             self.tblServices.setIdList(idList, posToId)
             self.tabWidget.setCurrentIndex(0)
             self.tabWidget.setTabEnabled(0, True)
-            self.tblServices.setFocus(Qt.OtherFocusReason)
         else:
-            self.tabWidget.setCurrentIndex(1)
-            self.tabWidget.setTabEnabled(0, False)
+            self.tblServices.setIdList(idList)
+            self.tabWidget.setTabEnabled(0, True)
+            
+    @pyqtSignature('QString')
+    def on_edtSearch_textChanged(self, text):
+        self.loadData(forceString(text))
+
+    def loadData(self, name=None):
+        db = QtGui.qApp.db
+        table = db.table('rbDiagnosticService')
+        cond = []
+        order = table['name'].name()
+        for col, value in self.tableModel.headerSortingCol.items():
+            order = ' '.join(
+                [['code', 'name', 'fullName', 'synonyms', 'method', 'area', 'localization', 'components'][col],
+                 u'ASC' if value else u'DESC'])
+        if self._customFilter:
+            cond.append(self._customFilter)
+        if name:
+            if any(ch.isdigit() for ch in name):
+                cond.append(table['code'].like('%' + name + '%'))
+            else:
+                nameFilter = []
+                dotedName = addDotsEx(name)
+                nameFilter.append(table['name'].like(dotedName))
+                nameFilter.append(table['fullName'].like(dotedName))
+                nameFilter.append(table['synonyms'].like(dotedName))
+                cond.append(db.joinOr(nameFilter))
+
+        idList = db.getDistinctIdList(table, [table['id'].name()], where=cond, order=order, limit=1000)
+        self.setIdList(idList, id)
 
     @pyqtSignature('QModelIndex')
     def on_tblServices_doubleClicked(self, index):

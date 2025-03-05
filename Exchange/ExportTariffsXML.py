@@ -231,14 +231,14 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
         self.emit(SIGNAL('completeChanged()'))
 
     
-    pyqtSignature('QDate')
+    @pyqtSignature('QDate')
     def on_edtFilterBegDateFrom_dateChanged(self, date):
         if date.isValid() and not self.chkExportAll.isChecked():
             self.applyFilter()
         self.emit(SIGNAL('completeChanged()'))
     
     
-    pyqtSignature('QDate')
+    @pyqtSignature('QDate')
     def on_edtFilterBegDateTil_dateChanged(self, date):
         if date.isValid() and not self.chkExportAll.isChecked():
             self.applyFilter()
@@ -265,7 +265,7 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
         self.emit(SIGNAL('completeChanged()'))
     
     
-    pyqtSignature('')
+    @pyqtSignature('')
     def on_chkActive_clicked(self):
         self.tblItems.clearSelection()
         self.parent.selectedItems = []

@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>МЕДИЦИНСКАЯ КАРТА ПАЦИЕНТА, ПОЛУЧАЮЩЕГО МЕДИЦИНСКУЮ ПОМОЩЬ В АМБУЛАТОРНЫХ УСЛОВИЯХ</title>
+{setPageSize('A4')} {: setOrientation('L')} {:setMargins(0)} 
+
+</head>
+
+<body>
+
+<table width="100%"  cellspacing="0" cellpadding="0">
+<tr>
+<td width="48%">
+<table width="100%"  cellspacing="0" cellpadding="0">
+<tr>
+<td align="left"  width="55%"><font size=-1>
+Санкт-Петербургское государственное <br>бюджетное учреждение здравоохранения <br>"Городская поликлиника № 39"<br>
+ОГРН {currentOrganisation.OGRN}<br>
+Адрес: 191123, г. Санкт-Петербург,<br>
+ул. Фурштатская, д. 36, Лит. Б
+</td>
+<td width="45%"><font size=-1>
+Код формы по ОКУД _____<br>
+Код организации по ОКПО ______<br>
+Медицинская документация<br>
+Учетная форма № 025/у<br>
+Утверждена приказом Минздрава России<br>
+от 15 декабря 2014 года № 834н<br>
+</td></tr>
+</table>
+<table width="100%"  cellspacing="0" cellpadding="0">
+<tr>
+<td width="80%"  align="center"><font size=+1>МЕДИЦИНСКАЯ КАРТА ПАЦИЕНТА,</font></td>
+<td rowspan="3" align="left"><FONT FACE="Code 3 de 9" SIZE=+3>*{client.id}*</FONT>
+<table border="1" cellpadding="2"  cellspacing="0" ><tr><td align="left"><font size=+1> 
+{:m=0}  
+{for: s in client.socStatuses}
+          {for: c in s.classes}
+	 {if: c.code == u'1'}{:m=m+1}{end:}
+     {end:}     
+ {end:}
+ {if: m>0} &nbsp;Л&nbsp; {end:}
+ {if: m==0} &nbsp;&nbsp;&nbsp;&nbsp;{end:}
+
+</font></td></tr></table></td>
+</tr>
+<tr>
+<td width="80%"  align="center"><font size=+1>ПОЛУЧАЮЩЕГО МЕДИЦИНСКУЮ ПОМОЩЬ</font></td>
+</tr>
+<tr>
+<td width="80%"  align="center"><font size=+1>В АМБУЛАТОРНЫХ УСЛОВИЯХ № <b><u>{client.id}</u></b></font></td>
+</tr>
+</table>
+<br>
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center"><font size=+3><b> {client.lastName}<br>{client.firstName} {client.patrName}</b></font></td>
+</tr>
+<tr>
+<td><font size=+1>Дата заполнения медицинской карты: "___" __________ _____ г.</font></td>
+</tr>
+<tr>
+<td><font size=+1>Дата рождения: <font size=+2><b>{client.birthDate.toString("dd")} 
+{:m=client.birthDate.toString("MM")}
+{if: m=='01'}января{end:}
+{if: m=='02'}февраля{end:}
+{if: m=='03'}марта{end:}
+{if: m=='04'}апреля{end:}
+{if: m=='05'}мая{end:}
+{if: m=='06'}июня{end:}
+{if: m=='07'}июля{end:}
+{if: m=='08'}августа{end:}
+{if: m=='09'}сентября{end:}
+{if: m=='10'}октября{end:}
+{if: m=='11'}ноября{end:}
+{if: m=='12'}декабря{end:}
+{client.birthDate.toString("yyyy")} года
+</b></font></td>
+</tr>
+<tr>
+<td><font size=+1>Пол: <font size=+2>{:s=client.sex}{if: s==u"Ж"}ЖЕН{end:}{if: s==u"М"}МУЖ{end:}</font></td>
+</tr>
+<tr>
+<td>Место регистрации: <b>
+{if: client.regAddress}{client.regAddress}
+{else:}_________________________________________________{end:}
+
+</b></td>
+</tr>
+<tr>
+<td>Местность: {:incity = (str(client.regAddress.KLADRCode)[8:11] == '000')} {if: incity} городская {else:} сельская{end:}</td>
+</tr>
+<tr>
+<td><b><font size=+1>Адрес проживания: <font size=+2>{if: client.locAddress}{client.locAddress}
+{else:}__________________________{end:}</b></font></td>
+</tr>
+<tr>
+<td><font size=+1>
+{if: len(client.phones)}{:p = client.phones}
+{if: p==u'домашний телефон: ' or p==u'мобильный телефон: ' or p==u'рабочий телефон: '}Телефон: ________________________________________________
+{else:}{client.phones}{end:}
+{else:}Телефон: ________________________________________________{end:}
+</td>
+</tr>
+<tr>
+<td><b><font size=+1>Полис ОМС: <font size=+2>{if: len(client.policy.serial)}серия {client.policy.serial} №{client.policy.number}
+{else:}_______________________________{end:}
+</font></b></td>
+</tr>
+<tr>
+<td>Наименование СМО: <b>{:a=client.policy} {if: a} {client.policy.insurer}{end:}
+{if: a==''}_______________________________________________{end:}</b></td>
+</tr>
+<tr>
+<td><b><font size=+1>СНИЛС № <font size=+2>{if: len(client.SNILS)}{client.SNILS}</font>{else:}______________________________________________________{end:}</b></td>
+</tr>
+<tr>
+<td><b><font size=+1> Код категории льготы </b> <font size=+1>    
+     {:k=0}
+	 {for: s in client.socStatuses}
+     {for: c in s.classes}
+	 {if: c.code == u'1'}{:k=k+1}{s.code}; {end:}{end:}{end:}   
+	 {if: k==0}________________________{end:}
+     
+	
+ </font></td>
+</tr>
+
+<tr>
+<td><b><font size=+1>Инвалидность:</font><font size=+1>
+
+{:m =0}
+   {for: s in client.socStatuses}
+	 {if: s.code == u'081'}{:m=m+1}{end:}
+	 {if: s.code == u'082'}{:m=m+1}{end:}
+	 {if: s.code == u'083'}{:m=m+1}{end:}    
+   {end:}
+{if: m==1}<u>впервые</u> или повторно, {end:}
+{if: m>1}впервые или <u>повторно</u>, {end:}
+{if: m==0}впервые или повторно, {end:}
+
+
+{:m=0}    
+{:d=0}
+{for: s in client.socStatuses}
+{if: s.code == u'081'}{if: s.document}{if: s.document.date>d}{:d = s.document.date}{end:}{end:}{end:}
+{if: s.code == u'082'}{if: s.document}{if: s.document.date>d}{:d = s.document.date}{end:}{end:}{end:}
+{if: s.code == u'083'}{if: s.document}{if: s.document.date>d}{:d = s.document.date}{end:}{end:}{end:}
+{end:}
+{for: s in client.socStatuses}
+{if: s.document.date==d}{if: s.code == u'081'}{:m=u"группа 1"}{end:}{end:}
+{if: s.document.date==d}{if: s.code == u'082'}{:m=u"группа 2"}{end:}{end:}
+{if: s.document.date==d}{if: s.code == u'083'}{:m=u"группа 3"}{end:}{end:}
+{if: d==0}{if: s.code == u'081'}{:m=u"группа 1"}{end:}{end:}
+{if: d==0}{if: s.code == u'082'}{:m=u"группа 2"}{end:}{end:}
+{if: d==0}{if: s.code == u'083'}{:m=u"группа 3"}{end:}{end:}
+{end:}
+{if: m==u"группа 1"}группа 1{end:}
+{if: m==u"группа 2"}группа 2{end:}
+{if: m==u"группа 3"}группа 3{end:}
+{if: m==0}группа___{end:}
+</font>
+</td>
+</tr>
+<tr>
+<td><b><font size=+1>дата установления</font> 
+{:m=0}    
+{:d=0}
+{for: s in client.socStatuses}
+{if: s.code == u'081'}{if: s.document}{:d = s.document.date}{if: s.document.date>d}{end:}{end:}{end:}
+{if: s.code == u'082'}{if: s.document}{:d = s.document.date}{if: s.document.date>d}{end:}{end:}{end:}
+{if: s.code == u'083'}{if: s.document}{:d = s.document.date}{if: s.document.date>d}{end:}{end:}{end:}
+{end:}
+{if: d>0}<font size=+1><u>{d}</u></font>{end:}
+{if: d==0}_______________________{end:}
+
+</font></b> 
+</td>
+</tr>
+<tr>
+<td>Документ: <b>{:d=client.document}{if: d}{client.document}{else:}______________________________________________________{end:}</b> </td>
+</tr>
+<tr>
+<td>Семейное положение: {for: s in client.socStatuses}
+{if: s.code == u'сп01'}не состоит в браке{:m=m+1}{end:}
+{if: s.code == u'сп02'}состоит в зарегистрированном браке{:m=m+1}{end:}
+{if: s.code == u'сп03'}неизвестно{:m=m+1}{end:}
+{end:}
+{if: m==0}неизвестно{end:}
+</td>
+</tr>
+<tr>
+<td>Образование:
+{:m=0}
+{for: s in client.socStatuses}
+{if: s.code == u'о01'}профессиональное высшее{:m=m+1}{end:}
+{if: s.code == u'о02'}профессиональное среднее{:m=m+1}{end:}
+{if: s.code == u'о03'}общее среднее{:m=m+1}{end:}
+{if: s.code == u'о04'}общее основное{:m=m+1}{end:}
+{if: s.code == u'о05'}общее начальное{:m=m+1}{end:}
+{end:}
+{if: m==0}__________________________________________________________{end:}
+</td>
+</tr>
+<tr>
+<td><b>Место работы: {if: len(client.work.shortName)}{client.work.shortName}</b>
+{else:}___________________________________________________________{end:} 
+</td>
+</tr>
+<tr>
+<td><b>Должность:  {if: len(client.work.post)}{client.work.post}</b>
+{else:}_____________________________________________________________{end:} 
+</td>
+</tr>
+<tr><td>Занятость: 
+{:m=0}
+{for: s in client.socStatuses}
+{if: s.code == u'з01'}Студент(ка){:m=m+1}{end:}
+{if: s.code == u'з02'}Не работает{:m=m+1}{end:}
+{if: s.code == u'з03'}Пенсионер(ка){:m=m+1}{end:}
+{if: s.code == u'з04'}Проходит военную службу или приравненную к ней службу{:m=m+1}{end:}
+{if: s.code == u'з05'}Прочие (ведут домашнее хозяйство или лица БОМЖ){:m=m+1}{end:}
+{if: s.code == u'з06'}Дошкольник неорганизован{:m=m+1}{end:}
+{if: s.code == u'з07'}Дошкольник организован{:m=m+1}{end:}
+{if: s.code == u'з08'}Учащийся (средней школы или среднего учебного заведения){:m=m+1}{end:}
+{if: s.code == u'з09'}Работает{:m=m+1}{end:}
+{end:}
+{if: m==0}
+{:z=client.work}
+{if: z}{client.work}{end:}
+{if: z==''}_____________________________________________________________{end:}{end:}
+</td></tr>
+<tr>
+<td>Перемена места работы: __________________________________________________</td>
+</tr>
+<tr>
+<td>Перемена места жительства: ______________________________________________</td>
+</tr>
+</table>
+</td>
+<td width="5%">
+
+</td>
+<td  width="47%" align="center"><p><font size=+1>Заболевания, по поводу которых осуществляется диспансерное наблюдение:</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="1">
+<tr>
+               	<td  width="15%" align="center">Дата начала диспансерного наблюдения</td>
+                <td  width="15%" align="center">Дата прекращения диспансерного наблюдения</td>
+                <td  width="40%" align="center">Диагноз</td>
+                <td  width="15%" align="center">Код по МКБ-10</td>
+                <td  width="15%" align="center">Врач</td>
+              </tr>
+{:m=0}
+{for: m in range(0,5)}
+            <tr>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>{:m=m+1}
+{end:}
+</table><p align="center"><font size=+1>Лист записи заключительных (уточненных) диагнозов:</p>
+<table width="100%" border="1" cellspacing="0" cellpadding="1">
+	<tr>
+    	<td width="17.9%" align="center">Дата (число, месяц, год)</td>
+    	<td width="50%" align="center">Заключительные (уточненные) диагнозы</td>
+    	<td width="17.8%" align="center">Установленные впервые или повторно (+/-)</td>
+    	<td width="14.3%" align="center">Врач</td>
+    </font></tr>
+{:k=0}
+{for: k in range(0, 19)}
+    <tr>
+    	<td align="center">&nbsp;</td>
+    	<td align="center">&nbsp;</td>
+    	<td align="center">&nbsp;</td>
+    	<td align="center">&nbsp;</td>
+    </tr>{:k=k+1}
+{end:}</table><font size=+1>
+{if: client.bloodType}
+	Группа крови: {client.bloodType} {if: client.allergies} Аллергические реакции: {for: allergy in client.allergies}
+    {allergy.name},
+    Сила: {allergy.power},
+    Дата: {allergy.date};{end:} {else:}Аллергические реакции _______________ _______________________________________________________{end:}
+{else:}
+	Группа крови: ____ Rh-фактор_______{if: client.allergies} Аллергические реакции: {for: allergy in client.allergies}
+    {allergy.name},
+    Сила: {allergy.power},
+    Дата: {allergy.date}; 
+{end:}
+{else:}Аллергические реакции ______ ___________________________________________________________{end:}
+{end:}
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+

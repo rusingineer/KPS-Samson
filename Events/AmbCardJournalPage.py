@@ -225,8 +225,6 @@ class CAmbCardJournalPage(QtGui.QWidget, Ui_AmbCardJournalPage):
         queryTable = tableAction
         queryTable = queryTable.innerJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
         queryTable = queryTable.leftJoin(tableEventType, db.joinAnd([tableEventType['id'].eq(tableEvent['eventType_id']), tableEventType['context'].ne(u'flag'), tableEventType['code'].ne(u'flag')]))
-        if not self.orderActions:
-            self.orderActions = u'Action.begDate'
         queryTable = queryTable.innerJoin(tableActionType, tableAction['actionType_id'].eq(tableActionType['id']))
         if actionClass:            
             cond.append(tableActionType['class'].eq(actionClass-1))
@@ -249,7 +247,12 @@ class CAmbCardJournalPage(QtGui.QWidget, Ui_AmbCardJournalPage):
             if endDateTime and endDateTime.isValid():
                 cond.append(tableAction['begDate'].le(endDateTime))
             cond.append(tableEvent['client_id'].eq(self._clientId))
-        idList = db.getIdList(queryTable, fields, cond, self.orderActions)
+
+        if not self.orderActions:
+            self.orderActions = u'begDate'
+        order = self.orderActions.replace('begDate', 'Action.begDate').replace('endDate', 'Action.endDate')
+
+        idList = db.getIdList(queryTable, fields, cond, order)
         self.tblActions.setIdList(idList)
 
 

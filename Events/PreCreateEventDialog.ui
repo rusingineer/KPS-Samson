@@ -17,8 +17,75 @@
    <property name="margin">
     <number>4</number>
    </property>
-   <item row="21" column="1" colspan="2">
+   <item row="11" column="1" colspan="2">
+    <widget class="QWidget" name="addVisitsWidget" native="true">
+     <layout class="QGridLayout" name="gridLayout_2">
+      <property name="margin">
+       <number>0</number>
+      </property>
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <item>
+         <widget class="QCheckBox" name="chkAddVisits">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Добавить визиты по длительности</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="cmbWeekProfile">
+          <item>
+           <property name="text">
+            <string>по пятидневной рабочей неделе</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>по шестидневной рабочей неделе</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>по семидневной рабочей неделе</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>318</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="22" column="1" colspan="2">
     <widget class="CClientRelationComboBoxPatron" name="cmbClientRelationId"/>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbEventType"/>
+   </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="CPolyclinicComboBox" name="cmbOrg"/>
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblOrg">
@@ -36,9 +103,6 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="1" colspan="2">
-    <widget class="CPolyclinicComboBox" name="cmbOrg"/>
-   </item>
    <item row="1" column="0">
     <widget class="QLabel" name="lblEventType">
      <property name="sizePolicy">
@@ -55,29 +119,6 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbEventType"/>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="lblSrcRegion">
-     <property name="text">
-      <string>Субъект</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1" colspan="2">
-    <widget class="CKLADRComboBox" name="cmbSrcCity"/>
-   </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblSrcCity">
-     <property name="text">
-      <string>Район</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1" colspan="2">
-    <widget class="CKladrOkatoComboBox" name="cmbSrcRegion"/>
-   </item>
    <item row="6" column="0">
     <widget class="QLabel" name="lblRelegate">
      <property name="text">
@@ -85,7 +126,7 @@
      </property>
     </widget>
    </item>
-   <item row="18" column="0">
+   <item row="19" column="0">
     <spacer>
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -97,6 +138,26 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblSrcRegion">
+     <property name="text">
+      <string>Субъект</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="2">
+    <widget class="CKladrOkatoComboBox" name="cmbSrcRegion"/>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblSrcCity">
+     <property name="text">
+      <string>Район</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="2">
+    <widget class="CKLADRComboBox" name="cmbSrcCity"/>
    </item>
    <item row="12" column="0">
     <widget class="QLabel" name="lblDays">
@@ -206,6 +267,22 @@
      </property>
     </widget>
    </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="lblPersonal">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;Врач</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbPerson</cstring>
+     </property>
+    </widget>
+   </item>
    <item row="7" column="1" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
@@ -268,22 +345,6 @@
      </item>
     </layout>
    </item>
-   <item row="8" column="0">
-    <widget class="QLabel" name="lblPersonal">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Врач</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbPerson</cstring>
-     </property>
-    </widget>
-   </item>
    <item row="8" column="1" colspan="2">
     <widget class="CPersonComboBoxEx" name="cmbPerson"/>
    </item>
@@ -302,6 +363,29 @@
       <cstring>edtEventSetDate</cstring>
      </property>
     </widget>
+   </item>
+   <item row="12" column="1">
+    <widget class="QSpinBox" name="edtDays">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="2">
+    <spacer name="horizontalSpacer_3">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>826</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item row="9" column="1" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -400,30 +484,27 @@
      </item>
     </layout>
    </item>
-   <item row="12" column="1">
-    <widget class="QSpinBox" name="edtDays">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
+   <item row="15" column="0">
+    <widget class="QLabel" name="lblAssistantId">
+     <property name="text">
+      <string>Ассистент</string>
      </property>
     </widget>
    </item>
-   <item row="12" column="2">
-    <spacer name="horizontalSpacer_3">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>826</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
+   <item row="15" column="1" colspan="2">
+    <widget class="CPersonComboBoxEx" name="cmbAssistantId"/>
    </item>
-   <item row="13" column="0">
+   <item row="16" column="0">
+    <widget class="QLabel" name="lblCuratorId">
+     <property name="text">
+      <string>Куратор</string>
+     </property>
+    </widget>
+   </item>
+   <item row="14" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtExternalId"/>
+   </item>
+   <item row="14" column="0">
     <widget class="QLabel" name="lblExternalId">
      <property name="toolTip">
       <string>Внешний идентификатор</string>
@@ -433,44 +514,24 @@
      </property>
     </widget>
    </item>
-   <item row="13" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtExternalId"/>
-   </item>
-   <item row="14" column="0">
-    <widget class="QLabel" name="lblAssistantId">
-     <property name="text">
-      <string>Ассистент</string>
-     </property>
-    </widget>
-   </item>
-   <item row="14" column="1" colspan="2">
-    <widget class="CPersonComboBoxEx" name="cmbAssistantId"/>
-   </item>
-   <item row="15" column="0">
-    <widget class="QLabel" name="lblCuratorId">
-     <property name="text">
-      <string>Куратор</string>
-     </property>
-    </widget>
-   </item>
-   <item row="15" column="1" colspan="2">
+   <item row="16" column="1" colspan="2">
     <widget class="CPersonComboBoxEx" name="cmbCuratorId"/>
    </item>
-   <item row="16" column="0">
+   <item row="17" column="0">
     <widget class="QLabel" name="lblTissueType">
      <property name="text">
       <string>Тип биоматериала</string>
      </property>
     </widget>
    </item>
-   <item row="16" column="1" colspan="2">
+   <item row="17" column="1" colspan="2">
     <widget class="CRBComboBox" name="cmbTissueType">
      <property name="enabled">
       <bool>true</bool>
      </property>
     </widget>
    </item>
-   <item row="17" column="0" colspan="3">
+   <item row="18" column="0" colspan="3">
     <widget class="QCheckBox" name="chkSelectPreviousActions">
      <property name="enabled">
       <bool>true</bool>
@@ -480,20 +541,13 @@
      </property>
     </widget>
    </item>
-   <item row="23" column="0" colspan="3">
+   <item row="24" column="0" colspan="3">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="lblRelegateOrg">
-     <property name="text">
-      <string>Направитель</string>
      </property>
     </widget>
    </item>
@@ -521,95 +575,41 @@
      </item>
     </layout>
    </item>
-   <item row="11" column="1" colspan="2">
-    <widget class="QWidget" name="addVisitsWidget" native="true">
-     <layout class="QGridLayout" name="gridLayout_2">
-      <property name="margin">
-       <number>0</number>
-      </property>
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <item row="0" column="0">
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <item>
-         <widget class="QCheckBox" name="chkAddVisits">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Добавить визиты по длительности</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QComboBox" name="cmbWeekProfile">
-          <item>
-           <property name="text">
-            <string>по пятидневной рабочей неделе</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>по шестидневной рабочей неделе</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>по семидневной рабочей неделе</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item>
-         <spacer name="horizontalSpacer_2">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>318</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="19" column="1" colspan="2">
-    <widget class="COrgStructureComboBox" name="cmbDirectedToOSId"/>
-   </item>
-   <item row="20" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbDirectedProfileId"/>
-   </item>
-   <item row="19" column="0">
-    <widget class="QLabel" name="lblDirectedToOSId">
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblRelegateOrg">
      <property name="text">
-      <string>Направлен в отделение</string>
+      <string>Направитель</string>
      </property>
     </widget>
    </item>
-   <item row="20" column="0">
+   <item row="21" column="0">
     <widget class="QLabel" name="lblDirectedProfileId">
      <property name="text">
       <string>Профиль</string>
      </property>
     </widget>
    </item>
-   <item row="21" column="0">
+   <item row="20" column="0">
+    <widget class="QLabel" name="lblDirectedToOSId">
+     <property name="text">
+      <string>Направлен в отделение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="21" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbDirectedProfileId"/>
+   </item>
+   <item row="20" column="1" colspan="2">
+    <widget class="COrgStructureComboBox" name="cmbDirectedToOSId"/>
+   </item>
+   <item row="22" column="0">
     <widget class="QLabel" name="lblClientRelationId">
      <property name="text">
       <string>Лицо по уходу</string>
      </property>
     </widget>
    </item>
-   <item row="22" column="1">
+   <item row="23" column="1">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -621,6 +621,25 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="13" column="0">
+    <widget class="QLabel" name="lblMes">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;МЭС</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbMes</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="13" column="1" colspan="2">
+    <widget class="CMESComboBoxEx" name="cmbMes"/>
    </item>
   </layout>
  </widget>
@@ -674,6 +693,11 @@
    <class>CClientRelationComboBoxPatron</class>
    <extends>QComboBox</extends>
    <header>Registry/Utils.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CMESComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>library/MES/MESComboBoxEx.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

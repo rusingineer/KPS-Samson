@@ -26,7 +26,7 @@ import traceback
 from optparse import OptionParser
 
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import QDir, qInstallMsgHandler, Qt, QVariant, QDateTime, QDate, pyqtSignature
+from PyQt4.QtCore import QDir, qInstallMsgHandler, Qt, QVariant, QDateTime, QDate, pyqtSignature, QTime
 
 from Users.Login import CLoginDialog
 from Users.UserInfo import CUserInfo, CDemoUserInfo
@@ -76,6 +76,10 @@ class CMyApp(QtGui.QApplication):
         self._currentClientId = None
         self.userInfo = None
         self.demoModeRequested = True
+
+
+    def getGlobalPreference(self, code):
+        return None
 
 
     def documentEditor(self):
@@ -532,13 +536,14 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
                 QtGui.qApp.processEvents()
                 try:
                     params['startId'] = startId
-                    response = AttachService.callService(serviceMethod, params, url, timeout = 600)
+                    response = AttachService.callService(serviceMethod, params, url, timeout=600)
                 except Exception, e:
                     raise Exception(u'Ошибка при запросе к сервису %s:\nМетод getAttachListByRange, startId = %d\n%s' % (url, startId, unicode(e)))
 
                 attachList = response['attachlist']
                 self.prbAttachImport.setMaximum(self.prbAttachImport.maximum() + len(attachList))
                 self.prbAttachImport.setFormat(u'%v из %m')
+                recordList = []
                 for attachment in attachList:
                     if self.attachImportCanceled:
                         break
@@ -552,14 +557,20 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
                                       'regLocal', 'regStreet', 'regHouse', 'regBuilding', 'regAppartment',
                                       'livArea', 'livCity', 'livLocal', 'livStreet', 'livHouse', 'livBuilding',
                                       'livAppartment', 'attachOrigin', 'phone', 'udlSerial', 'udlNumber',
-                                      'udlType', 'snils', 'smo']:
+                                      'udlType', 'snils', 'smo','client_id']:
                         record.setValue(fieldName, nameCase(person.get(fieldName)) if fieldName in ['lastName', 'firstName', 'patrName'] and person.get(fieldName) else person.get(fieldName))
                     if info:
                         info = info[0]
                         for fieldName in ['date', 'snils', 'area', 'mo', 'type']:
                             record.setValue('attach_' + fieldName, actDate if actDate and fieldName == 'date' else info.get(fieldName))
                     record.setValue('serviceMethod', serviceMethodType)
-                    db.insertRecord(soc_attachments, record)
+                    recordList.append(record)
+                    if len(recordList) == 1000:
+                        db.insertRecordList(soc_attachments, recordList)
+                        recordList = []
+                if recordList:
+                    db.insertRecordList(soc_attachments, recordList)
+
                 startId = response['nextId']
 
             if self.attachImportCanceled:

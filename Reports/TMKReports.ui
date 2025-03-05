@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>tmkReports</class>
+ <widget class="QDialog" name="tmkReports">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>944</width>
+    <height>698</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>TestWindow</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QTableWidget" name="tableWidget"/>
+   </item>
+   <item row="0" column="1">
+    <widget class="QGroupBox" name="groupBoxFilters">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>278</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Фильтры</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <property name="margin">
+       <number>4</number>
+      </property>
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <item row="0" column="0">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QLabel" name="lblTemplatesId">
+          <property name="text">
+           <string>Получить данные отчета по шаблону</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="cmbTemplatesId"/>
+        </item>
+        <item>
+         <widget class="QLabel" name="lblTimeCreateApplication">
+          <property name="text">
+           <string>Время создания заявки </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QCheckBox" name="chkCreateApplicationBegDate">
+            <property name="text">
+             <string>С</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDateEdit" name="edtCreateApplicationBegDate">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="calendarPopup">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkCreateApplicationEndDate">
+            <property name="text">
+             <string>по</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDateEdit" name="edtCreateApplicationEndDate">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="calendarPopup">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QLabel" name="lblTimeCreateApplication_2">
+          <property name="text">
+           <string>Спрятать колонки</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="CMultivalueComboBox" name="cmbFilterI">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="verticalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="chkGetData">
+          <property name="text">
+           <string>Получать данные с сервера </string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QPushButton" name="btnFilterApply">
+            <property name="text">
+             <string>Применить</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnFilterReset">
+            <property name="text">
+             <string>Сбросить</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CMultivalueComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/MultivalueComboBox.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkCreateApplicationBegDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtCreateApplicationBegDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>693</x>
+     <y>128</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>756</x>
+     <y>128</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkCreateApplicationEndDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtCreateApplicationEndDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>821</x>
+     <y>128</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>886</x>
+     <y>128</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

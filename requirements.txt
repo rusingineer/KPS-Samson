@@ -32,3 +32,9 @@ ZSI==2.1a1
 Pillow==6.2.2
 scipy==1.2.3
 pyBarcode==0.8b1
+enum34==1.1.10
+hid==1.0.6
+lxml==4.9.3
+protobuf==3.6.1
+grpcio==1.17.1
+grpcio-tools==1.17.1

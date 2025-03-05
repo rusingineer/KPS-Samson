@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_test\Reports\DiagnosisDispans.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_pre_release\Reports\DiagnosisDispans.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -25,20 +25,35 @@ except AttributeError:
 class Ui_DiagnosisDispansDialog(object):
     def setupUi(self, DiagnosisDispansDialog):
         DiagnosisDispansDialog.setObjectName(_fromUtf8("DiagnosisDispansDialog"))
-        DiagnosisDispansDialog.resize(345, 137)
+        DiagnosisDispansDialog.resize(362, 269)
         self.gridLayout = QtGui.QGridLayout(DiagnosisDispansDialog)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.lblDate = QtGui.QLabel(DiagnosisDispansDialog)
         self.lblDate.setObjectName(_fromUtf8("lblDate"))
         self.gridLayout.addWidget(self.lblDate, 0, 0, 1, 1)
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 0, 2, 1, 1)
         self.edtDate = CDateEdit(DiagnosisDispansDialog)
         self.edtDate.setObjectName(_fromUtf8("edtDate"))
         self.gridLayout.addWidget(self.edtDate, 0, 1, 1, 1)
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem, 0, 2, 1, 1)
+        self.lblOrgStructure = QtGui.QLabel(DiagnosisDispansDialog)
+        self.lblOrgStructure.setObjectName(_fromUtf8("lblOrgStructure"))
+        self.gridLayout.addWidget(self.lblOrgStructure, 1, 0, 1, 1)
+        self.cmbOrgStructure = COrgStructureComboBox(DiagnosisDispansDialog)
+        self.cmbOrgStructure.setObjectName(_fromUtf8("cmbOrgStructure"))
+        self.gridLayout.addWidget(self.cmbOrgStructure, 1, 1, 1, 2)
+        self.lblSpeciality = QtGui.QLabel(DiagnosisDispansDialog)
+        self.lblSpeciality.setObjectName(_fromUtf8("lblSpeciality"))
+        self.gridLayout.addWidget(self.lblSpeciality, 2, 0, 2, 2)
+        self.cmbSpeciality = CRBComboBox(DiagnosisDispansDialog)
+        self.cmbSpeciality.setObjectName(_fromUtf8("cmbSpeciality"))
+        self.gridLayout.addWidget(self.cmbSpeciality, 3, 1, 1, 2)
         self.label_4 = QtGui.QLabel(DiagnosisDispansDialog)
         self.label_4.setObjectName(_fromUtf8("label_4"))
-        self.gridLayout.addWidget(self.label_4, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.label_4, 4, 0, 1, 1)
+        self.cmbPerson = CPersonComboBoxEx(DiagnosisDispansDialog)
+        self.cmbPerson.setObjectName(_fromUtf8("cmbPerson"))
+        self.gridLayout.addWidget(self.cmbPerson, 4, 1, 1, 2)
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.lblMKB = QtGui.QLabel(DiagnosisDispansDialog)
@@ -75,17 +90,30 @@ class Ui_DiagnosisDispansDialog(object):
         self.horizontalLayout_2.addItem(spacerItem1)
         self.horizontalLayout_2.setStretch(2, 1)
         self.horizontalLayout_2.setStretch(3, 1)
-        self.gridLayout.addLayout(self.horizontalLayout_2, 2, 0, 1, 3)
+        self.gridLayout.addLayout(self.horizontalLayout_2, 5, 0, 1, 3)
+        self.lblSocStatusClass = QtGui.QLabel(DiagnosisDispansDialog)
+        self.lblSocStatusClass.setObjectName(_fromUtf8("lblSocStatusClass"))
+        self.gridLayout.addWidget(self.lblSocStatusClass, 6, 0, 1, 1)
+        self.cmbSocStatusClass = CSocStatusComboBox(DiagnosisDispansDialog)
+        self.cmbSocStatusClass.setObjectName(_fromUtf8("cmbSocStatusClass"))
+        self.gridLayout.addWidget(self.cmbSocStatusClass, 6, 1, 1, 2)
+        self.lblSocStatusType = QtGui.QLabel(DiagnosisDispansDialog)
+        self.lblSocStatusType.setObjectName(_fromUtf8("lblSocStatusType"))
+        self.gridLayout.addWidget(self.lblSocStatusType, 7, 0, 1, 1)
+        self.cmbSocStatusType = CRBComboBox(DiagnosisDispansDialog)
+        self.cmbSocStatusType.setObjectName(_fromUtf8("cmbSocStatusType"))
+        self.gridLayout.addWidget(self.cmbSocStatusType, 7, 1, 1, 2)
         spacerItem2 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem2, 3, 1, 1, 2)
+        self.gridLayout.addItem(spacerItem2, 8, 0, 1, 1)
         self.buttonBox = QtGui.QDialogButtonBox(DiagnosisDispansDialog)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridLayout.addWidget(self.buttonBox, 4, 2, 1, 1)
-        self.cmbPerson = CPersonComboBoxEx(DiagnosisDispansDialog)
-        self.cmbPerson.setObjectName(_fromUtf8("cmbPerson"))
-        self.gridLayout.addWidget(self.cmbPerson, 1, 1, 1, 2)
+        self.gridLayout.addWidget(self.buttonBox, 9, 1, 1, 1)
+        self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
+        self.lblSpeciality.setBuddy(self.cmbSpeciality)
         self.lblMKB.setBuddy(self.cmbMKBFilter)
+        self.lblSocStatusClass.setBuddy(self.cmbSocStatusClass)
+        self.lblSocStatusType.setBuddy(self.cmbSocStatusType)
 
         self.retranslateUi(DiagnosisDispansDialog)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), DiagnosisDispansDialog.reject)
@@ -94,15 +122,26 @@ class Ui_DiagnosisDispansDialog(object):
     def retranslateUi(self, DiagnosisDispansDialog):
         DiagnosisDispansDialog.setWindowTitle(_translate("DiagnosisDispansDialog", "Параметры", None))
         self.lblDate.setText(_translate("DiagnosisDispansDialog", "На дату", None))
+        self.lblOrgStructure.setText(_translate("DiagnosisDispansDialog", "&Подразделение", None))
+        self.lblSpeciality.setText(_translate("DiagnosisDispansDialog", "&Специальность", None))
+        self.cmbSpeciality.setWhatsThis(_translate("DiagnosisDispansDialog", "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"></p></body></html>", None))
         self.label_4.setText(_translate("DiagnosisDispansDialog", "Врач", None))
         self.lblMKB.setText(_translate("DiagnosisDispansDialog", "Коды диагнозов по &МКБ", None))
         self.cmbMKBFilter.setItemText(0, _translate("DiagnosisDispansDialog", "Игнор.", None))
         self.cmbMKBFilter.setItemText(1, _translate("DiagnosisDispansDialog", "Интервал", None))
-        self.edtMKBFrom.setInputMask(_translate("DiagnosisDispansDialog", "a00.00; ", None))
+        self.edtMKBFrom.setInputMask(_translate("DiagnosisDispansDialog", "a00.00", None))
         self.edtMKBFrom.setText(_translate("DiagnosisDispansDialog", "A.", None))
-        self.edtMKBTo.setInputMask(_translate("DiagnosisDispansDialog", "a00.00; ", None))
+        self.edtMKBTo.setInputMask(_translate("DiagnosisDispansDialog", "a00.00", None))
         self.edtMKBTo.setText(_translate("DiagnosisDispansDialog", "Z99.9", None))
+        self.lblSocStatusClass.setText(_translate("DiagnosisDispansDialog", "Класс соц.статуса", None))
+        self.lblSocStatusType.setText(_translate("DiagnosisDispansDialog", "Тип соц.статуса", None))
 
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from Registry.SocStatusComboBox import CSocStatusComboBox
 from library.DateEdit import CDateEdit
 from library.ICDCodeEdit import CICDCodeEdit
+from library.crbcombobox import CRBComboBox

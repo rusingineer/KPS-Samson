@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDateTime, pyqtSignature
 
 from library.crbcombobox         import CRBComboBox
-from library.InDocTable          import CDateInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol
+from library.InDocTable          import CDateInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol, CEnumInDocTableCol, CInDocTableModel
 from library.interchange         import getRBComboBoxValue
 from library.PrintInfo           import CInfoContext
 from library.PrintTemplates      import applyTemplate, CPrintAction, CPrintButton, getPrintTemplates
@@ -24,6 +24,7 @@ from library.Utils               import forceDouble, forceString, forceRef, toVa
 from Reports.ReportBase          import CReportBase, createTable
 from Reports.ReportView          import CReportViewDialog
 from Stock.NomenclatureComboBox  import CNomenclatureInDocTableCol
+from Stock.InventoryFillDialog   import CInventoryFillDialog
 from Stock.StockMotionBaseDialog import CStockMotionBaseDialog, CStockMotionItemsCopyPasteMixin, CNomenclatureItemsBaseModel
 from Stock.Utils                 import CSummaryInfoModelMixin, CPriceItemDelegate, getStockMotionItemQuantityColumn, getExistsNomenclatureStmt, getExistsNomenclatureAmount, findFinanceBatchShelfTime, getBatchShelfTimeFinance, FILTER_FOR_BATCH_FOR_COMBOBOX
 
@@ -37,11 +38,13 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
         CStockMotionBaseDialog.__init__(self, parent)
         CStockMotionItemsCopyPasteMixin.__init__(self, parent)
         self.addModels('Items', CItemsModel(self))
+        self.addModels('Commission', CStockInventoryCommissionModel(self))
         self.addObject('actDuplicate', QtGui.QAction(u'Дублировать', self))
         self.addObject('btnFill', QtGui.QPushButton(u'Заполнить', self))
         self.btnFill.setShortcut('F9')
         self.addObject('btnPrint', CPrintButton(self, u'Печать'))
         self.btnPrint.setShortcut('F6')
+        self.setupBtnFillMenu()
         self.setupUi(self)
         self.cmbSupplierPerson.setSpecialityIndependents()
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
@@ -57,12 +60,41 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
             self.btnPrint.menu().addSeparator()
             self.btnPrint.addAction(CPrintAction(u'Напечатать список', -1, self.btnPrint, self.btnPrint))
         self.tblItems.setModel(self.modelItems)
+        self.tblCommission.setModel(self.modelCommission)
         self.prepareItemsPopupMenu(self.tblItems)
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.buttonBox.addButton(self.btnFill, QtGui.QDialogButtonBox.ActionRole)
+        self.btnFill.setMenu(self.mnuBtnFill)
         self.tblItems.setItemDelegateForColumn(CItemsModel.priceColumnIndex, CPriceItemDelegate(self.tblItems))
+        self.tblCommission.addPopupDelRow()
+        self.tblCommission.addMoveRow()
         self._initView()
+        self.tblItems.enableColsMove()
+
+
+    def setupBtnFillMenu(self):
+        self.addObject('mnuBtnFill', QtGui.QMenu(self))
+        self.addObject('actFill', QtGui.QAction(u'По остаткам', self))
+        self.addObject('actFillFilter', QtGui.QAction(u'По отбору', self))
+        self.mnuBtnFill.addAction(self.actFill)
+        self.mnuBtnFill.addAction(self.actFillFilter)
+
+
+    @pyqtSignature('')
+    def on_mnuBtnFill_aboutToShow(self):
+        self.actFill.setEnabled(True)
+        self.actFillFilter.setEnabled(True)
+
+
+    @pyqtSignature('')
+    def on_actFill_triggered(self):
+        self.on_btnFill(isFilter=False)
+
+
+    @pyqtSignature('')
+    def on_actFillFilter_triggered(self):
+        self.on_btnFill(isFilter=True)
 
 
     @pyqtSignature('int')
@@ -71,13 +103,32 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
 
 
     def actPrintMotions(self, templateId):
-        from Stock.StockMotionInfo import CStockMotionInfoList
+        from Stock.StockMotionInfo import CStockMotionCommissionInfo, CStockMotionItemInfo, CStockMotionInfo
         if templateId == -1:
             self.getNomenclaturePrint()
         else:
-            idList = self.tblItems.model().itemIdList()
             context = CInfoContext()
-            data = { 'InventoryList': CStockMotionInfoList(context, idList)}
+            record = self.getRecord()
+            inventory = CStockMotionInfo(context, forceRef(record.value('id')))
+            inventory.setRecord(record)
+            inventory.setOkLoaded()
+            inventoryList = []
+            for recordItem in self.modelItems.items():
+                item = CStockMotionItemInfo(context, forceRef(recordItem.value('id')))
+                item.setRecord(recordItem)
+                item.setOkLoaded()
+                inventoryList.append(item)
+            inventory._items = inventoryList
+            commissionList = []
+            for recordCommission in self.modelCommission.items():
+                item = CStockMotionCommissionInfo(context, forceRef(recordCommission.value('id')))
+                item.setRecord(recordCommission)
+                item.setOkLoaded()
+                commissionList.append(item)
+            data = { 'Inventory'     : inventory,
+                     'InventoryList' : inventoryList,
+                     'CommissionList': commissionList
+                   }
             QtGui.qApp.call(self, applyTemplate, (self, templateId, data))
 
 
@@ -126,8 +177,8 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
         cursor.setCharFormat(CReportBase.ReportTitle)
         cursor.insertText(self.windowTitle())
         self.dumpParams(cursor)
-        cursor.insertBlock()
         cursor.setCharFormat(CReportBase.ReportBody)
+        cursor.insertText(u'ЛСиИМН.')
         colWidths  = [ self.tblItems.columnWidth(i) for i in xrange(model.columnCount()-1) ]
         colWidths.insert(0,10)
         totalWidth = sum(colWidths)
@@ -147,6 +198,29 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
                 index = model.createIndex(iModelRow, iModelCol)
                 text = forceString(model.data(index))
                 table.setText(iTableRow, iModelCol+1, text)
+        cursor.movePosition(QtGui.QTextCursor.End)
+        cursor.insertBlock()
+        cursor.insertText(u'Состав комиссии.')
+        cursor.insertBlock()
+        colWidths  = [ self.tblCommission.columnWidth(i) for i in xrange(self.modelCommission.columnCount()-1) ]
+        colWidths.insert(0,10)
+        totalWidth = sum(colWidths)
+        tableColumns = []
+        iColNumber = False
+        for iCol, colWidth in enumerate(colWidths):
+            widthInPercents = str(max(1, colWidth*90/totalWidth))+'%'
+            if iColNumber == False:
+                tableColumns.append((widthInPercents, [u'№'], CReportBase.AlignRight))
+                iColNumber = True
+            tableColumns.append((widthInPercents, [forceString(self.modelCommission._cols[iCol].title())], CReportBase.AlignLeft))
+        table = createTable(cursor, tableColumns)
+        for iModelRow in xrange(self.modelCommission.rowCount()-1):
+            iTableRow = table.addRow()
+            table.setText(iTableRow, 0, iModelRow+1)
+            for iModelCol in xrange(self.modelCommission.columnCount()):
+                index = self.modelCommission.createIndex(iModelRow, iModelCol)
+                text = forceString(self.modelCommission.data(index))
+                table.setText(iTableRow, iModelCol+1, text)
         html = doc.toHtml('utf-8')
         view = CReportViewDialog(self)
         view.setText(html)
@@ -160,6 +234,7 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
     def setRecord(self, record):
         CStockMotionBaseDialog.setRecord(self, record)
         self.modelItems.loadItems(self.itemId())
+        self.modelCommission.loadItems(self.itemId())
         self.setIsDirty(False)
         self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
 
@@ -174,6 +249,7 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
 
     def saveInternals(self, id):
         self.modelItems.saveItems(id)
+        self.modelCommission.saveItems(id)
 
 
     def checkDataEntered(self):
@@ -203,11 +279,21 @@ class CInventoryEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMix
         self.btnFill.setEnabled(self.cmbSupplier.value() is not None)
 
 
-    @pyqtSignature('')
-    def on_btnFill_clicked(self):
+#    @pyqtSignature('')
+    def on_btnFill(self, isFilter):
+        filter = {}
+        if isFilter:
+            dialog = None
+            try:
+                dialog = CInventoryFillDialog(self)
+                if dialog.exec_():
+                    filter = dialog.getFilter()
+            finally:
+                if dialog:
+                    dialog.deleteLater()
         orgStructureId = self.cmbSupplier.value()
         if orgStructureId:
-            self.modelItems.fill(orgStructureId)
+            self.modelItems.fill(orgStructureId, filter)
             self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
 
 
@@ -387,8 +473,8 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
         CNomenclatureItemsBaseModel._applyQntRatio(self, item, oldUnitId, newUnitId, qntCol='oldQnt')
 
 
-    def fill(self, orgStructureId):
-        stmt = getExistsNomenclatureStmt(orderBy = u'rbNomenclature.name', otherHaving=[u'qnt!=0'])
+    def fill(self, orgStructureId, filter):
+        stmt = getExistsNomenclatureStmt(orderBy = u'rbNomenclature.name', otherHaving=[u'qnt!=0'], inventoryFillFilter=filter)
         query = QtGui.qApp.db.query(stmt)
         while query.next():
             record = query.record()
@@ -409,3 +495,25 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
             myItem.setValue('oldSum',          record.value('sum'))
             self.items().append(myItem)
         self.reset()
+
+
+class CStockInventoryCommissionModel(CInDocTableModel):
+    def __init__(self, parent):
+        CInDocTableModel.__init__(self,
+            'StockMotion_CommissionComposition', 'id', 'master_id', parent)
+        self.addCol(CInDocTableCol(u'№', 'idx', 5).setReadOnly())
+        self.addCol(CEnumInDocTableCol(u'Должность', 'post', 25,
+            [u'Утверждающий', u'Председатель', u'Член комиссии']))
+        self.addCol(CRBInDocTableCol(u'Сотрудник', 'person_id', 35,
+            'vrbPersonWithSpecialityAndOrgStr', filter='code != ""'))
+        self.dataChanged.connect(self.enumerateItems)
+
+
+    def loadItems(self, masterId):
+        CInDocTableModel.loadItems(self, masterId)
+        self.enumerateItems(None, None)
+
+
+    def enumerateItems(self, topLeft, bottomRight, roles=None):
+        for i, record in enumerate(self._items):
+            record.setValue('idx', toVariant(i + 1))

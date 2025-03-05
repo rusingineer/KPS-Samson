@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Registry\DispExchangeDiagnosisPage.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Registry\DispExchangeDiagnosisPage.ui'
 #
-# Created: Sun Feb 24 13:24:30 2019
+# Created: Wed Dec 20 11:54:44 2023
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_DispExchangeDiagnosisPage(object):
     def setupUi(self, DispExchangeDiagnosisPage):
         DispExchangeDiagnosisPage.setObjectName(_fromUtf8("DispExchangeDiagnosisPage"))
-        DispExchangeDiagnosisPage.resize(1117, 1001)
+        DispExchangeDiagnosisPage.resize(1117, 806)
         self.horizontalLayout = QtGui.QHBoxLayout(DispExchangeDiagnosisPage)
         self.horizontalLayout.setSpacing(4)
         self.horizontalLayout.setMargin(4)
@@ -35,7 +35,7 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName(_fromUtf8("scrollArea"))
         self.scrollAreaWidgetContents = QtGui.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1107, 991))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1107, 796))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout(self.scrollAreaWidgetContents)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
@@ -273,6 +273,68 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.horizontalLayout_4.addWidget(self.cmbBusyness)
         self.horizontalLayout_4.setStretch(1, 1)
         self.verticalLayout_6.addLayout(self.horizontalLayout_4)
+        self.horizontalLayout_5 = QtGui.QHBoxLayout()
+        self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
+        self.chkSocStatuses = QtGui.QCheckBox(self.groupBox)
+        self.chkSocStatuses.setObjectName(_fromUtf8("chkSocStatuses"))
+        self.horizontalLayout_5.addWidget(self.chkSocStatuses)
+        self.chkSocStatusesCondition = QtGui.QCheckBox(self.groupBox)
+        self.chkSocStatusesCondition.setEnabled(False)
+        self.chkSocStatusesCondition.setObjectName(_fromUtf8("chkSocStatusesCondition"))
+        self.horizontalLayout_5.addWidget(self.chkSocStatusesCondition)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_5)
+        self.horizontalLayout_38 = QtGui.QHBoxLayout()
+        self.horizontalLayout_38.setObjectName(_fromUtf8("horizontalLayout_38"))
+        self.lblFilterSocStatusesBegDate = QtGui.QLabel(self.groupBox)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lblFilterSocStatusesBegDate.sizePolicy().hasHeightForWidth())
+        self.lblFilterSocStatusesBegDate.setSizePolicy(sizePolicy)
+        self.lblFilterSocStatusesBegDate.setObjectName(_fromUtf8("lblFilterSocStatusesBegDate"))
+        self.horizontalLayout_38.addWidget(self.lblFilterSocStatusesBegDate)
+        self.edtFilterSocStatusesBegDate = CDateEdit(self.groupBox)
+        self.edtFilterSocStatusesBegDate.setEnabled(False)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.edtFilterSocStatusesBegDate.sizePolicy().hasHeightForWidth())
+        self.edtFilterSocStatusesBegDate.setSizePolicy(sizePolicy)
+        self.edtFilterSocStatusesBegDate.setDisplayFormat(_fromUtf8("dd.MM.yyyy"))
+        self.edtFilterSocStatusesBegDate.setCalendarPopup(True)
+        self.edtFilterSocStatusesBegDate.setObjectName(_fromUtf8("edtFilterSocStatusesBegDate"))
+        self.horizontalLayout_38.addWidget(self.edtFilterSocStatusesBegDate)
+        self.lblFilterSocStatusesEndDate = QtGui.QLabel(self.groupBox)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lblFilterSocStatusesEndDate.sizePolicy().hasHeightForWidth())
+        self.lblFilterSocStatusesEndDate.setSizePolicy(sizePolicy)
+        self.lblFilterSocStatusesEndDate.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignTrailing|QtCore.Qt.AlignVCenter)
+        self.lblFilterSocStatusesEndDate.setObjectName(_fromUtf8("lblFilterSocStatusesEndDate"))
+        self.horizontalLayout_38.addWidget(self.lblFilterSocStatusesEndDate)
+        self.edtFilterSocStatusesEndDate = CDateEdit(self.groupBox)
+        self.edtFilterSocStatusesEndDate.setEnabled(False)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.edtFilterSocStatusesEndDate.sizePolicy().hasHeightForWidth())
+        self.edtFilterSocStatusesEndDate.setSizePolicy(sizePolicy)
+        self.edtFilterSocStatusesEndDate.setDisplayFormat(_fromUtf8("dd.MM.yyyy"))
+        self.edtFilterSocStatusesEndDate.setCalendarPopup(True)
+        self.edtFilterSocStatusesEndDate.setObjectName(_fromUtf8("edtFilterSocStatusesEndDate"))
+        self.horizontalLayout_38.addWidget(self.edtFilterSocStatusesEndDate)
+        self.horizontalLayout_38.setStretch(1, 2)
+        self.horizontalLayout_38.setStretch(3, 2)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_38)
+        self.cmbSocStatusesClass = CSocStatusComboBox(self.groupBox)
+        self.cmbSocStatusesClass.setEnabled(False)
+        self.cmbSocStatusesClass.setObjectName(_fromUtf8("cmbSocStatusesClass"))
+        self.verticalLayout_6.addWidget(self.cmbSocStatusesClass)
+        self.cmbSocStatusesType = CRBComboBox(self.groupBox)
+        self.cmbSocStatusesType.setEnabled(False)
+        self.cmbSocStatusesType.setObjectName(_fromUtf8("cmbSocStatusesType"))
+        self.verticalLayout_6.addWidget(self.cmbSocStatusesType)
         self.chkFilterPerson = QtGui.QCheckBox(self.groupBox)
         self.chkFilterPerson.setObjectName(_fromUtf8("chkFilterPerson"))
         self.verticalLayout_6.addWidget(self.chkFilterPerson)
@@ -387,6 +449,10 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.lblBusyness.setText(_translate("DispExchangeDiagnosisPage", "Занятость", None))
         self.cmbBusyness.setItemText(1, _translate("DispExchangeDiagnosisPage", "работающие", None))
         self.cmbBusyness.setItemText(2, _translate("DispExchangeDiagnosisPage", "неработающие", None))
+        self.chkSocStatuses.setText(_translate("DispExchangeDiagnosisPage", "Соц.статус", None))
+        self.chkSocStatusesCondition.setText(_translate("DispExchangeDiagnosisPage", "Не имеет соц.статуса", None))
+        self.lblFilterSocStatusesBegDate.setText(_translate("DispExchangeDiagnosisPage", "С", None))
+        self.lblFilterSocStatusesEndDate.setText(_translate("DispExchangeDiagnosisPage", "по", None))
         self.chkFilterPerson.setText(_translate("DispExchangeDiagnosisPage", "Врач", None))
         self.cmbFilterPerson.setItemText(0, _translate("DispExchangeDiagnosisPage", "Врач", None))
         self.chkFilterMKB.setText(_translate("DispExchangeDiagnosisPage", "Коды МКБ", None))
@@ -403,8 +469,10 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.btnPutEvPlanList.setText(_translate("DispExchangeDiagnosisPage", "Экспорт плана диспансерных осмотров", None))
         self.btnExportedPlan.setText(_translate("DispExchangeDiagnosisPage", "Список запланированных в ТФОМС", None))
 
+from library.crbcombobox import CRBComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from library.ICDCodeEdit import CICDCodeEdit
 from library.TableView import CTableView
+from Registry.SocStatusComboBox import CSocStatusComboBox
 from library.DateEdit import CDateEdit

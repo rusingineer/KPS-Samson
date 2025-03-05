@@ -48,6 +48,7 @@ class CActionTypeComboBoxExPopup(QtGui.QFrame, Ui_ActionTypeComboBoxExPopup):
         self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
         self.tblActionTypeFind.expand(self.tableModel.index(0, 0))
         self.classesPopupVisible = False
+        self.showInForm = True
 
 
     def mousePressEvent(self, event):
@@ -94,6 +95,7 @@ class CActionTypeComboBoxExPopup(QtGui.QFrame, Ui_ActionTypeComboBoxExPopup):
         self.cmbServiceType.setCurrentIndex(self.serviceType)
         self.chkPreferable.setChecked(False)
         self.chkPreferableOrgStructure.setChecked(False)
+        self.chkShowInForm.setChecked(True)
         self.cmbSex.setCurrentIndex(0)
         self.spbAgeFor.setValue(0)
         self.spbAgeTo.setValue(150)
@@ -208,6 +210,17 @@ class CActionTypeComboBoxExPopup(QtGui.QFrame, Ui_ActionTypeComboBoxExPopup):
         if ageFor and ageTo and ageFor <= ageTo:
             cond.append(tableActionType['age'].ge(ageFor))
             cond.append(tableActionType['age'].le(ageTo))
+        if self.chkShowInForm.isChecked():
+            self.showInForm = True
+            cond.append(tableActionType['showInForm'].eq(1))
+            cond.append("""CASE
+			WHEN  ActionType.group_id IS NOT NULL
+				THEN (SELECT at2.showInForm FROM ActionType at2 WHERE at2.id = ActionType.group_id ) = 1
+			ELSE 1
+		END """)
+        else:
+            self.showInForm = False
+
         idList = db.getDistinctIdList(queryTable, tableActionType['id'].name(),
                               where=cond,
                               order=u'ActionType.name ASC')

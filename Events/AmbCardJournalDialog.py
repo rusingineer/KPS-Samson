@@ -58,9 +58,11 @@ class CAmbCardJournalDialog(CDialogBase, Ui_AmbCardJournalDialog):
 
     @pyqtSignature('')
     def on_btnPrint_clicked(self):
-        html = self.ambCardPage.txtAmbCardReport.toHtml()
+        printData = self.ambCardPage.txtAmbCardReport.getPrintData()
         view = CReportViewDialog(self)
-        view.setText(html)
+        view.setText(printData['templateResult'].content)
+        view.setPageFormat(printData['pageFormat'])
+        view.templateContent = printData['templateResult'].content
         view.exec_()
 
 

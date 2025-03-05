@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import os
+import re
 import sys
 import traceback
 from logging.handlers import RotatingFileHandler
@@ -17,7 +18,7 @@ from PyQt4.QtCore import QDir, QDate, QDateTime, QVariant
 
 from Events.Action import CAction
 from Events.ActionInfo import CActionInfo
-from Events.Utils import getEventDiagnosis
+from Exchange.AriadnaModels.AdditionalForm import AdditionalForm
 from Exchange.AriadnaModels.BirthCertificate import BirthCertificate
 from Exchange.AriadnaModels.Cellular import Cellular
 from Exchange.AriadnaModels.Certificate import Certificate
@@ -37,6 +38,7 @@ from library.Preferences import CPreferences
 from library.PrintInfo import CInfoContext
 from library.PrintTemplates import escape
 from library.Utils import anyToUnicode, forceString, forceInt, forceRef, toVariant, quote, forceBool, unformatSNILS
+from library.Attach.WebDAVInterface import CWebDAVInterface
 import platform
 
 _referral = namedtuple('referral', ('actionId', 'eventId', 'clientId', 'exportId'))
@@ -46,6 +48,7 @@ _service = namedtuple('service', ('testCode', 'serviceCode', 'serviceName'))
 class CAriadnaExchange(QtCore.QCoreApplication):
 
     iniFileName = '/root/.config/samson-vista/AriadnaExchange.ini'
+    datetimeFormat = "yyyy-MM-ddTHH:mm:ss.000"
 
     def __init__(self, args):
         parser = OptionParser(usage="usage: %prog [options]")
@@ -75,14 +78,17 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         QtGui.qApp = self
         self.userId = 1
         self.font = lambda: None
+        self.disableCheckDB = lambda: True
         self.logLevel = 2
         self.mapVerifiers = {}
         self.mapUnits = {}
+        self.mapUnitsByIdentification = {}
         self.mapTestFederalCodeToId = {}
         self.reloading = False
         self.updateJobTicketStatus = False
         self.resultCount = 40
         self.expirationDays = 7
+        self.transferConsent = False
         self.apikey = ''
         self.icmid = ''
         self.url = ''
@@ -95,6 +101,9 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         else:
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.AriadnaExchange')
         self.initLogger()
+        self.typeReports = 0
+        self.webDAVInterface = CWebDAVInterface()
+
 
     def openDatabase(self):
         self.db = None
@@ -108,6 +117,9 @@ class CAriadnaExchange(QtCore.QCoreApplication):
                                                compressData=self.preferences.dbCompressData,
                                                connectionName=self.connectionName)
             database.registerDocumentTable('rbUnit')
+            database.registerDocumentTable('Action')
+            database.registerDocumentTable('Action_ActionProperty')
+            database.registerDocumentTable('Action_FileAttach')
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
 
@@ -155,14 +167,29 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.updateJobTicketStatus = forceBool(self.preferences.appPrefs.get('updateJobTicketStatus', False))
         self.resultCount = forceInt(self.preferences.appPrefs.get('resultCount', 40))
         self.expirationDays = forceInt(self.preferences.appPrefs.get('expirationDays', 7))
+        self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
         self.connectionName = forceString(self.preferences.appPrefs.get('connectionName', 'AriadnaExchange'))
+        self.typeReports = forceInt(self.preferences.appPrefs.get('typeReports', 0))
+        url = forceString(self.preferences.appPrefs.get('WebDAVUrl', ''))
+        self.webDAVInterface.setWebDAVUrl(url)
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
 
     def log(self, title, message, level=2, stack=None):
         if level <= QtGui.qApp.logLevel:
-            logString = u'%s: %s\n' % (title, message)
+            if isinstance(message, list):
+                for item in message:
+                    if "binary" in item:
+                        item["binary"] = ''
+            elif isinstance(message, dict):
+                for item in message:
+                    if "binary" in item:
+                        item["binary"] = ''
+            elif "binary" in message:
+                pattern = r'"binary"\s*:\s*{[^}]*}'
+                message = re.sub(pattern, '"binary" : {}', message)
+            logString = u'%s: %s\n' % (title, str(message).decode(encoding="unicode_escape") if type(message) is dict else message)
             if stack:
                 try:
                     logString += anyToUnicode(''.join(traceback.format_list(stack))).decode('utf-8') + '\n'
@@ -187,6 +214,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
             if self.db:
                 self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AriadnaLIS', 'id'))
                 self.mappingTestToServices()
+                self.loadUnitsByIdentification()
                 self.db.query('CALL getAppLock_prepare()')
                 if self.options.numberResult:
                     self.getResults(number=self.options.numberResult, count=self.resultCount)
@@ -312,6 +340,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             if lockId:
                 context = CInfoContext()
                 client = context.getInstance(CClientInfo, referral.clientId)
+                action = CActionInfo(context, referral.actionId)
+                eventInfo = action.getEventInfo()
                 observation = Observation()
 
                 # заполняем данные пациента
@@ -392,6 +422,15 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         observation.patient.insurance.statusID = client.compulsoryPolicy.kind.regionalCode
                         observation.patient.insurance.statusCode = client.compulsoryPolicy.kind.regionalCode
                         observation.patient.insurance.status = client.compulsoryPolicy.kind.name
+
+                    typCode = None
+                    if action.finance:
+                        typCode = action.finance.identify('lisAriadna')
+                    elif eventInfo.contract.finance:
+                        typCode = eventInfo.contract.finance.identify('lisAriadna')
+                    if typCode:
+                        observation.patient.insurance.typCode = typCode
+
                     if client.compulsoryPolicy.insurer:
                         observation.patient.insurance.company = Company()
                         observation.patient.insurance.company.id = forceString(client.compulsoryPolicy.insurer.id)
@@ -407,12 +446,12 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
 
                 action = CActionInfo(context, referral.actionId)
 
-                observation.regDate = fmtDate(action.directionDate.date)
+                observation.regDate = action.directionDate.toString(CAriadnaExchange.datetimeFormat)
                 observation.originalOrderIdentification.extId = forceString(action.id)
                 observation.order.id = forceString(action[u'Номер направления'])
-                observation.order.date = fmtDate(action.directionDate.date)
+                observation.order.date = action.directionDate.toString(CAriadnaExchange.datetimeFormat)
                 observation.order.hisId = forceString(action.id)
-                observation.order.medHistory = action.getEventInfo().externalId
+                observation.order.medHistory = eventInfo.externalId
 
                 identifySpecimenTypes = action._action.getProperty(u'Биоматериал').getInfo(context).identify('urn:oid:1.2.643.5.1.13.13.11.1081')
                 if identifySpecimenTypes:
@@ -421,9 +460,31 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                     observation.specimenTypes.code = identifySpecimenTypes
                 if action.isUrgent:
                     observation.cito = True
-                diagnosis = getEventDiagnosis(referral.eventId)
+                diagnosis = action.MKB.__str__() if action.MKB.__str__() else getEventDiagnosis(referral.eventId)
+                # getEventDiagnosis(referral.eventId)
                 if diagnosis:
                     observation.diagnosis = diagnosis
+
+                # Передача согласий на выгрузку результатов в ИЕМК для психиатрий
+                if self.transferConsent:
+                    for consent in client.consents:
+                        if consent.code == 'egisz' and (action.directionDate >= consent.date
+                                                        and (consent.endDate.isNull() or action.directionDate < consent.endDate)
+                                                        and consent.value == 1):
+                            additionalForm = AdditionalForm()
+                            additionalForm.code = '23001'
+                            additionalForm.type = 'string'
+                            additionalForm.value = u'да'
+                            additionalForm.valueId = '1'
+                            observation.additionalForm = [additionalForm]
+                            break
+                    else:
+                        additionalForm = AdditionalForm()
+                        additionalForm.code = '23001'
+                        additionalForm.type = 'string'
+                        additionalForm.value = u'нет'
+                        additionalForm.valueId = '2'
+                        observation.additionalForm = [additionalForm]
 
                 # заполняем услуги
                 services = {}
@@ -510,17 +571,24 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
         params = {}
         headers = self.getHeaders()
         referral = None
+        add_url = ''
+        if self.typeReports == 0:
+            add_url = '/results'
+        elif self.typeReports == 1:
+            add_url = '/reports/pdf'
+        elif self.typeReports == 2:
+            add_url = '/reports/semd'
 
         if (not number or number == 'all') and count:
             params = {'count': forceString(count), 'order': order}
-        if number and number != 'all':
+        if number and number != 'all' and self.typeReports == 0:
             referral = self.getReferralByNumber(number)
             if not referral:
                 self.log(u'Загрузка результата {0}'.format(number), u'Направление не найдено в БД', level=1)
                 return
-            url = self.url + '/results' + ('/{id}'.format(id=referral.actionId) if referral.actionId else '')
+            url = self.url + add_url + ('/{id}'.format(id=referral.actionId) if referral.actionId else '')
         else:
-            url = self.url + '/results'
+            url = self.url + add_url
         response = requests.get(url, headers=headers, params=params, timeout=self.timeout)
         jsonData = None
         self.log(u'Загрузка результатов response code', anyToUnicode(response.status_code), 2)
@@ -572,15 +640,23 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         verifierSNILS = None
                         hasErrors = False
                         hasCancelingTest = False
-                        hasBacteria = False
+                        isMicrobiology = False
                         testNotes = []
+                        signerSNILS = None
+                        labGUID = None
+                        for ident in observation.orderingInstitution.externalIdentification:
+                            if ident.value == 'MISID':
+                                labGUID = ident.valueText
+                                break
+
                         for rep in observation.reports:
                             for res in rep.results:
                                 testCode = res.measurement.code
+                                isTestFounding = False
                                 if res.bacteria:
                                     mapSIR = {1: 'S', 2: 'I', 3: 'R'}
                                     antibioticList = []
-                                    hasBacteria = True
+                                    isMicrobiology = True
                                     if not finishDate:
                                         finishDate = rep.finishDate
                                     if not verifier:
@@ -635,14 +711,30 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                         htmlText += rowText.format(antibioticName) + u'</tr>'
                                     htmlText += u'</table></td></tr>'
                                     if antibioticList:
-                                        htmlText += u'<tr><td align="center">** S - чувствителен, I - умеренно-устойчив, R - устойчив</td></tr>'
+                                        htmlText += u'<tr><td align="center">** S - Чувствительный при стандартном режиме дозирования  I - Чувствительный при увеличенной экспозиции  R - Резистентный</td></tr>'
                                     htmlText += u'</table></body></html>'
 
                                     prop = action.getPropertyByShortName(u'results')
                                     if prop:
                                         prop.setValue(htmlText)
+                                elif 'MBIO' in res.resCode:
+                                    isMicrobiology = True
+                                    if not finishDate:
+                                        finishDate = rep.finishDate
+                                    if not verifier:
+                                        verifier = res.verifier
+                                        verifierSNILS = res.verifier.code
+                                        if res.verifierRef:
+                                            for physician in observation.physicians:
+                                                if res.verifierRef.ref == physician.uri:
+                                                    for identification in physician.resource.identifications:
+                                                        if identification.documentType == 'SNILS':
+                                                            verifierSNILS = identification.number
+                                    prop = action.getPropertyByShortName(u'results')
+                                    if prop:
+                                        prop.setValue(res.description)
                                 if res.notes:
-                                    if hasBacteria:
+                                    if isMicrobiology:
                                         testNotes.append(u'{notes}'.format(notes=res.notes))
                                     else:
                                         testNotes.append(u'{name} - {notes}'.format(name=res.measurement.name, notes=res.notes))
@@ -667,24 +759,58 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                         if identification.documentType == 'SNILS':
                                                             verifierSNILS = identification.number
                                     continue
-                                isTestFounding = False
-                                try:
-                                    testIds = self.getTestIds(testCode)
-                                    for testId in testIds:
-                                        if testId:
-                                            prop = action.getPropertyByTest(testId)
+                                if not isMicrobiology:
+                                    try:
+                                        testIds = self.getTestIds(testCode)
+                                        for testId in testIds:
+                                            unitId = None
+                                            if testId:
+                                                prop = action.getPropertyByTest(testId)
+                                                if prop:
+                                                    if res.resultValue:
+                                                        prop.setValue(res.resultValue)
+                                                    elif res.protocol:
+                                                        protocolText = u''
+                                                        for item in res.protocol:
+                                                            protocolText += item.measurName + ' ' + item.resultText + '; '
+                                                        prop.setValue(protocolText.strip())
+                                                    if res.norm.text:
+                                                        prop.setNorm(res.norm.text.replace('(', '').replace(')', ''))
+                                                    # Единицы измерения сначала ищем по идентификатору urn:oid:1.2.643.5.1.13.13.11.1358
+                                                    if res.unitCode:
+                                                        unitId = self.mapUnitsByIdentification.get(res.unitCode)
+                                                    # Если не нашли, ищем по коду ед. измерения
+                                                    if not unitId and res.unit:
+                                                        unitId = self.getUnitId(res.unit)
+                                                    if unitId:
+                                                        prop.setUnitId(unitId)
+
+                                                    if not finishDate:
+                                                        finishDate = rep.finishDate
+                                                    if not verifier:
+                                                        verifier = res.verifier
+                                                        verifierSNILS = res.verifier.code
+                                                        if res.verifierRef:
+                                                            for physician in observation.physicians:
+                                                                if res.verifierRef.ref == physician.uri:
+                                                                    for identification in physician.resource.identifications:
+                                                                        if identification.documentType == 'SNILS':
+                                                                            verifierSNILS = identification.number
+                                                    isTestFounding = True
+                                                    break
+                                    except:
+                                        isTestFounding = False
+                                    finally:
+                                        if not isTestFounding:
+                                            # ТТ 2884 При обмене в лис Ариадна необходимо импортировать доназначенные в лаборатории анализы в отдельное новое свойство
+                                            prop = action.getPropertyByShortName(u'additional_research')
                                             if prop:
-                                                if res.resultValue:
-                                                    prop.setValue(res.resultValue)
-                                                elif res.protocol:
-                                                    protocolText = u''
-                                                    for item in res.protocol:
-                                                        protocolText += item.measurName + ' ' + item.resultText + '; '
-                                                    prop.setValue(protocolText.strip())
-                                                if res.norm.text:
-                                                    prop.setNorm(res.norm.text.replace('(', '').replace(')', ''))
-                                                if res.unit:
-                                                    prop.setUnitId(self.getUnitId(res.unit))
+                                                oldValue = prop.getValue()
+                                                if oldValue:
+                                                    newValue = oldValue + u'\n' + res.measurement.code + ' ' + res.measurement.name + ' ' + res.resultText + ';'
+                                                else:
+                                                    newValue = res.measurement.code + ' ' + res.measurement.name + ' ' + res.resultText + ';'
+                                                prop.setValue(newValue)
                                                 if not finishDate:
                                                     finishDate = rep.finishDate
                                                 if not verifier:
@@ -696,17 +822,52 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                                 for identification in physician.resource.identifications:
                                                                     if identification.documentType == 'SNILS':
                                                                         verifierSNILS = identification.number
-                                                isTestFounding = True
-                                                break
-                                except:
-                                    isTestFounding = False
-                                finally:
-                                    if not isTestFounding and not hasBacteria:
-                                        self.log('error', u'Событие {0}. Направление: {1}. Отсутствует код теста {2}; name:{3}{4}{5}'.format(referral.eventId,
-                                            observation.order.id, testCode, res.measurement.name,
-                                            '; shortName: ' + res.measurement.shortName if res.measurement.shortName else '',
-                                            '; srvdepCode: ' + res.srvdepCode if res.srvdepCode else ''), 2)
-                                        hasErrors = True
+                                            else:
+                                                self.log('error', u'Событие {0}. Направление: {1}. Отсутствует код теста {2}; name:{3}{4}{5}'.format(referral.eventId,
+                                                    observation.order.id, testCode, res.measurement.name,
+                                                    '; shortName: ' + res.measurement.shortName if res.measurement.shortName else '',
+                                                    '; srvdepCode: ' + res.srvdepCode if res.srvdepCode else ''), 2)
+                                                hasErrors = True
+                        if self.typeReports and hasattr(QtGui.qApp, 'webDAVInterface'):
+                            storageInterface = QtGui.qApp.webDAVInterface
+                            isFindSameFile = False
+                            if observation.binary.pdf and self.typeReports == 1 and storageInterface:
+                                name = u'ProtocolAriadna_' + observation.order.id + u'.pdf'
+                                for attachedFile in action._attachedFileItemList:
+                                    if attachedFile.oldName == name:
+                                        if attachedFile.respSignature and attachedFile.respSignature.signatureBytes == observation.binary.practitioner.decode('base64'):
+                                            isFindSameFile = True
+                                if not isFindSameFile:
+                                    _file = storageInterface.uploadBytes(name, observation.binary.pdf.decode('base64'))
+                                    signerSNILS = observation.binary.signedDoctor.snils
+                                    if signerSNILS:
+                                        signerId = self.getVerifierId(labGUID, signerSNILS)
+                                        if signerId:
+                                            _file.setAuthorId(signerId)
+                                            _file.setRespSignature(observation.binary.practitioner.decode('base64'),
+                                                                   signerId, QDateTime.currentDateTime())
+                                            _file.setOrgSignature(observation.binary.organization.decode('base64'),
+                                                                  signerId, QDateTime.currentDateTime())
+                                    action._attachedFileItemList.append(_file)
+                            elif observation.semd.docData and self.typeReports == 2 and storageInterface:
+                                name = u'ProtocolAriadna_' + observation.order.id + u'.xml'
+                                for attachedFile in action._attachedFileItemList:
+                                    if attachedFile.oldName == name:
+                                        if attachedFile.respSignature and attachedFile.respSignature.signatureBytes == observation.binary.practitioner.decode('base64'):
+                                            isFindSameFile = True
+                                if not isFindSameFile:
+                                    _file = storageInterface.uploadBytes(name, observation.semd.docData.decode('base64'))
+                                    signerSNILS = observation.semd.signedDoctor.snils
+                                    if signerSNILS:
+                                        signerId = self.getVerifierId(labGUID, signerSNILS)
+                                        if signerId:
+                                            _file.setAuthorId(signerId)
+                                            _file.setRespSignature(observation.semd.practitionerSig.decode('base64'),
+                                                                   signerId, QDateTime.currentDateTime())
+                                            _file.setOrgSignature(observation.binary.organizationSig.decode('base64'),
+                                                                  signerId, QDateTime.currentDateTime())
+                                    action._attachedFileItemList.append(_file)
+
                         if finishDate:
                             if hasCancelingTest:
                                 action._record.setValue('status', toVariant(3))
@@ -726,8 +887,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             recordJT.setValue('status', toVariant(2))  # закончено
                                             self.db.updateRecord('Job_Ticket', recordJT)
 
-                            if verifierSNILS and action.hasProperty(u'Лаборатория'):
-                                verifierId = self.getVerifierId(action.getProperty(u'Лаборатория').getInfo(context).id, verifierSNILS)
+                            if verifierSNILS:
+                                verifierId = self.getVerifierId(labGUID, verifierSNILS)
                                 if verifierId:
                                     action._record.setValue('person_id', toVariant(verifierId))
                             if testNotes:
@@ -742,7 +903,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                             actionExportRecord.setValue('system_id', toVariant(self.externalSystemId))
                             actionExportRecord.setValue('success', toVariant(1))
                             actionExportRecord.setValue('dateTime', toVariant(QDateTime().currentDateTime()))
-                            actionExportRecord.setValue('note', toVariant(jsonResult))
+                            actionExportRecord.setValue('note', toVariant(json.dumps(jsonResult)))
                             self.db.insertOrUpdate(tableActionExport, actionExportRecord)
                             if observation.order.id:
                                 if not hasErrors:
@@ -755,6 +916,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                     self.applyResults(observation.order.id)
                                 else:
                                     self.applyOnExpiration(observation.order.id, observation.observationDates.finish)
+
+
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
             self.log('error', u'ошибка при загрузке результата {0}'.format(observation.order.id), 2)
@@ -764,15 +927,20 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             if lockId:
                 self.db.query('CALL ReleaseAppLock(%d)' % lockId)
 
-    def getVerifierId(self, orgStructureId, snils):
-        result = self.mapVerifiers.get((orgStructureId, snils), None)
-        if not result and orgStructureId and snils:
-            stmt = "select id from Person WHERE orgStructure_id = {0} AND snils = '{1}'".format(orgStructureId, snils)
+    def getVerifierId(self, labGUID, snils):
+        result = self.mapVerifiers.get((labGUID, snils), None)
+        if not result and labGUID and snils:
+            stmt = """SELECT Person.id
+FROM Person
+LEFT JOIN OrgStructure os ON Person.orgStructure_id = os.id
+LEFT JOIN OrgStructure_Identification osi ON os.id = osi.master_id AND osi.deleted = 0
+LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id = osi.system_id
+WHERE Person.deleted = 0 AND osi.value = '{0}' AND rbAccountingSystem.urn = 'urn:oid:1.2.643.2.69.1.1.1.64' AND snils = '{1}';""".format(labGUID, snils)
             query = self.db.query(stmt)
             while query.next():
                 record = query.record()
                 result = forceRef(record.value('id'))
-                self.mapVerifiers[(orgStructureId, snils)] = result
+                self.mapVerifiers[(labGUID, snils)] = result
         return result
 
     def getUnitId(self, codeUnit):
@@ -794,6 +962,19 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                     result = self.db.insertOrUpdate(tableUnit, record_unit)
                 self.mapUnits[codeUnit] = result
         return result
+
+    def loadUnitsByIdentification(self):
+        stmt = u"""SELECT u.id, ui.value
+FROM rbUnit u
+LEFT JOIN rbUnit_Identification ui ON u.id = ui.master_id AND ui.deleted = 0
+LEFT JOIN rbAccountingSystem `as` ON ui.system_id = `as`.id
+WHERE `as`.urn = 'urn:oid:1.2.643.5.1.13.13.11.1358'"""
+        query = self.db.query(stmt)
+        while query.next():
+            record = query.record()
+            unitId = forceRef(record.value('id'))
+            value = forceString(record.value('value'))
+            self.mapUnitsByIdentification[value] = unitId
 
     def getTestIds(self, testCode):
         result = self.mapTestFederalCodeToId.get(testCode, [])
@@ -867,6 +1048,32 @@ def fmtDateShort(date):
     elif isinstance(date, QDate):
         date = date.toPyDate()
     return date.strftime("%Y-%m-%d")
+
+
+def getEventDiagnosis(eventId):
+    stmt = '''SELECT Diagnosis.MKB FROM Diagnostic
+    INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
+    LEFT JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
+    WHERE Diagnostic.event_id = %d
+    AND Diagnostic.deleted = 0
+    AND rbDiagnosisType.code = '7'
+    LIMIT 1''' % eventId
+    query = QtGui.qApp.db.query(stmt)
+    if query.first():
+        return forceString(query.record().value(0))
+    else:
+        stmt = '''SELECT Diagnosis.MKB FROM Diagnostic
+        INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
+        LEFT JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
+        WHERE Diagnostic.event_id = %d
+        AND Diagnostic.deleted = 0
+        ORDER BY CAST(rbDiagnosisType.code AS SIGNED)
+        LIMIT 1''' % eventId
+        query = QtGui.qApp.db.query(stmt)
+        if query.first():
+            return forceString(query.record().value(0))
+        else:
+            return None
 
 
 if __name__ == '__main__':

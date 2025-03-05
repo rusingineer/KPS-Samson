@@ -37,6 +37,22 @@ class CRelationsPlanGroup(object):
         return False
 
 
+    def note(self):
+        return self._relatedActionTypes.note
+
+
+    def getSmnnUUID(self):
+        return self._executionPlan.smnnUUID
+
+
+    def getLfFormId(self):
+        return self._executionPlan.lfFormId
+
+
+    def setNote(self, value):
+        self._relatedActionTypes.note = value
+
+
     def copy(self):
         copiedEp = self._relatedActionTypes.makeCopy() if self._relatedActionTypes else None
         result = CRelationsPlanGroup(copiedEp)
@@ -49,6 +65,20 @@ class CRelationsPlanGroup(object):
     def actionTypeId(self):
         return self._items[0].action.getType().id
 
+
+    @property
+    def smnnUUID(self):
+        return self._getItemSmnnUUID(self._items[0])
+
+    @property
+    def smnnGrlsLfId(self):
+        return self._getItemSmnnGrlsLfId(self._items[0])
+
+    def _getItemSmnnUUID(self, item):
+        return item.action.getSmnnUUIDPropertyValue()
+
+    def _getItemSmnnGrlsLfId(self, item):
+        return item.action.getSmnnGrlsLfPropertyValue()
 
     @property
     def items(self):
@@ -108,6 +138,10 @@ class CRelationsProxyModelGroup(object):
     def hasSavedItems(self):
         return self._rGroup.hasSavedItems()
 
+
+    def note(self):
+        return self._rGroup.note()
+
     def updateSpecifiedName(self):
         if len(self._mapItem2Row) != 1:
             return
@@ -153,6 +187,14 @@ class CRelationsProxyModelGroup(object):
     @property
     def nomenclatureId(self):
         return self._rGroup.nomenclatureId
+
+    @property
+    def smnnUUID(self):
+        return self._epGroup.smnnUUID
+
+    @property
+    def smnnGrlsLfId(self):
+        return self._epGroup.smnnGrlsLfId
 
     @property
     def expanded(self):
@@ -236,6 +278,40 @@ class CRelationsProxyModelGroup(object):
 
     def setExpanded(self, value):
         self._expanded = value
+
+    def setNote(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        action.setNote(value)
+        if not self._rGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._rGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._rGroup._executionPlan.setNote(value)
+
+
+    def setSmnnUUID(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        if not self._epGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._epGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._epGroup._executionPlan.setSmnnUUID(value)
+
+
+    def setLfFormId(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        if not self._epGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._epGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._epGroup._executionPlan.setLfFormId(value)
+
 
     def addItem(self, modelRow, item):
         if not self._rGroup.addItem(item):

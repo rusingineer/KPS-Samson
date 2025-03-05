@@ -22,7 +22,7 @@ from library.crbcombobox                   import CRBModelDataCache, CRBComboBox
 from library.DialogBase                    import CDialogBase
 from library.HierarchicalItemsListDialog   import CHierarchicalItemsListDialog
 from library.IdentificationModel           import CIdentificationModel, checkIdentification
-from library.InDocTable                    import CInDocTableModel, CBoolInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol, CSelectStrInDocTableCol, CRBSearchInDocTableCol
+from library.InDocTable                    import CInDocTableModel, CBoolInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol, CSelectStrInDocTableCol, CRBSearchInDocTableCol, CRBTestSearchInDocTableCol
 from library.interchange                   import setDateEditValue, getDateEditValue, getCheckBoxValue, getComboBoxValue, getLineEditValue, getRBComboBoxValue, getSpinBoxValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, setSpinBoxValue, getDoubleBoxValue, setDoubleBoxValue
 from library.ItemsListDialog               import CItemEditorBaseDialog
 from library.TableModel                    import CTableModel, CEnumCol, CRefBookCol, CTextCol, CDateCol
@@ -419,6 +419,7 @@ class CActionTypeList(Ui_ActionTypeListDialog, CHierarchicalItemsListDialog):
                            'ActionType_Service',
                            'ActionType_Testator',
                            'ActionType_TissueType',
+                           'ActionType_Identification',
                          ):
             self.copyDependedTableData(tableName,
                                        'master_id',
@@ -925,6 +926,11 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         self.cmbAmountEvaluation.addItems(CActionType.amountEvaluation)
         self.setWindowTitleEx(u'Тип действия')
 
+        self.edtAmount.setValue(1)
+
+        self.edtBegDate.setDate(QDate())
+        self.endEndDate.setDate(QDate())
+
         # comboboxes
         self.cmbGroup.setTable('ActionType')
         self.cmbNomenclativeService.setTable('rbService')
@@ -956,6 +962,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         self.tblProperties.addPopupDelRow()
         self.tblProperties.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblProperties.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tblProperties.setSettingDelegate(self.modelProperties.getColIndex('valueDomain'))
 
         self.tblTestators.addPopupSelectAllRow()
         self.tblTestators.addPopupClearSelectionRow()
@@ -998,6 +1005,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         self.cmbNomenclatureClass.setTable('rbNomenclatureClass', True)
         self.cmbNomenclatureKind.setTable('rbNomenclatureKind',   True)
         self.cmbNomenclatureType.setTable('rbNomenclatureType',   True)
+        self.cmbNomenclatureOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
         self.tblPFSpeciality.setModel(self.modelSpeciality)
         self.tblPFOrgStructure.setModel(self.modelOrgStructure)
         self.tblActionFunctions.setModel(self.modelActionFunctions)
@@ -1016,8 +1024,26 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
 
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
         self.tabWidget.setTabEnabled(CActionTypeEditor.tabNomenclatureExpenseIndex, True)
 
+        self.addObject('btnApply', QtGui.QPushButton(u'Применить', self))
+        self.buttonBox.addButton(self.btnApply, QtGui.QDialogButtonBox.ActionRole)
+        self.connect(self.btnApply, SIGNAL('clicked()'), self.saveAndUpDate)
+
+
+    def saveAndUpDate(self):
+        if self.saveData():
+            self.parent().modelTree.update()
+            self.parent().renewListAndSetTo(self.itemId())
+            buttons = QtGui.QMessageBox.Ok
+            messageBox = QtGui.QMessageBox()
+            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            messageBox.setWindowTitle(u'Внимание!')
+            messageBox.setText(u'Данные сохранены')
+            messageBox.setStandardButtons(buttons)
+            messageBox.setDefaultButton(QtGui.QMessageBox.Ok)
+            return messageBox.exec_()
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -1075,6 +1101,8 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         setCheckBoxValue(   self.chkShowBegDate,               record, 'showBegDate')
         setCheckBoxValue(   self.chkDuplication,               record, 'duplication')
         setCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
+        setCheckBoxValue(   self.chkEditSetPerson,             record, 'editSetPerson')
+        setCheckBoxValue(   self.chkEditOrg,                   record, 'editOrg')
         setCheckBoxValue(   self.chkGenTimetable,              record, 'genTimetable')
         setCheckBoxValue(   self.chkShowTime,                  record, 'showTime')
         setCheckBoxValue(   self.chkRequiredCoordination,      record, 'isRequiredCoordination')
@@ -1088,8 +1116,10 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         setCheckBoxValue(   self.chkPropertyUnitVisible,       record, 'propertyUnitVisible')
         setCheckBoxValue(   self.chkPropertyNormVisible,       record, 'propertyNormVisible')
         setCheckBoxValue(   self.chkPropertyEvaluationVisible, record, 'propertyEvaluationVisible')
+        setCheckBoxValue(   self.chkPropertyCommentVisible,    record, 'propertyCommentVisible')
         setComboBoxValue(   self.cmbClass,                     record, 'class')
 
+        setRBComboBoxValue( self.cmbNomenclatureOrgStructure,  record, 'nomenclatureOrgStructure_id')
         setRBComboBoxValue( self.cmbNomenclatureClass,         record, 'nomenclatureClass_id')
         setRBComboBoxValue( self.cmbNomenclatureKind,          record, 'nomenclatureKind_id')
         setRBComboBoxValue( self.cmbNomenclatureType,          record, 'nomenclatureType_id')
@@ -1193,6 +1223,8 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         getCheckBoxValue(   self.chkShowBegDate,               record, 'showBegDate')
         getCheckBoxValue(   self.chkDuplication,               record, 'duplication')
         getCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
+        getCheckBoxValue(   self.chkEditSetPerson,             record, 'editSetPerson')
+        getCheckBoxValue(   self.chkEditOrg,                   record, 'editOrg')
         getCheckBoxValue(   self.chkGenTimetable,              record, 'genTimetable')
         getCheckBoxValue(   self.chkShowTime,                  record, 'showTime')
         getCheckBoxValue(   self.chkRequiredCoordination,      record, 'isRequiredCoordination')
@@ -1207,7 +1239,9 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         getCheckBoxValue(   self.chkPropertyUnitVisible,       record, 'propertyUnitVisible')
         getCheckBoxValue(   self.chkPropertyNormVisible,       record, 'propertyNormVisible')
         getCheckBoxValue(   self.chkPropertyEvaluationVisible, record, 'propertyEvaluationVisible')
+        getCheckBoxValue(   self.chkPropertyCommentVisible,    record, 'propertyCommentVisible')
 
+        getRBComboBoxValue( self.cmbNomenclatureOrgStructure,  record, 'nomenclatureOrgStructure_id')
         getRBComboBoxValue( self.cmbNomenclatureClass,         record, 'nomenclatureClass_id')
         getRBComboBoxValue( self.cmbNomenclatureKind,          record, 'nomenclatureKind_id')
         getRBComboBoxValue( self.cmbNomenclatureType,          record, 'nomenclatureType_id')
@@ -1537,6 +1571,7 @@ class CPropertiesModel(CInDocTableModel):
         self.addCol(CActionPropertyTemplateCol(u'Шаблон',  'template_id', 40))
         self.addCol(CInDocTableCol(     u'Наименование',   'name',    12))
         self.addCol(CInDocTableCol(     u'Короткое наименование', 'shortName', 32, maxLength=32))
+        self.addCol(CInDocTableCol(     u'Комментарий',    'comment',   30))
         self.addCol(CInDocTableCol(     u'Описание',       'descr',   12))
         self.addCol(CInDocTableCol(u'Секция CDA', 'sectionCDA', 12, maxLength=255))
         self.addCol(CInDocTableCol(     u'Переменная',     'var',     12))
@@ -1569,7 +1604,7 @@ class CPropertiesModel(CInDocTableModel):
                                         u'Исполнитель действия',
                                         u'Никто',]))
         self.addCol(CBoolInDocTableCol( u'Назначаемый',     'isAssignable', 6))
-        self.addCol(CRBSearchInDocTableCol(u'Тест', 'test_id', 20, 'rbTest', showFields = CRBComboBox.showNameAndCode, prefferedWidth=600))
+        self.addCol(CRBTestSearchInDocTableCol(u'Тест', 'test_id', 20, 'rbTest', showFields = CRBComboBox.showNameAndCode, prefferedWidth=600))
         self.addCol(CEnumInDocTableCol( u'Оценка',          'defaultEvaluation', 10, [u'не определять',
                                                                                      u'автомат',
                                                                                      u'полуавтомат',
@@ -1580,7 +1615,9 @@ class CPropertiesModel(CInDocTableModel):
                                                                                                           u'Recipe',
                                                                                                           u'Doses',
                                                                                                           u'Signa',
-                                                                                                          u'ActiveSubstance']))
+                                                                                                          u'ActiveSubstance',
+                                                                                                          u'Reaction',
+                                                                                                          u'CancelDate']))
         self.addCol(CEnumInDocTableCol( u'В Плане операционного дня', 'inPlanOperatingDay', 15, [u'не определено',
                                                                                                  u'ассистент',
                                                                                                  u'анестезиолог',
@@ -1766,7 +1803,9 @@ class CServiceByFinanceTypeModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'ActionType_Service', 'id', 'master_id', parent)
         self.addCol(CRBInDocTableCol(   u'Тип финансирования', 'finance_id', 15, 'rbFinance'))
-        self.addCol(CRBServiceInDocTableCol(u'Услуга', 'service_id', 15, 'rbService'))
+        self.addCol(
+            CRBSearchInDocTableCol(u'Услуга', 'service_id', 15, 'rbService', showFields=CRBComboBox.showNameAndCode,
+                                   filter='current_date() between begDate and endDate'))
 
 
 class CQuotaTypeModel(CInDocTableModel):
@@ -1960,9 +1999,11 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
     def __init__(self, parent):
         cols = [CEnumCol(   u'Класс',              ['class'], [u'статус', u'диагностика', u'лечение', u'прочие мероприятия'], 10),
                 CTextCol(   u'Код',                ['code'], 20),
-                CTextCol(   u'Наименование',       ['name'], 40),
+                CTextCol(   u'Наименование',       ['name'], 30),
                 CRefBookCol(u'Номенклатурный код', ['nomenclativeService_id'], 'rbService', 10, 2),
-                CRefBookCol(u'Группа',             ['group_id'], 'ActionType', 10)]
+                CRefBookCol(u'Группа',             ['group_id'], 'ActionType', 10),
+                CTextCol(   u'Контекст печати',    ['context'], 10),
+                CTextCol(   u'Код для отчетов',    ['flatCode'], 10)]
         CDialogBase.__init__(self, parent)
         self.addModels('ActionTypeFound', CFindActionsTableModel(self, cols, 'ActionType'))
         self.setupUi(self)
@@ -1998,7 +2039,7 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
         tissyeTypeId     = self.cmbTissueType.value()
         serviceId        = self.cmbService.value()
         context          = trim(self.edtContext.text())
-        codeReports = trim(self.edtCodeReports.text())
+        codeReports      = trim(self.edtCodeReports.text())
         table = tableActionType
         cond = [tableActionType['deleted'].eq(0)]
         order = self.tblActionTypeFound.order() if self.tblActionTypeFound.order() else ['ActionType.class, ActionType.code, ActionType.name']

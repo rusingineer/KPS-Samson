@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -30,7 +30,7 @@ class CUrlActionPropertyValueType(CActionPropertyValueType):
                            'commit()',
                           )
 
-        def __init__(self, action, domain, parent, clientId, eventTypeId):
+        def __init__(self, action, domain, parent, clientId, eventTypeId, readOnly=False):
             QtGui.QWidget.__init__(self, parent)
             self.boxlayout = QtGui.QHBoxLayout(self)
             self.boxlayout.setMargin(0)
@@ -47,6 +47,7 @@ class CUrlActionPropertyValueType(CActionPropertyValueType):
             self.boxlayout.addWidget(self.btnOpen)
             self.setFocusProxy(self.edtUrl)
             self.connect(self.btnOpen, SIGNAL('clicked()'), self.on_btnOpen_clicked)
+            self.edtUrl.setReadOnly(readOnly)
             if domain == 'ro':
                 self.edtUrl.setReadOnly(True)
             #self.connect(self.edtUrl, SIGNAL('clicked()'), self.on_btnOpen_clicked)

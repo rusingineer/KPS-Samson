@@ -346,6 +346,18 @@ class CAbstractDbComboBox(QtGui.QComboBox):
             self.__searchString = ''
             QtGui.QComboBox.showPopup(self)
 
+        view = self.view()
+        viewFrame = view.parent()
+        size = view.sizeHint()
+        pos = self.rect().bottomLeft()
+        pos = self.mapToGlobal(pos)
+        screen = QtGui.QApplication.desktop().availableGeometry(pos)
+        pos.setX(max(min(pos.x(), screen.right() - size.width()*2), screen.left()))
+        pos.setY(max(min(pos.y(), screen.bottom() - size.height()*2), screen.top()))
+        size.setWidth(size.width()*2)
+        viewFrame.move(pos)
+        viewFrame.resize(size)
+
 
     def focusInEvent(self, event):
         self.__searchString = ''

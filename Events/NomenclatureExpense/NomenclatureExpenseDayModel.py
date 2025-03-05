@@ -88,6 +88,15 @@ class CNomenclatureExpenseDayModel(QtCore.QAbstractTableModel):
         self._ignoreTime = ignoreTime
         self._templateItem = None
         self.isApplyChangesCourseNextDays = False
+        self._readOnly = False
+
+
+    def setReadOnly(self, value=False):
+        self._readOnly = value
+
+
+    def isReadOnly(self):
+        return self._readOnly
 
 
     def setApplyChangesCourseNextDays(self, value):
@@ -99,7 +108,8 @@ class CNomenclatureExpenseDayModel(QtCore.QAbstractTableModel):
 
 
     def load(self, items, readOnly=False):
-        self._readOnly = readOnly
+        if not self._readOnly:
+            self._readOnly = readOnly
         self._templateItem = items[0]
         self._executionPlan = self._templateItem.executionPlan
         self._date = self._templateItem.date
@@ -141,6 +151,10 @@ class CNomenclatureExpenseDayModel(QtCore.QAbstractTableModel):
     def flags(self, index):
         row = index.row()
         result = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled
+
+        if self._readOnly:
+            return result
+
         if row == len(self._items):
             if self._canAddItems:
                 result |= QtCore.Qt.ItemIsEditable

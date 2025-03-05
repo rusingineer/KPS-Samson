@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -101,6 +101,8 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
     def on_tblAmbCardMiscActions_popupMenuAboutToShow(self): CAmbCardMixin.on_tblAmbCardMiscActions_popupMenuAboutToShow(self)
     @pyqtSignature('')
     def on_actAmbCardActionTypeGroupId_triggered(self): CAmbCardMixin.on_actAmbCardActionTypeGroupId_triggered(self)
+    @pyqtSignature('')
+    def on_actAmbCardOpenActionELMK_triggered(self): CAmbCardMixin.on_actAmbCardOpenActionELMK_triggered(self)
     @pyqtSignature('QModelIndex')
     def on_tblAmbCardStatusActions_doubleClicked(self, *args): CAmbCardMixin.on_tblAmbCardStatusActions_doubleClicked(self, *args)
     @pyqtSignature('QModelIndex')
@@ -581,6 +583,7 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         tableColumns = []
         for iCol in xrange(model.columnCount()):
             tableColumns.append(('', [forceString(model._cols[iCol].title())], CReportBase.AlignLeft))
+        tableColumns.append(('', [u'Контакты'], CReportBase.AlignLeft))
         tableColumns.append(('', [u'Адрес'], CReportBase.AlignLeft))
         tableColumns.append(('', [u'Участок'], CReportBase.AlignLeft))
         tableColumns.append(('', [u'МКБ'], CReportBase.AlignLeft))
@@ -590,17 +593,18 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         for iModelRow in xrange(model.rowCount()):
             iTableRow = table.addRow()
             clientId = forceInt(model.data(model.createIndex(iModelRow, 0)))
-            address, attach, mkb, person, date = modelDiagnosis.getPrintData(clientId, self.filter)
+            contacts, address, attach, mkb, person, date = modelDiagnosis.getPrintData(clientId, self.filter)
             cols = model.columnCount()
             for iModelCol in xrange(cols):
                 index = model.createIndex(iModelRow, iModelCol)
                 text = forceString(model.data(index))
                 table.setText(iTableRow, iModelCol, text)
-            table.setText(iTableRow, cols,   address)
-            table.setText(iTableRow, cols+1, attach)
-            table.setText(iTableRow, cols+2, mkb)
-            table.setText(iTableRow, cols+3, person)
-            table.setText(iTableRow, cols+4, date)
+            table.setText(iTableRow, cols,   contacts)
+            table.setText(iTableRow, cols+1, address)
+            table.setText(iTableRow, cols+2, attach)
+            table.setText(iTableRow, cols+3, mkb)
+            table.setText(iTableRow, cols+4, person)
+            table.setText(iTableRow, cols+5, date)
         html = doc.toHtml('utf-8')
         view = CReportViewDialog(self)
         view.setText(html)
@@ -1842,12 +1846,16 @@ class CConsistsDiagnosisModel(CSurveillanceDiagnosisModel):
 
         
     def getPrintData(self, masterId, filter):
-        printData = ['', '', '', '', '']
+        printData = ['', '', '', '', '', '']
         if masterId:
             db = QtGui.qApp.db
-            query = db.query('SELECT getClientRegAddress(%d)' % masterId)
+            query = db.query('SELECT getClientContacts(%d)' % masterId)
             if query.first():
                 printData[0] = (forceString(query.value(0)))
+
+            query = db.query('SELECT getClientRegAddress(%d)' % masterId)
+            if query.first():
+                printData[1] = (forceString(query.value(0)))
                 
             query = db.query('SELECT O.code'
                              ' FROM OrgStructure O'
@@ -1855,7 +1863,7 @@ class CConsistsDiagnosisModel(CSurveillanceDiagnosisModel):
                              ' WHERE CA.client_id = %d AND CA.deleted = 0 AND O.deleted = 0'
                              ' ORDER BY CA.id DESC LIMIT 1' % masterId)
             if query.first():
-                printData[1] = (forceString(query.value(0)))
+                printData[2] = (forceString(query.value(0)))
                 
             cols = ['Diagnosis.MKB', 'vrbPerson.name', 'Diagnosis.endDate']
             self.filter = filter
@@ -1885,9 +1893,9 @@ class CConsistsDiagnosisModel(CSurveillanceDiagnosisModel):
                                    WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= %s AND DC.deleted = 0 AND rbDP.name LIKE '%s')'''%(db.formatDate(date), u'%снят%'))
             query = db.getRecordListGroupBy(queryTable, cols, where=cond, group='Diagnosis.id', order='Diagnostic.endDate DESC')
             for record in query:
-                printData[2] += forceString(record.value(0)) + '\n'
-                printData[3] += forceString(record.value(1)) + '\n'
-                printData[4] += forceString(record.value(2)) + '\n'
+                printData[3] += forceString(record.value(0)) + '\n'
+                printData[4] += forceString(record.value(1)) + '\n'
+                printData[5] += forceString(record.value(2)) + '\n'
         return printData
 
 
@@ -1928,12 +1936,16 @@ class CTakenDiagnosisModel(CSurveillanceDiagnosisModel):
 
     
     def getPrintData(self, masterId, filter):
-        printData = ['', '', '', '', '']
+        printData = ['', '', '', '', '', '']
         if masterId:
             db = QtGui.qApp.db
-            query = db.query('SELECT getClientRegAddress(%d)' % masterId)
+            query = db.query('SELECT getClientContacts(%d)' % masterId)
             if query.first():
                 printData[0] = (forceString(query.value(0)))
+
+            query = db.query('SELECT getClientRegAddress(%d)' % masterId)
+            if query.first():
+                printData[1] = (forceString(query.value(0)))
                 
             query = db.query('SELECT O.code'
                              ' FROM OrgStructure O'
@@ -1941,7 +1953,7 @@ class CTakenDiagnosisModel(CSurveillanceDiagnosisModel):
                              ' WHERE CA.client_id = %d AND CA.deleted = 0 AND O.deleted = 0'
                              ' ORDER BY CA.id DESC LIMIT 1' % masterId)
             if query.first():
-                printData[1] = (forceString(query.value(0)))
+                printData[2] = (forceString(query.value(0)))
                 
             cols = ['Diagnosis.MKB', 'vrbPerson.name', 'Diagnosis.endDate']
             self.filter = filter
@@ -1969,9 +1981,9 @@ class CTakenDiagnosisModel(CSurveillanceDiagnosisModel):
             cond, queryTable = diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnostic)
             query = db.getRecordListGroupBy(queryTable, cols, where=cond, group='Diagnosis.id', order='Diagnostic.endDate DESC')
             for record in query:
-                printData[2] += forceString(record.value(0)) + '\n'
-                printData[3] += forceString(record.value(1)) + '\n'
-                printData[4] += forceString(record.value(2)) + '\n'
+                printData[3] += forceString(record.value(0)) + '\n'
+                printData[4] += forceString(record.value(1)) + '\n'
+                printData[5] += forceString(record.value(2)) + '\n'
         return printData
     
 

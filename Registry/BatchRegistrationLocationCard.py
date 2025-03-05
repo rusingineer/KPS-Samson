@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QObject, QTime, pyqtSignature
 
 from library.crbcombobox import CRBComboBox
-from library.Utils import exceptionToUnicode, forceBool, getPref, getPrefBool, getPrefInt, getPrefRef, getPrefString, setPref, toVariant
+from library.Utils import exceptionToUnicode, forceBool, forceString,forceInt,getPref, getPrefBool, getPrefInt, getPrefRef, getPrefString, setPref, toVariant
 from Registry.Ui_BatchRegLocationCardDialog import Ui_BatchRegLocationCardDialog
 
 
@@ -76,8 +76,10 @@ class CSetParamsBatchRegistrationLocationCard(QtGui.QDialog, Ui_BatchRegLocation
         result['personId']  = getPrefRef(prefs, 'personId', None)
         result['notesPage'] = getPrefString(prefs, 'notesPage', '')
         result['clientId'] = getPrefRef(prefs, 'clientId', None)
-        result['lastMasterId'] = getPrefRef(prefs, 'lastMasterId', None)
-        result['lastItemId'] = getPrefRef(prefs, 'lastItemId', None)
+        # result['lastMasterId'] = getPrefRef(prefs, 'lastMasterId', None)
+        # result['lastItemId'] = getPrefRef(prefs, 'lastItemId', None)
+        result['lastMasterIdList'] = getPrefString(prefs, 'lastMasterIdList', '')
+        result['lastItemIdList'] = getPrefString(prefs, 'lastItemIdList', '')
         return result
 
 
@@ -127,16 +129,37 @@ class CSetParamsBatchRegistrationLocationCard(QtGui.QDialog, Ui_BatchRegLocation
     @pyqtSignature('')
     def on_btnRetry_clicked(self):
         params = self.getDefaultParams()
-        lastMasterId = params.get('lastMasterId', None)
-        lastItemId = params.get('lastItemId', None)
-        if lastItemId:
+        # lastMasterId = params.get('lastMasterId', None)
+        # lastItemId = params.get('lastItemId', None)
+        lastMasterIdList = params.get('lastMasterIdList', None)
+        lastItemIdList = params.get('lastItemIdList', None)
+        # if lastItemId:
+        #     db = QtGui.qApp.db
+        #     table = db.table('Client_DocumentTrackingItem')
+        #     db.deleteRecord(table, table['id'].eq(lastItemId))
+        # if lastMasterId:
+        #     db = QtGui.qApp.db
+        #     table = db.table('Client_DocumentTracking')
+        #     db.deleteRecord(table, table['id'].eq(lastMasterId))
+        if lastItemIdList:
+            listItemId = lastItemIdList.split(',')
+            if listItemId[-1] == '':
+                listItemId.pop()
             db = QtGui.qApp.db
             table = db.table('Client_DocumentTrackingItem')
-            db.deleteRecord(table, table['id'].eq(lastItemId))
-        if lastMasterId:
+            for itemId in listItemId:
+                itemId = itemId.replace("'", '')
+                db.deleteRecord(table, table['id'].eq(forceInt(itemId)))
+        if lastMasterIdList:
+            listMasterId = lastMasterIdList.split(',')
+            if listMasterId[-1] == '':
+                listMasterId.pop()
             db = QtGui.qApp.db
             table = db.table('Client_DocumentTracking')
-            db.deleteRecord(table, table['id'].eq(lastMasterId))
+            for masterId in listMasterId:
+                masterId = masterId.replace("'", "")
+                db.deleteRecord(table, table['id'].eq(forceInt(masterId)))
+                
         self.close()
 
 
@@ -190,19 +213,31 @@ class CGetParamsBatchRegistrationLocationCard(QtGui.QDialog, Ui_BatchRegLocation
             db = QtGui.qApp.db
             table = db.table('Client_DocumentTracking')
             rbTable = db.table('rbDocumentTypeForTracking')
-            self.record = db.getRecordEx(table.innerJoin(rbTable, table['documentTypeForTracking_id'].eq(rbTable['id'])), 'Client_DocumentTracking.*', [table['deleted'].eq(0), table['client_id'].eq(self.clientId)], 'Client_DocumentTracking.id DESC')
+            resultTable = table.innerJoin(rbTable, table['documentTypeForTracking_id'].eq(rbTable['id']))
+            # self.record = db.getRecordEx(table.innerJoin(rbTable, table['documentTypeForTracking_id'].eq(rbTable['id'])),
+            #  'Client_DocumentTracking.*', [table['deleted'].eq(0), table['client_id'].eq(self.clientId),
+            #                                table['documentTypeForTracking_id'].eq(self.params.get('documentTypeForTrackingId', None))
+            #                                ],
+            #                              'Client_DocumentTracking.id DESC')
+            cond = [table['deleted'].eq(0), table['client_id'].eq(self.clientId),table['documentTypeForTracking_id'].eq(self.params.get('documentTypeForTrackingId', None))]
+            numberPreferences = self.params.get('numberPreferences', None)
+            order = 'Client_DocumentTracking.id DESC'
+            if numberPreferences == 1:
+                cond.append(table['documentNumber'].eq(self.clientId))
+            self.record = db.getDistinctRecordList(resultTable,'Client_DocumentTracking.*', cond, order)
             if not self.record:
-                numberPreferences = self.params.get('numberPreferences', None)
+                # numberPreferences = self.params.get('numberPreferences', None)
                 if self.params.get('BatchRegLocatCardProcess', False):
                     db = QtGui.qApp.db
-                    self.record = db.record('Client_DocumentTracking')
-                    self.record.setValue('client_id', toVariant(self.clientId))
-                    self.record.setValue('documentTypeForTracking_id', toVariant(self.params.get('documentTypeForTrackingId', None)))
-                    self.record.setValue('documentDate', toVariant(QDate.currentDate()))
+                    self.record = []
+                    self.record.append(db.record('Client_DocumentTracking'))
+                    self.record[0].setValue('client_id', toVariant(self.clientId))
+                    self.record[0].setValue('documentTypeForTracking_id', toVariant(self.params.get('documentTypeForTrackingId', None)))
+                    self.record[0].setValue('documentDate', toVariant(QDate.currentDate()))
                     if numberPreferences==1:
-                        self.record.setValue('documentNumber', toVariant(self.clientId))
+                        self.record[0].setValue('documentNumber', toVariant(self.clientId))
                     else:
-                        self.record.setValue('documentNumber', toVariant(None))
+                        self.record[0].setValue('documentNumber', toVariant(None))
                 self.updateMainTable = True
             return self.record
         return None
@@ -242,28 +277,59 @@ class CGetParamsBatchRegistrationLocationCard(QtGui.QDialog, Ui_BatchRegLocation
 
 
     def save(self):
-        record = self.getRecord()
-        if record:
-            try:
-                db = QtGui.qApp.db
-                db.transaction()
+        records = self.getRecord()
+        if records:
+            if records.__len__() > 0:
                 try:
-                    id = db.insertOrUpdate('Client_DocumentTracking', record)
-                    recordItem = self.getRecordItem(id)
-                    itemId = db.insertRecord('Client_DocumentTrackingItem', recordItem)
-                    db.commit()
-                    self.params['lastMasterId'] = id if self.updateMainTable else None
-                    self.params['lastItemId'] = itemId
-                    self.saveDefaultParams(self.params)
-                except:
-                    db.rollback()
-                    raise
-                return id
-            except Exception, e:
-                QtGui.qApp.logCurrentException()
-                QtGui.QMessageBox.critical( self,
-                                            u'',
-                                            exceptionToUnicode(e),
-                                            QtGui.QMessageBox.Close)
+                    db = QtGui.qApp.db
+                    db.transaction()
+                    try:
+                        # if records.__len__ == 1:
+                            # id = db.insertOrUpdate('Client_DocumentTracking', records[0])
+                            # recordItem = self.getRecordItem(id)
+                            # itemId = db.insertRecord('Client_DocumentTrackingItem', recordItem)
+                            # db.commit()
+                            # self.params['lastMasterId'] = id if self.updateMainTable else None
+                            # self.params['lastItemId'] = itemId
+                            # self.saveDefaultParams(self.params)
+                        # else:
+                        idList = []
+                        for record in records:
+                            id = db.insertOrUpdate('Client_DocumentTracking', record)
+                            recordItem = self.getRecordItem(id)
+                            itemId = db.insertRecord('Client_DocumentTrackingItem', recordItem)
+                            db.commit()
+                            # self.params['lastMasterId'] = id if self.updateMainTable else None
+                            if self.updateMainTable:
+                                if not 'lastMasterIdList' in self.params.keys():
+                                    self.params['lastMasterIdList'] = ''
+                                    self.params['lastMasterIdList'] = "'" + forceString(id) + "',"
+                                else:
+                                    if self.params['lastMasterIdList'] == '':
+                                        self.params['lastMasterIdList'] = "'" + forceString(id) + "',"           # Не факт что нужны
+                                    else:
+                                        self.params['lastMasterIdList'] = self.params['lastMasterIdList'] + "'"+ forceString(id) + "',"
+                            # self.params['lastItemId'] = itemId
+                            if not 'lastItemIdList' in self.params.keys():
+                                self.params['lastItemIdList'] = ''
+                                self.params['lastItemIdList'] = "'"+forceString(itemId)+"',"
+                            else:
+                                if self.params['lastItemIdList'] == '':
+                                    self.params['lastItemIdList'] = "'"+forceString(itemId)+"',"
+                                else:
+                                    self.params['lastItemIdList'] = self.params['lastItemIdList']+ "'"+forceString(itemId)+"',"
+                            self.saveDefaultParams(self.params)
+                            idList.append(id)
+                    except:
+                        db.rollback()
+                        raise
+                    return idList
+                    # return id
+                except Exception, e:
+                    QtGui.qApp.logCurrentException()
+                    QtGui.QMessageBox.critical( self,
+                                                u'',
+                                                exceptionToUnicode(e),
+                                                QtGui.QMessageBox.Close)
         return None
 

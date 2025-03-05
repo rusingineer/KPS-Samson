@@ -556,14 +556,14 @@ class CReportWEBViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             if trail:
                 QtGui.QMessageBox.information(self,
                                               u'Прикрепить и подписать',
-                                              u'Документ «%s.pdf» успешно сформирован, прикреплён и подписан' % self.fileName,
+                                              u'Документ «%s» успешно сформирован, прикреплён и подписан' % self.fileName,
                                               QtGui.QMessageBox.Ok,
                                               QtGui.QMessageBox.Ok
                                               )
             else:
                 QtGui.QMessageBox.information(self,
                                               u'Прикрепить и подписать',
-                                              u'Внимание!\nДокумент «%s.pdf» успешно сформирован, прикреплён без подписи!' % self.fileName,
+                                              u'Внимание!\nДокумент «%s» успешно сформирован, прикреплён без подписи!' % self.fileName,
                                               QtGui.QMessageBox.Ok,
                                               QtGui.QMessageBox.Ok
                                               )

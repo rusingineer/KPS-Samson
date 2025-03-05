@@ -177,8 +177,8 @@ class CInsurerComboBox(CDbComboBox):
         size = self._popup.sizeHint()
         screen = QtGui.QApplication.desktop().availableGeometry(pos)
         size.setWidth(QtGui.QApplication.desktop().screenGeometry().height())
-        pos.setX( max(min(pos.x(), screen.right()-size.width()), screen.left()) )
-        pos.setY( max(min(pos.y(), screen.bottom()-size.height()), screen.top()) )
+        pos.setX(max(min(pos.x(), screen.right() - size.width()), screen.left()))
+        pos.setY(max(min(pos.y(), screen.bottom() - size.height()), screen.top()))
         self._popup.move(pos)
         self._popup.resize(size)
         self._popup.show()
@@ -191,7 +191,29 @@ class CInsurerComboBox(CDbComboBox):
     def setAreaFilter(self, areaList):
         self._popup.setAreaFilter(areaList)
 
-  
+
+class CInsurerComboBoxEx(CInsurerComboBox):
+    def __init__(self, parent):
+        CInsurerComboBox.__init__(self, parent)
+        self.invalidValue = None
+
+
+    def setValue(self, itemId, isFirst=False):
+        rowIndex = self.model().searchId(itemId)
+        if rowIndex == -1 and isFirst:
+            self.setFilter(' '.join([self.model().filter, ' OR id = {0}'.format(itemId)]))
+            self.invalidValue = itemId
+            rowIndex = self.model().searchId(itemId)
+
+        self.setCurrentIndex(rowIndex)
+        if itemId == self.invalidValue and self.invalidValue:
+            self.setStyleSheet('QComboBox {color: red}')
+            self._popup.setStyleSheet('QComboBox {color: black}')
+        else:
+            self.setStyleSheet('')
+            self._popup.setStyleSheet('')
+
+
 class CInsurerAreaInDocTableCol(CInDocTableCol):
     def __init__(self, title, fieldName, width):
         CInDocTableCol.__init__(self, title, fieldName, width)

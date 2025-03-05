@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2014 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -71,10 +71,6 @@ class CF025TrDialog(CEventEditDialog, Ui_Dialog):
         self.setIsDirty(False)
         self.setupVisitsIsExposedPopupMenu()
 # done
-
-
-    def destroy(self):
-        pass
 
 
     def exec_(self):

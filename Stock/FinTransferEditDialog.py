@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -28,7 +28,7 @@ from Stock.NomenclatureComboBox  import CNomenclatureInDocTableCol
 from Stock.StockMotionBaseDialog import CStockMotionBaseDialog, CStockMotionItemsCopyPasteMixin, CNomenclatureItemsBaseModel
 from Stock.Service               import CStockService
 from Stock.StockBatchEditor      import CStockBatchEditor
-from Stock.Utils                 import CSummaryInfoModelMixin, CPriceItemDelegate, getStockMotionItemQuantityColumn, getBatchShelfTimeFinance, getExistsNomenclatureAmount, getStockMotionItemQntEx
+from Stock.Utils                 import CSummaryInfoModelMixin, CPriceItemDelegate, getStockMotionItemQuantityColumn, getBatchShelfTimeFinance, getExistsNomenclatureAmountEx, getStockMotionItemQntEx
 
 from Stock.Ui_FinTransfer import Ui_FinTransferDialog
 
@@ -282,12 +282,12 @@ class CFinTransferEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteM
         medicalAidKindName = item[2]
         rows = item[3]
         row = rows[0] if len(rows) > 0 else -1
-        existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, price=price)
+        existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, otherHaving=[u'qnt!=0'], price=price)
         if self._id:
             prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId, financeField='oldFinance_id', medicalAidKindField='oldMedicalAidKind_id'), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
         else:
             prevQnt = 0
-        if (round(existsQnt, 2) + prevQnt) - qnt < 0:
+        if (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt()) < 0:
             nomenclatureName = self.modelItems.getNomenclatureNameById(nomenclatureId)
             if existsQnt > 0:
                 message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(   existsQnt,
@@ -370,11 +370,11 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
 #            deltaQnt = prevQnt - qnt
             key = (nomenclatureId, financeId, batch, unitId, shelfTime, medicalAidKindId, price)
             if self.isUpdateValue:
-                existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL'], exact=True, price=price, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL'], exact=True, price=price)
                 self._cache[key] = existsQnt# + deltaQnt
             else:
                 if key not in self._cache:
-                    existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL'], exact=True, price=price, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                    existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, unitId=unitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL'], exact=True, price=price)
                     self._cache[key] = existsQnt# + deltaQnt
             self.isUpdateValue = False
             return QVariant(self._toString(QVariant(self._cache[key])))

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\SVN\Samson\UP_s11\client\F025\F025.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\F025\F025.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -520,7 +520,7 @@ class Ui_Dialog(object):
         self.tab.setObjectName(_fromUtf8("tab"))
         self.horizontalLayout_8 = QtGui.QHBoxLayout(self.tab)
         self.horizontalLayout_8.setObjectName(_fromUtf8("horizontalLayout_8"))
-        self.tblExport_FileAttach = CInDocTableView(self.tab)
+        self.tblExport_FileAttach = CInDocExportTableView(self.tab)
         self.tblExport_FileAttach.setObjectName(_fromUtf8("tblExport_FileAttach"))
         self.horizontalLayout_8.addWidget(self.tblExport_FileAttach)
         self.tabWidget_2.addTab(self.tab, _fromUtf8(""))
@@ -528,7 +528,7 @@ class Ui_Dialog(object):
         self.tab_2.setObjectName(_fromUtf8("tab_2"))
         self.horizontalLayout_7 = QtGui.QHBoxLayout(self.tab_2)
         self.horizontalLayout_7.setObjectName(_fromUtf8("horizontalLayout_7"))
-        self.tblExport_VIMIS = CInDocTableView(self.tab_2)
+        self.tblExport_VIMIS = CInDocExportTableView(self.tab_2)
         self.tblExport_VIMIS.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.tblExport_VIMIS.setSizeIncrement(QtCore.QSize(0, -1))
         self.tblExport_VIMIS.setBaseSize(QtCore.QSize(0, -1))
@@ -623,8 +623,8 @@ class Ui_Dialog(object):
         self.lblTotalUet.setText(_translate("Dialog", "Всего УЕТ", None))
         self.lblShowTotalUet.setText(_translate("Dialog", "0", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("Dialog", "Стат.&талон", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагноз", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Стандарт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагно&з", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Ст&андарт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("Dialog", "&Статус", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabDiagnostic), _translate("Dialog", "&Диагностика", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCure), _translate("Dialog", "&Лечение", None))
@@ -633,13 +633,13 @@ class Ui_Dialog(object):
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabTempInvalid), _translate("Dialog", "Листок &нетрудоспособности", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabAegrotat), _translate("Dialog", "С&правка", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabDisability), _translate("Dialog", "Инвалидность", None))
-        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "&Ограничения жизнедеятельности", None))
+        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "О&граничения жизнедеятельности", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabTempInvalidEtc), _translate("Dialog", "Т&рудоспособность", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "&Оплата", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_3), _translate("Dialog", "Событие", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab), _translate("Dialog", "Документы", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_2), _translate("Dialog", "ВИМИС", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("Dialog", "Экспорт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("Dialog", "&Экспорт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("Dialog", "Приме&чания", None))
 
 from Events.ActionsPage import CActionsPage
@@ -652,7 +652,7 @@ from Events.TempInvalid import CTempInvalid
 from Orgs.OrgComboBox import CContractComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
-from library.InDocTable import CInDocTableView
+from library.InDocTable import CInDocExportTableView, CInDocTableView
 from library.ROComboBox import CROComboBox
 from library.TextBrowser import CTextBrowser
 from library.crbcombobox import CRBComboBox

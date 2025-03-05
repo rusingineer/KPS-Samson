@@ -215,6 +215,14 @@ class CTempInvalidDocumentsInDocTableView(CInDocTableView):
                             newRecord.setValue('setPerson_id',    toVariant(QtGui.qApp.userId))
                             begDateLastPeriod = eventEditor.begDateLastPeriod()
                             newRecord.setValue('plannedEndDate',   toVariant(begDateLastPeriod if (begDateLastPeriod and begDateLastPeriod > QDate.currentDate()) else QDateTime.currentDateTime()))
+                            if eventEditor._record.value('diagnosis_id').toInt()[0] != 0:
+                                tableDiagnosis = db.table('Diagnosis')
+                                queryDiagnosis = db.query(db.selectDistinctStmt(tableDiagnosis, where=[tableDiagnosis['id'].eq(eventEditor._record.value('diagnosis_id').toInt()[0])]))
+                                if queryDiagnosis.next():
+                                    recordDiagnosis = queryDiagnosis.record()
+                                    mkb = forceString(recordDiagnosis.value('MKB'))
+                                    if mkb:
+                                        newRecord.setValue('MKB', toVariant(mkb))
                             newAction = CAction(record=newRecord)
                             record = items[selectRowList[0]]
                             newAction = self.setNumberVUT(newAction, record, tempInvalidId, clientId)

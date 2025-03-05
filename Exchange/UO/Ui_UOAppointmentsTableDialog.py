@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\SVN\Samson\UP_s11\client\Exchange\UO\UOAppointmentsTableDialog.ui'
+# Form implementation generated from reading ui file 'D:\Samson\client_test\Exchange\UO\UOAppointmentsTableDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Tue Oct 22 17:33:03 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -74,7 +75,7 @@ class Ui_UOAppointmentsTableDialog(object):
         self.label.setText(_translate("UOAppointmentsTableDialog", "Врач:", None))
         self.label_2.setText(_translate("UOAppointmentsTableDialog", "Доступные талоны:", None))
         self.lblStatus.setText(_translate("UOAppointmentsTableDialog", "Загрузка списка талонов...", None))
-        self.btnRegisterReferral.setText(_translate("UOAppointmentsTableDialog", "Зарегистрировать направление", None))
+        self.btnRegisterReferral.setText(_translate("UOAppointmentsTableDialog", "Самостоятельная запись пациента через ЕПГУ", None))
         self.btnUpdateList.setText(_translate("UOAppointmentsTableDialog", "Обновить", None))
         self.btnSetAppointment.setText(_translate("UOAppointmentsTableDialog", "Записать", None))
         self.btnClose.setText(_translate("UOAppointmentsTableDialog", "Закрыть", None))

@@ -16,7 +16,7 @@ from PyQt4 import QtGui
 
 from library.Utils import forceString, forceRef
 from library.PrintInfo import CRBInfo
-from Tables import tblUser, usrName
+from Tables import tblUser, usrName, tblLogin
 
 
 class CUserProfileInfo(CRBInfo):
@@ -28,7 +28,7 @@ class CUserInfo(object):
         db = QtGui.qApp.db
         record = db.getRecord(tblUser, [usrName, 'userProfile_id'], userId)
         self._userId = userId
-        self._login  = forceString(db.translate('Login', 'id', loginId, 'login'))
+        self._login  = forceString(db.translate(tblLogin, 'id', loginId, 'login'))
         self.loginId = loginId
         self._name   = forceString(record.value(usrName))
         self._rights = loadRights(forceRef(record.value('userProfile_id')))

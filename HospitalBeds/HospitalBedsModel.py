@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -27,7 +27,7 @@ from PyQt4.QtCore import (Qt,
 
 from Users.Rights import urHBVisibleOwnEventsParentOrgStructureOnly, urHBVisibleOwnEventsOrgStructureOnly
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays
-from library.database             import CTableRecordCache, CRecordCache
+from library.database import CTableRecordCache, CRecordCache, addCondLike
 from library.InDocTable           import (CDateInDocTableCol, 
                                           CEnumInDocTableCol,
                                           CInDocTableCol, 
@@ -38,10 +38,8 @@ from library.TableModel           import (CBoolCol,
                                           CCol,
                                           CDateCol,
                                           CDateTimeFixedCol,
-                                          CDesignationCol,
                                           CEnumCol,
                                           CIntCol,
-                                          CNumCol,
                                           CRefBookCol,
                                           CTableModel,
                                           CTextCol,
@@ -85,39 +83,241 @@ from Ui_HospitalizationExecDialog import Ui_HospitalizationExecDialog
 from Ui_HBPatronEditorDialog      import Ui_HBPatronEditorDialog
 
 
-class CHospitalBedsModel(CTableModel):
-    def __init__(self, parent):
-        CTableModel.__init__(self, parent,  [
-            CTextCol(u'Код',            ['code'], 10),
-            CBoolCol(u'Штат',           ['isPermanent'], 10),
-            CRefBookCol(u'Тип',         ['type_id'], 'rbHospitalBedType', 10),
-            CRefBookCol(u'Профиль',     ['profile_id'], 'rbHospitalBedProfile', 10),
-            CNumCol(u'Смены',           ['relief'], 6),
-            CRefBookCol(u'Режим',       ['schedule_id'], 'rbHospitalBedShedule', 15),
-            CDateCol(u'Начало',         ['begDate'], 20),
-            CDateCol(u'Окончание',      ['endDate'], 20),
-            CDesignationCol(u'Подразделение', ['master_id', 'isBusy'], ('OrgStructure', 'name'), 8),
-            CTextCol(u'Наименование',   ['name'], 20),
-            CTextCol(u'Возраст',        ['age'], 10),
-            CEnumCol(u'Пол',            ['sex'], ['', u'М', u'Ж'], 10),
-            ], 'vHospitalBed' )
+class CHospitalBedsModel(QAbstractTableModel):
+    column = [u'Код', u'Штат', u'Тип', u'Профиль', u'Смены', u'Режим', u'Начало', u'Окончание', u'Подразделение', u'Наименование', u'Возраст', u'Пол']
+    sex = [u'', u'М', u'Ж']
+    defaultOrderCol = 0
+    isPermanentCol = 1
+    reliefCol = 4
+    begDateCol = 6
+    endDateCol = 7
+    idColumn = 12
+    busyCol = 13
+    involuteCol = 14
 
-        self._cols[3].setToolTip(u'Профиль пребывания')
+
+    def __init__(self, parent):
+        QAbstractTableModel.__init__(self, parent)
+        self.items = []
         self.headerSortingCol = {}
+        self._cols = []
+        self.cntAll = 0
+        self.cntInvolute = 0
+        self.cntFree = 0
+        self.cntBusy = 0
+
+    def getItemId(self, row):
+        return self.items[row][self.idColumn]
+
+    def getStatistics(self):
+        return self.cntAll, self.cntInvolute, self.cntFree, self.cntBusy
+
+    def cols(self):
+        self._cols = [CCol(u'Код',           ['code'], 10, 'l'),
+                      CCol(u'Штат',          ['isPermanent'], 10, 'l'),
+                      CCol(u'Тип',           ['type_id'], 10, 'l'),
+                      CCol(u'Профиль',       ['profile_id'], 10, 'l'),
+                      CCol(u'Смены',         ['relief'], 6, 'l'),
+                      CCol(u'Режим',         ['schedule_id'], 15, 'l'),
+                      CCol(u'Начало',        ['begDate'], 20, 'l'),
+                      CCol(u'Окончание',     ['endDate'], 20, 'l'),
+                      CCol(u'Подразделение', ['master_id'], 8, 'l'),
+                      CCol(u'Наименование',  ['name'], 20, 'l'),
+                      CCol(u'Возраст',       ['age'], 10, 'l'),
+                      CCol(u'Пол',           ['sex'], 10, 'l')
+                      ]
+        return self._cols
+
+    def columnCount(self, index=None, *args, **kwargs):
+        return len(self.column)
+
+    def rowCount(self, index=None, *args, **kwargs):
+        return len(self.items)
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                return QVariant(self.column[section])
+        return QVariant()
 
     def isBusy(self, index):
-        record = self.getRecordByRow(index.row())
-        return forceBool(record.value('isBusy')) if record else None
+        return self.items[index.row()][self.busyCol]
 
     def data(self, index, role=Qt.DisplayRole):
-        if role == Qt.BackgroundColorRole:
-            record = self.getRecordByRow(index.row())
-            if record and forceBool(record.value('isBusy')):
-                return toVariant(QtGui.QColor(200, 230, 240))
-            else:
+        column = index.column()
+        row = index.row()
+        if role == Qt.DisplayRole:
+            if column in [self.begDateCol, self.endDateCol]:
+                item = self.items[row]
+                return toVariant(item[column].toString('dd.MM.yyyy hh:mm'))
+            elif column == self.isPermanentCol:
                 return QVariant()
+            else:
+                item = self.items[row]
+                return toVariant(item[column])
+        elif role == Qt.CheckStateRole:
+            if column == self.isPermanentCol:
+                item = self.items[row]
+                return toVariant(Qt.Checked if item[column] else Qt.Unchecked)
+        elif role == Qt.BackgroundColorRole:
+            item = self.items[row]
+            isBusy = item[self.busyCol]
+            if isBusy == 2:
+                return toVariant(QtGui.QColor(200, 230, 240))
+            elif isBusy == 1:
+                return toVariant(QtGui.QColor(255, 250, 205))
+        return QVariant()
+
+    def loadData(self, dialogParams):
+        self.items = []
+        self.cntAll = 0
+        self.cntInvolute = 0
+        self.cntFree = 0
+        self.cntBusy = 0
+        codeBeds = dialogParams.get('codeBeds', None)
+        permanent = dialogParams.get('permanent', None)
+        typeBeds = dialogParams.get('type', None)
+        bedProfile = dialogParams.get('bedProfile', None)
+        schedule = dialogParams.get('scheduleBed', None)
+        sexIndexBed = dialogParams.get('sexIndexBed', None)
+        ageForBed = dialogParams.get('ageForBed', None)
+        ageToBed = dialogParams.get('ageToBed', None)
+        involution = dialogParams.get('involution', None)
+        busy = dialogParams.get('busy', None)
+        isPlacementChecked = dialogParams.get('isPlacementChecked', None)
+        placementId = dialogParams.get('placementId', None)
+        activeBeds = dialogParams.get('activeBeds', None)
+        orgStructureIdList = dialogParams.get('orgStructureIdList', [])
+        begDate = dialogParams.get('filterBegDate', None)
+        endDate = dialogParams.get('filterEndDate', None)
+        begTime = dialogParams.get('filterBegTime', None)
+        endTime = dialogParams.get('filterEndTime', None)
+        if not begTime.isNull():
+            begDateTime = QDateTime(begDate, begTime)
+            begDate = begDateTime
+        if not endTime.isNull():
+            endDateTime = QDateTime(endDate, endTime)
+            endDate = endDateTime
+
+        db = QtGui.qApp.db
+        table = db.table('vHospitalBed')
+        tableHospitalBedType = db.table('rbHospitalBedType')
+        tableHospitalBedProfile = db.table('rbHospitalBedProfile')
+        tableHospitalBedShedule = db.table('rbHospitalBedShedule')
+        tableOrgStructure = db.table('OrgStructure')
+        queryTable = table.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(table['master_id']))
+        queryTable = queryTable.leftJoin(tableHospitalBedType, tableHospitalBedType['id'].eq(table['type_id']))
+        queryTable = queryTable.leftJoin(tableHospitalBedProfile, tableHospitalBedProfile['id'].eq(table['profile_id']))
+        queryTable = queryTable.leftJoin(tableHospitalBedShedule, tableHospitalBedShedule['id'].eq(table['schedule_id']))
+
+        cols = [table['code'],
+                table['isPermanent'],
+                tableHospitalBedType['name'].alias('typeName'),
+                tableHospitalBedProfile['name'].alias('profileName'),
+                table['relief'],
+                tableHospitalBedShedule['name'].alias('scheduleName'),
+                table['begDate'],
+                table['endDate'],
+                tableOrgStructure['name'].alias('orgStructureName'),
+                table['isBusy'],
+                table['name'],
+                table['age'],
+                table['sex'],
+                table['id'],
+                u"""EXISTS(SELECT NULL FROM OrgStructure_HospitalBed_Involution oshbi WHERE oshbi.master_id = vHospitalBed.id 
+AND oshbi.involutionType > 0
+AND (NOW() BETWEEN oshbi.begDate AND oshbi.endDate
+    OR (oshbi.begDate <= NOW() AND oshbi.endDate IS NULL)
+    OR (oshbi.begDate IS NULL AND oshbi.endDate IS NULL))) as involute"""
+                ]
+
+        cond = [table['master_id'].inlist(orgStructureIdList)]
+        addCondLike(cond, table['code'], codeBeds)
+        if permanent != 0:
+            cond.append(table['isPermanent'].eq(permanent-1))
+        if typeBeds:
+            cond.append(table['type_id'].eq(typeBeds))
+        if bedProfile:
+            cond.append(table['profile_id'].eq(bedProfile))
+        if schedule:
+            cond.append(table['schedule_id'].eq(schedule))
+        if sexIndexBed:
+            cond.append(table['sex'].eq(sexIndexBed))
+        if ageForBed <= ageToBed and not (ageForBed == 0 and ageToBed == 150):
+            ageForBedCount = ageForBed
+            if ageForBed == 0:
+                ageList = [u'']
+            else:
+                ageList = []
+            while ageForBedCount <= ageToBed:
+                ageList.append(str(ageForBedCount))
+                ageForBedCount += 1
+            if ageList:
+                cond.append(u'''(SELECT TRIM(BOTH 'г'
+                FROM (SELECT TRIM(BOTH '-'
+                FROM vHospitalBed.age)))) IN (%s)''' % (u','.join(age for age in ageList if age)))
+        if involution is not None:
+            cond.append(u"""EXISTS(SELECT NULL
+                                  FROM OrgStructure_HospitalBed_Involution oshbi
+                                  WHERE oshbi.master_id = vHospitalBed.id 
+                                  AND oshbi.involutionType = {0}
+                                  AND (NOW() BETWEEN oshbi.begDate AND oshbi.endDate
+                                    OR (oshbi.begDate <= NOW() AND oshbi.endDate IS NULL)
+                                    OR (oshbi.begDate IS NULL AND oshbi.endDate IS NULL)))""".format(involution + 1))
+        if busy == 1:
+            cond.append('isHospitalBedBusy(vHospitalBed.id, NOW()) != 2')
+        elif busy == 2:
+            cond.append('isHospitalBedBusy(vHospitalBed.id, NOW()) = 2')
+        if activeBeds:
+            cond.append(db.joinOr([table['endDate'].ge(QDateTime.currentDateTime()), table['endDate'].isNull()]))
+        if begDate:
+            cond.append(db.joinOr([table['begDate'].le(begDate), table['begDate'].isNull()]))
+        if endDate:
+            cond.append(db.joinOr([table['endDate'].ge(endDate), table['endDate'].isNull()]))
+
+        records = db.getRecordList(queryTable, cols, cond)
+        for record in records:
+            item = [
+                forceString(record.value('code')),
+                forceBool(record.value('isPermanent')),
+                forceString(record.value('typeName')),
+                forceString(record.value('profileName')),
+                forceInt(record.value('relief')),
+                forceString(record.value('scheduleName')),
+                forceDateTime(record.value('begDate')),
+                forceDateTime(record.value('endDate')),
+                forceString(record.value('orgStructureName')),
+                forceString(record.value('name')),
+                forceString(record.value('age')),
+                self.sex[forceInt(record.value('sex'))],
+                forceRef(record.value('id')),
+                forceInt(record.value('isBusy')),
+                forceBool(record.value('involute'))
+            ]
+            self.items.append(item)
+            self.cntAll += 1
+            if item[self.busyCol] == 2:
+                self.cntBusy += 1
+            elif item[self.involuteCol]:
+                self.cntInvolute += 1
+            else:
+                self.cntFree += 1
+
+        for col, order in self.headerSortingCol.items():
+            self.sort(col, order)
+
+    def sort(self, col, order=Qt.AscendingOrder):
+        self.headerSortingCol = {col: order}
+        reverse = order == Qt.DescendingOrder
+        if col == self.isPermanentCol:
+            self.items.sort(key=lambda x: forceBool(x[col]), reverse=reverse)
+        elif col == self.reliefCol:
+            self.items.sort(key=lambda x: forceInt(x[col]) if x else None, reverse=reverse)
+        elif col in [self.begDateCol, self.endDateCol]:
+            self.items.sort(key=lambda x: forceDateTime(x[col]) if x else None, reverse=reverse)
         else:
-            return CTableModel.data(self, index, role)
+            self.items.sort(key=lambda x: forceString(x[col]).lower() if x else None, reverse=reverse)
+        self.reset()
 
 
 class CInvoluteBedsModel(CInDocTableModel):
@@ -286,6 +486,7 @@ class CPresenceModel(CMonitoringModel):
     comfortableDateCol = 6
     clientColumn = 7
     eventColumn = 8
+    clientFIOColumn = 9
     defaultOrderCol = 10
     birthDateCol = 12
     hospDateCol = 13
@@ -517,6 +718,7 @@ class CPresenceModel(CMonitoringModel):
         presenceDay = dialogParams.get('presenceDay', None)
         codeAttachType = dialogParams.get('codeAttachType', None)
         indexLocalClient = dialogParams.get('indexLocalClient', None)
+        showLocatedInReanimation = dialogParams.get('showLocatedInReanimation', True)
         finance = dialogParams.get('finance', None)
         contractId = dialogParams.get('contractId', None)
         feed = dialogParams.get('feed', None)
@@ -855,6 +1057,29 @@ class CPresenceModel(CMonitoringModel):
                     groupBY += u', ' + u'Event.externalId'
                 else:
                     groupBY = u'Event.externalId'
+            if not showLocatedInReanimation:
+                cond.append(u"""
+                            NOT EXISTS (SELECT
+                            A.id
+                            FROM
+                            Action A
+                            JOIN ActionType AT ON A.actionType_id = AT.id
+                            LEFT JOIN ActionProperty AP_OS ON AP_OS.action_id = A.id AND AP_OS.deleted = 0
+                            LEFT JOIN ActionPropertyType APT_OS ON AP_OS.type_id = APT_OS.id
+                                                                    AND APT_OS.deleted = 0
+                                                                    AND APT_OS.name = 'Отделение пребывания'
+                            LEFT JOIN ActionProperty_OrgStructure APOS ON AP_OS.id = APOS.id
+                            LEFT JOIN ActionProperty AP_HB ON AP_HB.action_id = A.id AND AP_HB.deleted = 0
+                            LEFT JOIN ActionPropertyType APT_HB ON AP_HB.type_id = APT_HB.id
+                                                                    AND APT_HB.deleted = 0
+                                                                    AND APT_HB.name = 'койка'
+                            LEFT JOIN ActionProperty_HospitalBed APHB ON AP_HB.id = APHB.id
+                            WHERE
+                            A.deleted = 0
+                            AND AT.deleted = 0
+                            AND AT.flatCode LIKE 'reanimation%'
+                            AND A.event_id = Action.event_id
+                            AND A.status = 0)""")
             cols.append(u"""CASE Event.`order` WHEN 1 THEN 'плановый'
                                                WHEN 2 THEN 'экстренный'
                                                WHEN 3 THEN 'самотёком' 
@@ -1406,6 +1631,9 @@ class CPresenceModel(CMonitoringModel):
                 getDataMoving([], indexSex, ageFor, ageTo, permanent, _type, bedProfile, presenceDay, codeAttachType, finance, feed, dateFeed, indexLocalClient, (quotingTypeList, quotingTypeClass), accountingSystemId, filterClientId, filterEventId, codeBeds, defaultOrgStructureEventTypeIdList, begDateTime, endDateTime)
         for col, order in self.headerSortingCol.items():
             self.sort(col, order)
+
+    def getClientFIO(self, row):
+        return self.items[row][self.clientFIOColumn]
 
     def getPatronId(self, row):
         return self.items[row][self.patronIdColumn]
@@ -3497,7 +3725,7 @@ class CLeavedModel(CMonitoringModel):
             else:
                 cond.append(tableAction['assistant_id'].isNull())
         if profile:
-            cond.append(getHospitalBedProfileFromBed(profile))
+            cond.append(getHospitalBedProfile(profile))
 
         if forceInt(codeAttachType) > 0:
             cond.append(tableRBAttachType['code'].eq(codeAttachType))
@@ -4424,23 +4652,17 @@ class CQueueModel(CMonitoringModel):
         self.statusObservation = statusObservation
 
         db = QtGui.qApp.db
-        tableAPT = db.table('ActionPropertyType')
-        tableAP = db.table('ActionProperty')
-        tableAPHB = db.table('ActionProperty_HospitalBed')
         tableActionType = db.table('ActionType')
         tableAction = db.table('Action')
         tableEvent = db.table('Event')
         tableContract = db.table('Contract')
         tableClient = db.table('Client')
         tableClientPolicy = db.table('ClientPolicy')
-        tableOSHB = db.table('OrgStructure_HospitalBed')
-        tableOS = db.table('OrgStructure')
         tableOrg = db.table('Organisation')
         tableRelegateOrg = db.table('Organisation').alias('relegateOrg')
         tablePWS = db.table('vrbPersonWithSpeciality')
         tableClientAttach = db.table('ClientAttach')
         tableRBAttachType = db.table('rbAttachType')
-        tableStatusObservation= db.table('Client_StatusObservation')
         tableOrgStruct = db.table('OrgStructure').alias('PersonOrgStructure')
         tableOrgStruct1 = db.table('OrgStructure').alias('Parent1')
         tableOrgStruct2 = db.table('OrgStructure').alias('Parent2')
@@ -4457,63 +4679,10 @@ class CQueueModel(CMonitoringModel):
                         tableAction['setPerson_id'],
                         ]
 
-        def getActionIdList(actionTypeIdListByFlatCode, isBeds = False):
-            db = QtGui.qApp.db
-            tableAction = db.table('Action')
-            cond = [ tableAction['actionType_id'].inlist(actionTypeIdListByFlatCode),
-                     tableAction['deleted'].eq(0),
-                   ]
-            if isBeds:
-                if planActionBegDate:
-                    cond.append(tableAction['begDate'].dateGe(planActionBegDate))
-                if planActionEndDate:
-                    cond.append(tableAction['begDate'].dateLe(planActionEndDate))
-                if plannedBegDate:
-                    cond.append(tableAction['plannedEndDate'].dateGe(plannedBegDate))
-                if plannedEndDate:
-                    cond.append(tableAction['plannedEndDate'].dateLe(plannedEndDate))
-                if planWaitingBegDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(Action.begDate, Action.plannedEndDate) >= %d'''%(planWaitingBegDate))
-                if planWaitingEndDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(Action.begDate, Action.plannedEndDate) <= %d'''%(planWaitingEndDate))
-                if planBeforeOnsetBegDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(CURDATE(), Action.plannedEndDate) >= %d'''%(planBeforeOnsetBegDate))
-                if planBeforeOnsetEndDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(CURDATE(), Action.plannedEndDate) >= %d'''%(planBeforeOnsetEndDate))
-                if planExceedingDays:
-                    cond.append(u'''(Action.plannedEndDate IS NOT NULL AND (DATE_ADD(Action.plannedEndDate, INTERVAL %d DAY) < CURDATE()))
-                    OR ((Action.begDate IS NOT NULL AND Action.plannedEndDate IS NULL) AND (DATE_ADD(Action.begDate, INTERVAL %d DAY) < CURDATE()))'''%(planExceedingDays, planExceedingDays))
-            else:
-                if actionStatus:
-                    cond.append(tableAction['status'].inlist(actionStatus))
-                if isNoPlannedEndDate:
-                    cond.append(tableAction['plannedEndDate'].isNull())
-                if planActionBegDate:
-                    cond.append(tableAction['begDate'].dateGe(planActionBegDate))
-                if planActionEndDate:
-                    cond.append(tableAction['begDate'].dateLe(planActionEndDate))
-                if plannedBegDate:
-                    cond.append(tableAction['plannedEndDate'].dateGe(plannedBegDate))
-                if plannedEndDate:
-                    cond.append(tableAction['plannedEndDate'].dateLe(plannedEndDate))
-                if planWaitingBegDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(Action.begDate, %d) <= Action.plannedEndDate'''%(planWaitingBegDate))
-                if planWaitingEndDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(Action.begDate, %d) >= Action.plannedEndDate'''%(planWaitingEndDate))
-                if planBeforeOnsetBegDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) <= Action.plannedEndDate'''%(planBeforeOnsetBegDate))
-                if planBeforeOnsetEndDate:
-                    cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) >= Action.plannedEndDate'''%(planBeforeOnsetEndDate))
-                if planExceedingDays:
-                    cond.append(u'''(Action.plannedEndDate IS NOT NULL AND (DATE_ADD(Action.plannedEndDate, INTERVAL %d DAY) < CURDATE()))
-                    OR ((Action.begDate IS NOT NULL AND Action.plannedEndDate IS NULL) AND (DATE_ADD(Action.begDate, INTERVAL %d DAY) < CURDATE()))'''%(planExceedingDays, planExceedingDays))
-            return db.getDistinctIdList(tableAction, [tableAction['id']], cond)
-
-
-        def getPlanning(orgStructureIdList, indexSex = 0, ageFor = 0, ageTo = 150, permanent = None, type = None, profile = None, presenceDay = None, codeAttachType = None,
-                        finance = None, noBeds = False, personId = None, quotingTypeList = None, accountingSystemId = None, filterClientId = None, filterEventId = None, personExecId = None):
-            if not planningActionIdList:
-                return []
+        def getPlanning(orgStructureIdList, indexSex=0, ageFor=0, ageTo=150, permanent=None, type=None, profile=None,
+                        presenceDay=None, codeAttachType=None, finance=None, noBeds=False, personId=None,
+                        quotingTypeList=None, accountingSystemId=None, filterClientId=None, filterEventId=None,
+                        personExecId=None, ageForCurDate=0, ageToCurDate=150):
             nameProperty = u'подразделение'
             groupBy = u''
             cols = [tableAction['id'].alias('planningActionId'),
@@ -4532,7 +4701,8 @@ class CQueueModel(CMonitoringModel):
                     tableAction['setPerson_id'],
                     tableAction['status'],
                     tablePWS['name'].alias('namePerson'),
-                    tableRelegateOrg['id'].alias('relegateOrg_id')
+                    tableRelegateOrg['id'].alias('relegateOrg_id'),
+                    tableAction['MKB'].alias('ActionMKB')
                     ]
             cols.append(u"concat_ws(' | ', relegateOrg.infisCode, relegateOrg.shortName) as relegateOrgTitle")
             cols.append(u'''(SELECT ActionProperty_String.value FROM ActionProperty_String
@@ -4561,9 +4731,9 @@ class CQueueModel(CMonitoringModel):
                                         LEFT JOIN ActionPropertyType ON ActionPropertyType.id = ActionProperty.type_id
                                         WHERE ACT.id = Action.id AND ActionProperty.deleted = 0
                                         AND ActionPropertyType.name = 'Плановая дата госпитализации поликлиники') as policlinicPlannedDate''')
-            queryTable = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
-            queryTable = queryTable.innerJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
-            queryTable = queryTable.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
+            queryTable = tableAction.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            queryTable = queryTable.leftJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
+            queryTable = queryTable.leftJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
             queryTable = queryTable.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
             queryTable = queryTable.leftJoin(tableOrgStruct, tablePWS['orgStructure_id'].eq(tableOrgStruct['id']))
             queryTable = queryTable.leftJoin(tableOrgStruct1, tableOrgStruct['parent_id'].eq(tableOrgStruct1['id']))
@@ -4575,7 +4745,7 @@ class CQueueModel(CMonitoringModel):
                               IF(length(Parent1.bookkeeperCode)=5, Parent1.bookkeeperCode,
                                 IF(length(Parent2.bookkeeperCode)=5, Parent2.bookkeeperCode,
                                   IF(length(Parent3.bookkeeperCode)=5, Parent3.bookkeeperCode,
-                                    IF(length(Parent4.bookkeeperCode)=5, Parent4.bookkeeperCode, Parent5.bookkeeperCode))))) and Organisation.deleted = 0 and Organisation.isActive = 1""")
+                                    IF(length(Parent4.bookkeeperCode)=5, Parent4.bookkeeperCode, Parent5.bookkeeperCode))))) and Organisation.deleted = 0 and Organisation.isActive = 1 AND Organisation.isInsurer = 0""")
             queryTable = queryTable.leftJoin(tableRelegateOrg, 'relegateOrg.id = ifnull(Action.org_id, Organisation.id)')
             cond = [tableAction['actionType_id'].inlist(self.planningActionTypeIdList),
                     tableAction['deleted'].eq(0),
@@ -4583,40 +4753,27 @@ class CQueueModel(CMonitoringModel):
                     tableClient['deleted'].eq(0)
                     ]
             tableEventType = db.table('EventType')
-            queryTable = queryTable.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
-
-            # ТТ 1340 "изменить работу прав для очереди  стационарного монитора"
-            # if QtGui.qApp.userHasAnyRight([urHBVisibleOwnEventsParentOrgStructureOnly, urHBVisibleOwnEventsOrgStructureOnly]):
-            #     tableExecPerson = db.table('Person')
-            #     queryTable = queryTable.leftJoin(tableExecPerson, tableExecPerson['id'].eq(tableEvent['execPerson_id']))
-            #     uOrgStructureId = forceRef(db.translate('Person', 'id', QtGui.qApp.userId, 'orgStructure_id'))
-            #     if QtGui.qApp.userHasRight(urHBVisibleOwnEventsParentOrgStructureOnly):
-            #         parentOrgStructure = getParentOrgStructureId(uOrgStructureId)
-            #         uOrgStructureList = getOrgStructureDescendants(parentOrgStructure if parentOrgStructure else uOrgStructureId)
-            #         cond.append(db.joinOr([tableExecPerson['orgStructure_id'].inlist(uOrgStructureList), tableEventType['ignoreVisibleRights'].eq(1)]))
-            #     elif QtGui.qApp.userHasRight(urHBVisibleOwnEventsOrgStructureOnly):
-            #         uOrgStructureList = getOrgStructureDescendants(uOrgStructureId)
-            #         cond.append(db.joinOr([tableExecPerson['orgStructure_id'].inlist(uOrgStructureList), tableEventType['ignoreVisibleRights'].eq(1)]))
+            queryTable = queryTable.leftJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
 
             if planActionBegDate:
-                cond.append(tableAction['begDate'].dateGe(planActionBegDate))
+                cond.append(tableAction['begDate'].ge(planActionBegDate))
             if planActionEndDate:
-                cond.append(tableAction['begDate'].dateLe(planActionEndDate))
+                cond.append(tableAction['begDate'].lt(planActionEndDate.addDays(1)))
             if plannedBegDate:
-                cond.append(tableAction['plannedEndDate'].dateGe(plannedBegDate))
+                cond.append(tableAction['plannedEndDate'].ge(plannedBegDate))
             if plannedEndDate:
-                cond.append(tableAction['plannedEndDate'].dateLe(plannedEndDate))
+                cond.append(tableAction['plannedEndDate'].lt(plannedEndDate.addDays(1)))
             if planWaitingBegDate:
-                cond.append(u'''ADDDATE(Action.begDate, %d) <= IFNULL(Action.endDate, CURDATE())'''%(planWaitingBegDate))
+                cond.append(u'''ADDDATE(Action.begDate, %d) <= IFNULL(Action.endDate, CURDATE())''' % planWaitingBegDate)
             if planWaitingEndDate:
-                cond.append(u'''ADDDATE(Action.begDate, %d) >= IFNULL(Action.endDate, CURDATE())'''%(planWaitingEndDate))
+                cond.append(u'''ADDDATE(Action.begDate, %d) >= IFNULL(Action.endDate, CURDATE())''' % planWaitingEndDate)
             if planBeforeOnsetBegDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) <= Action.plannedEndDate'''%(planBeforeOnsetBegDate))
+                cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) <= Action.plannedEndDate''' % planBeforeOnsetBegDate)
             if planBeforeOnsetEndDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) >= Action.plannedEndDate'''%(planBeforeOnsetEndDate))
+                cond.append(u'''Action.plannedEndDate IS NOT NULL AND ADDDATE(CURDATE(), %d) >= Action.plannedEndDate''' % planBeforeOnsetEndDate)
             if planExceedingDays:
                 cond.append(u'''(Action.plannedEndDate IS NOT NULL AND (DATE_ADD(Action.plannedEndDate, INTERVAL %d DAY) < CURDATE()))
-                OR ((Action.begDate IS NOT NULL AND Action.plannedEndDate IS NULL) AND (DATE_ADD(Action.begDate, INTERVAL %d DAY) < CURDATE()))'''%(planExceedingDays, planExceedingDays))
+                OR ((Action.begDate IS NOT NULL AND Action.plannedEndDate IS NULL) AND (DATE_ADD(Action.begDate, INTERVAL %d DAY) < CURDATE()))''' % (planExceedingDays, planExceedingDays))
             if isNoPlannedEndDate:
                 cond.append(tableAction['plannedEndDate'].isNull())
             if actionStatus:
@@ -4647,7 +4804,7 @@ class CQueueModel(CMonitoringModel):
                 cond.append(existsStatusObservation(self.statusObservation))
             if accountingSystemId and filterClientId:
                 tableIdentification = db.table('ClientIdentification')
-                queryTable = queryTable.innerJoin(tableIdentification, tableIdentification['client_id'].eq(tableClient['id']))
+                queryTable = queryTable.leftJoin(tableIdentification, tableIdentification['client_id'].eq(tableClient['id']))
                 cond.append(tableIdentification['accountingSystem_id'].eq(accountingSystemId))
                 cond.append(tableIdentification['identifier'].eq(filterClientId))
                 cond.append(tableIdentification['deleted'].eq(0))
@@ -4673,14 +4830,14 @@ class CQueueModel(CMonitoringModel):
             cols.append(getActionQueueClientPolicyForDate())
             if forceInt(codeAttachType) > 0:
                 cond.append(tableRBAttachType['code'].eq(codeAttachType))
-                queryTable = queryTable.innerJoin(tableClientAttach, tableClient['id'].eq(tableClientAttach['client_id']))
-                queryTable = queryTable.innerJoin(tableRBAttachType, tableClientAttach['attachType_id'].eq(tableRBAttachType['id']))
+                queryTable = queryTable.leftJoin(tableClientAttach, tableClient['id'].eq(tableClientAttach['client_id']))
+                queryTable = queryTable.leftJoin(tableRBAttachType, tableClientAttach['attachType_id'].eq(tableRBAttachType['id']))
             if indexSex > 0:
                 cond.append(tableClient['sex'].eq(indexSex))
-            if ageFor <= ageTo:
+            if ageFor <= ageTo and not (ageFor == 0 and ageTo == 150):
                 cond.append(getAgeRangeCond(ageFor, ageTo))
             if orgStructureIdList:
-                cond.append(db.joinOr([getDataOrgStructure(nameProperty, orgStructureIdList, False), 'NOT %s'%(getActionPropertyTypeName(nameProperty))]))
+                cond.append(db.joinOr([getDataOrgStructure(nameProperty, orgStructureIdList, False), 'NOT %s' % (getActionPropertyTypeName(nameProperty))]))
             if quotingTypeList:
                 quotingTypeIdList, quotingTypeClass = quotingTypeList
                 if quotingTypeClass is not None:
@@ -4695,10 +4852,10 @@ class CQueueModel(CMonitoringModel):
                     cols.append(u'IF(Action.finance_id IS NOT NULL AND Action.deleted=0, rbFinance.name, IF(Contract.id IS NOT NULL AND Contract.deleted=0, rbFinanceByContract.name, NULL)) AS nameFinance')
                     cols.append(getClientPolicyForDate())
                     if finance:
-                        cond.append('''((Action.finance_id IS NOT NULL AND Action.deleted=0 AND Action.finance_id = %s) OR (Contract.id IS NOT NULL AND Contract.deleted=0 AND Contract.finance_id = %s))'''%(str(finance), str(finance)))
-                        queryTable = queryTable.innerJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
-                        queryTable = queryTable.innerJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
-                        queryTable = queryTable.innerJoin(tableRBFinanceBC, tableRBFinanceBC['id'].eq(tableContract['finance_id']))
+                        cond.append('''((Action.finance_id IS NOT NULL AND Action.deleted=0 AND Action.finance_id = %s) OR (Contract.id IS NOT NULL AND Contract.deleted=0 AND Contract.finance_id = %s))''' % (str(finance), str(finance)))
+                        queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
+                        queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
+                        queryTable = queryTable.leftJoin(tableRBFinanceBC, tableRBFinanceBC['id'].eq(tableContract['finance_id']))
                     else:
                         queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
                         queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
@@ -4709,8 +4866,8 @@ class CQueueModel(CMonitoringModel):
                     cols.append(getActionClientPolicyForDate())
                     queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
                     if finance:
-                        cond.append('''(Action.finance_id IS NOT NULL AND Action.deleted=0 AND Action.finance_id = %s)'''%(str(finance)))
-                        queryTable = queryTable.innerJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
+                        cond.append('''(Action.finance_id IS NOT NULL AND Action.deleted=0 AND Action.finance_id = %s)''' % (str(finance)))
+                        queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
                     else:
                         queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableAction['finance_id']))
                 else:
@@ -4720,19 +4877,19 @@ class CQueueModel(CMonitoringModel):
                     if finance:
                         cond.append(tableContract['deleted'].eq(0))
                         cond.append(tableRBFinance['id'].eq(finance))
-                        queryTable = queryTable.innerJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
-                        queryTable = queryTable.innerJoin(tableRBFinance, tableRBFinance['id'].eq(tableContract['finance_id']))
+                        queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
+                        queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableContract['finance_id']))
                     else:
                         queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
                         queryTable = queryTable.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableContract['finance_id']))
                 cond.append('(Contract.id IS NOT NULL AND Contract.deleted=0) OR (Contract.id IS NULL)')
-                queryTable = queryTable.innerJoin(tableClientPolicy,
+                queryTable = queryTable.leftJoin(tableClientPolicy,
                                                   u'''(ClientPolicy.id = getClientPolicyIdForDate(Client.id, IF(Contract.id IS NOT NULL AND Contract.deleted=0, IF(rbFinance.code = 2, 1, IF(rbFinance.code = 3, 0, 1)), 1), IF(Event.execDate IS NOT NULL, Event.execDate, Event.setDate), Event.id))''')
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
                     tableOrganisation = db.table('Organisation').alias('Org_Area')
-                    queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
+                    queryTable = queryTable.leftJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
                             cond.append(tableOrganisation['area'].notlike(regionSMOCode))
@@ -4745,191 +4902,27 @@ class CQueueModel(CMonitoringModel):
             elif isHospitalization == 2:
                 cond.append(u'NOT %s' % (isPlanningToHospitalization()))
             cols.extend(colsDirection)
-            records = db.getRecordListGroupBy(queryTable, cols, cond, groupBy)
-            return records
+            recordsList = db.getRecordListGroupBy(queryTable, cols, cond, groupBy)
+            return recordsList
 
-        def getPlanningBeds(orgStructureIdList, indexSex = 0, ageFor = 0, ageTo = 150, permanent = None, type = None, profile = None, presenceDay = None, codeAttachType = None, finance = None,
-                            personId = None, quotingTypeList = None, accountingSystemId = None, filterClientId = None, filterEventId = None, personExecId = None):
-            if not planningActionIdList:
-                return []
-            nameProperty = u'подразделение'
-            cols = [tableAction['id'],
-                    tableEvent['id'].alias('eventId'),
-                    tableEvent['client_id'],
-                    tableEvent['externalId'],
-                    tableEvent['srcNumber'],
-                    tableClient['lastName'],
-                    tableClient['firstName'],
-                    tableClient['patrName'],
-                    tableClient['sex'],
-                    tableClient['birthDate'],
-                    tableAction['begDate'],
-                    tableAction['endDate'],
-                    tableAction['plannedEndDate'],
-                    tableAction['status'],
-                    tableOSHB['code'].alias('codeBed'),
-                    tableOSHB['name'].alias('nameBed'),
-                    tableOSHB['sex'].alias('sexBed'),
-                    tablePWS['name'].alias('namePerson'),
-                    tableOrg['shortName'].alias('relegateOrg')
-                    ]
-            cols.append(getMKB())
-            cols.append(getStatusObservation())
-            cols.append(getMovingActionForPlannedDate(self.movingActionTypeIdList))
-            cols.append(getOSHBP())
-            cols.append(getHospDocumentLocationInfo())
-            cols.append('(SELECT name from rbSocStatusType where code = getClientCitizenship(Client.id, Action.plannedEndDate)) as citizenship')
-            cols.append(u'''(SELECT ActionProperty_Date.value FROM ActionProperty_Date
-                            LEFT JOIN ActionProperty ON ActionProperty.id = ActionProperty_Date.id
-                            LEFT JOIN Action AS ACT ON ACT.id = ActionProperty.action_id
-                            LEFT JOIN ActionPropertyType ON ActionPropertyType.id = ActionProperty.type_id
-                            WHERE ACT.id = Action.id AND ActionProperty.deleted = 0
-                            AND ActionPropertyType.name = 'Плановая дата госпитализации поликлиники') as policlinicPlannedDate''')
-            queryTable = tableAction.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
-            queryTable = queryTable.innerJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
-            queryTable = queryTable.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
-            queryTable = queryTable.innerJoin(tableAPT, tableAPT['actionType_id'].eq(tableActionType['id']))
-            queryTable = queryTable.innerJoin(tableAP, tableAP['type_id'].eq(tableAPT['id']))
-            queryTable = queryTable.innerJoin(tableAPHB, tableAPHB['id'].eq(tableAP['id']))
-            queryTable = queryTable.innerJoin(tableOSHB, tableOSHB['id'].eq(tableAPHB['value']))
-            queryTable = queryTable.innerJoin(tableOS, tableOS['id'].eq(tableOSHB['master_id']))
-            queryTable = queryTable.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
-            queryTable = queryTable.leftJoin(tableOrg, tableEvent['relegateOrg_id'].eq(tableOrg['id']))
-            cond = [ tableAction['id'].inlist(planningActionIdList),
-                     #tableAction['actionType_id'].inlist(self.planningActionTypeIdList),
-                     tableAction['deleted'].eq(0),
-                     tableEvent['deleted'].eq(0),
-                     tableAP['deleted'].eq(0),
-                     tableClient['deleted'].eq(0),
-                     tableAPT['typeName'].like('HospitalBed'),
-                     tableAP['action_id'].eq(tableAction['id'])
-                   ]
-            if planActionBegDate:
-                cond.append(tableAction['begDate'].dateGe(planActionBegDate))
-            if planActionEndDate:
-                cond.append(tableAction['begDate'].dateLe(planActionEndDate))
-            if plannedBegDate:
-                cond.append(tableAction['plannedEndDate'].dateGe(plannedBegDate))
-            if plannedEndDate:
-                cond.append(tableAction['plannedEndDate'].dateLe(plannedEndDate))
-            if planWaitingBegDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(Action.begDate, Action.plannedEndDate) >= %d'''%(planWaitingBegDate))
-            if planWaitingEndDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(Action.begDate, Action.plannedEndDate) <= %d'''%(planWaitingEndDate))
-            if planBeforeOnsetBegDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(CURDATE(), Action.plannedEndDate) >= %d'''%(planBeforeOnsetBegDate))
-            if planBeforeOnsetEndDate:
-                cond.append(u'''Action.plannedEndDate IS NOT NULL AND DATEDIFF(CURDATE(), Action.plannedEndDate) >= %d'''%(planBeforeOnsetEndDate))
-            if planExceedingDays:
-                cond.append(u'''(Action.plannedEndDate IS NOT NULL AND (DATE_ADD(Action.plannedEndDate, INTERVAL %d DAY) < CURDATE()))
-                OR ((Action.begDate IS NOT NULL AND Action.plannedEndDate IS NULL) AND (DATE_ADD(Action.begDate, INTERVAL %d DAY) < CURDATE()))'''%(planExceedingDays, planExceedingDays))
-            if isNoPlannedEndDate:
-                cond.append(tableAction['plannedEndDate'].isNull())
-            if actionStatus:
-                cond.append(tableAction['status'].inlist(actionStatus))
-            if profileDirectionsId > 0:
-                cond.append(getPropertyHospitalBedProfile(u'Профиль', profileDirectionsId))
-            elif profileDirectionsId == 0:
-                cond.append(getPropertyAPHBPNoProfile(joinType=u'INNER', nameProperty=u'Профиль'))
-            if eventSrcNumber:
-                cond.append(tableEvent['srcNumber'].eq(eventSrcNumber))
-            if actionTypePlaningId:
-                cond.append(tableAction['actionType_id'].inlist(actionTypePlaningId))
-            if contractId:
-                cond.append(isContractPropertyValue(u'Договор', contractId))
-            if MKBFilter:
-                cond.append(isMKB(MKBFrom, MKBTo))
-            if order:
-               cond.append(tableEvent['order'].eq(order))
-            if eventTypeId:
-               cond.append(tableEvent['eventType_id'].eq(eventTypeId))
-            tableEventType = db.table('EventType')
-            queryTable = queryTable.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
-            #cond.append(tableAction['status'].ne(3))
-            cond.append(db.joinOr([tableOS['id'].isNull(), tableOS['deleted'].eq(0)]))
-            if personId:
-                cond.append(tableAction['person_id'].eq(personId))
-            if personExecId:
-               cond.append(tableAction['person_id'].eq(personExecId))
-            if relegateOrg:
-                cond.append(tableEvent['relegateOrg_id'].eq(relegateOrg))
-            if isHospitalization == 1:
-                cond.append(isPlanningToHospitalization())
-            elif isHospitalization == 2:
-                cond.append(u'NOT %s'%(isPlanningToHospitalization()))
-            if self.statusObservation:
-                cond.append(existsStatusObservation(self.statusObservation))
-            if accountingSystemId and filterClientId:
-                tableIdentification = db.table('ClientIdentification')
-                queryTable = queryTable.innerJoin(tableIdentification, tableIdentification['client_id'].eq(tableClient['id']))
-                cond.append(tableIdentification['accountingSystem_id'].eq(accountingSystemId))
-                cond.append(tableIdentification['identifier'].eq(filterClientId))
-                cond.append(tableIdentification['deleted'].eq(0))
-            elif filterClientId:
-                cond.append(tableClient['id'].eq(filterClientId))
-            if filterEventId:
-                cond.append(tableEvent['externalId'].eq(filterEventId))
-            if finance:
-                condFinance = u' AND ActionProperty_rbFinance.value = %d' % (finance)
-            else:
-                condFinance = u''
-            cols.append(u'''(SELECT CONCAT_WS(' ', CONVERT(rbFinance.id,CHAR(11)), rbFinance.code, rbFinance.name)
-                            FROM  ActionType AS AT
-                                INNER JOIN Action AS A ON AT.id=A.actionType_id
-                                INNER JOIN ActionPropertyType AS APT ON APT.actionType_id=AT.id
-                                LEFT JOIN ActionProperty AS AP ON AP.type_id=APT.id AND AP.action_id = A.id
-                                LEFT JOIN ActionProperty_rbFinance ON ActionProperty_rbFinance.id=AP.id
-                                LEFT JOIN rbFinance ON rbFinance.id=ActionProperty_rbFinance.value
-                            WHERE  A.deleted=0 AND AT.deleted=0 AND AP.deleted = 0 AND APT.deleted=0 AND A.id = Action.id AND APT.name = 'источник финансирования'%s) AS financeCodeName''' % (condFinance))
-            cols.append(getDataOrgStructureName(nameProperty))
-            cols.append(getActionQueueClientPolicyForDate())
-            cols.append(getPropertyAPOS(u'Направлен в отделение', self.receivedActionTypeIdList))
-#            if presenceDay:
-#                currentDateFormat = tableAction['begDate'].formatValue(currentDate)
-#                cond.append(u'DATEDIFF(%s, Action.begDate) = %d' % (forceString(currentDateFormat), presenceDay))
-            if forceInt(codeAttachType) > 0:
-                cond.append(tableRBAttachType['code'].eq(codeAttachType))
-                queryTable = queryTable.innerJoin(tableClientAttach, tableClient['id'].eq(tableClientAttach['client_id']))
-                queryTable = queryTable.innerJoin(tableRBAttachType, tableClientAttach['attachType_id'].eq(tableRBAttachType['id']))
-            if permanent and permanent > 0:
-               cond.append(tableOSHB['isPermanent'].eq(permanent - 1))
-            if type:
-               cond.append(tableOSHB['type_id'].eq(type))
-            if profile:
-                cond.append(getHospitalBedProfile(profile))
-            if indexSex > 0:
-                cond.append(tableClient['sex'].eq(indexSex))
-            if ageFor <= ageTo:
-                cond.append(getAgeRangeCond(ageFor, ageTo))
-            if orgStructureIdList:
-                cond.append(getDataOrgStructure(nameProperty, orgStructureIdList, False))
-            if quotingTypeList:
-                quotingTypeIdList, quotingTypeClass = quotingTypeList
-                if quotingTypeClass is not None:
-                    cond.append(getDataClientQuoting(u'Квота', quotingTypeIdList))
-            cols.extend(colsDirection)
-            records = db.getRecordList(queryTable, cols, cond)
-            return records
+        orgStructureIdList = []
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
             orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
-            # recordType = db.getRecordEx(tableOS, [tableOS['id']], [tableOS['deleted'].eq(0), tableOS['type'].eq(4), tableOS['id'].inlist(orgStructureIdList)])
-            # if recordType and forceRef(recordType.value('id')):
-            #     orgStructureIdList = []
         if quotingType:
             quotingTypeClass, quotingTypeId = quotingType
             quotingTypeList = self.getQuotingTypeIdList(quotingType)
         else:
             quotingTypeClass = None
             quotingTypeList = None
-        planningActionIdList = getActionIdList(self.planningActionTypeIdList)
+
         records = getPlanning(orgStructureIdList, indexSex, ageFor, ageTo, permanent, type, profile, presenceDay, codeAttachType, finance, False, personId, (quotingTypeList, quotingTypeClass), accountingSystemId, filterClientId, filterEventId, personExecId)
         for record in records:
             financeCodeName = forceString(record.value('financeCodeName')).split(" ")
             if len(financeCodeName) >= 2:
-                idFinance = forceRef(financeCodeName[0]) if len(financeCodeName)>=1 else 0
-                nameFinance = forceString(financeCodeName[2]) if len(financeCodeName)>=3 else u''
-                codeFinance = forceString(financeCodeName[1]) if len(financeCodeName)>=3 else u''
+                idFinance = forceRef(financeCodeName[0]) if len(financeCodeName) >= 1 else 0
+                nameFinance = forceString(financeCodeName[2]) if len(financeCodeName) >= 3 else u''
+                codeFinance = forceString(financeCodeName[1]) if len(financeCodeName) >= 3 else u''
             else:
                 idFinance = 0
                 nameFinance = u''
@@ -4939,11 +4932,11 @@ class CQueueModel(CMonitoringModel):
                 endDateAction = forceDate(record.value('endDate'))
                 waitingDays = begDateAction.daysTo(endDateAction) if endDateAction else begDateAction.daysTo(currentDate)
                 statusObservation = forceString(record.value('statusObservation')).split('|')
-                statusObservationCode = forceString(statusObservation[0]) if len(statusObservation)>=1 else u''
-                statusObservationName = forceString(statusObservation[1]) if len(statusObservation)>=2 else u''
-                statusObservationColor = forceString(statusObservation[2]) if len(statusObservation)>=3 else u''
-                statusObservationDate = forceString(statusObservation[3]) if len(statusObservation)>=4 else u''
-                statusObservationPerson = forceString(statusObservation[4]) if len(statusObservation)>=5 else u''
+                statusObservationCode = forceString(statusObservation[0]) if len(statusObservation) >= 1 else u''
+                statusObservationName = forceString(statusObservation[1]) if len(statusObservation) >= 2 else u''
+                statusObservationColor = forceString(statusObservation[2]) if len(statusObservation) >= 3 else u''
+                statusObservationDate = forceString(statusObservation[3]) if len(statusObservation) >= 4 else u''
+                statusObservationPerson = forceString(statusObservation[4]) if len(statusObservation) >= 5 else u''
                 policyEndDate = forceDate(record.value('policyEndDate'))
                 colorFinance = None
                 if policyEndDate:
@@ -4952,8 +4945,8 @@ class CQueueModel(CMonitoringModel):
                     elif begDateAction >= policyEndDate:
                         colorFinance = QtGui.QColor(Qt.red)
                 documentLocationInfo  = forceString(record.value('documentLocationInfo')).split("  ")
-                hospDocumentLocation  = forceString(documentLocationInfo[0]) if len(documentLocationInfo)>=1 else ''
-                documentLocationColor = forceString(documentLocationInfo[1]) if len(documentLocationInfo)>1 else ''
+                hospDocumentLocation  = forceString(documentLocationInfo[0]) if len(documentLocationInfo) >= 1 else ''
+                documentLocationColor = forceString(documentLocationInfo[1]) if len(documentLocationInfo) > 1 else ''
                 itemDirection = [
                                     forceRef(record.value('relegateOrg_id')),
                                     forceRef(record.value('setPerson_id')),
@@ -4975,7 +4968,7 @@ class CQueueModel(CMonitoringModel):
                         forceDate(record.value('plannedEndDate')),
                         CActionStatus.names[forceInt(record.value('status'))],
                         waitingDays,
-                        forceString(record.value('MKB')),
+                        forceString(record.value('MKB')) if forceString(record.value('MKB')) else forceString(record.value('ActionMKB')),
                         forceString(record.value('profileName')),
                         forceString(record.value('nameOrgStructure')),
                         forceString(record.value('namePerson')),
@@ -4995,6 +4988,7 @@ class CQueueModel(CMonitoringModel):
                         forceString(calcAge(forceDate(record.value('birthDate')), None)),
                         forceRef(record.value('planningActionId'))
                         ]
+
                 item.extend(itemDirection)
                 self.items.append(item)
                 eventId = forceRef(record.value('eventId'))

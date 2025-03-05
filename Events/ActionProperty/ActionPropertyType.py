@@ -25,7 +25,12 @@ from BooleanActionPropertyValueType      import CBooleanActionPropertyValueType
 from JobTicketActionPropertyValueType    import CJobTicketActionPropertyValueType
 from NomenclatureActionPropertyValueType import CNomenclatureActionPropertyValueType
 from NomenclatureActiveSubstanceActionPropertyValueType import CNomenclatureActiveSubstanceActionPropertyValueType
+from NomenclatureUsingTypeActionPropertyValueType        import CNomenclatureUsingTypeActionPropertyValueType
+from NomenclatureSmnnActionPropertyValueType import CNomenclatureSmnnActionPropertyValueType
+from NomenclatureSmnnGrlsLfActionPropertyValueType import CNomenclatureSmnnGrlsLfActionPropertyValueType
+from NomenclatureCalculationParamActionPropertyValueType import CNomenclatureCalculationParamActionPropertyValueType
 from PacsActionPropertyValueType         import CPacsActionPropertyValueType
+from UrlActionPropertyValueType          import CUrlActionPropertyValueType
 
 
 class CActionPropertyType(object):
@@ -39,6 +44,7 @@ class CActionPropertyType(object):
         self.idx = forceInt(record.value('idx'))
         self.name = forceString(record.value('name'))
         self.shortName = forceString(record.value('shortName'))
+        self.comment = forceString(record.value('comment'))
         self.descr = forceString(record.value('descr'))
         self.sectionCDA = forceString(record.value('sectionCDA'))
         self.var = forceString(record.value('var'))
@@ -193,14 +199,17 @@ class CActionPropertyType(object):
         return valueId
 
 
-    def createEditor(self, action, editorParent, clientId, eventTypeId, eventEditor=None):
+    def createEditor(self, action, editorParent, clientId, eventTypeId, eventEditor=None, readOnly=False):
         result = None
         editorClass = self.valueType.getEditorClass()
         if editorClass:
             if eventEditor:
                 result = editorClass(action, self.valueDomain if self.typeName == 'Reference' else self.valueType.domain, editorParent, clientId, eventTypeId, eventEditor)
             else:
-                result = editorClass(action, self.valueDomain if self.typeName == 'Reference' else self.valueType.domain, editorParent, clientId, eventTypeId)
+                if not readOnly:
+                    result = editorClass(action, self.valueDomain if self.typeName == 'Reference' else self.valueType.domain, editorParent, clientId, eventTypeId)
+                else:
+                    result = editorClass(action, self.valueDomain if self.typeName == 'Reference' else self.valueType.domain, editorParent, clientId, eventTypeId, readOnly)
         return result
 
 
@@ -251,6 +260,26 @@ class CActionPropertyType(object):
 
     def isNomenclatureActiveSubstanceValueType(self):
         return isinstance(self.valueType, CNomenclatureActiveSubstanceActionPropertyValueType)
+
+
+    def isUrl(self):
+        return isinstance(self.valueType, CUrlActionPropertyValueType)
+
+
+    def isNomenclatureSmnnActionPropertyValueType(self):
+        return isinstance(self.valueType, CNomenclatureSmnnActionPropertyValueType)
+
+
+    def isNomenclatureSmnnGrlsLfActionPropertyValueType(self):
+        return isinstance(self.valueType, CNomenclatureSmnnGrlsLfActionPropertyValueType)
+
+
+    def isNomenclatureCalculationParamActionPropertyValueType(self):
+        return isinstance(self.valueType, CNomenclatureCalculationParamActionPropertyValueType)
+
+
+    def isNomenclatureUsingTypeActionPropertyValueType(self):
+        return isinstance(self.valueType, CNomenclatureUsingTypeActionPropertyValueType)
 
 
     def evalValue(self, variables):

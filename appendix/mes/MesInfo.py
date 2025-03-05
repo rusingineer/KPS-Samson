@@ -12,16 +12,14 @@
 ##
 #############################################################################
 
-import sys
-from sys import *
 
-from PyQt4 import QtCore, QtGui, QtSql
+from PyQt4 import QtSql, QtGui
 
-from library.Utils import *
-from MKBTree import *
+from Reports.MesDescription import insertMainSection, insertPersonServicesSection, insertServiceSection, \
+    insertMedicamentsSection
 from Reports.ReportBase import CReportBase, createTable
-from Reports.MesDescription import *
-from library.MES.Model import parseModel
+from appendix.mes.MKBTree import checkMKBTable, getMKBName, MKB_TABLE_NAME, MKB_SUBCLASS_ITEM_TABLE_NAME
+from library.Utils import forceRef, forceString, toVariant
 
 
 class CQueryModel(QtSql.QSqlQueryModel):

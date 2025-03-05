@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2017-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -26,7 +26,7 @@ class CAtolInterface:
 
     #tagAddress       = 1009
     tagOperatorName  = 1021
-    tagOperatorVatin   = 1203
+    tagOperatorVatin = 1203
 
     tagPaymentObject = 1212 # Признак предмета расчета (тег 1212)
     tagPaymentMethod = 1214 # Признак способа рaсчета (тег 1214)
@@ -79,7 +79,6 @@ class CAtolInterface:
 
     def setOperatorVatin(self, vatin):
         self.operatorVatin = vatin
-
 
 
     def __checkError(self, rc):
@@ -193,11 +192,11 @@ class CAtolInterface:
         self.fptr.setParam(IFptr.LIBFPTR_PARAM_DATA_TYPE, IFptr.LIBFPTR_DT_MODEL_INFO)
         self.__checkError(self.fptr.queryData())
 
-        model           = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_MODEL)
+#        model           = self.fptr.getParamInt(IFptr.LIBFPTR_PARAM_MODEL)
         modelName       = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_MODEL_NAME)
         firmwareVersion = self.fptr.getParamString(IFptr.LIBFPTR_PARAM_UNIT_VERSION)
 
-        return { 'model'   : model,
+        return { #'model'   : model,
                  'name'    : modelName,
                  'version' : firmwareVersion,
                }
@@ -338,25 +337,26 @@ class CAtolInterface:
                  sum_,
                  vatPercent=0,
                  section=0,
-                 paymentObject=0,
-                 paymentMethod=1,
+                 paymentObject=poService,     # 4, # poService
+                 paymentMethod=pmFullPayment, # 4, # pmFullPayment
                  checkCache=True):
         if sum_ == 0 and price != 0:
             sum_ = round(price*quantity, 2)
         elif sum_ != 0 and price == 0 and quantity != 0:
             price = round(sum_/quantity, 2)
 
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME, name)
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE,          price)
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY,       quantity)
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_SUM,            sum_) # ???
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_POSITION_SUM,   sum_)
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE,       self.__encodeVat(vatPercent))
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_SUM,        0) # При передаче значения 0 рассчитывается автоматически
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_DEPARTMENT,     section)
-        self.fptr.setParam(self.tagPaymentObject,              paymentObject) # Признак предмета расчета (тег 1212)
-        self.fptr.setParam(self.tagPaymentMethod,              paymentMethod) # Признак способа рaсчета (тег 1214)
-        self.fptr.setParam(IFptr.LIBFPTR_PARAM_CHECK_SUM,      checkCache)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_COMMODITY_NAME,   name)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_PRICE,            price)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_QUANTITY,         quantity)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_MEASUREMENT_UNIT, IFptr.LIBFPTR_IU_PIECE)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_SUM,              sum_) # ???
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_POSITION_SUM,     sum_)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_TYPE,         self.__encodeVat(vatPercent))
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TAX_SUM,          0) # При передаче значения 0 рассчитывается автоматически
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_DEPARTMENT,       section)
+        self.fptr.setParam(self.tagPaymentObject,                paymentObject) # Признак предмета расчета (тег 1212)
+        self.fptr.setParam(self.tagPaymentMethod,                paymentMethod) # Признак способа рaсчета (тег 1214)
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_CHECK_SUM,        checkCache)
         self.__checkError(self.fptr.registration())
 
 

@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -22,8 +22,19 @@ import math
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, SIGNAL, QDate, QObject, QVariant, QTime, QDateTime, pyqtSignature
 from Events.ActionRelations.Groups import CRelationsProxyModelGroup
+from Events.ExecutionPlan.Groups import CExecutionPlanProxyModelGroup
 
-from Users.Rights import urDeleteNotOwnActions
+from Orgs.Utils import getPersonOrgStructureChiefs
+
+from Users.Rights import ( 
+                        urAdmin,
+                        urEditClosedEvent,
+                        urEditOtherpeopleAction,
+                        urEditOtherPeopleActionSpecialityOnly,
+                        urEditSubservientPeopleAction,
+                        urEditAfterReturnEvent
+                        )
+
 from Events.InputDialog import CInputDialog
 from library.AgeSelector         import checkAgeSelector, parseAgeSelector
 from library.crbcombobox              import CRBModelDataCache
@@ -32,7 +43,7 @@ from library.Calendar            import countWorkDays
 from library.DbEntityCache       import CDbEntityCache
 from library.ICDUtils            import MKBwithoutSubclassification
 from library.PrintInfo           import CInfoContext
-from library.Utils                    import calcAgeTuple, firstHalfYearDay, firstMonthDay, firstQuarterDay, firstWeekDay, firstYearDay, forceBool, forceDate, forceDouble, forceInt, forceRef, forceString, forceStringEx, forceTime, formatName, lastHalfYearDay, lastMonthDay, lastQuarterDay, lastWeekDay, lastYearDay, toVariant
+from library.Utils                    import calcAgeTuple, trim, firstHalfYearDay, firstMonthDay, firstQuarterDay, firstWeekDay, firstYearDay, forceBool, forceDate, forceDouble, forceInt, forceRef, forceString, forceStringEx, forceTime, formatName, lastHalfYearDay, lastMonthDay, lastQuarterDay, lastWeekDay, lastYearDay, toVariant, pyDate
 from library.Preferences                import CPreferences
 from library                import database
 from library.InDocTable          import CInDocTableView
@@ -561,7 +572,9 @@ class CEventTypeDescription(CDbEntityCache):
                                        'mesSpecification_id',
                                        'showButtonTemperatureList',
                                        'showButtonNomenclatureExpense',
-                                       'showButtonJobTickets'
+                                       'showButtonJobTickets',
+                                       'relOrg_id',
+                                       'relcounter_id'
                                        ), tableEventType['id'].eq(eventTypeId))
         if not record:
             record = QtSql.QSqlRecord()
@@ -619,6 +632,8 @@ class CEventTypeDescription(CDbEntityCache):
         self.hasCurator = forceBool(record.value('hasCurator'))
         self.hasVisitAssistant = forceBool(record.value('hasVisitAssistant'))
         self.relegationRequired = forceBool(record.value('relegationRequired'))
+        self.relCounterId = forceInt(record.value('relcounter_id'))
+        self.relOrgId = forceInt(record.value('relOrg_id'))
         self.aidKindCode = forceString(record.value('aidKindCode'))
         self.aidTypeId   = forceRef(record.value('aidType_id'))
         self.aidTypeCode = forceString(record.value('aidTypeCode'))
@@ -830,6 +845,14 @@ def isEventUrgent(eventTypeId):
 
 def getEventTypeForm(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).form
+
+
+def getEventTypeRelOrg(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).relOrgId
+
+
+def getEventTypeRelCounter(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).relCounterId
 
 
 def getEventFinanceCode(eventTypeId):
@@ -1354,6 +1377,64 @@ def checkDiagnosis(parentWidget, MKB, diagFilter, clientId, clientSex, clientAge
     return True
 
 
+def checkSpecifyDiagnosis(parentWidget, MKB, diagFilter, clientId, clientSex, clientAge, date, mapMKBTraumaList=[]):
+    def getPrefixMKB(MKB):
+        lowCode = MKB
+        if len(MKB) == 3:
+            lowCode = MKB + '.0'
+        return lowCode
+    specifiedMKB = MKB
+    specifiedMKBEx = ''
+    specifiedCharacterId = None
+    specifiedTraumaTypeId = None
+    modifiableDiagnosisId = None
+    specifiedDispanserId = None
+    specifiedRequiresFillingDispanser = 0
+    specifiedProlongMKB = False
+    acceptable = checkDiagnosis(parentWidget, MKB, diagFilter, clientId, clientSex, clientAge, date)
+    if acceptable and not MKB.startswith('Z'):
+        db = QtGui.qApp.db
+        tableMKB = db.table('MKB')
+        recordFillingDispanser = db.getRecordEx(tableMKB, [tableMKB['requiresFillingDispanser']], [tableMKB['DiagID'].eq(MKB)])
+        specifiedRequiresFillingDispanser = forceInt(recordFillingDispanser.value('requiresFillingDispanser')) if recordFillingDispanser else None
+        table = db.table('Diagnosis')
+        tableCharacter = db.table('rbDiseaseCharacter')
+        queryTable = table.join(tableCharacter, tableCharacter['id'].eq(table['character_id']))
+        queryTable = queryTable.join(tableMKB, 'MKB.DiagID=LEFT(Diagnosis.MKB,5)')
+        cols = 'Diagnosis.id, Diagnosis.MKB, Diagnosis.MKBEx, Diagnosis.character_id, Diagnosis.traumaType_id, Diagnosis.dispanser_id, MKB.requiresFillingDispanser'
+        cond = db.joinAnd([table['client_id'].eq(clientId), table['deleted'].eq(0), table['mod_id'].isNull(),
+                           db.joinOr([tableCharacter['code'].ne('1'),
+                                      'ADDDATE(Diagnosis.endDate, IF(MKB.duration,MKB.duration,%d))>=%s'%(QtGui.qApp.averageDuration(), db.formatDate(date))
+                                     ]),
+                           db.joinOr([tableMKB['endDate'].isNull(), tableMKB['endDate'].dateGe(date)])
+                          ])
+        record = db.getRecordEx(queryTable, cols, [cond, table['MKB'].eq(MKB)]) # точно такой
+        if not record:
+            record = db.getRecordEx(queryTable, cols, [cond, table['MKB'].like(MKB+'%')]) # такой, но с субклассификацией
+        if not record:
+            record = db.getRecordEx(queryTable, cols, [cond, table['MKB'].like(MKBwithoutSubclassification(MKB)+'%')]) # такой, без субклассификацией (другой субклассификацией)
+        if not record:
+            record = db.getRecordEx(queryTable, cols, [cond, table['MKB'].like(MKB[:3]+'%')]) # такой, без классификации (другой классификацией)
+        if not record:# другой в этом-же блоке
+            tableMKB = db.table('MKB')
+            tableMKB1 = db.table('MKB').alias('MKB1')
+            condExists = [tableMKB1['DiagID'].eq(MKB[:3]),
+            'LEFT('+table['MKB'].name()+', 3)='+tableMKB['DiagID'].name()]
+            condExists.append(db.joinOr([tableMKB['endDate'].isNull(), tableMKB['endDate'].dateGe(date)] ))
+            condMKBInBlock = db.existsStmt(tableMKB.leftJoin(tableMKB1, tableMKB['BlockID'].eq(tableMKB1['BlockID'])),
+                                           condExists)
+            record = db.getRecordEx(queryTable, cols, [cond, condMKBInBlock]) # другой в этом-же блоке
+        if record:
+            specifiedMKB = forceString(record.value('MKB'))
+            specifiedMKBEx = forceString(record.value('MKBEx'))
+            specifiedCharacterId = forceRef(record.value('character_id'))
+            specifiedTraumaTypeId = forceRef(record.value('traumaType_id'))
+            specifiedDispanserId = forceRef(record.value('dispanser_id'))
+            specifiedRequiresFillingDispanser = forceInt(record.value('requiresFillingDispanser'))
+            specifiedProlongMKB = True
+    return (acceptable, specifiedMKB, specifiedMKBEx, specifiedCharacterId, specifiedTraumaTypeId, modifiableDiagnosisId, specifiedDispanserId, specifiedRequiresFillingDispanser, specifiedProlongMKB)
+
+
 def specifyDiagnosis(parentWidget, MKB, diagFilter, clientId, clientSex, clientAge, date, mapMKBTraumaList=[]):
     def  getPrefixMKB(MKB):
         lowCode = MKB
@@ -1538,10 +1619,16 @@ def modifyDiagnosisRecord(record, diagnosisTypeCode, characterCode, MKB, MKBEx, 
     record.setValue('MKB',              toVariant(MKB))
     record.setValue('MKBEx',            toVariant(MKBEx))
     if QtGui.qApp.isExSubclassMKBVisible():
+        if exSubclassMKB is None:
+            exSubclassMKB = ''
         record.setValue('exSubclassMKB', toVariant(exSubclassMKB))
     if QtGui.qApp.isTNMSVisible():
+        if TNMS is None:
+            TNMS = ''
         record.setValue('TNMS',         toVariant(TNMS))
     if QtGui.qApp.defaultMorphologyMKBIsVisible():
+        if morphologyMKB is None:
+            morphologyMKB = ''
         record.setValue('morphologyMKB',    toVariant(morphologyMKB))
     record.setValue('dispanser_id',     toVariant(dispanserId))
     if dispanserUpdateDate:
@@ -2154,12 +2241,14 @@ def getActionTypeIdListByClass(actionTypeClass):
 
 
 def getActionTypeIdListByFlatCode(flatCode):
+    if not isinstance(flatCode, list):
+        flatCode = [flatCode]
     db = QtGui.qApp.db
     tableActionType = db.table('ActionType')
     cond =[tableActionType['deleted'].eq(0),
-           tableActionType['flatCode'].like(flatCode),
+           db.joinOr([tableActionType['flatCode'].like(flatCodeItem) for flatCodeItem in flatCode]),
           ]
-    return db.getIdList(tableActionType, 'id', cond)
+    return db.getDistinctIdList(tableActionType, 'id', cond)
 
 
 def getActionTypeDescendants(actionTypeId, class_=None):
@@ -2277,6 +2366,103 @@ class CTableSummaryActionsMenuMixin():
             return self.modelActionsSummary.itemIndex[row]
         else:
             return None, None
+    
+    
+    def canUnbindRow(self, rows):
+        from Events.Action import CActionTypeCache
+        tabs = {
+            0: self.tabStatus,
+            1: self.tabDiagnostic,
+            2: self.tabCure,
+            3: self.tabMisc
+        }
+        
+        def afterReturnCond(actions):
+            db = QtGui.qApp.db
+            tableAccountItem = db.table('Account_Item')
+            prevEventId = self.getEventId()
+            actionIds = []
+            for record, action in actions:
+                actionIds.append(record.value('id'))
+            query = db.query('SELECT {}'.format(db.existsStmt(tableAccountItem, [
+                tableAccountItem['event_id'].eq(prevEventId), 
+                tableAccountItem['refuseType_id'].isNotNull()
+                ])))
+            if query.next():
+                record = query.record()
+                query = db.query('SELECT {}'.format(db.existsStmt(tableAccountItem, tableAccountItem['action_id'].inlist(actionIds))))
+                if forceInt(record.value(0)) and query.next():
+                    record = query.record()
+                    if not forceBool(record.value(0)):
+                        return False
+                    else:
+                        return True
+            return False
+            
+        if QtGui.qApp.userHasRight(urAdmin):
+            return True
+        if self.isReadOnly():
+            return False
+        relatedRows = []
+        for row in rows:
+            if 0 <= row < len(self.modelActionsSummary.itemIndex):
+                page, row = self.modelActionsSummary.itemIndex[row]
+                tbl = self.tabsTableList[page]
+                row = tbl.model()._mapModelRow2ProxyRow[row]
+                items = tbl.model()._items
+                group = items._mapProxyRow2Group[row]
+                if group.firstItem.action.getMasterId():
+                    for itemClass in list(tabs.values()):
+                        if group.firstItem.action.getType().class_ == itemClass:
+                            continue
+                        for item in itemClass.modelAPActions._groups.groupsIterator:
+                            if item.firstItem.id == group.firstItem.action.getMasterId():
+                                row = item._mapItem2Row[item.firstItem]
+                                page, row = self.modelActionsSummary.itemIndex[row]
+                                tbl = self.tabsTableList[page]
+                                row = tbl.model()._mapModelRow2ProxyRow[row]
+                                items = tbl.model()._items
+                                group = items._mapProxyRow2Group[row]
+                                break
+                if row < len(items):
+                    record, action = items[row]
+                else:
+                    if not group.expanded and isinstance(group, CRelationsProxyModelGroup):
+                        tbl.model().touchGrouping(row)
+                    record, action = group.getItem(row)
+                relatedRows.append((record, action))
+                if isinstance(group, CRelationsProxyModelGroup):
+                    parentActionType = group.firstItem.action.getType()
+                    relatedActionTypes = CActionTypeCache.getById(parentActionType.id).getRelatedActionTypes()
+                    required = []
+                    for item in relatedActionTypes:
+                        relatedActionType = CActionTypeCache.getById(item)
+                        if parentActionType.class_ != relatedActionType.class_:
+                            required.append(relatedActionType.class_)     
+                    required = set(required)
+                    for proxyRow in reversed(sorted(group.proxyRows)):
+                        record, action = group.getItem(proxyRow)
+                        relatedRows.append((record, action))
+                    for itemClass in required:
+                        for item in tabs[itemClass].modelAPActions._groups.groupsIterator:
+                            if item.firstItem.action.getMasterId() == group.firstItem.id:
+                                record, action = item.firstItem
+                                relatedRows.append((record, action))
+        relatedRows = list(set(relatedRows))
+        if QtGui.qApp.userHasRight(urEditClosedEvent) or (QtGui.qApp.userHasRight(urEditAfterReturnEvent) and afterReturnCond(relatedRows)):
+            if QtGui.qApp.userHasRight(urEditOtherpeopleAction):
+                return True
+            elif QtGui.qApp.userHasRight(urEditOtherPeopleActionSpecialityOnly):
+                for record, action in relatedRows:
+                    if not (forceInt(record.value('person_id')) and QtGui.qApp.userSpecialityId == action.getSpecialityId(forceInt(record.value('person_id')))):
+                        return False
+                return True
+            elif QtGui.qApp.userHasRight(urEditSubservientPeopleAction):
+                for record, action in relatedRows:
+                    if not (forceInt(record.value('person_id')) and QtGui.qApp.userId in getPersonOrgStructureChiefs(forceInt(record.value('person_id')))):
+                        return False
+                return True
+        return False
 
 
     def onAboutToShow(self):
@@ -2293,6 +2479,7 @@ class CTableSummaryActionsMenuMixin():
         else:
             self.actDeleteRow.setText(u'Удалить выделенные строки')
             self.actUnBindAction.setText(u'Открепить выделенные мероприятия')
+        self.actUnBindAction.setEnabled(self.canUnbindRow(rows))
         self.actDeleteRow.setEnabled(canDeleteRow)
 
 
@@ -2361,6 +2548,53 @@ class CTableSummaryActionsMenuMixin():
             3: self.tabMisc
         }
         
+        def nomenclatureGroupingRows(rows):
+            newRows = []
+            newRows.extend(rows)
+            for proxyRow in rows:
+                if 0 <= proxyRow < len(self.modelActionsSummary.itemIndex):
+                    page, proxyRow = self.modelActionsSummary.itemIndex[proxyRow]
+                    tbl = self.tabsTableList[page]
+                    if not tbl.model().isLockedOrExposed(proxyRow):
+                        proxyRow = tbl.model()._mapModelRow2ProxyRow[proxyRow]
+                        items = tbl.model()._items
+                        group = items._mapProxyRow2Group[proxyRow]
+                        if isinstance(group, CExecutionPlanProxyModelGroup):
+                            if group.currentItem and hasattr(group, 'groupingItem') and group.groupingItem == group.currentItem and group.groupingInfo and len(group.groupingInfo) > 1 and group.currentItem in group.groupingInfo:
+                                for subrow, subgroup in items._mapProxyRow2Group.items():
+                                    if isinstance(subgroup, CExecutionPlanProxyModelGroup):
+                                        if subgroup.groupingItem and group.groupingItem == subgroup.groupingItem:
+                                            if self.modelActionsSummary.itemIndex.index((page,subrow)) in newRows:
+                                                group.removeGroupingInfo(subgroup.currentItem)
+                                            else:
+                                                newRows.append(self.modelActionsSummary.itemIndex.index((page,subrow)))
+                                if rows != newRows:            
+                                    if QtGui.QMessageBox().question(self,
+                                                            u'Внимание!',
+                                                            u'При откреплении группирующего элемента, открепится вся группа. Продолжить?',
+                                                            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                            QtGui.QMessageBox.No
+                                                            ) == QtGui.QMessageBox.No:
+                                        return []
+                            elif group.currentItem and hasattr(group, 'groupingItem') and group.currentItem._record.value('id') == group.currentItem._record.value('group_id'):
+                                for subrow, subgroup in items._mapProxyRow2Group.items():
+                                    if isinstance(subgroup, CExecutionPlanProxyModelGroup):
+                                        if subgroup.currentItem and group.currentItem._record.value('id') == subgroup.currentItem._record.value('group_id'):
+                                            if self.modelActionsSummary.itemIndex.index((page,subrow)) in newRows:
+                                                pass
+                                            else:
+                                                newRows.append(self.modelActionsSummary.itemIndex.index((page,subrow)))
+                                if rows != newRows:
+                                    if QtGui.QMessageBox().question(self,
+                                                            u'Внимание!',
+                                                            u'При откреплении группирующего элемента, открепится вся группа. Продолжить?',
+                                                            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                            QtGui.QMessageBox.No
+                                                            ) == QtGui.QMessageBox.No:
+                                        return []
+            newRows.sort()
+            return newRows
+    
         def unbindRelated(group, row, tbl, masterId = None):
             if not group:
                 return
@@ -2402,6 +2636,7 @@ class CTableSummaryActionsMenuMixin():
                 
         rowsSortByPagesTables = {}
         rows = self.tblActions.getSelectedRows()
+        rows = nomenclatureGroupingRows(rows)
         if QtGui.QMessageBox().warning(self,
                                        u'Подтверждение',
                                        u'Открепить мероприятие?',
@@ -2738,12 +2973,62 @@ def getEventResultId(id, eventPurposeId = None):
     return None
 
 
+def getNewResultCond(resultId, endDateCheck):
+    if not resultId:
+        return ''
+    db = QtGui.qApp.db
+    ishlCode = forceString(db.translate('rbDiagnosticResult', 'id', resultId, 'regionalCode'))
+    table = db.table('soc_checkSpr12')
+    cond = [table['code_ishl'].contain(ishlCode),
+            table['begDate'].le(endDateCheck),
+            table['endDate'].gt(endDateCheck.addDays(1))]
+    records = db.getRecordList(table, 'code', cond)
+    ishob = []
+    for record in records:
+        ishob.append(forceString(record.value('code')))
+    if ishob:
+        table = db.table('rbResult')
+        return ' AND %s' % table['regionalCode'].inlist(ishob)
+    return ''
+
+
+def isDefaultResultIdValid(resultId, eventPurposeId, condition):
+    if not resultId:
+        return False
+    db = QtGui.qApp.db
+    query = db.query('''SELECT id FROM rbResult where id=\'%d\' and eventPurpose_id=\'%d\' %s''' % (resultId, eventPurposeId, condition))
+    while query.next():
+        record = query.record()
+        if record:
+            return True
+    return False
+
+
+
+def mkbIsOnko(mkb1, mkb2):
+    if (mkb1 and len(mkb1) > 1 and mkb1[0] == 'C') or (
+            mkb1 and mkb2 and mkb1[:3] == 'D70' and (('C00' <= mkb2[:3] <= 'C80') or (mkb2[:3] == 'C97'))) or (
+            mkb1 and ('D00' <= mkb1[:3] <= 'D09')) or (mkb1 and ('D45' <= mkb1[:3] <= 'D47')):
+        return True
+    return False
+
+
+def mkbIsVIMIS(mkb):
+    db = QtGui.qApp.db
+    table = db.table('rbMKB_vimis')
+    record = db.getRecordEx(table, '`group`', table['code'].eq(mkb))
+    if record:
+        return forceInt(record.value('group'))
+    return 0
+
+
 # WTF
 def setActionPropertiesColumnVisible(actionType, propertiesView):
     propertiesView.setColumnHidden(0, not actionType.propertyAssignedVisible)
     propertiesView.setColumnHidden(2, not actionType.propertyUnitVisible)
     propertiesView.setColumnHidden(3, not actionType.propertyNormVisible)
     propertiesView.setColumnHidden(4, not actionType.propertyEvaluationVisible)
+    propertiesView.setColumnHidden(5, not actionType.propertyCommentVisible)
 
 
 def validCalculatorSettings(value):
@@ -2876,6 +3161,7 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
 
     result = {}
     db = QtGui.qApp.db
+    tableStockMotion = db.table('StockMotion')
     tableStockMotionItem = db.table('StockMotion_Item')
     clientId = filter.get('clientId', None)
     financeId = filter.get('financeId', None)
@@ -2884,6 +3170,7 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
     shelfTime = filter.get('shelfTime', None)
     orgStructureIdFilter = filter.get('orgStructureId', None)
     orgStructureId = orgStructureIdFilter or QtGui.qApp.currentOrgStructureId()
+    begDateAction = filter.get('begDateAction', None)
     if clientId:
         nomenclatureIdListCond = u''
         if nomenclatureIdList:
@@ -2906,6 +3193,14 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
             shelfTimeCond = db.joinOr(tableStockMotionItem['shelfTime'].isNull(), tableStockMotionItem['shelfTime'].dateGe(shelfTime))
         else:
             shelfTimeCond = u''
+        if orgStructureId:
+            orgStructureCond = tableStockMotion['supplier_id'].eq(orgStructureId)
+        else:
+            orgStructureCond = u''
+        if begDateAction:
+            dateCond = tableStockMotion['date'].dateLe(begDateAction)
+        else:
+            dateCond = u''
         reservationStmt = u'''SELECT
                 StockMotion_Item.nomenclature_id,
                 StockMotion_Item.finance_id,
@@ -2930,13 +3225,17 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
                     AND %(medicalAidKindCond)s
                     AND %(shelfTimeCond)s
                     AND %(batchCond)s
-                    ORDER BY StockMotion_Item.shelfTime, StockMotion_Item.qnt LIMIT 1'''% {
+                    AND %(orgStructureCond)s
+                    AND %(dateCond)s
+                    ORDER BY StockMotion_Item.shelfTime, StockMotion_Item.qnt'''% {
         'clientId': clientId,
         'nomenclatureIdListCond': nomenclatureIdListCond if nomenclatureIdListCond else 1,
         'financeCond': financeCond if financeCond else 1,
         'medicalAidKindCond':medicalAidKindCond if medicalAidKindId else 1,
         'shelfTimeCond':shelfTimeCond if shelfTimeCond else 1,
         'batchCond':batchCond if batchCond else 1,
+        'orgStructureCond':orgStructureCond if orgStructureCond else 1,
+        'dateCond':dateCond if dateCond else 1
             }
         reservationQuery = db.query(reservationStmt)
         while reservationQuery.next():
@@ -2947,7 +3246,7 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
                 medicalAidKindId = forceRef(reservationRecord.value('medicalAidKind_id'))
                 recordList = result.setdefault((nomenclatureId,  financeId, clientId, medicalAidKindId), [])
                 recordList.append(reservationRecord)
-                return result
+        return result
     stmt = getExistsNomenclatureStmt(nomenclatureId=nomenclatureIdList,
                                      financeId=financeId,
                                      orgStructureId=orgStructureId,
@@ -2965,72 +3264,113 @@ def getExistsNomenclature(nomenclatureIdList, filter={}):
     return result
 
 
-def syncNomenclature(exists, targetRecord, unset, translateExistsQnt=False, financeId=None, clientId=None, medicalAidKindId=None, isStrictMedicalAidKindId=False, isNoAvialableQnt=False, avialableQntDict={}, orgStructureId=None):
+def syncNomenclature(exists, targetRecord, unset, translateExistsQnt=False, financeId=None, clientId=None, medicalAidKindId=None, isStrictMedicalAidKindId=False, isNoAvialableQnt=False, avialableQntDict = {}, orgStructureId=None):
+    stockMotionItems = []
     orgStructureId = orgStructureId or QtGui.qApp.currentOrgStructureId()
     nomenclatureId = forceRef(targetRecord.value('nomenclature_id'))
     qnt = forceDouble(targetRecord.value('qnt'))
     isQntFilled = False
     sourceRecordList = []
+    sourceRecord = None
     existsList = []
-    exists.values().sort(key=lambda items: items.sort(key=lambda x: forceDate(x.value('shelfTime')), reverse=False))
+    reservedClientList = []
     for exKey, exItems in exists.items():
-        for exItem in exItems:
-            existsList.append((exKey, exItem))
-    existsList.sort(key=lambda x: forceDate(x[1].value('shelfTime')), reverse=False)
-    existsKeys = []
-    for exKey, exItem in existsList:
-        if exKey and exKey not in existsKeys:
-            existsKeys.append(exKey)
+        if len(exKey) > 3:
+            for exItem in exItems:
+                reservedClientList.append((exKey, exItem))
+    reservedClientList.sort(key=lambda x: (forceDate(x[1].value('shelfTime')), forceDouble(x[1].value('qnt'))), reverse=False)
+    for exKey, exItems in exists.items():
+        if len(exKey) < 4:
+            for exItem in exItems:
+                existsList.append((exKey, exItem))
+    existsList.sort(key=lambda x: (forceDate(x[1].value('shelfTime')), forceDouble(x[1].value('qnt'))), reverse=False)
     if clientId:
-        sourceRecordList = exists.get((nomenclatureId, financeId, clientId, medicalAidKindId), [])
-        if not len(sourceRecordList) and not isStrictMedicalAidKindId and QtGui.qApp.controlSMFinance() != 0:
-            sourceRecordList = exists.get((nomenclatureId, financeId, clientId, None), [])
-        if not len(sourceRecordList):
-            if QtGui.qApp.controlSMFinance() in (0, 1):
-                if len(existsKeys) > 0 and len(existsKeys[0]) == 4:
-                    for (nomenclatureIdKey, financeIdKey, clientIdKey, medicalAidKindIdKey) in existsKeys:
-                        if nomenclatureIdKey == nomenclatureId and clientIdKey == clientId and ((not isStrictMedicalAidKindId and (medicalAidKindIdKey == medicalAidKindId or not medicalAidKindIdKey)) or (isStrictMedicalAidKindId and medicalAidKindIdKey == medicalAidKindId)):
-                            sourceRecordList = exists.get((nomenclatureIdKey, financeIdKey, clientIdKey, medicalAidKindIdKey), [])
-                            break
-    if not len(sourceRecordList) and QtGui.qApp.controlSMFinance() != 0:
-        sourceRecordList = exists.get((nomenclatureId, financeId, medicalAidKindId), [])
-    if (not len(sourceRecordList)) and QtGui.qApp.controlSMFinance() in (0, 1):
-        sourceRecordList = exists.get((nomenclatureId, None, medicalAidKindId), [])
-    if not len(sourceRecordList) and not isStrictMedicalAidKindId and QtGui.qApp.controlSMFinance() != 0:
-        sourceRecordList = exists.get((nomenclatureId, financeId, None), [])
-    if not len(sourceRecordList) and not isStrictMedicalAidKindId and QtGui.qApp.controlSMFinance() in (0, 1):
-        sourceRecordList = exists.get((nomenclatureId, None, None), [])
-    if (not len(sourceRecordList)) and len(existsKeys) > 0 and len(existsKeys[0]) == 3 and QtGui.qApp.controlSMFinance() in (0, 1):
-        for (nomenclatureIdKey, financeIdKey, medicalAidKindIdKey) in existsKeys:
-            if nomenclatureIdKey == nomenclatureId and ((not isStrictMedicalAidKindId and (medicalAidKindIdKey == medicalAidKindId or not medicalAidKindIdKey)) or (isStrictMedicalAidKindId and medicalAidKindIdKey == medicalAidKindId)):
-                sourceRecordList = exists.get((nomenclatureIdKey, financeIdKey, medicalAidKindIdKey), [])
-                break
+        for exKey, exItem in reservedClientList:
+            sourceRecord = None
+            if (nomenclatureId, financeId, clientId, medicalAidKindId) == exKey:
+                sourceRecord = exItem
+            if not sourceRecord and not isStrictMedicalAidKindId and QtGui.qApp.controlSMFinance() != 0:
+                if (nomenclatureId, financeId, clientId, None) == exKey:
+                    sourceRecord = exItem
+            if not sourceRecord and QtGui.qApp.controlSMFinance() in (0, 1):
+                if isStrictMedicalAidKindId:
+                    if (nomenclatureId, financeId, clientId, medicalAidKindId) == exKey or (nomenclatureId, None, clientId, medicalAidKindId) == exKey:
+                        sourceRecord = exItem
+                    if not sourceRecord and (nomenclatureId == exKey[0] and financeId != exKey[1] and clientId == exKey[2] and medicalAidKindId == exKey[3]):
+                        sourceRecord = exItem
+                if not sourceRecord and not isStrictMedicalAidKindId:
+                    if (nomenclatureId, financeId, clientId, medicalAidKindId) == exKey or (nomenclatureId, None, clientId, medicalAidKindId) == exKey:
+                        sourceRecord = exItem
+                    if not sourceRecord and ((nomenclatureId, financeId, clientId, None) == exKey or (nomenclatureId, None, clientId, None) == exKey):
+                        sourceRecord = exItem
+                    if not sourceRecord and (nomenclatureId == exKey[0] and financeId != exKey[1] and clientId == exKey[2]):
+                        sourceRecord = exItem
+            if sourceRecord:
+                sourceRecordList.append(sourceRecord)
+    for exKey, exItem in existsList:
+        sourceRecord = None
+        if (nomenclatureId, financeId, medicalAidKindId) == exKey:
+            sourceRecord = exItem
+        if not sourceRecord and not isStrictMedicalAidKindId and QtGui.qApp.controlSMFinance() != 0:
+            if (nomenclatureId, financeId, None) == exKey:
+                sourceRecord = exItem
+        if not sourceRecord and QtGui.qApp.controlSMFinance() in (0, 1):
+            if isStrictMedicalAidKindId:
+                if (nomenclatureId, financeId, medicalAidKindId) == exKey or (nomenclatureId, None, medicalAidKindId) == exKey:
+                    sourceRecord = exItem
+                if not sourceRecord and (nomenclatureId == exKey[0] and financeId != exKey[1] and medicalAidKindId == exKey[2]):
+                    sourceRecord = exItem
+            if not sourceRecord and not isStrictMedicalAidKindId:
+                if (nomenclatureId, financeId, medicalAidKindId) == exKey or (nomenclatureId, None, medicalAidKindId) == exKey:
+                    sourceRecord = exItem
+                if not sourceRecord and ((nomenclatureId, financeId, None) == exKey or (nomenclatureId, None, None) == exKey):
+                    sourceRecord = exItem
+                if not sourceRecord and (nomenclatureId == exKey[0] and financeId != exKey[1]):
+                    sourceRecord = exItem
+        if sourceRecord:
+            sourceRecordList.append(sourceRecord)
     avialableQnt = None
     if not sourceRecordList:
         avialableQntLine = avialableQntDict.get(nomenclatureId, {})
         avialableQnt = avialableQntLine.get((None, None, None, None), None)
         avialableQntLine[(None, None, None, None)] = 0
         avialableQntDict[nomenclatureId] = avialableQntLine
-    for sourceRecord in sourceRecordList:
+    #newTargetRecord = targetRecord
+    stockMotionRecords = {}
+    targetUnitId = forceRef(targetRecord.value('unit_id'))
+    for recordCnt, sourceRecord in enumerate(sourceRecordList):
         existsQnt = forceDouble(sourceRecord.value('qnt'))
-        targetUnitId = forceRef(targetRecord.value('unit_id'))
         sourceUnitId = forceRef(sourceRecord.value('unit_id'))
+        nomenclatureIdSR = forceRef(sourceRecord.value('nomenclature_id'))
+        batch = forceString(sourceRecord.value('batch'))
+        shelfTime = forceDate(sourceRecord.value('shelfTime'))
+        price = forceDouble(sourceRecord.value('price'))
+        financeId = forceRef(sourceRecord.value('finance_id'))
+        medicalAidKindId = forceRef(sourceRecord.value('medicalAidKind_id'))
+        newRow, newTargetRecord = stockMotionRecords.get((nomenclatureIdSR, batch, pyDate(shelfTime), price, financeId, medicalAidKindId), [-1, None])
         if translateExistsQnt:
             if targetUnitId and sourceUnitId != targetUnitId:
                 existsQnt = round(applyNomenclatureUnitRatio(existsQnt, nomenclatureId, targetUnitId), 2)
-        if existsQnt > 0:
+        if existsQnt > 0 and qnt > 0:
+            if recordCnt == 0 and not newTargetRecord:
+                newTargetRecord = targetRecord
+            elif recordCnt > 0 and not newTargetRecord:
+                newTargetRecord = QtGui.qApp.db.table('StockMotion_Item').newRecord()
+                newTargetRecord.setValue('nomenclature_id', toVariant(nomenclatureId))
+                newTargetRecord.setValue('unit_id', toVariant(targetUnitId))
             if existsQnt >= qnt:
                 sourceRecord.setValue('qnt', toVariant(existsQnt-qnt))
                 isQntFilled = True
+                prevQnt = forceDouble(newTargetRecord.value('qnt')) if recordCnt > 0 else 0.0
+                newTargetRecord.setValue('qnt', toVariant(prevQnt+qnt))
             else:
                 sourceRecord.setValue('qnt', toVariant(0))
-                qnt = existsQnt
-            targetRecord.setValue('qnt', toVariant(qnt))
+                qnt = qnt - existsQnt
+                prevQnt = forceDouble(newTargetRecord.value('qnt')) if recordCnt > 0 else 0.0
+                newTargetRecord.setValue('qnt', toVariant(prevQnt+existsQnt))
             if not unset:
-                batch = forceString(sourceRecord.value('batch'))
-                targetRecord.setValue('batch', batch)
+                newTargetRecord.setValue('batch', batch)
                 stockUnitId = forceRef(QtGui.qApp.db.translate('rbNomenclature', 'id', nomenclatureId, 'defaultStockUnit_id'))
-                price = forceDouble(sourceRecord.value('price'))
                 if targetUnitId and sourceUnitId == targetUnitId:
                     pass
                 else:
@@ -3042,14 +3382,11 @@ def syncNomenclature(exists, targetRecord, unset, translateExistsQnt=False, fina
                         ratio = getRatio(nomenclatureId, targetUnitId, stockUnitId)
                         if ratio is not None:
                             price = price*ratio
-                financeId = forceRef(sourceRecord.value('finance_id'))
-                shelfTime = forceDate(sourceRecord.value('shelfTime'))
-                medicalAidKindId = forceRef(sourceRecord.value('medicalAidKind_id'))
-                targetRecord.setValue('price', toVariant(price))
-                targetRecord.setValue('sum', toVariant(forceDouble(targetRecord.value('qnt')) * forceDouble(targetRecord.value('price'))))
-                targetRecord.setValue('shelfTime', shelfTime)
-                targetRecord.setValue('finance_id', financeId)
-                targetRecord.setValue('medicalAidKind_id', medicalAidKindId)
+                newTargetRecord.setValue('price', toVariant(price))
+                newTargetRecord.setValue('sum', toVariant(forceDouble(newTargetRecord.value('qnt')) * forceDouble(newTargetRecord.value('price'))))
+                newTargetRecord.setValue('shelfTime', shelfTime)
+                newTargetRecord.setValue('finance_id', financeId)
+                newTargetRecord.setValue('medicalAidKind_id', medicalAidKindId)
                 if isNoAvialableQnt and (financeId or batch or shelfTime or price):
                     priceFind = price
                     if stockUnitId and stockUnitId != targetUnitId:
@@ -3059,17 +3396,29 @@ def syncNomenclature(exists, targetRecord, unset, translateExistsQnt=False, fina
                     avialableQntLine = avialableQntDict.setdefault(nomenclatureId, {})
                     avialableQnt = avialableQntLine.setdefault((financeId, batch, shelfTime, price), None)
                     if avialableQnt is None:
-                        avialableQnt = round(getExistsNomenclatureAmount(nomenclatureId, financeId=financeId, batch=batch, orgStructureId=orgStructureId, unitId=targetUnitId, medicalAidKindId=medicalAidKindId, exact=True, price=priceFind), 2)
-                    avialableQnt -= forceDouble(targetRecord.value('qnt'))
+                        avialableQnt = round(getExistsNomenclatureAmount(nomenclatureId, financeId = financeId, batch=batch, orgStructureId = orgStructureId, unitId = targetUnitId, medicalAidKindId = medicalAidKindId, exact=True, price=priceFind), 2)
+                    avialableQnt -= forceDouble(newTargetRecord.value('qnt'))
                     avialableQntLine[(financeId, batch, shelfTime, price)] = avialableQnt
                     avialableQntDict[nomenclatureId] = avialableQntLine
+            if QtGui.qApp.controlSMFinance() == 2:
+                stockMotionRecords[(nomenclatureIdSR, batch, pyDate(shelfTime), price, financeId, medicalAidKindId)] = [newRow if newRow >= 0 else recordCnt, newTargetRecord]
             #
             # sourceSum = forceDouble(sourceRecord.value('sum'))
             # price = sourceSum/existsQnt
-            # targetRecord.setValue('sum', toVariant((qnt-residue)*price))
+            # newTargetRecord.setValue('sum', toVariant((qnt-residue)*price))
+        stockMotionRecords[(nomenclatureIdSR, batch, pyDate(shelfTime), price, financeId, medicalAidKindId)] = [newRow if newRow >= 0 else recordCnt, newTargetRecord]
+        if QtGui.qApp.controlSMFinance() in (0, 1):
+            stockMotionRecords[(nomenclatureIdSR, batch, pyDate(shelfTime), price, financeId, medicalAidKindId)] = [newRow if newRow >= 0 else recordCnt, newTargetRecord]
+#        stockMotionItems.append(newTargetRecord)
         if isQntFilled:
             break
-    return avialableQntDict
+    stockMotionItemsList = stockMotionRecords.values()
+    stockMotionItemsList.sort(key=lambda x: x[0])
+    for i, stockMotionItem in stockMotionItemsList:
+        stockMotionItems.append(stockMotionItem)
+    if len(sourceRecordList) == 0:
+        stockMotionItems = [targetRecord]
+    return avialableQntDict, stockMotionItems
 
 
 def cutFeed(eventId, date, toEventId = None):
@@ -3154,172 +3503,7 @@ def getActionDispansPhase(eventId, phase=0):
     GROUP BY Event.id) AS propertyEvaluation''')
     stmt = db.selectDistinctStmt(queryTable, fields, cond, tableEvent['id'].name())
     return db.query(stmt)
-    
-    
-# генерация серии и номера льготного рецепта (для КК)
-def generateSerialNumberLGRecipe(action, clientId):
-    #создание нового подключения для генерации номер ЛР
-    def openDatabase(preferences):
-        db = database.connectDataBase(preferences.dbDriverName,
-                                           preferences.dbServerName,
-                                           preferences.dbServerPort,
-                                           preferences.dbDatabaseName,
-                                           preferences.dbUserName,
-                                           preferences.dbPassword,
-                                           'LR', 
-                                           compressData = preferences.dbCompressData)
-        return db
 
-    def closeDatabase(db):
-        if db:
-            db.close()
-            db = None
-        return db
-        
-    preferences = CPreferences('S11App.ini')
-    preferences.load()
-    db = openDatabase(preferences)
-    
-    def getOrgStructureId(personId):
-        orgStructureId = None
-        if personId:
-            tablePerson = db.table('Person')
-            recOrgStructure = db.getRecordEx(tablePerson, [tablePerson['orgStructure_id']], [tablePerson['deleted'].eq(0), tablePerson['id'].eq(personId)])
-            orgStructureId = forceRef(recOrgStructure.value('orgStructure_id')) if recOrgStructure else None
-        return orgStructureId
- 
-    def getParentOrgStructureId(orgStructureId):
-        parentOrgStructureId = None
-        if orgStructureId:                
-            tableOrgStructure = db.table('OrgStructure')
-            recOrgStructure = db.getRecordEx(tableOrgStructure, [tableOrgStructure['parent_id']], [tableOrgStructure['deleted'].eq(0), tableOrgStructure['id'].eq(orgStructureId)])
-            parentOrgStructureId = forceRef(recOrgStructure.value('parent_id')) if recOrgStructure else None
-        return parentOrgStructureId
-           
-    def getLgReceptNumber(blankIdList, clientId):
-        if blankIdList[0]:
-                    
-            query = db.query('select getLGReceptNumber(%d, %d, %d)' % (forceInt(blankIdList[0]), forceInt(QtGui.qApp.userId), clientId))
-            while query.next():
-                sn = forceString(query.record().value(0))
-                if sn[-2:] == ' 0':
-                    sn='0'
-        return sn
-                
-    def getBlankIdList(person_id,  orgStructureId,  date):
-        tableRBBlankActions = db.table('rbBlankActions')
-        tableBlankActionsParty = db.table('BlankActions_Party')
-        tableBlankActionsMoving = db.table('BlankActions_Moving')
-        cond = [tableRBBlankActions['doctype_id'].eq(docTypeId),
-                tableBlankActionsParty['deleted'].eq(0),
-                tableBlankActionsMoving['deleted'].eq(0)
-                ]
-        if date:
-            cond.append(tableBlankActionsMoving['date'].le(date))
-            cond.append(db.joinOr([tableBlankActionsMoving['returnDate'].ge(date), tableBlankActionsMoving['returnDate'].isNull()]))
-        if person_id:
-            cond.append(tableBlankActionsMoving['person_id'].eq(personId))
-        if orgStructureId:
-            cond.append(tableBlankActionsMoving['orgStructure_id'].eq(orgStructureId))
-            cond.append(tableBlankActionsMoving['person_id'].isNull())
-        queryTable = tableRBBlankActions.innerJoin(tableBlankActionsParty, tableBlankActionsParty['doctype_id'].eq(tableRBBlankActions['id']))
-        queryTable = queryTable.innerJoin(tableBlankActionsMoving, tableBlankActionsMoving['blankParty_id'].eq(tableBlankActionsParty['id']))
-        blankIdList = db.getIdList(queryTable, u'BlankActions_Moving.id', cond, u'rbBlankActions.checkingSerial, rbBlankActions.checkingNumber, rbBlankActions.checkingAmount DESC')            
-        return blankIdList
-
-    blankIdList = []
-    sn = None
-    docTypeId = action._actionType.id
-    if docTypeId:
-        tableEvent = db.table('Event')           
-        eventId = forceRef(action._record.value('event_id'))
-        personId = None
-        orgStructureId = None
-        if eventId:
-            record = db.getRecordEx(tableEvent, [tableEvent['execPerson_id'], tableEvent['setDate']], [tableEvent['deleted'].eq(0), tableEvent['id'].eq(eventId)])
-            if record:
-                personId = forceRef(record.value('execPerson_id')) if record else None
-                setDate = forceDate(record.value('setDate')) if record else None
-        else:
-            personId = forceRef(action._record.value('person_id'))
-        if not personId:
-            personId = forceRef(action._record.value('setPerson_id'))
-        if not personId:
-            personId = QtGui.qApp.userId
-        if personId:
-            orgStructureId = getOrgStructureId(personId)
-        if not orgStructureId:
-           orgStructureId = QtGui.qApp.currentOrgStructureId()
-
-        date = forceDate(action._record.value('begDate'))
-        if not date and setDate:
-            date = setDate
-            
-        blankIdList = getBlankIdList(personId,  None,  date) 
-        
-        if blankIdList:
-            sn = getLgReceptNumber(blankIdList, clientId)              
-        if not sn or sn=='0':                
-            blankIdList = getBlankIdList(None,  orgStructureId,  date)
-            if blankIdList:
-                sn = getLgReceptNumber(blankIdList, clientId)              
-            if not sn or sn=='0':  
-                orgStructureId = getParentOrgStructureId(orgStructureId)    
-                blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                if blankIdList:
-                    sn = getLgReceptNumber(blankIdList, clientId)  
-                if not sn or sn=='0':  
-                    orgStructureId = getParentOrgStructureId(orgStructureId)        
-                    blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                    if blankIdList:
-                        sn = getLgReceptNumber(blankIdList, clientId)
-                    if not sn or sn=='0':  
-                        orgStructureId = getParentOrgStructureId(orgStructureId)        
-                        blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                        if blankIdList:
-                            sn = getLgReceptNumber(blankIdList, clientId)
-                        if not sn or sn=='0': 
-                            orgStructureId = getParentOrgStructureId(orgStructureId)        
-                            blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                            if blankIdList:
-                                sn = getLgReceptNumber(blankIdList, clientId)
-                            if not sn or sn=='0': 
-                                orgStructureId = getParentOrgStructureId(orgStructureId)        
-                                blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                                if blankIdList:
-                                    sn = getLgReceptNumber(blankIdList, clientId)
-                                if not sn or sn=='0': 
-                                    orgStructureId = getParentOrgStructureId(orgStructureId)        
-                                    blankIdList = getBlankIdList(None,  orgStructureId,  date)
-                                    if blankIdList:
-                                        sn = getLgReceptNumber(blankIdList, clientId)
-    db = closeDatabase(db)    
-    return  sn        
-    
-    
-#Проверка серий и номеров льготных рецептов на дубляж перед сохранением (для КК)    
-def checkLGSerialNumber(parent, blank, action, clientId):
-    stmt = u"""select * from ActionProperty_BlankSerialNumber sn
-left join ActionProperty ap on ap.id = sn.id
-where sn.value = '%s' and ap.action_id <> %d""" % (blank, forceInt(action.getId()))
-    query = QtGui.qApp.db.query(stmt)
-    if query.size() > 0:
-        res = QtGui.QMessageBox.warning(parent,
-                                         u'Внимание!',
-                                         u'Сохранение не возможно!\nРецепт с серией и номером %s уже сохранен в базе.\nПрисвоить новый номер?' % blank,
-                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                         QtGui.QMessageBox.Yes)
-        if res == QtGui.QMessageBox.Yes:
-            newSn = generateSerialNumberLGRecipe(action, clientId)
-            action[u'Серия и номер бланка'] = newSn
-            QtGui.QMessageBox.warning(parent,
-                                         u'Внимание!',
-                                         u'Рецепту присвоен новые серия и номер: %s' % newSn,
-                                         QtGui.QMessageBox.Ok,
-                                         QtGui.QMessageBox.Ok)            
-        return False
-    else:
-        return True
 class CCSGInfo(CInfo):
     def __init__(self, context, id):
         CInfo.__init__(self, context)
@@ -3604,5 +3788,212 @@ def sendTempInvalidDocuments(tempInvalidDoc_list):
         if platform.startswith('win'):
             command = "fsseln.exe %s -u %s" % (' '.join(args_list), user_id)
         elif platform.startswith('lin'):
-            command = "python %s %s -u %s" % ('appendix/fsselnv2/main.py', ' '.join(args_list), user_id)
+            from s11main import ROOT_DIR
+            command = "python2 %s %s -u %s" % (os.path.join(ROOT_DIR, 'appendix/fsselnv2/main.py'), ' '.join(args_list), user_id)
         os.popen(command)
+
+
+def isDispanserisation(eventtype):
+    stmt = """SELECT COUNT(rbMedicalAidType.id) cnt
+            FROM EventType
+                LEFT JOIN rbMedicalAidType ON EventType.medicalAidType_id = rbMedicalAidType.id 
+            WHERE EventType.id = {eventtype} 
+                AND rbMedicalAidType.regionalCode IN ('11', '21')""".format(eventtype=eventtype)  # ,'12'
+    cnt = 0
+    db = QtGui.qApp.db
+    query = db.query(stmt)
+    while query.next():
+        record = query.record()
+        cnt = forceInt(record.value('cnt'))
+    if cnt > 0:
+        return True
+    return False
+
+
+def checkFileAttachListChanged(currentList, origList):
+    neq = currentList != origList
+    return neq or any([item.getRecord().isDirty() for item in currentList])
+
+
+def parseActionTypeGroupMKBInput(MKBInput):
+    MKBList = []
+    rowList = MKBInput.split(',')
+    for diagnosisItem in rowList:
+        diagnosisItem = diagnosisItem.strip()
+        if diagnosisItem.find('-') > 0:
+            MKBList.append(diagnosisItem.split('-'))
+        elif diagnosisItem:
+            MKBList.append(diagnosisItem)
+    return MKBList
+
+
+def getLfFormId(nomenclatureId = None, smnnUUID = None):
+    db = QtGui.qApp.db
+    tableLfForm= db.table('rbLfForm')
+    tableNC = db.table('rbNomenclature')
+    tableESKLP_Klp = db.table('esklp.Klp')
+    tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+    queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+    queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableESKLP_Klp['smnn_id']))
+    queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+    cond = [tableLfForm['isESKLP'].eq(1)]
+    order = u'esklp.Smnn_GrlsLf.lf_name, esklp.Smnn_GrlsLf.dosage_name'
+    if nomenclatureId:
+        cond.append(tableNC['id'].eq(nomenclatureId))
+    if smnnUUID:
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        cond.append(tableEsklp_Smnn['UUID'].eq(smnnUUID))
+    if nomenclatureId or smnnUUID:
+        cond.append(tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']))
+        cond.append(tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name']))
+    record = db.getRecordEx(queryTable, [tableLfForm['id']], cond, order=order)
+    return forceRef(record.value('id')) if record else None
+
+
+def getLfFormIdList(nomenclatureId = None, smnnUUID = None, nomenclatureIdList=[]):
+    idList = []
+    db = QtGui.qApp.db
+    tableLfForm= db.table('rbLfForm')
+    tableNC = db.table('rbNomenclature')
+    tableESKLP_Klp = db.table('esklp.Klp')
+    tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+    queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+    queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableESKLP_Klp['smnn_id']))
+    queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+    cond = [tableLfForm['isESKLP'].eq(1)]
+    order = u'esklp.Smnn_GrlsLf.lf_name, esklp.Smnn_GrlsLf.dosage_name'
+    if nomenclatureId:
+        cond.append(tableNC['id'].eq(nomenclatureId))
+    if nomenclatureIdList:
+        cond.append(tableNC['id'].inlist(nomenclatureIdList))
+    if smnnUUID:
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        cond.append(tableEsklp_Smnn['UUID'].eq(smnnUUID))
+    if nomenclatureId or smnnUUID:
+        cond.append(tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']))
+        cond.append(tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name']))
+    idList = db.getDistinctIdList(queryTable, [tableLfForm['id']], cond, order=order)
+    return idList
+
+
+def getNomenclatureSmnn(smnnUUID, lfFormId):
+    if trim(smnnUUID) and lfFormId:
+        db = QtGui.qApp.db
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        tableNC = db.table('rbNomenclature')
+        tableESKLP_Klp = db.table('esklp.Klp')
+        tableLfForm= db.table('rbLfForm')
+        tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
+        queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+        cond = [tableEsklp_Smnn['UUID'].eq(smnnUUID),
+                tableLfForm['id'].eq(lfFormId),
+                tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']),
+                tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name'])
+                ]
+        record = db.getRecordEx(queryTable, [tableNC['id']], cond, order = tableNC['name'].name())
+        return forceRef(record.value('id')) if record else None
+    return None
+
+
+def getNomenclatureSmnnIdList(smnnUUID, lfFormId, nomenclatureIdList=[]):
+    if trim(smnnUUID) and lfFormId:
+        db = QtGui.qApp.db
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        tableNC = db.table('rbNomenclature')
+        tableESKLP_Klp = db.table('esklp.Klp')
+        tableLfForm= db.table('rbLfForm')
+        tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
+        queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+        cond = [tableEsklp_Smnn['UUID'].eq(smnnUUID),
+                tableLfForm['id'].eq(lfFormId),
+                tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']),
+                tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name'])
+                ]
+        if nomenclatureIdList:
+            cond.append(tableNC['id'].inlist(nomenclatureIdList))
+        return db.getDistinctIdList(queryTable, [tableNC['id']], cond, order = tableNC['name'].name())
+    return []
+
+
+def getNomenclatureSmnnToLfFormIdList(smnnUUID, lfFormIdList, nomenclatureIdList=[]):
+    if trim(smnnUUID) and lfFormIdList:
+        db = QtGui.qApp.db
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        tableNC = db.table('rbNomenclature')
+        tableESKLP_Klp = db.table('esklp.Klp')
+        tableLfForm= db.table('rbLfForm')
+        tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
+        queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+        cond = [tableEsklp_Smnn['UUID'].eq(smnnUUID),
+                tableLfForm['id'].inlist(lfFormIdList),
+                tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']),
+                tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name'])
+                ]
+        if nomenclatureIdList:
+            cond.append(tableNC['id'].inlist(nomenclatureIdList))
+        return db.getDistinctIdList(queryTable, [tableNC['id']], cond, order = tableNC['name'].name())
+    return []
+
+def getNomenclatureSmnnNotLfFormIdList(smnnUUID, nomenclatureIdList=[]):
+    if trim(smnnUUID):
+        db = QtGui.qApp.db
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        tableNC = db.table('rbNomenclature')
+        tableESKLP_Klp = db.table('esklp.Klp')
+        tableLfForm= db.table('rbLfForm')
+        tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
+        queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+        cond = [tableEsklp_Smnn['UUID'].eq(smnnUUID),
+                tableLfForm['id'].isNull(),
+                tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']),
+                tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name'])
+                ]
+        if nomenclatureIdList:
+            cond.append(tableNC['id'].inlist(nomenclatureIdList))
+        return db.getDistinctIdList(queryTable, [tableNC['id']], cond, order = tableNC['name'].name())
+    return []
+
+
+def getNomenclatureIdSmnnLfFormIdList(nomenclatureId):
+    nomenclatureIdSmnnLfFormIdList = []
+    if nomenclatureId:
+        db = QtGui.qApp.db
+        tableEsklp_Smnn = db.table('esklp.Smnn')
+        tableNC = db.table('rbNomenclature')
+        tableESKLP_Klp = db.table('esklp.Klp')
+        tableLfForm= db.table('rbLfForm')
+        tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
+        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+        queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
+        queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
+        cols = [tableEsklp_Smnn['UUID'], 
+                    tableLfForm['id'].alias('lfFormId')
+                    ]
+        cond = [tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']),
+                    tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name']), 
+                    tableNC['id'].eq(nomenclatureId)
+                    ]
+        records = db.getRecordList(queryTable, cols, cond, order = tableNC['name'].name())
+        for record in records:
+            smnnUUID = forceStringEx(record.value('UUID'))
+            lfFormId = forceRef(record.value('lfFormId'))
+            if (smnnUUID, lfFormId) not in nomenclatureIdSmnnLfFormIdList:
+                nomenclatureIdSmnnLfFormIdList.append((smnnUUID, lfFormId))
+    return nomenclatureIdSmnnLfFormIdList   
+
+

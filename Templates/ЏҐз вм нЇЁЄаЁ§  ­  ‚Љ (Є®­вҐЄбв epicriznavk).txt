@@ -1,0 +1,40 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html>
+
+<!-- Данный вариант выравнивает категории(описание) и содержимое -->
+
+<head></head>
+<body style="font-family: 'Times New Roman'; font-size: 11pt; font-weight: 400; font-style: normal;">
+
+
+<!-- Настройки страницы -->
+{setPageSize('A4')}
+{setOrientation('P')}
+{setLeftMargin(20)} {setTopMargin(5)} {setBottomMargin(5)} {setRightMargin(20)}
+<!-- - - - - - -->
+
+<font style="font-size: 12pt;"><center> <b>Эпикриз на ВК ({action[u'Признак первичности'].value}, {action[u'Место проведения'].value})</b></center></font><br/>
+Дата: <b>{:a=unicode(action.begDate).split(' ')}{a[0]}<br><br>
+Ф.И.О: <b>{event.client.lastName} {event.client.firstName} {client.patrName} </b>, <b>{client.birthDate} г.р.</b> Возраст: <b>{event.client.age}</b>
+<br>
+
+
+</b> 
+<b>Должность:</b> {client.work.post if client.work.post else ''}<br><br>
+<b>Инвалидность:</b> {action[u'Инвалидность'].value}<br><br>
+<b>Сведения о других ЛН за последние 12 месяцев:</b>  {action[u'Сведения о других ЛН за последние 12 месяцев'].value}<br><br>
+<b>Диагноз (основной, сопутствующий, с указанием функц. нарушений и их степени):</b> {action[u'Диагноз'].value} <br><br>
+<b>Данные о проведенном лечении и обследовании:</b> {action[u'Данные о проведенном лечении и обследовании'].value} <br><br>
+<b>Жалобы пациента:</b> {action[u'Жалобы пациента'].value}<br><br>
+<b>Данные объективного осмотра:</b> {action[u'Данные объективного осмотра'].value}<br><br>
+<b>Цель направления на ВК:</b> {action[u'Цель направления на ВК'].value}<br><br>
+<div align=justify>
+
+</div>
+<br>
+Ф.И.О. врача и подпись: <b>{action.setPerson.shortName}</b>____________________<br><br>
+Ф.И.О. зав. отделения и подпись: <b>{action.setPerson.orgStructure.chief.shortName if action.setPerson.orgStructure.chief else '' }</b>____________________<br><br>
+Дата следующей явки на прием: <b>{action[u'Дата следующей явки'].value}</b>
+</div>
+</body>
+</html>

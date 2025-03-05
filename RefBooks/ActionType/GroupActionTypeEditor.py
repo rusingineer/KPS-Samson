@@ -75,6 +75,8 @@ class CGroupActionTypeEditor(CDialogBase, Ui_GroupActionTypeEditorDialog):
         setCheckBoxValue(   self.chkShowBegDate,               record, 'showBegDate')
         setCheckBoxValue(   self.chkDuplication,               record, 'duplication')
         setCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
+        setCheckBoxValue(self.chkEditSetPerson,                record, 'editSetPerson')
+        setCheckBoxValue(self.chkEditOrg,                      record, 'editOrg')
         setSpinBoxValue(    self.edtAmount,                    record, 'amount')
         setSpinBoxValue(    self.edtMaxOccursInEvent,          record, 'maxOccursInEvent')
         setRBComboBoxValue( self.cmbServiceType,               record, 'serviceType')
@@ -128,6 +130,10 @@ class CGroupActionTypeEditor(CDialogBase, Ui_GroupActionTypeEditorDialog):
             fields['duplication'] = self.chkDuplication.isChecked()
         if self.chkChkIgnoreVisibleRights.isChecked():
             fields['ignoreVisibleRights'] = self.chkIgnoreVisibleRights.isChecked()
+        if self.chkChkEditSetPerson.isChecked():
+            fields['editSetPerson'] = self.chkEditSetPerson.isChecked()
+        if self.chkChkEditOrg.isChecked():
+            fields['editOrg'] = self.chkEditOrg.isChecked()
         if self.chkMaxOccursInEvent.isChecked():
             fields['maxOccursInEvent'] = self.edtMaxOccursInEvent.value()
         if self.chkServiceType.isChecked():

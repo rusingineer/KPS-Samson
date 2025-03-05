@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import base64
+import re
 import datetime
 import json
 import logging
@@ -12,6 +13,7 @@ import cStringIO as StringIO
 from collections import namedtuple
 from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
+from hashlib import md5
 
 import isodate
 from PyQt4 import QtCore, QtGui
@@ -64,7 +66,7 @@ from library.Utils import anyToUnicode, forceString, forceRef, forceBool, format
     forceInt
 import platform
 
-_referral = namedtuple('referral', ('actionId', 'eventId', 'exportId', 'externalId'))
+_referral = namedtuple('referral', ('actionId', 'eventId', 'exportId', 'externalId', 'exportHash'))
 
 
 def createDispReference(display):
@@ -125,7 +127,7 @@ class CODIIExchange(QtCore.QCoreApplication):
     defaultFhirUrl = 'http://r23-rc.zdrav.netrika.ru/Imaging/exlab/api/fhir/'
     defaultTerminologyUrl = 'http://r23.zdrav.netrika.ru/nsi/fhir/term'
     defaultAuthorization = 'N3 8b986d46-773d-4a97-a197-59862d78b4fa'
-    defaultMisOid = '1.2.643.2.69.1.2.5'  # МИС ОИД
+    # defaultMisOid = '1.2.643.2.69.1.2.5'  # МИС ОИД #Переехало в GlobalPreferences.Code == Netrika.MIS_OID
     misIdentifierUrn = 'urn:oid:1.2.643.5.1.13.2.7.100.5'  # OID для идентификатора в МИС/ЛИС
     documentTypeUrn = 'urn:oid:1.2.643.2.69.1.1.1.6'  # OID для разных документов
     documentProviderUrn = 'urn:netrika:documentProvider'  # УФМС, ЗАГС и т.п.
@@ -185,17 +187,18 @@ class CODIIExchange(QtCore.QCoreApplication):
         parser.add_option('-r', '--result', dest='idResult', help='', metavar='idResult', default='')
         parser.add_option('-o', '--order', dest='idOrder', help='', metavar='idOrder', default='')
         parser.add_option('-l', '--localResult', dest='idLocalResult', help='', metavar='idLocalResult', default='')
+        parser.add_option('-b', '--logBinary', dest='logBinary', help='logging with binary', action='store_true', default=False)
         parser.add_option('-c', '--config', dest='iniFile', help='custom .ini file name', metavar='iniFile', default=CODIIExchange.iniFileName)
         (options, _args) = parser.parse_args()
         parser.destroy()
 
         QtCore.QCoreApplication.__init__(self, args)
         self.options = options
-        self.logger = None
         self.db = None
         self.preferences = None
         self.mainWindow = None
         self.userHasRight = lambda x: True
+        self.showingAttach = lambda: False
         self.userSpecialityId = None
         self.connectionName = 'ODIIExchange'
         if self.options.iniFile:
@@ -212,7 +215,8 @@ class CODIIExchange(QtCore.QCoreApplication):
             self.logDir = '/var/log/ODIIExchange'
         else:
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.ODIIExchange')
-        self.initLogger()
+        self.logger = self.initLogger(self.getLogFilePath())
+        self.localLogger = self.initLogger(self.getLogFilePath(True))
         self.mapUriToVersion = {}
         self._mapPolicyTypeIdToComp = {}
         self._mapPolicyKindIdToCode = {}
@@ -222,6 +226,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.misOid = None
         self.orgId = None
         self.orgCode = None
+        self.orgOGRN = None
         self.fhirClient = None
         self.fhirServer = None
         self.days = 7
@@ -232,6 +237,8 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.updateJobTicketStatus = False
         self.actionTypeIdLocalResultList = []
         self.exportPDF = True
+        self.transferConsent = False
+        self.directIntegration = False
 
     def openDatabase(self):
         self.db = None
@@ -248,13 +255,18 @@ class CODIIExchange(QtCore.QCoreApplication):
             self.log('error', anyToUnicode(e), 2)
 
     def prepare(self):
-        self.userId = forceRef(QtGui.qApp.db.translate('Person', 'login', u'Админ СОЦ', 'id'))
+        self.userId = forceRef(self.db.translate('Person', 'login', u'Админ СОЦ', 'id'))
         self.fhirUrl = forceString(self.preferences.appPrefs.get('url', self.defaultFhirUrl))
         self.terminologyUrl = forceString(self.preferences.appPrefs.get('terminology_url', self.defaultTerminologyUrl))
         self.fhirAuth = forceString(self.preferences.appPrefs.get('authorization', self.defaultAuthorization))
-        self.misOid = forceString(self.preferences.appPrefs.get('misoid', self.defaultMisOid))
+        self.misOid = forceString(self.preferences.appPrefs.get('misoid', self.db.translate('GlobalPreferences', 'code',
+                                                                                            'Netrika.MIS_OID',
+                                                                                            'value')))
         self.orgId = forceRef(self.preferences.appPrefs.get('orgId', None))
-        self.orgCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', self.orgId, 'infisCode'))
+        orgRecord = self.db.getRecord('Organisation', 'infisCode, OGRN', self.orgId)
+        if orgRecord:
+            self.orgCode = forceString(orgRecord.value('infisCode'))
+            self.orgOGRN = forceString(orgRecord.value('OGRN'))
 
         settings = {'api_base': self.fhirUrl,
                     'app_id': 'samson/0.1',
@@ -428,7 +440,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                 serviceCode = prop.getInfo(context).code
             elif prop.type().shortName == u'anatomicalLocalizations':
                 bodySitCodes = [val.code for val in prop.getInfo(context)]
-            elif prop.type().shortName == u'orgstructName':
+            elif prop.type().shortName in [u'orgstructName', u'Office']:
                 serviceProviderOrgStructureId = prop.getInfo(context).id
             elif prop.type().shortName == u'height':
                 height = prop
@@ -438,6 +450,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                 note = prop.getValue()
 
         mkb = action.MKB.__str__() if action.MKB.__str__() else getEventDiagnosis(eventId)
+        if mkb and len(mkb) > 5:
+            mkb = mkb[:5]
 
         bundle = createEmptyTransactionBundle()
         practitioner, actionNote = self.createPractitioner(personId)
@@ -464,10 +478,10 @@ class CODIIExchange(QtCore.QCoreApplication):
         conditionReferences = addBundleEntry(bundle, condition, self.NS_CONDITION, eventId)
         obsCondRefs.append(conditionReferences)
 
-        if height and height.getValue() > 0:
+        if height and height.getValue() and height.getValue() > 0:
             observation = self.createObservation('1', height.getValue())
             obsCondRefs.append(addBundleEntry(bundle, observation, self.NS_OBSERVATION, height.getId()))
-        if weight and weight.getValue() > 0:
+        if weight and weight.getValue() and weight.getValue() > 0:
             observation = self.createObservation('2', weight.getValue())
             obsCondRefs.append(addBundleEntry(bundle, observation, self.NS_OBSERVATION, weight.getId()))
 
@@ -518,6 +532,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                     categoryCode = '7'
 
         mkb = action.MKB.__str__() if action.MKB.__str__() else getEventDiagnosis(eventId)
+        if mkb and len(mkb) > 5:
+            mkb = mkb[:5]
 
         bundle = createEmptyTransactionBundle()
         practitioner, actionNote = self.createPractitioner(personId)
@@ -541,9 +557,22 @@ class CODIIExchange(QtCore.QCoreApplication):
         conditionReferences = addBundleEntry(bundle, condition, self.NS_CONDITION, eventId)
 
         prop = action._action.getPropertyByShortName(u'protocol')
-        if prop and prop.getValue():
-            observation = self.createResultObservation('1', prop.getValue(), action.endDate.datetime, practitionerRoleReference)
-            observationReferenceList.append(addBundleEntry(bundle, observation, self.NS_OBSERVATION, prop.getId()))
+        if prop:
+            if prop.getValue():
+                observation = self.createResultObservation('1', prop.getValue(), action.endDate.datetime, practitionerRoleReference)
+                observationReferenceList.append(addBundleEntry(bundle, observation, self.NS_OBSERVATION, prop.getId()))
+        else:
+            protocolText = u''
+            propId = None
+            for prop in action._action.getProperties():
+                if prop.type().sectionCDA == u'protocol' and prop.getValue():
+                    protocolText += prop.type().name + u': ' + forceString(prop.getValue()) + u'\n'
+                    if not propId:
+                        propId = prop.getId()
+            if protocolText:
+                observation = self.createResultObservation('1', protocolText, action.endDate.datetime, practitionerRoleReference)
+                observationReferenceList.append(addBundleEntry(bundle, observation, self.NS_OBSERVATION, propId))
+
         prop = action._action.getPropertyByShortName(u'conclusion')
         if prop and prop.getValue():
             observation = self.createResultObservation('2', prop.getValue(), action.endDate.datetime, practitionerRoleReference)
@@ -564,23 +593,24 @@ class CODIIExchange(QtCore.QCoreApplication):
         if fileList:
             hasPdf = False
             hasXMl = False
-            for file in fileList:
+            for attachedFile in sorted(fileList, key=lambda x: x.id, reverse=True):
                 try:
-                    if file.newName[-4:] == '.xml' and hasXMl:
+                    if attachedFile.newName[-4:] == '.xml' and hasXMl:
                         continue
-                    if file.newName[-4:] == '.pdf' and hasPdf:
+                    if attachedFile.newName[-4:] == '.pdf' and hasPdf:
                         continue
-                    (binary, binRespSign, binaryOrgSign) = self.binarySigned(QtGui.qApp.webDAVInterface, file)
-                    binaryReferenceList.append((addBundleEntry(bundle, binary, self.NS_FILEATTACH, file.id), binary.contentType))
+                    (binary, binRespSign, binaryOrgSign) = self.binarySigned(QtGui.qApp.webDAVInterface, attachedFile)
+                    binaryReferenceList.append((addBundleEntry(bundle, binary, self.NS_FILEATTACH, attachedFile.id), binary.contentType))
                     if binRespSign:
-                        binaryReferenceList.append((addBundleEntry(bundle, binRespSign, self.NS_FILEATTACH_PERSON_SIGNATURE, file.id), binRespSign.contentType))
+                        binaryReferenceList.append((addBundleEntry(bundle, binRespSign, self.NS_FILEATTACH_PERSON_SIGNATURE, attachedFile.id), binRespSign.contentType))
                     if binaryOrgSign:
-                        binaryReferenceList.append((addBundleEntry(bundle, binaryOrgSign, self.NS_FILEATTACH_ORG_SIGNATURE, file.id), binaryOrgSign.contentType))
-                    if file.newName[-4:] == '.xml':
+                        binaryReferenceList.append((addBundleEntry(bundle, binaryOrgSign, self.NS_FILEATTACH_ORG_SIGNATURE, attachedFile.id), binaryOrgSign.contentType))
+                    if attachedFile.newName[-4:] == '.xml':
                         hasXMl = True
                     else:
                         hasPdf = True
-                except:
+                except Exception as e:
+                    self.log(u'Ошибка выгрузки Action.id={0}'.format(actionId), anyToUnicode(e), level=1)
                     raise Exception(u'Проблемы с получением документа с подписью')
         if not binaryReferenceList:
             action = CAction.getActionById(actionId)
@@ -609,7 +639,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         for actionId in actionIdList:
             files = CAttachedFilesLoader.loadItems(interface, 'Action_FileAttach', actionId)
             for file in files:
-                if file and file.id not in processed:
+                if file and file.id not in processed and file.respSignature:
                     fileList.append(file)
                     processed.append(file.id)
         return fileList
@@ -644,7 +674,10 @@ class CODIIExchange(QtCore.QCoreApplication):
             orgSign = Binary()
             orgSign.contentType = orgSignList[i]
             orgSign.data = base64.b64encode(file.orgSignature.signatureBytes)
-
+        elif respSign:  # если нет подписи МО, то выгружаем подпись врача с ОГРН
+            orgSign = Binary()
+            orgSign.contentType = orgSignList[i]
+            orgSign.data = respSign.data
         return (binary, respSign, orgSign)
 
     def fillActionNoteAndWriteLog(self, actionId, note):
@@ -724,22 +757,26 @@ class CODIIExchange(QtCore.QCoreApplication):
             self.db.close()
             self.db = None
 
-    def getLogFilePath(self):
+    def getLogFilePath(self, localLog = False):
         if not os.path.exists(self.logDir):
             os.makedirs(self.logDir)
         dateString = unicode(fmtDateShort(QDate().currentDate()))
+        if localLog:
+            dateString += u'_protocol'
+        else:
+            dateString += u'_direction'
         return os.path.join(QtGui.qApp.logDir, '%s.log' % dateString)
 
-    def initLogger(self):
+    def initLogger(self, logPath):
         formatter = logging.Formatter(fmt='%(asctime)s %(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S'
                                       )
 
-        handler = RotatingFileHandler(self.getLogFilePath(), maxBytes=1024*1024*50, backupCount=10, encoding='UTF-8')
+        handler = RotatingFileHandler(logPath, maxBytes=1024*1024*50, backupCount=10, encoding='UTF-8')
         handler.setFormatter(formatter)
         handler.setLevel(logging.INFO)
 
-        logger = logging.getLogger()
+        logger = logging.getLogger(logPath)
         logger.setLevel(logging.INFO)
 
         oldHandlers = list(logger.handlers)
@@ -747,7 +784,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         for oldHandler in oldHandlers:
             logger.removeHandler(oldHandler)
 
-        self.logger = logger
+        return logger
 
     def loadPreferences(self):
         self.preferences = CPreferences(self.iniFileName if self.iniFileName else 'ODIIExchange.ini')
@@ -756,19 +793,34 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.days = forceInt(self.preferences.appPrefs.get('days', 7))
         self.updateJobTicketStatus = forceBool(self.preferences.appPrefs.get('updateJobTicketStatus', False))
         self.exportPDF = forceBool(self.preferences.appPrefs.get('exportPDF', True))
+        self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
+        self.directIntegration = forceBool(self.preferences.appPrefs.get('directIntegration', False))
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
 
-    def log(self, title, message, level=2, stack=None):
+    def log(self, title, message, level=2, stack=None, localLog=False):
         if level <= QtGui.qApp.logLevel:
+            # если нет параметра запуска -b, то убираем из логов бинарные данные
+            if not self.options.logBinary:
+                if isinstance(message, dict) and 'entry' in message:
+                    for entry in message['entry']:
+                        resource = entry.get('resource', {})
+                        if isinstance(resource, dict) and resource.get('resourceType') == 'Binary':
+                            entry['resource'] = ''
+                elif "entry" in message:
+                    pattern = r'"resourceType"\s*:\s*"Binary"\s*,[\s\S]*?"data"\s*:\s*"[^"]+"'
+                    message = re.sub(pattern, '"resourceType": "Binary"', message)
             logString = u'%s: %s\n' % (title, message)
             if stack:
                 try:
                     logString += anyToUnicode(''.join(traceback.format_list(stack))).decode('utf-8') + '\n'
                 except:
                     logString += 'stack lost\n'
-            self.logger.info(logString)
+            if not localLog:
+                self.logger.info(logString)
+            else:
+                self.localLogger.info(logString)
 
     def logException(self, exceptionType, exceptionValue, exceptionTraceback):
         title = repr(exceptionType)
@@ -814,13 +866,14 @@ class CODIIExchange(QtCore.QCoreApplication):
                         except:
                             self.logCurrentException()
                 else:
-                    # отправка заявок
-                    referrals = self.selectReferrals()
-                    for referral in referrals.values():
-                        try:
-                            self.sendOrder(referral)
-                        except:
-                            self.logCurrentException()
+                    if not self.directIntegration:
+                        # отправка заявок
+                        referrals = self.selectReferrals()
+                        for referral in referrals.values():
+                            try:
+                                self.sendOrder(referral)
+                            except:
+                                self.logCurrentException()
                     # отправка локальных результатов
                     results = self.selectResults()
                     for result in results.values():
@@ -877,6 +930,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         actionId = referral.actionId
         exportId = referral.exportId
         externalId = referral.externalId
+        exportHash = referral.exportHash
 
         lockId = None
         try:
@@ -902,11 +956,19 @@ class CODIIExchange(QtCore.QCoreApplication):
                         self.db.query('CALL ReleaseAppLock(%d)' % lockId)
                     return None
 
-                self.log(u'Отправка направления actionId={0} eventId={1} запрос'.format(actionId, referral.eventId), bundle.as_json(), level=1)
+                bundleJson = bundle.as_json()
+                bundleHash = md5(str(bundleJson)).hexdigest()
+                if bundleHash == exportHash:
+                    self.log(u'Направление не отправлено, ошибки не исправлены. actionId={0} eventId={1} запрос'.format(actionId, referral.eventId), bundleJson, level=1)
+                    # снимаем блокировку
+                    if lockId:
+                        self.db.query('CALL ReleaseAppLock(%d)' % lockId)
+                    return None
+                self.log(u'Отправка направления actionId={0} eventId={1} запрос'.format(actionId, referral.eventId), bundleJson, level=1)
                 resBundle = None
                 try:
                     note = message = ''
-                    res = self.fhirServer.post_json('', bundle.as_json())
+                    res = self.fhirServer.post_json('',  bundle.as_json())
                     message = res.content.decode('utf-8')
                     note = u'Заказ успешно выгружен в ОДИИ {0}'.format(fmtDate(self.db.getCurrentDatetime()))
                     resBundle = Bundle(jsondict=json.loads(res.content))
@@ -966,6 +1028,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                 actionExportRecord.setValue('success', toVariant(0))
                 actionExportRecord.setValue('externalId', toVariant(externalId))
                 actionExportRecord.setValue('dateTime', toVariant(QDateTime().currentDateTime()))
+                actionExportRecord.setValue('note', toVariant(bundleHash))
                 self.db.insertOrUpdate(tableActionExport, actionExportRecord)
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
@@ -978,6 +1041,8 @@ class CODIIExchange(QtCore.QCoreApplication):
         actionId = result.actionId
         exportId = result.exportId
         externalId = result.externalId
+        exportHash = result.exportHash
+
 
         lockId = None
         try:
@@ -993,7 +1058,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                         lockId = int(s[1])
                     else:
                         self.log(u'Отправка результата actionId={0} eventId={1}'.format(actionId, result.eventId),
-                                 u'Событие %i заблокировано' % result.eventId, level=1)
+                                 u'Событие %i заблокировано' % result.eventId, level=1, localLog=True)
             if lockId:
                 bundle = self.createResultBundle(actionId)
                 if bundle is None:
@@ -1001,14 +1066,20 @@ class CODIIExchange(QtCore.QCoreApplication):
                     if lockId:
                         self.db.query('CALL ReleaseAppLock(%d)' % lockId)
                     return None
-
-                self.log(u'Отправка результата actionId={0} eventId={1} запрос'.format(actionId, result.eventId),
-                         bundle.as_json(), level=1)
+                bundleJson = bundle.as_json()
+                bundleHash = md5(str(bundleJson)).hexdigest()
+                if bundleHash == exportHash:
+                    self.log(u'Результат не отправлен, ошибки не исправлены. actionId={0} eventId={1} запрос'.format(actionId, result.eventId), bundleJson, level=1, localLog=True)
+                    # снимаем блокировку
+                    if lockId:
+                        self.db.query('CALL ReleaseAppLock(%d)' % lockId)
+                    return None
+                self.log(u'Отправка результата actionId={0} eventId={1} запрос'.format(actionId, result.eventId), bundleJson, level=1, localLog=True)
                 resBundle = None
                 success = 0
                 try:
                     note = message = ''
-                    res = self.fhirServer.post_json('', bundle.as_json())
+                    res = self.fhirServer.post_json('',  bundle.as_json())
                     message = res.content.decode('utf-8')
                     note = u'Результат успешно выгружен в ОДИИ {0}'.format(fmtDate(self.db.getCurrentDatetime()))
                     resBundle = Bundle(jsondict=json.loads(res.content))
@@ -1048,7 +1119,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                         note = 'Bad Request'
                         message = anyToUnicode(e.response.text)
 
-                self.log(u'Отправка результат actionId={0} eventId={1} ответ'.format(actionId, result.eventId), message, level=1)
+                self.log(u'Отправка результат actionId={0} eventId={1} ответ'.format(actionId, result.eventId), message, level=1, localLog=True)
 
                 if resBundle:
                     for entry in resBundle.entry:
@@ -1068,9 +1139,10 @@ class CODIIExchange(QtCore.QCoreApplication):
                 actionExportRecord.setValue('success', toVariant(success))
                 actionExportRecord.setValue('externalId', toVariant(externalId))
                 actionExportRecord.setValue('dateTime', toVariant(QDateTime().currentDateTime()))
+                actionExportRecord.setValue('note', toVariant(bundleHash))
                 self.db.insertOrUpdate(tableActionExport, actionExportRecord)
         except Exception as e:
-            self.log('error', anyToUnicode(e), 2)
+            self.log('error actionId={0}'.format(actionId), anyToUnicode(e), 2, localLog=True)
         finally:
             # снимаем блокировку
             if lockId:
@@ -1262,7 +1334,12 @@ class CODIIExchange(QtCore.QCoreApplication):
                         performer = self.getResource(Practitioner, performerRole.practitioner.reference)
                         snils = ''
                         context = CInfoContext()
-                        orgStructureId = action.getProperty(u'Отделение исследования').getInfo(context).id
+                        orgStructureId = None
+                        prop = action.getPropertyByShortName(u'orgstructName')
+                        if not prop:
+                            prop = action.getPropertyByShortName(u'Office')
+                        if prop:
+                            orgStructureId = prop.getInfo(context).id
                         for ident in performer.identifier:
                             if ident.system == self.snilsUrn:
                                 snils = ident.value
@@ -1275,10 +1352,14 @@ class CODIIExchange(QtCore.QCoreApplication):
                                 if observation:
                                     if observation.code.coding[0].code == '1':
                                         prop = action.getPropertyByShortName(u'description')
+                                        if not prop:
+                                            prop = action.getPropertyByShortName(u'Description')
                                         if prop:
                                             prop.setValue(observation.valueString)
                                     elif observation.code.coding[0].code == '2':
                                         prop = action.getPropertyByShortName(u'conclusion')
+                                        if not prop:
+                                            prop = action.getPropertyByShortName(u'Conclusion')
                                         if prop:
                                             prop.setValue(observation.valueString)
                                     elif observation.code.coding[0].code == '3':
@@ -1287,6 +1368,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                                             prop.setValue(observation.valueString)
                                     elif observation.code.coding[0].code == '5':
                                         prop = action.getPropertyByShortName(u'eed')
+                                        if not prop:
+                                            prop = action.getPropertyByShortName(u'Dose')
                                         if prop:
                                             prop.setValue(observation.valueQuantity.value)
 
@@ -1294,8 +1377,11 @@ class CODIIExchange(QtCore.QCoreApplication):
                             for imag in diagnostic.imagingStudy:
                                 imagingStudy = self.getResource(ImagingStudy, imag.reference)
                                 if imagingStudy.description:
-                                    action[u'Снимки'] = imagingStudy.description
-                                    # endpoint = self.getResource(Endpoint, imagingStudy.endpoint[0].reference)
+                                    prop = action.getPropertyByShortName(u'snapshots')
+                                    if not prop:
+                                        prop = action.getPropertyByShortName(u'RISDirectLink')
+                                    if prop:
+                                        prop.setValue(imagingStudy.description)
                         if diagnostic.presentedForm:
                             pdfFile = cdaFile = None
                             for binary in diagnostic.presentedForm:
@@ -1381,7 +1467,8 @@ class CODIIExchange(QtCore.QCoreApplication):
 
         fields = [tableAction['id'].alias('actionId'),
                   tableAction['event_id'].alias('eventId'),
-                  tableActionExport['id'].alias('exportId')]
+                  tableActionExport['id'].alias('exportId'),
+                  tableActionExport['note'].alias('exportHash')]
 
         if actionId:
             cond.append(tableAction['id'].eq(actionId))
@@ -1396,13 +1483,14 @@ class CODIIExchange(QtCore.QCoreApplication):
             actionId = forceRef(record.value('actionId'))
             eventId = forceRef(record.value('eventId'))
             exportId = forceRef(record.value('exportId'))
+            exportHash = forceString(record.value('exportHash'))
             externalId = ''
-            referrals[actionId] = _referral(actionId, eventId, exportId, externalId)
+            referrals[actionId] = _referral(actionId, eventId, exportId, externalId, exportHash)
         return referrals
 
     def selectResults(self, actionId=None):
         results = {}
-        minDate = datetime.datetime.now() - datetime.timedelta(days=self.days)
+        minDate = datetime.datetime.now() - datetime.timedelta(days=self.days+7)
 
         tableAction = self.db.table('Action')
         tableActionType = self.db.table('ActionType')
@@ -1417,7 +1505,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         table = table.leftJoin(tableActionExport, [tableActionExport['master_id'].eq(tableAction['id']),
                                                    tableActionExport['system_id'].eq(self.externalSystemId)])
         cond = [tableAction['deleted'].eq(0),
-                tableAction['note'].notlike(u"Ошибка валидации. В БД уже есть бандл с таким идентификатором МИС%"),
+                # tableAction['note'].notlike(u"Ошибка валидации. В БД уже есть бандл с таким идентификатором МИС%"),
                 tableActionType['serviceType'].eq(5),
                 tableActionType['deleted'].eq(0),
                 tableAPT['id'].isNotNull(),
@@ -1427,29 +1515,49 @@ class CODIIExchange(QtCore.QCoreApplication):
 
         fields = [tableAction['id'].alias('actionId'),
                   tableAction['event_id'].alias('eventId'),
-                  tableActionExport['id'].alias('exportId')]
+                  tableActionExport['id'].alias('exportId'),
+                  tableActionExport['note'].alias('exportHash')]
         cond.append(self.db.existsStmt(tableAction_FileAttach,
                                        [tableAction_FileAttach['master_id'].eq(tableAction['id']),
                                         tableAction_FileAttach['deleted'].eq(0),
                                         tableAction_FileAttach['path'].like('%.xml'),
                                         tableAction_FileAttach['respSigner_id'].isNotNull(),
-                                        tableAction_FileAttach['orgSigner_id'].isNotNull()]))
-
+                                        self.db.joinOr([tableAction_FileAttach['orgSigner_id'].isNotNull(),
+                                                        self.db.joinAnd([tableAction_FileAttach['orgSigner_id'].isNull(),
+                                                                         tableAction_FileAttach['respSignatureBytes'].contain(self.orgOGRN)])])]))
         if actionId:
             cond.append(tableAction['id'].eq(actionId))
         else:
             cond.append('Action.begDate < CURDATE() + interval 1 DAY')
             cond.append(tableAction['begDate'].ge(minDate))
 
-        cond.append(tableAction['status'].inlist([CActionStatus.finished]))
+        cond.append(tableAction['status'].eq(CActionStatus.finished))
+
+        if self.transferConsent:
+            # Если включена настройка, то передаем протоколы исследований только по людям у которых есть согласие egisz
+            tableEvent = self.db.table('Event')
+            tableConsent = self.db.table('ClientConsent')
+            tableConsentType = self.db.table('rbClientConsentType')
+            table2 = tableEvent.leftJoin(tableConsent, tableConsent['client_id'].eq(tableEvent['client_id']))
+            table2 = table2.leftJoin(tableConsentType, tableConsentType['id'].eq(tableConsent['clientConsentType_id']))
+            cond2 = [tableEvent['id'].eq(tableAction['event_id']),
+                     tableConsent['deleted'].eq(0),
+                     tableConsent['value'].eq(1),
+                     tableConsentType['code'].eq('egisz'),
+                     tableAction['endDate'].ge(tableConsent['date']),
+                     self.db.joinOr([tableConsent['endDate'].isNull(),
+                                     tableAction['endDate'].lt(tableConsent['endDate'])])
+                     ]
+            cond.append(self.db.existsStmt(table2, cond2))
 
         records = self.db.getRecordList(table, cols=fields, where=self.db.joinAnd(cond))
         for record in records:
             actionId = forceRef(record.value('actionId'))
             eventId = forceRef(record.value('eventId'))
             exportId = forceRef(record.value('exportId'))
+            exportHash = forceString(record.value('exportHash'))
             externalId = ''
-            results[actionId] = _referral(actionId, eventId, exportId, externalId)
+            results[actionId] = _referral(actionId, eventId, exportId, externalId, exportHash)
         return results
 
     def selectReferralsForResult(self, actionId=None):
@@ -1493,7 +1601,7 @@ class CODIIExchange(QtCore.QCoreApplication):
             eventId = forceRef(record.value('eventId'))
             exportId = forceRef(record.value('exportId'))
             externalId = 'Task/' + forceString(record.value('externalId'))
-            referrals[actionId] = _referral(actionId, eventId, exportId, externalId)
+            referrals[actionId] = _referral(actionId, eventId, exportId, externalId, None)
             taskList.add(externalId)
         tasks = ','.join(taskList)
         return referrals, tasks

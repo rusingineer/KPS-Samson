@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import QDate
+from PyQt4.QtCore import QDate, Qt, QDateTime
 
 from library.Utils import forceDouble, forceInt, forceRef
 
@@ -123,12 +123,13 @@ class CContractTariffCache:
             return result
 
     def getTariffDate(self, contractId, tariffChecker, date, financeId):
-        if (contractId, date) in self.mapContractIdToDate.keys():
-            return self.mapContractIdToDate[(contractId, date)]
-        else:
+        dateString = date.date().toString(Qt.ISODate) if isinstance(date, QDateTime) else date.toString(Qt.ISODate)
+        result = self.mapContractIdToDate.get((contractId, dateString))
+        if not result:
             result = CContractTariffDescr(contractId, tariffChecker, loadTariffs=False).getDateTariffMap(contractId, tariffChecker, date, financeId)
-            self.mapContractIdToDate[(contractId, date)] = result
-            return result
+            self.mapContractIdToDate[(contractId, dateString)] = result
+        return result
+
 
     @staticmethod
     def getServiceIdList(tariffMap):

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/Stock/StockPurchaseContractComboBoxPopup.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\StockPurchaseContractComboBoxPopup.ui'
 #
-# Created by: PyQt4 UI code generator 4.12.1
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -142,13 +142,3 @@ class Ui_StockPurchaseContractComboBoxPopup(object):
 
 from library.DateEdit import CDateEdit
 from library.TableView import CTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    StockPurchaseContractComboBoxPopup = QtGui.QWidget()
-    ui = Ui_StockPurchaseContractComboBoxPopup()
-    ui.setupUi(StockPurchaseContractComboBoxPopup)
-    StockPurchaseContractComboBoxPopup.show()
-    sys.exit(app.exec_())
-

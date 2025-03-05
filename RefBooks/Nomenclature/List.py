@@ -338,6 +338,7 @@ class CRBNomenclatureEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.tblAnalogs.addPopupSeparator()
         self.tblAnalogs.addPopupDelRow()
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
         self.setModels(self.tblUsingTypes, self.modelUsingTypes, self.selectionModelUsingTypes)
         self.tblUsingTypes.addPopupDelRow()
         self.setupDirtyCather()

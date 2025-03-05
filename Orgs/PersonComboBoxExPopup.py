@@ -174,6 +174,9 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         self.cmbSpeciality.setValue(specialityId)
         # self.cmbSpeciality.setEnabled(checked)
 
+    @pyqtSignature('QString')
+    def on_edit_fio_textChanged(self, text):  # При вводе в текстовое поле сразу же формирует список по фамильно
+        self.on_buttonBox_apply()
 
     def on_buttonBox_reset(self):
         self.cmbOrganisation.setValue(QtGui.qApp.currentOrgId())
@@ -185,6 +188,7 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         self.cmbSpeciality.setValue(0)
         self.cmbActivity.setValue(0)
         self.cmbTariffCategory.setCurrentIndex(0)
+        self.edit_fio.setText("")
 
 
     def setPropertyOrgStructure(self, value):
@@ -204,8 +208,9 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         tariffCategoryId = forceRef(self.cmbTariffCategory.value())
         deallocatedPerson = forceRef(self.chkDeallocatedPerson.isChecked())
         onlyDoctors = forceRef(self.chkOnlyDoctors.isChecked())
-
-        crIdList = self.getPersonIdList(organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors)
+        name = forceString(self.edit_fio.text())
+        
+        crIdList = self.getPersonIdList(organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors, name=name)
         self.setPersonIdList(crIdList, id)
 
         if orgStructureId:
@@ -224,10 +229,9 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
             self.tblPerson.setIdList(idList, posToId)
             self.tabWidget.setCurrentIndex(0)
             self.tabWidget.setTabEnabled(0, True)
-            self.tblPerson.setFocus(Qt.OtherFocusReason)
         else:
-            self.tabWidget.setCurrentIndex(1)
-            self.tabWidget.setTabEnabled(0, False)
+            self.tblPerson.setIdList(idList)
+            self.tabWidget.setTabEnabled(0, True)
 
 
     def setSpecialityIndependents(self):
@@ -239,7 +243,7 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         self.chkSpecialityDefaultStatus = value
 
 
-    def getPersonIdList(self, organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors=True, orderByColumn=1):
+    def getPersonIdList(self, organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors=True, orderByColumn=1, name =''):
         db = QtGui.qApp.db
         tableVRBPerson = db.table('vrbPersonWithSpecialityAndPost')
         tablePerson = db.table('Person')
@@ -260,6 +264,8 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
             cond.append(tableVRBPerson['orgStructure_id'].inlist(orgStructureIdList))
         if postId:
             cond.append(tablePerson['post_id'].eq(postId))
+        if name:
+            cond.append(tableVRBPerson['name'].like(u'%'+name+u'%'))
         if onlyDoctors or (self.onlyDoctorsIfUnknowPost and not postId):
             cond.append('EXISTS (SELECT rbPost.`id` FROM rbPost WHERE Person.`post_id`=rbPost.`id` AND rbPost.`code` REGEXP \'^[1-3]+\')')
         if self.chkSpeciality.isChecked():
@@ -365,8 +371,9 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         tariffCategoryId = forceRef(self.cmbTariffCategory.value())
         deallocatedPerson = forceRef(self.chkDeallocatedPerson.isChecked())
         onlyDoctors = forceRef(self.chkOnlyDoctors.isChecked())
+        name = forceString(self.edit_fio.text())
 
-        updateTable = self.getPersonIdList(organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors, column)
+        updateTable = self.getPersonIdList(organisationId, orgStructureId, postId, specialityId, activityId, tariffCategoryId, deallocatedPerson, onlyDoctors, column, name)
         self.setPersonIdList(updateTable, id)
         self.prevColumn = column
 

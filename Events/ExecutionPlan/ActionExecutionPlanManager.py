@@ -32,6 +32,7 @@ from library.Utils import (
 #    forceDouble,
     forceDate,
     forceInt,
+    forceTime,
 #    pyDate,
 #    toVariant
 )
@@ -43,6 +44,8 @@ class CActionExecutionPlanManager(object):
         self._executionPlan = None
         self._currentItem = None
         self._currentIndex = None
+        self.groupingItem = None
+        self.groupingInfo = []
 
 
     def setCurrentItemIndex(self, value=None):
@@ -57,9 +60,16 @@ class CActionExecutionPlanManager(object):
                     break
 
         if value is None:
+            actionsIds = {}
+            for item in self.executionPlan.items:
+                if item.actionId:
+                    actionsIds[item.actionId] = item
             if self._currentItem in self.executionPlan.items:
                 self._currentIndex = self.executionPlan.items.index(self._currentItem)
                 self._currentItem = self.executionPlan.items[self._currentIndex]
+            elif self._currentItem.actionId in actionsIds.keys():
+                self._currentIndex = self.executionPlan.items.index(actionsIds[self._currentItem.actionId])
+                self.executionPlan.items[self._currentIndex] = self._currentItem
             else:
                 self._currentIndex = None
                 self._currentItem = None
@@ -136,6 +146,9 @@ class CActionExecutionPlanManager(object):
 
 
     def getNextItem(self):
+        if self._currentItem is None:
+            return None
+        
         if self._currentIndex is None:
             self._currentIndex = 0
 
@@ -204,6 +217,51 @@ class CActionExecutionPlanManager(object):
             self._currentItem = item
 
 
+    def saveFromCurrentItems(self):
+        if not self._currentItem:
+            return
+
+        self.save()
+        nextItem = self.getNextItem()
+        while nextItem:
+            self.setCurrentItemIndex(self.executionPlan.items.index(nextItem))
+            self.setCurrentItemExecuted()
+            self.saveFromCurrentItem(nextItem)
+            nextItem = self.getNextItem()
+
+
+    def saveFromCurrentItem(self, currentItem):
+        if not currentItem:
+            return
+
+        if currentItem.id and currentItem.executedDatetime:
+            if not currentItem.actionId:
+                currentItem.actionId = self._action.getId()
+            CQuery.save(currentItem)
+            return
+
+        executionPlan = currentItem.executionPlan
+        currentItem.actionId = self._action.getId()
+        self.setCurrentItemExecuted()
+        if executionPlan.id:
+            CQuery.save(executionPlan)
+            CQuery.save(currentItem)
+            if currentItem.nomenclature:
+                CQuery.save(currentItem.nomenclature)
+            for item in executionPlan.items:
+                if item != currentItem and (not item.id or item.getIsDirty()):
+                    self._saveItem(item, executionPlan)
+            return
+        if not executionPlan.id:
+            executionPlan.id = CQuery.save(executionPlan)
+        itemIds = []
+        for item in executionPlan.items:
+            itemIds.append(self._saveItem(item, executionPlan))
+        itemIdsToDlete = CQuery(CActionExecutionPlanItem, where=[CActionExecutionPlanItem.id.notInlist(itemIds), CActionExecutionPlanItem.masterId == executionPlan.id]).getIdList()
+        CQuery.delete(CActionExecutionPlanItem, CActionExecutionPlanItem.id.inlist(itemIdsToDlete))
+        CQuery.delete(CActionExecutionPlanItemNomenclature, CActionExecutionPlanItemNomenclature.actionExecutionPlanItemId.inlist(itemIdsToDlete))
+
+
     def save(self):
         if not self._currentItem:
             return
@@ -211,7 +269,15 @@ class CActionExecutionPlanManager(object):
         if self._currentItem.id and self._currentItem.executedDatetime:
             if not self._currentItem.actionId:
                 self._currentItem.actionId = self._action.getId()
-            CQuery.save(self._currentItem)
+            if self.groupingItem:
+                if not self.groupingItem == self._currentItem:
+                    self._currentItem._record.setValue('group_id', forceInt(self.groupingItem._record.value('id')))
+            result = CQuery.save(self._currentItem)
+            self._currentItem._record.setValue('id', result)
+            if not forceInt(self._currentItem._record.value('group_id')):
+                if self.groupingItem:
+                    self._currentItem._record.setValue('group_id', result)
+                    result = CQuery.save(self._currentItem)
             return
 
         executionPlan = self._currentItem.executionPlan
@@ -221,7 +287,15 @@ class CActionExecutionPlanManager(object):
 
         if executionPlan.id:
             CQuery.save(executionPlan)
-            CQuery.save(self._currentItem)
+            if self.groupingItem:
+                if not self.groupingItem == self._currentItem:
+                    self._currentItem._record.setValue('group_id', forceInt(self.groupingItem._record.value('id')))
+            result = CQuery.save(self._currentItem)
+            self._currentItem._record.setValue('id', result)
+            if not forceInt(self._currentItem._record.value('group_id')):
+                if self.groupingItem:
+                    self._currentItem._record.setValue('group_id', result)
+                    result = CQuery.save(self._currentItem)
             if self._currentItem.nomenclature:
                 CQuery.save(self._currentItem.nomenclature)
 
@@ -289,7 +363,15 @@ class CActionExecutionPlanManager(object):
         if not item.actionId and item.action and item.action.id:
             item.actionId = item.action.id
 
+        if self.groupingItem:
+            if not self.groupingItem == item:
+                item._record.setValue('group_id', forceInt(self.groupingItem._record.value('id')))
         itemId = CQuery.save(item)
+        item._record.setValue('id', itemId )
+        if not forceInt(item._record.value('group_id')):
+            if self.groupingItem:
+                item._record.setValue('group_id', itemId)
+                itemId = CQuery.save(item)
         if item.nomenclature:
             if not item.nomenclature.nomenclatureId:
                 nomenclatureId = self._action.findNomenclaturePropertyValue()
@@ -324,8 +406,8 @@ class CActionExecutionPlanManager(object):
 
     def update(self, forceDuration=False, daysExecutionPlan=[]):
         record = self._action.getRecord()
-
-        if self._action.getType().isNomenclatureExpense:
+        actionType = self._action.getType()
+        if actionType.isNomenclatureExpense:
             duration = forceInt(record.value('duration')) or 1 # Длительность
         else:
             duration = forceInt(record.value('duration')) # Длительность
@@ -342,20 +424,22 @@ class CActionExecutionPlanManager(object):
         if not (duration >= 1 or aliquoticity >= 1 or quantity >= 1 or forceDuration):
             return
 
+        showTime = actionType.showTime if actionType else False
         begDate = forceDate(record.value('begDate'))
+        begTime = forceTime(record.value('begDate')) if showTime else None
 
         if not self._currentItem:
-            self._create(begDate, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
+            self._create(begDate, begTime, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
             return
 
-        self._update(begDate, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
+        self._update(begDate, begTime, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
 
 
     def loadExecutionPlan(self):
         return self._currentItem.executionPlan
 
 
-    def _create(self, begDate, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=[]):
+    def _create(self, begDate, begTime, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=[]):
         executionPlan = CActionExecutionPlan()
 
         if self._action.getType().isNomenclatureExpense:
@@ -364,6 +448,7 @@ class CActionExecutionPlanManager(object):
             executionPlan.type = CActionExecutionPlanType.type
 
         executionPlan.begDate = begDate
+        executionPlan.begTime = begTime
         executionPlan.duration = duration
         executionPlan.aliquoticity = aliquoticity
         executionPlan.periodicity = periodicity
@@ -382,10 +467,10 @@ class CActionExecutionPlanManager(object):
         self._bindCurrentItemWithAction()
 
 
-    def _update(self, begDate, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=[]):
+    def _update(self, begDate, begTime, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=[]):
         self._currentItem.executionPlan = None
         self._executionPlan = None
-        self._create(begDate, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
+        self._create(begDate, begTime, duration, aliquoticity, periodicity, quantity, daysExecutionPlan=daysExecutionPlan)
 
 
     def _bindCurrentItemWithAction(self):

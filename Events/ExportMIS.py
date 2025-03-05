@@ -24,7 +24,17 @@ def iniExportEvent(self):
         CDesignationCol(u'Дата подписания документа подписью организации', ['master_id'],
                         ('Action_FileAttach', 'orgSigningDatetime'), 20, ))
     self.modelExport_FileAttach.addColumn(CDateTimeCol(u'Дата и время экспорта', ['dateTime'], 15))
-    self.modelExport_FileAttach.addColumn(CEnumCol(u'Состояние', ['success'], [u'ошибка', u'успех'], 15))
+
+    stmt = u"""IF(success, 'успех', IF((SELECT status FROM Information_Messages WHERE id = (SELECT MAX(id) FROM 
+    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
+    AND ((status = 'Success' AND IdFedRequest IS NOT NULL ) OR (status = 'Failed'))) OR id = (SELECT MAX(id) FROM 
+    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
+    AND (status = 'Success' AND IdFedRequest IS NOT NULL AND RemdRegNumber !='')) 
+    ORDER BY status DESC LIMIT 1)="Success", 'успех', 'ошибка'))"""
+    self.modelExport_FileAttach.addColumn(CDesignationCol(u'отправка в Региональный РЭМД', ['id'],
+                                                          ('Action_FileAttach_Export', stmt), 15))
+
+    # self.modelExport_FileAttach.addColumn(CEnumCol(u'Состояние', ['success'], [u'ошибка', u'успех'], 15))
     self.modelExport_FileAttach.addColumn(CTextCol(u'Примечания', ['note'], 6))
     self.modelExport_FileAttach.addColumn(
         CStatusREMD_FileAttachCol(u'Информация о приеме документа федеральным РЭМД', ['master_id'], 6))
@@ -34,7 +44,8 @@ def iniExportEvent(self):
     self.modelExport_VIMIS.addColumn(CTextCol(u'Профиль', ('SystemName',), 20, ))
     self.modelExport_VIMIS.addColumn(CDateTimeCol(u'Дата и время получения уведомления', ['date'], 15))
     self.modelExport_VIMIS.addColumn(
-        CDesignationCol(u'Состояние', ['id'], ('Information_Messages', u'if(status="Success","успех","ошибка")'), 15))
+        CDesignationCol(u'отправка в Региональный РЭМД', ['id'],
+                        ('Information_Messages', u'if(status="Success","успех","ошибка")'), 15))
     self.modelExport_VIMIS.addColumn(CTextCol(u'Текстовый статус', ['Message'], 6))
     self.modelExport_VIMIS.setTable('Information_Messages')
 

@@ -8,7 +8,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import QDir, QByteArray
+from PyQt4.QtCore import QDir, QByteArray, QTime
 
 from library import database
 from library.Utils import anyToUnicode, forceString, forceRef
@@ -102,9 +102,12 @@ class CFileAttachCompress(QtCore.QCoreApplication):
             offset = 0
             cnt = 1
             while cnt > 0:
+                time = QTime.currentTime()
+                if not (time > QTime(20, 0) or time < QTime(2, 0)):
+                    break
                 table = self.db.table('Action_FileAttach_PrintTemplate')
                 table2 = self.db.table('Action_FileAttach')
-                stmt = u"SELECT id, html FROM Action_FileAttach LIMIT 1000 offset {0}".format(offset)
+                stmt = u"SELECT id, html FROM Action_FileAttach WHERE id between {0} and {1}".format(offset, offset+1000)
                 query = self.db.query(stmt)
                 offset += 1000
                 cnt = query.size()

@@ -21,9 +21,9 @@ from library.interchange import (setLineEditValue, setComboBoxValue,
                                  getDoubleBoxValue, getSpinBoxValue,
                                  setDateEditValue, getDateEditValue)
 from library.TableModel import CTextCol, CEnumCol, CDoubleCol, CNumCol, CDateCol
-from library.ItemsListDialog import CItemEditorBaseDialog
+from library.ItemsListDialog import CItemEditorBaseDialog, CItemsListDialogEx
 
-from ItemsListDialogEx import CItemsListDialogEx, CItemEditorDialogEx
+from ItemsListDialogEx import CItemEditorDialogEx
 
 from Tables import rbCode, rbName, rbMesKSG
 from Ui_MesKSG import Ui_Dialog

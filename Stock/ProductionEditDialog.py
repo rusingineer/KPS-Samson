@@ -28,7 +28,7 @@ from Reports.ReportView                    import CReportViewDialog
 from Stock.StockBatchEditor              import CStockBatchEditor
 from Stock.NomenclatureComboBox            import CNomenclatureInDocTableCol
 from Stock.StockMotionBaseDialog           import CStockMotionBaseDialog, CNomenclatureItemsBaseModel
-from Stock.Utils import getStockMotionItemQuantityColumn, getExistsNomenclatureAmount, getStockMotionItemQntEx, getBatchShelfTimeFinance
+from Stock.Utils import getStockMotionItemQuantityColumn, getExistsNomenclatureAmountEx, getStockMotionItemQntEx, getBatchShelfTimeFinance
 from Stock.Ui_Production                   import Ui_ProductionDialog
 from Stock.Ui_SelectRecipeDialog           import Ui_Dialog as Ui_SelectRecipeDialog
 
@@ -72,6 +72,8 @@ class CProductionEditDialog(CStockMotionBaseDialog, Ui_ProductionDialog):
         self.tblOutItems.popupMenu().addAction(self.actOpenStockBatchEditorOut)
         self.tblOutItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblOutItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tblInItems.enableColsMove()
+        self.tblOutItems.enableColsMove()
 
 
     def setDefaults(self):
@@ -88,7 +90,7 @@ class CProductionEditDialog(CStockMotionBaseDialog, Ui_ProductionDialog):
         if templateId == -1:
             self.getNomenclaturePrint()
         else:
-            idList = self.tblItems.model().itemIdList()
+            idList = self.tblInItems.model().itemIdList()
             context = CInfoContext()
             data = { 'InventoryList': CStockMotionInfoList(context, idList)}
             QtGui.qApp.call(self, applyTemplate, (self, templateId, data))
@@ -197,7 +199,7 @@ class CProductionEditDialog(CStockMotionBaseDialog, Ui_ProductionDialog):
     def checkDataEntered(self):
         result = True
         result = result and (len(self.modelInItems.items()) > 0 or self.checkInputMessage(u'данные таблицы "Исходные материалы"', False, self.tblInItems, 0, 0))
-        result = result and (len(self.modelOutItems.items()) > 0 or self.checkInputMessage(u'данные таблицы "Результат"', False, self.tblOutItems, 0, 0))                
+        result = result and (len(self.modelOutItems.items()) > 0 or self.checkInputMessage(u'данные таблицы "Результат"', False, self.tblOutItems, 0, 0))
         result = result and self._checkStockMotionItemsData(self.tblInItems)
         result = result and self._checkStockMotionItemsData(self.tblOutItems)
         result = result and self.checkItemsDataEntered(self.tblInItems, self.modelInItems)
@@ -245,9 +247,9 @@ class CProductionEditDialog(CStockMotionBaseDialog, Ui_ProductionDialog):
         medicalAidKindName = item[2]
         rows = item[3]
         row = rows[0] if len(rows) > 0 else -1
-        existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
+        existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
         prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
-        if (round(existsQnt, 2) + round(prevQnt, 2)) - round(qnt, 2) < 0:
+        if (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt()) < 0:
             nomenclatureName = model.getNomenclatureNameById(nomenclatureId)
             if existsQnt > 0:
                 message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(   existsQnt,
@@ -286,7 +288,7 @@ class CProductionEditDialog(CStockMotionBaseDialog, Ui_ProductionDialog):
 
     def addRecipe(self, recipeId, rate, financeId):
         db = QtGui.qApp.db
-        table = db.table('rbStockRecipe')        
+        table = db.table('rbStockRecipe')
         tableItem = db.table('rbStockRecipe_Item')
         queryTable = table.innerJoin(tableItem, tableItem['master_id'].eq(table['id']))
         records = db.getRecordList(queryTable, '*', [tableItem['master_id'].eq(recipeId), table['deleted'].eq(0)], tableItem['idx'].name())

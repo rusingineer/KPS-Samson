@@ -3844,7 +3844,7 @@ class CStationaryF144001(CStationaryF014):
                     cond.append(tableClientSocStatus['deleted'].eq(0))
                 if isMedicalAidType:
                     table = table.innerJoin(tableRBMedicalAidType, tableEventType['medicalAidType_id'].eq(tableRBMedicalAidType['id']))
-                cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
+                    cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
                 if bool(begDateTime):
                     cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):
@@ -4008,7 +4008,7 @@ class CStationaryF144001(CStationaryF014):
                     cond.append(tableClientSocStatus['deleted'].eq(0))
                 if isMedicalAidType:
                     table = table.innerJoin(tableRBMedicalAidType, tableEventType['medicalAidType_id'].eq(tableRBMedicalAidType['id']))
-                cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
+                    cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
                 if bool(begDateTime):
                     cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):

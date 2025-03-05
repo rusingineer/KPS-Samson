@@ -1,32 +1,35 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import QAbstractItemView
+from PyQt4 import QtGui
+from PyQt4.QtCore import QDate, QObject, SIGNAL, Qt, pyqtSignature, QVariant
+from PyQt4.QtGui import QAbstractItemView, QWidget, QAction
 
-from Orgs.Utils import getOrgStructureDescendants
 from library.Calendar import monthName
 from library.DialogBase import CConstructHelperMixin
 from library.TableModel import CTableModel, CCol, CDesignationCol, CIntCol, CTextCol, CEnumCol
-from library.Utils        import *
-
-from Registry.ClientEditDialog import CClientEditDialog
-
-from Reports.ReportBase import CReportBase, createTable
-from Reports.ReportView     import CReportViewDialog, CPageFormat
+from library.Utils import forceStringEx, forceString, forceRef, formatRecordsCount
 
 from Exchange.ExportDispPlanDiagnosisDialog import CExportDispPlanDiagnosisDialog
 from Exchange.ImportDispExportedPlanDiagnosisDialog import CImportDispExportedPlanDiagnosisDialog
 
+from Orgs.Utils import getOrgStructureDescendants
+
+from Registry.ClientEditDialog import CClientEditDialog
+
+from Reports.ReportBase import CReportBase, createTable
+from Reports.ReportView import CReportViewDialog, CPageFormat
+
 from Users.Rights import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 
-from Ui_DispExchangeDiagnosisPage   import Ui_DispExchangeDiagnosisPage
+from Ui_DispExchangeDiagnosisPage import Ui_DispExchangeDiagnosisPage
 
-class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CConstructHelperMixin):
+
+class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstructHelperMixin):
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
+        QWidget.__init__(self, parent)
         self.addModels('DiagnosisDispansPlaned', CDiagnosisDispansPlanedModel(self))
         self.addModels('PlanExportErrors', CPlanExportErrorsModel(self))
-        self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
         self.setupUi(self)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.setModels(self.tblDiagnosisDispansPlaned, self.modelDiagnosisDispansPlaned, self.selectionModelDiagnosisDispansPlaned)
@@ -53,6 +56,8 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
         header.setSortIndicator(0, Qt.AscendingOrder)
         QObject.connect(header, SIGNAL('sectionClicked(int)'), self.setDDPSort)
         self.tblDiagnosisDispansPlaned.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.cmbSocStatusesType.setTable('rbSocStatusType', True)
+        self.on_chkSocStatuses_toggled(self.chkSocStatuses.isChecked())
 
     def contextMenuEvent(self, event):
         self.menu = QtGui.QMenu(self)
@@ -91,9 +96,11 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
                 left join ClientAttach as Attach on Attach.id = (
                     select max(Attach.id)
                     from ClientAttach as Attach
+                    left join OrgStructure o on o.id = Attach.orgStructure_id
                     where Attach.client_id = Client.id
                         and Attach.deleted = 0
                         and Attach.endDate is null
+                        and o.areaType > 0
                         and Attach.attachType_id in (%(attachTypeIds)s)
                 )
                 LEFT JOIN ClientWork ON ClientWork.client_id = Client.id AND ClientWork.id = (
@@ -155,6 +162,47 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
                 where.append(u"IF((ClientWork.org_id is not null or IFNULL(ClientWork.freeInput, '') <> '') and IFNULL(ClientWork.post, '') <> '', 1, 0) = 1")
             elif self.cmbBusyness.currentIndex() == 2:
                 where.append(u"IF((ClientWork.org_id is not null or IFNULL(ClientWork.freeInput, '') <> '') and IFNULL(ClientWork.post, '') <> '', 1, 0) = 0")
+
+            if self.chkSocStatuses.isChecked():
+                socStatusesNotExist = self.chkSocStatusesCondition.isChecked()
+                socStatusesBegDate = self.edtFilterSocStatusesBegDate.date()
+                socStatusesEndDate = self.edtFilterSocStatusesEndDate.date()
+                socStatusesClass = self.cmbSocStatusesClass.value()
+                socStatusesType = self.cmbSocStatusesType.value()
+                socStatusWhere = [
+                    "CSS.client_id = Client.id",
+                    "CSS.deleted = 0",
+                ]
+                if socStatusesClass:
+                    socStatusClassIdList = db.getDescendants('rbSocStatusClass', 'group_id', socStatusesClass)
+                    if socStatusClassIdList:
+                        stmtStatusTypeId = u'''SELECT DISTINCT rbSocStatusClassTypeAssoc.type_id
+                            FROM  rbSocStatusClassTypeAssoc
+                            WHERE rbSocStatusClassTypeAssoc.class_id IN (%s)
+                        ''' % (
+                            u','.join(str(socStatusClassId) for socStatusClassId in socStatusClassIdList)
+                        )
+                        queryStatusTypeId = db.query(stmtStatusTypeId)
+                        resultStatusTypeIdList = []
+                        while queryStatusTypeId.next():
+                            resultStatusTypeIdList.append(forceRef(queryStatusTypeId.value(0)))
+                    if resultStatusTypeIdList:
+                        socStatusWhere.append(u"CSS.socStatusType_id IN (%s)" % u','.join(str(id) for id in resultStatusTypeIdList))
+                    else:
+                        parentSocStatusClassIdList = db.getTheseAndParents('rbSocStatusClass', 'group_id', [socStatusesClass])
+                        socStatusWhere.append(u"CSS.socStatusClass_id IN (%s)" % u','.join(str(id) for id in parentSocStatusClassIdList))
+                        socStatusWhere.append(u"CSS.socStatusType_id is null")
+                if socStatusesType:
+                    socStatusWhere.append(u"CSS.socStatusType_id = %s" % socStatusesType)
+                if socStatusesBegDate:
+                    socStatusWhere.append(u"(CSS.endDate is null or DATE(CSS.endDate) >= DATE(%s))" % db.formatDate(socStatusesBegDate))
+                if socStatusesEndDate:
+                    socStatusWhere.append(u"(CSS.begDate is null or DATE(CSS.begDate) <= DATE(%s))" % db.formatDate(socStatusesEndDate))
+                socStatusStmt = u"select id from ClientSocStatus as CSS where " + " and ".join(socStatusWhere)
+                if socStatusesNotExist:
+                    where.append(u"not exists (%s)" % socStatusStmt)
+                else:
+                    where.append(u"exists (%s)" % socStatusStmt)
             if self.chkFilterPerson.isChecked():
                 personId = self.cmbFilterPerson.value()
                 if personId:
@@ -191,7 +239,8 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
                 infoDict[clientId] = record
             self.modelDiagnosisDispansPlaned.setIdList(idList)
             count = len(idList)
-            self.lblRowCount.setText(formatRecordsCount(count))
+            people = u", {0} человек".format(len(list(set(idList)))) if idList else u""
+            self.lblRowCount.setText(formatRecordsCount(count) + people)
         finally:
             QtGui.QApplication.restoreOverrideCursor()
 
@@ -290,6 +339,17 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
         self.updateDDPList()
 
     @pyqtSignature('int')
+    def on_cmbSocStatusesClass_currentIndexChanged(self, index):
+        socStatusClassId = self.cmbSocStatusesClass.value()
+        if socStatusClassId:
+            filter = (u'''rbSocStatusType.id IN (SELECT DISTINCT rbSocStatusClassTypeAssoc.type_id
+            FROM  rbSocStatusClassTypeAssoc
+            WHERE rbSocStatusClassTypeAssoc.class_id = %s)'''%(socStatusClassId))
+        else:
+            filter = u''
+        self.cmbSocStatusesType.setFilter(filter)
+
+    @pyqtSignature('int')
     def on_chkFilterLastName_stateChanged(self, state):
         self.edtFilterLastName.setEnabled(state == Qt.Checked)
         if self.chkFilterLastName.isChecked():
@@ -342,6 +402,18 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
         self.edtFilterMKBFrom.setEnabled(checked)
         self.edtFilterMKBTo.setEnabled(checked)
 
+    @pyqtSignature('bool')
+    def on_chkSocStatuses_toggled(self, checked):
+        self.chkSocStatusesCondition.setEnabled(checked)
+
+        self.lblFilterSocStatusesBegDate.setEnabled(checked)
+        self.edtFilterSocStatusesBegDate.setEnabled(checked)
+        self.lblFilterSocStatusesEndDate.setEnabled(checked)
+        self.edtFilterSocStatusesEndDate.setEnabled(checked)
+
+        self.cmbSocStatusesClass.setEnabled(checked)
+        self.cmbSocStatusesType.setEnabled(checked)
+
     @pyqtSignature('')
     def on_btnPutEvPlanList_clicked(self):
         CExportDispPlanDiagnosisDialog(self).exec_()
@@ -374,6 +446,7 @@ class CDispExchangeDiagnosisPage(QtGui.QWidget, Ui_DispExchangeDiagnosisPage, CC
     def on_btnShowReport_clicked(self):
         self.showReport()
 
+
 class CDiagnosisDispansPlanedModel(CTableModel):
     class CInfoCol(CTextCol):
         def __init__(self, title, infoField, infoDict, defaultWidth, alignment='l'):
@@ -405,6 +478,7 @@ class CDiagnosisDispansPlanedModel(CTableModel):
         self.addColumn(self.CInfoCol(u'Врач', 'personName', self.infoDict, 15))
         self.setTable('DiagnosisDispansPlaned')
 
+
 class CPlanExportErrorsModel(CTableModel):
     def __init__(self, parent):
         CTableModel.__init__(self, parent, [
@@ -423,6 +497,7 @@ class CPlanExportErrorsModel(CTableModel):
                 ]
             idList = db.getIdList(table, idCol=table['id'], where=where)
         self.setIdList(idList)
+
 
 class CDispExchangeReport(CReportBase):
     def __init__(self, parent, model):

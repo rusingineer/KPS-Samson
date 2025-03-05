@@ -14,10 +14,10 @@
 
 import hashlib
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QObject, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QObject, pyqtSignature, SIGNAL, QVariant
 
 from library.InDocTable          import CInDocTableModel
-from library.database import CDatabaseException
+from library.database import CDatabaseException, CTableRecordCache
 from library.interchange import  getLineEditValue, setLineEditValue, getTextEditValue, setTextEditValue
 from library.ItemsListDialog     import CItemsListDialog, CItemEditorBaseDialog
 from library.TableModel          import CTextCol
@@ -40,6 +40,8 @@ from Orgs.PersonComboBoxEx import CPersonFindInDocTableCol, CPersonComboBoxEx
 from Reports.ReportBase          import CReportBase, createTable
 from Reports.ReportView          import CReportViewDialog
 
+from Users.Tables import tblLogin
+
 from Ui_LoginListDialog          import Ui_LoginListDialog
 from RefBooks.Login.Ui_LoginEditor import Ui_ItemEditorDialog
 
@@ -49,7 +51,7 @@ class CLoginListDialog(Ui_LoginListDialog, CItemsListDialog):
         CItemsListDialog.__init__(self, parent, [
             CTextCol(u'Регистрационное имя', ['login'], 20),
             CTextCol(u'Примечание', ['note'], 20),
-            ], 'Login',
+            ], tblLogin,
             ['login'])
         self.setWindowTitleEx(u'Учетные записи пользователей')
 
@@ -124,7 +126,7 @@ class CLoginListDialog(Ui_LoginListDialog, CItemsListDialog):
             sninls = trim(self.edtSnils.text())
             cond.append(tablePerson['SNILS'].like(addDotsEx(sninls)))
 
-        return QtGui.qApp.db.getIdList(table, 'Login.id', where=cond, order=self.order)
+        return QtGui.qApp.db.getDistinctIdList(table, '%s.id' % tblLogin, where=cond, order=self.order)
 
 
     @pyqtSignature('int')
@@ -257,7 +259,7 @@ class CLoginListDialog(Ui_LoginListDialog, CItemsListDialog):
 class CLoginEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
 
     def __init__(self,  parent):
-        CItemEditorBaseDialog.__init__(self, parent, 'Login')
+        CItemEditorBaseDialog.__init__(self, parent, tblLogin)
         self.addModels('Person', CPersonModel(self))
         self.setupUi(self)
         self.setWindowTitleEx(u'Учетная запись пользователя')
@@ -308,7 +310,7 @@ class CLoginEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         result = login or self.checkInputMessage(u'Регистрационное имя', False, self.edtLogin)
         if result and login:
             db = QtGui.qApp.db
-            table = db.table('Login')
+            table = db.table(tblLogin)
             idList = db.getIdList(table, 'id', [table['login'].eq(login), table['deleted'].eq(0)])
             if idList and idList != [self.itemId()]:
                 QtGui.QMessageBox.warning(self,
@@ -342,6 +344,18 @@ class CPersonModel(CInDocTableModel):
             editor.setChkSpecialityDefaultStatus(False)
             return editor
 
+        def toString(self, val, record):
+            if forceRef(val):
+                if not hasattr(QtGui.qApp, '_recordsCache_vrbPersonWithSpecialityAndPost'):
+                    QtGui.qApp._recordsCache_vrbPersonWithSpecialityAndPost = CTableRecordCache(QtGui.qApp.db,
+                                                                                                  'vrbPersonWithSpecialityAndPost')
+                name = QtGui.qApp._recordsCache_vrbPersonWithSpecialityAndPost.get(val).value('name')
+                code = QtGui.qApp._recordsCache_vrbPersonWithSpecialityAndPost.get(val).value('code')
+
+                return QVariant(forceString(code.toPyObject()) + u', ' + forceString(name.toPyObject()))
+            else:
+                return None
+
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Login_Person', 'id', 'master_id', parent)
-        self.addCol(CPersonModel.CLocPersonFindInDocTableCol(u'Сотрудник', 'person_id', 20, 'vrbPersonWithSpecialityAndOrgStr'))
+        self.addCol(CPersonModel.CLocPersonFindInDocTableCol(u'Сотрудник', 'person_id', 20, 'vrbPersonWithSpecialityAndPost'))

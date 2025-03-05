@@ -16,6 +16,7 @@ exec 200>>$LOCKFILE
 flock -n 200 || exit 1
 PID=$$
 echo $PID 1>&200
+chmod 777 $LOCKFILE
 
 echo "dir=$f" >> "$outfile"
 homedir=$HOME
@@ -104,9 +105,9 @@ END_SCRIPT
 	tar xvzf client_lin.tar.gz -C /opt/client --strip-components=1 >> "$desktop/Обновление МИС САМСОН" 2>&1 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" >> "$outfile"
-	chmod 755 /opt/client/*.py
-	chmod 755 /opt/client/*.sh
-	chmod 755 /opt/client/install/bin/*.sh 
+	chmod +x /opt/client/*.py
+	chmod +x /opt/client/*.sh
+	chmod +x /opt/client/install/bin/*.sh 
 	
 	# Дополнительная установка
 	echo "[$(date +%Y%m%d-%T)] Дополнительная установка скриптом Dopinstall.sh..."

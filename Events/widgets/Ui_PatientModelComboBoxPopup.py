@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Events\widgets\PatientModelComboBoxPopup.ui'
+# Form implementation generated from reading ui file 'PatientModelComboBoxPopup.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created by: PyQt4 UI code generator 4.12.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_PatientModelComboBoxPopup(object):
     def setupUi(self, PatientModelComboBoxPopup):
         PatientModelComboBoxPopup.setObjectName(_fromUtf8("PatientModelComboBoxPopup"))
-        PatientModelComboBoxPopup.resize(728, 315)
+        PatientModelComboBoxPopup.resize(795, 338)
         self.gridlayout = QtGui.QGridLayout(PatientModelComboBoxPopup)
         self.gridlayout.setMargin(0)
         self.gridlayout.setSpacing(0)
@@ -50,6 +50,10 @@ class Ui_PatientModelComboBoxPopup(object):
         self.gridlayout1.setMargin(4)
         self.gridlayout1.setSpacing(4)
         self.gridlayout1.setObjectName(_fromUtf8("gridlayout1"))
+        self.chkFinalMKB = QtGui.QCheckBox(self.tabSearch)
+        self.chkFinalMKB.setChecked(True)
+        self.chkFinalMKB.setObjectName(_fromUtf8("chkFinalMKB"))
+        self.gridlayout1.addWidget(self.chkFinalMKB, 4, 1, 1, 2)
         self.buttonBox = QtGui.QDialogButtonBox(self.tabSearch)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -60,28 +64,34 @@ class Ui_PatientModelComboBoxPopup(object):
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Apply|QtGui.QDialogButtonBox.Reset)
         self.buttonBox.setCenterButtons(False)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridlayout1.addWidget(self.buttonBox, 5, 2, 1, 1)
+        self.gridlayout1.addWidget(self.buttonBox, 7, 2, 1, 1)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridlayout1.addItem(spacerItem, 5, 1, 1, 1)
+        self.gridlayout1.addItem(spacerItem, 7, 1, 1, 1)
         self.cmbQuoting = CClientQuotingModelPatientComboBox(self.tabSearch)
         self.cmbQuoting.setObjectName(_fromUtf8("cmbQuoting"))
         self.gridlayout1.addWidget(self.cmbQuoting, 0, 1, 1, 2)
-        self.label = QtGui.QLabel(self.tabSearch)
-        self.label.setObjectName(_fromUtf8("label"))
-        self.gridlayout1.addWidget(self.label, 0, 0, 1, 1)
+        self.lblQuoting = QtGui.QLabel(self.tabSearch)
+        self.lblQuoting.setObjectName(_fromUtf8("lblQuoting"))
+        self.gridlayout1.addWidget(self.lblQuoting, 0, 0, 1, 1)
         self.chkPreviousMKB = QtGui.QCheckBox(self.tabSearch)
         self.chkPreviousMKB.setChecked(True)
         self.chkPreviousMKB.setObjectName(_fromUtf8("chkPreviousMKB"))
-        self.gridlayout1.addWidget(self.chkPreviousMKB, 2, 1, 1, 2)
+        self.gridlayout1.addWidget(self.chkPreviousMKB, 3, 1, 1, 2)
         spacerItem1 = QtGui.QSpacerItem(20, 141, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridlayout1.addItem(spacerItem1, 4, 1, 1, 1)
+        self.gridlayout1.addItem(spacerItem1, 6, 1, 1, 1)
         self.chkQuotingPatientOnly = QtGui.QCheckBox(self.tabSearch)
         self.chkQuotingPatientOnly.setObjectName(_fromUtf8("chkQuotingPatientOnly"))
-        self.gridlayout1.addWidget(self.chkQuotingPatientOnly, 1, 1, 1, 2)
+        self.gridlayout1.addWidget(self.chkQuotingPatientOnly, 2, 1, 1, 2)
         self.chkQuotingEvent = QtGui.QCheckBox(self.tabSearch)
         self.chkQuotingEvent.setChecked(True)
         self.chkQuotingEvent.setObjectName(_fromUtf8("chkQuotingEvent"))
-        self.gridlayout1.addWidget(self.chkQuotingEvent, 3, 1, 1, 2)
+        self.gridlayout1.addWidget(self.chkQuotingEvent, 5, 1, 1, 2)
+        self.edtName = QtGui.QLineEdit(self.tabSearch)
+        self.edtName.setObjectName(_fromUtf8("edtName"))
+        self.gridlayout1.addWidget(self.edtName, 1, 1, 1, 2)
+        self.lblName = QtGui.QLabel(self.tabSearch)
+        self.lblName.setObjectName(_fromUtf8("lblName"))
+        self.gridlayout1.addWidget(self.lblName, 1, 0, 1, 1)
         self.tabWidget.addTab(self.tabSearch, _fromUtf8(""))
         self.gridlayout.addWidget(self.tabWidget, 0, 0, 1, 1)
 
@@ -94,10 +104,12 @@ class Ui_PatientModelComboBoxPopup(object):
     def retranslateUi(self, PatientModelComboBoxPopup):
         PatientModelComboBoxPopup.setWindowTitle(_translate("PatientModelComboBoxPopup", "Form", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPatientModel), _translate("PatientModelComboBoxPopup", "Результат поиска", None))
-        self.label.setText(_translate("PatientModelComboBoxPopup", "Квота", None))
+        self.chkFinalMKB.setText(_translate("PatientModelComboBoxPopup", "Учитывать заключительный диагноз", None))
+        self.lblQuoting.setText(_translate("PatientModelComboBoxPopup", "Квота", None))
         self.chkPreviousMKB.setText(_translate("PatientModelComboBoxPopup", "Учитывать предварительный диагноз", None))
         self.chkQuotingPatientOnly.setText(_translate("PatientModelComboBoxPopup", "Учитывать только квоты пациента", None))
         self.chkQuotingEvent.setText(_translate("PatientModelComboBoxPopup", "Учитывать квоту, определенную в Событии", None))
+        self.lblName.setText(_translate("PatientModelComboBoxPopup", "Наименование", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabSearch), _translate("PatientModelComboBoxPopup", "&Поиск", None))
 
 from Quoting.QuotaTypeComboBox import CClientQuotingModelPatientComboBox

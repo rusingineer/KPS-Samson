@@ -87,6 +87,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
         else:
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.AlisaExchange')
         self.logger = None
+        self.transferConsent = False
         self.initLogger()
 
     def openDatabase(self):
@@ -148,6 +149,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
         self.logDir = logDir
         self.logLevel = self.preferences.appPrefs.get('logLevel', 2)
         self.auth = forceBool(self.preferences.appPrefs.get('auth', False))
+        self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
@@ -421,6 +423,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                   {services}
                                   {datetimeTake}
                                </tn:Пробы>
+                               {consent}
                             </tn:заказ>
                          </lis:OrdersRequest>
                          <lis:WEB_ServiceVersion>1.6</lis:WEB_ServiceVersion>
@@ -526,6 +529,17 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 orgStructureCode = person.orgStructure.identifyInfoByCode('Orgstructure_Alisa').value
                 if orgStructureCode is None:
                     orgStructureCode = person.orgStructure.code
+                # Передача согласий на выгрузку результатов в ИЕМК
+                consent = ''
+                if self.transferConsent:
+                    for consent in client.consents:
+                        if consent.code == 'egisz' and (action.directionDate >= consent.date
+                                                        and (consent.endDate.isNull() or action.directionDate < consent.endDate)
+                                                        and consent.value == 1):
+                            consent = u'<tn:ЕстьРазрешениеНаПерсДанные>true</tn:ЕстьРазрешениеНаПерсДанные>'
+                            break
+                    else:
+                        consent = u'<tn:ЕстьРазрешениеНаПерсДанные>false</tn:ЕстьРазрешениеНаПерсДанные>'
                 preparedBodyXml = bodyXml.format(clientId=clientId, eventId=referral.eventId, lastName=client.lastName,
                                                  firstName=client.firstName, patrName=client.patrName,
                                                  birthDate=birthDate, sex=sex, snils=client.SNILS,
@@ -555,7 +569,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                  number=number,
                                                  corpus=corpus,
                                                  flat=flat,
-                                                 addressText=addressText)
+                                                 addressText=addressText,
+                                                 consent=consent)
                 response = requests.post(self.url,
                                          data=preparedBodyXml.encode(self.encoding),
                                          headers=self.headers,

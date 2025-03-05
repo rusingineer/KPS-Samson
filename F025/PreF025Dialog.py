@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,7 +17,7 @@
 #############################################################################
 
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QEvent, QModelIndex, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QEvent, QVariant, pyqtSignature, SIGNAL, QModelIndex
 
 from library.crbcombobox        import CRBComboBox
 from library.DialogBase         import CDialogBase
@@ -30,7 +30,7 @@ from Events.Action              import CActionTypeCache
 from Events.ActionInfo          import CActionTypeInfo
 from Events.ActionsSelector     import selectActionTypes
 from Events.MapActionTypeToServiceIdList import CMapActionTypeIdToServiceIdList
-from Events.Utils               import CFinanceType, recordAcceptable, getEventName, getEventShowActionsInPlanner, getEventCanHavePayableActions, getEventFinanceCode, getEventPlannedInspections
+from Events.Utils               import CFinanceType, recordAcceptable, getEventTypeForm, getEventName, getEventShowActionsInPlanner, getEventCanHavePayableActions, getEventFinanceCode, getEventPlannedInspections
 from Orgs.PersonInfo            import CPersonInfo
 from Registry.Utils             import CClientInfo
 from library.SortFilterProxyInDocTableModel import CSortFilterProxyInDocTableModel
@@ -39,13 +39,13 @@ from F025.Ui_PreF025            import Ui_PreF025Dialog
 
 
 class CPreF025DagnosticAndActionPresets:
-    def __init__(self, clientId, eventTypeId, eventDate, specialityId, flagHospitalization, addActionTypeId):
+    def __init__(self, clientId, eventTypeId, eventDate, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
         self.unconditionalDiagnosticList = []
         self.unconditionalActionList = []
         self.disabledActionTypeIdList = []
         self.setEventDate = None
         self.setClientInfo(clientId, eventDate)
-        self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId)
+        self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -66,10 +66,10 @@ class CPreF025DagnosticAndActionPresets:
         self.setEventDate = date
 
 
-    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId):
+    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
         self.eventTypeId = eventTypeId
         self.prepareDiagnositics(eventTypeId, specialityId)
-        self.prepareActions(eventTypeId, specialityId, flagHospitalization, addActionTypeId)
+        self.prepareActions(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
 
 
     def prepareDiagnositics(self, eventTypeId, specialityId):
@@ -89,7 +89,7 @@ class CPreF025DagnosticAndActionPresets:
                     break
 
 
-    def prepareActions(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId):
+    def prepareActions(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
         wholeEventForCash = getEventFinanceCode(eventTypeId) == 4
         db = QtGui.qApp.db
         table = db.table('EventType_Action')
@@ -99,6 +99,8 @@ class CPreF025DagnosticAndActionPresets:
         cond = [ table['eventType_id'].eq(eventTypeId), tableActionType['deleted'].eq(0) ]
         if specialityId:
             cond.append(db.joinOr( [ table['speciality_id'].eq(specialityId),  table['speciality_id'].isNull()] ))
+        if presentActionTypes:
+            cond.append('''(IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes)))
         records = QtGui.qApp.db.getRecordList(join, 'EventType_Action.*', cond, 'ActionType.class, idx, id')
         for record in records:
             actionTypeId = forceRef(record.value('actionType_id'))
@@ -144,6 +146,9 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
         self.personId        = None
         self.showPrice       = False
         self.tissueTypeId    = None
+        self.eventTypeForm   = u''
+        self.preSpecialityIdList = []
+        self.isSelectionGroupOne = False
         self.contractTariffCache = contractTariffCache
         self.tblDiagnostics.setModel(self.modelDiagnostics)
         self.tblDiagnostics.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
@@ -178,7 +183,8 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
 
     def prepare(self, clientId, eventTypeId, eventDate, personId, specialityId, tariffCategoryId,
                 flagHospitalization = False, addActionTypeId = None, tissueTypeId=None, typeQueue = -1,
-                docNum=None, relegateInfo=[], plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, eventId = None):
+                docNum=None, relegateInfo=[], plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, eventId = None,
+                presentActionTypes = []):
         self.showPrice = getEventCanHavePayableActions(eventTypeId)
         self.wholeEventForCash = getEventFinanceCode(eventTypeId) == 4
         self.personId = personId
@@ -190,7 +196,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             self.setDefaultCash()
             self.grpContract.setVisible(True)
             self.tariffCategoryId = tariffCategoryId
-            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId)
+            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
             orgId = QtGui.qApp.currentOrgId()
             self.cmbContract.setOrgId(orgId)
             self.cmbContract.setEventTypeId(eventTypeId)
@@ -200,7 +206,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             self.cmbContract.setCurrentIndex(0)
         else:
             self.grpContract.setVisible(False)
-            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId)
+            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId, presentActionTypes = presentActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -221,58 +227,170 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
                 self.clientAge = (0, 0, 0, 0)
 
 
-    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId = None):
+    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = []):
         self.eventTypeId = eventTypeId
         eventTypeName  = getEventName(eventTypeId)
+        self.eventTypeForm = getEventTypeForm(eventTypeId)
+        self.modelDiagnostics.setEventTypeForm(self.eventTypeForm)
         showFlags = getEventShowActionsInPlanner(eventTypeId)
         title = u'Планирование: %s, Пациент: %s, Пол: %s, ДР.: %s '% (eventTypeName, self.clientName, formatSex(self.clientSex), forceString(self.clientBirthDate))
         QtGui.QDialog.setWindowTitle(self, title)
+        if self.eventTypeForm == '090':
+            self.modelDiagnostics._cols[2].setDefaultHidden(False)
+            self.tblDiagnostics.horizontalHeader().setSectionHidden(1, False)
+        else:
+            self.modelDiagnostics._cols[2].setDefaultHidden(True)
+            self.tblDiagnostics.horizontalHeader().setSectionHidden(1, True)
         self.prepareDiagnositics(eventTypeId, specialityId)
-        self.prepareActions(eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId)
+        self.prepareActions(eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId, presentActionTypes)
 
 
     def prepareDiagnositics(self, eventTypeId, specialityId):
         includedGroups = set()
+        self.preSpecialityIdList = []
+        self.isSelectionGroupOne = False
         records = getEventPlannedInspections(eventTypeId)
         gpSpecialityId = QtGui.qApp.getGPSpecialityId()
-        for record in records:
-            recSpecialityId = forceRef(record.value('speciality_id'))
-            selectionGroup = forceInt(record.value('selectionGroup'))
-            mayEngageGP    = forceBool(record.value('mayEngageGP'))
-            if (   specialityId is None
-                or recSpecialityId == specialityId
-                or (mayEngageGP and specialityId == gpSpecialityId)
-                or recSpecialityId is None
-                or selectionGroup == 0
-               ) and self.recordAcceptable(record):
-                MKB = forceString(record.value('defaultMKB'))
-                dispanserId = forceRef(record.value('defaultDispanser_id'))
-                healthGroupId = forceRef(record.value('defaultHealthGroup_id'))
-                visitTypeId = forceRef(record.value('visitType_id'))
+        if self.eventTypeForm == '090' and self.personId:
+            selectionGroupCnt = 0
+            for record in records:
+                selectionGroup = forceInt(record.value('selectionGroup'))
+                recSpecialityId = forceRef(record.value('speciality_id'))
                 if selectionGroup == 1:
+                    selectionGroupCnt += 1
+                if recSpecialityId and recSpecialityId not in self.preSpecialityIdList:
+                    self.preSpecialityIdList.append(recSpecialityId)
+                elif specialityId and specialityId not in self.preSpecialityIdList and not recSpecialityId:
+                    self.preSpecialityIdList.append(specialityId)
+            recordCount = len(records) if records else 0
+            db = QtGui.qApp.db
+            tablePerson = db.table('Person')
+            personRecord = db.getRecordEx(tablePerson, [tablePerson['post_id']], [tablePerson['id'].eq(self.personId), tablePerson['deleted'].eq(0)])
+            postId = forceRef(personRecord.value('post_id')) if personRecord else None
+            for record in records:
+                selectionGroup = forceInt(record.value('selectionGroup'))
+                recSpecialityId = forceRef(record.value('speciality_id'))
+                recPostId = forceRef(record.value('post_id'))
+                if (recordCount == 1 or selectionGroupCnt == 1) and selectionGroup == 1:
+                    MKB = forceString(record.value('defaultMKB'))
+                    dispanserId = forceRef(record.value('defaultDispanser_id'))
+                    healthGroupId = forceRef(record.value('defaultHealthGroup_id'))
+                    visitTypeId = forceRef(record.value('visitType_id'))
+                    self.isSelectionGroupOne = forceBool(recSpecialityId)
                     self.unconditionalDiagnosticList.append((MKB, dispanserId, healthGroupId, visitTypeId))
-                    break
-                else:
                     item = self.modelDiagnostics.getEmptyRecord()
-                    item.setValue('speciality_id',         toVariant(recSpecialityId))
-                    item.setValue('defaultMKB',            toVariant(MKB))
-                    item.setValue('defaultDispanser_id',   toVariant(dispanserId))
+                    item.setValue('speciality_id', toVariant(recSpecialityId if recSpecialityId else specialityId))
+                    item.setValue('post_id', toVariant(recPostId if recPostId else postId))
+                    item.setValue('person_id', toVariant(self.personId if (recSpecialityId == specialityId or not recSpecialityId) else None))
+                    item.setValue('defaultMKB', toVariant(MKB))
+                    item.setValue('defaultDispanser_id', toVariant(dispanserId))
                     item.setValue('defaulthealthGroup_id', toVariant(healthGroupId))
-                    item.setValue('visitType_id',          toVariant(visitTypeId))
-                    item.setValue('selectionGroup',        record.value('selectionGroup'))
+                    item.setValue('visitType_id', toVariant(visitTypeId))
+                    item.setValue('selectionGroup', record.value('selectionGroup'))
                     if selectionGroup <= 0 or selectionGroup in includedGroups:
-                        item.setValue('include',  QVariant(0))
-                    else:
-                        item.setValue('include',  QVariant(1))
+                        item.setValue('include', QVariant(0))
+                    elif selectionGroup != 1:
+                        item.setValue('include', QVariant(1))
                         includedGroups.add(selectionGroup)
                     item.setValue('price', QVariant(0.0))
-                    if specialityId and (recSpecialityId == specialityId):
-                        item.setValue('include',  QVariant(1))
                     self.modelDiagnostics.items().append(item)
+                    break
+                else:
+                    mayEngageGP = forceBool(record.value('mayEngageGP'))
+                    if selectionGroup == 1 and ((specialityId is None and postId is None)
+                        or (recSpecialityId is None and recPostId is None) or (specialityId and (recSpecialityId == specialityId
+                        or (mayEngageGP and specialityId == gpSpecialityId)))
+                        or (recSpecialityId is None and postId and recPostId == postId)) and self.recordAcceptable(record):
+                        MKB = forceString(record.value('defaultMKB'))
+                        dispanserId = forceRef(record.value('defaultDispanser_id'))
+                        healthGroupId = forceRef(record.value('defaultHealthGroup_id'))
+                        visitTypeId = forceRef(record.value('visitType_id'))
+                        self.unconditionalDiagnosticList.append((MKB, dispanserId, healthGroupId, visitTypeId))
+                        item = self.modelDiagnostics.getEmptyRecord()
+                        item.setValue('speciality_id', toVariant(recSpecialityId if recSpecialityId else specialityId))
+                        item.setValue('post_id', toVariant(recPostId if recPostId else postId))
+                        item.setValue('person_id', toVariant(self.personId if (recSpecialityId == specialityId or not recSpecialityId) else None))
+                        item.setValue('defaultMKB', toVariant(MKB))
+                        item.setValue('defaultDispanser_id', toVariant(dispanserId))
+                        item.setValue('defaulthealthGroup_id', toVariant(healthGroupId))
+                        item.setValue('visitType_id', toVariant(visitTypeId))
+                        item.setValue('selectionGroup', record.value('selectionGroup'))
+                        if selectionGroup <= 0 or selectionGroup in includedGroups:
+                            item.setValue('include', QVariant(0))
+                        elif selectionGroup != 1:
+                            item.setValue('include', QVariant(1))
+                            includedGroups.add(selectionGroup)
+                        item.setValue('price', QVariant(0.0))
+                        self.modelDiagnostics.items().append(item)
+                        break
+            if len(self.modelDiagnostics.items()) == 0 and selectionGroupCnt > 1:
+                for record in records:
+                    selectionGroup = forceInt(record.value('selectionGroup'))
+                    recSpecialityId = forceRef(record.value('speciality_id'))
+                    recPostId = forceRef(record.value('post_id'))
+                    if selectionGroup == 1 and self.recordAcceptable(record):
+                        MKB = forceString(record.value('defaultMKB'))
+                        dispanserId = forceRef(record.value('defaultDispanser_id'))
+                        healthGroupId = forceRef(record.value('defaultHealthGroup_id'))
+                        visitTypeId = forceRef(record.value('visitType_id'))
+                        self.unconditionalDiagnosticList.append(
+                            (MKB, dispanserId, healthGroupId, visitTypeId))
+                        item = self.modelDiagnostics.getEmptyRecord()
+                        item.setValue('speciality_id',         toVariant(recSpecialityId if recSpecialityId == specialityId else (specialityId if not recSpecialityId else None)))
+                        item.setValue('post_id', toVariant(recPostId if recPostId else postId))
+                        item.setValue('person_id',             toVariant(self.personId if recSpecialityId == specialityId else None))
+                        item.setValue('defaultMKB', toVariant(MKB))
+                        item.setValue('defaultDispanser_id', toVariant(dispanserId))
+                        item.setValue('defaulthealthGroup_id', toVariant(healthGroupId))
+                        item.setValue('visitType_id', toVariant(visitTypeId))
+                        item.setValue('selectionGroup', record.value('selectionGroup'))
+                        if selectionGroup <= 0 or selectionGroup in includedGroups:
+                            item.setValue('include', QVariant(0))
+                        elif selectionGroup != 1:
+                            item.setValue('include', QVariant(1))
+                            includedGroups.add(selectionGroup)
+                        item.setValue('price', QVariant(0.0))
+                        self.modelDiagnostics.items().append(item)
+                        break
+        else:
+            for record in records:
+                recSpecialityId = forceRef(record.value('speciality_id'))
+                selectionGroup = forceInt(record.value('selectionGroup'))
+                mayEngageGP    = forceBool(record.value('mayEngageGP'))
+                if (   specialityId is None
+                    or recSpecialityId == specialityId
+                    or (mayEngageGP and specialityId == gpSpecialityId)
+                    or recSpecialityId is None
+                    or selectionGroup == 0
+                   ) and self.recordAcceptable(record):
+                    MKB = forceString(record.value('defaultMKB'))
+                    dispanserId = forceRef(record.value('defaultDispanser_id'))
+                    healthGroupId = forceRef(record.value('defaultHealthGroup_id'))
+                    visitTypeId = forceRef(record.value('visitType_id'))
+                    if selectionGroup == 1:
+                        self.unconditionalDiagnosticList.append((MKB, dispanserId, healthGroupId, visitTypeId))
+                        break
+                    else:
+                        item = self.modelDiagnostics.getEmptyRecord()
+                        item.setValue('speciality_id',         toVariant(recSpecialityId))
+                        item.setValue('defaultMKB',            toVariant(MKB))
+                        item.setValue('defaultDispanser_id',   toVariant(dispanserId))
+                        item.setValue('defaulthealthGroup_id', toVariant(healthGroupId))
+                        item.setValue('visitType_id',          toVariant(visitTypeId))
+                        item.setValue('selectionGroup',        record.value('selectionGroup'))
+                        if selectionGroup <= 0 or selectionGroup in includedGroups:
+                            item.setValue('include',  QVariant(0))
+                        else:
+                            item.setValue('include',  QVariant(1))
+                            includedGroups.add(selectionGroup)
+                        item.setValue('price', QVariant(0.0))
+                        if specialityId and (recSpecialityId == specialityId):
+                            item.setValue('include',  QVariant(1))
+                        self.modelDiagnostics.items().append(item)
         self.modelDiagnostics.reset()
 
 
-    def prepareActions(self, eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId = None):
+    def prepareActions(self, eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = []):
         includedGroups = set()
         db = QtGui.qApp.db
 
@@ -282,6 +400,11 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             speciality = '''AND (((EventType_Action.`speciality_id` = %s) OR (EventType_Action.`speciality_id` IS NULL)))''' %specialityId
         else:
             speciality = ''
+        
+        if presentActionTypes:
+            presentAction = '''AND (IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes))
+        else:
+            presentAction = ''
 
         if eventId:
             event = '''(SELECT 1 FROM Event e LEFT JOIN Action a ON e.id = a.event_id 
@@ -305,12 +428,15 @@ AND (ActionType.`deleted` = 0)
 
 %(speciality)s
 
+%(presentAction)s
+
 %(having)s
 
 ORDER BY ActionType.class, idx, id'''% {'event': event,
                   'having': having,
                   'eventTypeId': eventTypeId,
                   'speciality': speciality,
+                  'presentAction': presentAction,
                   }
 
         db = QtGui.qApp.db
@@ -720,18 +846,36 @@ class CDiagnosticsModel(CPreModel):
         CPreModel.__init__(self, 'EventType_Diagnostic', 'id', 'eventType_id', parent)
         self.addExtCol(CBoolInDocTableCol( u'Включить',       'include', 10), QVariant.Int)
         self.addCol(CRBInDocTableCol(      u'Специальность',  'speciality_id', 20, 'rbSpeciality')).setReadOnly()
+        self.addCol(CRBInDocTableCol(      u'Должность',      'post_id', 10, 'rbPost', defaultHidden=True))
         self.addCol(CRBInDocTableCol(      u'Тип визита',     'visitType_id',  20, 'rbVisitType')).setReadOnly()
         self.addCol(CInDocTableCol(        u'МКБ',            'defaultMKB', 5)).setReadOnly()
         self.addCol(CRBInDocTableCol(      u'ДН',             'defaultDispanser_id',   20, 'rbDispanser', showFields=CRBComboBox.showCode)).setReadOnly()
         self.addCol(CRBInDocTableCol(      u'ГрЗд',           'defaultHealthGroup_id', 20, 'rbHealthGroup', showFields=CRBComboBox.showCode)).setReadOnly()
         self.addCol(CIntInDocTableCol(     u'Группа выбора',  'selectionGroup', 5)).setReadOnly()
         self.setEnableAppendLine(False)
+        self.eventTypeForm = u''
 
     def addPriceAndSumColumn(self):
         self.addExtCol(CBoolInDocTableCol( u'Нал.', 'cash', 10), QVariant.Int)
         self.addExtCol(CFloatInDocTableCol(u'Цена', 'price', 7, precision=2), QVariant.Double).setReadOnly()
         self.addExtCol(CInDocTableCol(u'Кол-во', 'amount', 7, precision=2), QVariant.Double).setReadOnly(False)
         self.addExtCol(CFloatInDocTableCol(u'Сумма', 'sum', 7, precision=2), QVariant.Double).setReadOnly()
+        if self.eventTypeForm == u'090':
+            self.ciCash = 8
+            self.ciPrice = 9
+            self.ciAmount = 10
+            self.ciSum = 11
+
+
+    def setEventTypeForm(self, eventTypeForm):
+        self.eventTypeForm = eventTypeForm
+
+
+    def getEmptyRecord(self):
+        result = CPreModel.getEmptyRecord(self)
+        result.append(QtSql.QSqlField('person_id', QVariant.Int))
+        result.setValue('person_id', toVariant(None))
+        return result
 
 
 class CActionsModel(CPreModel):

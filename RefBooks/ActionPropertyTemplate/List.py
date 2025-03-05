@@ -17,7 +17,7 @@ from PyQt4.QtCore import SIGNAL
 
 from library.AgeSelector import composeAgeSelector, parseAgeSelector
 from library.HierarchicalItemsListDialog import CHierarchicalItemsListDialog
-from library.interchange import getComboBoxValue, getLineEditValue, getRBComboBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue
+from library.interchange import getComboBoxValue, getLineEditValue, getRBComboBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, getCheckBoxValue, setCheckBoxValue
 from library.ItemsListDialog import CItemEditorBaseDialog
 from library.TableModel import CEnumCol, CTextCol
 from library.Utils import forceString, forceStringEx, toVariant
@@ -98,6 +98,7 @@ class CActionPropertyTemplateEditor(CItemEditorBaseDialog, Ui_ActionPropertyTemp
         setLineEditValue(   self.edtAbbrev,         record, 'abbrev')
         setRBComboBoxValue( self.cmbGroup,          record, 'group_id')
         setComboBoxValue(   self.cmbSex,            record, 'sex')
+        setCheckBoxValue(   self.chkCalcParamDoseNomenclatureExpense, record, 'isCalcParamDoseNomenclatureExpense')
         (begUnit, begCount, endUnit, endCount) = parseAgeSelector(forceString(record.value('age')))
         self.cmbBegAgeUnit.setCurrentIndex(begUnit)
         self.edtBegAgeCount.setText(str(begCount))
@@ -116,6 +117,7 @@ class CActionPropertyTemplateEditor(CItemEditorBaseDialog, Ui_ActionPropertyTemp
         getLineEditValue(   self.edtAbbrev,         record, 'abbrev')
         getRBComboBoxValue( self.cmbGroup,          record, 'group_id')
         getComboBoxValue(   self.cmbSex,            record, 'sex')
+        getCheckBoxValue(   self.chkCalcParamDoseNomenclatureExpense, record, 'isCalcParamDoseNomenclatureExpense')
         record.setValue('age',        toVariant(composeAgeSelector(
                     self.cmbBegAgeUnit.currentIndex(),  forceStringEx(self.edtBegAgeCount.text()),
                     self.cmbEndAgeUnit.currentIndex(),  forceStringEx(self.edtEndAgeCount.text())

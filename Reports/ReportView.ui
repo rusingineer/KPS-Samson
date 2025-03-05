@@ -125,5 +125,22 @@
   <tabstop>txtReport</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>checkBoxInterval</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>lineEditInterval</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>90</x>
+     <y>527</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>249</x>
+     <y>526</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

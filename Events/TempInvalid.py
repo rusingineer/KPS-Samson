@@ -16,6 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QVariant, QDateTime
 
 from Events.EventInfo import CEventInfo
+from Events.Utils import sendTempInvalidDocuments
 from library.DialogBase import CConstructHelperMixin
 from library.PrintInfo import CInfoContext
 from library.database   import CTableRecordCache
@@ -259,6 +260,7 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
                     # tempInvalidNewId = dialog.itemId()
                     self.modelTempInvalidPrivate.loadItems(clientId)
                     self.modelTempInvalidPatronage.loadItems(clientId)
+                sendTempInvalidDocuments(dialog.transfer_tempId_list)
             finally:
                 dialog.deleteLater()
 
@@ -317,6 +319,7 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
                 if dialog.exec_():
                    self.modelTempInvalidPrivate.loadItems(clientId)
                    self.modelTempInvalidPatronage.loadItems(clientId)
+                sendTempInvalidDocuments(dialog.transfer_tempId_list)
             finally:
                 dialog.deleteLater()
 

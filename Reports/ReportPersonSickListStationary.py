@@ -32,7 +32,8 @@ def selectData(begDateTime, endDateTime, orgStructureId, MKBFrom, MKBTo, typeHos
 SELECT Action.begDate, Action.id,
 Event.id AS eventId, Event.externalId, Event.client_id, Event.setDate, Event.execDate,
 Client.lastName, Client.firstName, Client.patrName, Client.birthDate, Diagnosis.MKB,
-getClientRegAddress(Client.id) as regAddress, getClientLocAddress(Client.id) as locAddress
+getClientRegAddress(Client.id) as regAddress, getClientLocAddress(Client.id) as locAddress ,
+concat_ws(' ',dt.name, cd.serial, cd.number, date_format(cd.date, '%%d.%%m.%%Y'), cd.origin) as document
 FROM Action
 INNER JOIN ActionType ON ActionType.id=Action.actionType_id
 INNER JOIN Event ON Action.event_id=Event.id
@@ -42,8 +43,11 @@ INNER JOIN Person ON Event.execPerson_id = Person.id
 INNER JOIN Diagnostic ON Diagnostic.event_id=Event.id
 INNER JOIN Diagnosis ON Diagnostic.diagnosis_id=Diagnosis.id
 INNER JOIN rbDiagnosisType ON Diagnostic.diagnosisType_id=rbDiagnosisType.id
-
+LEFT join ClientDocument cd on cd.client_id = Client.id and cd.id = getClientDocumentId(Client.id)
+left join rbDocumentType dt on dt.id = cd.documentType_id
+LEFT JOIN ClientPolicy cp on cp.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
 WHERE Action.deleted=0 AND Event.deleted=0 AND Client.deleted=0 AND Person.deleted = 0 AND Event.execDate IS NOT NULL
+
 AND ((EventType.medicalAidType_id IN (SELECT rbMedicalAidType.id from rbMedicalAidType where rbMedicalAidType.code
 IN ('1', '2', '3', '7'))))
 AND %s
@@ -101,7 +105,7 @@ class CReportPersonSickListStationary(CReport):
         CReport.__init__(self, parent)
         self.setPayPeriodVisible(False)
         self.setTitle(u'Список пациентов по нозологиям')
-
+        self.setOrientation(QtGui.QPrinter.Landscape)
 
     def getSetupDialog(self, parent):
         result = CReportPersonSickListSetupDialog(parent)
@@ -161,7 +165,7 @@ class CReportPersonSickListStationary(CReport):
 
         tableColumns = [
             ('5%', [u'№'],                  CReportBase.AlignRight),
-            ('20%',[u'ФИО пациента'],       CReportBase.AlignLeft),
+            ('12%',[u'ФИО пациента'],       CReportBase.AlignLeft),
             ('8%', [u'дата рождения'],      CReportBase.AlignLeft),
             ('8%', [u'возраст'],            CReportBase.AlignLeft),
             ('8%', [u'внешний идентификатор/ внутренний идентификатор'], CReportBase.AlignLeft),
@@ -171,6 +175,7 @@ class CReportPersonSickListStationary(CReport):
             ('8%', [u'поступил'],           CReportBase.AlignLeft),
             ('8%', [u'выписался'],          CReportBase.AlignLeft),
             ('8%', [u'дней (койко дней)'],    CReportBase.AlignLeft),
+            ('10%', [u'Документ'], CReportBase.AlignLeft),
             ]
         table = createTable(cursor, tableColumns)
 
@@ -191,6 +196,7 @@ class CReportPersonSickListStationary(CReport):
             clientAge = forceString(calcAge(forceDate(record.value('birthDate')), setDate))
             regAddress = forceString(record.value('regAddress'))
             locAddress = forceString(record.value('locAddress'))
+            document = forceString(record.value('document'))
             if not setDate:
                 setDate = QDate.currentDate()
             if not execDate:
@@ -215,6 +221,7 @@ class CReportPersonSickListStationary(CReport):
             table.setText(row, 8, setDateString)
             table.setText(row, 9, execDateString)
             table.setText(row, 10, bedDay)
+            table.setText(row, 11, document)
         return doc
 
 

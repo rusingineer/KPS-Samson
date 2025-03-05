@@ -48,6 +48,10 @@ class CActionExecutionPlanGroup(object):
         return self._executionPlan.begDate
 
 
+    def begTime(self):
+        return self._executionPlan.begTime
+
+
     def planEndDate(self):
         if self._executionPlan.duration:
             return self._executionPlan.begDate.addDays((self._executionPlan.duration or 1) - 1)
@@ -57,6 +61,10 @@ class CActionExecutionPlanGroup(object):
 
     def setBegDate(self, begDate):
         self._executionPlan.begDate = begDate
+
+
+    def setBegTime(self, begTime):
+        self._executionPlan.begTime = begTime
 
 
     def quantity(self):
@@ -73,6 +81,18 @@ class CActionExecutionPlanGroup(object):
 
     def periodicity(self):
         return self._executionPlan.periodicity
+
+
+    def note(self):
+        return self._executionPlan.note
+
+
+    def getSmnnUUID(self):
+        return self._executionPlan.smnnUUID
+
+
+    def getLfFormId(self):
+        return self._executionPlan.lfFormId
 
 
     def scheduleWeekendDays(self):
@@ -93,6 +113,10 @@ class CActionExecutionPlanGroup(object):
 
     def setPeriodicity(self, value):
         self._executionPlan.periodicity = value
+
+
+    def setNote(self, value):
+        self._executionPlan.note = value
 
 
     def setScheduleWeekendDays(self, value):
@@ -146,6 +170,34 @@ class CActionExecutionPlanGroup(object):
     def setDosageInExists(self, dosage):
         self._executionPlan.setDosageInExists(dosage)
 
+    
+    def setDosageToDateFirstItemInExists(self, dosage, date):
+        self._executionPlan.setDosageToDateFirstItemInExists(dosage, date)
+    
+    
+    def setDosageToProcentInExists(self, procent, change):
+        self._executionPlan.setDosageToProcentInExists(procent, change)
+
+
+    def setIsDirtyInExists(self, value):
+        self._executionPlan.setIsDirtyInExists(value)
+
+
+    def setDosageToDateToProcentInExists(self, procent, change, date):
+        self._executionPlan.setDosageToDateToProcentInExists(procent, change, date)
+
+
+    def setIsDirtyInExists(self, value):
+        self._executionPlan.setIsDirtyInExists(value)
+
+
+    def setCalculationDosageInExists(self, calculationParam):
+        self._executionPlan.setCalculationDosageInExists(calculationParam)
+
+
+    def setCalculationDosageToDateInExists(self, calculationParam, date):
+        self._executionPlan.setCalculationDosageToDateInExists(calculationParam, date)
+
 
     def setDosageNomenclatureInExists(self, dosage, nomenclatureId):
         self._executionPlan.setDosageNomenclatureInExists(dosage, nomenclatureId)
@@ -174,6 +226,13 @@ class CActionExecutionPlanGroup(object):
         return False
 
 
+    def hasNotExecutedItems(self):
+        for item in self._executionPlan.items:
+            if not item.executedDatetime:
+                return True
+        return False
+
+
     def groupDataNotChanged(self):
         if self._executionPlan and len(self._executionPlan.items) > 0 and self._executionPlan.items[0].executionPlan:
             dosageValuesList = []
@@ -196,6 +255,21 @@ class CActionExecutionPlanGroup(object):
             if len(dosageValuesList) > 1:
                 return False
         return True
+
+    def groupDataNotChangedEx(self):
+        if self._executionPlan and len(self._executionPlan.items) > 0 and self._executionPlan.items[0].executionPlan:
+            duration = self._executionPlan.items[0].executionPlan.duration
+            aliquoticity = self._executionPlan.items[0].executionPlan.aliquoticity
+            periodicity = self._executionPlan.items[0].executionPlan.periodicity
+            planItemsCount = len(self._executionPlan.items)
+            if periodicity == 0:
+                if duration*aliquoticity != planItemsCount:
+                    return False
+            else:
+                if (duration-(aliquoticity*periodicity))*aliquoticity != planItemsCount:
+                    return False
+        return True        
+
 
     def copy(self):
         copiedEp = self._executionPlan.makeCopy() if self._executionPlan else None
@@ -221,8 +295,50 @@ class CActionExecutionPlanGroup(object):
     def actionTypeId(self):
         return self._items[0].action.getType().id
 
+    @property
+    def orgStructureId(self):
+        return self._items[0].action.getOrgStructureId()
+
+    def setOrgStructureId(self, value):
+        return self._items[0].action.setOrgStructureId(value)
+
+    def lastOrgStructureId(self):
+        items = self._items
+        cnt = len(items)-1
+        for row, item in enumerate(items):
+            if item.action.executionPlanManager.hasItemsToDo():
+                return item.action.getOrgStructureId()
+            elif row == cnt:
+                return item.action.getOrgStructureId()
+        return None
+
+    def setLastOrgStructureId(self, value):
+        row = -1
+        items = self._items
+        for i, item in enumerate(items):
+            if item.action.executionPlanManager.hasItemsToDo():
+                row = i
+                break
+        if row >= 0 and row < len(self._items):
+            return self._items[row].action.setOrgStructureId(value)
+        return None
+
+    @property
+    def smnnUUID(self):
+        return self._getItemSmnnUUID(self._items[0])
+
+    @property
+    def smnnGrlsLfId(self):
+        return self._getItemSmnnGrlsLfId(self._items[0])
+
     def _getItemNomenclatureId(self, item):
         return item.action.findNomenclaturePropertyValue()
+
+    def _getItemSmnnUUID(self, item):
+        return item.action.getSmnnUUIDPropertyValue()
+
+    def _getItemSmnnGrlsLfId(self, item):
+        return item.action.getSmnnGrlsLfPropertyValue()
 
     @property
     def items(self):
@@ -311,6 +427,7 @@ class CExecutionPlanProxyModelGroup(object):
         self._actionTypeId = None
         self.idx = None
         self._copiedFrom = None
+        self._isDirty = False
 
     def addDaysToEP(self, daysCount, quantityAdd=0, skipAfterLastDayCourse=0, isLastDayCourse=False):
         return self._epGroup.addDaysToEP(daysCount, quantityAdd=quantityAdd, skipAfterLastDayCourse=skipAfterLastDayCourse, isLastDayCourse=isLastDayCourse)
@@ -334,11 +451,26 @@ class CExecutionPlanProxyModelGroup(object):
     def hasSavedItems(self):
         return self._epGroup.hasSavedItems()
 
+    def isDirty(self):
+        return self._isDirty
+
+
+    def setIsDirty(self, dirty=True):
+        self._isDirty = dirty
+
+
     def begDate(self):
         return self._epGroup.begDate()
 
+    def begTime(self):
+        return self._epGroup.begTime()
+
+
     def directionDate(self):
         return self.headItem.action.getDirectionDate()
+
+    def getActionTypeGroupId(self):
+        return self.headItem.action.getActionTypeGroupId()
 
     def setDirectionDate(self, directionDate):
         return self.headItem.action.setDirectionDate(directionDate)
@@ -352,6 +484,21 @@ class CExecutionPlanProxyModelGroup(object):
             return
         action = self.headItem.action
         action.setBegDate(begDate)
+
+    def setBegTime(self, begTime):
+        self._epGroup.setBegTime(begTime)
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        action.setBegTime(begTime)
+
+
+    def setEndDate(self, endDate):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        action.setEndDate(endDate)
+
 
     def setPlanEndDate(self, planEndDate):
         if len(self._mapItem2Row) != 1:
@@ -374,6 +521,17 @@ class CExecutionPlanProxyModelGroup(object):
 
     def periodicity(self):
         return self._epGroup.periodicity()
+
+    def note(self):
+        return self._epGroup.note()
+
+    def getOrgStructureId(self):
+        return self._epGroup.orgStructureId
+
+
+    def getLastOrgStructureId(self):
+        return self._epGroup.lastOrgStructureId()
+
 
     def updateSpecifiedName(self):
         if len(self._mapItem2Row) != 1:
@@ -469,6 +627,51 @@ class CExecutionPlanProxyModelGroup(object):
                     action.executionPlanManager._bindCurrentItemWithAction()
 
 
+    def setNote(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        action.setNote(value)
+        if not self._epGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._epGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._epGroup._executionPlan.setNote(value)
+
+
+    def setLastOrgStructureId(self, value):
+        self._epGroup.setLastOrgStructureId(value)
+
+
+    def setOrgStructureId(self, value):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        action.setOrgStructureId(value)
+
+
+    def setSmnnUUID(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        if not self._epGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._epGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._epGroup._executionPlan.setSmnnUUID(value)
+
+
+    def setLfFormId(self, value, updateExecutionPlan=False):
+        if len(self._mapItem2Row) != 1:
+            return
+        action = self.headItem.action
+        if not self._epGroup._executionPlan.__origin__ and updateExecutionPlan:
+            action.updateExecutionPlanByRecord()
+            self._epGroup._executionPlan = action.getExecutionPlan()
+        else:
+            self._epGroup._executionPlan.setLfFormId(value)
+    
+    
     def getItemsByDate(self, date):
         return self._epGroup.getItemsByDate(date)
 
@@ -486,15 +689,27 @@ class CExecutionPlanProxyModelGroup(object):
 
     def setItemsByDate(self, date, items):
         self._epGroup.setItemsByDate(date, items)
-
+    
+    def setDosageToDateToProcentInExists(self, procent, change, date):
+        self._epGroup.setDosageToDateToProcentInExists(procent, change, date)
+        
     def setItemsByLastDate(self, date, items):
         self._epGroup.setItemsByLastDate(date, items)
 
     def setDosageInExists(self, dosage):
         self._epGroup.setDosageInExists(dosage)
 
+    def setIsDirtyInExists(self, value):
+        self._epGroup.setIsDirtyInExists(value)
+
+    def setCalculationDosageInExists(self, calculationParam):
+        self._epGroup.setCalculationDosageInExists(calculationParam)
+
     def setDosageNomenclatureInExists(self, dosage, nomenclatureId):
         self._epGroup.setDosageNomenclatureInExists(dosage, nomenclatureId)
+
+    def setNomenclatureInExists(self, nomenclatureId):
+        self._epGroup.setNomenclatureInExists(nomenclatureId)
 
     def setDosageNomenclatureFromDate(self, dosage, nomenclatureId, date):
         self._epGroup.setDosageNomenclatureFromDate(dosage, nomenclatureId, date)
@@ -508,8 +723,14 @@ class CExecutionPlanProxyModelGroup(object):
     def hasExecutedItems(self):
         return self._epGroup.hasExecutedItems()
 
+    def hasNotExecutedItems(self):
+        return self._epGroup.hasNotExecutedItems()
+
     def groupDataNotChanged(self):
         return self._epGroup.groupDataNotChanged()
+
+    def groupDataNotChangedEx(self):
+        return self._epGroup.groupDataNotChangedEx()        
 
     def prepareToSave(self):
         self.mergeIntoOrigin()
@@ -540,7 +761,8 @@ class CExecutionPlanProxyModelGroup(object):
         self._copiedFrom._headModelRow = self._headModelRow
 
         self.headItem.action.executionPlanManager.setExecutionPlan(self._epGroup.getExecutionPlan(), force=True)
-        self.headItem.action.executionPlanManager.setCurrentItemIndex(currentIndex)
+        if currentIndex:
+            self.headItem.action.executionPlanManager.setCurrentItemIndex(currentIndex)
 
     def checkOnlyActual(self, onlyActual):
         return self._epGroup.checkOnlyActual(onlyActual)
@@ -573,12 +795,28 @@ class CExecutionPlanProxyModelGroup(object):
         return self._epGroup.actionTypeId
 
     @property
+    def orgStructureId(self):
+        return self._epGroup.orgStructureId
+
+    @property
+    def lastOrgStructureId(self):
+        return self._epGroup.lastOrgStructureId
+
+    @property
     def requireEP(self):
         return self._epGroup.requireEP
 
     @property
     def nomenclatureId(self):
         return self._epGroup.nomenclatureId
+
+    @property
+    def smnnUUID(self):
+        return self._epGroup.smnnUUID
+
+    @property
+    def smnnGrlsLfId(self):
+        return self._epGroup.smnnGrlsLfId
 
     @property
     def expanded(self):
@@ -700,7 +938,7 @@ class CExecutionPlanProxyModelGroup(object):
         return self._mapProxyRow2ModelRow.values()
 
     def isHeadItem(self, proxyRow, model):
-        if self._headModelRow is None:
+        if self._headModelRow is None and self.items[0] in model.items():
             self._headModelRow = model.items().index(self.items[0])
 
         if not self._expanded:
@@ -718,9 +956,47 @@ class CExecutionPlanProxyModelGroup(object):
         del self._mapProxyRow2ModelRow[proxyRow]
         self._prepareOrderView()
 
+    def isGrouped(self):
+        return hasattr(self, 'groupingItem') and self.groupingItem and self.currentItem 
+    
+    def isGroupedAndSaved(self):
+        return self.currentItem and forceInt(self.currentItem._record.value('id')) and forceInt(self.currentItem._record.value('group_id'))
+    
     @property
     def proxyRows(self):
         return self._mapProxyRow2ModelRow.keys()
+    
+    
+    @property
+    def groupingItem(self):
+        headRow = 0 if self.expanded else -1
+        return self.items[headRow].action.executionPlanManager.groupingItem
+    
+    @property
+    def groupingInfo(self):
+        headRow = 0 if self.expanded else -1
+        return self.items[headRow].action.executionPlanManager.groupingInfo
+    
+    def appendGroupingInfo(self, value):
+        headRow = 0 if self.expanded else -1
+        self.items[headRow].action.executionPlanManager.groupingInfo.append(value)
+    
+    def removeGroupingInfo(self, value):
+        headRow = 0 if self.expanded else -1
+        self.items[headRow].action.executionPlanManager.groupingInfo.remove(value)
+    
+    def clearGroupingInfo(self):
+        headRow = 0 if self.expanded else -1
+        self.items[headRow].action.executionPlanManager.groupingInfo = []
+    
+    def setGroupingItem(self, value):
+        headRow = 0 if self.expanded else -1
+        self.items[headRow].action.executionPlanManager.groupingItem = value
+    
+    @property
+    def currentItem(self):
+        headRow = 0 if self.expanded else -1
+        return self.items[headRow].action.executionPlanManager._currentItem
 
     def _prepareOrderView(self):
         self._headModelRow = None

@@ -138,6 +138,11 @@
        <string>Накладная от поставщика</string>
       </property>
      </item>
+     <item>
+      <property name="text">
+       <string>Списание остаточных количеств</string>
+      </property>
+     </item>
     </widget>
    </item>
    <item row="6" column="0" colspan="2">

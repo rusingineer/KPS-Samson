@@ -13,7 +13,7 @@
 #############################################################################
 
 tblUser     = 'Person'
-tblLogin    = 'Login'
+tblLogin    = 'Login_'
 usrId       = 'id'
 usrLogin    = 'login'
 usrName     = 'lastName'

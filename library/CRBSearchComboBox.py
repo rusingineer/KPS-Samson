@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,7 +14,9 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QEvent
-from library.crbcombobox import CRBComboBox
+
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
+from library.crbcombobox import CRBComboBox, CRBTestComboBox
 from library.adjustPopup import adjustPopupToWidget
 
 
@@ -34,8 +36,8 @@ class CRBSearchPopupView(QtGui.QFrame):
         self.lblName = QtGui.QLabel()
         self.lblName.setText(u'Наименование')
         self.edtName = QtGui.QLineEdit()
-        self.edtCode.textChanged.connect(self.on_lineEdit_textChanged)
-        self.edtName.textChanged.connect(self.on_lineEdit_textChanged)
+        self.edtCode.textChanged.connect(self.on_edtCode_textChanged)
+        self.edtName.textChanged.connect(self.on_edtName_textChanged)
 
         layout = QtGui.QVBoxLayout(self)
         layoutFilter = QtGui.QHBoxLayout()
@@ -43,6 +45,8 @@ class CRBSearchPopupView(QtGui.QFrame):
         layoutFilter.addWidget(self.edtCode)
         layoutFilter.addWidget(self.lblName)
         layoutFilter.addWidget(self.edtName)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
         layout.addLayout(layoutFilter)
         layout.addWidget(self.table)
         self.installEventFilter(self)
@@ -53,24 +57,27 @@ class CRBSearchPopupView(QtGui.QFrame):
         self._cmb.hidePopup()
 
 
-    def on_lineEdit_textChanged(self, text):
-        db = QtGui.qApp.db
-        table = db.table(self._cmb._tableName)
-        code = self.edtCode.text()
-        name = self.edtName.text()
-        _filter = []
-        if code:
-            _filter.append(table['code'].like('%' + unicode(code) + '%'))
-        if name:
-            _filter.append(table['name'].like('%' + unicode(name) + '%'))
-        if self.filter and _filter:
-            _filter = db.joinAnd([self.filter, db.joinAnd(_filter)])
+    def on_edtCode_textChanged(self, text):
+        if text:
+            self._cmb.setLocalFilter('code', text, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
         else:
-            _filter = db.joinAnd(_filter)
-        self._cmb.setFilter(_filter)
+            self._cmb.removeLocalFilter('code')
+
+
+    def on_edtName_textChanged(self, text):
+        if text:
+            self._cmb.setLocalFilter('name', text, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+        else:
+            self._cmb.removeLocalFilter('name')
 
 
     def eventFilter(self, obj, event):
+        if event.type() == QEvent.Show:
+            self.cmbValue = self._cmb.getValue()
+        if event.type() == QEvent.Close:
+            if self.cmbValue:
+                self._cmb.setFilter()
+                self._cmb.setValue(self.cmbValue)
         if obj == self.table:
             if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Select):
                 event.accept()
@@ -87,6 +94,13 @@ class CRBSearchComboBox(CRBComboBox):
         self.popupView = CRBSearchPopupView(self, self.popupView)
 
 
+    def setCodeFilter(self, code):
+        if code:
+            self.setLocalFilter('code', code, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+        else:
+            self.removeLocalFilter('code')
+
+
     def showPopup(self):
         if not self.isReadOnly():
             self._searchString = ''
@@ -97,6 +111,93 @@ class CRBSearchComboBox(CRBComboBox):
             selectionModel = view.selectionModel()
             selectionModel.setCurrentIndex(self._model.index(self.currentIndex(), 1),
                                            QtGui.QItemSelectionModel.ClearAndSelect)
+            view.scrollTo(view.model().index(self.currentIndex(), 1))
+            adjustPopupToWidget(self, frame, True, max(sizeHint.width(), self.preferredWidth), sizeHint.height())
+            frame.show()
+            view.setFocus()
+
+
+    def hidePopup(self):
+        self.popupView.hide()
+
+
+class CRBTestSearchPopupView(CRBSearchPopupView):
+    # для поиска по справочнику rbTest
+    def __init__(self, parent, popupView):
+        QtGui.QFrame.__init__(self, parent)
+        self.setFrameShape(QtGui.QFrame.StyledPanel)
+        self.setAttribute(Qt.WA_WindowPropagation)
+        self.setWindowFlags(Qt.Popup)
+        self._cmb = parent
+        self.filter = parent._filier
+        self.table = popupView
+        self.table.doubleClicked.connect(self.on_table_doubleClicked)
+        self.lblCode = QtGui.QLabel()
+        self.lblCode.setText(u'Код')
+        self.edtCode = QtGui.QLineEdit()
+        self.lblName = QtGui.QLabel()
+        self.lblName.setText(u'Наименование')
+        self.edtName = QtGui.QLineEdit()
+        self.lblFedCode = QtGui.QLabel()
+        self.lblFedCode.setText(u'Федеральный код')
+        self.edtFedCode = QtGui.QLineEdit()
+        self.edtCode.textChanged.connect(self.on_edtCode_textChanged)
+        self.edtName.textChanged.connect(self.on_edtName_textChanged)
+        self.edtFedCode.textChanged.connect(self.on_edtFedCode_textChanged)
+
+        layout = QtGui.QVBoxLayout(self)
+        layoutFilter = QtGui.QHBoxLayout()
+        layoutFilter.addWidget(self.lblCode)
+        layoutFilter.addWidget(self.edtCode)
+        layoutFilter.addWidget(self.lblName)
+        layoutFilter.addWidget(self.edtName)
+        layoutFilter.addWidget(self.lblFedCode)
+        layoutFilter.addWidget(self.edtFedCode)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        layout.addLayout(layoutFilter)
+        layout.addWidget(self.table)
+        self.installEventFilter(self)
+
+    def on_edtFedCode_textChanged(self, name):
+        db = QtGui.qApp.db
+        table = db.table(self._cmb._tableName)
+        _filter = []
+        if name:
+            _filter.append(table['federalCode'].like('%' + unicode(name) + '%'))
+        if self.filter and _filter:
+            _filter = db.joinAnd([self.filter, db.joinAnd(_filter)])
+        else:
+            _filter = db.joinAnd(_filter)
+        self._cmb.setFilter(_filter)
+
+
+class CRBTestSearchComboBox(CRBTestComboBox):
+    u"""Combobox для таблицы rbTest с возможностью поиска по коду, наименованию и федеральному коду"""
+    def __init__(self, parent=None):
+        CRBTestComboBox.__init__(self, parent)
+        # self.popupView = CRBSearchPopupView(self, self.popupView)
+        self.popupView = CRBTestSearchPopupView(self, self.popupView)
+
+
+    def setCodeFilter(self, code):
+        if code:
+            self.setLocalFilter('code', code, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+        else:
+            self.removeLocalFilter('code')
+
+
+    def showPopup(self):
+        if not self.isReadOnly():
+            self._searchString = ''
+            view = self.popupView.table
+            frame = self.popupView
+            frame.filter = ''
+            sizeHint = view.sizeHint()
+            selectionModel = view.selectionModel()
+            selectionModel.setCurrentIndex(self._model.index(self.currentIndex(), 1),
+                                           QtGui.QItemSelectionModel.ClearAndSelect)
+            view.scrollTo(view.model().index(self.currentIndex(), 1))
             adjustPopupToWidget(self, frame, True, max(sizeHint.width(), self.preferredWidth), sizeHint.height())
             frame.show()
             view.setFocus()

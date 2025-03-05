@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\client\Exchange\ImportDispExportedPlanDiagnosisDialog.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Exchange\ImportDispExportedPlanDiagnosisDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Tue Dec 19 15:21:04 2023
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -97,6 +98,9 @@ class Ui_ImportDispExportedPlanDiagnosisDialog(object):
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem1)
+        self.btnPrint = QtGui.QPushButton(ImportDispExportedPlanDiagnosisDialog)
+        self.btnPrint.setObjectName(_fromUtf8("btnPrint"))
+        self.horizontalLayout_2.addWidget(self.btnPrint)
         self.btnSelectAll = QtGui.QPushButton(ImportDispExportedPlanDiagnosisDialog)
         self.btnSelectAll.setObjectName(_fromUtf8("btnSelectAll"))
         self.horizontalLayout_2.addWidget(self.btnSelectAll)
@@ -134,6 +138,7 @@ class Ui_ImportDispExportedPlanDiagnosisDialog(object):
         self.label_4.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Ошибки при удалении:", None))
         self.lblDeleteStatus.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Отправка пакетов...", None))
         self.pbDeleteProgress.setFormat(_translate("ImportDispExportedPlanDiagnosisDialog", "%v из %m", None))
+        self.btnPrint.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Печать", None))
         self.btnSelectAll.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Выбрать всех", None))
         self.btnDeleteSelected.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Удалить выбранные", None))
         self.btnClose.setText(_translate("ImportDispExportedPlanDiagnosisDialog", "Закрыть", None))

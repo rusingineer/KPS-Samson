@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -281,8 +281,10 @@ class CQuotaTypeComboBox(CRBComboBox):
 
 
     def setModel(self, model):
+        self._model = model
         self.popupView.setModel(model)
-        CRBComboBox.setModel(self, model)
+        QtGui.QComboBox.setModel(self, model)
+        self.popupView.hideColumn(2)
 
 
     def showPopup(self):
@@ -296,7 +298,7 @@ class CQuotaTypeComboBox(CRBComboBox):
 
     def lookup(self):
         i, self._searchString = self.popupView.searchCodeEx(self._searchString)
-        if i>=0 and i!=self.currentIndex():
+        if i >= 0 and i != self.currentIndex():
             self.popupView.setCurrentIndex(i)
 
 

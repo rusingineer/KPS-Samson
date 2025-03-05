@@ -1,20 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import QAbstractItemView
+from PyQt4 import QtGui
+from PyQt4.QtCore import QDate, Qt, QObject, SIGNAL, pyqtSignature
+from PyQt4.QtGui import QAbstractItemView, QWidget, QAction
 
-from Orgs.Utils import getOrgStructureDescendants
-from Registry.PlanningProfilactic import CPlanningProfilactic
+from Registry.RegistryTable import CClientEvalCol
 from library.DialogBase import CConstructHelperMixin
-from library.Calendar     import monthName
-from library.TableModel import CTableModel, CCol, CDateTimeCol, CDesignationCol, CEnumCol, CIntCol, CNameCol, CTextCol, \
-    CDateFixedCol
-from library.Utils        import *
-
-from Registry.ClientEditDialog import CClientEditDialog
-
-from Reports.ReportBase import CReportBase, createTable
-from Reports.ReportView     import CReportViewDialog, CPageFormat
+from library.Calendar import monthName
+from library.TableModel import CTableModel, CCol, CDateTimeCol, CDesignationCol, CEnumCol, CIntCol, CNameCol, CTextCol, CDateFixedCol
+from library.Utils import forceStringEx, forceRef, formatRecordsCount, exceptionToUnicode, forceInt, forceString, toVariant
 
 from Exchange.ExportDispPlanDialog import CExportDispPlanDialog
 from Exchange.ImportDispFactInfosDialog import CImportDispFactInfosDialog
@@ -24,20 +18,29 @@ from Exchange.ExportDispContactsDialog import CExportDispContactsDialog
 from Exchange.ExportDispPlanDatesDialog import CExportDispPlanDatesDialog
 from Exchange.ImportDispExportedPlanDialog import CImportDispExportedPlanDialog
 
+from Orgs.Utils import getOrgStructureDescendants
+
+from Registry.ClientEditDialog import CClientEditDialog
+from Registry.PlanningProfilactic import CPlanningProfilactic
+
+from Reports.ReportBase import CReportBase, createTable
+from Reports.ReportView import CReportViewDialog, CPageFormat
+
 from Users.Rights import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 
-from Ui_DispExchangeProfilacticPage   import Ui_DispExchangeProfilacticPage
+from Ui_DispExchangeProfilacticPage import Ui_DispExchangeProfilacticPage
 
-class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage, CConstructHelperMixin):
+
+class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CConstructHelperMixin):
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
+        QWidget.__init__(self, parent)
         self.addModels('Clients', CClientsModel(self))
         self.addModels('PlanExportErrors', CPlanExportErrorsModel(self))
         self.addModels('FactInfos', CFactInfosModel(self))
         self.addModels('FactInvcs', CFactInvcsModel(self))
-        self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
-        self.addObject('actDispAdd', QtGui.QAction(u'Запланировать мероприятие', self))
-        self.addObject('actDispDel', QtGui.QAction(u'Удалить планирование', self))
+        self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actDispAdd', QAction(u'Запланировать мероприятие', self))
+        self.addObject('actDispDel', QAction(u'Удалить планирование', self))
         self.setupUi(self)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.actDispAdd.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
@@ -76,6 +79,8 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
         QObject.connect(header, SIGNAL('sectionClicked(int)'), self.setClientSort)
         self.tblClients.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.currentFilters = {'year': None, 'month': None, 'kind': None}
+        self.cmbSocStatusesType.setTable('rbSocStatusType', True)
+        self.on_chkSocStatuses_toggled(self.chkSocStatuses.isChecked())
 
 
     def contextMenuEvent(self, event):
@@ -180,9 +185,11 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
                 left join ClientAttach as Attach on Attach.id = (
                     select max(Attach.id)
                     from ClientAttach as Attach
+                    left join OrgStructure o on o.id = Attach.orgStructure_id
                     where Attach.client_id = Client.id
                         and Attach.deleted = 0
                         and Attach.endDate is null
+                        and o.areaType > 0
                         and Attach.attachType_id in (%(attachTypeIds)s)
                 )
                 LEFT JOIN ClientWork ON ClientWork.client_id = Client.id AND ClientWork.id = (
@@ -361,6 +368,113 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
                 where.append(u"IF((ClientWork.org_id is not null or IFNULL(ClientWork.freeInput, '') <> '') and IFNULL(ClientWork.post, '') <> '', 1, 0) = 1")
             elif self.cmbBusyness.currentIndex() == 2:
                 where.append(u"IF((ClientWork.org_id is not null or IFNULL(ClientWork.freeInput, '') <> '') and IFNULL(ClientWork.post, '') <> '', 1, 0) = 0")
+
+            if self.chkSocStatuses.isChecked():
+                socStatusesCondition = self.chkSocStatusesCondition.isChecked()  # socStatusesCondition
+
+                socStatusesBegDate = self.edtFilterSocStatusesBegDate.date()  # socStatusesBegDate
+                socStatusesEndDate = self.edtFilterSocStatusesEndDate.date()  # socStatusesEndDate  # filter.get('socStatusesEndDate', QDate())
+
+                socStatusesClass = self.cmbSocStatusesClass.value()  # socStatusesClass
+                socStatusesType = self.cmbSocStatusesType.value()  # socStatusesType
+
+                tableClientSocStatus = db.table('ClientSocStatus')
+                clientFilterTable = db.table('Client')
+                socStatusFilterTable = db.table('ClientSocStatus')
+
+                if socStatusesCondition and not socStatusesEndDate and not socStatusesBegDate and not socStatusesType and not socStatusesClass:
+                    where.append(tableClientSocStatus['id'].isNull())
+                if socStatusesClass:
+                    socStatusClassIdList = db.getDescendants('rbSocStatusClass', 'group_id', socStatusesClass)
+                    if socStatusClassIdList:
+                        stmtStatusTypeId = u'''SELECT DISTINCT rbSocStatusClassTypeAssoc.type_id
+                FROM  rbSocStatusClassTypeAssoc
+                WHERE rbSocStatusClassTypeAssoc.class_id IN (%s)''' % (
+                            u','.join(str(socStatusClassId) for socStatusClassId in socStatusClassIdList))
+                        queryStatusTypeId = db.query(stmtStatusTypeId)
+                        resultStatusTypeIdList = []
+                        while queryStatusTypeId.next():
+                            resultStatusTypeIdList.append(queryStatusTypeId.value(0).toInt()[0])
+                            parentSocStatusClassIdList = db.getTheseAndParents('rbSocStatusClass', 'group_id',
+                                                                               [socStatusesClass])
+                        if socStatusesCondition:
+                            clientFilterTable = clientFilterTable.leftJoin(socStatusFilterTable, db.joinAnd(
+                                [clientFilterTable['id'].eq(socStatusFilterTable['client_id']),
+                                 tableClientSocStatus['deleted'].eq(0)]))
+                            if resultStatusTypeIdList:
+                                clientFilterCond = [db.joinOr(
+                                    [socStatusFilterTable['socStatusType_id'].inlist(resultStatusTypeIdList),
+                                     tableClientSocStatus['id'].isNull()])]
+                                if socStatusesBegDate:
+                                    clientFilterCond.append(
+                                        db.joinOr([socStatusFilterTable['endDate'].dateGe(socStatusesBegDate),
+                                                   socStatusFilterTable['endDate'].isNull()]))
+                                if socStatusesEndDate:
+                                    clientFilterCond.append(
+                                        db.joinOr([socStatusFilterTable['begDate'].dateLe(socStatusesEndDate),
+                                                   socStatusFilterTable['begDate'].isNull()]))
+                                clientSocStatusesFilterIdList = db.getIdList(clientFilterTable, clientFilterTable['id'],
+                                                                             clientFilterCond, ['id'])
+                                where.append(tableClient['id'].notInlist(clientSocStatusesFilterIdList))
+                            else:
+                                clientFilterCond = [db.joinOr([db.joinAnd[(socStatusFilterTable['socStatusType_id'].inlist(parentSocStatusClassIdList),
+                                tableClientSocStatus['id'].isNull())],tableClientSocStatus['socStatusType_id'].isNull()])]
+                        else:
+                            if resultStatusTypeIdList:
+                                where.append(tableClientSocStatus['socStatusType_id'].inlist(resultStatusTypeIdList))
+                            else:
+                                where.append(tableClientSocStatus['socStatusClass_id'].inlist(parentSocStatusClassIdList))
+                                where.append(tableClientSocStatus['socStatusType_id'].isNull())
+                                where.append(tableClientSocStatus['deleted'].eq(0))
+                    else:
+                        if socStatusesCondition:
+                            clientFilterTable = clientFilterTable.leftJoin(
+                                socStatusFilterTable,
+                                db.joinAnd([clientFilterTable['id'].eq(
+                                    socStatusFilterTable['client_id']),
+                                    tableClientSocStatus['deleted'].eq(0)]))
+                            clientFilterCond = [db.joinOr([socStatusFilterTable['socStatusClass_id'].eq(socStatusesClass),tableClientSocStatus['id'].isNull()])]
+                            if socStatusesBegDate:
+                                clientFilterCond.append(db.joinOr([socStatusFilterTable['endDate'].dateGe(socStatusesBegDate),socStatusFilterTable['endDate'].isNull()]))
+                            if socStatusesEndDate:
+                                clientFilterCond.append(db.joinOr([socStatusFilterTable['begDate'].dateLe(socStatusesEndDate),socStatusFilterTable['begDate'].isNull()]))
+                            clientSocStatusesFilterIdList = db.getIdList(clientFilterTable, clientFilterTable['id'],clientFilterCond, ['id'])
+                            where.append(tableClient['id'].notInlist(clientSocStatusesFilterIdList))
+                        else:
+                            where.append(tableClientSocStatus['socStatusClass_id'].eq(socStatusesClass))
+                            where.append(tableClientSocStatus['deleted'].eq(0))
+                if socStatusesType:
+                    if socStatusesCondition:
+                        if not socStatusesClass:
+                            clientFilterTable = clientFilterTable.leftJoin(
+                                socStatusFilterTable,
+                                db.joinAnd([clientFilterTable['id'].eq(
+                                    socStatusFilterTable['client_id']),
+                                    tableClientSocStatus['deleted'].eq(0)]))
+                        clientFilterCond = [
+                            db.joinOr([clientFilterTable['socStatusType_id'].eq(socStatusesType),
+                                       clientFilterTable['id'].isNull()])]
+                        if socStatusesBegDate:
+                            clientFilterCond.append(
+                                db.joinOr([socStatusFilterTable['endDate'].dateGe(socStatusesBegDate),
+                                           socStatusFilterTable['endDate'].isNull()]))
+                        if socStatusesEndDate:
+                            clientFilterCond.append(
+                                db.joinOr([socStatusFilterTable['begDate'].dateLe(socStatusesEndDate),
+                                           socStatusFilterTable['begDate'].isNull()]))
+                        clientSocStatusesFilterIdList = db.getIdList(clientFilterTable, clientFilterTable['id'], clientFilterCond, ['id'])
+                        where.append(tableClient['id'].notInlist(clientSocStatusesFilterIdList))
+                    else:
+                        where.append(tableClientSocStatus['socStatusType_id'].eq(socStatusesType))
+                        where.append(tableClientSocStatus['deleted'].eq(0))
+                if not socStatusesCondition:
+                    if socStatusesBegDate:
+                        where.append(db.joinOr([tableClientSocStatus['endDate'].dateGe(socStatusesBegDate),
+                                                tableClientSocStatus['endDate'].isNull()]))
+                    if socStatusesEndDate:
+                        where.append(db.joinOr([tableClientSocStatus['begDate'].dateLe(socStatusesEndDate),
+                                                tableClientSocStatus['begDate'].isNull()]))
+
             if self.chkForPlanning.isChecked():
                 date = QDate(year, 12, 31)
                 where.append("Attach.id is not null")
@@ -504,7 +618,7 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
                                                         AND ep.regionalCode = '8018'
                                                         AND mat.regionalCode = '233'
                                                         )""")
-            sql += (' where ' + ' and '.join(where))
+            sql += (('\nLEFT JOIN ClientSocStatus ON Client.id = ClientSocStatus.client_id' if self.chkSocStatuses.isChecked() else '') + '\nwhere ' + ' and '.join(where))
 
             order = self.getOrderField()
             sql += (' order by ' + order)
@@ -520,7 +634,8 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
                 infoDict[clientId] = record
             self.modelClients.setIdList(idList)
             count = len(idList)
-            self.lblClientsCount.setText(formatRecordsCount(count))
+            people = u", {0} человек".format(len(list(set(idList)))) if idList else u""
+            self.lblClientsCount.setText(formatRecordsCount(count) + people)
         except Exception as e:
             QtGui.QMessageBox.critical(self, u'Произошла ошибка', exceptionToUnicode(e), QtGui.QMessageBox.Close)
         finally:
@@ -558,8 +673,8 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
         self.updateClientsList()
 
     def showReport(self):
-        def showReportInt():
-            report = CDispExchangeReport(self, self.modelClients)
+        def showReportInt(isShort=False):
+            report = CDispExchangeReport(self, self.modelClients, isShort)
             description = self.reportDescription()
             reportTxt = report.build(description)
             view = CReportViewDialog(self)
@@ -568,8 +683,27 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
             if report.pageFormat:
                 view.setPageFormat(report.pageFormat)
             return view
-        view = QtGui.qApp.callWithWaitCursor(self, showReportInt)
-        view.exec_()
+
+        dialog = QtGui.QDialog(self)
+        dialog.setWindowTitle(u"Настройки отчета")
+        dialog.setWindowFlags(Qt.Dialog | Qt.WindowCloseButtonHint)
+        vbox = QtGui.QVBoxLayout()
+        chk = QtGui.QCheckBox(dialog)
+        chk.setText(u"Печатать данные всех колонок")
+        chk.setChecked(False)
+        chk.setObjectName('chk')
+        vbox.addWidget(chk)
+        btnBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Cancel | QtGui.QDialogButtonBox.Ok, Qt.Horizontal, dialog)
+        vbox.addWidget(btnBox)
+        dialog.setLayout(vbox)
+        btnBox.accepted.connect(dialog.accept)
+        btnBox.rejected.connect(dialog.reject)
+        dialog.show()
+        if dialog.exec_():
+            view = QtGui.qApp.callWithWaitCursor(self, showReportInt, isShort=not chk.isChecked())
+            view.exec_()
+        dialog.setParent(None)
+
     
     def reportDescription(self):
         year = self.sbYear.value()
@@ -655,6 +789,17 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
         if self.chkFilterPatrName.isChecked():
             self.edtFilterPatrName.setFocus()
 
+    @pyqtSignature('int')
+    def on_cmbSocStatusesClass_currentIndexChanged(self, index):
+        socStatusClassId = self.cmbSocStatusesClass.value()
+        if socStatusClassId:
+            filter = (u'''rbSocStatusType.id IN (SELECT DISTINCT rbSocStatusClassTypeAssoc.type_id
+            FROM  rbSocStatusClassTypeAssoc
+            WHERE rbSocStatusClassTypeAssoc.class_id = %s)'''%(socStatusClassId))
+        else:
+            filter = u''
+        self.cmbSocStatusesType.setFilter(filter)
+
     @pyqtSignature('bool')
     def on_chkFilterBirthDay_toggled(self, checked):
         if checked:
@@ -680,6 +825,18 @@ class CDispExchangeProfilacticPage(QtGui.QWidget, Ui_DispExchangeProfilacticPage
     @pyqtSignature('bool')
     def on_chkFilterSex_toggled(self, checked):
         self.cmbFilterSex.setEnabled(checked)
+
+    @pyqtSignature('bool')
+    def on_chkSocStatuses_toggled(self, checked):
+        self.chkSocStatusesCondition.setEnabled(checked)
+
+        self.lblFilterSocStatusesBegDate.setEnabled(checked)
+        self.edtFilterSocStatusesBegDate.setEnabled(checked)
+        self.lblFilterSocStatusesEndDate.setEnabled(checked)
+        self.edtFilterSocStatusesEndDate.setEnabled(checked)
+
+        self.cmbSocStatusesClass.setEnabled(checked)
+        self.cmbSocStatusesType.setEnabled(checked)
 
     @pyqtSignature('')
     def on_btnPlanningProfilactic_clicked(self):
@@ -881,6 +1038,8 @@ class CClientsModel(CTableModel):
         self.addColumn(CClientsModel.CInfoDictCol(u'Дата 1 этапа УД', 15, self.clientInfoDict, 'lastUStage1'))
         self.addColumn(CClientsModel.CInfoDictCol(u'Дата 2 этапа УД', 15, self.clientInfoDict, 'lastUStage2'))
         self.addColumn(CClientsModel.CInfoDictCol(u'Участок', 15, self.clientInfoDict, 'attachName'))
+        self.addColumn(CClientEvalCol(u'Контакты', ['id'], 'getClientContacts(id)', 30))
+        self.addColumn(CClientEvalCol(u'Адрес проживания', ['id'], 'getClientLocAddress(id)', 30))
         self.setTable('Client')
 
     def addDisp(self, rows, year=None, month=None, kind=None):
@@ -1110,10 +1269,12 @@ class CFactInvcsModel(CTableModel):
             idList = db.getIdList(tableFactInvcs, where=where)
         self.setIdList(idList)
 
+
 class CDispExchangeReport(CReportBase):
-    def __init__(self, parent, model):
+    def __init__(self, parent, model, isShort):
         CReportBase.__init__(self, parent)
         self.model = model
+        self.isShort = isShort
         self.setTitle(u'Проф. мероприятия')
         self.pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Landscape, leftMargin=1, topMargin=1, rightMargin=1,  bottomMargin=1)
         
@@ -1127,33 +1288,52 @@ class CDispExchangeReport(CReportBase):
         cursor.setCharFormat(CReportBase.ReportBody)
         cursor.insertText(description)
         cursor.insertBlock()
-
-        tableColumns = [
-            ('10%', [u'Фамилия'       ], CReportBase.AlignLeft),
-            ('10%', [u'Имя'           ], CReportBase.AlignLeft),
-            ('10%', [u'Отчество'      ], CReportBase.AlignLeft),
-            ('8%', [u'Дата рождения' ], CReportBase.AlignLeft),
-            ('5%',  [u'Пол'           ], CReportBase.AlignLeft),
-            ('8%', [u'Мероприятие'   ], CReportBase.AlignLeft),
-            ('8%', [u'Дата начала'   ], CReportBase.AlignLeft),
-            ('8%', [u'Дата окончания'], CReportBase.AlignLeft),
-            ('8%', [u'Дата начала УД'   ], CReportBase.AlignLeft),
-            ('8%', [u'Дата окончания УД'], CReportBase.AlignLeft),
-            ('8%', [u'Дата 1 этапа'], CReportBase.AlignLeft),
-            ('8%', [u'Дата 2 этапа'], CReportBase.AlignLeft),
-            ('8%', [u'Дата профосмотра'], CReportBase.AlignLeft),
-            ('8%', [u'Дата 1 этапа УД'], CReportBase.AlignLeft),
-            ('8%', [u'Дата 2 этапа УД'], CReportBase.AlignLeft),
-            ('10%', [u'Участок'       ], CReportBase.AlignLeft),
-        ]
+        if self.isShort:
+            tableColumns = [
+                ('35%', [u'Ф.И.О.'],       CReportBase.AlignLeft),
+                ('8%',  [u'Дата рождения'], CReportBase.AlignLeft),
+                ('5%',  [u'Пол'],           CReportBase.AlignLeft),
+                ('32%', [u'Контакты'],      CReportBase.AlignLeft),
+                ('20%',  [u'Мероприятие'],   CReportBase.AlignLeft)
+            ]
+        else:
+            tableColumns = [
+                ('10%', [u'Фамилия'],           CReportBase.AlignLeft),
+                ('10%', [u'Имя'],               CReportBase.AlignLeft),
+                ('10%', [u'Отчество'],          CReportBase.AlignLeft),
+                ('8%',  [u'Дата рождения'],     CReportBase.AlignLeft),
+                ('5%',  [u'Пол'],               CReportBase.AlignLeft),
+                ('8%',  [u'Мероприятие'],       CReportBase.AlignLeft),
+                ('8%',  [u'Дата начала'],       CReportBase.AlignLeft),
+                ('8%',  [u'Дата окончания'],    CReportBase.AlignLeft),
+                ('8%',  [u'Дата начала УД'],    CReportBase.AlignLeft),
+                ('8%',  [u'Дата окончания УД'], CReportBase.AlignLeft),
+                ('8%',  [u'Дата 1 этапа'],      CReportBase.AlignLeft),
+                ('8%',  [u'Дата 2 этапа'],      CReportBase.AlignLeft),
+                ('8%',  [u'Дата профосмотра'],  CReportBase.AlignLeft),
+                ('8%',  [u'Дата 1 этапа УД'],   CReportBase.AlignLeft),
+                ('8%',  [u'Дата 2 этапа УД'],   CReportBase.AlignLeft),
+                ('10%', [u'Участок'],           CReportBase.AlignLeft),
+                ('10%', [u'Контакты'],          CReportBase.AlignLeft),
+                ('10%', [u'Адрес проживания'],  CReportBase.AlignLeft),
+            ]
         table = createTable(cursor, tableColumns)
-        n = 0
         rowCount = self.model.rowCount()
-        columnCount = self.model.columnCount()
+        columnCount = len(tableColumns)
         for row in xrange(0, rowCount):
             tableRow = table.addRow()
-            for column in xrange(0, columnCount):
-                (modelColumn, values) = self.model.getRecordValues(column, row)
+            mapColNums = {1: 3, 2: 4, 3: 16, 4: 5}
+            if self.isShort:
+
+                lastNameCol, lastName = self.model.getRecordValues(0, row)
+                firstNameCol, firstName = self.model.getRecordValues(1, row)
+                patrNameCol, patrName = self.model.getRecordValues(2, row)
+                text = u' '.join([forceString(lastNameCol.format(lastName)),
+                                  forceString(firstNameCol.format(firstName)),
+                                  forceString(patrNameCol.format(patrName))])
+                table.setText(tableRow, 0, text)
+            for column in xrange(0 + (1 if self.isShort else 0), columnCount):
+                (modelColumn, values) = self.model.getRecordValues(mapColNums[column] if self.isShort else column, row)
                 text = forceString(modelColumn.format(values))
                 table.setText(tableRow, column, text)
         return doc

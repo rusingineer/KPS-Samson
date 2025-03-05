@@ -17,17 +17,19 @@ import re
 
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, SIGNAL, QAbstractTableModel, QDate, QDateTime, QEvent, QEventLoop, QModelIndex, QString, QVariant, QObject
+from Events.ExecutionPlan.Groups import CExecutionPlanProxyModelGroup
 
+# from Exchange.ImportActions import ScrollMessageBox
 from Reports.ReportBase import CReportBase, createTable
 
 from library.ClientRecordProperties import CRecordProperties
 
 from library.crbcombobox import CRBModelDataCache, CRBLikeEnumModel, CRBComboBox
-from library.CRBSearchComboBox import CRBSearchComboBox
+from library.CRBSearchComboBox import CRBSearchComboBox, CRBTestSearchComboBox
 
 from library import database
 from library.ICDUtils       import getMKBName
-from library.Utils import CColsMovingFeature, copyFields, forceBool, forceDate, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDate, formatDateTime, formatName, formatSex, formatTime, getDentitionActionTypeId, getPref, setPref, toVariant, trim, getExSubclassItemLastName
+from library.Utils import CColsMovingFeature, copyFields, forceBool, forceDate, forceDouble, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDate, formatDateTime, formatName, formatSex, formatTime, getDentitionActionTypeId, getPref, setPref, toVariant, trim, getExSubclassItemLastName
 
 
 from library.DateEdit import CDateEdit
@@ -107,6 +109,10 @@ class CInDocTableCol(object):
     @property
     def defaultHidden(self):
         return self._defaultHidden
+
+
+    def setDefaultHidden(self, value):
+        self._defaultHidden = value
 
 
     def switchOff(self):
@@ -398,10 +404,18 @@ class CRBInDocTableCol(CInDocTableCol):
         self.force = True
 
 
-
 class CRBSearchInDocTableCol(CRBInDocTableCol):
     def createEditor(self, parent):
         editor = CRBSearchComboBox(parent)
+        editor.setTable(self.tableName, addNone=self.addNone, filter=self.filter)
+        editor.setShowFields(self.showFields)
+        editor.setPreferredWidth(self.preferredWidth)
+        return editor
+
+
+class CRBTestSearchInDocTableCol(CRBInDocTableCol):
+    def createEditor(self, parent):
+        editor = CRBTestSearchComboBox(parent)
         editor.setTable(self.tableName, addNone=self.addNone, filter=self.filter)
         editor.setShowFields(self.showFields)
         editor.setPreferredWidth(self.preferredWidth)
@@ -726,7 +740,12 @@ class CFloatInDocTableCol(CInDocTableCol):
         if self.precision is None:
             s.setNum(value.toDouble()[0])
         else:
-            s.setNum(value.toDouble()[0], 'f', self.precision)
+            from decimal import Decimal, ROUND_HALF_UP
+            numDecimal = Decimal(forceString(value.toString())) #Конвертация в строку работает точнее, чем в double
+            roundedNum = numDecimal.quantize(Decimal('0.'+ '0' * self.precision), rounding=ROUND_HALF_UP) #
+            # Данные в float и double хранятся по-другому и округление не работает как надо. 1.15 может хранится как 1.149999999
+            # И округление сработает как 1.1, а не 1.2 . Решаем через Decimal
+            s.setNum(forceDouble(roundedNum) , 'f', self.precision)
         return s
 
 
@@ -1051,7 +1070,8 @@ class CRecordListModel(QAbstractTableModel):
 
     def sortData(self, column, ascending):
         col = self._cols[column]
-        self._items.sort(key = lambda(item): col.toSortString(item.value(col.fieldName()), item), reverse = not ascending)
+        #self._items.sort(key=lambda item: col.toSortString(item.value(col.fieldName()), item), reverse=not ascending)
+        self._items.sort(key=lambda item: (col.toSortString(item.value(col.fieldName()), item) if u'не задано' != col.toSortString(item.value(col.fieldName()), item) else u''), reverse=not ascending)
         self.emitRowsChanged(0, len(self._items)-1)
 
 
@@ -1281,10 +1301,11 @@ class CLocItemDelegate(QtGui.QItemDelegate):
 
     def createEditor(self, parent, option, index):
         editor = index.model().createEditor(index, parent)
-        self.connect(editor, SIGNAL('commit()'), self.emitCommitData)
-        self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
-#        self.connect(editor, SIGNAL('activated(int)'), self.emitCommitData)
-##        self.connect(self, SIGNAL('closeEditor(QWidget, QAbstractItemDelegate.EndEditHint)'), self.closeEditor)
+        if editor is not None:
+            self.connect(editor, SIGNAL('commit()'), self.emitCommitData)
+            self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
+        #        self.connect(editor, SIGNAL('activated(int)'), self.emitCommitData)
+        ##        self.connect(self, SIGNAL('closeEditor(QWidget, QAbstractItemDelegate.EndEditHint)'), self.closeEditor)
 
         self.editor   = editor
         self.row = index.row()
@@ -1458,7 +1479,7 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
         # Она проявляется в том, что вертикальный заголовок при изменении
         # (уменьшении) числа строк перестаёт обновляться.
         self.connect( self.verticalHeader(), SIGNAL('sectionCountChanged(int,int)'), self.on_rowsCountChanged)
-
+        # self.connect(self, SIGNAL('doubleClicked(const QModelIndex&)'), self.get_info)
 
     def setSelectionModel(self, selectionModel):
         currSelectionModel = self.selectionModel()
@@ -1792,6 +1813,7 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
 
     def on_deleteRows(self):
         rows = self.getSelectedRows()
+        rows = self.nomenclatureGroupingRows(rows)
         for row in reversed(rows): # getSelectedRows уже отсортирован!
             self.model().removeRow(row)
 #        self.removeCurrentRow()
@@ -1802,6 +1824,50 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
         if self.__actDownRow:
             self.__actDownRow.setEnabled(not isReadOnly)
 
+    
+    def nomenclatureGroupingRows(self, rows):
+        newRows = []
+        newRows.extend(rows)
+        if hasattr(self.model(), '_mapProxyRow2Group'):
+            mapProxyRow2Group = self.model()._mapProxyRow2Group
+            for proxyRow in rows:
+                group = mapProxyRow2Group[proxyRow]
+                if isinstance(group, CExecutionPlanProxyModelGroup):
+                    if group.currentItem and hasattr(group, 'groupingItem') and group.groupingItem == group.currentItem and group.groupingInfo and len(group.groupingInfo) > 1 and group.currentItem in group.groupingInfo:
+                        for subrow, subgroup in mapProxyRow2Group.items():
+                            if isinstance(subgroup, CExecutionPlanProxyModelGroup):
+                                if subgroup.groupingItem and group.groupingItem == subgroup.groupingItem:
+                                    if subrow in newRows:
+                                        group.removeGroupingInfo(subgroup.currentItem)
+                                    else:
+                                        newRows.append(subrow)
+                        if rows != newRows:            
+                            if QtGui.QMessageBox().question(self,
+                                                    u'Внимание!',
+                                                    u'При удалении группирующего элемента, удалится вся группа. Продолжить?',
+                                                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                    QtGui.QMessageBox.No
+                                                    ) == QtGui.QMessageBox.No:
+                                return []
+                    elif group.currentItem and hasattr(group, 'groupingItem') and group.currentItem._record.value('id') == group.currentItem._record.value('group_id'):
+                        for subrow, subgroup in mapProxyRow2Group.items():
+                            if isinstance(subgroup, CExecutionPlanProxyModelGroup):
+                                if subgroup.currentItem and group.currentItem._record.value('id') == subgroup.currentItem._record.value('group_id'):
+                                    if subrow in newRows:
+                                        pass
+                                    else:
+                                        newRows.append(subrow)
+                        if rows != newRows:
+                            if QtGui.QMessageBox().question(self,
+                                                    u'Внимание!',
+                                                    u'При удалении группирующего элемента, удалится вся группа. Продолжить?',
+                                                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                    QtGui.QMessageBox.No
+                                                    ) == QtGui.QMessageBox.No:
+                                return []
+            newRows.sort()
+        return newRows
+        
 
     def on_selectAllRow(self):
         self.selectAll()
@@ -2034,6 +2100,7 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                 else:
                     header.moveSection(curVIndex, colsLen-1)
 
+
     def savePreferences(self):
         preferences = {}
         model = self.model()
@@ -2116,6 +2183,64 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                 table.setText(iTableRow, iTableCol, text)
                 iTableCol += 1
 
+    # def get_info(self, index):
+    #     from F088.F0882022EditDialog import CAdvancedExportTableModel
+    #     model = self.model()
+    #     if isinstance(model, CAdvancedExportTableModel):
+    #         row = index.row()
+    #         record = model.getRecordByRow(row)
+    #         from library.TableModel import CStatusREMD_FileAttachCol
+    #         if (not forceInt(record.value('success'))) or forceString(record.value('status')) == 'Failed':
+    #             if True in [isinstance(_, CStatusREMD_FileAttachCol) for _ in model.cols()]:
+    #                 # if not forceInt(record.value('success')):
+    #                     msg = forceString(model.data(model.index(index.row(), 7)))
+    #                     widget = QtGui.qApp.activeModalWidget()
+    #                     buttons = QtGui.QMessageBox.Ok
+    #                     QtGui.QMessageBox.information(widget, u'Внимание!', msg, buttons, QtGui.QMessageBox.Ok)
+    #             else:
+    #                 # if forceString(record.value('status')) == 'Failed':
+    #                     msg = forceString(record.value('Message'))
+    #                     widget = QtGui.qApp.activeModalWidget()
+    #                     buttons = QtGui.QMessageBox.Ok
+    #                     QtGui.QMessageBox.information(widget, u'Внимание!', msg, buttons, QtGui.QMessageBox.Ok)
+                # print(it)
+
+
+class CInDocExportTableView(CInDocTableView):
+    def __init__(self, parent):
+        CInDocTableView.__init__(self, parent)
+        self.connect(self, SIGNAL('doubleClicked(const QModelIndex&)'), self.get_info)
+
+    def get_info(self, index):
+        model = self.model()
+        table_name = model.table().tableName
+        row = index.row()
+        record = model.getRecordByRow(row)
+        is_doc = table_name == 'Action_FileAttach_Export'
+        is_doc_error = forceString(model.data(model.index(index.row(), 5))) != u'успех' and is_doc
+        is_vimis = table_name == 'Information_Messages'
+        is_vimis_error = u'успеш' not in forceString(record.value('Message')) and not is_vimis
+        if is_doc_error or is_vimis_error:
+            widget = QtGui.qApp.activeModalWidget()
+            buttons = QtGui.QMessageBox.Ok
+            if is_doc:
+                msg = forceString(model.data(model.index(index.row(), 7)))
+            elif is_vimis:
+                msg = forceString(record.value('Message'))
+            msg_box = QtGui.QMessageBox(widget)
+            # msg_box = QtGui.QMessageBox(QtGui.QMessageBox.Information, u'Внимание!', msg, buttons, QtGui.QMessageBox.Ok)
+            msg_box.setIcon(QtGui.QMessageBox.Information)
+            msg_box.setWindowTitle(u'Внимание!')
+            msg_box.addButton(buttons)
+            msg_box.setDefaultButton(QtGui.QMessageBox.Ok)
+            if len(msg) > 1500:
+                # если текст ошибки слишком большой, то ограничиваем вывод и полный текст убираем в detailedText
+                msg_box.setText(msg[:1500])
+                msg_box.setDetailedText(msg)
+            else:
+                msg_box.setText(msg)
+            msg_box.show()
+
 
 # WTF? модель не должна зависеть от типа столбцов!
 # это какая-то ошибка!
@@ -2133,8 +2258,11 @@ class CMKBListInDocTableModel(CInDocTableModel):
         colMKBEx = self.getColIndex('MKBEx')
         colTNMS = self.getColIndex('TNMS',  None)
         colExSubclassMKB = self.getColIndex('exSubclassMKB',  None)
+        filter = None
+        if hasattr(editor, 'filter'):
+            filter = editor.filter
         eventEditor = None
-        if column>=0 and  (colMKB == column or colMKBEx == column):
+        if column >=0 and (colMKB == column or colMKBEx == column):
             if hasattr(self, '_parent'):
                 eventEditor = self._parent
             elif hasattr(self, 'eventEditor'):
@@ -2149,15 +2277,15 @@ class CMKBListInDocTableModel(CInDocTableModel):
                     filter.append("INSTR('{0}', substr(MKB.DiagId, 1, 1)) = 0".format(diagFilter))
                 if hasattr(eventEditor, 'edtBegDate'):
                     begDate = eventEditor.edtBegDate.date()
-                    filter.append('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)'''%(QtGui.qApp.db.formatDate(begDate)))
+                    editor.setFilter('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)%s'''%(QtGui.qApp.db.formatDate(begDate), (u' AND %s '%filter) if filter else u''))
                 elif hasattr(eventEditor, 'edtAPBegDate'):
                     begDate = eventEditor.edtAPBegDate.date()
-                    filter.append('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)'''%(QtGui.qApp.db.formatDate(begDate)))
+                    editor.setFilter('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)%s'''%(QtGui.qApp.db.formatDate(begDate), (u' AND %s '%filter) if filter else u''))
                 elif hasattr(eventEditor, 'modelPeriods'):
                     items = eventEditor.modelPeriods.items()
                     if len(items) > 0:
                         begDate = forceDate(items[0].value('begDate'))
-                        filter.append('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)'''%(QtGui.qApp.db.formatDate(begDate)))
+                        editor.setFilter('''IF(MKB.endDate IS NOT NULL, MKB.endDate >= %s, 1)%s'''%(QtGui.qApp.db.formatDate(begDate), (u' AND %s '%filter) if filter else u''))
                 editor.setFilter(QtGui.qApp.db.joinAnd(filter))
                 if hasattr(eventEditor, 'isLUDSelected') and hasattr(eventEditor, 'clientId'):
                     editor.setLUDEnabled(bool(eventEditor.clientId))
@@ -2217,6 +2345,33 @@ class CMKBListInDocTableModel(CInDocTableModel):
             if 0 <= row < len(self.items()):
                 editor.setMKB(forceString(self.items()[row].value('MKB')))
         return editor
+
+    def updateCharacterByMKB(self, row, MKB, specifiedCharacterId):
+        from Events.Utils import getAvailableCharacterIdByMKB
+        characterIdList = getAvailableCharacterIdByMKB(MKB)
+
+        characterId = None
+        if specifiedCharacterId in characterIdList:
+            characterId = specifiedCharacterId
+        else:
+            if QtGui.qApp.checkGlobalPreference('setCharacterWithDiag', u'да'):
+                if len(characterIdList) > 0:
+                    characterId = characterIdList[0]
+                else:
+                    # список характеров пустой, оставляем "не задано"
+                    characterId = None
+            else:
+                if len(characterIdList) == 1:
+                    characterId = characterIdList[0]
+                else:
+                    # в остальных случаях ставим "не задано" и пусть выбирают вручную
+                    characterId = None
+
+        item = self.items()[row]
+        item.setValue('character_id', toVariant(characterId))
+        self.emitCellChanged(row, item.indexOf('character_id'))
+
+
 
 # WTF?
 class CDentitionInDocTableView(CInDocTableView):

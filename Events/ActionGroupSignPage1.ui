@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ActionGroupSignPage1</class>
+ <widget class="QWizardPage" name="ActionGroupSignPage1">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>891</width>
+    <height>868</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Групповое подписание</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QSplitter" name="splitter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="childrenCollapsible">
+      <bool>false</bool>
+     </property>
+     <widget class="QWidget" name="layoutWidget">
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <widget class="QLabel" name="chkActionStatus">
+         <property name="text">
+          <string>Состояние</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1" colspan="2">
+        <widget class="QComboBox" name="cmbActionStatus">
+         <item>
+          <property name="text">
+           <string>Не задано</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Начато</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Ожидание</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Закончено</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Отменено</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Без результата</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Назначено</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Отказ</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="CDateEdit" name="edtSetBegDate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="calendarPopup">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QCheckBox" name="chkSetDate">
+         <property name="text">
+          <string>Начато</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0" colspan="3">
+        <widget class="QCheckBox" name="chkWithoutDocuments">
+         <property name="text">
+          <string>Не имеет прикрепленного и подписанного документа</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="3">
+        <widget class="CInDocTableView" name="tblActions"/>
+       </item>
+       <item row="3" column="1" colspan="2">
+        <widget class="CPersonComboBoxEx" name="cmbPerson">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QCheckBox" name="chkPerson">
+         <property name="text">
+          <string>Исполнитель</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QCheckBox" name="chkExecDate">
+         <property name="text">
+          <string>Выполнено</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2">
+        <widget class="CDateEdit" name="edtExecEndDate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="CDateEdit" name="edtSetEndDate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QPushButton" name="btnResetFilters">
+         <property name="text">
+          <string>Сбросить</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="CDateEdit" name="edtExecBegDate">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0" colspan="2">
+        <widget class="QLabel" name="lblCountRecords">
+         <property name="text">
+          <string>Всего записей: 0</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QCheckBox" name="chkSetPerson">
+         <property name="text">
+          <string>Назначивший</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1" colspan="2">
+        <widget class="CPersonComboBoxEx" name="cmbSetPerson">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="CReportBrowser" name="txtReport">
+      <property name="font">
+       <font>
+        <family>MS Shell Dlg 2</family>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="btnSelectAll">
+       <property name="text">
+        <string>Выбрать все</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnClearAll">
+       <property name="text">
+        <string>Очистить все</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
+  </customwidget>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>library/InDocTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CReportBrowser</class>
+   <extends>QTextBrowser</extends>
+   <header>Reports/ReportBrowser.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkSetDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtSetBegDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>233</x>
+     <y>67</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSetDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtSetEndDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>386</x>
+     <y>67</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkExecDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtExecBegDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>110</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>233</x>
+     <y>110</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkExecDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtExecEndDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>110</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>386</x>
+     <y>110</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPerson</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbPerson</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>153</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>310</x>
+     <y>153</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSetPerson</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSetPerson</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>85</x>
+     <y>123</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>320</x>
+     <y>123</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

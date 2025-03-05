@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,6 +15,8 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, pyqtSignature, QDateTime, QVariant
 
+from Stock.Mdlp.ExchangePurpose import CMdplExchangePurpose
+from library.Identification import getIdentification
 from library.crbcombobox         import CRBComboBox
 from library.InDocTable          import CDateInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol
 from library.interchange         import getRBComboBoxValue, setRBComboBoxValue, getLineEditValue, setLineEditValue, setDatetimeEditValue, getDatetimeEditValue
@@ -27,8 +29,7 @@ from Reports.ReportView          import CReportViewDialog
 from Stock.StockModel            import CStockMotionType
 from Stock.NomenclatureComboBox  import CNomenclatureInDocTableCol
 from Stock.StockMotionBaseDialog import CStockMotionBaseDialog, CStockMotionItemsCopyPasteMixin, CNomenclatureItemsBaseModel
-from Stock.Utils                 import (
-                                          getNomenclatureAnalogies,
+from Stock.Utils                 import (getNomenclatureAnalogies,
                                           getStockMotionItemQuantityColumn,
                                           getExistsNomenclatureAmount,
                                           getBatchShelfTimeFinance,
@@ -38,6 +39,7 @@ from Stock.Utils                 import (
                                         )
 
 
+from Stock.Mdlp.connection import CMdlpConnection
 
 from Stock.Ui_StockSupplierRefundDialog import Ui_StockSupplierRefundDialog
 
@@ -51,12 +53,24 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
         self.addModels('Items', CItemsModel(self))
         self.addObject('btnPrint', CPrintButton(self, u'Печать'))
         self.btnPrint.setShortcut('F6')
+        self.addObject('btnMDLPExchange', QtGui.QPushButton(u'Выполнить обмен с МДЛП', self))
+        self.addObject('mnuMDLPExchange', QtGui.QMenu(self))
+        self.addObject('actSendDocument417', QtGui.QAction(u'Отправить документ по схеме 417', self))
+        self.addObject('actSendDocument4152', QtGui.QAction(u'Отправить документ по схеме 415-2', self))
+        self.mnuMDLPExchange.addAction(self.actSendDocument4152)
+        self.mnuMDLPExchange.addAction(self.actSendDocument417)
+        self.btnMDLPExchange.setMenu(self.mnuMDLPExchange)
+        self.btnMDLPExchange.setEnabled(QtGui.qApp.isMdlpEnabled())
+        # self.actSendDocument4152.setEnabled(False)
+        # self.actSendDocument417.setEnabled(False)
         self.setupUi(self)
         self.cmbReceiverPerson.setSpecialityIndependents()
         self.cmbSupplierOrg.setFilter('isSupplier = 1')
+        self.cmbFinance.setTable('rbFinance')
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setupDirtyCather()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
+        self.buttonBox.addButton(self.btnMDLPExchange, QtGui.QDialogButtonBox.ActionRole)
         templates = getPrintTemplates(self.getStockContext())
         if not templates:
             self.btnPrint.setId(-1)
@@ -73,7 +87,9 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
         self.requisitionIdList = None
         self.protectFields()
         self.tblItems.setItemDelegateForColumn(CItemsModel.priceColumnIndex, CPriceItemDelegate(self.tblItems))
-
+        self.tblItems.enableColsMove()
+        self.cmbContractType.setItems()
+        self.connection = None
 
     def protectFields(self, isEditable=True):
         self.edtInvoiceNumber.setReadOnly(isEditable)
@@ -249,6 +265,7 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
         setLineEditValue(self.edtSupplierOrgPerson, record, 'supplierOrgPerson')
         setRBComboBoxValue( self.cmbSupplier,       record, 'receiver_id')
         setRBComboBoxValue( self.cmbSupplierPerson, record, 'receiverPerson_id')
+        self.cmbContractType.setCurrentIndex(forceInt(record.value('contractType')))
         self.modelItems.loadItems(self.itemId())
         self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
         self.setIsDirty(False)
@@ -269,6 +286,7 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
             record.setValue('stockMotion_id', toVariant(record.value('id')))
             record.setValue('id', toVariant(None))
             record.setValue('type', toVariant(self.stockDocumentType))
+        record.setValue('contractType', toVariant(self.cmbContractType.currentIndex()))
         return record
 
 
@@ -299,6 +317,7 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
 
         fndict = self.modelItems.getDataAsFNDict()
         preciseGroupDict = {}
+        masterId = None
         for item in requisitionItems:
             masterId = forceRef(item.value('master_id'))
             nomenclatureId = forceRef(item.value('nomenclature_id'))
@@ -415,10 +434,55 @@ class CStockSupplierRefundEditDialog(CStockMotionBaseDialog, CStockMotionItemsCo
     def on_modelItems_dataChanged(self,  topLeftIndex, bottomRightIndex):
         self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
 
+    def on_mnuMDLPExchange_aboutToShow(self):
+        self.actSendDocument4152.setEnabled(QtGui.qApp.isMdlpEnabled() and bool(self.tblItems.model().items()))
+        self.actSendDocument417.setEnabled(QtGui.qApp.isMdlpEnabled() and bool(self.tblItems.model().items()))
+
+    def getConnection(self):
+        if self.connection is None:
+            self.connection = CMdlpConnection()
+        return self.connection
+
+    @pyqtSignature('')
+    def on_actSendDocument4152_triggered(self):
+        self.save()
+        docNum = unicode(self.edtNumber.text())
+        docDate = self.edtDate.date()
+        sgtins = self.modelItems.getSgtins()
+        supplierOrgId = self.cmbSupplierOrg.value()
+        supplierMdlpId = getIdentification('Organisation', supplierOrgId, 'urn:mdlp:anyId', raiseIfNonFound=True)
+        receiverId = self.cmbReceiver.value()
+        receiverMdlpId = getIdentification('OrgStructure', receiverId, 'urn:mdlp:anyId', raiseIfNonFound=True)
+        sourceType = self.cmbFinance.value()
+        contractType = self.cmbContractType.currentIndex()
+        # with CLogger(self, u'Обмен с МДЛП') as logger:
+        #     QtGui.qApp.call(self,
+        #                     iiroMoveProcess,
+        #                     (logger, self._id, self.getConnection(), supplierMdlpId, receiverMdlpId, docNum, docDate,
+        #                      sgtins, sgtins, CMdplExchangePurpose.iiroMoveOrder,
+        #                      sourceType, contractType))
+
+    @pyqtSignature('')
+    def on_actSendDocument417_triggered(self):
+        self.save()
+        docNum = unicode(self.edtNumber.text())
+        docDate = self.edtDate.date()
+        sgtins = self.modelItems.getSgtins()
+        supplierOrgId = self.cmbSupplierOrg.value()
+        supplierMdlpId = getIdentification('Organisation', supplierOrgId, 'urn:mdlp:anyId', raiseIfNonFound=True)
+        receiverId = self.cmbReceiver.value()
+        receiverMdlpId = getIdentification('OrgStructure', receiverId, 'urn:mdlp:anyId', raiseIfNonFound=True)
+        # with CLogger(self, u'Обмен с МДЛП') as logger:
+        #     QtGui.qApp.call(self,
+        #                     iiroMoveProcess,
+        #                     (logger, self._id, self.getConnection(), supplierMdlpId,
+        #                      receiverMdlpId, docNum, docDate, sgtins, sgtins, CMdplExchangePurpose.iiroMoveOrder)
+        #                     )
+
 
 class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
-    priceColumnIndex = 7
-    existsColumnIndex = 9
+    priceColumnIndex = 8
+    existsColumnIndex = 10
 
     class CSumCol(CFloatInDocTableCol):
         def _toString(self, value):
@@ -441,13 +505,20 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
 
     def __init__(self, parent, showExists=False):
         CNomenclatureItemsBaseModel.__init__(self, parent)
-        self.supplierId = None #parent.cmbSupplier.value()
+
+        isMdlpEnabled = QtGui.qApp.isMdlpEnabled()
+
+        self.supplierId = None  # parent.cmbSupplier.value()
+
+        self.addCol(CInDocTableCol(u'Код третичной упаковки', 'sscc', 18, readOnly=not isMdlpEnabled))
+        self.addCol(CInDocTableCol(u'Код вторичной упаковки', 'sgtin', 50, readOnly=not isMdlpEnabled))
+
         self._nomenclatureColumn = self.CLocNomenclatureCol(u'ЛСиИМН', 'nomenclature_id', 50, self.supplierId, showFields = CRBComboBox.showName)
         self._unitColumn = CRBInDocTableCol(u'Ед.Учета', 'unit_id', 12, 'rbUnit', addNone=False).setReadOnly()
         self.addCol(self._nomenclatureColumn)
         self.addCol(CInDocTableCol( u'Серия', 'batch', 16).setReadOnly(True))
         self.addCol(CDateInDocTableCol( u'Годен до', 'shelfTime', 12, canBeEmpty=True).setReadOnly())
-        self.addCol(CRBInDocTableCol(u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
+        # self.addCol(CRBInDocTableCol(u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
         self.addCol(CRBInDocTableCol(u'Вид медицинской помощи', 'medicalAidKind_id', 15, 'rbMedicalAidKind').setReadOnly())
         self.addCol(getStockMotionItemQuantityColumn(u'Кол-во', 'qnt', 12).setReadOnly(False))
         self.addCol(self._unitColumn)
@@ -590,3 +661,9 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
                 ndict[nomenclatureId]=ndict.get(nomenclatureId, 0) + forceDouble(item.value('qnt'))
         return result
 
+    def getSgtins(self):
+        sgtins = set()
+        for item in self.items():
+            sgtin = forceString(item.value('sgtin'))
+            sgtins.add(sgtin)
+        return list(sgtins)

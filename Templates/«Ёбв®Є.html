@@ -1,0 +1,214 @@
+<?xml version="1.0"?> 
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+
+{: setPageSize('A4') }{: setOrientation('P') }{: setLeftMargin(0) }{: setTopMargin(0.0) }{: setRightMargin(8) }{: setBottomMargin(0.0) }
+<!--Главный скрипт-->
+{: dialogPrintHeader = dialogs.dialBool(u"Печать шапки документа", u"Первичная печать (печатать шапку документа до периодов)", True)}
+{: printHeader = dialogPrintHeader.getVar()}
+{: date1 = tempInvalid.periods[-1].begDatePermit if len(tempInvalid.periods) else None}
+{: date2 = tempInvalid.periods[-1].endDatePermit if len(tempInvalid.periods) else None}
+{: numberPermit = tempInvalid.periods[-1].numberPermit if len(tempInvalid.periods) else None}
+{: uhod = (tempInvalid.reason.code == "09")}
+{if: uhod}
+{: relations = range(len(client.relations))}
+{for: (i, rel) in enumerate(client.relations)}
+{: relations[i] = rel.other.fullName + ", " + rel.otherRole}
+{end:}
+{: dialogPersons = dialogs.dialMultiList(u"Выберите родственников (не более 2), за которыми осуществляется уход", relations)}
+{: personNumbers = dialogPersons.getVar()}
+{: person1 = client.relations[personNumbers[0]].other if personNumbers and len(personNumbers) else None}
+{: person2 = client.relations[personNumbers[1]].other if personNumbers and len(personNumbers) > 1 else None}
+{: rel1_name = client.relations[personNumbers[0]].otherRole if personNumbers and len(personNumbers) else None}
+{if: rel1_name == u"Мать"}
+{: rel1 = "38"}
+{elif: rel1_name == u"Отец"}
+{: rel1 = "39"}
+{elif: rel1_name == u"Опекун"}
+{: rel1 = "40"}
+{elif: rel1_name == u"Попечитель"}
+{: rel1 = "41"}
+{else:}
+{: rel1 = "42"}
+{end:}
+{: rel2_name = client.relations[personNumbers[1]].otherRole if personNumbers and len(personNumbers) > 1 else None}
+{if: rel2_name == u"Мать"}
+{: rel2 = "38"}
+{elif: rel2_name == u"Отец"}
+{: rel2 = "39"}
+{elif: rel2_name == u"Опекун"}
+{: rel2 = "40"}
+{elif: rel2_name == u"Попечитель"}
+{: rel2 = "41"}
+{else:}
+{: rel2 = "42"}
+{end:}
+{else:}
+{: person1 = None}
+{: person2 = None}
+{: rel1 = None}
+{: rel2 = None}
+{end:}
+{if: len(tempInvalid.periods)}
+{: periodstrs = []}
+{for: (i, period) in enumerate(tempInvalid.periods)}
+{if: i < 3}
+{: periodstrs = periodstrs + ["%d: %s - %s"%(i, period.begDate.date.toString("dd.MM.yyyy"), period.endDate.date.toString("dd.MM.yyyy")) ,]}
+{end:}
+{end:}
+{: dialogPeriods = dialogs.dialMultiList(u"Впечатывать периоды:", periodstrs)} 
+{: periodNumbers = dialogPeriods.getVar()}
+{else:}
+{: periodNumbers = []}
+{end:}
+{: dialogOrg = dialogs.dialBool(u"Выводить организацию или подразделение?", u"Выводить данные об ЛПУ по базовому подразделению", False)}
+{: printOrgStructure = (dialogOrg.getVar() == True); }
+{: organisation = currentOrganisation.title if not printOrgStructure else currentOrgStructure.name}
+{: organisation = organisation.upper()}
+<!--удаляем из названия организации символы '",.-: -->
+{for: letter in ".,-:'\""}
+{: organisation = organisation.replace(letter, "")}
+{end:}
+{: address = currentOrganisation.address if not printOrgStructure else currentOrgStructure.address}
+{: address = address.upper()}
+<!--удаляем из адреса символы '",.-: -->
+{for: letter in ".,:'\""}
+{: address = address.replace(letter, "")}
+{end:} 
+{: address = address.replace("-", " ")}
+{: address = address.replace(u"ПР ", "") } 
+{: address = address.replace(u"УЛ ", "") } 
+{: address = address.replace(u" Д ", " ") } 
+{: OGRN = currentOrganisation.OGRN if not isDuplicate else " "}
+{: date = tempInvalid.date if isDuplicate else currentDate}
+{: lastName = client.lastName.upper()}
+{: firstName = client.firstName.upper()}
+{: patrName = client.patrName.upper()}
+{: placeWork = tempInvalid.duplicatePlaceWork if (isDuplicate and tempInvalid.duplicateReason.code == "1") else tempInvalid.placeWork}
+{: placeWork = placeWork.upper()}
+{: sovmestit = (tempInvalid.busyness == 2 or (isDuplicate and tempInvalid.duplicateReason.code == "1"))}
+{: number = tempInvalid.number if isDuplicate else ""}
+
+{def: shortn(person)}
+{: result = person.lastName + " " + (person.firstName[0] if len(person.firstName) else "") + " " + (person.patrName[0] if len(person.patrName) else "")}
+{: result = result.upper()}
+{: return result} 
+{end:}
+<!--приступить к работе: -->
+{if: len(tempInvalid.periods) and tempInvalid.periods[-1].result.code == "1"}
+{: pristupDate = tempInvalid.periods[-1].endDate.date.addDays(1)}
+{else:}
+{: pristupDate = None} 
+{end:}
+{if: tempInvalid.prev}
+{: prev_number = tempInvalid.prev.number}
+{else:}
+{: prev_number = " "}
+{end:}
+<!--Печатать корешок -->
+{: dialogKoreshok = dialogs.dialBool(u"Печать корешка", u"Печатать корешок листа нетрудоспособности", True)}
+{: printKoreshok = dialogKoreshok.getVar()}
+<!--Расстояние между буквами:-->
+{: L=11.3385}
+{def: writeText(x, y, s)}
+{for: i,c in enumerate(s)}
+<text x="{x+i*L}" y="{y}" textLength="{L}">{c}</text>
+{end:}
+{end:}
+{def: writeTextMM(x, y, s)}
+{: writeText(x*72/25.4, y*72/25.4, s)}
+{end:}
+<!--Конец главного скрипта-->
+<svg xmlns="http://www.w3.org/2000/svg"
+xmlns:xlink="http://www.w3.org/1999/xlink"
+width="210mm"
+height="297mm"
+viewBox="0 0 595 842"
+version="1.2"
+baseProfile="tiny">
+<g transform="translate(45,50), rotate(-0.3)" style="font-family:'Courier'; font-size:15">
+<image x="-350" y="0" width="100%" height="100%" xlink:href="vut_List.jpg"/>
+</g>
+<g transform="translate(3,12)" style="font-family:'Courier New'; font-size:11">
+<!-- было: transform="translate(50,50) " style="font-family:'Courier'; font-size:15" -->
+{if: printHeader}
+<!--Галочки -->
+{: writeTextMM(67-1, 10-1, " " if (not isDuplicate and not tempInvalid.prev) else "")}
+{: writeTextMM(67-1, 15-1, " " if isDuplicate else "")}
+<!-- пред. номер -->
+{: writeTextMM(102, 12, prev_number[:14]) }
+<!--Название организации-->
+{: writeTextMM(53.5, 18, organisation[:38])}
+<!--Адрес организации -->
+{: writeTextMM(53.5, 25, address[:38]) }
+<!--Дата выдачи -->
+
+{: writeTextMM(109, 32, OGRN[:15]) }
+<!--ФИО пациента -->
+{: writeTextMM(53.5, 39.5, lastName) }
+{: writeTextMM(53.5, 45.0, firstName) }
+{: writeTextMM(53.5, 51.5, patrName) }
+<!--Дата рождения пациента -->
+{: writeTextMM(9, 60, "%.2d"%client.birthDate.date.day()) }
+{: writeTextMM(19, 60, "%.2d"%client.birthDate.date.month()) }
+{: writeTextMM(29, 60, "%.4d"%client.birthDate.date.year()) }
+{: writeTextMM(58, 59, " " if client.sexCode == 1 else "") }
+{: writeTextMM(66, 59, " " if client.sexCode == 2 else "") }
+
+<!--Место работы пациента -->
+
+{: writeTextMM(22, 74, " " if tempInvalid.busyness == 1 and not sovmestit else "") }
+{: writeTextMM(54, 74, " " if sovmestit else "") }
+{: writeTextMM(78, 74, tempInvalid.number[:12]  if (not isDuplicate) else tempInvalid.duplicateNumber[:12]) }
+{: writeTextMM(155, 74, (" " if tempInvalid.busyness == 3 and not sovmestit else "")) }
+{if: str(date1) != ""}
+<!--Дата и номер путевки -->
+{: writeTextMM(14, 81.5, "%.2d"%date1.date.day() if date1 else '')}
+{: writeTextMM(24, 81.5, "%.2d"%date1.date.month() if date1 else '') }
+{: writeTextMM(34, 81.5, "%.4d"%date1.date.year() if date1 else '') }
+{: writeTextMM(58, 81.5, "%.2d"%date2.date.day() if date2 else '')}
+{: writeTextMM(68, 81.5, "%.2d"%date2.date.month() if date2 else '') }
+{: writeTextMM(78, 81.5, "%.4d"%date2.date.year() if date2 else '') }
+{: writeTextMM(102, 81.5, numberPermit[:6] if numberPermit else '') }
+{end:}
+<!--Родственники -->
+{: writeTextMM(14, 89, "%.2d"%person1.ageTuple[3] if person1 else "")}
+{: writeTextMM(21, 89, "%.2d"%(person1.ageTuple[2]%12) if person1 else "")}
+{: writeTextMM(38, 89, rel1[:2] if person1 else "")}
+{: writeTextMM(50, 89, person1.fullName[:39].upper() if person1 else "") }
+{: writeTextMM(14, 94, "%.2d"%person2.ageTuple[3] if person2 else "")}
+{: writeTextMM(21, 94, "%.2d"%(person2.ageTuple[2]%12) if person2 else "")}
+{: writeTextMM(38, 94, rel2[:2] if person2 else "")}
+{: writeTextMM(50, 94, person2.fullName[:39].upper() if person2 else "") }
+{end:}
+<!--Период 1 -->
+
+<!--Период 2 -->
+
+<!--Период 3 -->
+
+<!--Приступить к работе с -->
+
+<!--Корешок -->
+{if: printKoreshok} 
+<!--Галочки и предыдущий номер -->
+{: writeTextMM(67-1, 253-1, " " if (not isDuplicate and not tempInvalid.prev) else "")}
+{: writeTextMM(67-1, 258-1, " " if isDuplicate else "")}
+{: writeTextMM(102, 257, prev_number[:14]) }
+<!--ФИО -->
+{: writeTextMM(13.5, 261, lastName) }
+{: writeTextMM(13.5, 267, firstName) }
+{: writeTextMM(13.5, 273, patrName) }
+<!--Место работы -->
+
+{: writeTextMM(23, 288, (" " if tempInvalid.busyness == 1 and not sovmestit else "")) }
+{: writeTextMM(55, 289, (" " if sovmestit else "")) }
+{: writeTextMM(78, 289, tempInvalid.number[:12]  if (not isDuplicate) else tempInvalid.duplicateNumber[:12]) }
+<!-- ФИО врача -->
+
+<!-- № истории болезни и дата выдачи -->
+
+
+{end:}
+</g>
+</svg> 

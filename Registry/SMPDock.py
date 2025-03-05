@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,10 +12,11 @@
 ##
 #############################################################################
 
+import urlparse
+import requests
+
 from PyQt4 import QtSql
 from PyQt4.QtCore import *
-
-from collections import namedtuple
 
 from library.JsonRpc.client   import CJsonRpcClent
 from library.Utils            import *
@@ -35,10 +36,9 @@ class CSMPDockWidget(CDockWidget):
         CDockWidget.__init__(self, parent)
         self.setWindowTitle(u'СМП')
         self.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)
-        self.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
+        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.content = None
         self.contentPreferences = {}
-        self.connect(QtGui.qApp, QtCore.SIGNAL('dbConnectionChanged(bool)'), self.onConnectionChanged)
 
 
     def loadPreferences(self, preferences):
@@ -51,13 +51,26 @@ class CSMPDockWidget(CDockWidget):
     def savePreferences(self):
         result = CDockWidget.savePreferences(self)
         self.updateContentPreferences()
-        setPref(result,'content',self.contentPreferences)
+        setPref(result, 'content', self.contentPreferences)
         return result
 
 
     def updateContentPreferences(self):
         if isinstance(self.content, CPreferencesMixin):
             self.contentPreferences = self.content.savePreferences()
+
+
+    def showEvent(self, event):
+        self.connect(QtGui.qApp, QtCore.SIGNAL('dbConnectionChanged(bool)'), self.onConnectionChanged)
+        if QtGui.qApp.db and QtGui.qApp.userId and not isinstance(self.content, CSMPDockContent):
+            self.onDBConnected()
+        self.emit(SIGNAL('visibilityChanged(QDockWidget*, bool)'), self, True)
+
+
+    def closeEvent(self, event):
+        self.disconnect(QtGui.qApp, QtCore.SIGNAL('dbConnectionChanged(bool)'), self.onConnectionChanged)
+        self.onDBDisconnected()
+        self.emit(SIGNAL('visibilityChanged(QDockWidget*, bool)'), self, False)
 
 
     def onConnectionChanged(self, value):
@@ -83,13 +96,14 @@ class CSMPDockWidget(CDockWidget):
         if self.content:
             self.updateContentPreferences()
             self.content.setParent(None)
+            if hasattr(self.content, 'refreshTimer'):
+                self.content.refreshTimer.stop()
             self.content.deleteLater()
         self.content = QtGui.QLabel(u'необходимо\nподключение\nк базе данных', self)
         self.content.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.content.setDisabled(True)
         self.setWidget(self.content)
         self.emit(SIGNAL('contentDestroyed(QDockWidget*)'), self)
-
 
 
 class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerPreferencesMixin):
@@ -111,10 +125,10 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             column(True,  u'Имя',              u"callInfo.name"), 
             column(True,  u'Отчество',         u"callInfo.patronymic"),
             column(True,  u'Вызов загружен ',  u"DATE_FORMAT(eventItem.createDateTime, '%d.%m.%y %H:%i')"),
-            column(True,  u'Подтверждение получения', u"case eventItem.updEvent when 0 then 'Нет подтверждения' when 1 then 'Подтверждение отправлено' end"), 
+            column(True,  u'Подтверждение получения', u"case when eventItem.updEvent = 0 then 'Нет подтверждения' when eventItem.updEvent = 1 and callInfo.Type <> 2 then 'Подтверждение отправлено' when eventItem.isDone = 0 and eventItem.updEvent = 1 and callInfo.Type = 2 then 'Нет подтверждения' when eventItem.isDone = 1 and eventItem.updEvent = 1 and callInfo.Type = 2 then 'Подтверждение отправлено' end"),
             column(True,  u'Сообщение',        u"eventItem.note"), 
             column(True,  u'ФИО передавшего вызов', u"eventItem.transferUser"), 
-            column(True,  u'Тип вызова',       u"case callInfo.Type when 0 then 'НМП' when 1 then '03' end"), 
+            column(True,  u'Тип вызова',       u"case callInfo.Type when 0 then 'НМП' when 1 then '03' when 2 then 'Активное посещение врача' end"),
             column(False, u'Пол',              u"callInfo.sex"), 
             column(False, u'Лет',              u"callInfo.ageYears"), 
             column(False, u'Месяцев',          u"callInfo.ageMonths"), 
@@ -143,8 +157,12 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             column(False, u'rId',              u"eventItem.rId"), 
             column(False, u'updEvent',         u"eventItem.updEvent"), 
             column(False, u'OMS_CODE',         u"callInfo.OMS_CODE"), 
-            column(False, u'idCallNumber',     u"callInfo.idCallNumber"), 
-            column(False, u'Type',             u"callInfo.Type")
+            column(False, u'idCallNumber',     u"callInfo.idCallNumber"),
+            column(False, u'Номер вызова',     u"callInfo.idCallNumber"),
+            column(False, u'Type',             u"callInfo.Type"),
+            column(False, u'Информация',       u"callInfo.active_visit_item_info"),
+            column(False, u'eventitem_id',     u"eventItem.id"),
+            column(False, u'idCallEventType',  u"idCallEventType"),
         ]
         
         self.addComboBoxItems(self.cmbEventType, u"select id, Name from smp_sprcalleventtype")
@@ -158,7 +176,6 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         
         for index, column in enumerate(self.columns):
             self.tblCallInfo.setColumnHidden(index, not column.show)
-            
         self.refreshTimer = QTimer()
         self.refreshTimer.timeout.connect(self.getNewEvents)
         self.refreshTimer.start(1000 * 60)
@@ -166,15 +183,20 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         
         self.addEventDialog = CSMPAddEventDialog(self)
         self.addComboBoxItems(self.addEventDialog.cmbEventType, u"select id, Name from smp_sprcalleventtype where eventAccess = 1 and isDeleted = 0")
-            
+
+        self.addEventDialogDoctorCome = CSMPAddEventDialog(self)
+        self.addComboBoxItems(self.addEventDialogDoctorCome.cmbEventType, u"select id, Name from smp_sprcalleventtype WHERE id = 66 OR id = 77")
+
+
     def tblCallInfoContextMenuEvent(self, event):
         self.menu = QtGui.QMenu(self)
         findClient = QtGui.QAction(u'Найти в картотеке', self)
         self.menu.addAction(findClient)
-        findClient.triggered.connect(lambda: self.findClient(event))
+        findClient.triggered.connect(self.findClient)
         self.menu.popup(QtGui.QCursor.pos())
 
-    def findClient(self, event):
+
+    def findClient(self):
         currentRow = self.tblCallInfo.currentRow()
         app = QtGui.qApp
         mainWindow = app.mainWindow
@@ -196,6 +218,7 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
                                       u'Для поиска необходимо открыть окно картотеки!',
                                       QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
 
+
     def addComboBoxItems(self, comboBox, sql):
         query = QtGui.qApp.db.query(sql)
         while query.next():
@@ -203,15 +226,24 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             name = query.value(1).toString()
             comboBox.addItem(name, id)
 
+
     def updateCallList(self):
         
         sql = u"""
             select %s
             from smp_callinfo as callInfo
                 left join smp_eventitem as eventItem on eventItem.idCallNumber = callInfo.idCallNumber
+                    AND eventItem.id =
+                    (
+                        SELECT MAX(ss.id)
+                        FROM smp_eventitem ss
+                        WHERE
+                                ss.idCallNumber = eventItem.idCallNumber
+                            AND (CASE WHEN ss.rId <> 0 THEN 1 ELSE 0 END) = (CASE WHEN eventItem.rId <> 0 THEN 1 ELSE 0 END)
+                    )
                 left join smp_sprcalleventtype as eventType on eventType.id = eventItem.idCallEventType
         """ % ', '.join(u"%s as `%s`" % (column.sql, column.caption) for column in self.columns)
-        
+
         where = []
         
         where.append(u"callInfo.callDate = '%s'" % str(self.calDate.selectedDate().toString('yyyy-MM-dd')))
@@ -223,6 +255,8 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             typeList.append(0)
         if self.chb03.isChecked():
             typeList.append(1)
+        if self.chbDoctorCome.isChecked():
+            typeList.append(2)
         if typeList:
             where.append(u"callInfo.Type in (%s)" % ','.join(str(type) for type in typeList))
             
@@ -237,7 +271,8 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         self.modelCallInfo.setQuery(sql)
         self.tblCallInfo.show()
         self.tblCallInfo.resizeColumnsToContents()
-        
+
+
     def updateCalendarDates(self):
         self.calDate.setDateTextFormat(QDate(), QtGui.QTextCharFormat())
         db = QtGui.qApp.db
@@ -258,6 +293,8 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             typeList.append(0)
         if self.chb03.isChecked():
             typeList.append(1)
+        if self.chbDoctorCome.isChecked():
+            typeList.append(2)
         if typeList:
             where.append(u"callInfo.Type in (%s)" % ','.join(str(type) for type in typeList))
             
@@ -275,7 +312,8 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         while query.next():
             date = query.value(0).toDate()
             self.calDate.setDateTextFormat(date, bold)
-        
+
+
     def canUpdEvent(self, record):
         rId = record.value(u'rId')
         if not rId or rId.isNull():
@@ -287,24 +325,32 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         if not updEvent or updEvent.isNull() or updEvent.toInt()[0] != 0:
             return False
         return True
-        
+
+
     def canAddEvent(self, record):
         type = record.value(u'Type')
-        if not type or type.isNull() or type.toInt()[0] != 0:
+        #if not type or type.isNull() or type.toInt()[0] != 0:
+        if not type or type.isNull() or type.toInt()[0] not in [0, 2]:
             return False
         updEvent = record.value(u'updEvent')
         if not updEvent or updEvent.isNull() or updEvent.toInt()[0] == 0:
             return False
+        idCallEventType = record.value(u'idCallEventType')
+        if idCallEventType and not idCallEventType.isNull() and type.toInt()[0] in [0, 2] and idCallEventType.toInt()[0] != 1:
+            return False
         return True
-        
+
+
     def selectionChanged(self, current = QModelIndex(), previous = QModelIndex()):
+        self.btnAddEvent.setText(u'Результат вызова')
+
         if not current.isValid():
             self.txtCallInfo.clear()
             self.btnUpdEvent.setEnabled(False)
             self.btnAddEvent.setEnabled(False)
             self.btnPrintCallInfo.setEnabled(False)
             return
-            
+
         record = self.modelCallInfo.record(current.row())
         
         self.btnUpdEvent.setEnabled(self.canUpdEvent(record))
@@ -317,7 +363,16 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
                 return u''
             else:
                 return u'<div><b>%s:</b> %s</div>' % (name, forceString(value))
-                
+
+        def formatField_for_information(name):
+            value = record.value(name)
+            if value.isNull() or len(forceString(value).strip()) == 0:
+                return u''
+            else:
+                text = forceString(value)
+                text = text.replace("\n", "<br>")
+                return u'<div>%s</div>' % (text)
+
         text = u'''<style> 
             .header {
                 font: bold large; 
@@ -347,6 +402,7 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         text += u'<hr>'
 
         text += u'<div class="header">Вызов</div>'
+        text += formatField(u'Номер вызова')
         text += formatField(u'Дата вызова')
         text += formatField(u'Время приёма вызова')
         text += formatField(u'Время окончания приёма вызова')
@@ -372,30 +428,65 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         text += formatField(u'Этаж')
         text += formatField(u'Ориентиры')
         text += formatField(u'Телефон')
+
+        type_rec = record.value(u'Type')
+        if type_rec and not type_rec.isNull() and type_rec.toInt()[0] == 2:
+            text += u'<hr>'
+            text += u'<div class="header">Сводная информация по вызову</div>'
+            text += formatField_for_information(u'Информация')
+            self.btnAddEvent.setText(u'Статус вызова')
+
         text += u'<hr>'
         
         self.txtCallInfo.setText(text)
-        
+
+
     def getNewEvents(self):
         if (QtGui.qApp.isBusyReconnect == 1):
             return
-        sql = u"""select callInfo.callDate 
+
+        # Сначала вызовы СМП Активное посещение врача
+        sql = u"""  select MAX(callInfo.callDate)
+                    from smp_callinfo as callInfo
+                    inner join smp_eventitem as eventItem on eventItem.idCallNumber = callInfo.idCallNumber
+                    WHERE 
+                            callInfo.Type = 2 
+                        AND eventItem.rId = 0 
+                        AND 
+                        (
+                            eventItem.idCallEventType IS NULL
+                            OR 
+                            eventItem.idCallEventType = 1
+                        )
+                    and callInfo.OMS_CODE = '%s'""" % str(self.cmbOrganisation.itemData(self.cmbOrganisation.currentIndex()).toString())
+        if QtGui.qApp.db:
+            query = QtGui.qApp.db.query(sql)
+            if query.first() and not query.value(0).toDate().isNull():
+                date = query.value(0).toDate()
+                self.lblNewEventsAct.setText(u'Новые вызовы СМП (Активн.) (дата: <a href="setdate:%s">%s</a>)' % (date.toString(Qt.ISODate), forceString(date)))
+                self.setTabNotification(True)
+            else:
+                self.lblNewEventsAct.setText(u"")
+                self.setTabNotification(False)
+
+        # Затем вызовы СМП, которые НМП
+        sql = u"""select MAX(callInfo.callDate)
                   from smp_callinfo as callInfo
                   inner join smp_eventitem as eventItem on eventItem.idCallNumber = callInfo.idCallNumber
                   where eventItem.updEvent = 0 and callInfo.Type = 0
-                    and callInfo.OMS_CODE = '%s'
-                  order by callInfo.callDate
-                  limit 1""" % str(self.cmbOrganisation.itemData(self.cmbOrganisation.currentIndex()).toString())
+                    AND eventItem.id = (SELECT MAX(ei.id) FROM smp_eventitem ei WHERE ei.idCallNumber = callInfo.idCallNumber AND ei.rId > 0)
+                    and callInfo.OMS_CODE = '%s'""" % str(self.cmbOrganisation.itemData(self.cmbOrganisation.currentIndex()).toString())
         if QtGui.qApp.db:
             query = QtGui.qApp.db.query(sql)
-            if query.first():
+            if query.first() and not query.value(0).toDate().isNull():
                 date = query.value(0).toDate()
                 self.lblNewEvents.setText(u'Новые вызовы СМП (дата: <a href="setdate:%s">%s</a>)' % (date.toString(Qt.ISODate), forceString(date)))
                 self.setTabNotification(True)
             else:
                 self.lblNewEvents.setText(u"")
                 self.setTabNotification(False)
-    
+
+
     def setTabNotification(self, hasNewEvents):
         tabBar, tabIndex = QtGui.qApp.mainWindow.findDockTab(self.parent())
         if tabBar:
@@ -406,36 +497,57 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
                 tabBar.setTabTextColor(tabIndex, Qt.black)
                 tabBar.setTabIcon(tabIndex, QtGui.QIcon())
 
+
+    def getMyFIO(self):
+        db = QtGui.qApp.db
+        query = db.query("select CONCAT_WS(' ', p.lastName, p.firstName, p.patrName) AS fio from Person p where p.id = {0} LIMIT 1;".format(QtGui.qApp.userInfo._userId))
+        if query.next():
+            return forceString(query.value(0))
+        return str()
+
+
     @QtCore.pyqtSignature('bool')
     def on_chbEventType_toggled(self, checked):
         self.cmbEventType.setEnabled(checked)
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('bool')
     def on_chb03_toggled(self, checked):
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('bool')
     def on_chbNMP_toggled(self, checked):
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
+    @QtCore.pyqtSignature('bool')
+    def on_chbDoctorCome_toggled(self, checked):
+        self.updateCalendarDates()
+        self.updateCallList()
+
+
     @QtCore.pyqtSignature('')
     def on_calDate_selectionChanged(self):
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('int')
     def on_cmbEventType_currentIndexChanged(self, index):
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('int')
     def on_cmbOrganisation_currentIndexChanged(self, index):
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('')
     def on_btnUpdEvent_clicked(self):
         record = self.modelCallInfo.record(self.selectionModelCallInfo.currentIndex().row())
@@ -443,11 +555,10 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             return
 
         rId = record.value(u'rId').toInt()[0]
-        operFIO = QtGui.qApp.userInfo.name()
-        
+
         clent = CJsonRpcClent("http://%s/smp/handler.php" % QtGui.qApp.preferences.dbServerName)
         try:
-            result = clent.call('updEvent', {'id': rId, 'operFIO': operFIO})
+            result = clent.call('updEvent', {'id': rId, 'operFIO': self.getMyFIO()[:25]})
             if result:
                 QtGui.QMessageBox.information(self, u'Информация', u'Подтверждение отправлено', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
                 self.updateCalendarDates()
@@ -455,45 +566,103 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
                 self.getNewEvents()
             else:
                 QtGui.QMessageBox.critical(self, u'Ошибка', u'Подтверждение не отправлено', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
-        except Exception, e:
+        except Exception as e:
             QtGui.QMessageBox.critical(self, u'Ошибка', unicode(e), QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
-            
+
+
     @QtCore.pyqtSignature('')
     def on_btnRefresh_clicked(self):
         self.updateCalendarDates()
         self.updateCallList()
-        
+
+
     @QtCore.pyqtSignature('')
     def on_btnAddEvent_clicked(self):
         record = self.modelCallInfo.record(self.selectionModelCallInfo.currentIndex().row())
         if not self.canAddEvent(record):
             return
-        if self.addEventDialog.exec_() == QtGui.QDialog.Accepted:
-            eventTypeId = self.addEventDialog.eventTypeId()
-            note = self.addEventDialog.note()
-            lpuCode = forceString(record.value(u'OMS_CODE'))
-            idCallNumber = record.value(u'idCallNumber').toLongLong()[0]
-            operFIO = QtGui.qApp.userInfo.name()
-            clent = CJsonRpcClent("http://%s/smp/handler.php" % QtGui.qApp.preferences.dbServerName)
-            try:
-                result = clent.call('addEvent', {'lpuCode': lpuCode, 'idCallNumber': idCallNumber, 'note': note, 'idCallEventType': eventTypeId, 'operFIO': operFIO})
-                if result == -1:
-                    QtGui.QMessageBox.critical(self, u'Ошибка', u'Результат вызова не отправлен (-1)', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+
+        type_rec = record.value(u'Type').toInt()[0]
+        if type_rec == 0:
+            if self.addEventDialog.exec_() == QtGui.QDialog.Accepted:
+                eventTypeId = self.addEventDialog.eventTypeId()
+                note = self.addEventDialog.note()
+                lpuCode = forceString(record.value(u'OMS_CODE'))
+                idCallNumber = record.value(u'idCallNumber').toLongLong()[0]
+                operFIO = QtGui.qApp.userInfo.name()
+                clent = CJsonRpcClent("http://%s/smp/handler.php" % QtGui.qApp.preferences.dbServerName)
+                try:
+                    result = clent.call('addEvent', {'lpuCode': lpuCode, 'idCallNumber': idCallNumber, 'note': note, 'idCallEventType': eventTypeId, 'operFIO': operFIO})
+                    if result == -1:
+                        QtGui.QMessageBox.critical(self, u'Ошибка', u'Результат вызова не отправлен (-1)', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+                    else:
+                        QtGui.QMessageBox.information(self, u'Информация', u'Данные отправлены успешно', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+                        self.updateCallList()
+                        self.updateCalendarDates()
+                        self.getNewEvents()
+                except Exception as e:
+                    QtGui.QMessageBox.critical(self, u'Ошибка', unicode(e), QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+        elif type_rec == 2:
+            if self.addEventDialogDoctorCome.exec_() == QtGui.QDialog.Accepted:
+                result_id = self.addEventDialogDoctorCome.eventTypeId()
+                if result_id == 66:
+                    result_id = 0
+                elif result_id == 77:
+                    result_id = 1
+                description = self.addEventDialogDoctorCome.note()
+                eventitem_id = record.value(u'eventitem_id').toInt()[0]
+                person_id = QtGui.qApp.userId
+
+                servicesURL = forceString(QtGui.qApp._globalPreferences.get('23:servicesURL'))
+                if servicesURL:
+                    servicesURL = servicesURL.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
+                    servicesURL = urlparse.urljoin(servicesURL, '/api/local/services/smp')
+                    try:
+                        params_str = "eventitem_id=%s&person_id=%s&result_id=%s" % (str(eventitem_id), str(person_id), str(result_id))
+                        if result_id == 1:
+                            params_str = params_str + "&description=%s" % description
+                        response = requests.get(servicesURL + '/accept_or_reject_active_visit?%s' % params_str)
+                        content = json.loads(response.content.decode('utf-8'))
+                        if content[u'status'] == 1:
+                            QtGui.QMessageBox.information(self, u'Информация', u'Данные отправлены успешно',
+                                                          QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+                            self.updateCallList()
+                            self.updateCalendarDates()
+                            self.getNewEvents()
+                        else:
+                            QtGui.QMessageBox().critical(self, u'Ошибка',
+                                                         u'Произошла ошибка: ' + unicode(content[u'message']),
+                                                         QtGui.QMessageBox.Close)
+                    except Exception as e:
+                        res = QtGui.QMessageBox().warning(self,
+                                                          u'Внимание!',
+                                                          u"Не удалось установить соединение с сервером сервисов, проверьте доступность сервера сервисов с текущего рабочего места\n показать детали?",
+                                                          QtGui.QMessageBox.Ok | QtGui.QMessageBox.Close,
+                                                          QtGui.QMessageBox.Close)
+                        if res == QtGui.QMessageBox.Ok:
+                            QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(e),
+                                                         QtGui.QMessageBox.Close)
                 else:
-                    QtGui.QMessageBox.information(self, u'Информация', u'Данные отправлены успешно', QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
-                    self.updateCallList()
-                    self.updateCalendarDates()
-                    self.getNewEvents()
-            except Exception, e:
-                QtGui.QMessageBox.critical(self, u'Ошибка', unicode(e), QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
-                
+                    QtGui.QMessageBox().critical(self, u'Ошибка', u'Не указан адрес сервера сервисов в глобальных настройках МИС', QtGui.QMessageBox.Close)
+
+
     @QtCore.pyqtSignature('QString')
     def on_lblNewEvents_linkActivated(self, link):
+        self.common_linkActivated(link)
+
+
+    @QtCore.pyqtSignature('QString')
+    def on_lblNewEventsAct_linkActivated(self, link):
+        self.common_linkActivated(link)
+
+
+    def common_linkActivated(self, link):
         link = str(link)
         if link[:8] == u"setdate:":
             date = QDate.fromString(link[8:], Qt.ISODate)
             self.calDate.setSelectedDate(date)
-            
+
+
     @QtCore.pyqtSignature('')
     def on_btnPrintCallInfo_clicked(self):
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)

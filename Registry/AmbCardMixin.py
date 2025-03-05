@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,13 +15,13 @@
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import (
     Qt,
-    #                            pyqtSignature,
     SIGNAL,
     QDate,
     QAbstractTableModel,
     QModelIndex,
     QVariant,
-    QString, QObject,
+    QString,
+    QObject
 )
 
 from Events.AmbulatoryCardDialog import CAmbulatoryCardDialog
@@ -30,7 +30,7 @@ from library.DialogBase           import CConstructHelperMixin
 from library.ICDUtils             import getMKBName
 from library.PrintInfo            import CInfoContext, CDateInfo
 from library.PrintTemplates       import applyTemplate, getPrintAction
-from library.Utils                import forceDate, forceInt, forceRef, forceString, pyDate, toVariant
+from library.Utils                import forceDate, forceBool, forceInt, forceRef, forceString, pyDate, toVariant
 
 from Events.Action                import CAction
 from Events.ActionProperty        import CActionPropertyValueTypeRegistry
@@ -54,7 +54,7 @@ from Registry.RegistryTable       import ( CAmbCardDiagnosticsAccompDiagnosticsT
                                            CAmbCardVisitTableModel,
                                            CAmbCardAttachedFilesTableModel,
                                          )
-from Registry.Utils               import getClientBanner, getClientInfo2, getClientSexAge
+from Registry.Utils               import getClientBanner, getClientInfo2, getClientSexAge, canChangePayStatusAdditional, canEditOtherpeopleAction
 from Reports.ClientDiagnostics         import CClientDiagnostics
 from Reports.ClientVisits         import CClientVisits
 
@@ -208,39 +208,30 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.addModels('AmbCardSurveyActionProperties', CActionPropertiesTableModel(self))
         self.addModels('AmbCardMonitoring', CAmbCardMonitoringModel(self))
 
-        self.addObject('actDiagnosticsShowPropertyHistory',  QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actDiagnosticsShowPropertiesHistory',QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actStatusShowPropertyHistory',       QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actStatusShowPropertiesHistory',     QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actDiagnosticShowPropertyHistory',   QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actDiagnosticShowPropertiesHistory', QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actCureShowPropertyHistory',         QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actCureShowPropertiesHistory',       QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actMiscShowPropertyHistory',         QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actMiscShowPropertiesHistory',       QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actSurveyShowPropertyHistory',       QtGui.QAction(u'Показать журнал значения свойства', self))
-        self.addObject('actSurveyShowPropertiesHistory',     QtGui.QAction(u'Показать журнал значения свойств...', self))
-        self.addObject('actAmbCardPrintEvents',              QtGui.QAction(u'Напечатать список диагнозов', self))
-        self.addObject('actAmbCardPrintVisits',              QtGui.QAction(u'Напечатать список визитов', self))
-        self.addObject('actAmbCardPrintVisitsHistory',       getPrintAction(self, 'visitsHistory', u'Напечатать визиты по шаблону', False))
-        self.addObject('actAmbCardPrintCaseHistory', getPrintAction(self, 'caseHistory', u'Напечатать карту'))
-        self.addObject('mnuAmbCardPrintEvents', QtGui.QMenu(self))
-        self.mnuAmbCardPrintEvents.addAction(self.actAmbCardPrintEvents)
+        self.addObject('actDiagnosticsShowPropertyHistory',   QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actDiagnosticsShowPropertiesHistory', QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actStatusShowPropertyHistory',        QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actStatusShowPropertiesHistory',      QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actDiagnosticShowPropertyHistory',    QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actDiagnosticShowPropertiesHistory',  QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actCureShowPropertyHistory',          QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actCureShowPropertiesHistory',        QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actMiscShowPropertyHistory',          QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actMiscShowPropertiesHistory',        QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actSurveyShowPropertyHistory',        QtGui.QAction(u'Показать журнал значения свойства', self))
+        self.addObject('actSurveyShowPropertiesHistory',      QtGui.QAction(u'Показать журнал значения свойств...', self))
+        self.addObject('actAmbCardPrintEvents',               QtGui.QAction(u'Напечатать список диагнозов', self))
+        self.addObject('actAmbCardPrintVisits',               QtGui.QAction(u'Напечатать список визитов', self))
+        self.addObject('actAmbCardPrintVisitsHistory',        getPrintAction(self, 'visitsHistory', u'Напечатать визиты по шаблону', False))
+        self.addObject('actAmbCardPrintCaseHistory',          getPrintAction(self, 'caseHistory', u'Напечатать карту'))
 #        self.connect(self.actAmbCardPrintEvents, SIGNAL('triggered()'), self.on_actAmbCardPrintEvents_triggered)
-        self.mnuAmbCardPrintEvents.addAction(self.actAmbCardPrintCaseHistory)
-        self.addObject('actAmbCardActionTypeGroupId',        QtGui.QAction(u'Фильтровать по группе Действия', self))
-        self.addObject('actAmbCardPrintAction',         getPrintAction(self, None, u'Напечатать по шаблону', False))
-        self.addObject('actAmbCardPrintActions',        QtGui.QAction(u'Напечатать список мероприятий', self))
-        self.addObject('actAmbCardPrintActionsHistory', getPrintAction(self, 'actionsHistory', u'Напечатать карту мероприятий', False))
-        self.addObject('actAmbCardCopyAction',               QtGui.QAction(u'Копировать свойства', self))
+        self.addObject('actAmbCardActionTypeGroupId',         QtGui.QAction(u'Фильтровать по группе Действия', self))
+        self.addObject('actAmbCardOpenActionELMK',            QtGui.QAction(u'Открыть обращение ЭЛМК', self))
+        self.addObject('actAmbCardPrintAction',               getPrintAction(self, None, u'Напечатать по шаблону', False))
+        self.addObject('actAmbCardPrintActions',              QtGui.QAction(u'Напечатать список мероприятий', self))
+        self.addObject('actAmbCardPrintActionsHistory',       getPrintAction(self, 'actionsHistory', u'Напечатать карту мероприятий', False))
+        self.addObject('actAmbCardCopyAction',                QtGui.QAction(u'Копировать свойства', self))
 #        self.actAmbCardPrintActions.setShortcut('F6')
-        self.addObject('mnuAmbCardPrintActions', QtGui.QMenu(self))
-        self.mnuAmbCardPrintActions.addAction(self.actAmbCardPrintAction)
-        self.mnuAmbCardPrintActions.addAction(self.actAmbCardPrintActions)
-        self.mnuAmbCardPrintActions.addAction(self.actAmbCardPrintActionsHistory)
-        self.addObject('mnuAmbCardPrintVisits',             QtGui.QMenu(self))
-        self.mnuAmbCardPrintVisits.addAction(self.actAmbCardPrintVisits)
-        self.mnuAmbCardPrintVisits.addAction(self.actAmbCardPrintVisitsHistory)
 #        self.connect(self.actAmbCardPrintVisits, SIGNAL('triggered()'), self.on_actAmbCardPrintVisits_triggered)
 
 
@@ -264,7 +255,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.setModels(self.tblAmbCardSurveyActionProperties, self.modelAmbCardSurveyActionProperties, self.selectionModelAmbCardSurveyActionProperties)
         self.setModels(self.tblAmbCardMonitoring, self.modelAmbCardMonitoring, self.selectionModelAmbCardMonitoring)
 
-        self.tblAmbCardStatusActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
+        self.tblAmbCardStatusActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction, self.actAmbCardOpenActionELMK])
         self.tblAmbCardDiagnosticActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
         self.tblAmbCardCureActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
         self.tblAmbCardMiscActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
@@ -282,7 +273,6 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.cmbAmbCardSurveyGroup.setServiceType(CActionServiceType.survey)
 
         self.tabAmbCardContent.setCurrentIndex(0)
-        self.btnAmbCardPrint.setMenu(self.mnuAmbCardPrintEvents)
 
         self.cmbAmbCardVisitSpeciality.setTable('rbSpeciality')
         self.cmbAmbCardVisitScene.setTable('rbScene')
@@ -329,30 +319,37 @@ class CAmbCardMixin(CConstructHelperMixin):
         # self.connect(self.cmdAmbCardVisitButtonBox, SIGNAL('clicked(QAbstractButton*)'), self.on_cmdAmbCardVisitButtonBox_clicked)
         # self.connect(self.tabAmbCardContent, SIGNAL('currentChanged(int)'), self.on_tabAmbCardContent_currentChanged)
 
-        self.setSortable(self.tblAmbCardDiagnostics, self.on_cmdAmbCardDiagnosticsButtonBox_apply)
-        self.setSortable(self.tblAmbCardDiagnosticsVisits, self.updateAmbCardDiagnosticsInfo)
-        self.setSortable(self.tblAmbCardDiagnosticsAccompDiagnostics, self.updateAmbCardDiagnosticsInfo)
-        # self.setSortable(self.tblAmbCardStatusActions, self.on_cmdAmbCardStatusButtonBox_apply)
-        self.setSortable(self.tblAmbCardStatusActionProperties, lambda: \
-            self.updateAmbCardPropertiesTable(self.tblAmbCardStatusActions.currentIndex(),
-                                              self.tblAmbCardStatusActionProperties))
-        # self.setSortable(self.tblAmbCardDiagnosticActions, self.on_cmdAmbCardDiagnosticButtonBox_apply)
-        self.setSortable(self.tblAmbCardDiagnosticActionProperties, lambda: \
-            self.updateAmbCardPropertiesTable(self.tblAmbCardDiagnosticActions.currentIndex(),
-                                              self.tblAmbCardDiagnosticActionProperties))
-        # self.setSortable(self.tblAmbCardCureActions, self.on_cmdAmbCardCureButtonBox_apply)
-        self.setSortable(self.tblAmbCardCureActionProperties, lambda: \
-            self.updateAmbCardPropertiesTable(self.tblAmbCardCureActions.currentIndex(),
-                                              self.tblAmbCardCureActionProperties))
-        # self.setSortable(self.tblAmbCardMiscActions, self.on_cmdAmbCardMiscButtonBox_apply)
-        self.setSortable(self.tblAmbCardMiscActionProperties, lambda: \
-            self.updateAmbCardPropertiesTable(self.tblAmbCardMiscActions.currentIndex(),
-                                              self.tblAmbCardMiscActionProperties))
-        self.setSortable(self.tblAmbCardVisits, self.on_cmdAmbCardVisitButtonBox_apply)
+        # словарь для создания пунктов меню для btnActionPrint
+        self.action_menu_dict = {
+            'Events': [self.actAmbCardPrintEvents, self.actAmbCardPrintCaseHistory],
+            'Actions': [self.actAmbCardPrintAction, self.actAmbCardPrintActions, self.actAmbCardPrintActionsHistory],
+            'Visits': [self.actAmbCardPrintVisits, self.actAmbCardPrintVisitsHistory]
+        }
 
-        self.setSortable(self.tblAmbCardDiagnosticsActions, self.updateAmbCardDiagnosticsInfo)
-        self.setSortable(self.tblAmbCardDiagnosticsActionProperties, lambda: self.updateAmbCardPropertiesTable(
-            self.tblAmbCardDiagnosticsActions.currentIndex(), self.tblAmbCardDiagnosticsActionProperties))
+        # self.setSortable(self.tblAmbCardDiagnostics, self.on_cmdAmbCardDiagnosticsButtonBox_apply)
+        # self.setSortable(self.tblAmbCardDiagnosticsVisits, self.updateAmbCardDiagnosticsInfo)
+        # self.setSortable(self.tblAmbCardDiagnosticsAccompDiagnostics, self.updateAmbCardDiagnosticsInfo)
+        # # self.setSortable(self.tblAmbCardStatusActions, self.on_cmdAmbCardStatusButtonBox_apply)
+        # self.setSortable(self.tblAmbCardStatusActionProperties, lambda: \
+        #     self.updateAmbCardPropertiesTable(self.tblAmbCardStatusActions.currentIndex(),
+        #                                       self.tblAmbCardStatusActionProperties))
+        # # self.setSortable(self.tblAmbCardDiagnosticActions, self.on_cmdAmbCardDiagnosticButtonBox_apply)
+        # self.setSortable(self.tblAmbCardDiagnosticActionProperties, lambda: \
+        #     self.updateAmbCardPropertiesTable(self.tblAmbCardDiagnosticActions.currentIndex(),
+        #                                       self.tblAmbCardDiagnosticActionProperties))
+        # # self.setSortable(self.tblAmbCardCureActions, self.on_cmdAmbCardCureButtonBox_apply)
+        # self.setSortable(self.tblAmbCardCureActionProperties, lambda: \
+        #     self.updateAmbCardPropertiesTable(self.tblAmbCardCureActions.currentIndex(),
+        #                                       self.tblAmbCardCureActionProperties))
+        # # self.setSortable(self.tblAmbCardMiscActions, self.on_cmdAmbCardMiscButtonBox_apply)
+        # self.setSortable(self.tblAmbCardMiscActionProperties, lambda: \
+        #     self.updateAmbCardPropertiesTable(self.tblAmbCardMiscActions.currentIndex(),
+        #                                       self.tblAmbCardMiscActionProperties))
+        # self.setSortable(self.tblAmbCardVisits, self.on_cmdAmbCardVisitButtonBox_apply)
+        #
+        # self.setSortable(self.tblAmbCardDiagnosticsActions, self.updateAmbCardDiagnosticsInfo)
+        # self.setSortable(self.tblAmbCardDiagnosticsActionProperties, lambda: self.updateAmbCardPropertiesTable(
+        #     self.tblAmbCardDiagnosticsActions.currentIndex(), self.tblAmbCardDiagnosticsActionProperties))
         
     def onHeaderAmbCardVisitsColClicked(self, column):
         self.tblAmbCardVisits.setOrder(column)
@@ -441,11 +438,72 @@ class CAmbCardMixin(CConstructHelperMixin):
                     self.ambCardComboBoxFilters['visitEventTypeId'] = forceString(record.value('visitEventTypeId'))
 
 
+    def editF090Action(self, actionId):
+        from F090.F090EditDialog import CF090EditDialog
+        newActionId = None
+        dialog = CF090EditDialog(self)
+        try:
+            dialog.load(actionId)
+            dialog.protectWidgetFromEdit(True)
+            dialog.exec_()
+            if dialog.isBtnSave:
+                newActionId = dialog.itemId()
+            else:
+                pass
+        finally:
+            dialog.deleteLater()
+        return newActionId
+
+
+    def getF090ActionTypeId(self, actionId):
+        if actionId:
+            db = QtGui.qApp.db
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            queryTable = tableAction.innerJoin(tableActionType,
+                                               tableActionType['id'].eq(tableAction['actionType_id']))
+            cond = [tableAction['id'].eq(actionId),
+                    tableAction['deleted'].eq(0),
+                    tableActionType['deleted'].eq(0),
+                    tableActionType['flatCode'].like(u'%medical_examination'),
+                    ]
+            record = db.getRecordEx(queryTable, [tableActionType['id'].alias('actionTypeId')], cond)
+            return forceRef(record.value('actionTypeId')) if record else None
+        return None
+
+
+    # @pyqtSignature('')
+    def on_actAmbCardOpenActionELMK_triggered(self):
+        index = self.tblAmbCardStatusActions.currentIndex()
+        if index:
+            row = index.row()
+            record = index.model().getRecordByRow(row) if row >= 0 else None
+            actionId = forceRef(record.value('id')) if record else None
+            if actionId and canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(
+                    self, actionId):
+                if forceBool(self.getF090ActionTypeId(actionId)):
+                    if self.editF090Action(actionId):
+                        self.on_cmdAmbCardStatusButtonBox_apply()
+
+
     # @pyqtSignature('')
     def on_tblAmbCardStatusActions_popupMenuAboutToShow(self):
         notEmpty = self.modelAmbCardStatusActions.rowCount() > 0
         self.actAmbCardActionTypeGroupId.setEnabled(notEmpty)
         self.actAmbCardCopyAction.setEnabled(notEmpty)
+        self.actAmbCardOpenActionELMK.setVisible(False)
+        index = self.tblAmbCardStatusActions.currentIndex()
+        if index:
+            row = index.row()
+            record = index.model().getRecordByRow(row) if row >= 0 else None
+            actionId = forceRef(record.value('id')) if record else None
+            if actionId and forceBool(self.getF090ActionTypeId(actionId)):
+                self.actAmbCardOpenActionELMK.setVisible(True)
+                if canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(self, actionId):
+                    self.actAmbCardOpenActionELMK.setEnabled(notEmpty)
+                else:
+                    self.actAmbCardOpenActionELMK.setEnabled(False)
+                self.actAmbCardCopyAction.setEnabled(False)
 
 
     # @pyqtSignature('')
@@ -1179,18 +1237,25 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.edtAmbCardDiagnosticsBegDate.setDate(QDate())
         self.edtAmbCardDiagnosticsEndDate.setDate(QDate())
         self.cmbAmbCardDiagnosticsPurpose.setValue(None)
-        if self.ambCardComboBoxFilters.has_key('eventPurposeId'):
-            self.cmbAmbCardDiagnosticsPurpose.setFilter(u'id in (%s)'%self.ambCardComboBoxFilters['eventPurposeId'])
+
+        eventPurposeId = self.ambCardComboBoxFilters.get('eventPurposeId', '')
+        specialityId = self.ambCardComboBoxFilters.get('specialityId', '')
+        personId = self.ambCardComboBoxFilters.get('personId', '')
+
+        if eventPurposeId:
+            self.cmbAmbCardDiagnosticsPurpose.setFilter(u'id in (%s)' % eventPurposeId)
         else:
             self.cmbAmbCardDiagnosticsPurpose.setFilter(u'')
+
         self.cmbAmbCardDiagnosticsSpeciality.setValue(None)
-        if self.ambCardComboBoxFilters.has_key('specialityId'):
-            self.cmbAmbCardDiagnosticsSpeciality.setFilter(u'id in (%s)'%self.ambCardComboBoxFilters['specialityId'])
+        if specialityId:
+            self.cmbAmbCardDiagnosticsSpeciality.setFilter(u'id in (%s)' % specialityId)
         else:
             self.cmbAmbCardDiagnosticsSpeciality.setFilter(u'')
+
         self.cmbAmbCardDiagnosticsPerson.setValue(None)
-        if self.ambCardComboBoxFilters.has_key('personId'):
-            self.cmbAmbCardDiagnosticsPerson.setFilter(u'vrbPersonWithSpecialityAndPost.id in (%s)'%self.ambCardComboBoxFilters['personId'])
+        if personId:
+            self.cmbAmbCardDiagnosticsPerson.setFilter(u'vrbPersonWithSpecialityAndPost.id in (%s)' % personId)
         else:
             self.cmbAmbCardDiagnosticsPerson.setFilter(u'')
         self.cmbHealthGroup.setValue(None)
@@ -1259,6 +1324,31 @@ class CAmbCardMixin(CConstructHelperMixin):
             tbl.loadPreferencesLoc(tbl.preferencesLocal, action._actionType.id)
         else:
             tbl.model().setAction2(None, None)
+    
+    
+    def updateAmbCardAttachedFiles(self, index, tbl, previous=None):
+        row = index.row()
+        record = index.model().getRecordByRow(row) if row >= 0 else None
+        if record:
+            action = CAction(record=record)
+            if hasattr(QtGui.qApp, 'webDAVInterface'):
+                storageInterface = QtGui.qApp.webDAVInterface
+            else:
+                storageInterface = None
+            tbl.model().setInterface(storageInterface)
+            tbl.model().setTable('Action_FileAttach')
+            tbl.model().loadItems(forceRef(record.value('id')))
+            tbl.resizeColumnsToContents()
+            tbl.resizeRowsToContents()
+            tbl.horizontalHeader().setStretchLastSection(True)
+        else:
+            if hasattr(QtGui.qApp, 'webDAVInterface'):
+                storageInterface = QtGui.qApp.webDAVInterface
+            else:
+                storageInterface = None
+            tbl.model().setInterface(storageInterface)
+            tbl.model().setTable('Action_FileAttach')
+            tbl.model().loadItems(None)
 
 
     def updateAmbCardPrintActionAction(self, index):
@@ -1338,24 +1428,37 @@ class CAmbCardMixin(CConstructHelperMixin):
     # @pyqtSignature('int')
     def on_tabAmbCardContent_currentChanged(self, index):
         if index == 0:
-            self.btnAmbCardPrint.setMenu(self.mnuAmbCardPrintEvents)
+            name_menu_tab = 'Events'
         elif index == 6:
-            self.btnAmbCardPrint.setMenu(self.mnuAmbCardPrintVisits)
+            name_menu_tab = 'Visits'
         else:
-            self.btnAmbCardPrint.setMenu(self.mnuAmbCardPrintActions)
+            name_menu_tab = 'Actions'
+        menu = QtGui.QMenu()
+        for itm in self.action_menu_dict[name_menu_tab]:
+            menu.addAction(itm)
+        self.btnAmbCardPrint.setMenu(menu)
         self.btnAmbCardGraph.setVisible(index == self.tabAmbCardContent.indexOf(self.tabAmbCardSurvey))
         if index == self.tabAmbCardContent.indexOf(self.tabAmbCardVisit):
             if not self.__ambCardVisitIsInitialised:
                 self.on_cmdAmbCardVisitButtonBox_apply()
                 self.__ambCardVisitIsInitialised = True
         elif index == self.tabAmbCardContent.indexOf(self.tabAttachedFiles):
-            clientId = self.currentClientId()
             if not self.__ambCardFilesIsInitialised:
-                self.modelAmbCardFiles.loadItems(clientId)
+                self.modelAmbCardFiles.loadItems(self.currentClientId())
                 self.tblAmbCardAttachedFiles.resetSortIndicator()
                 self.__ambCardFilesIsInitialised = True
         elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardMonitoring):
             self.updateAmbCardMonitoring(self.currentClientId())
+        elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardStatus):
+            self.updateAmbCardPrintActionAction(self.tblAmbCardStatusActions.currentIndex())
+        elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardDiagnostic):
+            self.updateAmbCardPrintActionAction(self.tblAmbCardDiagnosticActions.currentIndex())
+        elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardCure):
+            self.updateAmbCardPrintActionAction(self.tblAmbCardCureActions.currentIndex())
+        elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardMisc):
+            self.updateAmbCardPrintActionAction(self.tblAmbCardMiscActions.currentIndex())
+
+        self.actAmbCardPrintActions.setVisible(index in (1, 2, 3, 4, 8))
 
 
     def updateAmbCardMonitoring(self, clientId):
@@ -1593,8 +1696,17 @@ class CAmbCardMixin(CConstructHelperMixin):
 
 #    @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelAmbCardStatusActions_currentRowChanged(self, current, previous):
-        self.updateAmbCardPropertiesTable(current, self.tblAmbCardStatusActionProperties, previous)
-#        self.updateAmbCardPrintActionAction(current)
+        isF090ActionType = False
+        index = self.tblAmbCardStatusActions.currentIndex()
+        if index:
+            row = index.row()
+            record = index.model().getRecordByRow(row) if row >= 0 else None
+            actionId = forceRef(record.value('id')) if record else None
+            if actionId and forceBool(self.getF090ActionTypeId(actionId)):
+                isF090ActionType = True
+        if not isF090ActionType:
+            self.updateAmbCardPropertiesTable(current, self.tblAmbCardStatusActionProperties, previous)
+        self.updateAmbCardPrintActionAction(current)
 
 
     # @pyqtSignature('')
@@ -1656,7 +1768,7 @@ class CAmbCardMixin(CConstructHelperMixin):
     # @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelAmbCardDiagnosticActions_currentRowChanged(self, current, previous):
         self.updateAmbCardPropertiesTable(current, self.tblAmbCardDiagnosticActionProperties, previous)
-#        self.updateAmbCardPrintActionAction(current)
+        self.updateAmbCardPrintActionAction(current)
 
 
     # @pyqtSignature('')
@@ -1705,7 +1817,7 @@ class CAmbCardMixin(CConstructHelperMixin):
     # @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelAmbCardCureActions_currentRowChanged(self, current, previous):
         self.updateAmbCardPropertiesTable(current, self.tblAmbCardCureActionProperties, previous)
-#        self.updateAmbCardPrintActionAction(current)
+        self.updateAmbCardPrintActionAction(current)
 
 
     # @pyqtSignature('')
@@ -1820,6 +1932,7 @@ class CAmbCardMixin(CConstructHelperMixin):
     # @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelAmbCardMiscActions_currentRowChanged(self, current, previous):
         self.updateAmbCardPropertiesTable(current, self.tblAmbCardMiscActionProperties, previous)
+        self.updateAmbCardPrintActionAction(current)
 
 
     # @pyqtSignature('')

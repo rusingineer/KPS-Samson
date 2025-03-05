@@ -11,7 +11,6 @@
 # условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-import sip
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QDate, pyqtSignature, QVariant, SIGNAL, QAbstractTableModel, QModelIndex
 
@@ -68,6 +67,7 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
         self.addModels('MeasuresCureActionProperties', CActionPropertiesTableModel(self))
         self.addModels('MeasuresMiscActions', CMeasuresActionsCheckTableModel(self))
         self.addModels('MeasuresMiscActionProperties', CActionPropertiesTableModel(self))
+        self.addObject('btnApply', QtGui.QPushButton(u'Применить', self))
         self.addObject('btnPrint', getPrintButton(self, 'surveillancePlanningCard', u'Печать'))
         self.addObject('btnAttachedFiles', CAttachButton(self, u'Прикреплённые файлы'))
         self.btnAttachedFiles.setTable('ProphylaxisPlanning_FileAttach')
@@ -109,6 +109,7 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
         self.tblPlanningSurveillance.addPopupAction(self.actChangeDispanserDate)
         self.connect(self.tblPlanningSurveillance.popupMenu(), SIGNAL('aboutToShow()'), self.on_popupMenu_aboutToShow)
         self.tblControlSurveillance.addPopupDelRow()
+        self.buttonBox.addButton(self.btnApply, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnAttachedFiles, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnSurveillanceRemoved, QtGui.QDialogButtonBox.ActionRole)
@@ -624,9 +625,7 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
                     removeReasonId = dialog.getRemoveReasonId()
                     self.surveillanceRemoved(dialog.getDispanserId(), dialog.getRemoveReasonDate(), removeReasonId)
             finally:
-                dialog.destroy()
-                sip.delete(dialog)
-                del dialog
+                dialog.deleteLater()
         else:
             QtGui.QMessageBox.warning(self,
                                       u'Внимание!',
@@ -689,6 +688,28 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
     @pyqtSignature('')
     def on_btnAttachedFiles_pressed(self):
         self.setFilesList()
+    
+    
+    @pyqtSignature('')
+    def on_btnApply_clicked(self):
+        if self.applyChanges():
+            buttons = QtGui.QMessageBox.Ok
+            messageBox = QtGui.QMessageBox()
+            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            messageBox.setWindowTitle(u'Внимание!')
+            messageBox.setText(u'Данные сохранены')
+            messageBox.setStandardButtons(buttons)
+            messageBox.setDefaultButton(QtGui.QMessageBox.Ok)
+            return messageBox.exec_()
+    
+    
+    def applyChanges(self):
+        if self.saveData():
+            self.lock(self._tableName, self._id)
+            return True
+        else:
+            return False
+            
 
     def setFilesList(self):
         index = self.tblPlanningSurveillance.currentIndex()
@@ -1509,6 +1530,7 @@ class CPlanningSurveillanceModel(CInDocTableModel):
         self.diagnosticGroupRecords = {}
         self.prophylaxisPlanningTypeId = None
         self.MKBs = []
+        self.parentIdToDel = []
         self.clientId = None
         self.clientDeathDate = None
         self.removeDispanserId = None
@@ -1545,6 +1567,10 @@ class CPlanningSurveillanceModel(CInDocTableModel):
         result.setValue('client_id', toVariant(self.clientId))
         result.setValue('takenDate', toVariant(QDate.currentDate()))
         return result
+
+    def removeRow(self, row, parentIndex=QModelIndex()):
+        self.parentIdToDel.append(forceRef(self.items()[row].value('id')))
+        return self.removeRows(row, 1, parentIndex)
 
     def setEventEditor(self, eventEditor):
         self.eventEditor = eventEditor
@@ -1757,11 +1783,19 @@ class CPlanningSurveillanceModel(CInDocTableModel):
             self.saveDependence(idx, id)
             record.controlSurveillance.save(forceRef(record.value('id')))
             record.controlSurveillance.diagnosticSave(self.clientId)
-        filter = [table[masterIdFieldName].eq(masterId),
-                  'NOT (' + table[idFieldName].inlist(idList) + ')']
-        if self._filter:
-            filter.append(self._filter)
-        db.deleteRecord(table, filter)
+
+        if self.parentIdToDel:
+            filter = [table['client_id'].eq(self.clientId),
+                      table['deleted'].eq(0)]
+            if forceRef(masterId):
+                filter.append(table[masterIdFieldName].eq(masterId))
+            filter.append(table[idFieldName].inlist(self.parentIdToDel))
+            filter.append(db.joinOr([table[masterIdFieldName].inlist(self.parentIdToDel),
+                                     table[masterIdFieldName].isNull()]))
+            if self._filter:
+                filter.append(self._filter)
+            db.deleteRecord(table, filter)
+
         if self.removeDispanserId and self.removeReasonDate:
             diagnosisList = updateDiagnosisRecords(self.clientId, self.removeDispanserId, self.removeReasonDate)
             if diagnosisList:
@@ -2658,16 +2692,16 @@ class CMeasuresActionsCheckTableModel(CTableModel):
                 return True
         return CTableModel.setData(self, index, value, role)
 
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return QVariant()
-        row = index.row()
-        column = index.column()
-        id = self._idList[row]
-        if role == Qt.DisplayRole:
-            if column == 0 and id in self.enableIdList:
-                return QVariant(id, forceInt(2) == Qt.Checked)
-        return CTableModel.data(self, index, role)
+    # def data(self, index, role=Qt.DisplayRole):
+    #     if not index.isValid():
+    #         return QVariant()
+    #     row = index.row()
+    #     column = index.column()
+    #     id = self._idList[row]
+    #     if role == Qt.DisplayRole:
+    #         if column == 0 and id in self.enableIdList:
+    #             return QVariant(forceInt(2) == Qt.Checked)
+    #     return CTableModel.data(self, index, role)
 
     def setSelected(self, id, value):
         present = self.isSelected(id)

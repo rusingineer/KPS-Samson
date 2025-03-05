@@ -24,7 +24,6 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.cmbProfileBed.setTable('rbHospitalBedProfile', True)
         self.cmbProfileBed.setShowFields(CRBComboBox.showCodeAndName)
         self.cmbPurpose.setTable('rbEventTypePurpose')
-        self.cmbPurpose.setHeaderVisible(True)
         self.cmbOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
         self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
         self.cmbVidPom.setTable('rbMedicalAidType', True)
@@ -496,9 +495,9 @@ def getCond(params):
     payerId = params.get('payer', None)
     if payerId:
         if dataType == 1:
-            cond.append(u"""CASE WHEN substr(Insurer.area, 1, 2) = '%(defaulRegion)s' AND Insurer.head_id is not null THEN headInsurer.id
-WHEN substr(Insurer.area, 1, 2) = '%(defaulRegion)s' AND Insurer.head_id is null THEN Insurer.id
-WHEN Insurer.id is not null and substr(Insurer.area, 1, 2) <> '%(defaulRegion)s' THEN ContractPayer.id
+            cond.append(u"""CASE WHEN substr(Insurer.area, 1, 2) = '%(defaultRegion)s' AND Insurer.head_id is not null THEN headInsurer.id
+WHEN substr(Insurer.area, 1, 2) = '%(defaultRegion)s' AND Insurer.head_id is null THEN Insurer.id
+WHEN Insurer.id is not null and substr(Insurer.area, 1, 2) <> '%(defaultRegion)s' THEN ContractPayer.id
 ELSE NULL END = {0:d}""".format(payerId))
         else:
             cond.append("Payer.id = {0:d}".format(payerId))

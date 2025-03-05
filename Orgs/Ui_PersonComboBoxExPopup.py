@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Orgs\PersonComboBoxExPopup.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\Orgs\PersonComboBoxExPopup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_PersonComboBoxExPopup(object):
     def setupUi(self, PersonComboBoxExPopup):
         PersonComboBoxExPopup.setObjectName(_fromUtf8("PersonComboBoxExPopup"))
-        PersonComboBoxExPopup.resize(400, 326)
+        PersonComboBoxExPopup.resize(490, 560)
         self.gridlayout = QtGui.QGridLayout(PersonComboBoxExPopup)
         self.gridlayout.setMargin(0)
         self.gridlayout.setSpacing(0)
@@ -40,9 +40,39 @@ class Ui_PersonComboBoxExPopup(object):
         self.vboxlayout.setMargin(4)
         self.vboxlayout.setSpacing(4)
         self.vboxlayout.setObjectName(_fromUtf8("vboxlayout"))
+        self.verticalLayout = QtGui.QVBoxLayout()
+        self.verticalLayout.setSizeConstraint(QtGui.QLayout.SetMaximumSize)
+        self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.tblPerson = CTableView(self.tabList)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.tblPerson.sizePolicy().hasHeightForWidth())
+        self.tblPerson.setSizePolicy(sizePolicy)
         self.tblPerson.setObjectName(_fromUtf8("tblPerson"))
-        self.vboxlayout.addWidget(self.tblPerson)
+        self.verticalLayout.addWidget(self.tblPerson)
+        self.horizontalLayout = QtGui.QHBoxLayout()
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        self.label_fio = QtGui.QLabel(self.tabList)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_fio.sizePolicy().hasHeightForWidth())
+        self.label_fio.setSizePolicy(sizePolicy)
+        self.label_fio.setObjectName(_fromUtf8("label_fio"))
+        self.horizontalLayout.addWidget(self.label_fio)
+        self.edit_fio = QtGui.QLineEdit(self.tabList)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.edit_fio.sizePolicy().hasHeightForWidth())
+        self.edit_fio.setSizePolicy(sizePolicy)
+        self.edit_fio.setAutoFillBackground(False)
+        self.edit_fio.setMaxLength(16777215)
+        self.edit_fio.setObjectName(_fromUtf8("edit_fio"))
+        self.horizontalLayout.addWidget(self.edit_fio)
+        self.verticalLayout.addLayout(self.horizontalLayout)
+        self.vboxlayout.addLayout(self.verticalLayout)
         self.tabWidget.addTab(self.tabList, _fromUtf8(""))
         self.tabSearch = QtGui.QWidget()
         self.tabSearch.setObjectName(_fromUtf8("tabSearch"))
@@ -134,6 +164,7 @@ class Ui_PersonComboBoxExPopup(object):
         self.gridlayout1.addWidget(self.lblTariffCategory, 6, 0, 1, 1)
         self.tabWidget.addTab(self.tabSearch, _fromUtf8(""))
         self.gridlayout.addWidget(self.tabWidget, 0, 0, 1, 1)
+        self.label_fio.setBuddy(self.edit_fio)
         self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
         self.lblSpeciality.setBuddy(self.cmbSpeciality)
         self.lblActivity.setBuddy(self.cmbActivity)
@@ -144,8 +175,7 @@ class Ui_PersonComboBoxExPopup(object):
         self.retranslateUi(PersonComboBoxExPopup)
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(PersonComboBoxExPopup)
-        PersonComboBoxExPopup.setTabOrder(self.tabWidget, self.tblPerson)
-        PersonComboBoxExPopup.setTabOrder(self.tblPerson, self.cmbOrganisation)
+        PersonComboBoxExPopup.setTabOrder(self.tabWidget, self.cmbOrganisation)
         PersonComboBoxExPopup.setTabOrder(self.cmbOrganisation, self.cmbOrgStructure)
         PersonComboBoxExPopup.setTabOrder(self.cmbOrgStructure, self.cmbPost)
         PersonComboBoxExPopup.setTabOrder(self.cmbPost, self.chkSpeciality)
@@ -158,6 +188,7 @@ class Ui_PersonComboBoxExPopup(object):
 
     def retranslateUi(self, PersonComboBoxExPopup):
         PersonComboBoxExPopup.setWindowTitle(_translate("PersonComboBoxExPopup", "Form", None))
+        self.label_fio.setText(_translate("PersonComboBoxExPopup", "ФИО врача ", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabList), _translate("PersonComboBoxExPopup", "Результат поиска", None))
         self.lblOrgStructure.setText(_translate("PersonComboBoxExPopup", "&Подразделение", None))
         self.lblSpeciality.setText(_translate("PersonComboBoxExPopup", "&Специальность", None))

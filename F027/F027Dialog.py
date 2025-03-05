@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -42,7 +42,7 @@ from Events.ActionStatus          import CActionStatus
 from Events.DiagnosisType       import CDiagnosisTypeCol
 from Events.EventEditDialog     import CEventEditDialog, CDiseaseCharacter, CDiseaseStage, CDiseasePhases, CToxicSubstances, getToxicSubstancesIdListByMKB
 from Events.EventInfo             import CCureMethodInfo, CCureTypeInfo, CDiagnosticInfoProxyList, CEventInfo, CEventTypeInfo, CPatientModelInfo, CResultInfo
-from Events.Utils                 import checkDiagnosis, checkIsHandleDiagnosisIsChecked, CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventContext, getEventContextData, getEventDurationRange, getEventMesRequired, getEventName, getEventPeriodEx, getEventPurposeId, getEventResultId, getEventServiceId, getEventSetPerson, getEventShowTime, getHealthGroupFilter, setActionPropertiesColumnVisible, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary, getActionTypeIdListByFlatCode
+from Events.Utils                 import checkDiagnosis, checkIsHandleDiagnosisIsChecked, CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventContext, getEventContextData, getEventDurationRange, getEventMesRequired, getEventName, getEventPeriodEx, getEventPurposeId, getEventResultId, getEventServiceId, getEventSetPerson, getEventShowTime, getHealthGroupFilter, setActionPropertiesColumnVisible, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary, getActionTypeIdListByFlatCode, getEventTypeForm
 from F025.PreF025Dialog           import CPreF025Dialog, CPreF025DagnosticAndActionPresets
 from Orgs.OrgComboBox             import CPolyclinicComboBox
 from Orgs.Orgs                    import selectOrganisation
@@ -51,7 +51,7 @@ from Orgs.PersonInfo              import CPersonInfo
 from Orgs.Utils import getOrganisationShortName, getPersonOrgStructureChiefs, COrgInfo, getPersonChiefs
 from Registry.AmbCardMixin      import getClientActions
 from Registry.Utils               import CClientInfo
-from Users.Rights                 import urAccessF025planner, urAdmin, urEditSubservientPeopleAction, urEditEndDateEvent, urEditOtherpeopleAction, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination, urEditOtherPeopleActionSpecialityOnly
+from Users.Rights                 import urAccessF025planner, urAccessF090planner, urAdmin, urEditSubservientPeopleAction, urEditEndDateEvent, urEditOtherpeopleAction, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination, urEditOtherPeopleActionSpecialityOnly
 
 from F027.Ui_F027                 import Ui_Dialog
 
@@ -246,6 +246,13 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
 # done
 
 
+        for actionsTab in self.getActionsTabsList():
+            self.connect(actionsTab, SIGNAL('APSetPersonIdChanged()'), self.on_APSetPersonIdChanged)
+        self.connect(self.modelActionsSummary, SIGNAL('APSetPersonIdChanged()'), self.on_APSetPersonIdChanged)
+
+
+    # done
+
     def openMainActionInEditor(self):
         oldAction = self.modelAPActionProperties.action
         if oldAction:
@@ -290,14 +297,15 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
 
 
     def destroy(self):
+        CEventEditDialog.deleteLater(self)
         self.tblPreliminaryDiagnostics.setModel(None)
         self.tblFinalDiagnostics.setModel(None)
         self.tblActions.setModel(None)
-        self.tabMisc.destroy()
+        self.tabMisc.deleteLater()
         del self.modelPreliminaryDiagnostics
         del self.modelFinalDiagnostics
         del self.modelActionsSummary
-        self.tabAmbCard.destroy()
+        self.tabAmbCard.deleteLater()
 
 
     def keyPressEvent(self, event):
@@ -321,6 +329,43 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
     def updatePropTable(self, action):
         self.tblActions.model().setAction(action, self.clientId, self.clientSex, self.clientAge, self.eventTypeId)
         self.tblActions.resizeRowsToContents()
+
+
+    def btnRelatedEventHighlight(self):
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tablePWS = db.table('vrbPersonWithSpeciality')
+        tableCreatePWS = db.table('vrbPersonWithSpeciality').alias('CPWS')
+        tableActionType = db.table('ActionType')
+        tableAction = db.table('Action')
+        cols = [tableEvent['id'].alias('eventId')]
+
+        cond = [tableEvent['deleted'].eq(0),
+                tableEventType['context'].like(u'relatedAction%'),
+                tableAction['deleted'].eq(0),
+                tableEvent['client_id'].eq(self.clientId)
+                ]
+
+        table = tableEvent.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
+        table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+        table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
+        table = table.leftJoin(tableCreatePWS, tableCreatePWS['id'].eq(tableAction['createPerson_id']))
+        record = db.getRecordEx(table, cols, cond)
+
+        if record:
+            self.btnRelatedEvent.setStyleSheet("""
+                QPushButton {
+                    background-color: #F28a64;
+                }
+                QPushButton:hover {
+                    background-color: #F6b096;
+                }
+            """)
+        else:
+            self.btnRelatedEvent.setGraphicsEffect(None)
+            self.btnRelatedEvent.setStyleSheet("")
 
 
     @pyqtSignature('')
@@ -479,11 +524,18 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
             eventDate = eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime
         else:
             eventDate = QDate.currentDate()
-        if QtGui.qApp.userHasRight(urAccessF025planner):
+        presentActionTypes = []
+        for item in self.modelActionsSummary.items():
+            actionTypeId = forceString(item.value('actionType_id'))
+            if actionTypeId not in presentActionTypes:
+                presentActionTypes.append(actionTypeId)
+        form = getEventTypeForm(eventTypeId)
+        if (form != u'090' and QtGui.qApp.userHasRight(urAccessF025planner)) or (form == u'090' and QtGui.qApp.userHasAnyRight([urAccessF090planner,])):
             dlg = CPreF025Dialog(self)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
-                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, flagHospitalization, actionTypeIdValue, tissueTypeId)
+                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
+                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -494,7 +546,7 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF025DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue)
+            presets = CPreF025DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             return self._prepare(clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                  presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -649,11 +701,13 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
         def addActionType(actionTypeId, amount, idListActionType, idListActionTypeIPH, actionFinance, idListActionTypeMoving, plannedEndDate):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
-            for tab in self.getActionsTabsList():
+            for iModel, tab in enumerate(self.getActionsTabsList()):
                 model = tab.modelAPActions
                 if actionTypeId in model.actionTypeIdList:
                     if actionTypeId in idListActionType and not actionByNewEvent:
                         model.addRow(actionTypeId, amount)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         # if plannedEndDate:
                         #     record.setValue('directionDate', QVariant(plannedEndDate))
@@ -676,6 +730,8 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
                             record.setValue('finance_id', toVariant(financeId))
                     elif actionTypeId in idListActionTypeIPH:
                         model.addRow(actionTypeId, amount)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         if diagnos:
                             record, action = model.items()[-1]
@@ -683,6 +739,8 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
                     #[self.eventActionFinance, self.receivedFinanceId, orgStructureTransfer, orgStructurePresence, oldBegDate, movingQuoting, personId]
                     elif actionByNewEvent and actionTypeId in idListActionTypeMoving:
                         model.addRow(actionTypeId, amount)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         if actionByNewEvent[0] == 0:
                             record.setValue('finance_id', toVariant(actionByNewEvent[1]))
@@ -699,6 +757,8 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
                             record.setValue('person_id', toVariant(actionByNewEvent[6]))
                     elif (actionByNewEvent and actionTypeId not in idListActionType) or not actionByNewEvent:
                         model.addRow(actionTypeId, amount)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
 
         def disableActionType(actionTypeId):
@@ -848,12 +908,13 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
         self.loadActions()
         self.cmbPatientModel.setEventEditor(self)
         self.createAction()
-
+        self.on_cmbResult_currentIndexChanged()
         self.initFocus()
         self.setIsDirty(False)
         self.blankMovingIdList = []
         self.notSetCmbResult = (False if self.cmbResult.value() else True)
         self.protectClosedEvent()
+        self.btnRelatedEventHighlight()
 
 
 #    def loadEventDiagnostics(self, modelDiagnostics, eventId):
@@ -1554,12 +1615,13 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
         
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
-        data = getEventContextData(self)
-        clientInfo = data['client']
-        idList = getClientActions(clientInfo.id, dict([]), 1)
-        actions = CLocActionInfoList(clientInfo.context, idList, clientInfo.sexCode, clientInfo.ageTuple)
-        data['all_actions'] = actions
-        applyTemplate(self, templateId, data, signAndAttachHandler=None)
+        if self.checkPrintByTemplateAllowed(templateId):
+            data = getEventContextData(self)
+            clientInfo = data['client']
+            idList = getClientActions(clientInfo.id, dict([]), 1)
+            actions = CLocActionInfoList(clientInfo.context, idList, clientInfo.sexCode, clientInfo.ageTuple)
+            data['all_actions'] = actions
+            applyTemplate(self, templateId, data, signAndAttachHandler=None)
 
 
 # # # Actions # # #

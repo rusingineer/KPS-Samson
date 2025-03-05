@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_stock\Events\NomenclatureExpense\ExtendAppointmentNomenclatureDialog.ui'
+# Form implementation generated from reading ui file '/home/aeiklorvy/samson/Events/NomenclatureExpense/ExtendAppointmentNomenclatureDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created by: PyQt4 UI code generator 4.12.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -41,7 +41,7 @@ class Ui_ExtendAppointmentNomenclatureDialog(object):
         self.lblQuantityDay = QtGui.QLabel(ExtendAppointmentNomenclatureDialog)
         self.lblQuantityDay.setObjectName(_fromUtf8("lblQuantityDay"))
         self.gridLayout.addWidget(self.lblQuantityDay, 0, 0, 1, 1)
-        self.edtQuantityDay = QtGui.QSpinBox(ExtendAppointmentNomenclatureDialog)
+        self.edtQuantityDay = CSpinBox(ExtendAppointmentNomenclatureDialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -51,7 +51,7 @@ class Ui_ExtendAppointmentNomenclatureDialog(object):
         self.edtQuantityDay.setProperty("value", 1)
         self.edtQuantityDay.setObjectName(_fromUtf8("edtQuantityDay"))
         self.gridLayout.addWidget(self.edtQuantityDay, 0, 1, 1, 1)
-        self.edtSkipAfterLastDayCourse = QtGui.QSpinBox(ExtendAppointmentNomenclatureDialog)
+        self.edtSkipAfterLastDayCourse = CSpinBox(ExtendAppointmentNomenclatureDialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -80,4 +80,15 @@ class Ui_ExtendAppointmentNomenclatureDialog(object):
         self.chkLastDayCourse.setText(_translate("ExtendAppointmentNomenclatureDialog", "По последнему дню курса", None))
         self.lblSkipAfterLastDayCourse.setText(_translate("ExtendAppointmentNomenclatureDialog", "После последнего дня курса пропустить:", None))
         self.lblQuantityDay.setText(_translate("ExtendAppointmentNomenclatureDialog", "Количество дней:", None))
+
+from library.SpinBox import CSpinBox
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    ExtendAppointmentNomenclatureDialog = QtGui.QDialog()
+    ui = Ui_ExtendAppointmentNomenclatureDialog()
+    ui.setupUi(ExtendAppointmentNomenclatureDialog)
+    ExtendAppointmentNomenclatureDialog.show()
+    sys.exit(app.exec_())
 

@@ -194,7 +194,7 @@ class CProphylaxisPlanningWindow(QtGui.QScrollArea, Ui_ProphylaxisPlanningWindow
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
         if templateId == -1:
-            self.tblProphylaxisPlannings.setReportHeader(u'Журнал отложенной записи')
+            self.tblProphylaxisPlannings.setReportHeader(u'Журнал планирования профилактического наблюдения')
             self.tblProphylaxisPlannings.setReportDescription(self.getProphylaxisPlanningFilterAsText())
             self.tblProphylaxisPlannings.printContent()
             self.tblProphylaxisPlannings.setFocus(Qt.TabFocusReason)

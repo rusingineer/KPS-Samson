@@ -8,6 +8,7 @@ class OriginalOrderIdentification(AbstractObject):
                 """
         self.id = 0  # Long Обязательно Идентификатора заказа в ЛИС
         self.materialId = None  # Long Необязательно Идентификатор исследования (материал)
+        self.resultId = None  # Long Необязательно Идентификатор результата
         self.orderid = ''  # String Обязательно Номер заказа в ЛИС
         self.extId = ''  # String Обязательно Идентификатор заказа в МИС. Должен быть уникальным для каждого заказа
 
@@ -20,6 +21,7 @@ class OriginalOrderIdentification(AbstractObject):
         js = super(OriginalOrderIdentification, self).elementProperties()
         js.extend([("id", "id", int, False, None, True),
                    ("materialId", "materialId", int, False, None, False),
+                   ("resultId", "resultId", int, False, None, False),
                    ("orderid", "orderid", str, False, None, True),
                    ("extId", "extId", str, False, None, True)
                    ])

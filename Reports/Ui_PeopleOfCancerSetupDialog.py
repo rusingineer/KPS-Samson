@@ -1,0 +1,167 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'C:\Users\dev1\PycharmProjects\client_kortis\Reports\PeopleOfCancerSetupDialog.ui'
+#
+# Created by: PyQt4 UI code generator 4.11.4
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+try:
+    _fromUtf8 = QtCore.QString.fromUtf8
+except AttributeError:
+    def _fromUtf8(s):
+        return s
+
+try:
+    _encoding = QtGui.QApplication.UnicodeUTF8
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+except AttributeError:
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig)
+
+class Ui_PeopleOfCancerSetupDialog(object):
+    def setupUi(self, PeopleOfCancerSetupDialog):
+        PeopleOfCancerSetupDialog.setObjectName(_fromUtf8("PeopleOfCancerSetupDialog"))
+        PeopleOfCancerSetupDialog.setWindowModality(QtCore.Qt.ApplicationModal)
+        PeopleOfCancerSetupDialog.resize(497, 484)
+        PeopleOfCancerSetupDialog.setWindowTitle(_fromUtf8(""))
+        PeopleOfCancerSetupDialog.setSizeGripEnabled(True)
+        self.gridlayout = QtGui.QGridLayout(PeopleOfCancerSetupDialog)
+        self.gridlayout.setMargin(4)
+        self.gridlayout.setSpacing(4)
+        self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
+        self.frmAge = QtGui.QFrame(PeopleOfCancerSetupDialog)
+        self.frmAge.setFrameShape(QtGui.QFrame.NoFrame)
+        self.frmAge.setFrameShadow(QtGui.QFrame.Raised)
+        self.frmAge.setObjectName(_fromUtf8("frmAge"))
+        self._2 = QtGui.QHBoxLayout(self.frmAge)
+        self._2.setMargin(0)
+        self._2.setSpacing(4)
+        self._2.setObjectName(_fromUtf8("_2"))
+        self.edtAgeFrom = QtGui.QSpinBox(self.frmAge)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.edtAgeFrom.sizePolicy().hasHeightForWidth())
+        self.edtAgeFrom.setSizePolicy(sizePolicy)
+        self.edtAgeFrom.setMaximum(150)
+        self.edtAgeFrom.setObjectName(_fromUtf8("edtAgeFrom"))
+        self._2.addWidget(self.edtAgeFrom)
+        self.lblAgeTo = QtGui.QLabel(self.frmAge)
+        self.lblAgeTo.setObjectName(_fromUtf8("lblAgeTo"))
+        self._2.addWidget(self.lblAgeTo)
+        self.edtAgeTo = QtGui.QSpinBox(self.frmAge)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.edtAgeTo.sizePolicy().hasHeightForWidth())
+        self.edtAgeTo.setSizePolicy(sizePolicy)
+        self.edtAgeTo.setMaximum(150)
+        self.edtAgeTo.setObjectName(_fromUtf8("edtAgeTo"))
+        self._2.addWidget(self.edtAgeTo)
+        self.lblAgeYears = QtGui.QLabel(self.frmAge)
+        self.lblAgeYears.setObjectName(_fromUtf8("lblAgeYears"))
+        self._2.addWidget(self.lblAgeYears)
+        spacerItem = QtGui.QSpacerItem(21, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self._2.addItem(spacerItem)
+        self.gridlayout.addWidget(self.frmAge, 9, 1, 1, 2)
+        self.lblAge = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblAge.setObjectName(_fromUtf8("lblAge"))
+        self.gridlayout.addWidget(self.lblAge, 9, 0, 1, 1)
+        self.lblScene = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblScene.setObjectName(_fromUtf8("lblScene"))
+        self.gridlayout.addWidget(self.lblScene, 5, 0, 1, 1)
+        self.lblPerson = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblPerson.setObjectName(_fromUtf8("lblPerson"))
+        self.gridlayout.addWidget(self.lblPerson, 7, 0, 1, 1)
+        self.edtBegDate = CDateEdit(PeopleOfCancerSetupDialog)
+        self.edtBegDate.setCalendarPopup(True)
+        self.edtBegDate.setObjectName(_fromUtf8("edtBegDate"))
+        self.gridlayout.addWidget(self.edtBegDate, 0, 1, 1, 1)
+        self.label_2 = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.label_2.setObjectName(_fromUtf8("label_2"))
+        self.gridlayout.addWidget(self.label_2, 8, 0, 1, 1)
+        self.lblBegDate = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblBegDate.setObjectName(_fromUtf8("lblBegDate"))
+        self.gridlayout.addWidget(self.lblBegDate, 0, 0, 1, 1)
+        self.cmbSpeciality = CRBComboBox(PeopleOfCancerSetupDialog)
+        self.cmbSpeciality.setObjectName(_fromUtf8("cmbSpeciality"))
+        self.gridlayout.addWidget(self.cmbSpeciality, 5, 1, 1, 2)
+        spacerItem1 = QtGui.QSpacerItem(129, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridlayout.addItem(spacerItem1, 11, 0, 1, 1)
+        self.lblOrgStructure = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblOrgStructure.setObjectName(_fromUtf8("lblOrgStructure"))
+        self.gridlayout.addWidget(self.lblOrgStructure, 4, 0, 1, 1)
+        spacerItem2 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridlayout.addItem(spacerItem2, 1, 2, 1, 1)
+        self.cmbOrgStructure = COrgStructureComboBox(PeopleOfCancerSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmbOrgStructure.sizePolicy().hasHeightForWidth())
+        self.cmbOrgStructure.setSizePolicy(sizePolicy)
+        self.cmbOrgStructure.setObjectName(_fromUtf8("cmbOrgStructure"))
+        self.gridlayout.addWidget(self.cmbOrgStructure, 4, 1, 1, 2)
+        self.lblEndDate = QtGui.QLabel(PeopleOfCancerSetupDialog)
+        self.lblEndDate.setObjectName(_fromUtf8("lblEndDate"))
+        self.gridlayout.addWidget(self.lblEndDate, 1, 0, 1, 1)
+        self.cmbdn = CRBComboBox(PeopleOfCancerSetupDialog)
+        self.cmbdn.setObjectName(_fromUtf8("cmbdn"))
+        self.gridlayout.addWidget(self.cmbdn, 8, 1, 1, 2)
+        spacerItem3 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridlayout.addItem(spacerItem3, 0, 2, 1, 1)
+        self.cmbPerson = CPersonComboBoxEx(PeopleOfCancerSetupDialog)
+        self.cmbPerson.setObjectName(_fromUtf8("cmbPerson"))
+        self.cmbPerson.addItem(_fromUtf8(""))
+        self.gridlayout.addWidget(self.cmbPerson, 7, 1, 1, 2)
+        self.buttonBox = QtGui.QDialogButtonBox(PeopleOfCancerSetupDialog)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
+        self.gridlayout.addWidget(self.buttonBox, 12, 0, 1, 3)
+        self.edtEndDate = CDateEdit(PeopleOfCancerSetupDialog)
+        self.edtEndDate.setCalendarPopup(True)
+        self.edtEndDate.setObjectName(_fromUtf8("edtEndDate"))
+        self.gridlayout.addWidget(self.edtEndDate, 1, 1, 1, 1)
+        self.chkInvoice = QtGui.QCheckBox(PeopleOfCancerSetupDialog)
+        self.chkInvoice.setChecked(True)
+        self.chkInvoice.setObjectName(_fromUtf8("chkInvoice"))
+        self.gridlayout.addWidget(self.chkInvoice, 10, 0, 1, 1)
+        self.lblAgeTo.setBuddy(self.edtAgeTo)
+        self.lblAgeYears.setBuddy(self.edtAgeTo)
+        self.lblAge.setBuddy(self.edtAgeFrom)
+        self.lblPerson.setBuddy(self.cmbPerson)
+        self.lblBegDate.setBuddy(self.edtBegDate)
+        self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
+        self.lblEndDate.setBuddy(self.edtEndDate)
+
+        self.retranslateUi(PeopleOfCancerSetupDialog)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), PeopleOfCancerSetupDialog.accept)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), PeopleOfCancerSetupDialog.reject)
+        QtCore.QMetaObject.connectSlotsByName(PeopleOfCancerSetupDialog)
+        PeopleOfCancerSetupDialog.setTabOrder(self.edtBegDate, self.edtEndDate)
+        PeopleOfCancerSetupDialog.setTabOrder(self.edtEndDate, self.cmbPerson)
+        PeopleOfCancerSetupDialog.setTabOrder(self.cmbPerson, self.edtAgeFrom)
+        PeopleOfCancerSetupDialog.setTabOrder(self.edtAgeFrom, self.edtAgeTo)
+        PeopleOfCancerSetupDialog.setTabOrder(self.edtAgeTo, self.buttonBox)
+
+    def retranslateUi(self, PeopleOfCancerSetupDialog):
+        self.lblAgeTo.setText(_translate("PeopleOfCancerSetupDialog", "по", None))
+        self.lblAgeYears.setText(_translate("PeopleOfCancerSetupDialog", "лет", None))
+        self.lblAge.setText(_translate("PeopleOfCancerSetupDialog", "Во&зраст с", None))
+        self.lblScene.setText(_translate("PeopleOfCancerSetupDialog", "Специальность", None))
+        self.lblPerson.setText(_translate("PeopleOfCancerSetupDialog", "&Врач", None))
+        self.label_2.setText(_translate("PeopleOfCancerSetupDialog", "Тип диспансерного наблюдения", None))
+        self.lblBegDate.setText(_translate("PeopleOfCancerSetupDialog", "Дата &начала периода", None))
+        self.lblOrgStructure.setText(_translate("PeopleOfCancerSetupDialog", "&Подразделение", None))
+        self.lblEndDate.setText(_translate("PeopleOfCancerSetupDialog", "Дата &окончания периода", None))
+        self.cmbPerson.setItemText(0, _translate("PeopleOfCancerSetupDialog", "Врач", None))
+        self.chkInvoice.setText(_translate("PeopleOfCancerSetupDialog", "Выставлены в счетах (на оплату)", None))
+
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from library.DateEdit import CDateEdit
+from library.crbcombobox import CRBComboBox

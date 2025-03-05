@@ -42,6 +42,7 @@ class CItemEditorDialogWithIdentification(Ui_ItemEditorDialogWithIdentification,
         CItemEditorDialog.postSetupUi(self)
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
 
 
     def setRecord(self, record):
@@ -67,4 +68,8 @@ class CItemEditorDialogWithIdentification(Ui_ItemEditorDialogWithIdentification,
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_modelIdentification_dataChanged(self, topLeft, bottomRight):
         self.setIsDirty()
+        self.modelIdentification.on_dataChanged(topLeft, bottomRight)
 
+    @pyqtSignature('QModelIndex, QModelIndex')
+    def on_selectionModelIdentification_currentChanged(self, current, previous):
+        self.modelIdentification.set_row_system_id(current, previous)

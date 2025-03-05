@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MedServiceProfileDialog</class>
+ <widget class="QDialog" name="MedServiceProfileDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>573</width>
+    <height>348</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_6">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout_4">
+     <item row="0" column="0">
+      <layout class="QGridLayout" name="gridLayout_3">
+       <item row="0" column="0" rowspan="2">
+        <layout class="QGridLayout" name="gridLayout_2">
+         <item row="0" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="lblAddress">
+             <property name="toolTip">
+              <string>Адрес медицинской организации</string>
+             </property>
+             <property name="text">
+              <string>Адрес</string>
+             </property>
+             <property name="buddy">
+              <cstring>edtAddress</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="edtAddress"/>
+           </item>
+          </layout>
+         </item>
+         <item row="1" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout_2">
+           <item>
+            <widget class="QLabel" name="lblContactValue">
+             <property name="toolTip">
+              <string>Телефон медицинской организации</string>
+             </property>
+             <property name="text">
+              <string>Телефон</string>
+             </property>
+             <property name="buddy">
+              <cstring>edtContactValue</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="edtContactValue"/>
+           </item>
+          </layout>
+         </item>
+         <item row="2" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <item>
+            <widget class="QLabel" name="lblSite">
+             <property name="text">
+              <string>Сайт</string>
+             </property>
+             <property name="buddy">
+              <cstring>edtSite</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="edtSite"/>
+           </item>
+          </layout>
+         </item>
+         <item row="3" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,1">
+           <item>
+            <widget class="QLabel" name="lblProfileMedService">
+             <property name="toolTip">
+              <string>Идентификатор составного профиля помощи</string>
+             </property>
+             <property name="text">
+              <string>Профиль помощи</string>
+             </property>
+             <property name="buddy">
+              <cstring>cmbProfileMedService</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="CRBComboBox" name="cmbProfileMedService"/>
+           </item>
+          </layout>
+         </item>
+         <item row="4" column="0">
+          <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="0,1">
+           <item>
+            <widget class="QLabel" name="lblStartDate">
+             <property name="toolTip">
+              <string>Дата начала периода приема направлений по профилю в адрес целевой МО</string>
+             </property>
+             <property name="text">
+              <string>Дата начала</string>
+             </property>
+             <property name="buddy">
+              <cstring>dteStartDate</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="CDateEdit" name="dteStartDate"/>
+           </item>
+          </layout>
+         </item>
+         <item row="5" column="0">
+          <layout class="QGridLayout" name="gridLayout">
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblEndDate">
+             <property name="toolTip">
+              <string>Дата окончания периода приема направлений по профилю в адрес целевой МО</string>
+             </property>
+             <property name="text">
+              <string>Дата окончания</string>
+             </property>
+             <property name="buddy">
+              <cstring>dteEndDate</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="CDateEdit" name="dteEndDate"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblIdlpu">
+             <property name="text">
+              <string>Подразделение</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="COrgStructureComboBox" name="cmbLpuId"/>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLabel" name="lblComment">
+         <property name="toolTip">
+          <string>Комментарий о режиме работы с направленными пациентами</string>
+         </property>
+         <property name="text">
+          <string>Комментарий</string>
+         </property>
+         <property name="buddy">
+          <cstring>editComment</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QPlainTextEdit" name="editComment"/>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0">
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0">
+    <layout class="QGridLayout" name="gridLayout_5">
+     <item row="0" column="0">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="btnOk">
+       <property name="text">
+        <string>Сохранить</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="btnCancel">
+       <property name="text">
+        <string>Отмена</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgStructureComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs.OrgStructComboBoxes</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>edtAddress</tabstop>
+  <tabstop>edtContactValue</tabstop>
+  <tabstop>edtSite</tabstop>
+  <tabstop>cmbProfileMedService</tabstop>
+  <tabstop>dteStartDate</tabstop>
+  <tabstop>dteEndDate</tabstop>
+  <tabstop>editComment</tabstop>
+  <tabstop>btnOk</tabstop>
+  <tabstop>btnCancel</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnCancel</sender>
+   <signal>clicked()</signal>
+   <receiver>MedServiceProfileDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>666</x>
+     <y>276</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>733</x>
+     <y>474</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnOk</sender>
+   <signal>clicked()</signal>
+   <receiver>MedServiceProfileDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>585</x>
+     <y>276</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>596</x>
+     <y>354</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

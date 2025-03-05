@@ -125,11 +125,11 @@ class CMoveOrderNotifications(Ui_moveOrderNotifications, CDialogBase):
                                       )
                 else:
                     sgtinInfo = mapSgtinToSgtinInfos.get(sgtin)
+                    batch = ''
                     if sgtinInfo:
                         batch = sgtinInfo.batch
                         expirationDate = sgtinInfo.expirationDate
                     else:
-                        batch = ''
                         expirationDate = None
                     content.append(CDocumentContentItem(sscc,
                                                         sgtin,

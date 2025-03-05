@@ -14,6 +14,7 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import *
+from PyQt4.QtGui import QTextCharFormat
 
 from library.Utils import *
 
@@ -366,6 +367,9 @@ class CReportTableBase(object):
         self.table.insertRows(row, 1)
         return row
 
+    def appendRows(self, count):
+        self.table.appendRows(count)
+
     def delRow(self, index, row):
         self.table.removeRows(index, row)
         return self.rowCount()
@@ -380,7 +384,7 @@ class CReportTableBase(object):
     def cursorAt(self, row, column):
         return self.cellAt(row, column).lastCursorPosition()
 
-    def setText(self, row, column, text, charFormat=None, blockFormat=None, brushColor=None, fontBold=None):
+    def setText(self, row, column, text, charFormat=None, blockFormat=None, brushColor=None, fontBold=None, size=None):
         cursor = self.cellAt(row, column).firstCursorPosition()
         cursor.movePosition(QtGui.QTextCursor.EndOfBlock, QtGui.QTextCursor.KeepAnchor)
         cursor.removeSelectedText()
@@ -388,10 +392,13 @@ class CReportTableBase(object):
             tableFormat = QtGui.QTextCharFormat()
             tableFormat.setBackground(QtGui.QBrush(brushColor))
             cursor.setBlockCharFormat(tableFormat)
-        if fontBold:
+        if fontBold or size:
             tableFormat = QtGui.QTextCharFormat()
             font = QtGui.QFont()
-            font.setBold(True)
+            if fontBold:
+                font.setBold(True)
+            if size:
+                font.setPointSize(size)
             tableFormat.setFont(font)
             cursor.setBlockCharFormat(tableFormat)
         if blockFormat:
@@ -466,7 +473,7 @@ def autoMergeHeader(table, tableColumns):
     for cell,val in mergeCells.iteritems():
         table.mergeCells(cell[0], cell[1], val[0], val[1])
 
-def createTable(testCursor, columnDescrs, headerRowCount=1, border=1, cellPadding=2, cellSpacing=0, duplicateHeaderOnNewPage=True, leftMargin=None):
+def createTable(testCursor, columnDescrs, headerRowCount=1, border=1, cellPadding=2, cellSpacing=0, duplicateHeaderOnNewPage=True, leftMargin=None, charFormat=True, size=None):
     def widthToTextLenght(width):
         widthSpec = QtGui.QTextLength.VariableLength
         widthVal  = 0
@@ -519,11 +526,29 @@ def createTable(testCursor, columnDescrs, headerRowCount=1, border=1, cellPaddin
             headers = [ headers ]
         row = 0
         for header in headers:
-            if header != '':
+            if header != '' and type(header) is not list:
                 cellCursor = table.cellAt(row, column).firstCursorPosition()
                 cellCursor.setBlockFormat(CReportBase.AlignCenter)
-                cellCursor.setCharFormat(CReportBase.TableHeader)
-                cellCursor.insertText(header)
+                if size:
+                    font = QtGui.QFont()
+                    font.setPointSize(size)
+                    font.setBold(charFormat)
+                    elSigner = QTextCharFormat()
+                    elSigner.setFont(font)
+                    cellCursor.insertText(header, elSigner)
+                else:
+                    cellCursor.setCharFormat(CReportBase.TableHeader)
+                    cellCursor.insertText(header)
+            elif type(header) is list:
+                cellCursor = table.cellAt(row, column).firstCursorPosition()
+                cellCursor.setBlockFormat(CReportBase.AlignCenter)
+                font = QtGui.QFont()
+                font.setBold(header[1])
+                if size:
+                    font.setPointSize(size)
+                elSigner = QTextCharFormat()
+                elSigner.setFont(font)
+                cellCursor.insertText(header[0], elSigner)
             row += 1
         aligns.append(align)
         column += 1

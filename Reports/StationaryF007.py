@@ -508,7 +508,7 @@ class CStationaryF007Moving(CStationaryF007):
                 elif bedsSchedule == 2:
                     cond.append(tableHBSchedule['code'].ne(1))
                 if not isPermanentBed:
-                    cond.append(tableVHospitalBed['isPermanent'].eq(0))
+                    cond.append(tableVHospitalBed['isPermanent'].eq(1))
                 joinOr1 = db.joinAnd([tableVHospitalBed['begDate'].isNotNull(), tableVHospitalBed['endDate'].isNotNull(),
                 tableVHospitalBed['begDate'].lt(endDateTime), tableVHospitalBed['endDate'].gt(begDateTime)])
                 joinOr2 = db.joinOr([tableVHospitalBed['begDate'].isNull(), tableVHospitalBed['begDate'].lt(endDateTime)])
@@ -661,7 +661,7 @@ class CStationaryF007Moving(CStationaryF007):
                     if not noProfileBed:
                         condRepairs.append('vHospitalBed.profile_id IS NOT NULL')
                     if not isPermanentBed:
-                        condRepairs.append(tableVHospitalBed['isPermanent'].eq(0))
+                        condRepairs.append(tableVHospitalBed['isPermanent'].eq(1))
                     if QtGui.qApp.defaultHospitalBedProfileByMoving():
                         condRepairs.append(tableOS['type'].ne(0))
                         condRepairs.append(tableOS['deleted'].eq(0))
@@ -693,7 +693,7 @@ class CStationaryF007Moving(CStationaryF007):
                         if orgStructureIdList:
                             cond.append(tableVHospitalBed['master_id'].inlist(orgStructureIdList))
                         if not isPermanentBed:
-                            cond.append(tableVHospitalBed['isPermanent'].eq(0))
+                            cond.append(tableVHospitalBed['isPermanent'].eq(1))
                         if profile:
                             if noProfileBed and len(profile) > 1:
                                 cond.append(db.joinOr([tableVHospitalBed['profile_id'].inlist(profile), tableVHospitalBed['profile_id'].isNull()]))
@@ -723,8 +723,12 @@ class CStationaryF007Moving(CStationaryF007):
                                 condRepairs.append(tableVHospitalBed['profile_id'].inlist(profile))
                         else:
                             condRepairs.append(tableVHospitalBed['profile_id'].isNull())
-                        self.countBeds = db.getCount(tableVHospitalBedSchedule, countCol='vHospitalBed.id', where=cond)
-                        countBedsRepairs = db.getCount(tableVHospitalBedSchedule.innerJoin(tableInvolution, tableInvolution['master_id'].eq(tableVHospitalBed['id'])), countCol='vHospitalBed.id', where=condRepairs)
+                        query = db.getRecordEx(tableVHospitalBedSchedule, 'SUM(IF(vHospitalBed.relief > 0, vHospitalBed.relief, 1))', where=cond)
+                        self.countBeds = forceInt(query.value(0))
+
+                        query = db.getRecordEx(tableVHospitalBedSchedule.innerJoin(tableInvolution, tableInvolution['master_id'].eq(tableVHospitalBed['id'])), 'SUM(IF(vHospitalBed.relief > 0, vHospitalBed.relief, 1))', where=condRepairs)
+                        countBedsRepairs = forceInt(query.value(0))
+
                         if row:
                            table.setText(row, 2, self.countBeds)
                            table.setText(row, 3, countBedsRepairs)
@@ -742,6 +746,7 @@ class CStationaryF007Moving(CStationaryF007):
                              tableAP['deleted'].eq(0),
                              tableActionType['deleted'].eq(0),
                              tableClient['deleted'].eq(0),
+                             tableOSHB['deleted'].eq(0),
                              tableAP['action_id'].eq(tableAction['id'])
                            ]
                     queryTable = tableActionType.innerJoin(tableAction, tableActionType['id'].eq(tableAction['actionType_id']))
@@ -778,6 +783,8 @@ class CStationaryF007Moving(CStationaryF007):
                         cond.append(tableHBSchedule['code'].eq(1))
                     elif bedsSchedule == 2:
                         cond.append(tableHBSchedule['code'].ne(1))
+                    if not isPermanentBed:
+                        cond.append(tableOSHB['isPermanent'].eq(1))
                     if flagCurrent:
                         cond.append(db.joinOr([tableAction['begDate'].isNull(), tableAction['begDate'].lt(endDateTime)]))
                         cond.append(db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].ge(endDateTime)]))
@@ -980,7 +987,9 @@ class CStationaryF007Moving(CStationaryF007):
                         cond.append(tableHBSchedule['code'].eq(1))
                     elif bedsSchedule == 2:
                         cond.append(tableHBSchedule['code'].ne(1))
-                    stmt = db.selectStmt(tableVHospitalBedSchedule, u'COUNT(vHospitalBed.id) AS bedsAll, SUM(IF(vHospitalBed.sex = 1, 1, 0)) AS bedsMen, SUM(IF(vHospitalBed.sex = 2, 1, 0)) AS bedsWomen', where=cond)
+                    if not isPermanentBed:
+                        cond.append(tableVHospitalBedSchedule['isPermanent'].eq(1))
+                    stmt = db.selectStmt(tableVHospitalBedSchedule, u'SUM(IF(vHospitalBed.relief > 0, vHospitalBed.relief, 1)) AS bedsAll, SUM(IF(vHospitalBed.sex = 1, 1, 0)) AS bedsMen, SUM(IF(vHospitalBed.sex = 2, 1, 0)) AS bedsWomen', where=cond)
                     query = db.query(stmt)
                     if query.first():
                         record = query.record()
@@ -1421,7 +1430,8 @@ def getMovingTransfer(isPermanentBed, noProfileBed, bedsSchedule, begDateTime, e
         cond.append(tableOSHB['profile_id'].inlist(profile))
     elif not noProfileBed:
         cond.append(tableOSHB['profile_id'].isNotNull())
-
+    if not isPermanentBed:
+        cond.append(tableOSHB['isPermanent'].eq(1))
     if bedsSchedule:
         queryTable = queryTable.innerJoin(tableHBSchedule, tableOSHB['schedule_id'].eq(tableHBSchedule['id']))
     if bedsSchedule == 1:
@@ -1450,6 +1460,7 @@ def getMovingTransfer(isPermanentBed, noProfileBed, bedsSchedule, begDateTime, e
 
 
 def getReceived(isPermanentBed, noProfileBed, bedsSchedule, begDateTime, endDateTime, nameProperty = u'Переведен из отделения', profile = None, orgStructureIdList = [], boolFIO = False, noPropertyProfile = False, profileCode = False, ageFor = False, ageTo = False, financeTypeId = None, financeTypeIdList = []):
+    # оно
     db = QtGui.qApp.db
     #tableAPT = db.table('ActionPropertyType')
     tableAP = db.table('ActionProperty')
@@ -1496,7 +1507,9 @@ def getReceived(isPermanentBed, noProfileBed, bedsSchedule, begDateTime, endDate
                                      tableRbHospitalBedProfile['id'].eq(tableOSHB['profile_id']))
     cond.append('''%s'''%(getOrgStructureProperty(u'Направлен в отделение', orgStructureIdList)))
     cond.append(u"(EventType.medicalAidType_id IN (SELECT rbMedicalAidType.id from rbMedicalAidType where rbMedicalAidType.code IN ('1', '2', '3', '7')))")
-
+    if not isPermanentBed:
+        cond.append(tableOSHB['isPermanent'].eq(1))
+    cond.append(tableOSHB['deleted'].eq(0))
     if noPropertyProfile:
         cond.append(tableOSHB['profile_id'].isNull())
     else:

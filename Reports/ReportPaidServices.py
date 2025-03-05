@@ -105,6 +105,10 @@ class CReportPaidServices(CReport):
             client = 'Client.birthDate AS birthDate,'
         else:
             client = ''
+        if reportType == 0:
+            number_Contract = 'Event_LocalContract.numberContract as numb_dogovor,'
+        else:
+            number_Contract = ''
 
         stmt += u'''
 SELECT distinct
@@ -112,6 +116,7 @@ SELECT distinct
     concat_ws(" ",{0}.lastName, {0}.firstName, {0}.patrName) as client,
     %(client)s
     %(person)s
+    %(number_Contract)s
     IF(co.code = 2 ,sum(IF(Account_Item.refuseType_id IS NULL AND co.code = 1, 1, Account_Item.refuseType_id IS not NULL AND co.code = 2)), sum(Account_Item.amount)) as amount,
    -- IF(IF(co.name='Возврат', Event_Payment.sum, 0) = 0, IF(SUM(Account_Item.payedSum)=0,Account_Item.sum,SUM(Account_Item.payedSum)), ABS(Event_Payment.sum))    AS sum,
       IF(sum(IF (Account_Item.refuseType_id IS not NULL AND co.code = 2, Account_Item.sum, 0))=0, sum(Account_Item.sum), sum(IF (Account_Item.refuseType_id IS not NULL AND co.code = 2, Account_Item.sum, 0)))   AS sum,
@@ -151,6 +156,7 @@ where Event_Payment.deleted=0  and co.code in (1,2) and {cond}
 ''' % {
             'client' :client,
             'person' : person,
+            'number_Contract': number_Contract,
             'personJoin': personJoin
         }
 

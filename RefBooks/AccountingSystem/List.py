@@ -37,9 +37,12 @@ class CRBAccountingSystemList(CItemsListDialog, Ui_RBAccountingSystemListDialog)
             CTextCol(u'Код',          [rbCode], 10),
             CTextCol(u'Наименование', [rbName], 50),
             CTextCol(u'URN',          ['urn'],  50),
+            CTextCol(u'Версия', ['version'], 10),
             CBoolCol(u'Разрешать изменение',         ['isEditable'], 30),
+            CBoolCol(u'Разрешать удаление',          ['isDeletable'], 30),
             CBoolCol(u'Отображать в информации о пациенте',         ['showInClientInfo'], 20),
             CBoolCol(u'Требует ввода уникального значения',         ['isUnique'], 20),
+
             ], rbAccountingSystem, [rbCode, rbName])
         self.setWindowTitleEx(u'Внешние учётные системы')
 
@@ -80,26 +83,29 @@ class CRBAccountingSystemList(CItemsListDialog, Ui_RBAccountingSystemListDialog)
     @pyqtSignature('')
     def on_btnSync_clicked(self):
         servicesURL = forceString(QtGui.qApp._globalPreferences.get('23:servicesURL'))
-        servicesURL = servicesURL.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
-        servicesURL = urlparse.urljoin(servicesURL, '/api/local/services/terminology')
-        try:
-            response = requests.get(servicesURL + '/update/$versions')
-            content = json.loads(response.content.decode('utf-8'))
-            if content[u'success'] is True:
-                count = content[u'count_updated']
-                result = u'Обновлено ' + unicode(count) + u' справочника(-ов)\n'
-                if content[u'errors']:
-                    result += u'Ошибки: \n'
-                for error in content[u'errors']:
-                    result += u'urn' + error[u'urn'] + u', ошибка: ' + error[u'message'] + u'\n'
-                QtGui.QMessageBox().information(self, u'Сообщение', u'Ответ: \n' + result,
-                                                QtGui.QMessageBox.Close)
-            else:
-                QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(content[u'error']),
+        if servicesURL:
+            servicesURL = servicesURL.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
+            servicesURL = urlparse.urljoin(servicesURL, '/api/local/services/terminology')
+            try:
+                response = requests.get(servicesURL + '/update/$versions')
+                content = json.loads(response.content.decode('utf-8'))
+                if content[u'success'] is True:
+                    count = content[u'count_updated']
+                    result = u'Обновлено ' + unicode(count) + u' справочника(-ов)\n'
+                    if content[u'errors']:
+                        result += u'Ошибки: \n'
+                    for error in content[u'errors']:
+                        result += u'urn' + error[u'urn'] + u', ошибка: ' + error[u'message'] + u'\n'
+                    QtGui.QMessageBox().information(self, u'Сообщение', u'Ответ: \n' + result,
+                                                    QtGui.QMessageBox.Close)
+                else:
+                    QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(content[u'error']),
+                                                 QtGui.QMessageBox.Close)
+            except Exception, e:
+                QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(e),
                                              QtGui.QMessageBox.Close)
-        except Exception, e:
-            QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(e),
-                                         QtGui.QMessageBox.Close)
+        else:
+            QtGui.QMessageBox().critical(self, u'Ошибка', u'Не указан адрес сервера сервисов в глобальных настройках МИС', QtGui.QMessageBox.Close)
 
     @pyqtSignature('QString')
     def on_edtCodeFilter_textChanged(self, text):
@@ -138,6 +144,7 @@ class CRBAccountingSystemEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         setLineEditValue(self.edtVersion,          record, 'version')
         setLineEditValue(self.edtDomain,           record, 'domain')
         setCheckBoxValue(self.chkEditable,         record, 'isEditable')
+        setCheckBoxValue(self.chkDeletable,        record, 'isDeletable')
         setCheckBoxValue(self.chkShowInClientInfo, record, 'showInClientInfo')
         setCheckBoxValue(self.chkIsUnique,         record, 'isUnique')
 
@@ -149,6 +156,7 @@ class CRBAccountingSystemEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         getLineEditValue(self.edtVersion,          record, 'version')
         getLineEditValue(self.edtDomain,           record, 'domain')
         getCheckBoxValue(self.chkEditable,         record, 'isEditable')
+        getCheckBoxValue(self.chkDeletable,        record, 'isDeletable')
         getCheckBoxValue(self.chkShowInClientInfo, record, 'showInClientInfo')
         getCheckBoxValue(self.chkIsUnique,         record, 'isUnique')
         return record

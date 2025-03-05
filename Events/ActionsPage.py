@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,11 +11,12 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+import requests
 # Страница редактирования action одного класса в пределах event'а
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QMimeData, QString, QTime, QVariant, pyqtSignature, SIGNAL
+from Events.ExecutionPlan.Groups import CExecutionPlanProxyModelGroup
 from Orgs.Utils import getOrgStructureDescendants, getParentOrgStructureId
 
 from library.Calendar                import wpFiveDays, addWorkDays, getNextWorkDay, wpSixDays, wpSevenDays
@@ -23,8 +24,7 @@ from library.DialogBase              import CConstructHelperMixin, CDialogBase
 from library.ICDUtils import MKBwithoutSubclassification, getMKBName
 from library.interchange             import setDatetimeEditValue
 from library.JsonRpc.client          import CJsonRpcClent
-from library.PrintTemplates import applyTemplate, customizePrintButton, applyMultiTemplateList, CTemplateParser, \
-    getFirstPrintTemplate
+from library.PrintTemplates import applyTemplate, customizePrintButton, applyMultiTemplateList, getFirstPrintTemplate
 from library.Utils import exceptionToUnicode, forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, \
     forceString, toVariant, forceStringEx, formatSNILS, pyDate, getExSubclassItemLastName
 
@@ -45,6 +45,7 @@ from Events.InputDialog              import CInputDialog
 from Events.HospitalOrderSelectDialog import CHospitalOrderSelectDialog
 from Events.PropertiesDialog         import CPropertiesDialog
 from Events.PropertyEditorAmbCard import CPropertyEditorAmbCard
+from Events.ActionGroupSignDialog import CActionGroupSignDialog
 from Events.Utils                    import (CFinanceType,
                                              CInputCutFeedDialog,
                                              getIdListActionType,
@@ -60,15 +61,16 @@ from Events.Utils                    import (CFinanceType,
                                              getEventShowTime,
                                              setActionPropertiesColumnVisible,
                                              getEventCSGRequired,
-                                             getEventTypeForm)
+                                             getEventTypeForm,
+                                             getEventMedicalAidKindId,)
 from Events.LLO78Login               import CLLO78LoginDialog
 from Events.PrintActionsListDialog    import CPrintActionsListDialog
 from Events.Utils import CFinanceType, getDiagnosisId2, getChiefId, getActionTypeIdListByFlatCode, checkAttachOnDate, \
     checkPolicyOnDate, cutFeed, getEventContextData, getEventShowTime, setActionPropertiesColumnVisible, \
-    getEventCSGRequired, getEventTypeForm, generateSerialNumberLGRecipe, getEventAidTypeRegionalCode
+    getEventCSGRequired, getEventTypeForm, getEventAidTypeRegionalCode
 from Orgs.Orgs                       import selectOrganisation
 from Stock.ClientInvoiceEditDialog import CClientInvoiceEditDialog, CClientRefundInvoiceEditDialog
-from Stock.Utils                     import getExistsNomenclatureAmount, getStockMotionItemQntEx, getNomenclatureUnitRatio
+from Stock.Utils                     import getExistsNomenclatureAmount, getStockMotionItemQntEx, getNomenclatureUnitRatio, getNomenclatureSimpleUnitRatio
 from Resources.CourseStatus          import CCourseStatus
 from Resources.Utils                 import getNextDateExecutionPlan
 from Users.Rights import urCopyPrevAction, urEditClosedEvent, urLoadActionTemplate, urSaveActionTemplate, \
@@ -103,7 +105,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.addObject('actAPReplicateAction', QtGui.QAction(u'Тиражировать', self))
         self.addObject('actAPActionsAdd',      QtGui.QAction(u'Добавить ...', self))
         self.addObject('actAPActionSplitEvent',      QtGui.QAction(u'В новое событие', self))
-        self.addObject('actAPPrintAllActions',  QtGui.QAction(u'Печать всех действий', self))
+        self.addObject('actAPPrintAllActions', QtGui.QAction(u'Печать всех действий', self))
+        self.addObject('actAPGroupSign', QtGui.QAction(u'Групповое подписание и прикрепление', self))
         self.addObject('actAPCopyProperties',  QtGui.QAction(u'Копировать свойства', self))
         self.addObject('actAPPasteProperties', QtGui.QAction(u'Вставить свойства', self))
         self.addObject('mnuAPLoadPrevAction', QtGui.QMenu(self))
@@ -120,6 +123,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.addObject('actAPQMSetAppointment', QtGui.QAction(u'Записать на прием', self))
         self.addObject('actAPQMCancelReferral', QtGui.QAction(u'Аннулировать направление', self))
         self.addObject('actAPQMCreateClaimForRefusal', QtGui.QAction(u'Отменить запись на прием', self))
+        self.addObject('actImportAvailableProfiles', QtGui.QAction(u'Обновить профили', self))
 
         self.addObject('actCreatingApplication', QtGui.QAction(u'Создать направление', self))
         self.addObject('actViewingApplications', QtGui.QAction(u'Просмотреть список направлений', self))
@@ -135,6 +139,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.mnuAPQueueManagement.addAction(self.actAPQMSetAppointment)
         self.mnuAPQueueManagement.addAction(self.actAPQMCancelReferral)
         self.mnuAPQueueManagement.addAction(self.actAPQMCreateClaimForRefusal)
+        self.mnuAPQueueManagement.addAction(self.actImportAvailableProfiles)
         self.mnuAPQueueManagement.addAction(self.actCreatingApplication)
         self.mnuAPQueueManagement.addAction(self.actViewingApplications)
         # self.mnuAPQueueManagement.addAction(self.actAPEditProcess)
@@ -201,6 +206,9 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.connect(self.cmbAPMKBExSubclass, SIGNAL('editingFinished()'), self.on_cmbAPMKBExSubclass_editingFinished)
         self.lblAPMKBText.mousePressEvent = self.on_lblAPMKBText_click
         self.lblAPMKBText.contextMenuEvent = self.lblAPMKBTextContextMenuEvent
+        self.connect(self.btnCloseWidgets, SIGNAL('arrowTypeChanged(bool)'), self.on_arrowTypeChanged)
+        self.setVisibleBtnCloseWidgets(True)
+
 
     def setReadOnly(self, value=True):
         self._readOnly = value
@@ -214,10 +222,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.menu = QtGui.QMenu(self)
         copyText = QtGui.QAction(u'Копировать в буфер обмена', self)
         self.menu.addAction(copyText)
-        copyText.triggered.connect(lambda: self.copyToClipboard(event))
+        copyText.triggered.connect(self.copyToClipboard)
         self.menu.popup(QtGui.QCursor.pos())
 
-    def copyToClipboard(self, event):
+    def copyToClipboard(self):
         text = forceString(self.lblAPMKBText.text())
         clipBoard = QtGui.qApp.clipboard()
         clipBoard.setText(text)
@@ -365,6 +373,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                              self.actAPActionSplitEvent,
                              '-',
                              self.actAPPrintAllActions,
+                             self.actAPGroupSign,
                              self.actAPCopyProperties,
                              self.actAPPasteProperties,
                              self.actRefreshAction,
@@ -476,6 +485,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
 
     def isEnabledNomenclatureExpense(self, action):
+        if not action:
+            return False
+        if action.actionType().isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+            return False
         record = action.getRecord() if action else None
         begDate = forceDate(record.value('begDate')) if record else None
         currentDate = QDate().currentDate()
@@ -497,6 +510,19 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         return isEnabled
 
 
+    def getNomenclatureExpenseEnabled(self, action, actionType = None):
+        nomenclatureExpenseEnabled = False
+        if action:
+            if not actionType:
+                actionType = action.getType()
+            if actionType and actionType.isNomenclatureExpense:
+                nomenclatureId = action.findNomenclaturePropertyValue()
+                dosage = action.findDosagePropertyValue()
+                if nomenclatureId and dosage:
+                    nomenclatureExpenseEnabled = True
+        return nomenclatureExpenseEnabled
+
+
     def onActionCurrentChanged(self, previous=None):
         model = self.tblAPActions.model()
         items = model.items()
@@ -506,6 +532,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                        self.cmbAPSetPerson,
                        self.edtAPBegDate, self.edtAPBegTime,
                        self.cmbAPOrg,
+                       self.btnAPSelectOrg,
                        self.edtAPOffice,
                        self.cmbAPOrgStructure,
                        self.cmbAPAssistant,
@@ -598,6 +625,9 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.edtAPEndDate.setEnabled(actionType.editEndDate) 
             self.edtAPEndTime.setEnabled(actionType.editEndDate)
             self.edtAPNote.setEnabled(actionType.editNote)
+            self.cmbAPSetPerson.setEnabled(actionType.editSetPerson)
+            self.cmbAPOrg.setEnabled(actionType.editOrg)
+            self.btnAPSelectOrg.setEnabled(actionType.editOrg)
 
             self.setCSGEditEnable(self.eventEditor.eventTypeId, canEdit)
             self.lblAPMKB.setVisible(visibleMKB)
@@ -610,8 +640,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
             for widget in otherWidgets:
                 widget.setEnabled(canEditIsExposed and dentitionCanEdit and enableEdit)
-            self.btnAPNomenclatureExpense.setEnabled(canEdit and actionType.isNomenclatureExpense)
-
+            self.btnAPNomenclatureExpense.setEnabled(canEdit and self.getNomenclatureExpenseEnabled(action, actionType))
+            
             orgStructureList = actionType.getPFOrgStructureRecordList()
             specialityList = actionType.getPFSpecialityRecordList()
             tablePerson = QtGui.qApp.db.table('vrbPersonWithSpecialityAndPost')
@@ -659,11 +689,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                             ((action.getExecutionPlan() and
                             action.executionPlanManager.hasItemsToDo()) or actionType.isDoesNotInvolveExecutionCourse) and
                             self.cmbAPStatus.value() != CActionStatus.canceled):
-                        self.btnNextAction.setText(u'Выполнить')
-                        isEnable = dentitionCanEdit and self.cmbAPStatus.value() != CActionStatus.refused and enableEdit
-                        if action.getType().isNomenclatureExpense:
-                            isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
-                        self.btnNextAction.setEnabled(isEnable)
+                        if actionType.isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+                            self.btnNextAction.setText(u'Действие')
+                            self.btnNextAction.setEnabled(False)
+                        else:
+                            self.btnNextAction.setText(u'Выполнить')
+                            isEnable = dentitionCanEdit and self.cmbAPStatus.value() != CActionStatus.refused and enableEdit
+                            if action.getType().isNomenclatureExpense:
+                                isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
+                            self.btnNextAction.setEnabled(isEnable)
                     else:
                         self.btnNextAction.setText(u'Действие')
                         self.btnNextAction.setEnabled(dentitionCanEdit and self.isTrailerActionType(actionTypeId) and enableEdit)
@@ -677,35 +711,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
               #  else:
               #      self.btnAPPrint.setText(u'Печать')
                 self.btnAPPrint.setText(u'Печать')
-
-                # для ЛР предзаполняем свойство Льгота, если она единственная у пациента
-                if QtGui.qApp.defaultKLADR()[:2] == u'23' and actionType.context == 'recipe' \
-                        and action and u'Льгота' in actionType._propertiesByName:
-                    if not action[u'Льгота']:
-                        date = forceDateTime(action._record.value('directionDate'))
-                        if not date.isValid():
-                            date = QDateTime.currentDateTime()
-                        date = QtGui.qApp.db.formatDate(date)
-                        stmt = u"""select cs.socStatusType_id, ssc.name
-                        from Client c 
-                        left join ClientSocStatus cs on cs.client_id = c.id and cs.deleted = 0
-                        left join ClientDocument cd on cd.id = cs.document_id and cd.deleted = 0
-                        left join rbSocStatusClass ssc on ssc.id = cs.socStatusClass_id
-                        where c.id = %s and ssc.group_id = 1 and cd.documentType_id is not null and length(trim(cd.number))>0
-                        and cs.begDate <= %s and (cs.endDate is null or cs.endDate >= %s)""" % (self.clientId(), date, date)
-                        query = QtGui.qApp.db.query(stmt)
-                        if query.size() == 1:
-                            query.first()
-                            action[u'Льгота'] = forceRef(query.record().value(0))
-                            action[u'Источник финансирования'] = forceString(query.record().value(1))
                             
                 if action and u'Серия и номер бланка' in actionType._propertiesByName:
-                    # Для КК автогенерация серии и номера льготного рецепта
-                    if action[u'Серия и номер бланка'] is None \
-                        and QtGui.qApp.defaultKLADR()[:2] == u'23' \
-                        and actionType.context == 'recipe':
-                        action[u'Серия и номер бланка'] = generateSerialNumberLGRecipe(action, self.clientId())
-                        
                     actionPropertyType = actionType._propertiesByName[u'Серия и номер бланка']
                     if actionPropertyType.valueDomain.lower() in [u'a', u'а']: #wtf
                         action[u'Серия и номер бланка'] = self.getBlankSerialNumberParams(actionType.id)
@@ -720,10 +727,12 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     self.actAPQMSetAppointment.setEnabled(enableQM and (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
                     self.actAPQMCancelReferral.setEnabled(enableQM and action[u'Идентификатор направления'] is not None)
                     self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and action[u'Идентификатор талона'] is not None)
+                    self.actImportAvailableProfiles.setEnabled(True)
                     self.actAPQMCancelReferral.setVisible(True)
                     self.actAPQMCreateClaimForRefusal.setVisible(True)
                     self.actAPQMSetAppointment.setVisible(True)
                     self.actCreatingApplication.setVisible(False)
+                    self.actImportAvailableProfiles.setVisible(True)
                     self.actViewingApplications.setVisible(False)
                 elif u'tmkDirection'.lower() in actionType.flatCode.lower():
                     self.ActionTMK_BTN_Visible(action, actionType)
@@ -765,7 +774,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                                                                              CActionType.dpedBegDatePlusDuration))
                 self.edtAPPlannedEndDate.setEnabled(canEditIsExposed and canEditPlannedEndDate and enableEdit and canEditIsExecutionPlan)
                 self.edtAPPlannedEndTime.setEnabled(canEditIsExposed and canEditPlannedEndDate and bool(self.edtAPPlannedEndDate.date()) and enableEdit and canEditIsExecutionPlan)
-                self.cmbAPSetPerson.setValue(forceRef(record.value('setPerson_id')))
+                self.cmbAPSetPerson.setValue(QtGui.qApp.userId if actionType.defaultSetPersonInEvent == CActionType.dspUndefined and not forceRef(record.value('setPerson_id')) else forceRef(record.value('setPerson_id')))
                 self.edtAPBegTime.setEnabled(canEdit and bool(self.edtAPBegDate.date()) and actionType.editBegDate)
                 self.edtAPEndTime.setEnabled(canEdit and bool(self.edtAPEndDate.date()) and actionType.editEndDate)
                 self.cmbAPStatus.setValue(forceInt(record.value('status')))
@@ -875,7 +884,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 self.edtAPDirectionDate.setEnabled(canEditIsExposed and dentitionCanEdit and self.edtAPDirectionDate.isEnabled() and enableEdit)
                 self.edtAPBegDate.setEnabled(canEditIsExposed and dentitionCanEdit and self.edtAPBegDate.isEnabled() and enableEdit and actionType.editBegDate)
                 self.edtAPEndDate.setEnabled(canEditIsExposed and dentitionCanEdit and self.edtAPEndDate.isEnabled() and enableEdit and actionType.editEndDate)
-                self.cmbAPSetPerson.setEnabled(canEditIsExposed and dentitionCanEdit and self.cmbAPSetPerson.isEnabled() and enableEdit)
+                self.cmbAPSetPerson.setEnabled(canEditIsExposed and dentitionCanEdit and self.cmbAPSetPerson.isEnabled() and enableEdit and actionType.editSetPerson)
                 self.btnAPSelectOrg.setEnabled(canEditIsExposed and dentitionCanEdit and self.btnAPSelectOrg.isEnabled() and enableEdit)
                 if 'recipeLLO78'.lower() in actionType.flatCode.lower():
                     self.btnNextAction.setText(u'Зарегистрировать рецепт')
@@ -900,11 +909,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     ((action.getExecutionPlan() and
                     action.executionPlanManager.hasItemsToDo()) or actionType.isDoesNotInvolveExecutionCourse) and
                     self.cmbAPStatus.value() != CActionStatus.canceled):
-                self.btnNextAction.setText(u'Выполнить')
-                isEnable = self.cmbAPStatus.value() != CActionStatus.refused
-                if action.getType().isNomenclatureExpense:
-                    isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
-                self.btnNextAction.setEnabled(isEnable)
+                if actionType.isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+                    self.btnNextAction.setText(u'Действие')
+                    self.btnNextAction.setEnabled(False)
+                else:
+                    self.btnNextAction.setText(u'Выполнить')
+                    isEnable = self.cmbAPStatus.value() != CActionStatus.refused
+                    if action.getType().isNomenclatureExpense:
+                        isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
+                    self.btnNextAction.setEnabled(isEnable)
             else:
                 self.btnNextAction.setText(u'Действие')
                 self.btnNextAction.setEnabled(False)
@@ -941,6 +954,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.actAPQMCancelReferral.setVisible(False)
         self.actAPQMCreateClaimForRefusal.setVisible(False)
         self.actAPQMSetAppointment.setVisible(False)
+        self.actImportAvailableProfiles.setVisible(False)
         self.btnAPQueueManagement.setEnabled(True)
         self.actCreatingApplication.setVisible(True)
         self.actViewingApplications.setVisible(True)
@@ -1094,6 +1108,12 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             if action.getType().isNomenclatureExpense:
                 isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
             self.btnNextAction.setEnabled(isEnable)
+        elif u'createNIL' in flatCode and QtGui.qApp.gis_oms_enable():
+            if action[u'Номер листа регистрации']:
+                self.btnNextAction.setText(u'Обновить НИЛ')
+            else:
+                self.btnNextAction.setText(u'Создать НИЛ')
+            self.btnNextAction.setEnabled(True)
         else:
             noPresentLeaved = True
             for item in items:
@@ -1129,11 +1149,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                             ((action.getExecutionPlan() and
                             action.executionPlanManager.hasItemsToDo()) or actionType.isDoesNotInvolveExecutionCourse) and
                             self.cmbAPStatus.value() != CActionStatus.canceled):
-                        self.btnNextAction.setText(u'Выполнить')
-                        isEnable = self.cmbAPStatus.value() != CActionStatus.refused
-                        if action.getType().isNomenclatureExpense:
-                            isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
-                        self.btnNextAction.setEnabled(isEnable)
+                        if actionType.isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+                            self.btnNextAction.setText(u'Действие')
+                            self.btnNextAction.setEnabled(False)
+                        else:
+                            self.btnNextAction.setText(u'Выполнить')
+                            isEnable = self.cmbAPStatus.value() != CActionStatus.refused
+                            if action.getType().isNomenclatureExpense:
+                                isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
+                            self.btnNextAction.setEnabled(isEnable)
                     else:
                         self.btnNextAction.setText(u'Действие')
                         self.btnNextAction.setEnabled(self.isTrailerActionType())
@@ -1146,11 +1170,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         ((action.getExecutionPlan() and
                         action.executionPlanManager.hasItemsToDo()) or actionType.isDoesNotInvolveExecutionCourse) and
                         self.cmbAPStatus.value() != CActionStatus.canceled):
-                    self.btnNextAction.setText(u'Выполнить')
-                    isEnable = self.cmbAPStatus.value() != CActionStatus.refused
-                    if action.getType().isNomenclatureExpense:
-                        isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
-                    self.btnNextAction.setEnabled(isEnable)
+                    if actionType.isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+                        self.btnNextAction.setText(u'Действие')
+                        self.btnNextAction.setEnabled(False)
+                    else:
+                        self.btnNextAction.setText(u'Выполнить')
+                        isEnable = self.cmbAPStatus.value() != CActionStatus.refused
+                        if action.getType().isNomenclatureExpense:
+                            isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
+                        self.btnNextAction.setEnabled(isEnable)
                 else:
                     self.btnNextAction.setText(u'Действие')
                     self.btnNextAction.setEnabled(self.isTrailerActionType())
@@ -1243,20 +1271,20 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
 
     def checkAPRelatedAction(self):
+        tabs = {}
         if hasattr(self.eventEditor, 'tabStatus'):
-            tabs = {
-                0: self.eventEditor.tabStatus,
-                1: self.eventEditor.tabDiagnostic,
-                2: self.eventEditor.tabCure,
-                3: self.eventEditor.tabMisc
-            }
-        else:
-            tabs = {
-                0: self.eventEditor.tabActions,
-                1: self.eventEditor.tabActions,
-                2: self.eventEditor.tabActions,
-                3: self.eventEditor.tabActions
-            }
+            tabs[0] = self.eventEditor.tabStatus
+        if hasattr(self.eventEditor, 'tabDiagnostic'):
+            tabs[1] = self.eventEditor.tabDiagnostic
+        if hasattr(self.eventEditor, 'tabCure'):
+            tabs[2] = self.eventEditor.tabCure
+        if hasattr(self.eventEditor, 'tabMisc'):
+            tabs[3] = self.eventEditor.tabMisc
+        if not tabs:
+            tabs = {0: self.eventEditor.tabActions,
+                    1: self.eventEditor.tabActions,
+                    2: self.eventEditor.tabActions,
+                    3: self.eventEditor.tabActions}
 
         for row, parentItem in enumerate(self.modelAPActions.items()):
             record, action = parentItem.record, parentItem.action
@@ -1436,6 +1464,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
 
     def _onExecActionIsDoesNotInvolveExecutionCourse(self, action, record, newEndDate):
+        prevActionStatus = forceRef(record.value('status'))
         record.setValue('status', toVariant(CActionStatus.finished))
         endDate = forceDateTime(record.value('endDate'))
         if not endDate:
@@ -1449,11 +1478,19 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         )
         if action.nomenclatureExpense:
             action = updateNomenclatureDosageValue(action)
+            nomenclatureIdDict = {}
+            if action.executionPlanManager:
+                executionPlanItem = action.executionPlanManager.currentItem
+                if executionPlanItem and executionPlanItem.nomenclature and executionPlanItem.nomenclature.nomenclatureId:
+                    if executionPlanItem.nomenclature.nomenclatureId:
+                        nomenclatureIdDict[executionPlanItem.nomenclature.nomenclatureId] = (action.getRecord(), executionPlanItem.nomenclature.dosage)
+            orgStructureId = forceRef(record.value('orgStructure_id'))
             isControlExecWriteOffNomenclatureExpense = QtGui.qApp.controlExecutionWriteOffNomenclatureExpense()
             if isControlExecWriteOffNomenclatureExpense:
                 db = QtGui.qApp.db
                 message = u''
                 nomenclatureLine = []
+                resQntDict = {}
                 tableNomenclature = db.table('rbNomenclature')
                 if action.nomenclatureExpense:
                     stockMotionItems = action.nomenclatureExpense.stockMotionItems()
@@ -1462,47 +1499,113 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         oldPrice = price
                         nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
                         if nomenclatureId and nomenclatureId not in nomenclatureLine:
-                            qnt = round(forceDouble(stockMotionItem.value('qnt')), QtGui.qApp.numberDecimalPlacesQnt())
+                            qnt = forceDouble(stockMotionItem.value('qnt'))
+                            resQnt, proxyQnt, planQnt, simpleRatio = resQntDict.get(nomenclatureId, (None, None, None, 2))
                             unitId = forceRef(stockMotionItem.value('unit_id'))
                             stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
                             ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
                             if ratio is not None:
                                 price = price*ratio
                                 qnt = qnt / ratio
+                            qnt = round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if planQnt is None:
+                                nomenclativeRecord, dosage = nomenclatureIdDict.get(nomenclatureId, (None, 0))
+                                planQnt = action.nomenclatureExpense.getNomenclatureDosageToQntValue(nomenclatureId, dosage)
+                                if ratio is not None:
+                                    planQnt = planQnt / ratio
+                                planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt is None:
+                                proxyQnt = 0
+                                model = self.tblAPActions.model()
+                                mapProxyRow2Group = model._mapProxyRow2Group
+                                actionRow = self.tblAPActions.currentIndex().row()
+                                if mapProxyRow2Group and actionRow >= 0 and actionRow < len(model.items()) and actionRow in mapProxyRow2Group.keys():
+                                    proxyGroup = mapProxyRow2Group[actionRow]
+                                    if proxyGroup:
+                                        for proxyItem in proxyGroup.items:
+                                            i = proxyGroup._mapItem2Row.get(proxyItem, -1)
+                                            if i > -1 and i != proxyGroup._headModelRow:
+                                                proxyQnt += proxyItem.action.findDosagePropertyValue()
+                                        if ratio is not None:
+                                            proxyQnt = proxyQnt / ratio
+                                        proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt > 0:
+                                proxyQnt = proxyQnt - qnt
+                                proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt < 0:
+                                proxyQnt = 0
                             financeId = forceRef(stockMotionItem.value('finance_id'))
                             batch = forceString(stockMotionItem.value('batch'))
                             shelfTime = forceDate(stockMotionItem.value('shelfTime'))
                             shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
                             medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
                             otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
-                            existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
-                            prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=unitId), QtGui.qApp.numberDecimalPlacesQnt())
-                            resQnt = (existsQnt + prevQnt) - qnt
-                            if resQnt <= 0:
-                                nomenclatureLine.append(nomenclatureId)
+                            existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, orgStructureId=orgStructureId, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                            masterId = forceRef(stockMotionItem.value('master_id'))
+                            prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if masterId else 0
+                            reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
+                            if existsQnt < 0:
+                                existsQnt = 0
+                            if prevQnt < 0:
+                                prevQnt = 0
+                            if reservationQnt < 0:
+                                reservationQnt = 0
+                            if resQnt is None:
+                                resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
+                            else:
+                                resQnt += (existsQnt + reservationQnt + prevQnt) - qnt
+                            resQnt = round(resQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            planQnt = planQnt - qnt
+                            planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            resQntDict[nomenclatureId] = (resQnt, proxyQnt, planQnt, len(forceStringEx(self.getSimpleRatio(nomenclatureId, stockUnitId, unitId))))
+                    for nomenclatureIdKey, (resQntValue, proxyQntValue, planQntValue, simpleQntRatio) in resQntDict.items():
+                        if resQntValue < 0 or resQntValue is None or (round(planQntValue, len(forceStringEx(simpleQntRatio))) != 0 and planQntValue is not None):
+                            nomenclatureLine.append(nomenclatureIdKey)
                     if nomenclatureLine:
                         nomenclatureName = u''
                         records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
-                        for recordNomenclature in records:
-                            nomenclatureName += u'\n' + forceString(recordNomenclature.value('name'))
+                        nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
                         message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n'''%(action._actionType.name, nomenclatureName)
                     if message:
                         if isControlExecWriteOffNomenclatureExpense == 1:
                             button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
-                            message2 = u'Списываемое ЛСиИМН отсутствует на остатке подразделения. Выполнить списание?'
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?'%(nomenclatureName)
                         else:
                             button = QtGui.QMessageBox.Cancel
-                            message2 = u'Списываемое ЛСиИМН отсутствует на остатке подразделения. Списание невозможно!'
-                        res = QtGui.QMessageBox().warning(None,
-                                                          u'Внимание!',
-                                                          message2,
-                                                          button,
-                                                          QtGui.QMessageBox.Cancel)
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n'%(nomenclatureName)
+                        res = QtGui.QMessageBox.warning(None,
+                                                  u'Внимание!',
+                                                  message2,
+                                                  button,
+                                                  QtGui.QMessageBox.Cancel)
                         if res == QtGui.QMessageBox.Cancel:
+                            record.setValue('status', toVariant(prevActionStatus))
                             return
             if not self._openNomenclatureEditor(action, record, requireItems=True):
-                return
-        return False
+                record.setValue('status', toVariant(prevActionStatus))
+                if action.nomenclatureExpense:
+                    action.nomenclatureExpense.cancelEx()
+                return False
+            nextExecutionPlanItem = None
+            if action.executionPlanManager.executionPlan:
+                currentExecutionPlanItem = action.executionPlanManager._currentItem
+                action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(currentExecutionPlanItem))
+                nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                action.executionPlanManager.setCurrentItemExecuted()
+                while nextExecutionPlanItem:
+                    action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(nextExecutionPlanItem))
+                    nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                    action.executionPlanManager.setCurrentItemExecuted()
+    #            if not nextExecutionPlanItem:
+    #                if action.nomenclatureClientReservation:
+    #                    action.nomenclatureClientReservation.cancel()
+                action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(currentExecutionPlanItem))
+    #            action.setNomenclatureExpenseChange(action.saveNomenclatureExpense(action.nomenclatureExpensePreliminarySave, isActionNoSave = True))
+            elif action.executionPlanManager and action.executionPlanManager._currentItem:
+                action.executionPlanManager.setCurrentItemExecuted()
+        else:
+            record.setValue('status', toVariant(CActionStatus.finished))
+        return True
 
 
     def _onNextActionIsReceived(self, action, actionType, record, jobTicketEndDateAskingIsRequired, nextChiefId, dateTime):
@@ -1587,7 +1690,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         oldBegDate = forceDateTime(record.value('endDate'))
         if not oldBegDate:
             record.setValue('endDate', toVariant(dateTime))
+            reverseEndDate = None
             oldBegDate = dateTime
+        else:
+            reverseEndDate = oldBegDate
         record.setValue('status', toVariant(2))
         movingQuoting = action[u'Квота'] if u'Квота' in action._actionType._propertiesByName else None
         if orgStructureTransfer:
@@ -1607,12 +1713,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     self.updateAmount()
                     personId = forceRef(record.value('person_id'))
                     prevEndDate = oldBegDate
-                    self.requestNewEvent(
+                    res = self.requestNewEvent(
                         orgStructureTransfer, chiefId if chiefId else personId, self.receivedFinanceId,
                         orgStructurePresence, prevEndDate, movingQuoting, actionTypeId,
                         [self.eventActionFinance, self.receivedFinanceId, orgStructureTransfer,
                          orgStructurePresence, prevEndDate, movingQuoting, chiefId if chiefId else personId],
                         mapJournalInfoTransfer=self.eventEditor.mapJournalInfoTransfer)
+                    if not res:
+                        record.setValue('endDate', toVariant(reverseEndDate))
+                        record.setValue('status', toVariant(0))
                     return
                 if chiefId:
                     self.eventEditor.cmbPerson.setValue(chiefId)
@@ -1688,7 +1797,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             quantity,
             actionTypeId,
             directionDate,
-            setPersonId):
+            setPersonId,
+            groupingRecords=[]):
 
         def _checkNewRecordAction(_duration, newRecordAction):
             if _duration == 1 and not newRecordAction:
@@ -1704,6 +1814,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
         aliquoticity = aliquoticity or 1
         newRecordAction = False
+        returnAfter = False
 
         noExecTimeNextDialog = True
         periodicity = self.edtAPPeriodicity.value()
@@ -1720,91 +1831,128 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 execPersonId = self.cmbAPSetPerson.value()
 
             if action.nomenclatureExpense:
+                nomenclatureIdDict = {}
                 executionPlanItem = action.executionPlanManager.currentItem
                 if executionPlanItem and executionPlanItem.nomenclature and executionPlanItem.nomenclature.nomenclatureId:
                     if executionPlanItem.nomenclature.nomenclatureId:
+                        nomenclatureIdDict[executionPlanItem.nomenclature.nomenclatureId] = (action.getRecord(), executionPlanItem.nomenclature.dosage)
+                        force = True
                         if not action.nomenclatureExpense.stockMotionItems() or not action.nomenclatureExpense.getNomenclatureIdItem(executionPlanItem.nomenclature.nomenclatureId):
-                            nomenclatureIdDict = {}
-                            nomenclatureIdDict[executionPlanItem.nomenclature.nomenclatureId] = (action.getRecord(), executionPlanItem.nomenclature.dosage)
+                            #nomenclatureIdDict = {}
+                            #nomenclatureIdDict[executionPlanItem.nomenclature.nomenclatureId] = (action.getRecord(), executionPlanItem.nomenclature.dosage)
                             action.nomenclatureExpense.updateNomenclatureIdListToAction(nomenclatureIdDict)
+                            force = False
                         if executionPlanItem.nomenclature.dosage and not executionPlanItem.executedDatetime:
                             action.nomenclatureExpense.updateNomenclatureDosageValue(
                                 executionPlanItem.nomenclature.nomenclatureId,
                                 executionPlanItem.nomenclature.dosage,
-                                force=True
+                                force=force
                             )
+                for subrecord, subaction, subgroup in groupingRecords:
+                    executionPlanItem = subaction.executionPlanManager.currentItem
+                    nomenclatureIdDict[subaction.findNomenclaturePropertyValue()] = (subaction.getRecord(), executionPlanItem.nomenclature.dosage)
+                action.nomenclatureExpense.updateNomenclatureIdListToAction(nomenclatureIdDict)
+                orgStructureId = forceRef(record.value('orgStructure_id'))
                 isControlExecWriteOffNomenclatureExpense = QtGui.qApp.controlExecutionWriteOffNomenclatureExpense()
                 if isControlExecWriteOffNomenclatureExpense:
                     db = QtGui.qApp.db
                     message = u''
                     nomenclatureLine = []
+                    resQntDict = {}
                     tableNomenclature = db.table('rbNomenclature')
-                    if action.nomenclatureExpense:
-                        stockMotionItems = action.nomenclatureExpense.stockMotionItems()
-                        for stockMotionItem in stockMotionItems:
-                            price = forceDouble(stockMotionItem.value('price'))
-                            oldPrice = price
-                            nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
-                            if nomenclatureId and nomenclatureId not in nomenclatureLine:
-                                qnt = round(forceDouble(stockMotionItem.value('qnt')), QtGui.qApp.numberDecimalPlacesQnt())
-                                proxyQnt = 0
-                                model = self.tblAPActions.model()
-                                mapProxyRow2Group = model._mapProxyRow2Group
-                                actionRow = self.tblAPActions.currentIndex().row()
-                                if mapProxyRow2Group and actionRow >= 0 and actionRow < len(model.items()) and actionRow in mapProxyRow2Group.keys():
-                                    proxyGroup = mapProxyRow2Group[actionRow]
-                                    if proxyGroup:
-                                        for proxyItem in proxyGroup.items:
-                                            proxyQnt += proxyItem.action.findDosagePropertyValue()
-                                        proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                    for subrecord, subaction, subgroup in groupingRecords:
+                        if subaction.nomenclatureExpense:
+                            stockMotionItems = subaction.nomenclatureExpense.stockMotionItems()
+                            for stockMotionItem in stockMotionItems:
+                                price = forceDouble(stockMotionItem.value('price'))
+                                oldPrice = price
+                                nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
+                                if nomenclatureId and nomenclatureId not in nomenclatureLine:
+                                    qnt = forceDouble(stockMotionItem.value('qnt'))
+                                    resQnt, proxyQnt, planQnt, simpleRatio = resQntDict.get(nomenclatureId, (None, None, None, 2))
+                                    unitId = forceRef(stockMotionItem.value('unit_id'))
+                                    stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
+                                    ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
+                                    if ratio is not None:
+                                        price = price*ratio
+                                        qnt = qnt / ratio
+                                    qnt = round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    if planQnt is None:
+                                        nomenclativeRecord, dosage = nomenclatureIdDict.get(nomenclatureId, (None, 0))
+                                        planQnt = subaction.nomenclatureExpense.getNomenclatureDosageToQntValue(nomenclatureId, dosage)
+                                        if ratio is not None:
+                                            planQnt = planQnt / ratio
+                                        planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    if proxyQnt is None:
+                                        proxyQnt = 0
+                                        model = self.tblAPActions.model()
+                                        if subgroup:
+                                            for proxyItem in subgroup.items:
+                                                i = subgroup._mapItem2Row.get(proxyItem, -1)
+                                                if i > -1 and i != subgroup._headModelRow:
+                                                    proxyQnt += proxyItem.action.findDosagePropertyValue()
+                                            if ratio is not None:
+                                                proxyQnt = proxyQnt / ratio
+                                            proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    if proxyQnt > 0:
                                         proxyQnt = proxyQnt - qnt
-                                unitId = forceRef(stockMotionItem.value('unit_id'))
-                                stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
-                                ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
-                                if ratio is not None:
-                                    price = price*ratio
-                                    qnt = qnt / ratio
-                                    proxyQnt = proxyQnt / ratio
-                                financeId = forceRef(stockMotionItem.value('finance_id'))
-                                batch = forceString(stockMotionItem.value('batch'))
-                                shelfTime = forceDate(stockMotionItem.value('shelfTime'))
-                                shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
-                                medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
-                                otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
-                                existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
-                                masterId = forceRef(stockMotionItem.value('master_id'))
-                                prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=unitId), QtGui.qApp.numberDecimalPlacesQnt())
-                                reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
-                                reservationQnt = reservationQnt - proxyQnt
-                                resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
-                                if resQnt <= 0:
-                                    nomenclatureLine.append(nomenclatureId)
-                        nomenclatureName = u''
-                        if nomenclatureLine:
-                            records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
-                            nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
-                            message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n''' % (action._actionType.name, nomenclatureName)
-                        if message:
-                            if isControlExecWriteOffNomenclatureExpense == 1:
-                                button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
-                                message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?' % (nomenclatureName)
-                            else:
-                                button = QtGui.QMessageBox.Cancel
-                                message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n' % (nomenclatureName)
-                            res = QtGui.QMessageBox().warning(None,
-                                                              u'Внимание!',
-                                                              message2,
-                                                              button,
-                                                              QtGui.QMessageBox.Cancel)
-                            if res == QtGui.QMessageBox.Cancel:
-                                return
+                                        proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    if proxyQnt < 0:
+                                        proxyQnt = 0
+                                    financeId = forceRef(stockMotionItem.value('finance_id'))
+                                    batch = forceString(stockMotionItem.value('batch'))
+                                    shelfTime = forceDate(stockMotionItem.value('shelfTime'))
+                                    shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
+                                    medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
+                                    otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
+                                    existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, orgStructureId=orgStructureId, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                                    masterId = forceRef(stockMotionItem.value('master_id'))
+                                    prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=unitId), QtGui.qApp.numberDecimalPlacesQnt())
+                                    reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
+                                    if existsQnt < 0:
+                                        existsQnt = 0
+                                    if prevQnt < 0:
+                                        prevQnt = 0
+                                    if reservationQnt < 0:
+                                        reservationQnt = 0
+                                    if resQnt is None:
+                                        resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
+                                    else:
+                                        resQnt += (existsQnt + reservationQnt + prevQnt) - qnt
+                                    resQntDict[nomenclatureId] = (resQnt, proxyQnt)
+                                    resQnt = round(resQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    planQnt = planQnt - qnt
+                                    planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                                    resQntDict[nomenclatureId] = (resQnt, proxyQnt, planQnt, len(forceStringEx(self.getSimpleRatio(nomenclatureId, stockUnitId, unitId))))
+                            for nomenclatureIdKey, (resQntValue, proxyQntValue, planQntValue, simpleQntRatio) in resQntDict.items():
+                                if resQntValue < 0 or resQntValue is None or (round(planQntValue, simpleQntRatio) != 0 and planQntValue is not None):
+                                    nomenclatureLine.append(nomenclatureIdKey)
+                            nomenclatureName = u''
+                            if nomenclatureLine:
+                                records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
+                                nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
+                                message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n''' % (action._actionType.name, nomenclatureName)
+                            if message:
+                                if isControlExecWriteOffNomenclatureExpense == 1:
+                                    button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
+                                    message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?' % (nomenclatureName)
+                                else:
+                                    button = QtGui.QMessageBox.Cancel
+                                    message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n' % (nomenclatureName)
+                                res = QtGui.QMessageBox().warning(None,
+                                                                u'Внимание!',
+                                                                message2,
+                                                                button,
+                                                                QtGui.QMessageBox.Cancel)
+                                if res == QtGui.QMessageBox.Cancel:
+                                    return
                 if not self._openNomenclatureEditor(action, record, requireItems=True):
+                    if action.nomenclatureExpense:
+                        action.nomenclatureExpense.cancelEx()
                     return
-            executionPlan = action.getExecutionPlan()
             nextPlanDate = None
             jobTicketOrgStructureId = None
-            action.executionPlanManager.setCurrentItemIndex(action.executionPlanManager.executionPlan.items.index(action.executionPlanManager._currentItem))
-            nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+            
 #            if executionPlan and not actionType.isNomenclatureExpense and nextExecutionPlanItem and not bool(nextExecutionPlanItem.date):
 #                nextPlanDate, jobData = getNextDateExecutionPlan(self, jobTicketId=None, prevActionDate=begDate, executionPlan=executionPlan, lastAction=action, nextExecutionPlanItem=nextExecutionPlanItem)
 #                jobTicketOrgStructureId = jobData[2] if len(jobData) >= 3 else None
@@ -1818,134 +1966,171 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 if execDateTimePlanManager:
                     execTimePlanManager = execDateTimePlanManager.time()
             dialog = CExecTimeNextActionDialog(self, begDate, execPersonId, execTimePlanManager=execTimePlanManager)
+            newCurrentItem = None
+            newActions = []
             try:
                 dialog.setCourseVisible(bool(epManagerCurrentItem))
                 if dialog.exec_():
                     execTime = dialog.getExecTime()
                     execCourse = dialog.execCourse()
                     execPersonId = dialog.getExecPersonId()
-                    specifiedName = forceString(record.value('specifiedName'))
-                    record.setValue('person_id', toVariant(execPersonId))
-                    record.setValue('begDate', toVariant(begDate))
-                    record.setValue('endDate', toVariant(QDateTime(begDate.date(), execTime)))
-                    record.setValue('status', toVariant(CActionStatus.finished))
-                    if not action.getType().isNomenclatureExpense and execCourse > CCourseStatus.proceed:
-                        if execCourse in [CCourseStatus.skipRefusalClient, CCourseStatus.finishRefusalClient]:
-                            record.setValue('status', QVariant(CActionStatus.refused))
-                        if execCourse in [CCourseStatus.skipRefusalMO, CCourseStatus.finishRefusalMO]:
-                            record.setValue('status', QVariant(CActionStatus.canceled))
-                        if execCourse in [CCourseStatus.skipRefusalClient, CCourseStatus.skipRefusalMO, CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]:
-                            action = self.freeJobTicketFirstCourse(action)
-                    record.setValue('periodicity', toVariant(periodicity))
-                    if actionType.requiredActionSpecification:
-                        record.setValue('actionSpecification_id', toVariant(self.cmbActionSpecification.value()))
-
-                    plannedEndDate = forceDateTime(record.value('plannedEndDate'))
-#                    nextExecutionPlanItem = action.executionPlanManager.getNextItem()
-                    if not action.getType().isNomenclatureExpense and execCourse not in [CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]:
-                        if executionPlan and not actionType.isNomenclatureExpense and nextExecutionPlanItem and not bool(nextExecutionPlanItem.date):
-                            nextPlanDate, jobData = getNextDateExecutionPlan(self, jobTicketId=None, prevActionDate=begDate, executionPlan=executionPlan, lastAction=action, nextExecutionPlanItem=nextExecutionPlanItem)
-                            jobTicketOrgStructureId = jobData[2] if len(jobData) >= 3 else None
-                            if bool(nextPlanDate):
-                                if action and action.executionPlanManager:
-                                    action.executionPlanManager.setExecutionPlan(executionPlan)
-                    action.executionPlanManager.setCurrentItemExecuted()
-                    if not nextExecutionPlanItem:
-                        if action.nomenclatureClientReservation:
-                            action.nomenclatureClientReservation.cancel()
-                        record.setValue('quantity', toVariant(quantity-(1 if quantity > 0 else 0)))
-                        self.onActionCurrentChanged()
-                        return
-                    if jobTicketOrgStructureId and not forceRef(record.value('orgStructure_id')):
-                        record.setValue('orgStructure_id', toVariant(jobTicketOrgStructureId))
-                    executionPlan = action.getExecutionPlan()
-                    if not (not action.getType().isNomenclatureExpense and execCourse in [CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]):
-                        model = self.tblAPActions.model()
-                        newRecord = QtGui.qApp.db.table('Action').newRecord()
-                        newRecord.setValue('plannedEndDate', toVariant(plannedEndDate))
-                        newRecord.setValue('directionDate', toVariant(directionDate))
-                        newRecord.setValue('begDate', toVariant(nextExecutionPlanItem.getDateTime()))
-                        newAction = model.getFilledAction(newRecord, actionTypeId, actionType.amount, saveDirectionDates=True)
-                        newAction.updateByAction(action)
-                        if nextExecutionPlanItem:
-                            if newAction and newAction.executionPlanManager:
-                                newAction.executionPlanManager.setExecutionPlan(executionPlan)
-                            newAction.setExecutionPlanItem(nextExecutionPlanItem)
-                            newAction.executionPlanManager.bindAction(newAction)
-                            if action.executionPlanManager.getDuration() > 0:
-                                duration = max(
-                                    nextExecutionPlanItem.date.daysTo(
-                                        action.executionPlanManager.plannedEndDate()
-                                    ), 1)
-                        else:
-                            duration = 1
-                        if executionPlan:
-                            aliquoticity = 1
-                            aliquoticityToDate = executionPlan.getCountItemsByDate(nextExecutionPlanItem.getDateTime().date() if nextExecutionPlanItem else begDate.date())
-                            if aliquoticityToDate:
-                                aliquoticity = aliquoticityToDate
-                            else:
-                                aliquoticityEP = executionPlan.getAliquoticity()
-                                if aliquoticityEP:
-                                    aliquoticity = aliquoticityEP
-                        newAction.initPropertiesBySameAction(action)
-                        orgStructureId = forceRef(record.value('orgStructure_id'))
-                        medicalAidKindId = action.getMedicalAidKindId()
-                        if QtGui.qApp.controlSMFinance() == 0:
-                            newAction.initNomenclature(self.clientId(), medicalAidKindId=medicalAidKindId)
-                            newAction.nomenclatureReservationFromAction(action, medicalAidKindId=medicalAidKindId, supplierId=orgStructureId)
-                        else:
-                            newAction.initNomenclature(self.clientId(), financeId=forceRef(record.value('finance_id')), medicalAidKindId=medicalAidKindId)
-                            newAction.nomenclatureReservationFromAction(action, financeId=forceRef(record.value('finance_id')), medicalAidKindId=medicalAidKindId, supplierId=orgStructureId)
-#                        newAction.initNomenclature(self.clientId())
-#                        newAction.nomenclatureReservationFromAction(action)
-                        if newAction.getType().isNomenclatureExpense:
-                            newAction.updateDosageFromExecutionPlan()
-                            newAction.updateSpecifiedName()
-                        else:
-                            newRecord.setValue('specifiedName', toVariant(specifiedName))
-
-                        if executionPlan and not actionType.isNomenclatureExpense:
-                            for property in newAction.getType()._propertiesById.itervalues():
-                                if property.isJobTicketValueType() and property.valueType.initPresetValue:
-                                    prop = newAction.getPropertyById(property.id)
-                                    if prop._type:
-                                        prop._type.valueType.setIsExceedJobTicket(True)
-                                        prop._type.valueType.setIsNearestJobTicket(True)
-                                        prop._type.valueType.setDateTimeExecJob(nextExecutionPlanItem.getDateTime() if nextExecutionPlanItem else begDate)
-    #                                        if jobTicketOrgStructureId:
-    #                                            prop._type.valueType.setExecOrgStructureId(jobTicketOrgStructureId)
-                            newAction.initPresetValues()
-                        newAction.finalFillingPlannedEndDate()
-                        self.updateAmount()
-                        newRecord.setValue('event_id', toVariant(record.value('event_id')))
-                        newRecord.setValue('begDate', toVariant(
-                            nextExecutionPlanItem.getDateTime() if nextExecutionPlanItem else begDate
-                        ))
-                        newRecord.setValue('status', toVariant(CActionStatus.started))
-                        newRecord.setValue('duration', toVariant(duration))
-                        newRecord.setValue('periodicity', toVariant(periodicity))
-                        newRecord.setValue('aliquoticity', toVariant(aliquoticity))
-                        newRecord.setValue('quantity', toVariant(quantity-(1 if quantity > 0 else 0)))
-                        if not forceDate(newRecord.value('plannedEndDate')):
-                            newRecord.setValue('plannedEndDate', toVariant(plannedEndDate))
-                        newRecord.setValue('actionType_id', toVariant(actionTypeId))
-                        newRecord.setValue('directionDate', toVariant(directionDate))
-                        newRecord.setValue('setPerson_id', toVariant(setPersonId))
-                        newRecord.setValue('org_id', toVariant(record.value('org_id')))
-                        newRecord.setValue('amount', toVariant(record.value('amount')))
-                        newRecord.setValue('orgStructure_id', toVariant(jobTicketOrgStructureId) if jobTicketOrgStructureId else record.value('orgStructure_id'))
+                    for subrecord, subaction, subgroup in groupingRecords:
+                        subaction.executionPlanManager.setCurrentItemIndex(subaction.executionPlanManager.executionPlan.items.index(subaction.executionPlanManager._currentItem))
+                        nextExecutionPlanItem = subaction.executionPlanManager.getNextItem()
+                        specifiedName = forceString(subrecord.value('specifiedName'))
+                        subrecord.setValue('person_id', toVariant(execPersonId))
+                        subrecord.setValue('begDate', toVariant(begDate))
+                        subrecord.setValue('endDate', toVariant(QDateTime(begDate.date(), execTime)))
+                        subrecord.setValue('status', toVariant(CActionStatus.finished))
+                        if not subaction.getType().isNomenclatureExpense and execCourse > CCourseStatus.proceed:
+                            if execCourse in [CCourseStatus.skipRefusalClient, CCourseStatus.finishRefusalClient]:
+                                subrecord.setValue('status', QVariant(CActionStatus.refused))
+                            if execCourse in [CCourseStatus.skipRefusalMO, CCourseStatus.finishRefusalMO]:
+                                subrecord.setValue('status', QVariant(CActionStatus.canceled))
+                            if execCourse in [CCourseStatus.skipRefusalClient, CCourseStatus.skipRefusalMO, CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]:
+                                subaction = self.freeJobTicketFirstCourse(subaction)
+                        subrecord.setValue('periodicity', toVariant(periodicity))
                         if actionType.requiredActionSpecification:
-                            newRecord.setValue('actionSpecification_id', toVariant(record.value('actionSpecification_id')))
-                        personId = QtGui.qApp.userId  \
-                            if (QtGui.qApp.userId and QtGui.qApp.userSpecialityId) \
-                            else self.cmbAPSetPerson.value()
-                        newRecord.setValue('person_id', toVariant(personId))
-                        model.addRow(presetAction=newAction)
-                        #noExecTimeNextDialog = False
-                        newRecordAction = True
+                            subrecord.setValue('actionSpecification_id', toVariant(self.cmbActionSpecification.value()))
+
+                        plannedEndDate = forceDateTime(subrecord.value('plannedEndDate'))
+                        executionPlan = subaction.getExecutionPlan()
+    #                    nextExecutionPlanItem = action.executionPlanManager.getNextItem()
+                        if not subaction.getType().isNomenclatureExpense and execCourse not in [CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]:
+                            if executionPlan and not actionType.isNomenclatureExpense and nextExecutionPlanItem and not bool(nextExecutionPlanItem.date):
+                                nextPlanDate, jobData = getNextDateExecutionPlan(self, jobTicketId=None, prevActionDate=begDate, executionPlan=executionPlan, lastAction=action, nextExecutionPlanItem=nextExecutionPlanItem)
+                                jobTicketOrgStructureId = jobData[2] if len(jobData) >= 3 else None
+                                if bool(nextPlanDate):
+                                    if subaction and subaction.executionPlanManager:
+                                        subaction.executionPlanManager.setExecutionPlan(executionPlan)
+                        subaction.executionPlanManager.setCurrentItemExecuted()
+                        if not nextExecutionPlanItem:
+                            #if action.nomenclatureClientReservation:
+                            #    action.nomenclatureClientReservation.cancel()
+                            subrecord.setValue('quantity', toVariant(quantity-(1 if quantity > 0 else 0)))
+                            self.onActionCurrentChanged()
+                            returnAfter = True
+                            continue
+                        if jobTicketOrgStructureId and not forceRef(subrecord.value('orgStructure_id')):
+                            subrecord.setValue('orgStructure_id', toVariant(jobTicketOrgStructureId))
+                        subaction.setNomenclatureExpenseChange(subaction.saveNomenclatureExpense(subaction.nomenclatureExpensePreliminarySave, isActionNoSave = True))
+                        executionPlan = subaction.getExecutionPlan()
+                        if not (not subaction.getType().isNomenclatureExpense and execCourse in [CCourseStatus.finishRefusalClient, CCourseStatus.finishRefusalMO]):
+                            model = self.tblAPActions.model()
+                            newRecord = QtGui.qApp.db.table('Action').newRecord()
+                            newRecord.setValue('plannedEndDate', toVariant(plannedEndDate))
+                            newRecord.setValue('directionDate', toVariant(directionDate))
+                            newRecord.setValue('begDate', toVariant(nextExecutionPlanItem.getDateTime()))
+                            actionFinanceId = subaction.getFinanceId()
+                            actionMedicalAidKindId = subaction.getMedicalAidKindId()
+                            newAction = model.getFilledAction(newRecord, actionTypeId, actionType.amount, actionFinanceId, saveDirectionDates=True)
+                            newRecord.setValue('medicalAidKind_id', toVariant(actionMedicalAidKindId))
+                            newAction.setFinanceId(forceRef(newRecord.value('finance_id')))
+                            newAction.setMedicalAidKindId(actionMedicalAidKindId)
+                            newAction.updateByAction(subaction)
+                            if nextExecutionPlanItem:
+                                if newAction and newAction.executionPlanManager:
+                                    newAction.executionPlanManager.setExecutionPlan(executionPlan)
+                                newAction.setExecutionPlanItem(nextExecutionPlanItem)
+                                newAction.executionPlanManager.bindAction(newAction)
+                                if subaction.executionPlanManager.getDuration() > 0:
+                                    duration = max(
+                                        nextExecutionPlanItem.date.daysTo(
+                                            subaction.executionPlanManager.plannedEndDate()
+                                        ), 1)
+                            else:
+                                duration = 1
+                            if executionPlan:
+                                aliquoticity = 1
+                                aliquoticityToDate = executionPlan.getCountItemsByDate(nextExecutionPlanItem.getDateTime().date() if nextExecutionPlanItem else begDate.date())
+                                if aliquoticityToDate:
+                                    aliquoticity = aliquoticityToDate
+                                else:
+                                    aliquoticityEP = executionPlan.getAliquoticity()
+                                    if aliquoticityEP:
+                                        aliquoticity = aliquoticityEP
+                            newAction.initPropertiesBySameAction(subaction)
+                            orgStructureId = forceRef(subrecord.value('orgStructure_id'))
+                            medicalAidKindId = subaction.getMedicalAidKindId()
+                            #if QtGui.qApp.controlSMFinance() == 0:
+                            #    newAction.initNomenclature(self.clientId(), medicalAidKindId=medicalAidKindId)
+                            #    newAction.nomenclatureReservationFromAction(action, medicalAidKindId=medicalAidKindId, supplierId=orgStructureId)
+                            #else:
+                            newAction.initNomenclature(self.clientId(), financeId=forceRef(newRecord.value('finance_id')), medicalAidKindId=actionMedicalAidKindId)
+                            newAction.nomenclatureReservationFromAction(subaction, financeId=forceRef(newRecord.value('finance_id')), medicalAidKindId=actionMedicalAidKindId, supplierId=orgStructureId)
+    #                        newAction.initNomenclature(self.clientId())
+    #                        newAction.nomenclatureReservationFromAction(action)
+                            if newAction.getType().isNomenclatureExpense:
+                                newAction.updateDosageFromExecutionPlan()
+                                newAction.updateSpecifiedName()
+                                noteAction = forceStringEx(subrecord.value('note'))
+                                note = noteAction if noteAction else (forceStringEx(executionPlan.getNote()) if executionPlan else u'')
+                                newAction.setNote(note)
+                                newRecord.setValue('note', toVariant(note))
+                                if executionPlan:
+                                    executionPlan.setNote(note)
+                            else:
+                                newRecord.setValue('specifiedName', toVariant(specifiedName))
+                                newAction.setSpecifiedName(specifiedName)
+                            if executionPlan and not actionType.isNomenclatureExpense:
+                                for property in newAction.getType()._propertiesById.itervalues():
+                                    if property.isJobTicketValueType() and property.valueType.initPresetValue:
+                                        prop = newAction.getPropertyById(property.id)
+                                        if prop._type:
+                                            prop._type.valueType.setIsExceedJobTicket(True)
+                                            prop._type.valueType.setIsNearestJobTicket(True)
+                                            prop._type.valueType.setDateTimeExecJob(nextExecutionPlanItem.getDateTime() if nextExecutionPlanItem else begDate)
+        #                                        if jobTicketOrgStructureId:
+        #                                            prop._type.valueType.setExecOrgStructureId(jobTicketOrgStructureId)
+                                newAction.initPresetValues()
+                            newAction.finalFillingPlannedEndDate()
+                            self.updateAmount()
+                            newRecord.setValue('event_id', toVariant(subrecord.value('event_id')))
+                            newRecord.setValue('begDate', toVariant(
+                                nextExecutionPlanItem.getDateTime() if nextExecutionPlanItem else begDate
+                            ))
+                            newRecord.setValue('status', toVariant(CActionStatus.started))
+                            newRecord.setValue('duration', toVariant(duration))
+                            newRecord.setValue('periodicity', toVariant(periodicity))
+                            newRecord.setValue('aliquoticity', toVariant(aliquoticity))
+                            newRecord.setValue('quantity', toVariant(quantity-(1 if quantity > 0 else 0)))
+                            if not forceDate(newRecord.value('plannedEndDate')):
+                                newRecord.setValue('plannedEndDate', toVariant(plannedEndDate))
+                            newRecord.setValue('actionType_id', toVariant(actionTypeId))
+                            newRecord.setValue('directionDate', toVariant(directionDate))
+                            newRecord.setValue('setPerson_id', toVariant(setPersonId))
+                            newRecord.setValue('org_id', toVariant(subrecord.value('org_id')))
+                            newRecord.setValue('amount', toVariant(subrecord.value('amount')))
+                            if subaction.getType().isNomenclatureExpense:
+                                prevOrgStructureId = forceRef(subrecord.value('orgStructure_id'))
+                                nomenclatureOrgStructureId = subaction.getType().getNomenclatureOrgStructureId()
+                                newRecord.setValue('orgStructure_id', toVariant(nomenclatureOrgStructureId) if nomenclatureOrgStructureId else toVariant(prevOrgStructureId))
+                            else:
+                                newRecord.setValue('orgStructure_id', toVariant(jobTicketOrgStructureId) if jobTicketOrgStructureId else subrecord.value('orgStructure_id'))
+                            newRecord.setValue('actionTypeGroup_id', toVariant(subrecord.value('actionTypeGroup_id')))
+                            if actionType.requiredActionSpecification:
+                                newRecord.setValue('actionSpecification_id', toVariant(subrecord.value('actionSpecification_id')))
+                            personId = QtGui.qApp.userId  \
+                                if (QtGui.qApp.userId and QtGui.qApp.userSpecialityId) \
+                                else self.cmbAPSetPerson.value()
+                            newRecord.setValue('person_id', toVariant(personId))
+                            model.addRow(presetAction=newAction, related = False, subgroup = subgroup)
+                            #noExecTimeNextDialog = False
+                            newRecordAction = True
+                            if action == subaction:
+                                newCurrentItem = newAction.executionPlanManager._currentItem
+                            else:
+                                subaction._isShort = True
+                                subaction.groupedNomenclature = True
+                            if subgroup.groupingItem or subgroup.currentItem._record.value('group_id'):
+                                newActions.append(newAction)
             finally:
                 dialog.deleteLater()
+        if returnAfter:
+            return
+        for newAction in newActions:
+            newAction.executionPlanManager.groupingItem = newCurrentItem
+            newAction.executionPlanManager._currentItem._record.setValue('group_id', None)
         _checkNewRecordAction(duration, newRecordAction)
         return noExecTimeNextDialog
 
@@ -1984,6 +2169,17 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if oldUnitId == newUnitId:
             return 1
         ratio = getNomenclatureUnitRatio(nomenclatureId, oldUnitId, newUnitId)
+        return ratio
+
+
+    def getSimpleRatio(self, nomenclatureId, oldUnitId, newUnitId):
+        if oldUnitId is None:
+            oldUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if newUnitId is None:
+            newUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if oldUnitId == newUnitId:
+            return 1
+        ratio = getNomenclatureSimpleUnitRatio(nomenclatureId, oldUnitId, newUnitId)
         return ratio
 
 
@@ -2250,6 +2446,19 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         record, action = items[row]
 
         flatCode = action.actionType().flatCode
+
+        # ГИС ОМС. ФЕРЗЛ. Создание/обновление НИЛ
+        if u'createNIL' in flatCode:
+            from Registry.Ferzl_service import Ferzl_service
+            service = Ferzl_service()
+            result_dict = service.createUpdateNil(self.clientId(), self.eventEditor.eventSetDateTime, self.eventEditor.eventDate, action)
+            if result_dict['result']:
+                prop = action.getPropertyByShortName('nLr')
+                if prop:
+                    prop.setValue(result_dict['elements']['nLr'])
+                    self.btnNextAction.setText(u'Обновить НИЛ')
+            return
+
         if flatCode.lower() in ['recipeLLO78'.lower()] and unicode(self.btnNextAction.text()) == u'Зарегистрировать рецепт' and (0 <= row < len(items)):
             clientId = self.clientId()
             tablePolicy = QtGui.qApp.db.table('ClientPolicy')
@@ -2426,8 +2635,33 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
             if not (0 <= row < len(items)):
                 return
-
-            record, action = items[row]
+            
+            group = items._mapProxyRow2Group[row]
+            groupingRecords = []
+            anyGroupingCancelled = True
+            if group.groupingItem or isinstance(group, CExecutionPlanProxyModelGroup) and group.currentItem and forceInt(group.currentItem._record.value('group_id')):
+                headRow = 0 if group.expanded else -1
+                if forceInt(group.items[headRow].action._record.value('status')) == CActionStatus.canceled:
+                    anyGroupingCancelled = False
+                for subgroup in items._groups:
+                    if isinstance(subgroup, CExecutionPlanProxyModelGroup):
+                        subHeadRow = 0 if subgroup.expanded else -1
+                        if subgroup.isGrouped() and group.isGrouped() and subgroup.groupingItem == subgroup.currentItem and subgroup.currentItem == group.groupingItem:
+                            record, action = subgroup.items[subHeadRow].record, subgroup.items[subHeadRow].action
+                            groupingRecords.append((subgroup.items[subHeadRow].record, subgroup.items[subHeadRow].action, subgroup))
+                        elif subgroup.isGroupedAndSaved() and group.isGroupedAndSaved() and subgroup.currentItem._record.value('id') == subgroup.currentItem._record.value('group_id') and \
+                                subgroup.currentItem._record.value('id') == group.currentItem._record.value('group_id'):
+                            record, action = subgroup.items[subHeadRow].record, subgroup.items[subHeadRow].action
+                            groupingRecords.append((subgroup.items[subHeadRow].record, subgroup.items[subHeadRow].action, subgroup))
+                        elif (group.isGrouped() and subgroup.isGrouped() and subgroup.groupingItem == group.groupingItem) \
+                                or (group.isGroupedAndSaved() and subgroup.isGroupedAndSaved() and \
+                                forceInt(group.currentItem._record.value('group_id')) == forceInt(subgroup.currentItem._record.value('group_id'))):
+                            groupingRecords.append((subgroup.items[subHeadRow].record, subgroup.items[subHeadRow].action, subgroup))
+                            if forceInt(subgroup.items[subHeadRow].action._record.value('status')) == CActionStatus.canceled:
+                                anyGroupingCancelled = False
+            else:
+                record, action = items[row]
+                groupingRecords.append((record, action, group))
 
             needCutFeed = True
             actionTypeId = forceRef(record.value('actionType_id')) if record else None
@@ -2470,15 +2704,17 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     action, actionType, record, jobTicketEndDateAskingIsRequired, nextChiefId, currentDateTime, needCutFeed
                 )
 
+            elif action and action.actionType().isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() != CActionStatus.canceled:
+                noExecTimeNextDialog = self._onExecActionIsDoesNotInvolveExecutionCourse(action, record, currentDateTime)
+
             elif (action and
                         action.getExecutionPlan() and
                         action.executionPlanManager.hasItemsToDo() and
-                        self.cmbAPStatus.value() != CActionStatus.canceled):
+                        self.cmbAPStatus.value() != CActionStatus.canceled and
+                        anyGroupingCancelled):
                 noExecTimeNextDialog = self._onNextActionDurationOrAliquoticity(
-                    action, record, actionType, duration, aliquoticity, quantity, actionTypeId, directionDate, setPersonId
+                    action, record, actionType, duration, aliquoticity, quantity, actionTypeId, directionDate, setPersonId, groupingRecords
                 )
-            elif action and action.actionType().isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() != CActionStatus.canceled:
-                noExecTimeNextDialog = self._onExecActionIsDoesNotInvolveExecutionCourse(action, record, currentDateTime)
             if noExecTimeNextDialog and not action.actionType().isDoesNotInvolveExecutionCourse:
                 row = (row + 1) if (row + 1) <= model.rowCount()-1 else model.rowCount()-1
                 self.tblAPActions.setCurrentIndex(model.index(row, 0))
@@ -2568,6 +2804,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 or u'researchDirection'.lower() in actionType.flatCode.lower()
                 or u'consultationDirection'.lower() in actionType.flatCode.lower()
                 or (u'planning'.lower() in actionType.flatCode.lower() and getEventCode(self.eventEditor.eventTypeId) == u'УО')
+                or u'createnil'.lower() in actionType.flatCode.lower()
                 ):
                 self.onCurrentActionAdd(actionType.flatCode, action)
             else:
@@ -2575,11 +2812,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         ((action.getExecutionPlan() and
                         action.executionPlanManager.hasItemsToDo()) or actionType.isDoesNotInvolveExecutionCourse) and
                         self.cmbAPStatus.value() != CActionStatus.canceled):
-                    self.btnNextAction.setText(u'Выполнить')
-                    isEnable = self.cmbAPStatus.value() != CActionStatus.refused
-                    if action.getType().isNomenclatureExpense:
-                        isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
-                    self.btnNextAction.setEnabled(isEnable)
+                    if actionType.isDoesNotInvolveExecutionCourse and self.cmbAPStatus.value() == CActionStatus.finished:
+                        self.btnNextAction.setText(u'Действие')
+                        self.btnNextAction.setEnabled(False)
+                    else:
+                        self.btnNextAction.setText(u'Выполнить')
+                        isEnable = self.cmbAPStatus.value() != CActionStatus.refused
+                        if action.getType().isNomenclatureExpense:
+                            isEnable = isEnable and self.isEnabledNomenclatureExpense(action)
+                        self.btnNextAction.setEnabled(isEnable)
                 else:
                     self.btnNextAction.setText(u'Действие')
                     self.btnNextAction.setEnabled(self.isTrailerActionType(actionTypeId))
@@ -3110,6 +3351,16 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 applyMultiTemplateList(self, dialog.templateIdAndDataList, addPageBreaks=dialog.addPageBreaks)
         finally:
             dialog.deleteLater()
+    
+    
+    @pyqtSignature('')
+    def on_actAPGroupSign_triggered(self):
+        row = self.tblAPActions.currentIndex().row()
+        items = self.tblAPActions.model().items()
+        record, action = items[row]
+        dialog = CActionGroupSignDialog(self, self.btnAPAttachedFiles, action)
+        dialog.setEventEditor(self.eventEditor)
+        dialog.exec_()
 
 
     @pyqtSignature('QDate')
@@ -3448,8 +3699,29 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.edtAPEndDate.setEnabled(bool(not value > 0) and canEdit)
             self.edtAPEndTime.setEnabled(bool(not value > 0) and canEdit)
         if action and action.getType().isDoesNotInvolveExecutionCourse and action.nomenclatureExpense:
-            action = updateNomenclatureDosageValue(action)
+            if self.getIsUpdateNomenclatureDosage(action):
+                action = updateNomenclatureDosageValue(action)
             self.edtAPQuantity.setValue(forceInt(action.getRecord().value('quantity')))
+
+
+    def getIsUpdateNomenclatureDosage(self, action):
+        isUpdateNomenclatureDosage = True
+        stockMotionItems = action.nomenclatureExpense.stockMotionItems()
+        if action.nomenclatureExpense.stockMotionRecord() and stockMotionItems:
+            nomencalureId = None
+            for properties in action._properties:
+                type = properties._type
+                name = type.name
+                if type.isNomenclatureValueType():
+                    property = action.getProperty(name)
+                    nomencalureId = property.getValue()
+                    if nomencalureId:
+                        break
+            for item in stockMotionItems:
+                if nomencalureId == forceRef(item.value('nomenclature_id')) and forceRef(item.value('id')):
+                    isUpdateNomenclatureDosage = False
+                    break
+        return isUpdateNomenclatureDosage
 
 
     @pyqtSignature('int')
@@ -3457,7 +3729,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.onActionDataChanged('periodicity', value)
         record, action = self.tblAPActions.model().items()[self.tblAPActions.currentIndex().row()]
         if action and action.getType().isDoesNotInvolveExecutionCourse and action.nomenclatureExpense:
-            action = updateNomenclatureDosageValue(action)
+            if self.getIsUpdateNomenclatureDosage(action):
+                action = updateNomenclatureDosageValue(action)
             self.edtAPQuantity.setValue(forceInt(action.getRecord().value('quantity')))
 
 
@@ -3466,7 +3739,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.onActionDataChanged('aliquoticity', value)
         record, action = self.tblAPActions.model().items()[self.tblAPActions.currentIndex().row()]
         if action and action.getType().isDoesNotInvolveExecutionCourse and action.nomenclatureExpense:
-            action = updateNomenclatureDosageValue(action)
+            if self.getIsUpdateNomenclatureDosage(action):
+                action = updateNomenclatureDosageValue(action)
             self.edtAPQuantity.setValue(forceInt(action.getRecord().value('quantity')))
 
 
@@ -3628,13 +3902,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         row = self.tblAPActions.currentIndex().row()
         if 0 <= row < len(items):
             record, action = items[row]
-            self._openNomenclatureEditor(action, record)
+            if not self._openNomenclatureEditor(action, record):
+                if action.nomenclatureExpense:
+                    action.nomenclatureExpense.cancelEx()
     
 
     def reloadCurrentAction(self):
         model = self.tblAPActions.model()
         row = self.tblAPActions.currentIndex().row()
         model.reloadItem(row)
+
+    @pyqtSignature('')
+    def on_actImportAvailableProfiles_triggered(self):
+        url = 'http://'+QtGui.qApp.preferences.dbServerName+'/queueManagement/importAvailableProfiles.php'
+        response = requests.get(url)
+        if response.status_code == 200:
+            QtGui.QMessageBox.information(self, u'Внимание!', u'Данные загружены')
+        else:
+            QtGui.QMessageBox.information(self, u'Внимание!', u'Данные не загружены')
 
     @pyqtSignature('')
     def on_actAPQMSetAppointment_triggered(self):
@@ -3833,20 +4118,100 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 if not action.nomenclatureExpense.stockMotionItems():
                     return True
 
-#            dosesPropertyAmount = None
-#            for i, type in enumerate(action._properties):
-#                type = type._type.name
-#                if type == u'Доза':
-#                    dosesPropertyAmount = action._properties[i]._value
-#            for itemRecord in action.nomenclatureExpense.stockMotionItems():
-#                if dosesPropertyAmount and len(action.actionType().getNomenclatureRecordList()):
-#                    itemRecord.setValue('qnt', dosesPropertyAmount*forceDouble(itemRecord.value('qnt')) if forceDouble(itemRecord.value('qnt')) else 1)
-#                elif forceDouble(itemRecord.value('qnt')) > 1:
-#                    itemRecord.setValue('qnt', forceDouble(itemRecord.value('qnt')))
-#                elif dosesPropertyAmount:
-#                    itemRecord.setValue('qnt', dosesPropertyAmount)
-#                else:
-#                    itemRecord.setValue('qnt', forceDouble(itemRecord.value('qnt')))
+            isControlExecWriteOffNomenclatureExpense = QtGui.qApp.controlExecutionWriteOffNomenclatureExpense()
+            if isControlExecWriteOffNomenclatureExpense:
+                db = QtGui.qApp.db
+                message = u''
+                nomenclatureLine = []
+                resQntDict = {}
+                tableNomenclature = db.table('rbNomenclature')
+                if action.nomenclatureExpense:
+                    stockMotionItems = action.nomenclatureExpense.stockMotionItems()
+                    for stockMotionItem in stockMotionItems:
+                        price = forceDouble(stockMotionItem.value('price'))
+                        oldPrice = price
+                        nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
+                        if nomenclatureId and nomenclatureId not in nomenclatureLine:
+                            qnt = forceDouble(stockMotionItem.value('qnt'))
+                            resQnt, proxyQnt, planQnt, simpleRatio = resQntDict.get(nomenclatureId, (None, None, None, 2))
+                            unitId = forceRef(stockMotionItem.value('unit_id'))
+                            stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
+                            ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
+                            if ratio is not None:
+                                price = price*ratio
+                                qnt = qnt / ratio
+                            qnt = round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if planQnt is None:
+                                nomenclativeRecord, dosage = nomenclatureIdDict.get(nomenclatureId, (None, 0))
+                                planQnt = action.nomenclatureExpense.getNomenclatureDosageToQntValue(nomenclatureId, dosage)
+                                if ratio is not None:
+                                    planQnt = planQnt / ratio
+                                planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt is None:
+                                proxyQnt = 0
+                                model = self.tblAPActions.model()
+                                mapProxyRow2Group = model._mapProxyRow2Group
+                                actionRow = self.tblAPActions.currentIndex().row()
+                                if mapProxyRow2Group and actionRow >= 0 and actionRow < len(model.items()) and actionRow in mapProxyRow2Group.keys():
+                                    proxyGroup = mapProxyRow2Group[actionRow]
+                                    if proxyGroup:
+                                        for proxyItem in proxyGroup.items:
+                                            i = proxyGroup._mapItem2Row.get(proxyItem, -1)
+                                            if i > -1 and i != proxyGroup._headModelRow:
+                                                proxyQnt += proxyItem.action.findDosagePropertyValue()
+                                        if ratio is not None:
+                                            proxyQnt = proxyQnt / ratio
+                                        proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt > 0:
+                                proxyQnt = proxyQnt - qnt
+                                proxyQnt = round(proxyQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if proxyQnt < 0:
+                                proxyQnt = 0
+                            financeId = forceRef(stockMotionItem.value('finance_id'))
+                            batch = forceString(stockMotionItem.value('batch'))
+                            shelfTime = forceDate(stockMotionItem.value('shelfTime'))
+                            shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
+                            medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
+                            otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
+                            existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, orgStructureId=supplierId, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                            masterId = forceRef(stockMotionItem.value('master_id'))
+                            prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if masterId else 0
+                            reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self.clientId(), medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
+                            if existsQnt < 0:
+                                existsQnt = 0
+                            if prevQnt < 0:
+                                prevQnt = 0
+                            if reservationQnt < 0:
+                                reservationQnt = 0
+                            if resQnt is None:
+                                resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
+                            else:
+                                resQnt += (existsQnt + reservationQnt + prevQnt) - qnt
+                            resQnt = round(resQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            planQnt = planQnt - qnt
+                            planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            resQntDict[nomenclatureId] = (resQnt, proxyQnt, planQnt, len(forceStringEx(self.getSimpleRatio(nomenclatureId, stockUnitId, unitId))))
+                    for nomenclatureIdKey, (resQntValue, proxyQntValue, planQntValue, simpleQntRatio) in resQntDict.items():
+                        if resQntValue < 0 or resQntValue is None or (round(planQntValue, simpleQntRatio) != 0 and planQntValue is not None):
+                            nomenclatureLine.append(nomenclatureIdKey)
+                    if nomenclatureLine:
+                        records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
+                        nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
+                        message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n'''%(action._actionType.name, nomenclatureName)
+                    if message:
+                        if isControlExecWriteOffNomenclatureExpense == 1:
+                            button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?'%(nomenclatureName)
+                        else:
+                            button = QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n'%(nomenclatureName)
+                        res = QtGui.QMessageBox.warning(None,
+                                                    u'Внимание!',
+                                                    message2,
+                                                    button,
+                                                    QtGui.QMessageBox.Cancel)
+                        if res == QtGui.QMessageBox.Cancel:
+                            return False
 
             medicalAidKindId = action.getMedicalAidKindId()
             if QtGui.qApp.keyboardModifiers() & Qt.ShiftModifier:
@@ -3885,12 +4250,6 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         record, action = items[row]
         actionTypeId = forceRef(record.value('actionType_id')) if record else None
         actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
-        if QtGui.qApp.defaultKLADR()[:2] == u'23' and actionType.context == 'recipe' \
-                        and action and u'Льгота' in actionType._propertiesByName:
-            if self.modelAPActionProperties.getPropertyType(self.tblAPProps.currentIndex().row()).name == u'Льгота':
-                classId = forceRef(QtGui.qApp.db.translate('rbSocStatusClassTypeAssoc', 'type_id', action[u'Льгота'], 'class_id'))
-                className = forceString(QtGui.qApp.db.translate('rbSocStatusClass', 'id', classId, 'name'))
-                action[u'Источник финансирования'] = className
         if u'moving' in actionType.flatCode.lower():
             if action[u'Переведен в отделение']:
                 self.btnNextAction.setText(u'Перевод')
@@ -3939,15 +4298,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 #             self.eventEditor.tabNotes.cmbRelegateOrg.setValue(propRelegateOrgId)
                 if hasattr(self.eventEditor, 'tabVoucher') and hasattr(self.eventEditor.tabVoucher, 'cmbDirectionOrgs'):
                     self.eventEditor.tabVoucher.cmbDirectionOrgs.setValue(forceRef(action[u'Кем направлен']))
-            if action and u'Номер документа' in action._actionType._propertiesByName:
-                if hasattr(self.eventEditor.tabNotes, 'edtEventSrcNumber'):
-                    self.eventEditor.tabNotes.edtEventSrcNumber.setText(forceString(action[u'Номер документа']))
-            elif u'№ документа' in action._actionType._propertiesByName:
-                if hasattr(self.eventEditor.tabNotes, 'edtEventSrcNumber'):
-                    self.eventEditor.tabNotes.edtEventSrcNumber.setText(forceString(action[u'№ документа']))
-            if action and u'Дата направления' in action._actionType._propertiesByName:
-                if hasattr(self.eventEditor.tabNotes, 'edtEventSrcDate'):
-                    self.eventEditor.tabNotes.edtEventSrcDate.setDate(forceDate(action[u'Дата направления']))
+            # if action and u'Номер документа' in action._actionType._propertiesByName:
+            #     if hasattr(self.eventEditor.tabNotes, 'edtEventSrcNumber'):
+            #         self.eventEditor.tabNotes.edtEventSrcNumber.setText(forceString(action[u'Номер документа']))
+            # elif u'№ документа' in action._actionType._propertiesByName:
+            #     if hasattr(self.eventEditor.tabNotes, 'edtEventSrcNumber'):
+            #         self.eventEditor.tabNotes.edtEventSrcNumber.setText(forceString(action[u'№ документа']))
+            # if action and u'Дата направления' in action._actionType._propertiesByName:
+            #     if hasattr(self.eventEditor.tabNotes, 'edtEventSrcDate'):
+            #         self.eventEditor.tabNotes.edtEventSrcDate.setDate(forceDate(action[u'Дата направления']))
         elif u'inspectPigeonHole'.lower() in actionType.flatCode.lower():
             self.btnNextAction.setText(u'Закончить')
             self.btnNextAction.setEnabled(self.edtAPEndDate.date().isNull())
@@ -3972,23 +4331,25 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
     @pyqtSignature('int')
     def on_btnAPPrint_printByTemplate(self, templateId):
-        model = self.tblAPActions.model()
-        items = model.items()
-        row = self.tblAPActions.currentIndex().row()
-        if 0<=row<len(items):
-            data = getEventContextData(self.eventEditor)
-            eventInfo = data['event']
-            currentActionIndex = eventInfo.actions._rawItems.index(items[row])
-            action = eventInfo.actions[currentActionIndex]
-            action.setCurrentPropertyIndex(self.tblAPProps.currentIndex().row())
-            data['action'] = action
-            data['actions'] = eventInfo.actions
-            data['currentActionIndex'] = currentActionIndex
-            data['currentAction'] = items[self.tblAPActions.currentIndex().row()]
-            applyTemplate(self.eventEditor,
-                          templateId,
-                          data,
-                          signAndAttachHandler=self.btnAPAttachedFiles.getSignAndAttachHandler())
+        if self.eventEditor.checkPrintByTemplateAllowed(templateId):
+            model = self.tblAPActions.model()
+            items = model.items()
+            row = self.tblAPActions.currentIndex().row()
+            if 0 <= row < len(items):
+                data = getEventContextData(self.eventEditor)
+                eventInfo = data['event']
+                currentActionIndex = eventInfo.actions._rawItems.index(items[row])
+                action = eventInfo.actions[currentActionIndex]
+                action.setCurrentPropertyIndex(self.tblAPProps.currentIndex().row())
+                data['action'] = action
+                data['actions'] = eventInfo.actions
+                data['currentActionIndex'] = currentActionIndex
+                data['currentAction'] = items[self.tblAPActions.currentIndex().row()]
+                applyTemplate(self.eventEditor,
+                              templateId,
+                              data,
+                              signAndAttachHandler=self.btnAPAttachedFiles.getSignAndAttachHandler())
+
 
     @pyqtSignature('')
     def on_actCopyInputActionProperty_triggered(self):
@@ -4298,6 +4659,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     action[u'Тип стационара'] = dialog.usok
             finally:
                 dialog.deleteLater()
+
+    def on_arrowTypeChanged(self, value):
+        self.frmWidgets.setVisible(value)
+
+    def setVisibleBtnCloseWidgets(self, value):
+        self.btnCloseWidgets.setVisible(value)
+        if value:
+            self.btnCloseWidgets.applayArrow()
+
 
 # ##################################################################
 

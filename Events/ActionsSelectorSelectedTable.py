@@ -134,7 +134,7 @@ class CCheckedActionsModel(CRecordListModel):
         def setEditorData(self, editor, value, record):
             eventEditor = self.model.parentWidget.eventEditor
             actionTypeId = forceRef(record.value('actionType_id'))
-            editor.setFilter(actionTypeId, None, None, eventEditor.clientSex, eventEditor.clientAge)
+            editor.setFilter(actionTypeId, None, None, None, eventEditor.clientSex, eventEditor.clientAge)
             editor.setValue(forceRef(value))
 
 
@@ -260,7 +260,7 @@ class CCheckedActionsModel(CRecordListModel):
         self._dbFieldNamesList = [field.fieldName.replace('`', '') for field in self._table.fields]
         self.prices = []
         self._mapPropertyTypeCellsActivity = {}
-        self._propertyColsNames = ['recipe', 'doses', 'signa', 'activeSubstance_id']
+        self._propertyColsNames = ['recipe', 'doses', 'signa', 'activeSubstance_id', 'reaction', 'cancelDate']
         if includeTooth:
             self._propertyColsNames.append('tooth')
 #        if nomenclatureLS:
@@ -411,13 +411,13 @@ class CCheckedActionsModel(CRecordListModel):
             fieldNameRecipe = record.fieldName(record.indexOf('recipe'))
             propertyType = values[forceString(fieldNameRecipe)]['propertyType']
             property     = action.getPropertyById(propertyType.id)
-            property.preApplyDependents(action)
+            #property.preApplyDependents(action)
             if propertyType.inActionsSelectionTable == _RECIPE:
                 propertyName = propertyType.name
                 if action and propertyName:
                     action[propertyName] = recipe
                 record.setValue('recipe', QVariant(recipe))
-            property.applyDependents(action)
+            #property.applyDependents(action)
         if doses:
             fieldNameDoses = record.fieldName(record.indexOf('doses'))
             propertyType = values[forceString(fieldNameDoses)]['propertyType']
@@ -520,6 +520,8 @@ class CCheckedActionsModel(CRecordListModel):
 
     def getSelectedAction(self, actionTypeId):
         result = []
+        if actionTypeId not in self._idToRows.keys():
+            return result
         rows = self._idToRows[actionTypeId]
         for row in rows:
             action = self._idRowToAction[(actionTypeId, row)]
@@ -590,6 +592,12 @@ class CCheckedActionsModel(CRecordListModel):
             deletedRows.append(row)
             action = self._rowToAction.pop(row)
             jobTicketId = action.findFireableJobTicketId()
+            for i in self._rowToAction:
+                otherAction = self._rowToAction[i]
+                otherJobTicketId = otherAction.findFireableJobTicketId()
+                if jobTicketId == otherJobTicketId:
+                    jobTicketId = None
+                    break
             if jobTicketId:
                 QtGui.qApp.jobTicketReserveHolder.delJobTicketReservation(jobTicketId)
         self._idRowToAction.clear()
@@ -823,7 +831,7 @@ class CCheckedActionsModel(CRecordListModel):
         elif fieldName == 'recipe':
             actionTypeId        = forceRef(record.value('actionType_id'))
             action              = self._idRowToAction[(actionTypeId, row)]
-            values              = self._mapActionTypeIdToPropertyValues[actionTypeId]
+            values              = self._mapActionTypeIdToPropertyValues.get(actionTypeId, None)
             propertyType        = values[fieldName]['propertyType']
             property            = action.getPropertyById(propertyType.id)
             property.preApplyDependents(action)
@@ -855,38 +863,38 @@ class CCheckedActionsModel(CRecordListModel):
                                 signaIndex = self.index(row, signaColumnIndex)
                                 self.setData(signaIndex, toVariant(usingTypes[0]))
 
-            property.applyDependents(action)
+            #property.applyDependents(action)
 
         elif fieldName == 'doses':
             actionTypeId = forceRef(record.value('actionType_id'))
             action = self._idRowToAction[(actionTypeId, row)]
-            values = self._mapActionTypeIdToPropertyValues[actionTypeId]
-            propertyType = values['recipe']['propertyType']
-            if isinstance(propertyType.valueType, CNomenclatureActionPropertyValueType):
-                property = action.getPropertyById(propertyType.id)
-                nomenclatureId = property.getValue()
-                if nomenclatureId:
-                    action.updateNomenclatureDosageValue(nomenclatureId, forceDouble(value), force=True)
-                    if actionType.isNomenclatureExpense:
-                        self.updateExecutionPlanByRecord(row)
+            values = self._mapActionTypeIdToPropertyValues.get(actionTypeId, None)
+            if values:
+                propertyType = values['recipe']['propertyType']
+                if isinstance(propertyType.valueType, CNomenclatureActionPropertyValueType):
+                    property = action.getPropertyById(propertyType.id)
+                    nomenclatureId = property.getValue()
+                    if nomenclatureId:
+                        action.updateNomenclatureDosageValue(nomenclatureId, forceDouble(value), force=True)
         return result
 
 
     def updateNomenclatureDosage(self, actionTypeId, actionType, record, row):
         actionTypeId = forceRef(record.value('actionType_id'))
         action = self._idRowToAction[(actionTypeId, row)]
-        values = self._mapActionTypeIdToPropertyValues[actionTypeId]
-        propertyType = values['recipe']['propertyType']
-        if isinstance(propertyType.valueType, CNomenclatureActionPropertyValueType):
-            property = action.getPropertyById(propertyType.id)
-            nomenclatureId = property.getValue()
-            if nomenclatureId:
-                dosesPropertyType = values['doses']['propertyType']
-                dosesProperty = action.getPropertyById(dosesPropertyType.id)
-                doses = dosesProperty.getValue()
-                action.updateNomenclatureDosageValue(nomenclatureId, forceDouble(doses), force=True)
-                if actionType.isNomenclatureExpense:
-                    self.updateExecutionPlanByRecord(row)
+        values = self._mapActionTypeIdToPropertyValues.get(actionTypeId, None)
+        if values:
+            propertyType = values['recipe']['propertyType']
+            if isinstance(propertyType.valueType, CNomenclatureActionPropertyValueType):
+                property = action.getPropertyById(propertyType.id)
+                nomenclatureId = property.getValue()
+                if nomenclatureId:
+                    dosesPropertyType = values['doses']['propertyType']
+                    dosesProperty = action.getPropertyById(dosesPropertyType.id)
+                    doses = dosesProperty.getValue()
+                    action.updateNomenclatureDosageValue(nomenclatureId, forceDouble(doses), force=True)
+                    if actionType.isNomenclatureExpense:
+                        self.updateExecutionPlanByRecord(row)
 
 
     def updateExecutionPlanByRecord(self, row):
@@ -1008,7 +1016,7 @@ class CCheckedActionsModel(CRecordListModel):
         row          = index.row()
         column       = index.column()
         actionTypeId = forceRef(self._items[row].value('actionType_id'))
-        values       = self._mapActionTypeIdToPropertyValues[actionTypeId]
+        values       = self._mapActionTypeIdToPropertyValues.get(actionTypeId, None)
         fieldName    = self._cols[column].fieldName()
         cellValues   = values[fieldName]
         propertyType = cellValues['propertyType']
@@ -1086,7 +1094,7 @@ class CCheckedActionsModel(CRecordListModel):
         row                 = index.row()
         column              = index.column()
         actionTypeId        = forceRef(self._items[row].value('actionType_id'))
-        values              = self._mapActionTypeIdToPropertyValues[actionTypeId]
+        values              = self._mapActionTypeIdToPropertyValues.get(actionTypeId, None)
         fieldName           = self._cols[column].fieldName()
         cellValues          = values[fieldName]
         cellValues['value'] = toVariant(value)
@@ -1108,18 +1116,45 @@ class CCheckedActionsModel(CRecordListModel):
 # ###########################################################
 
 class CCheckedActionsItemDelegate(CLocItemDelegate):
+    def __init__(self, parent):
+        CLocItemDelegate.__init__(self, parent)
+        self._nomenclatureCaches = {}
+        self.orgStructureId = None
+
+
+    def setOrgStructureId(self, value):
+        self.orgStructureId = value
+
+
+    def getNomenclatureCaches(self, nomenclatureId):
+        if nomenclatureId not in self._nomenclatureCaches.keys():
+            db = QtGui.qApp.db
+            record = db.getRecord('rbNomenclature', '*', nomenclatureId)
+            if record:
+                self._nomenclatureCaches[nomenclatureId] = record
+        return self._nomenclatureCaches.get(nomenclatureId, None)
+    
+    
     def createEditor(self, parent, option, index):
         column = index.column()
         editor = index.model().createEditor(index, parent)
         model = index.model()
         items = model.items()
+        row = index.row()
         if index.isValid() and column in [model.getColIndex('directionDate'), model.getColIndex('begDate')]:
-            row = index.row()
             if row >= 0 and row < len(items):
                 if column == model.getColIndex('begDate'):
                     editor.setMinimumDate(forceDate(items[row].value('directionDate')))
                 if column == model.getColIndex('directionDate'):
                     editor.setMaximumDate(forceDate(items[row].value('begDate')))
+        elif index.isValid() and column == model.getColIndex('recipe') and row >= 0 and row < len(items):
+            nomenclatureId = forceRef(items[row].value('recipe'))
+            if nomenclatureId:
+                nomenclatureRecord = self.getNomenclatureCaches(nomenclatureId)
+                if nomenclatureRecord:
+                    editor.setFindNomenclatureName(forceStringEx(nomenclatureRecord.value('name')))
+            if self.orgStructureId:
+                editor.setOrgStructureId(self.orgStructureId)
         self.connect(editor, SIGNAL('commit()'), self.emitCommitData)
         self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
         self.editor   = editor
@@ -1166,6 +1201,12 @@ class CCheckedActionsTableView(CInDocTableView):
         self.__actInsertSameAction = None
         self.__actSelectAllUrgentAction = None
         self.__actClearSelectionUrgentAction = None
+        self.orgStructureId = None
+
+    
+    def setOrgStructureId(self, value):
+        self.orgStructureId = value
+        self.itemDelegate().setOrgStructureId(self.orgStructureId)
 
 
     def addGetExecutionPlan(self):

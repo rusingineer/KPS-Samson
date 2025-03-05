@@ -23,6 +23,7 @@ from Stock.InventoryEditDialog             import CInventoryEditDialog
 from Stock.FinTransferEditDialog           import CFinTransferEditDialog
 from Stock.ProductionEditDialog            import CProductionEditDialog
 from Stock.StockUtilizationEditDialog      import CStockUtilizationEditDialog, CStockInternalConsumptionEditDialog
+from Stock.StockResidualQuantityWriteDownEditDialog import CStockResidualQuantityWriteDownEditDialog
 from Stock.ClientInvoiceEditDialog         import (
                                                     CClientInvoiceEditDialog,
                                                     CClientRefundInvoiceEditDialog,
@@ -42,7 +43,25 @@ stockMotionType = {
     8  : (u'Внутреннее потребление',     CStockInternalConsumptionEditDialog),
     9  : (u'Возврат поставщику',         CStockSupplierRefundEditDialog),
     10 : (u'Накладная от поставщика',    CIncomingInvoiceEditDialog),
+    11 : (u'Списание остаточных количеств', CStockResidualQuantityWriteDownEditDialog),
 }
+
+
+stockPurchaseType = {0 : u'Контракт на закупку',
+                     1 : u'Заявка на поставку'
+                    }
+
+
+class CStockPurchaseType:
+    purchaseContract = 0
+    purchaseInvoice = 1
+
+
+def getStockPurchaseTypeDocumentName(type):
+    if type in stockPurchaseType:
+        return stockPurchaseType[type]
+    else:
+        return '{%s}' % type
 
 
 def getDialogName(type):
@@ -84,33 +103,63 @@ def openReadOnlyMotion(widget, id):
 
 
 def setReadOnly(dialog):
-        if hasattr(dialog, 'edtNumber'):
-            dialog.edtNumber.setEnabled(False)
-        if hasattr(dialog, 'edtDate'):
-            dialog.edtDate.setEnabled(False)
-        if hasattr(dialog, 'edtReason'):
-            dialog.edtReason.setEnabled(False)
-        if hasattr(dialog, 'edtReasonDate'):
-            dialog.edtReasonDate.setEnabled(False)
-        if hasattr(dialog, 'edtTime'):
-            dialog.edtTime.setEnabled(False)
-        if hasattr(dialog, 'cmbSupplier'):
-            dialog.cmbSupplier.setEnabled(False)
-        if hasattr(dialog, 'cmbSupplierPerson'):
-            dialog.cmbSupplierPerson.setEnabled(False)
-        if hasattr(dialog, 'edtNote'):
-            dialog.edtNote.setEnabled(False)
-        if hasattr(dialog, 'tblItems'):
-            dialog.tblItems.setEnabled(False)
-        if hasattr(dialog, 'cmbSupplierOrg'):
-            dialog.cmbSupplierOrg.setEnabled(False)
-        if hasattr(dialog, 'edtSupplierOrgPerson'):
-            dialog.edtSupplierOrgPerson.setEnabled(False)
-        if hasattr(dialog, 'tblInItems'):
-            dialog.tblInItems.setEnabled(False)
-        if hasattr(dialog, 'tblOutItems'):
-            dialog.tblOutItems.setEnabled(False)
-        if hasattr(dialog, 'cmbReceiver'):
-            dialog.cmbReceiver.setEnabled(False)
-        if hasattr(dialog, 'cmbReceiverPerson'):
-            dialog.cmbReceiverPerson.setEnabled(False)
+    actualTitle = dialog.windowTitle()
+    if '[*]' in actualTitle:
+        actualTitle = actualTitle.replace('[*]', u'(только просмотр)')
+    QtGui.QDialog.setWindowTitle(dialog, actualTitle)
+
+    dialog.setReadOnly(True)
+    if hasattr(dialog, 'edtNumber'):
+        dialog.edtNumber.setReadOnly(True)
+    if hasattr(dialog, 'edtDate'):
+        dialog.edtDate.setReadOnly(True)
+
+    if hasattr(dialog, 'edtReason'):
+        dialog.edtReason.setReadOnly(True)
+    if hasattr(dialog, 'cmbPlaceOfBusiness'):
+        dialog.cmbPlaceOfBusiness.setEnabled(False)
+        dialog.cmbPlaceOfBusiness.setStyleSheet("color: rgb(0,0,0)")
+    if hasattr(dialog, 'cmbReason'):
+        dialog.cmbReason.setEnabled(False)
+        dialog.cmbReason.setStyleSheet("color: rgb(0,0,0)")
+    if hasattr(dialog, 'edtReasonDate'):
+        dialog.edtReasonDate.setReadOnly(True)
+    if hasattr(dialog, 'edtTime'):
+        dialog.edtTime.setReadOnly(True)
+    if hasattr(dialog, 'cmbSupplier'):
+        dialog.cmbSupplier.setEnabled(False)
+    if hasattr(dialog, 'cmbSupplierPerson'):
+        dialog.cmbSupplierPerson.setEnabled(False)
+    if hasattr(dialog, 'edtNote'):
+        dialog.edtNote.setReadOnly(True)
+    if hasattr(dialog, 'tblItems'):
+        dialog.tblItems.model().setReadOnly(True)
+    if hasattr(dialog, 'cmbSupplierOrg'):
+        dialog.cmbSupplierOrg.setEnabled(False)
+        dialog.cmbSupplierOrg.setStyleSheet("color: rgb(0,0,0)")
+    if hasattr(dialog, 'edtSupplierOrgPerson'):
+        dialog.edtSupplierOrgPerson.setReadOnly(True)
+    if hasattr(dialog, 'tblInItems'):
+        dialog.tblInItems.model().setReadOnly(True)
+    if hasattr(dialog, 'tblOutItems'):
+        dialog.tblOutItems.model().setReadOnly(True)
+    if hasattr(dialog, 'cmbReceiver'):
+        dialog.cmbReceiver.setEnabled(False)
+        dialog.cmbReceiver.setStyleSheet("color: rgb(0,0,0)")
+    if hasattr(dialog, 'cmbReceiverPerson'):
+        dialog.cmbReceiverPerson.setEnabled(False)
+        dialog.cmbReceiverPerson.setStyleSheet("color: rgb(0,0,0)")
+
+    if hasattr(dialog, 'edtDocDate'):
+        dialog.edtDocDate.setReadOnly(True)
+    if hasattr(dialog, 'edtInvoiceNumber'):
+        dialog.edtInvoiceNumber.setReadOnly(True)
+    if hasattr(dialog, 'edtInvoiceDate'):
+        dialog.edtInvoiceDate.setReadOnly(True)
+    if hasattr(dialog, 'btnSelectOrganisation'):
+        dialog.btnSelectOrganisation.setEnabled(False)
+    if hasattr(dialog, 'btnMDLPExchange'):
+        dialog.btnMDLPExchange.setEnabled(False)
+    if hasattr(dialog, 'btnFill'):
+        dialog.btnFill.setEnabled(False)
+

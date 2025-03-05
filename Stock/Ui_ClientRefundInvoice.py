@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/Stock/ClientRefundInvoice.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\ClientRefundInvoice.ui'
 #
-# Created: Wed May  7 18:16:39 2014
-#      by: PyQt4 UI code generator 4.10.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -144,6 +143,41 @@ class Ui_ClientRefundInvoiceDialog(object):
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
         self.gridLayout.addWidget(self.buttonBox, 8, 0, 1, 5)
+        self.txtClientInfoBrowser.raise_()
+        self.lblSummaryInfo.raise_()
+        self.buttonBox.raise_()
+        self.tblItems.raise_()
+        self.lblNumber.raise_()
+        self.lblReceiverPerson.raise_()
+        self.edtDate.raise_()
+        self.lblNote.raise_()
+        self.edtReason.raise_()
+        self.cmbReceiverPerson.raise_()
+        self.edtNote.raise_()
+        self.edtNumber.raise_()
+        self.lblDate.raise_()
+        self.edtReasonDate.raise_()
+        self.lblReason.raise_()
+        self.lblReceiver.raise_()
+        self.cmbReceiver.raise_()
+        self.edtTime.raise_()
+        self.lblReasonDate.raise_()
+        self.lblNumber.raise_()
+        self.lblReceiverPerson.raise_()
+        self.edtDate.raise_()
+        self.tblItems.raise_()
+        self.lblNote.raise_()
+        self.edtReason.raise_()
+        self.cmbReceiverPerson.raise_()
+        self.edtNote.raise_()
+        self.edtNumber.raise_()
+        self.lblDate.raise_()
+        self.edtReasonDate.raise_()
+        self.lblReason.raise_()
+        self.lblReceiver.raise_()
+        self.cmbReceiver.raise_()
+        self.edtTime.raise_()
+        self.lblReasonDate.raise_()
         self.lblNumber.setBuddy(self.edtNumber)
         self.lblDate.setBuddy(self.edtDate)
         self.lblReason.setBuddy(self.edtReason)
@@ -183,18 +217,8 @@ class Ui_ClientRefundInvoiceDialog(object):
         self.lblReceiverPerson.setText(_translate("ClientRefundInvoiceDialog", "Ответственный", None))
         self.lblNote.setText(_translate("ClientRefundInvoiceDialog", "Примечания", None))
 
-from library.InDocTable import CInDocTableView
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from library.TextBrowser import CTextBrowser
-from library.DateEdit import CDateEdit
 from Orgs.OrgStructComboBoxes import CStorageComboBox
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    ClientRefundInvoiceDialog = QtGui.QDialog()
-    ui = Ui_ClientRefundInvoiceDialog()
-    ui.setupUi(ClientRefundInvoiceDialog)
-    ClientRefundInvoiceDialog.show()
-    sys.exit(app.exec_())
-
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from library.DateEdit import CDateEdit
+from library.InDocTable import CInDocTableView
+from library.TextBrowser import CTextBrowser

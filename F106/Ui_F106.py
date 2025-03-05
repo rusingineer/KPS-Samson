@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\F106\F106.ui'
+# Form implementation generated from reading ui file 'C:\proj\Samson\UP_s11\client_test\F106\F106.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu May 23 16:58:49 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +29,8 @@ class Ui_Dialog(object):
         Dialog.resize(1112, 835)
         Dialog.setSizeGripEnabled(True)
         self.gridLayout_2 = QtGui.QGridLayout(Dialog)
-        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setSpacing(4)
+        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.splitter_4 = QtGui.QSplitter(Dialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
@@ -60,8 +61,8 @@ class Ui_Dialog(object):
         self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1102, 685))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.gridLayout = QtGui.QGridLayout(self.scrollAreaWidgetContents)
-        self.gridLayout.setMargin(0)
         self.gridLayout.setSpacing(0)
+        self.gridLayout.setMargin(0)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.tabWidget = QtGui.QTabWidget(self.scrollAreaWidgetContents)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -82,6 +83,7 @@ class Ui_Dialog(object):
         self.layoutWidget = QtGui.QWidget(self.splitter)
         self.layoutWidget.setObjectName(_fromUtf8("layoutWidget"))
         self.horizontalLayout_4 = QtGui.QHBoxLayout(self.layoutWidget)
+        self.horizontalLayout_4.setMargin(0)
         self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
         self.grpBase = QtGui.QGroupBox(self.layoutWidget)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
@@ -91,8 +93,8 @@ class Ui_Dialog(object):
         self.grpBase.setSizePolicy(sizePolicy)
         self.grpBase.setObjectName(_fromUtf8("grpBase"))
         self.gridlayout = QtGui.QGridLayout(self.grpBase)
-        self.gridlayout.setMargin(4)
         self.gridlayout.setSpacing(4)
+        self.gridlayout.setMargin(4)
         self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
         self.lblDeathPlaceType = QtGui.QLabel(self.grpBase)
         self.lblDeathPlaceType.setObjectName(_fromUtf8("lblDeathPlaceType"))
@@ -153,8 +155,8 @@ class Ui_Dialog(object):
         self.frmEndDateTime.setLineWidth(0)
         self.frmEndDateTime.setObjectName(_fromUtf8("frmEndDateTime"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout(self.frmEndDateTime)
-        self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setSpacing(4)
+        self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.edtEndDate = CDateEdit(self.frmEndDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
@@ -181,8 +183,8 @@ class Ui_Dialog(object):
         self.frmBegDateTime.setLineWidth(0)
         self.frmBegDateTime.setObjectName(_fromUtf8("frmBegDateTime"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.frmBegDateTime)
-        self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setSpacing(4)
+        self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.edtBegDate = CDateEdit(self.frmBegDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
@@ -208,8 +210,8 @@ class Ui_Dialog(object):
         self.groupBox = QtGui.QGroupBox(self.layoutWidget)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
         self._2 = QtGui.QGridLayout(self.groupBox)
-        self._2.setMargin(4)
         self._2.setSpacing(4)
+        self._2.setMargin(4)
         self._2.setObjectName(_fromUtf8("_2"))
         self.edtFreeInput = QtGui.QLineEdit(self.groupBox)
         self.edtFreeInput.setObjectName(_fromUtf8("edtFreeInput"))
@@ -302,8 +304,8 @@ class Ui_Dialog(object):
         self.grpPreliminary = QtGui.QGroupBox(self.splitter)
         self.grpPreliminary.setObjectName(_fromUtf8("grpPreliminary"))
         self._3 = QtGui.QGridLayout(self.grpPreliminary)
-        self._3.setMargin(4)
         self._3.setSpacing(4)
+        self._3.setMargin(4)
         self._3.setObjectName(_fromUtf8("_3"))
         self.splitter_2 = QtGui.QSplitter(self.grpPreliminary)
         self.splitter_2.setOrientation(QtCore.Qt.Horizontal)
@@ -315,8 +317,8 @@ class Ui_Dialog(object):
         self.grpFinal = QtGui.QGroupBox(self.splitter)
         self.grpFinal.setObjectName(_fromUtf8("grpFinal"))
         self._4 = QtGui.QGridLayout(self.grpFinal)
-        self._4.setMargin(4)
         self._4.setSpacing(4)
+        self._4.setMargin(4)
         self._4.setObjectName(_fromUtf8("_4"))
         self.splitter_3 = QtGui.QSplitter(self.grpFinal)
         self.splitter_3.setOrientation(QtCore.Qt.Horizontal)
@@ -363,6 +365,7 @@ class Ui_Dialog(object):
         self.label_11.setBuddy(self.edtEndDate)
 
         self.retranslateUi(Dialog)
+        self.tabWidget.setCurrentIndex(0)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), Dialog.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), Dialog.reject)
         QtCore.QObject.connect(self.chkAutopsy, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbAutopsyType.setEnabled)
@@ -391,8 +394,8 @@ class Ui_Dialog(object):
         self.txtClientInfoBrowser.setHtml(_translate("Dialog", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'.AppleSystemUIFont\'; font-size:13pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-family:\'MS Shell Dlg 2\'; font-size:8pt;\"><br /></p></body></html>", None))
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:8.25pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;\"><br /></p></body></html>", None))
         self.grpBase.setTitle(_translate("Dialog", "&ф.106/у", None))
         self.lblDeathPlaceType.setText(_translate("Dialog", "Смерть наступила", None))
         self.label.setText(_translate("Dialog", "Смерть произошла", None))
@@ -434,22 +437,32 @@ class Ui_Dialog(object):
         self.grpPreliminary.setTitle(_translate("Dialog", "&Предварительные диагнозы", None))
         self.grpFinal.setTitle(_translate("Dialog", "&Заключительные диагнозы", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("Dialog", "Стат.&талон", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагноз", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагно&з", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("Dialog", "&Статус", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMisc), _translate("Dialog", "&Мероприятия", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "&Оплата", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("Dialog", "Приме&чания", None))
         self.statusBar.setToolTip(_translate("Dialog", "A status bar", None))
         self.statusBar.setWhatsThis(_translate("Dialog", "A status bar.", None))
 
-from Events.ActionsPage import CActionsPage
-from Events.EventCashPage import CEventCashPage
-from Events.EventDiagnosticsTable import CDiagnosticsInDocTableView
-from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
-from Events.EventNotesPage import CEventNotesPage
-from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
 from Orgs.OrgComboBox import CContractComboBox, CPolyclinicComboBox
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from library.DateEdit import CDateEdit
-from library.TextBrowser import CTextBrowser
+from Events.EventDiagnosticsTable import CDiagnosticsInDocTableView
 from library.crbcombobox import CRBComboBox
+from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
+from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from Events.ActionsPage import CActionsPage
+from library.TextBrowser import CTextBrowser
+from Events.EventCashPage import CEventCashPage
+from Events.EventNotesPage import CEventNotesPage
+from library.DateEdit import CDateEdit
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    Dialog = QtGui.QDialog()
+    ui = Ui_Dialog()
+    ui.setupUi(Dialog)
+    Dialog.show()
+    sys.exit(app.exec_())
+

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,6 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import SIGNAL
 
 from library.AgeSelector     import composeAgeSelector, parseAgeSelector, parseAgeSelectorInt
+from library.IdentificationModel import CIdentificationModel, checkIdentification
 from library.InDocTable      import CInDocTableCol, CRBInDocTableCol, CInDocTableModel, CRBSearchInDocTableCol
 from library.interchange     import getCheckBoxValue, getLineEditValue, setCheckBoxValue, setLineEditValue
 from library.ItemsListDialog import CItemEditorBaseDialog, CItemsListDialog
@@ -41,6 +42,7 @@ class CRBInfectionList(CItemsListDialog, Ui_RBInfectionItemList):
             CTextCol(u'Минимальный срок', ['minimumTerm'], 20),
             ], 'rbInfection', [rbCode, rbName])
         self.tblItems.addPopupDelRow()
+        self.tblItems.model().rowsRemoved.connect(self.renewListAndSetTo)
         self.setWindowTitleEx(u'Инфекции')
 
 
@@ -111,16 +113,23 @@ class CRBInfectionEditor(CItemEditorBaseDialog, Ui_RBInfectionEditor):
         self.setupUi(self)
         self.addModels('InfectionVaccines', CInfectionVaccinesModel(self))
         self.addModels('InfectionMinimumTerms', CInfectionMinimumTermsModel(self))
+        self.addModels('InfectionIdentification', CIdentificationModel(self, 'rbInfection_Identification', 'rbInfection'))
         self.setModels(self.tblInfectionVaccines,
                        self.modelInfectionVaccines,
                        self.selectionModelInfectionVaccines)
         self.setModels(self.tblInfectionMinimumTerms,
                        self.modelInfectionMinimumTerms,
                        self.selectionModelInfectionMinimumTerms)
+        self.setModels(self.tblInfectionIdentification,
+                       self.modelInfectionIdentification,
+                       self.selectionModelInfectionIdentification)
 
         self.tblInfectionVaccines.addPopupDelRow()
         self.tblInfectionMinimumTerms.addPopupDelRow()
+        self.tblInfectionIdentification.addPopupDelRow()
         self.setWindowTitleEx(u'Инфекция')
+        self.edtMinimumTermCount.setValidator(QtGui.QIntValidator(0, 999, self))
+        self.edtMinimumTermCount.setMaxLength(3)
 
 
     def setRecord(self, record):
@@ -135,9 +144,11 @@ class CRBInfectionEditor(CItemEditorBaseDialog, Ui_RBInfectionEditor):
         self.cmbMinimumTermUnit.setCurrentIndex(begMinimumTermUnit)
         self.edtMinimumTermCount.setText(str(begMinimumTermCount))
 
-        self.modelInfectionVaccines.loadItems(self.itemId())
-        self.modelInfectionMinimumTerms.loadItems(self.itemId())
-        self.modelInfectionMinimumTerms.setFilter('id !=%d'%self.itemId())
+        itemId = self.itemId()
+        self.modelInfectionVaccines.loadItems(itemId)
+        self.modelInfectionMinimumTerms.loadItems(itemId)
+        self.modelInfectionMinimumTerms.setFilter('id !=%d' % itemId)
+        self.modelInfectionIdentification.loadItems(itemId)
 
 
     def getRecord(self):
@@ -156,11 +167,13 @@ class CRBInfectionEditor(CItemEditorBaseDialog, Ui_RBInfectionEditor):
     def saveInternals(self, id):
         self.modelInfectionVaccines.saveItems(id)
         self.modelInfectionMinimumTerms.saveItems(id)
+        self.modelInfectionIdentification.saveItems(id)
 
 
     def checkDataEntered(self):
         result = CItemEditorBaseDialog.checkDataEntered(self)
         result = result and self.checkMinimumTermsModelDataEntered()
+        result = result and checkIdentification(self, self.tblInfectionIdentification)
         return result
 
     def checkMinimumTermsModelDataEntered(self):

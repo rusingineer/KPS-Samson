@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>847</width>
-    <height>416</height>
+    <height>537</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -34,6 +34,12 @@
    </property>
    <item row="2" column="0">
     <widget class="QSplitter" name="splitterTree">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>

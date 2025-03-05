@@ -16,8 +16,8 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QEvent, SIGNAL, Qt, QVariant
 
-from library.Utils import forceInt, forceDate, toVariant
-from Events.NomenclatureExpense.Utils import DIREACTION_DATE_INDEX, BEG_DATE_INDEX
+from library.Utils import forceInt, forceDate, forceRef, forceStringEx, toVariant
+from Events.NomenclatureExpense.Utils import DIREACTION_DATE_INDEX, BEG_DATE_INDEX, NOMENCLATURE_INDEX#, SMNN_INDEX, SMNN_GRLSLF_INDEX
 from Events.NomenclatureExpense.NomenclatureExpenseModel import CNomenclatureExpenseModel
 
 
@@ -28,18 +28,29 @@ class CLocItemDelegate(QtGui.QItemDelegate):
         self.column = 0
         self.editor = None
 
+
     def createEditor(self, parent, option, index):
         editor = index.model().createEditor(index, parent)
         column = index.column()
         model = index.model()
-        if index.isValid() and column in [DIREACTION_DATE_INDEX, BEG_DATE_INDEX] and isinstance(model, CNomenclatureExpenseModel):
-            groups = model._groups
-            row = index.row()
-            if row >= 0 and row < len(groups):
-                if column == BEG_DATE_INDEX:
-                    editor.setMinimumDate(forceDate(groups[row].directionDate()))
-                if column == DIREACTION_DATE_INDEX:
-                    editor.setMaximumDate(forceDate(groups[row].begDate()))
+        if index.isValid():
+            if column in [DIREACTION_DATE_INDEX, BEG_DATE_INDEX] and isinstance(model, CNomenclatureExpenseModel):
+                groups = model._groups
+                row = index.row()
+                if row >= 0 and row < len(groups):
+                    if column == BEG_DATE_INDEX:
+                        editor.setMinimumDate(forceDate(groups[row].directionDate()))
+                    if column == DIREACTION_DATE_INDEX:
+                        editor.setMaximumDate(forceDate(groups[row].begDate()))
+            elif column == NOMENCLATURE_INDEX and isinstance(model, CNomenclatureExpenseModel):
+                groups = model._groups
+                row = index.row()
+                if row >= 0 and row < len(groups):
+                    nomenclatureId = forceRef(model._cellsSettings.getGroupNomenclature(groups[row]))
+                    if nomenclatureId:
+                        nomenclatureRecord = model.getNomenclatureCaches(nomenclatureId)
+                        if nomenclatureRecord:
+                            editor.setFindNomenclatureName(forceStringEx(nomenclatureRecord.value('name')))
         if editor is None:
             return None
         self.connect(editor, SIGNAL('commit()'), self.emitCommitData)
@@ -50,22 +61,27 @@ class CLocItemDelegate(QtGui.QItemDelegate):
         self.column   = index.column()
         return editor
 
+
     def setEditorData(self, editor, index):
         if editor is not None:
             model = index.model()
             model.setEditorData(index, editor)
 
+
     def setModelData(self, editor, model, index):
         if editor is not None:
             model.setData(index, toVariant(index.model().getEditorData(index, editor)))
 
+
     def emitCommitData(self):
         self.emit(SIGNAL('commitData(QWidget *)'), self.sender())
+
 
     def commitAndCloseEditor(self):
         editor = self.sender()
         self.emit(SIGNAL('commitData(QWidget *)'), editor)
         self.emit(SIGNAL('closeEditor(QWidget *,QAbstractItemDelegate::EndEditHint)'), editor, QtGui.QAbstractItemDelegate.NoHint)
+
 
     def editorEvent(self, event, model, option, index):
         flags = model.flags(index)

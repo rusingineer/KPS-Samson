@@ -48,7 +48,7 @@ def exportLocalLabResultsToUsishKK(days=30):
     address['tests_version'] = "1"
     address['target'] = None
     address['terminology_url'] = 'http://10.0.1.179/nsi/fhir/term ' #"http://r23-rc.zdrav.netrika.ru/nsi/fhir/term/"
-    address['mis_oid'] = "1.2.643.2.69.1.2.5"
+    address['mis_oid'] = forceString(db.translate('GlobalPreferences', 'code', 'Netrika.MIS_OID', 'value'))
 
     equipmentInterface = smartDict(id=999,
               eachTestDetached=False,

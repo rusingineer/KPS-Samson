@@ -130,7 +130,7 @@ class CCKDInformationModel(QAbstractTableModel):
                             row = {}
                             row['moCode'] = moCode = infoElement.get('mo')
                             if moCode is not None:
-                                organisation = QtGui.qApp.db.getRecordEx('Organisation', ['id', 'fullName'], where = ("infisCode = '%s'" % moCode))
+                                organisation = QtGui.qApp.db.getRecordEx('Organisation', ['id', 'fullName'], where = ("isActive = 1 and isInsurer = 0 and deleted = 0 and infisCode = '%s'" % moCode))
                             else:
                                 organisation = None
                             row['organisationId'] = organisation and forceRef(organisation.value('id'))

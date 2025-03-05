@@ -1280,8 +1280,10 @@ class CFHIRExchange:
         self.mainOrgShortCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', orgId, 'infisCode'))
         self.mainOrgCode = getIdentification('Organisation', orgId, self.orgUrn)
         self.mainOrg = self.createOrganization(self.mainOrgCode)
-
-        self.lab = self.createOrganization(target)
+        if target:
+            self.lab = self.createOrganization(target)
+        else:
+            self.lab = None
 
         settings = { 'api_base': self.url,
                      'app_id'  : 'samson/0.1',
@@ -1297,7 +1299,10 @@ class CFHIRExchange:
 
         self.orgReference = self.createReference(self.org)
         self.mainOrgReference = self.createReference(self.mainOrg)
-        self.labReference = self.createReference(self.lab)
+        if self.lab:
+            self.labReference = self.createReference(self.lab)
+        else:
+            self.labReference = None
 
         self._mapPolicyTypeIdToComp = {}
         self._mapPolicyTypeCompToId = {}
@@ -2580,13 +2585,13 @@ class CFHIRExchange:
 
     def binarySigned(self, interface, file, isNeonatal=False):
         binary = respSign = orgSign = None
-        extList = ['.pdf', '.xml']
-        typeList = ['application/pdf', 'application/x-akineo'] if isNeonatal else ['application/pdf', 'application/xml']
-        userSignList = ['application/x-pkcs7-practitioner', 'application/x-pkcs7-practitioner-xml']
-        orgSignList = ['application/x-pkcs7-organization', 'application/x-pkcs7-organization-xml']
+        extList = ['.pdf', '.xml', '.sms']
+        typeList = ['application/pdf', 'application/x-akineo', 'application/x-akineo'] if isNeonatal else ['application/pdf', 'application/xml', 'application/xml']
+        userSignList = ['application/x-pkcs7-practitioner', 'application/x-pkcs7-practitioner-xml', 'application/x-pkcs7-practitioner-xml']
+        orgSignList = ['application/x-pkcs7-organization', 'application/x-pkcs7-organization-xml', 'application/x-pkcs7-organization-xml']
         xmlCoding = self.createCoding('urn:oid:1.2.643.5.1.13.13.11.1520', '75', '9.9')
         neonatalCoding = self.createCoding('urn:oid:1.2.643.5.1.13.13.99.2.592', 'SMSV27', '2.7')
-        metaList = [None, neonatalCoding] if isNeonatal else [None, xmlCoding]
+        metaList = [None, neonatalCoding, neonatalCoding] if isNeonatal else [None, xmlCoding, xmlCoding]
         try:
             i = extList.index(file.newName[-4:])
         except:
@@ -2895,10 +2900,10 @@ class CFHIRExchange:
                     observation = self.newOrderObservation(self.orderParamUrn, self.orderParamRepeatReason, reason)
                     observationReferenceList.append(self.addBundleEntry(bundle, observation))
         else:
-            if height and height.getValue() > 0:
+            if height and height.getValue() and height.getValue() > 0:
                 observation = self.newOrderObservation(self.orderParamUrn, '1', height.getValue())
                 observationReferenceList.append(self.addBundleEntry(bundle, observation))
-            if weight and weight.getValue() > 0:
+            if weight and weight.getValue() and weight.getValue() > 0:
                 observation = self.newOrderObservation(self.orderParamUrn, '2', weight.getValue())
                 observationReferenceList.append(self.addBundleEntry(bundle, observation))
 
@@ -2918,7 +2923,7 @@ class CFHIRExchange:
         orderBinaryData = None
         if isNeonatal:
             fileList = self.getAttachedFile(QtGui.qApp.webDAVInterface, [action.id])
-            fileList = filter(lambda file: file.newName[-4:] == '.xml', fileList)
+            fileList = filter(lambda file: file.newName[-4:] == '.sms', fileList)
             if fileList:
                 filelist = sorted(fileList, key=lambda x: x.lastModified, reverse=True)
                 for file in fileList:

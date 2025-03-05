@@ -15,12 +15,13 @@
 import re
 
 from PyQt4 import QtGui
+from PyQt4.QtCore import QDate
 
 from library.AgeSelector    import parseAgeSelector, checkAgeSelector
 from library.DbEntityCache import CDbEntityCache
 from library.Identification import getIdentification, CIdentificationException
 from library.PrintInfo import CInfo, CRBInfo, CInfoList, CDateInfo, CDictInfoMixin, CIdentificationInfoMixin
-from library.Utils         import forceBool, forceInt, forceRef, forceDate, forceString, forceStringEx, formatNameInt, formatSex, formatShortNameInt, nameCase, trim
+from library.Utils         import forceBool, forceInt, forceRef, forceDate, forceString, forceStringEx, formatNameInt, formatSex, formatShortNameInt, nameCase, toVariant, trim
 
 from KLADR.KLADRModel      import getKladrTreeModel
 
@@ -387,7 +388,8 @@ def findOrgStructuresByHouseAndFlat(houseId, flat, orgId, orgStructureId=None, c
                                )
 
         cond = [tableOrgStructure['organisation_id'].eq(orgId),
-                    tableOrgStructureAddress['house_id'].eq(houseId)
+                tableOrgStructureAddress['house_id'].eq(houseId),
+                tableOrgStructure['deleted'].eq(0)
                ]
         if flatNum:
             cond.extend([db.joinOr([tableOrgStructureAddress['firstFlat'].eq(0),
@@ -646,6 +648,63 @@ def getActionTypeOrgStructureIdList(actionTypeId, includeInheritance=False):
                 resultIdSet |= idSet
         return resultIdList
 
+
+
+def synchronizePlaceOfBusiness(result, supplierOrgId, inn=None, ogrn=None, kpp=None, chiefName=None):
+    db = QtGui.qApp.db
+
+    # Обновляем реквизиты организации сведениями из сервиса МДЛП
+    tableOrg = db.table('Organisation')
+    orgRecord = db.getRecord(tableOrg, '*', supplierOrgId)
+    if not forceString(orgRecord.value('chiefFreeInput')):
+        chiefName = u' '.join([result.lastName, result.firstName, result.middleName])
+        orgRecord.setValue('chiefFreeInput', chiefName)
+    if not forceString(orgRecord.value('KPP')):
+        orgRecord.setValue('KPP', result.kpp)
+    if not inn:
+        orgRecord.setValue('INN', result.inn)
+    if not ogrn:
+        orgRecord.setValue('OGRN', result.ogrn)
+    db.updateRecord(tableOrg, orgRecord)
+
+    # Обновляем идентификатор МДЛП организации сведениями из сервиса МДЛП или не обновляем
+    tableRbAS = db.table('rbAccountingSystem')
+    mdlpId = QtGui.qApp.db.translate(tableRbAS, 'urn', 'urn:mdlp:anyId', 'id')
+    if mdlpId:
+        tableOI = db.table('Organisation_Identification')
+        cond = [
+            tableOI['master_id'].eq(supplierOrgId),
+            tableOI['system_id'].eq(mdlpId),
+        ]
+        identificationRecords = QtGui.qApp.db.getRecordList(tableOI, '*', cond)
+        if not identificationRecords:
+            record = tableOI.newRecord()
+            record.setValue('master_id', toVariant(supplierOrgId))
+            record.setValue('system_id', toVariant(mdlpId))
+            record.setValue('value', toVariant(result.sysId))
+            record.setValue('checkDate', toVariant(QDate.currentDate()))
+            db.insertRecord(tableOI, record)
+        else:
+            hasRec = False
+            for record in identificationRecords:
+                systemId = forceString(record.value('value'))
+                deleted = forceInt(record.value('deleted'))
+                if systemId == result.sysId:
+                    hasRec = True
+                    if deleted:
+                        record.setValue('deleted', toVariant(0))
+                    else:
+                        break
+                else:
+                    record.setValue('deleted', toVariant(1))
+                db.updateRecord(tableOI, record)
+            if not hasRec:
+                record = tableOI.newRecord()
+                record.setValue('master_id', toVariant(supplierOrgId))
+                record.setValue('system_id', toVariant(mdlpId))
+                record.setValue('value', toVariant(result.sysId))
+                record.setValue('checkDate', toVariant(QDate.currentDate()))
+                db.insertRecord(tableOI, record)
 
 
 class CSexAgeConstraint(object):
@@ -975,6 +1034,7 @@ class COrgStructureInfo(CInfo, CIdentificationInfoMixin):
         CInfo.__init__(self, context)
         CIdentificationInfoMixin.__init__(self)
         self.id = id
+        self._orgStructureId = self.id
         self._name = ''
         self._code = ''
         self._organisation = None
@@ -1067,7 +1127,7 @@ class COrgStructureInfo(CInfo, CIdentificationInfoMixin):
     def __str__(self):
         return self.getFullName()
 
-
+    orgStructureId    = property(lambda self: self.load()._orgStructureId)
     code              = property(lambda self: self.load()._code)
     name              = property(lambda self: self.load()._name)
     organisation      = property(lambda self: self.load()._organisation)

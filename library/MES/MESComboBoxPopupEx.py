@@ -65,6 +65,14 @@ class CMESComboBoxPopupEx(QtGui.QFrame, Ui_MESComboBoxPopupEx):
                 self.setAttribute(Qt.WA_NoMouseReplay)
         QtGui.QFrame.mousePressEvent(self, event)
 
+    def setMESCodeTemplate(self, mesCodeTemplate):
+        self.mesCodeTemplate = mesCodeTemplate
+
+
+    def setMESNameTemplate(self, mesNameTemplate):
+        self.mesNameTemplate = mesNameTemplate
+
+
 
     def closeEvent(self, event):
         preferences = self.tblMES.savePreferences()
@@ -94,7 +102,11 @@ class CMESComboBoxPopupEx(QtGui.QFrame, Ui_MESComboBoxPopupEx):
     def getMesIdList(self):
         db = QtGui.qApp.db
         tableMES = db.table('mes.MES')
-        cond  = [tableMES['deleted'].eq(0)]
+        cond = [tableMES['deleted'].eq(0)]
+        if self.mesCodeTemplate:
+            cond.append(tableMES['code'].regexp(self.mesCodeTemplate))
+        if self.mesNameTemplate:
+            cond.append(tableMES['name'].regexp(self.mesNameTemplate))
         idList = db.getIdList(tableMES, tableMES['id'].name(),
                               where=cond,
                               order='mes.MES.code, mes.MES.id'
@@ -115,7 +127,6 @@ class CMESComboBoxPopupEx(QtGui.QFrame, Ui_MESComboBoxPopupEx):
                 self.mesId = mesId
                 self.emit(SIGNAL('MESSelected(int)'), mesId)
                 self.close()
-
 
 
 class CMESTableModel(CTableModel):

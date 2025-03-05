@@ -132,7 +132,7 @@ class CClientQuotingComboBoxPopup(QtGui.QFrame, CConstructHelperMixin, Ui_Form):
             rowIndex = -1
         return rowIndex
 
-    @pyqtSignature('(QModelIndex')
+    @pyqtSignature('QModelIndex')
     def on_tblClientQuoting_clicked(self, index):
         itemId = self.tblClientQuoting.itemId(index)
         self.emit(SIGNAL('clientQuotingClicked(int)'), itemId)

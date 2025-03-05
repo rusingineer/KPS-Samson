@@ -46,6 +46,7 @@ class CSerialPortScannerPage(Ui_serialPortScannerPage, QtGui.QWidget):
         self.chkScanParseReport.setChecked(forceBool(props.get('ScannerParseReport', False)))
         self.chkScanPromobotEnable.setChecked(forceBool(props.get('ScanPromobotEnable', False)))
         self.edtScanPromobotAddress.setText(forceString(props.get('ScanPromobotAddress', '')))
+        self.chkTabletSignEnable.setChecked(forceBool(props.get('TabletSignEnable', False)))
 
 
     def getProps(self, props):
@@ -56,6 +57,7 @@ class CSerialPortScannerPage(Ui_serialPortScannerPage, QtGui.QWidget):
         props['ScannerParseReport']        = toVariant(int(self.chkScanParseReport.isChecked()))
         props['ScanPromobotEnable'] = toVariant(int(self.chkScanPromobotEnable.isChecked()))
         props['ScanPromobotAddress'] = toVariant(self.edtScanPromobotAddress.text())
+        props['TabletSignEnable'] = toVariant(int(self.chkTabletSignEnable.isChecked()))
 
 
     def setScannerPortSettings(self, prop):

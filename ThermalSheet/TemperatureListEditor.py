@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -28,7 +28,7 @@ from Events.ActionPropertiesTable import CActionPropertiesTableModel
 from Events.ActionStatus  import CActionStatus
 from Events.Utils         import setActionPropertiesColumnVisible
 from Orgs.Utils           import getPersonOrgStructureChiefs
-from Users.Rights         import urEditOtherpeopleAction, urEditThermalSheetPastDate, urEditSubservientPeopleAction, urEditOtherPeopleActionSpecialityOnly
+from Users.Rights         import urEditOtherpeopleAction, urEditThermalSheetPastDate, urEditSubservientPeopleAction
 
 from Ui_TemperatureListEditor import Ui_TemperatureListEditor
 
@@ -53,18 +53,15 @@ class CTemperatureActionInfoList(CInfoList):
         self._items = [ self.getInstance(CActionInfo, id) for id in self._idList ]
         return True
 
-
 class CTemperatureListEditorDialog(QtGui.QDialog, CConstructHelperMixin, Ui_TemperatureListEditor):
     def __init__(self, parent, clientId, eventId, actionTypeIdList, clientSex, clientAge, setDate):
         QtGui.QDialog.__init__(self, parent)
         self.addModels('APActionProperties',   CActionPropertiesTableModel(self))
-        self.addObject('btnTemperatureList', QtGui.QPushButton(u'Температурный лист', self))
         self.setupUi(self)
         self.setModels(self.tblAPProps, self.modelAPActionProperties, self.selectionModelAPActionProperties)
         self.addObject('btnPrint', getPrintButton(self, 'temperatureList'))
         self.btnPrint.printByTemplate.connect(self.on_btnPrint_printByTemplate)
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnTemperatureList, QtGui.QDialogButtonBox.ActionRole)
         self.clientId = clientId
         self.clientSex = clientSex
         self.clientAge = clientAge
@@ -79,6 +76,7 @@ class CTemperatureListEditorDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Temp
         self.edtTime.setTime(currentDateTime.time())
         self.cmbTimeEdit.setCurrentIndex(0)
         self.signHandler = parent.tabNotes.btnAttachedFiles.getSignAndAttachHandler() if parent and hasattr(parent, 'tabNotes') else None
+        self.getTimeList()
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -173,22 +171,11 @@ class CTemperatureListEditorDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Temp
             status = forceInt(record.value('status'))
             personId = forceRef(record.value('person_id'))
             if status == CActionStatus.finished and personId:
-                return (QtGui.qApp.userId == personId
-                                 or (QtGui.qApp.userHasRight(urEditOtherPeopleActionSpecialityOnly) and QtGui.qApp.userSpecialityId == self.getSpecialityId(personId))
+                return ( QtGui.qApp.userId == personId
                                  or QtGui.qApp.userHasRight(urEditOtherpeopleAction)
                                  or (QtGui.qApp.userHasRight(urEditSubservientPeopleAction) and QtGui.qApp.userId in getPersonOrgStructureChiefs(personId))
                                )
         return False
-
-
-    def getSpecialityId(self, personId):
-        specialityId = None
-        if personId:
-            db = QtGui.qApp.db
-            tablePerson = db.table('Person')
-            record = db.getRecordEx(tablePerson, [tablePerson['speciality_id']], [tablePerson['deleted'].eq(0), tablePerson['id'].eq(personId)])
-            specialityId = forceRef(record.value('speciality_id')) if record else None
-        return specialityId
 
 
     @pyqtSignature('QTime')
@@ -258,8 +245,7 @@ class CTemperatureListEditorDialog(QtGui.QDialog, CConstructHelperMixin, Ui_Temp
                 self.lblLastTime.setText(u'')
         else:
             self.lblLastTime.setText(u'нет')
-    
-    
+
     def on_btnPrint_printByTemplate(self, templateId):
         context = CInfoContext()
         tempActionInfoList = CTemperatureActionInfoList(context, self.eventId)
@@ -284,6 +270,7 @@ if __name__ == '__main__':
     from Events.Utils import getActionTypeIdListByFlatCode
     from library.Utils import calcAge
     from library.Calendar import CCalendarInfo
+    from library.PrintDebug.Utils import DebugPrintData
     app = QtGui.QApplication(sys.argv)
     app.userHasRight = lambda x: True
     app.documentEditor = lambda: ""
@@ -316,9 +303,14 @@ if __name__ == '__main__':
     app.getPathToDictionary = lambda: None
     app.showingSpellCheckHighlight = lambda: False
 
+    app.isPrintDebugEnabled = True
+    app.debugPrintData = DebugPrintData()
+
     debug = False
-    clientId = 292604
-    eventId = 4639520
+    #clientId = 292604
+    #eventId = 4639520
+    clientId = 92304
+    eventId = 4702550
 
     db = connectDataBase(preferences.dbDriverName,
                                  preferences.dbServerName,
@@ -337,5 +329,6 @@ if __name__ == '__main__':
     clientSex = forceInt(clientRecord.value('sex'))
     clientAge = calcAge(forceDate(clientRecord.value('birthDate')), QDate.currentDate())
     dialog = CTemperatureListEditorDialog(None, clientId, eventId, actionTypeIdList, clientSex, clientAge, QDateTime(2022, 10, 13, 0, 0))
+    app.mainWindow = dialog
     dialog.exec_()
     print('qq')

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Rabota\s11\Stock\ClientInvoice.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\ClientInvoice.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -187,13 +187,3 @@ from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
 from library.InDocTable import CInDocTableView
 from library.TextBrowser import CTextBrowser
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    ClientInvoiceDialog = QtGui.QDialog()
-    ui = Ui_ClientInvoiceDialog()
-    ui.setupUi(ClientInvoiceDialog)
-    ClientInvoiceDialog.show()
-    sys.exit(app.exec_())
-

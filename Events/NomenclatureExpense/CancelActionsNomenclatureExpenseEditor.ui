@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CancelActionsNomenclatureExpenseEditor</class>
+ <widget class="QDialog" name="CancelActionsNomenclatureExpenseEditor">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>505</width>
+    <height>212</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Параметры отмены назначения ЛС</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblNomenclatureActiveSubstance">
+     <property name="text">
+      <string>Действующее вещество</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblPower">
+     <property name="text">
+      <string>Степень</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="CDateEdit" name="edtCancelDate">
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="lblNotes">
+     <property name="text">
+      <string>Примечание</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="lblReactionManifestation">
+     <property name="text">
+      <string>Проявление реакции</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblReactionType">
+     <property name="text">
+      <string>Тип реакции</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblCancelDate">
+     <property name="text">
+      <string>Отменяемое назначение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="5">
+    <widget class="QCheckBox" name="chkReaction">
+     <property name="text">
+      <string>Реакция</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="4">
+    <widget class="CRBComboBox" name="cmbNomenclatureActiveSubstance">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3" colspan="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="5" column="1" colspan="4">
+    <widget class="CRBComboBox" name="cmbReactionType">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="2">
+    <widget class="CTimeEdit" name="edtCancelTime">
+     <property name="displayFormat">
+      <string>HH:mm</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0" colspan="5">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="4">
+    <widget class="CRBComboBox" name="cmbReactionManifestation">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1" colspan="4">
+    <widget class="QLineEdit" name="edtNotes">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="4">
+    <widget class="QComboBox" name="cmbPower">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <item>
+      <property name="text">
+       <string>0 - не известно</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>1 - малая</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>2 - средняя</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>3 - высокая</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>4 - строгая</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="2" column="2">
+    <widget class="CTimeEdit" name="edtCanceledTime">
+     <property name="displayFormat">
+      <string>HH:mm</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblCanceledDate">
+     <property name="text">
+      <string>Дата и время отмены</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="CDateEdit" name="edtCanceledDate">
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CTimeEdit</class>
+   <extends>QTimeEdit</extends>
+   <header>library/TimeEdit.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>buttonBox</tabstop>
+  <tabstop>edtCancelDate</tabstop>
+  <tabstop>edtCancelTime</tabstop>
+  <tabstop>chkReaction</tabstop>
+  <tabstop>cmbNomenclatureActiveSubstance</tabstop>
+  <tabstop>cmbReactionType</tabstop>
+  <tabstop>cmbReactionManifestation</tabstop>
+  <tabstop>cmbPower</tabstop>
+  <tabstop>edtNotes</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkReaction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbNomenclatureActiveSubstance</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>49</x>
+     <y>38</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>227</x>
+     <y>62</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkReaction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbReactionType</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>98</x>
+     <y>36</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>226</x>
+     <y>88</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkReaction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbReactionManifestation</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>74</x>
+     <y>36</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>269</x>
+     <y>115</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkReaction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbPower</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>120</x>
+     <y>37</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>217</x>
+     <y>140</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkReaction</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtNotes</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>149</x>
+     <y>40</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>187</x>
+     <y>166</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

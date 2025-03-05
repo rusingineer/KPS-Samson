@@ -229,8 +229,7 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
-        if not QtGui.qApp.userHasRight(urPlanningHospitalBedProfileGen):
-            self.btnFill.setEnabled(False)
+        self.btnFill.setEnabled(QtGui.qApp.userHasRight(urPlanningHospitalBedProfileGen))
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.addModels('', COrgStructurePlanningHospitalBedProfile(parent))
         self.addModels('Proxy', CSortFilterProxyTableModel(self, self.model))
@@ -375,10 +374,16 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
         table = tableOS.leftJoin(tableOSHB, tableOSHB['master_id'].eq(tableOS['id']))
         table = table.leftJoin(tableHBP, tableHBP['id'].eq(tableOSHB['profile_id']))
         table = table.leftJoin(tableHBS, tableHBS['id'].eq(tableOSHB['schedule_id']))
-        cond = [tableOS['deleted'].eq(0), tableOS['hasHospitalBeds'].eq(1), tableOS['type'].eq(1),
-                'NOT EXISTS(SELECT NULL FROM OrgStructure os WHERE os.parent_id = OrgStructure.id AND os.deleted = 0)',
-                tableOSHB['id'].ne(0), db.joinOr([tableOSHB['endDate'].isNull(), tableOSHB['endDate'].dateGe(endDate)]),
-                tableHBP['id'].isNotNull()]
+        cond = [
+            tableOS['deleted'].eq(0),
+            tableOS['hasHospitalBeds'].eq(1),
+            tableOS['type'].eq(1),
+            'NOT EXISTS(SELECT NULL FROM OrgStructure os WHERE os.parent_id = OrgStructure.id AND os.deleted = 0)',
+            tableOSHB['id'].ne(0),
+            tableOSHB['deleted'].eq(0),
+            db.joinOr([tableOSHB['endDate'].isNull(), tableOSHB['endDate'].dateGe(endDate)]),
+            tableHBP['id'].isNotNull()
+        ]
         cols = "OrgStructure.id, rbHospitalBedProfile.id, IF(rbHospitalBedShedule.code = '1', 0, 1) as regime"
         group = "rbHospitalBedProfile.id, OrgStructure.id, IF(rbHospitalBedShedule.code = '1', 0, 1)"
         order = 'OrgStructure.name, rbHospitalBedProfile.name'
@@ -415,6 +420,10 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
     def on_chkDate_toggled(self, checked):
         self.edtBegDate.setEnabled(checked)
         self.edtEndDate.setEnabled(checked)
+        if not QtGui.qApp.userHasRight(urPlanningHospitalBedProfileGen):
+            self.btnFill.setEnabled(False)
+        else:
+            self.btnFill.setEnabled(checked)
         self.onFilterUpdate()
 
     @pyqtSignature('bool')

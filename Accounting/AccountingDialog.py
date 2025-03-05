@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -158,6 +158,11 @@ from Users.Rights                     import ( urAccessAccountInfo,
                                                urAccessAccountingVMI,
                                                urAdmin,
                                                urDeleteAccount,
+                                               urDeleteAccountBudget,
+                                               urDeleteAccountCMI,
+                                               urDeleteAccountVMI,
+                                               urDeleteAccountCash,
+                                               urDeleteAccountTargeted,
                                                urDeleteAccountItem,
                                                urRegTabReadRegistry,
                                                urRegTabWriteRegistry,
@@ -179,6 +184,13 @@ accountantRightList =   (urAdmin,
                          urAccessAccountingCash,
                          urAccessAccountingTargeted
                         )
+
+accountantDeleteRightList = {1: urDeleteAccountBudget,
+                             2: urDeleteAccountCMI,
+                             3: urDeleteAccountVMI,
+                             4: urDeleteAccountCash,
+                             5: urDeleteAccountTargeted,
+}
 
 
 def getAvailableFinanceTypeCodeList():
@@ -311,11 +323,12 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         # QObject.connect(self.tblAccounts.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSortAccounts)
         self.setSortable(self.tblAccounts, self.setSortAccounts)
         self.tblContragents.setVisible(False)
-        if not QtGui.qApp.counterController():
-            QtGui.qApp.setCounterController(CCounterController(self))
 
         if not QtGui.qApp.userHasRight(canRightForCreateAccounts):
             self.btnForm.setEnabled(False)
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.tabWorkType.removeTab(2)
+            self.btnRefresh.setVisible(False)
             
             
     def setSortable(self, tbl, update_function=None):
@@ -364,9 +377,9 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 orderBy = u'(select CONCAT(regionalCode, \' | \', name) from rbAccountType where id = type_id) %s' % ASC
             elif key == 7:
                 orderBy = u"""case when group_id in (1, 2, 9) then 'Койко-день' 
-                    when group_id in (3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29) then 'Посещение'
+                    when group_id in (3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 31, 32, 33) then 'Посещение'
                     when group_id in (7, 10, 22) then 'День лечения' 
-                    when group_id in (18, 19, 20, 21, 23) then 'Услуга' 
+                    when group_id in (18, 19, 20, 21, 23, 30) then 'Услуга' 
                     when group_id = 8 then 'Вызов бригады СМП'
                     else '' end %s
                 """ % ASC
@@ -491,8 +504,9 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         if self.eventIdWatching or self.actionIdWatching or self.visitIdWatching:
             self.setWatchingMode()
         else:
-            self.selectionModelContracts.setCurrentIndex(self.modelContracts.index(0, 0) , QtGui.QItemSelectionModel.SelectCurrent)
-        return CDialogBase.exec_(self)
+            self.selectionModelContracts.setCurrentIndex(self.modelContracts.index(0, 0), QtGui.QItemSelectionModel.SelectCurrent)
+        result = CDialogBase.exec_(self)
+        return result
 
 
     def on_actScanBarcode_triggered(self):
@@ -562,6 +576,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.addObject('actSelectAllAccounts', QtGui.QAction(u'Выбрать все', self))
         self.addObject('actDeleteAccountItemsWithoutRKEY', QtGui.QAction(u'Удалить из реестра счета без RKEY', self))
         self.addObject('actDeleteAccountItemsWithoutFKEY', QtGui.QAction(u'Удалить из реестра счета без FKEY', self))
+        self.addObject('actDeleteAccountItemsAllRKEY', QtGui.QAction(u'Удалить из счетов реестра RKEY', self))
+        self.addObject('actDeleteAccountItemsAllFKEY', QtGui.QAction(u'Удалить из счетов реестра FKEY', self))
         self.addObject('actDeleteAccounts', QtGui.QAction(u'Удалить', self))
         self.addObject('actDeleteAccountsAtOnce', QtGui.QAction(u'Удалить все', self))
         self.addObject('actPrintPolyclinicSummary',  QtGui.QAction(u'Напечатать сводку по амбулаторной помощи', self))
@@ -591,6 +607,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.mnuAccounts.addSeparator()
         self.mnuAccounts.addAction(self.actDeleteAccountItemsWithoutFKEY)
         self.mnuAccounts.addAction(self.actDeleteAccountItemsWithoutRKEY)
+        self.mnuAccounts.addAction(self.actDeleteAccountItemsAllFKEY)
+        self.mnuAccounts.addAction(self.actDeleteAccountItemsAllRKEY)
         self.mnuAccounts.addSeparator()
         self.mnuAccounts.addAction(self.actDeleteAccounts)
         self.mnuAccounts.addSeparator()
@@ -617,6 +635,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.addObject('actDeleteAccountItemsRKEY', QtGui.QAction(u'Удалить RKEY', self))
         self.addObject('actDeleteAccountItemsFKEY', QtGui.QAction(u'Удалить FKEY', self))
         self.addObject('actDeleteAccountItems', QtGui.QAction(u'Удалить', self))
+        self.addObject('actDeleteAccountItemsPersonalAccount', QtGui.QAction(u'Удалить персональный счет из реестра', self))
         self.addObject('actShowAccountItemInfo', QtGui.QAction(u'Свойства записи', self))
         self.addObject('actReportAccountTotal', QtGui.QAction(u'Счет итоговый', self))
 
@@ -644,6 +663,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.mnuAccountItems.addAction(self.actDeleteAccountItemsRKEY)
         self.mnuAccountItems.addSeparator()
         self.mnuAccountItems.addAction(self.actDeleteAccountItems)
+        self.mnuAccountItems.addAction(self.actDeleteAccountItemsPersonalAccount)
 
 
     def setupBtnPrintMenu(self):
@@ -766,7 +786,11 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                         payerId = self.cmbAnalysisPayer.value()
                         accountTypeId = self.cmbAnalysisAccountType.value()
                         groupId = self.cmbGroupId.currentIndex()
-                        groupIdList = {1: [1, 2, 9], 2: [3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27], 3: [7, 10, 22], 4: [8], 5: [18, 19, 20, 21, 23]}
+                        groupIdList = {1: [1, 2, 9],
+                                       2: [3, 4, 5, 6, 11, 12, 13, 14, 15, 16, 17, 24, 25, 26, 27, 28, 29, 31, 32],
+                                       3: [7, 10, 22],
+                                       4: [8],
+                                       5: [18, 19, 20, 21, 23, 30]}
                         if groupId:
                             cond.append(table['group_id'].inlist(groupIdList[groupId]))
                         if payerId:
@@ -877,7 +901,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.edtAccountItemsEventsCount.setText(str(totalEventsCount))
         self.edtAccountItemsActionsCount.setText(str(totalActionsCount))
         self.edtAccountItemsVisitsCount.setText(str(totalVisitsCount))
-        self.tabWorkType.setTabEnabled(2,self.tabWorkType.currentIndex() == 2 or bool(idList))
+        if QtGui.qApp.defaultKLADR()[:2] != u'23':
+            self.tabWorkType.setTabEnabled(2,self.tabWorkType.currentIndex() == 2 or bool(idList))
 
 
     def updateAccountItemInfo(self, accountItemId):
@@ -1188,8 +1213,6 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 progressDialog.show()
                 allAccountIdList = []
                 for contractId in contractIdList:
-                    if not QtGui.qApp.counterController():
-                        QtGui.qApp.setCounterController(CCounterController(self))
                     accountIdList = self.formByContract(
                         progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID)
                     allAccountIdList.extend(accountIdList)
@@ -1212,6 +1235,9 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
 
 
     def formByContract(self, progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID):
+        counterController = QtGui.qApp.counterController()
+        if not counterController:
+            QtGui.qApp.setCounterController(CCounterController(self))
         db = QtGui.qApp.db
         db.transaction()
         try:
@@ -1258,12 +1284,17 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
             accountIdList = accountPool.getAccountIdList()
             beforeUpdateAccounts(accountIdList)
             updateAccounts(accountIdList)
+            QtGui.qApp.delAllCounterValueIdReservation()
             db.commit()
             return accountIdList
         except:
             db.rollback()
+            QtGui.qApp.resetAllCounterValueIdReservation()
             QtGui.qApp.logCurrentException()
             raise
+        finally:
+            if not counterController:
+                QtGui.qApp.setCounterController(None)
 
 
     def getEventRecord(self, eventId):
@@ -1643,11 +1674,38 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.actReportByServicesEx.setEnabled(itemPresent and not isWatchMode)
         self.actCheckMesInAccount.setEnabled(itemPresent and not isWatchMode)
         self.actSelectAllAccounts.setEnabled(itemPresent)
-        self.actDeleteAccounts.setEnabled(itemPresent and QtGui.qApp.userHasAnyRight([urAdmin, urDeleteAccount]))
-        self.actDeleteAccountsAtOnce.setEnabled(itemPresent and QtGui.qApp.userHasRight(urDeleteAccountsAtOnce))
-        self.actDeleteAccountItemsWithoutRKEY.setEnabled(itemPresent and QtGui.qApp.userHasAnyRight([urAdmin, urDeleteAccount, urDeleteAccountItem]))
-        self.actDeleteAccountItemsWithoutFKEY.setEnabled(itemPresent and QtGui.qApp.userHasAnyRight([urAdmin, urDeleteAccount, urDeleteAccountItem]))
-
+        self.actDeleteAccounts.setEnabled(itemPresent and self.checkDeleteRights())
+        self.actDeleteAccountsAtOnce.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountsAtOnce]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
+        self.actDeleteAccountItemsWithoutRKEY.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
+        self.actDeleteAccountItemsWithoutFKEY.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
+        self.actDeleteAccountItemsAllRKEY.setEnabled(itemPresent and QtGui.qApp.userHasRight(urDeleteRKEY))
+        self.actDeleteAccountItemsAllFKEY.setEnabled(itemPresent and QtGui.qApp.userHasRight(urDeleteRKEY))
+        
+    
+    def checkDeleteRights(self):
+        if QtGui.qApp.userHasAnyRight([urAdmin, urDeleteAccount]):
+            return True
+        selectedRowList = self.tblAccounts.selectedRowList()
+        model = self.tblAccounts.model()
+        contractIds = []
+        contracts = []
+        for row in selectedRowList:
+            record = model.getRecordByRow(row)
+            contractId = forceInt(record.value('contract_id'))
+            if contractId not in contractIds:
+                contractIds.append(contractId)
+        for row in contractIds:
+            contract = forceRef(QtGui.qApp.db.translate(
+                'Contract', 'id', row, 'finance_id'))
+            if contract not in contracts:
+                contracts.append(contract)
+        if contracts:
+            for contract in contracts:
+                if not QtGui.qApp.userHasRight(accountantDeleteRightList[contract]):
+                    return False
+            return True
+        return False
+        
 
     @pyqtSignature('')
     def on_actEditAccount_triggered(self):
@@ -1963,6 +2021,32 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
             finally:
                 QtGui.qApp.restoreOverrideCursor()
+    
+    
+    @pyqtSignature('')
+    def on_actDeleteAccountItemsAllRKEY_triggered(self):
+        db = QtGui.qApp.db
+        tableAccountItem = db.table('Account_Item')
+        tableSARK = db.table('soc_Account_RowKeys')
+        cond = [tableAccountItem['master_id'].inlist(self.tblAccounts.selectedItemIdList()), tableAccountItem['deleted'].eq(0)]
+        itemIdList = db.getIdList(tableAccountItem, idCol='Account_Item.event_id', where=cond)
+        
+        message = u'Вы действительно хотите удалить ранее импортированные RKEY для всех выбранных реестров?'
+        if QtGui.QMessageBox.question(self, u'Внимание!', message, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            QtGui.qApp.setWaitCursor()
+            try:
+                db.transaction()
+                try:
+                    db.updateRecords(tableSARK, 'soc_Account_RowKeys.`key` = NULL', db.joinAnd([tableSARK['event_id'].inlist(itemIdList), tableSARK['typeFile'].ne('F')]))
+                    db.commit()
+                except:
+                    db.rollback()
+                    QtGui.qApp.logCurrentException()
+                    raise
+                self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
+            finally:
+                QtGui.qApp.restoreOverrideCursor()
 
 
     @pyqtSignature('')
@@ -2000,6 +2084,34 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                     QtGui.qApp.logCurrentException()
                     raise
                 self.updateAccountInfo()
+                self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
+            finally:
+                QtGui.qApp.restoreOverrideCursor()
+    
+    
+    @pyqtSignature('')
+    def on_actDeleteAccountItemsAllFKEY_triggered(self):
+        db = QtGui.qApp.db
+        tableAccountItem = db.table('Account_Item')
+        tableSARK = db.table('soc_Account_RowKeys')
+        cond = [tableAccountItem['master_id'].inlist(self.tblAccounts.selectedItemIdList()), tableAccountItem['deleted'].eq(0)]
+        itemIdList = db.getIdList(tableAccountItem, idCol='Account_Item.event_id', where=cond)
+        
+        message = u'Вы действительно хотите удалить ранее импортированные FKEY для всех выбранных реестров?'
+        if QtGui.QMessageBox.question(self, u'Внимание!', message, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            QtGui.qApp.setWaitCursor()
+            try:
+                db.transaction()
+                try:
+                    db.updateRecords(tableSARK, 'soc_Account_RowKeys.`key` = NULL',
+                                     [tableSARK['event_id'].inlist(itemIdList),
+                                     tableSARK['typeFile'].eq('F')])
+                    db.commit()
+                except:
+                    db.rollback()
+                    QtGui.qApp.logCurrentException()
+                    raise
                 self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
             finally:
                 QtGui.qApp.restoreOverrideCursor()
@@ -2085,7 +2197,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.actDetailedReportByServicesExpenses.setEnabled(itemPresent and not isWatchMode)
         self.actDeleteAccountItemsRKEY.setEnabled(itemPresent and QtGui.qApp.userHasRight(urDeleteRKEY))
         self.actDeleteAccountItemsFKEY.setEnabled(itemPresent and QtGui.qApp.userHasRight(urDeleteRKEY))
-        self.actDeleteAccountItems.setEnabled(itemPresent and QtGui.qApp.userHasAnyRight([urAdmin, urDeleteAccount, urDeleteAccountItem]))
+        self.actDeleteAccountItems.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
+        self.actDeleteAccountItemsPersonalAccount.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
         self.actShowAccountItemInfo.setEnabled(itemPresent)
 
 
@@ -2272,6 +2385,59 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                }
         applyTemplate(self, templateId, data)
 
+    
+    @pyqtSignature('')
+    def on_actDeleteAccountItemsPersonalAccount_triggered(self):
+        db = QtGui.qApp.db
+        table = db.table('Account_Item')
+        model = self.tblAccountItems.model()
+        selectedItemRowList = self.tblAccountItems.selectedRowList()
+        personalAccounts = []
+        for row in selectedItemRowList:
+            record = model.getRecordByRow(row)
+            personalAccount = forceInt(record.value('event_id'))
+            if personalAccount not in personalAccounts:
+                personalAccounts.append(personalAccount)
+        selectedItemIdList = []
+        for row in xrange(model.rowCount()):
+            record = model.getRecordByRow(row)
+            accId = forceInt(record.value('id'))
+            personalAccount = forceInt(record.value('event_id'))
+            if personalAccount in personalAccounts:
+                selectedItemIdList.append(accId)
+        cond=[table['id'].inlist(selectedItemIdList), table['date'].isNotNull(), table['number'].ne('')]
+        itemIdList = db.getIdList(table, where=cond)
+        if itemIdList:
+            QtGui.QMessageBox.critical( self,
+                                       u'Внимание!',
+                                       u'Подтверждённые записи реестра не подлежат удалению',
+                                       QtGui.QMessageBox.Close)
+        else:
+            n = len(selectedItemIdList)
+            message = u'Вы действительно хотите удалить %s реестра? ' % formatNum1(n, (u'запись', u'записи', u'записей'))
+            if QtGui.QMessageBox.question( self,
+                                       u'Внимание!',
+                                       message,
+                                       QtGui.QMessageBox.Yes|QtGui.QMessageBox.No,
+                                       QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+
+                QtGui.qApp.setWaitCursor()
+                try:
+                    db.transaction()
+                    try:
+                        clearPayStatus(self.currentAccountId, selectedItemIdList)
+                        db.deleteRecordSimple(table, table['id'].inlist(selectedItemIdList))
+                        updateAccount(self.currentAccountId)
+                        db.commit()
+                    except:
+                        db.rollback()
+                        QtGui.qApp.logCurrentException()
+                        raise
+                    self.updateAccountInfo()
+                    self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
+                finally:
+                    QtGui.qApp.restoreOverrideCursor()
+    
 
     @pyqtSignature('')
     def on_actDeleteAccountItems_triggered(self):

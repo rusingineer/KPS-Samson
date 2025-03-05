@@ -12,22 +12,19 @@
 ##
 #############################################################################
 
-import sys
-from sys import *
+from PyQt4 import QtCore, QtGui
 
-from PyQt4 import QtCore, QtGui, QtSql
-
-from library.Utils            import *
-from library.crbcombobox      import CRBComboBox
-from library.InDocTable       import *
-from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
-from library.ItemsListDialog  import *
-from MKBTree                  import checkMKBTable, getMKBName, CMKBInDocTableCol
-from library.TableModel       import CTableModel, CDateCol, CDateTimeCol, CDoubleCol, CEnumCol, CRefBookCol, CTextCol, CBoolCol, CIntCol
-from library.AgeSelector      import composeAgeSelector, parseAgeSelector
-from library.ItemsListDialog  import CItemEditorBaseDialog
-from library.interchange      import getCheckBoxValue, getComboBoxValue, getLineEditValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, getRBComboBoxValue
-from Ui_CSGEditor             import Ui_CSGEditor
+from MKBTree import checkMKBTable, getMKBName, CMKBInDocTableCol
+from Ui_CSGEditor import Ui_CSGEditor
+from library.AgeSelector import composeAgeSelector, parseAgeSelector
+from library.InDocTable import CInDocTableModel, CIntInDocTableCol, CEnumInDocTableCol, CInDocTableCol, \
+    CFloatInDocTableCol
+from library.ItemsListDialog import CItemEditorBaseDialog
+from library.TableModel import CTableModel, CDoubleCol, CEnumCol, CRefBookCol, CTextCol, CIntCol
+from library.Utils import forceString, toVariant, forceStringEx, forceRef
+from library.crbcombobox import CRBComboBox
+from library.interchange import getCheckBoxValue, getComboBoxValue, getLineEditValue, setCheckBoxValue, \
+    setComboBoxValue, setLineEditValue, setRBComboBoxValue, getRBComboBoxValue
 
 SexList = ['', u'М', u'Ж']
 

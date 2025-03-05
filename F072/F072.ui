@@ -17,7 +17,16 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_5">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -87,7 +96,16 @@ p, li { white-space: pre-wrap; }
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_4">
-        <property name="margin">
+        <property name="leftMargin">
+         <number>4</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>4</number>
+        </property>
+        <property name="bottomMargin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -109,7 +127,16 @@ p, li { white-space: pre-wrap; }
             <string>Стат.&amp;учёт</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_3">
-            <property name="margin">
+            <property name="leftMargin">
+             <number>4</number>
+            </property>
+            <property name="topMargin">
+             <number>4</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -137,7 +164,16 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
                  <number>0</number>
                 </property>
                 <item>
@@ -152,7 +188,16 @@ p, li { white-space: pre-wrap; }
                    <string>&amp;ф.072</string>
                   </property>
                   <layout class="QGridLayout" name="gridLayout_2">
-                   <property name="margin">
+                   <property name="leftMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="bottomMargin">
                     <number>4</number>
                    </property>
                    <property name="spacing">
@@ -323,7 +368,16 @@ p, li { white-space: pre-wrap; }
                       <property name="spacing">
                        <number>4</number>
                       </property>
-                      <property name="margin">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
                        <number>0</number>
                       </property>
                       <item>
@@ -367,7 +421,16 @@ p, li { white-space: pre-wrap; }
                       <property name="spacing">
                        <number>4</number>
                       </property>
-                      <property name="margin">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
                        <number>0</number>
                       </property>
                       <item>
@@ -524,7 +587,16 @@ p, li { white-space: pre-wrap; }
                     <property name="spacing">
                      <number>4</number>
                     </property>
-                    <property name="margin">
+                    <property name="leftMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="bottomMargin">
                      <number>4</number>
                     </property>
                     <item>
@@ -553,7 +625,16 @@ p, li { white-space: pre-wrap; }
                     <property name="spacing">
                      <number>4</number>
                     </property>
-                    <property name="margin">
+                    <property name="leftMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="bottomMargin">
                      <number>4</number>
                     </property>
                     <item>
@@ -589,7 +670,16 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
                  <number>0</number>
                 </property>
                 <item>
@@ -598,7 +688,16 @@ p, li { white-space: pre-wrap; }
                    <string>&amp;Мероприятия</string>
                   </property>
                   <layout class="QGridLayout" name="_3">
-                   <property name="margin">
+                   <property name="leftMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>4</number>
+                   </property>
+                   <property name="bottomMargin">
                     <number>4</number>
                    </property>
                    <property name="spacing">
@@ -625,12 +724,12 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CEventMedicalDiagnosisPage" name="tabMedicalDiagnosis">
            <attribute name="title">
-            <string>Диагноз</string>
+            <string>Диагно&amp;з</string>
            </attribute>
           </widget>
           <widget class="CEventMesPage" name="tabMes">
            <attribute name="title">
-            <string>Стандарт</string>
+            <string>Ст&amp;андарт</string>
            </attribute>
           </widget>
           <widget class="CActionsPage" name="tabStatus">
@@ -663,7 +762,16 @@ p, li { white-space: pre-wrap; }
             <string>Т&amp;рудоспособность</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout">
-            <property name="margin">
+            <property name="leftMargin">
+             <number>4</number>
+            </property>
+            <property name="topMargin">
+             <number>4</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -682,7 +790,16 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>4</number>
+                </property>
+                <property name="topMargin">
+                 <number>4</number>
+                </property>
+                <property name="rightMargin">
+                 <number>4</number>
+                </property>
+                <property name="bottomMargin">
                  <number>4</number>
                 </property>
                 <item>
@@ -708,7 +825,16 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>4</number>
+                </property>
+                <property name="topMargin">
+                 <number>4</number>
+                </property>
+                <property name="rightMargin">
+                 <number>4</number>
+                </property>
+                <property name="bottomMargin">
                  <number>4</number>
                 </property>
                 <item>
@@ -734,7 +860,16 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>4</number>
+                </property>
+                <property name="topMargin">
+                 <number>4</number>
+                </property>
+                <property name="rightMargin">
+                 <number>4</number>
+                </property>
+                <property name="bottomMargin">
                  <number>4</number>
                 </property>
                 <item>
@@ -754,13 +889,22 @@ p, li { white-space: pre-wrap; }
               </widget>
               <widget class="QWidget" name="tabVitalRestriction">
                <attribute name="title">
-                <string>&amp;Ограничения жизнедеятельности</string>
+                <string>О&amp;граничения жизнедеятельности</string>
                </attribute>
                <layout class="QVBoxLayout" name="verticalLayout_6">
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>4</number>
+                </property>
+                <property name="topMargin">
+                 <number>4</number>
+                </property>
+                <property name="rightMargin">
+                 <number>4</number>
+                </property>
+                <property name="bottomMargin">
                  <number>4</number>
                 </property>
                 <item>
@@ -784,12 +928,12 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CEventFeedPage" name="tabFeed">
            <attribute name="title">
-            <string>Питание</string>
+            <string>П&amp;итание</string>
            </attribute>
           </widget>
           <widget class="CEventCashPage" name="tabCash">
            <attribute name="title">
-            <string>Оплата</string>
+            <string>&amp;Оплата</string>
            </attribute>
           </widget>
           <widget class="CEventVoucherNotesPage" name="tabNotes">
@@ -799,7 +943,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CEventVoucherPage" name="tabVoucher">
            <attribute name="title">
-            <string>Путевка</string>
+            <string>Путе&amp;вка</string>
            </attribute>
           </widget>
          </widget>
@@ -863,6 +1007,11 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
+  </customwidget>
+  <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
@@ -873,14 +1022,14 @@ p, li { white-space: pre-wrap; }
    <header>library/InDocTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CDateEdit</class>
-   <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
+   <class>CROComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/ROComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>CContractComboBox</class>
+   <class>CPersonComboBoxEx</class>
    <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
+   <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
   <customwidget>
    <class>CTextBrowser</class>
@@ -888,9 +1037,15 @@ p, li { white-space: pre-wrap; }
    <header>library/TextBrowser.h</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
+   <class>CAmbCardPage</class>
+   <extends>QWidget</extends>
+   <header>Events/AmbCardPage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CContractComboBox</class>
    <extends>QComboBox</extends>
-   <header>Orgs/PersonComboBoxEx.h</header>
+   <header>Orgs/OrgComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CActionsPage</class>
@@ -909,17 +1064,6 @@ p, li { white-space: pre-wrap; }
    <extends>QWidget</extends>
    <header>Events/EventCashPage.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>CAmbCardPage</class>
-   <extends>QWidget</extends>
-   <header>Events/AmbCardPage.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>CROComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/ROComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CEventMesPage</class>
@@ -945,6 +1089,11 @@ p, li { white-space: pre-wrap; }
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>CClientRelationComboBoxPatron</class>
+   <extends>QComboBox</extends>
+   <header>Registry/Utils.h</header>
+  </customwidget>
+  <customwidget>
    <class>CEventVoucherPage</class>
    <extends>QWidget</extends>
    <header>Events/EventVoucherPage.h</header>
@@ -955,11 +1104,6 @@ p, li { white-space: pre-wrap; }
    <extends>QWidget</extends>
    <header>Events/EventVoucherNotesPage.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>CClientRelationComboBoxPatron</class>
-   <extends>QComboBox</extends>
-   <header>Registry/Utils.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

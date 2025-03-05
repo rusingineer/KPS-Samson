@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,17 +16,18 @@ from decimal import Decimal
 from contextlib import contextmanager
 
 from PyQt4 import QtGui, QtCore, QtSql
-from PyQt4.QtCore import Qt, QVariant, QDate, pyqtSignature
+from PyQt4.QtCore import Qt, QVariant, QDate, pyqtSignature, QDateTime
 
 from Events.ActionStatus import CActionStatus
 from Events.Action import CAction
+from Events.InputDialog import CDateTimeInputDialog
 from library.DialogBase import CDialogBase
 from library.RecordLock import CRecordLockMixin
 from library.InDocTable import CRecordListModel, CInDocTableCol, CBoolInDocTableCol, forcePyType, CDateInDocTableCol
 from library.ProgressBar import CProgressBar
 from library.PrintTemplates import getPrintButton
 from Reports.PlannedClientInvoiceNomenclaturesReport import CPlannedClientInvoiceNomenclaturesReport
-from library.Utils import formatNameByRecord, forceRef, toVariant, forceString, forceDouble, forceBool, forceDate, forceInt
+from library.Utils import formatNameByRecord, forceRef, toVariant, forceString, forceDouble, forceBool, forceDate, forceInt, forceStringEx
 from Users.Rights import (urNomenclatureExpenseLaterDate, urNoRestrictRetrospectiveNEClient)
 from Stock.Service import CStockService
 
@@ -122,13 +123,16 @@ class _CInvoiceProcessContext(object):
 
 
 class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
-    def __init__(self, orgStructureId, parent=None):
+    def __init__(self, orgStructureId, parent=None, isControlPageVisible=True):
         CDialogBase.__init__(self, parent)
         CRecordLockMixin.__init__(self)
-
+        self.isControlPageVisible = isControlPageVisible
         self._filters = {}
+        self._refreshFilters = {}
         self._orgStructureId = orgStructureId
         self.setupUi(self)
+        self.setWindowFlags(Qt.Window | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
+        self.setWindowState(Qt.WindowMaximized)
         self.setWindowTitle(u'Списание ЛСиИМН')
         self.addModels('ClientNomenclatures', CGroupClientInvoiceModel(self))
         self.addModels('ClientNomenclaturesControl', CGroupClientInvoiceModel(self, 1))
@@ -147,6 +151,8 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.btnPrint.setEnabled(True)
         self.preparePrintBtn()
+        if not self.isControlPageVisible:
+            self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.tabClientNomenclaturesControl), self.isControlPageVisible)
 
         self._tables = _CTables()
 
@@ -156,6 +162,7 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
         self.actSetCheckAll = QtGui.QAction(u'Выделить все', self)
         self.actSetUnCheckedAll = QtGui.QAction(u'Снять все выделения', self)
         self.actSetActionCanceled = QtGui.QAction(u'Отменить выделенные назначения', self)
+        self.actSetActionCanceled.setEnabled(QtGui.qApp.userHasRight(u'canSetClientInvoiceActionCanceled'))
 
         self.tblClientNomenclatures.createPopupMenu([self.actSetCheckAll, self.actSetUnCheckedAll])
         self.tblClientNomenclaturesControl.createPopupMenu([self.actSetCheckAll, self.actSetUnCheckedAll, self.actSetActionCanceled])
@@ -165,11 +172,19 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
         self.connect(self.actSetActionCanceled, QtCore.SIGNAL('triggered()'), self.on_setActionCanceled)
         self.connect(self.tblClientNomenclatures.popupMenu(), QtCore.SIGNAL('aboutToShow()'), self.on_popupMenuAboutToShow)
         self.connect(self.tblClientNomenclaturesControl.popupMenu(), QtCore.SIGNAL('aboutToShow()'), self.on_popupMenuAboutToShow)
+        self.connect(self.modelClientNomenclatures, QtCore.SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.on_modelClientNomenclatures_dataChanged)
+        self.connect(self.modelClientNomenclaturesControl, QtCore.SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.on_modelClientNomenclaturesControl_dataChanged)
         self.edtDate.connect(self.edtDate.lineEdit, QtCore.SIGNAL('editingFinished()'), self.on_edtDate_editingFinished)
 
         self._progressBar = CProgressBar()
         self._progressBar.setFormat(u'%v из %m')
         self._progressBar.setMinimum(0)
+
+
+    def setRefreshParams(self, **filters):
+        self._refreshFilters = {}
+        if bool(filters):
+            self._refreshFilters = filters
 
 
     def setDateParams(self):
@@ -199,6 +214,47 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
         QtGui.qApp.preferences.appPrefs['GroupClientInvoiceModel_ColumnOrder'+str(1)] = toVariant(self.tblClientNomenclaturesControl.getSortColumn())
         CDialogBase.closeEvent(self, event)
 
+    def on_modelClientNomenclatures_dataChanged(self, topLeft, bottomRight):
+        index = self.tblClientNomenclatures.currentIndex()
+        if index.isValid():
+            column = index.column()
+            if column == CGroupClientInvoiceModel.NOTE_COLUMN:
+                items = self.modelClientNomenclatures.items()
+                row = index.row()
+                if row >= 0 and len(items) > row:
+                    record = items[row]
+                    if record:
+                        actionId = forceRef(record.value('actionId'))
+                        if actionId:
+                            action = CAction.getActionById(actionId)
+                            if action:
+                                noteNew = forceStringEx(record.value('note'))
+                                noteOld = forceStringEx(action.getRecord().value('note'))
+                                if noteNew != noteOld:
+                                    action.getRecord().setValue('note', toVariant(noteNew))
+                                    action.save(idx=forceInt(action.getRecord().value('idx')))
+
+
+    def on_modelClientNomenclaturesControl_dataChanged(self, topLeft, bottomRight):
+        index = self.tblClientNomenclaturesControl.currentIndex()
+        if index.isValid():
+            column = index.column()
+            if column == CGroupClientInvoiceModel.NOTE_COLUMN:
+                items = self.modelClientNomenclaturesControl.items()
+                row = index.row()
+                if row >= 0 and len(items) > row:
+                    record = items[row]
+                    if record:
+                        actionId = forceRef(record.value('actionId'))
+                        if actionId:
+                            action = CAction.getActionById(actionId)
+                            if action:
+                                noteNew = forceStringEx(record.value('note'))
+                                noteOld = forceStringEx(action.getRecord().value('note'))
+                                if noteNew != noteOld:
+                                    action.getRecord().setValue('note', toVariant(noteNew))
+                                    action.save(idx=forceInt(action.getRecord().value('idx')))
+
 
     @pyqtSignature('int')
     def on_tabWidget_currentChanged(self, index):
@@ -218,7 +274,9 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
             allChecked = self.modelClientNomenclaturesControl.allChecked()
             self.actSetCheckAll.setEnabled(not allChecked)
             self.actSetUnCheckedAll.setEnabled(hasChecked)
-            self.actSetActionCanceled.setEnabled(len(self.tblClientNomenclaturesControl.getSelectedRows()) > 0)
+            self.actSetActionCanceled.setEnabled(
+                len(self.tblClientNomenclaturesControl.getSelectedRows()) > 0 \
+                and QtGui.qApp.userHasRight(u'canSetClientInvoiceActionCanceled'))
         else:
             hasChecked = self.modelClientNomenclatures.hasChecked()
             allChecked = self.modelClientNomenclatures.allChecked()
@@ -298,19 +356,46 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
 
         if not items:
             return
+        
+        groupingItems = {}
+        sortedItems = []
+        for item in items:
+            groupId = forceInt(item.value('group_id'))
+            subactionId = forceRef(item.value('actionId'))
+            subaction = CAction.getActionById(subactionId)
+            if not groupId:
+                sortedItems.append(item)
+            elif groupId == forceInt(item.value('EPIID')):
+                if not groupId in groupingItems.keys():
+                    groupingItems[groupId] = [(item,subaction)]
+                else:
+                    groupingItems[groupId].append((item,subaction))
+                sortedItems.append(item)
+            else:
+                if not groupId in groupingItems.keys():
+                    groupingItems[groupId] = [(item,subaction)]
+                else:
+                    groupingItems[groupId].append((item,subaction))
 
-        progressBar = self._prepareProgressBar(len(items))
+        progressBar = self._prepareProgressBar(len(sortedItems))
         self.statusBar.addWidget(progressBar)
 
         try:
             progressBar.show()
-            QtGui.qApp.callWithWaitCursor(self, self.__doInvoices, items, progressBar)
+            QtGui.qApp.callWithWaitCursor(self, self.__doInvoices, sortedItems, progressBar, groupingItems)
 
         finally:
             self.statusBar.removeWidget(progressBar)
 
 
-    def __doInvoices(self, items, progressBar):
+    def __doInvoices(self, items, progressBar, groupingItems):
+        filterDlg = CDateTimeInputDialog(self)
+        if not QtGui.qApp.userHasRight(urNomenclatureExpenseLaterDate):
+            filterDlg.setMaximumDate(QDate().currentDate())
+            filterDlg.setCurrentDate(True)
+        filterDlg.exec_()
+        self._filters['date'] = QDateTime(filterDlg.date(), filterDlg.time())
+        
         processContext = _CInvoiceProcessContext(self, self._tables)
 
         actionIdsToReload = []
@@ -340,7 +425,11 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
                     try:
                         actionOrgStructureId = forceRef(action.getRecord().value('orgStructure_id'))
                         clientId = forceRef(record.value('clientId'))
-                        res, messageExecWriteOffNomenclatureExpense = CStockService.doClientInvoice(action, actionOrgStructureId if actionOrgStructureId else self._orgStructureId, self._filters['date'], clientId=clientId)
+                        groupingRecords = groupingItems[forceInt(record.value('group_id'))] if forceInt(record.value('group_id')) in groupingItems.keys() else [(record, action)]
+                        for rec, recaction in groupingRecords:
+                            recactionId = forceRef(rec.value('actionId'))
+                            processContext._successActionIds.add(recactionId)
+                        res, messageExecWriteOffNomenclatureExpense = CStockService.doClientInvoice(action, record, actionOrgStructureId if actionOrgStructureId else self._orgStructureId, self._filters['date'], clientId=clientId, groupingRecords=groupingRecords)
                         if messageExecWriteOffNomenclatureExpense:
                             messageFail = messageExecWriteOffNomenclatureExpense + processContext.failedData.get(actionId, u'')
                             processContext.fail(actionId, messageFail)
@@ -358,13 +447,23 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
                 self.modelClientNomenclatures.reloadActionIds(actionIdsToReload)
             self._setResultColumnVisible(True)
 
+    
+    
+    def setFilterDate(self, date):
+        self.edtDate.setDate(date)
+        
 
     def load(self, **filters):
         self.edtDateFilter = None
         if bool(filters):
             self._filters = filters
-        date = self.edtDate.date()
-        self._filters['date'] = date
+        elif bool(self._refreshFilters):
+            self._filters = self._refreshFilters
+        if 'date' not in filters.keys():
+            date = self.edtDate.date()
+            self._filters['date'] = date
+        else:
+            date = self._filters['date']
         widgetIndex = self.tabWidget.currentIndex()
         if widgetIndex == 1:
             model = self.modelClientNomenclaturesControl
@@ -379,8 +478,11 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
 
 
     def on_edtDate_editingFinished(self):
-        date = self.edtDate.date()
-        self._filters['date'] = date
+        if 'date' not in self._filters.keys():
+            date = self.edtDate.date()
+            self._filters['date'] = date
+        else:
+            date = self._filters['date']
         widgetIndex = self.tabWidget.currentIndex()
         if widgetIndex == 1:
             model = self.modelClientNomenclaturesControl
@@ -430,6 +532,31 @@ class CLocResultCol(CInDocTableCol):
         return toVariant(self._model.getResult(forceRef(val)))
 
 
+class CLocActionPropertySignaColumn(CInDocTableCol):
+    _SIGNA  = 3
+    def __init__(self, model):
+        CInDocTableCol.__init__(self, u'Способ применения', 'actionId', 20, readOnly=True)
+        self.caches = {}
+        self._model = model
+
+    def toString(self, val, record):
+        actionId = forceRef(val)
+        if actionId:
+            action = self.caches.get(actionId, None)
+            if not action:
+                action = CAction.getActionById(actionId)
+                self.caches[actionId] = action
+            if action:
+                return toVariant(action.findSignaPropertyValue())
+        return QVariant()
+
+    def toSortString(self, val, record):
+        return forcePyType(self.toString(val, record))
+
+    def toStatusTip(self, val, record):
+        return self.toString(val, record)
+
+
 class CLocActionPropertyColumn(CInDocTableCol):
     _SIGNA  = 3
     def __init__(self, model):
@@ -445,12 +572,31 @@ class CLocActionPropertyColumn(CInDocTableCol):
                 action = CAction.getActionById(actionId)
                 self.caches[actionId] = action
             if action:
-                actionType = action.getType()
-                for name, propertyType in actionType._propertiesByName.items():
-                    if propertyType.inActionsSelectionTable == CLocActionPropertyColumn._SIGNA:
-                        propertyName = propertyType.name
-                        if propertyName:
-                            return toVariant(action[propertyName])
+                return toVariant(action.findSignaPropertyValue())
+        return QVariant()
+
+    def toSortString(self, val, record):
+        return forcePyType(self.toString(val, record))
+
+    def toStatusTip(self, val, record):
+        return self.toString(val, record)
+
+class CLocActionPropertySignaCommentColumn(CInDocTableCol):
+    _SIGNA  = 3
+    def __init__(self, model):
+        CInDocTableCol.__init__(self, u'Комментарий к СП', 'actionId', 20, readOnly=True)
+        self.caches = {}
+        self._model = model
+
+    def toString(self, val, record):
+        actionId = forceRef(val)
+        if actionId:
+            action = self.caches.get(actionId, None)
+            if not action:
+                action = CAction.getActionById(actionId)
+                self.caches[actionId] = action
+            if action:
+                return toVariant(action.findSignaCommentPropertyText())
         return QVariant()
 
     def toSortString(self, val, record):
@@ -486,10 +632,14 @@ class CLocActionDayDataValueColumn(CInDocTableCol):
                 if executionPlan:
                     executionPlan_Items = executionPlan.items
                     if executionPlan_Items:
+                        if isinstance(self.date, QDateTime):
+                            date = self.date.date()
+                        else:
+                            date = self.date
                         if self.type:
                             items = executionPlan_Items.getItemsByDate(forceDate(action.getRecord().value('begDate')))
                         else:
-                            items = executionPlan_Items.getItemsByDate(self.date)
+                            items = executionPlan_Items.getItemsByDate(date)
                         if not items:
                             return QVariant()
                         planItems = len(items)
@@ -549,7 +699,12 @@ class _CItemsContainer(object):
         return self._id2item[actionId][CGroupClientInvoiceModel.CLIENT_COLUMN]
 
     def getResult(self, actionId):
-        return self._id2item[actionId].get(CGroupClientInvoiceModel.RESULT_COLUMN)
+        return self._id2item[actionId].get(CGroupClientInvoiceModel.RESULT_COLUMN, u'')
+
+
+    def getNote(self, actionId):
+        return self._id2item[actionId].get(CGroupClientInvoiceModel.NOTE_COLUMN, u'')
+
 
     def add(self, record):
         self._addExtFields(record)
@@ -571,11 +726,13 @@ class _CItemsContainer(object):
         clientQnt = Decimal('1')
         if dosageValue:
             clientQnt = doses / dosageValue
+        note = forceStringEx(record.value('note'))
 
         self._id2item[actionId] = {
             CGroupClientInvoiceModel.CLIENT_COLUMN: clientName,
             CGroupClientInvoiceModel.NOMENCLATURE_COLUMN: nomenclatureName,
-            CGroupClientInvoiceModel.QNT_COLUMN: float(clientQnt)
+            CGroupClientInvoiceModel.QNT_COLUMN: float(clientQnt),
+            CGroupClientInvoiceModel.NOTE_COLUMN: note
         }
 
     def reloadRecords(self, records):
@@ -593,6 +750,12 @@ class _CItemsContainer(object):
                 self._id2item[actionId][CGroupClientInvoiceModel.RESULT_COLUMN] = value
 
 
+    def setNote(self, actionId, row):
+        if actionId in self._id2item:
+            value = self._id2item[actionId].get(CGroupClientInvoiceModel.NOTE_COLUMN, u'')
+            self._id2item[actionId][CGroupClientInvoiceModel.NOTE_COLUMN] = value
+
+
 class CGroupClientInvoiceModel(CRecordListModel):
     CHECKED_COLUMN = 0
     BEGDATE_COLUMN = 1
@@ -600,8 +763,10 @@ class CGroupClientInvoiceModel(CRecordListModel):
     NOMENCLATURE_COLUMN = 3
     QNT_COLUMN = 4
     SIGNA_COLUMN = 5
-    DAYDATA_COLUMN = 6
-    RESULT_COLUMN = 7
+    SIGNACOMMENT_COLUMN = 6
+    DAYDATA_COLUMN = 7
+    NOTE_COLUMN = 8
+    RESULT_COLUMN = 9
 
     def __init__(self, parent=None, type = 0):
         CRecordListModel.__init__(self, parent)
@@ -615,8 +780,11 @@ class CGroupClientInvoiceModel(CRecordListModel):
         self.addCol(CLocClientCol(self)).setSortable(True)
         self.addCol(CLocNomenclatureCol(self)).setSortable(True)
         self.addCol(CLocQntCol(self))
-        self.addCol(CLocActionPropertyColumn(self))
+        self.addCol(CLocActionPropertySignaColumn(self))
+        #self.addCol(CLocActionPropertyColumn(self))
+        self.addCol(CLocActionPropertySignaCommentColumn(self))
         self.addCol(CLocActionDayDataValueColumn(self))
+        self.addCol(CInDocTableCol(u'Примечание', 'note', 20, readOnly = False)).setSortable(False)
         self.addCol(CLocResultCol(self))
         self._cols[CGroupClientInvoiceModel.DAYDATA_COLUMN].setType(self.type)
 
@@ -636,8 +804,11 @@ class CGroupClientInvoiceModel(CRecordListModel):
 
     def cellReadOnly(self, index):
         column = index.column()
+        row = index.row()
+        if column == self.NOTE_COLUMN:
+            if 0 <= row < len(self._items):
+                return False
         if column == self.CHECKED_COLUMN:
-            row = index.row()
             if 0 <= row < len(self._items):
                 record = self._items[row]
                 begDate = forceDate(record.value('begDate'))
@@ -654,6 +825,25 @@ class CGroupClientInvoiceModel(CRecordListModel):
                 else:
                     return QVariant()
         return CRecordListModel.data(self, index, role)
+    
+    def setData(self, index, value, role=Qt.EditRole):
+        result = CRecordListModel.setData(self, index, value, role)
+        if result and role == Qt.CheckStateRole:
+            column = index.column()
+            row = index.row()
+            state = value.toInt()[0]
+            if row == len(self._items):
+                if state == Qt.Unchecked:
+                    return False
+                self._addEmptyItem()
+            record = self._items[row]
+            col = self._cols[column]
+            if column == 0:
+                for row, item in enumerate(self._items):
+                    if forceInt(item.value('group_id')) and forceInt(item.value('group_id')) == forceInt(record.value('group_id')):
+                        item.setValue(col.fieldName(), QVariant(0 if state == Qt.Unchecked else 1))
+                        self.emitCellChanged(row, column)
+            return True
 
     def items(self):
         return self._items._records
@@ -676,6 +866,12 @@ class CGroupClientInvoiceModel(CRecordListModel):
 
     def getResult(self, actionId):
         return self._items.getResult(actionId)
+
+    def getNote(self, actionId):
+        return self._items.getNote(actionId)
+
+    def setNote(self, actionId):
+        self._items.setNote(actionId)
 
     def setResults(self, results):
         self._items.setResults(results)
@@ -713,7 +909,7 @@ class CGroupClientInvoiceModel(CRecordListModel):
                 action = CAction.getActionById(actionId)
                 if action:
                     action.getRecord().setValue('status', toVariant(CActionStatus.canceled))
-                    action.getRecord().setValue('begDate', toVariant(None))
+                    action.getRecord().setValue('endDate', toVariant(None))
                     action.getRecord().setValue('person_id', toVariant(QtGui.qApp.userId if (QtGui.qApp.userId and QtGui.qApp.userSpecialityId) else forceRef(action.getRecord().value('setPerson_id'))))
                     if action.nomenclatureClientReservation is not None:
                         action.cancel()
@@ -774,24 +970,28 @@ class CGroupClientInvoiceModel(CRecordListModel):
         nomenclatureId = filters.get('nomenclatureId')
         clientIds = filters.get('clientIds')
         actionIds = filters.get('actionIds')
-        orgStructureId = filters.get('orgStructureId')
+        orgStructureIds = filters.get('orgStructureId')
         cond = [tables.A['deleted'].eq(0),
                 tables.E['deleted'].eq(0),
                 tables.AT['deleted'].eq(0),
+                tables.AT['isDoesNotInvolveExecutionCourse'].eq(0),
                 tables.APn['deleted'].eq(0),
                 tables.APTn['deleted'].eq(0),
                 tables.APd['deleted'].eq(0),
                 tables.APTd['deleted'].eq(0),
                 tables.A['status'].inlist([CActionStatus.started, CActionStatus.appointed])]
-        if orgStructureId:
-            cond.append(tables.A['orgStructure_id'].eq(orgStructureId))
+        if orgStructureIds[0]:
+            cond.append(tables.A['orgStructure_id'].inlist(orgStructureIds))
         if date:
-            if self.type == 1 :
+            if self.type == 1:
                 cond.append(tables.A['begDate'].dateLt(date))
             else:
                 cond.append(tables.A['begDate'].dateEq(date))
         if nomenclatureId:
             cond.append(tables.APN['value'].eq(nomenclatureId))
+        else:
+            cond.append(tables.APN['value'].isNotNull())
+        cond.append(tables.APD['value'].gt(0))
         if clientIds:
             cond.append(tables.E['client_id'].inlist(clientIds))
         if actionIds:
@@ -812,6 +1012,8 @@ class CGroupClientInvoiceModel(CRecordListModel):
         order = ','.join(orderBy) + (u' ASC' if isDescOrder else u' DESC')
         actionIdList = db.getDistinctIdList(queryTable, [tables.A['id']], where=cond, order=order)
         if actionIdList:
+            tableEPI = db.table('ActionExecutionPlan_Item')
+            queryTable = queryTable.innerJoin(tableEPI, tableEPI['action_id'].eq(tables.A['id']))
             cond.append(tables.A['id'].inlist(actionIdList))
             cond.append(u'''NOT EXISTS(SELECT E2.id FROM Event AS E2 WHERE E2.id = getActionLeavedNextEventId(Event.id) AND E2.deleted = 0)
             OR EXISTS(SELECT E.id FROM Event AS E WHERE E.id = getActionLeavedNextEventId(Event.id) AND E.deleted = 0 AND E.execDate IS NULL
@@ -834,7 +1036,10 @@ class CGroupClientInvoiceModel(CRecordListModel):
                 tables.C['firstName'],
                 tables.C['patrName'],
                 tables.APD['value'].alias('doses'),
-                tables.A['begDate']
+                tables.A['begDate'],
+                tables.A['note'],
+                tableEPI['group_id'],
+                tableEPI['id'].alias('EPIID')
             ]
             return db.getRecordList(queryTable, fields, where=cond, order=order)
         return []

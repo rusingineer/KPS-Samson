@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,7 +14,7 @@
 
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QVariant, pyqtSignature, SIGNAL, QString
 
 from library.crbcombobox            import CRBComboBox
 from library.InDocTable             import CDateInDocTableCol, CInDocTableCol, CRBInDocTableCol, CInDocTableModel, CFloatInDocTableCol, CEnumInDocTableCol
@@ -29,7 +29,7 @@ from library.Utils                  import forceRef, forceString, toVariant, for
 from Stock.NomenclatureComboBox     import CNomenclatureInDocTableCol
 from Stock.StockMotionBaseDialog    import CStockMotionBaseDialog, CNomenclatureItemsBaseModel
 from Stock.StockBatchEditor         import CStockBatchEditor
-from Stock.Utils                    import CSummaryInfoModelMixin, CPriceItemDelegate, getStockMotionItemQuantityColumn, getStockMotionItemQntEx, getExistsNomenclatureAmount, UTILIZATION, INTERNAL_CONSUMPTION
+from Stock.Utils                    import CSummaryInfoModelMixin, CPriceItemDelegate, getStockMotionItemQntEx, getExistsNomenclatureAmountEx, UTILIZATION, INTERNAL_CONSUMPTION
 from Stock.Service                  import CStockService
 from Stock.StockModel               import CStockMotionType
 
@@ -46,15 +46,21 @@ class CStockUtilizationEditDialog(CStockMotionBaseDialog, Ui_StockUtilizationDia
         self.addModels('Commission', CStockUtilizationCommissionModel(self))
         self.addObject('btnPrint', getPrintButton(self, 'StockUtilization'))
         self.addObject('actOpenStockBatchEditor', QtGui.QAction(u'Подобрать параметры', self))
+        self.addObject('actFillExistsAmountEditor', QtGui.QAction(u'Заполнить количество по остатку', self))
+        self.actFillExistsAmountEditor.setShortcut('F3')
+        self.btnPrint.setShortcut('F6')
         self.setupUi(self)
         self.cmbSupplierPerson.setSpecialityIndependents()
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setupDirtyCather()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.tblItems.setModel(self.modelItems)
+        self.addObject('qshcFillExistsAmountEditor', QtGui.QShortcut('F3', self.tblItems, self.on_actFillExistsAmountEditor_triggered))
+        self.qshcFillExistsAmountEditor.setContext(Qt.WidgetShortcut)
         self.prepareItemsPopupMenu(self.tblItems)
         self.tblItems.popupMenu().addSeparator()
         self.tblItems.popupMenu().addAction(self.actOpenStockBatchEditor)
+        self.tblItems.popupMenu().addAction(self.actFillExistsAmountEditor)
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.setWindowTitleEx(u'Утилизация')
@@ -62,7 +68,7 @@ class CStockUtilizationEditDialog(CStockMotionBaseDialog, Ui_StockUtilizationDia
         self.tblCommission.setModel(self.modelCommission)
         self.tblCommission.addPopupDelRow()
         self.tblCommission.addMoveRow()
-
+        self.tblItems.enableColsMove()
 
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
@@ -74,32 +80,46 @@ class CStockUtilizationEditDialog(CStockMotionBaseDialog, Ui_StockUtilizationDia
         itemsList = []
         commissionList = []
         context = CInfoContext()
-        for record in self.modelItems.items():
-            item = StockMotionInfo.CStockMotionItemInfo(context, forceRef(record.value('id')))
-            item.loadFromRecord(record)
-            itemsList.append(item)
-        for record in self.modelCommission.items():
-            item = StockMotionInfo.CStockMotionCommissionInfo(context, forceRef(record.value('id')))
-            item.setRecord(record)
-            item.setOkLoaded()
-            commissionList.append(item)
-        data = {
-            'rows': itemsList,
-            'commission': commissionList,
-            'number': unicode(self.edtNumber.text()),
-            'date': CDateInfo(self.edtDate.date()),
-            'time': CTimeInfo(self.edtTime.time()),
-            'supplier': COrgStructureInfo(context, self.cmbSupplier.value()),
-            'supplierPerson' : CPersonInfo(context, self.cmbSupplierPerson.value()),
-            'note': unicode(self.edtNote.text()),
-        }
+        if hasattr(self, 'modelItems'):
+            for record in self.modelItems.items():
+                item = StockMotionInfo.CStockMotionItemInfo(context, forceRef(record.value('id')))
+                item.loadFromRecord(record)
+                itemsList.append(item)
+        if hasattr(self, 'modelCommission'):
+            for record in self.modelCommission.items():
+                item = StockMotionInfo.CStockMotionCommissionInfo(context, forceRef(record.value('id')))
+                item.setRecord(record)
+                item.setOkLoaded()
+                commissionList.append(item)
+        data = {'rows': itemsList,
+                'commission': commissionList,
+                'number': unicode(self.edtNumber.text()),
+                'date': CDateInfo(self.edtDate.date()),
+                'time': CTimeInfo(self.edtTime.time()),
+                'supplier': COrgStructureInfo(context, self.cmbSupplier.value()),
+                'supplierPerson': CPersonInfo(context, self.cmbSupplierPerson.value()),
+                'note': unicode(self.edtNote.text()),
+                }
         return data
-
 
     @pyqtSignature('')
     def on_actOpenStockBatchEditor_triggered(self):
         self.on_tblItems_doubleClicked(self.tblItems.currentIndex())
 
+    @pyqtSignature('')
+    def on_actFillExistsAmountEditor_triggered(self):
+        selectedRows = []
+        items = self.modelItems.items()
+        for index in self.tblItems.selectedIndexes():
+            if index and index.isValid():
+                selectedRow = index.row()
+                if 0 <= selectedRow < len(items) and selectedRow not in selectedRows:
+                    selectedRows.append(selectedRow)
+        for row in selectedRows:
+            record = items[row]
+            existsValue = self.modelItems.getExistsValue(record)
+            self.modelItems.items()[row].setValue('qnt', toVariant(existsValue))
+        self.modelItems.reset()
 
     @pyqtSignature('QModelIndex')
     def on_tblItems_doubleClicked(self, index):
@@ -110,15 +130,14 @@ class CStockUtilizationEditDialog(CStockMotionBaseDialog, Ui_StockUtilizationDia
                 currentRow = index.row()
                 if 0 <= currentRow < len(items):
                     item = items[currentRow]
+                    params = {'nomenclatureId': forceString(item.value('nomenclature_id')),
+                              'batch': forceString(item.value('batch')),
+                              'financeId': forceRef(item.value('finance_id')),
+                              'shelfTime': forceDate(item.value('shelfTime')),
+                              'medicalAidKindId': forceRef(item.value('medicalAidKind_id')),
+                              'filterFor': UTILIZATION}
+                    dialog = CStockBatchEditor(self, params)
                     try:
-                        params = {}
-                        params['nomenclatureId'] = forceString(item.value('nomenclature_id'))
-                        params['batch'] = forceString(item.value('batch'))
-                        params['financeId'] = forceRef(item.value('finance_id'))
-                        params['shelfTime'] = forceDate(item.value('shelfTime'))
-                        params['medicalAidKindId'] = forceRef(item.value('medicalAidKind_id'))
-                        params['filterFor'] = UTILIZATION
-                        dialog = CStockBatchEditor(self, params)
                         dialog.loadData()
                         if dialog.exec_():
                             outBatch, outFinanceId, outShelfTime, outMedicalAidKindId, outPrice = dialog.getValue()
@@ -187,9 +206,9 @@ class CStockUtilizationEditDialog(CStockMotionBaseDialog, Ui_StockUtilizationDia
         medicalAidKindName = item[2]
         rows = item[3]
         row = rows[0] if len(rows) > 0 else -1
-        existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, otherHaving=[u'qnt!=0'], price=price)
+        existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, otherHaving=[u'qnt!=0'], price=price)
         prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
-        if (round(existsQnt, 2) + round(prevQnt, 2)) - round(qnt, 2) < 0:
+        if (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt()) < 0:
             nomenclatureName = self.modelItems.getNomenclatureNameById(nomenclatureId)
             if existsQnt > 0:
                 message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(
@@ -266,6 +285,8 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
         self.addModels('Items', CInternalConsumptionItemsModel(self))
         self.addObject('btnPrint', getPrintButton(self, 'StockInternalConsumption'))
         self.addObject('actOpenStockBatchEditor', QtGui.QAction(u'Подобрать параметры', self))
+        self.addObject('actFillExistsAmountEditor', QtGui.QAction(u'Заполнить количество по остатку', self))
+        self.actFillExistsAmountEditor.setShortcut('F3')
         self.btnPrint.setShortcut('F6')
         self.setupUi(self)
         self.cmbSupplierPerson.setSpecialityIndependents()
@@ -273,9 +294,12 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
         self.setupDirtyCather()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.tblItems.setModel(self.modelItems)
+        self.addObject('qshcFillExistsAmountEditor', QtGui.QShortcut('F3', self.tblItems, self.on_actFillExistsAmountEditor_triggered))
+        self.qshcFillExistsAmountEditor.setContext(Qt.WidgetShortcut)
         self.prepareItemsPopupMenu(self.tblItems)
         self.tblItems.popupMenu().addSeparator()
         self.tblItems.popupMenu().addAction(self.actOpenStockBatchEditor)
+        self.tblItems.popupMenu().addAction(self.actFillExistsAmountEditor)
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.setWindowTitleEx(u'Внутреннее потребление')
@@ -283,6 +307,9 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
         # удаление вкладки "Состав комиссии"
         self.tabWidget.widget(1).deleteLater()
         self.tabWidget.removeTab(1)
+        self.tblItems.enableColsMove()
+        #self.cmbSupplier.setFilter(u'isQuarantineStorage=1') Зачем?
+        self.cmbSupplier.setCurrentIndex(0)
 
 
     def saveInternals(self, id):
@@ -306,6 +333,20 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
     def on_actOpenStockBatchEditor_triggered(self):
         self.on_tblItems_doubleClicked(self.tblItems.currentIndex())
 
+    @pyqtSignature('')
+    def on_actFillExistsAmountEditor_triggered(self):
+        selectedRows = []
+        items = self.modelItems.items()
+        for index in self.tblItems.selectedIndexes():
+            if index and index.isValid():
+                selectedRow = index.row()
+                if 0 <= selectedRow < len(items) and selectedRow not in selectedRows:
+                    selectedRows.append(selectedRow)
+        for row in selectedRows:
+            record = items[row]
+            existsValue = self.modelItems.getExistsValue(record)
+            self.modelItems.items()[row].setValue('qnt', toVariant(existsValue))
+        self.modelItems.reset()
 
     @pyqtSignature('QModelIndex')
     def on_tblItems_doubleClicked(self, index):
@@ -316,15 +357,14 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
                 currentRow = index.row()
                 if 0 <= currentRow < len(items):
                     item = items[currentRow]
+                    params = {'nomenclatureId': forceRef(item.value('nomenclature_id')),
+                              'batch': forceString(item.value('batch')),
+                              'financeId': forceRef(item.value('finance_id')),
+                              'shelfTime': forceDate(item.value('shelfTime')),
+                              'medicalAidKindId': forceRef(item.value('medicalAidKind_id')),
+                              'filterFor': INTERNAL_CONSUMPTION}
+                    dialog = CStockBatchEditor(self, params)
                     try:
-                        params = {}
-                        params['nomenclatureId'] = forceRef(item.value('nomenclature_id'))
-                        params['batch'] = forceString(item.value('batch'))
-                        params['financeId'] = forceRef(item.value('finance_id'))
-                        params['shelfTime'] = forceDate(item.value('shelfTime'))
-                        params['medicalAidKindId'] = forceRef(item.value('medicalAidKind_id'))
-                        params['filterFor'] = INTERNAL_CONSUMPTION
-                        dialog = CStockBatchEditor(self, params)
                         dialog.loadData()
                         if dialog.exec_():
                             outBatch, outFinanceId, outShelfTime, outMedicalAidKindId, outPrice = dialog.getValue()
@@ -387,27 +427,32 @@ class CStockInternalConsumptionEditDialog(CStockUtilizationEditDialog, Ui_StockU
         medicalAidKindName = item[2]
         rows = item[3]
         row = rows[0] if len(rows) > 0 else -1
-        existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
-        prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
-        if (round(existsQnt, 2) + round(prevQnt, 2)) - round(qnt, 2) < 0:
+        existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId,
+                                                  medicalAidKindId, shelfTime, exact=True, price=price)
+        prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch,
+                                                financeId=financeId, medicalAidKindId=medicalAidKindId, price=None,
+                                                oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
+        if (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt()) < 0:
             nomenclatureName = self.modelItems.getNomenclatureNameById(nomenclatureId)
             if existsQnt > 0:
-                message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(   existsQnt,
-                                                                                                                                                    nomenclatureName,
-                                                                                                                                                    qnt,
-                                                                                                                                                    batch if batch else u'не указано',
-                                                                                                                                                    shelfTimeString if shelfTime else u'не указано',
-                                                                                                                                                    forceString(db.translate('rbFinance', 'id', financeId, 'name')) if financeId else u'не указано',
-                                                                                                                                                    medicalAidKindName if medicalAidKindName else u'не указано',
-                                                                                                                                                    forceString(db.translate('rbUnit', 'id', stockUnitId, 'name')))
+                message = u'На складе {0} {7} {1} партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}", а списание на {2}'.format(
+                    existsQnt,
+                    nomenclatureName,
+                    qnt,
+                    batch if batch else u'не указано',
+                    shelfTimeString if shelfTime else u'не указано',
+                    forceString(db.translate('rbFinance', 'id', financeId, 'name')) if financeId else u'не указано',
+                    medicalAidKindName if medicalAidKindName else u'не указано',
+                    forceString(db.translate('rbUnit', 'id', stockUnitId, 'name')))
             else:
-                message = u'На складе отсутствует "{1}" партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}"'.format(   existsQnt,
-                                                                                                                                        nomenclatureName,
-                                                                                                                                        qnt,
-                                                                                                                                        batch if batch else u'не указано',
-                                                                                                                                        shelfTimeString if shelfTime else u'не указано',
-                                                                                                                                        forceString(db.translate('rbFinance', 'id', financeId, 'name')) if financeId else u'не указано',
-                                                                                                                                        medicalAidKindName if medicalAidKindName else u'не указано')
+                message = u'На складе отсутствует "{1}" партии "{3}" годный до "{4}" типа финансирования "{5}" вида мед помощи "{6}"'.format(
+                    existsQnt,
+                    nomenclatureName,
+                    qnt,
+                    batch if batch else u'не указано',
+                    shelfTimeString if shelfTime else u'не указано',
+                    forceString(db.translate('rbFinance', 'id', financeId, 'name')) if financeId else u'не указано',
+                    medicalAidKindName if medicalAidKindName else u'не указано')
             return self.checkValueMessage(message, False, self.tblItems, row, self.modelItems.qntColumnIndex)
         return True
 
@@ -464,9 +509,9 @@ class CLocItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
         stockMotionItem.nomenclature_id = value
         if previousValue != stockMotionItem.nomenclature_id:
             if type(self) == CInternalConsumptionItemsModel:
-                CStockService.setFinanceBatchShelfTime(stockMotionItem, setShelfTimeCond = True, isInternalConsumption=True)
+                CStockService.setFinanceBatchShelfTime(stockMotionItem, setShelfTimeCond=True, isInternalConsumption=True)
             else:
-                CStockService.setFinanceBatchShelfTime(stockMotionItem, setShelfTimeCond = False)
+                CStockService.setFinanceBatchShelfTime(stockMotionItem, setShelfTimeCond=False)
             stockMotionItem.unit_id = self.getDefaultClientUnitId(stockMotionItem.nomenclature_id)
             price = stockMotionItem.price
             unitId = stockMotionItem.unit_id
@@ -531,24 +576,28 @@ class CLocItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
                 if id:
                     db = QtGui.qApp.db
                     tableSMI = db.table('StockMotion_Item')
-                    recordPrevQnt = db.getRecordEx(tableSMI, [tableSMI['qnt']], [tableSMI['id'].eq(id), tableSMI['deleted'].eq(0)])
+                    recordPrevQnt = db.getRecordEx(tableSMI, [tableSMI['qnt']],
+                                                   [tableSMI['id'].eq(id), tableSMI['deleted'].eq(0)])
                     prevQnt = forceDouble(recordPrevQnt.value('qnt')) if recordPrevQnt else 0
-                existsColumn = forceDouble(self._cols[self.existsColumnIndex].toString(value, item))
+                existsColumn = forceDouble(self._cols[self.existsColumnIndex].getExistsValue(item))
                 existsColumn = existsColumn + prevQnt
-                if not self.isPriceLineEditable and forceDouble(item.value('price')) and (not existsColumn or existsColumn < 0):
-                   return False
-                if not self.isPriceLineEditable and forceDouble(item.value('price')) and existsColumn < forceDouble(value):
+                if not self.isPriceLineEditable and forceDouble(item.value('price')) and (
+                        not existsColumn or existsColumn < 0):
+                    return False
+                if not self.isPriceLineEditable and forceDouble(item.value('price')) and existsColumn < forceDouble(
+                        value):
                     value = toVariant(existsColumn)
             if self._setterHandlers[columnIndex](stockMotionItem, value):
                 self.setIsUpdateValue(True)
-                if (0 <= row < len(self._items)):
+                if 0 <= row < len(self._items):
                     item = self._items[row]
                     if columnIndex == self.getColIndex('qnt'):
                         item.setValue('prevQnt', prevQnt)
                 self.emitRowChanged(index.row())
                 return True
             return False
-        elif columnIndex in (self.batchColumnIndex, self.shelfTimeColumnIndex, self.financeColumnIndex, self.medicalAidKindColumnIndex):
+        elif columnIndex in (
+        self.batchColumnIndex, self.shelfTimeColumnIndex, self.financeColumnIndex, self.medicalAidKindColumnIndex):
             return False
         else:
             CNomenclatureItemsBaseModel.setData(self, index, value, role)
@@ -585,7 +634,8 @@ class CLocItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
 
     def flags(self, index):
         column = index.column()
-        if column in (self.batchColumnIndex, self.shelfTimeColumnIndex, self.financeColumnIndex, self.medicalAidKindColumnIndex):
+        if column in (
+        self.batchColumnIndex, self.shelfTimeColumnIndex, self.financeColumnIndex, self.medicalAidKindColumnIndex):
             return Qt.ItemIsSelectable | Qt.ItemIsEnabled
         elif column == self.unitColumnIndex:
             row = index.row()
@@ -613,27 +663,62 @@ class CStockUtilizationItemsModel(CLocItemsModel):
             editor.setOnlyNomenclature(False)
             return editor
 
+    class CQuantityCol(CFloatInDocTableCol):
+        def __init__(self, title, fieldName, width, **params):
+            CFloatInDocTableCol.__init__(self, title, fieldName, width, **params)
+
+        def _toString(self, value):
+            s = QString()
+            if value.isNull():
+                return s
+            if self.precision is None:
+                s.setNum(value.toDouble()[0])
+            else:
+                s.setNum(value.toDouble()[0], 'f', self.precision)
+            return s
+
+        def createEditor(self, parent):
+            editor = QtGui.QLineEdit(parent)
+            validator = QtGui.QDoubleValidator(editor)
+            validator.setRange(self.low, self.high)
+            editor.setValidator(validator)
+            return editor
+
+        def setEditorData(self, editor, value, record):
+            s = QString()
+            if not value.isNull():
+                s = value.toString()
+            editor.setText('' if s is None else s)
+            editor.selectAll()
+
     def __init__(self, parent, showExists=False):
         CLocItemsModel.__init__(self, parent)
-        #self._unitColumn = CRBInDocTableCol(u'Ед.Учета', 'unit_id', 12, 'rbUnit', addNone=False)
-        self._nomenclatureColumn = self.CUtilizationNomenclatureCol(u'ЛСиИМН', 'nomenclature_id', 50, showFields = CRBComboBox.showName)
+        self._nomenclatureColumn = self.CUtilizationNomenclatureCol(u'ЛСиИМН', 'nomenclature_id', 50,
+                                                                    showFields=CRBComboBox.showName)
         self._batchCol = CInDocTableCol(u'Серия', 'batch', 16).setReadOnly()
         self._unitColumn = CRBInDocTableCol(u'Ед.Учета', 'unit_id', 12, 'rbUnit', addNone=False)
         self.addCol(self._nomenclatureColumn)
         self.addCol(self._batchCol)
-        self.addCol(CDateInDocTableCol( u'Годен до', 'shelfTime', 12, canBeEmpty=True).setReadOnly())
-        self.addCol(CRBInDocTableCol(    u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
-        self.addCol(CRBInDocTableCol(    u'Вид медицинской помощи', 'medicalAidKind_id', 15, 'rbMedicalAidKind').setReadOnly())
-        self.addCol(getStockMotionItemQuantityColumn( u'Количество бракованных ЛСиИМН', 'qnt', 12))
+        self.addCol(CDateInDocTableCol(u'Годен до', 'shelfTime', 12, canBeEmpty=True).setReadOnly())
+        self.addCol(CRBInDocTableCol(u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
+        self.addCol(
+            CRBInDocTableCol(u'Вид медицинской помощи', 'medicalAidKind_id', 15, 'rbMedicalAidKind').setReadOnly())
+        self.addCol(self.CQuantityCol(u'Количество бракованных ЛСиИМН', 'qnt', 12, low=1, high=65535,
+                                      precision=QtGui.qApp.numberDecimalPlacesQnt()))
         self.addCol(self._unitColumn)
         self.addCol(CFloatInDocTableCol(u'Цена', 'price', 12, precision=2))
-        self.addCol(self.CSumCol( u'Сумма', 'sum', 12).setReadOnly())
-        self.addCol(CRBInDocTableCol(u'Причина утилизации', 'reason_id', 12, 'rbStockMotionItemReason', filter='stockMotionType=%s' % CStockMotionType.utilization))
+        self.addCol(self.CSumCol(u'Сумма', 'sum', 12).setReadOnly())
+        self.addCol(CRBInDocTableCol(u'Причина утилизации', 'reason_id', 12, 'rbStockMotionItemReason',
+                                     filter='stockMotionType=%s' % CStockMotionType.utilization))
         self.addCol(CRBInDocTableCol(u'Способ утилизации', 'disposalMethod_id', 12, 'rbDisposalMethod'))
-        existsCol = self.CExistsCol(self)
-        self.addExtCol(existsCol.setReadOnly(), QVariant.Double)
+        self.existsCol = self.CExistsCol(self)
+        self.addExtCol(self.existsCol.setReadOnly(), QVariant.Double)
         self.setStockDocumentTypeExistsCol()
 
+    def getExistsValue(self, record):
+        if not record:
+            return 0
+        return self.existsCol.getExistsValue(record)
 
     def createEditor(self, index, parent):
         editor = CInDocTableModel.createEditor(self, index, parent)
@@ -665,26 +750,60 @@ class CInternalConsumptionItemsModel(CLocItemsModel):
     sumColumnIndex = 8
     existsColumnIndex = 9
 
+    class CQuantityCol(CFloatInDocTableCol):
+        def __init__(self, title, fieldName, width, **params):
+            CFloatInDocTableCol.__init__(self, title, fieldName, width, **params)
+
+        def _toString(self, value):
+            s = QString()
+            if value.isNull():
+                return s
+            if self.precision is None:
+                s.setNum(value.toDouble()[0])
+            else:
+                s.setNum(value.toDouble()[0], 'f', self.precision)
+            return s
+
+        def createEditor(self, parent):
+            editor = QtGui.QLineEdit(parent)
+            validator = QtGui.QDoubleValidator(editor)
+            validator.setRange(self.low, self.high)
+            editor.setValidator(validator)
+            return editor
+
+        def setEditorData(self, editor, value, record):
+            s = QString()
+            if not value.isNull():
+                s = value.toString()
+            editor.setText('' if s is None else s)
+            editor.selectAll()
+
     def __init__(self, parent, showExists=False):
         CLocItemsModel.__init__(self, parent)
-        self._unitColumn = CRBInDocTableCol(u'Ед.Учета', 'unit_id', 12, 'rbUnit', addNone=False)
-        self._nomenclatureColumn = CLocNomenclatureCol(u'ЛСиИМН', 'nomenclature_id', 50, showFields = CRBComboBox.showName)
+        self._nomenclatureColumn = CLocNomenclatureCol(u'ЛСиИМН', 'nomenclature_id', 50,
+                                                       showFields=CRBComboBox.showName)
         self._batchCol = CInDocTableCol(u'Серия', 'batch', 16).setReadOnly()
         self._unitColumn = CRBInDocTableCol(u'Ед.Учета', 'unit_id', 12, 'rbUnit', addNone=False)
         self.addCol(self._nomenclatureColumn)
         self.addCol(self._batchCol)
-        self.addCol(CDateInDocTableCol( u'Годен до', 'shelfTime', 12, canBeEmpty=True).setReadOnly())
-        self.addCol(CRBInDocTableCol(    u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
-        self.addCol(CRBInDocTableCol(    u'Вид медицинской помощи', 'medicalAidKind_id', 15, 'rbMedicalAidKind').setReadOnly())
-        self.addCol(getStockMotionItemQuantityColumn( u'Количество ЛСиИМН', 'qnt', 12))
+        self.addCol(CDateInDocTableCol(u'Годен до', 'shelfTime', 12, canBeEmpty=True).setReadOnly())
+        self.addCol(CRBInDocTableCol(u'Тип финансирования', 'finance_id', 15, 'rbFinance').setReadOnly())
+        self.addCol(
+            CRBInDocTableCol(u'Вид медицинской помощи', 'medicalAidKind_id', 15, 'rbMedicalAidKind').setReadOnly())
+        self.addCol(self.CQuantityCol(u'Количество ЛСиИМН', 'qnt', 12, low=1, high=65535,
+                                      precision=QtGui.qApp.numberDecimalPlacesQnt()))
         self.addCol(self._unitColumn)
         self.addCol(CFloatInDocTableCol(u'Цена', 'price', 12, precision=2))
-        sumCol = self.CSumCol( u'Сумма', 'sum', 12)
+        sumCol = self.CSumCol(u'Сумма', 'sum', 12)
         self.addCol(sumCol.setReadOnly())
-        existsCol = self.CExistsCol(self)
-        self.addExtCol(existsCol.setReadOnly(), QVariant.Double)
+        self.existsCol = self.CExistsCol(self)
+        self.addExtCol(self.existsCol.setReadOnly(), QVariant.Double)
         self.setStockDocumentTypeExistsCol()
 
+    def getExistsValue(self, record):
+        if not record:
+            return 0
+        return self.existsCol.getExistsValue(record)
 
     def createEditor(self, index, parent):
         editor = CInDocTableModel.createEditor(self, index, parent)

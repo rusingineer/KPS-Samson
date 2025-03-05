@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,8 +16,8 @@
 from PyQt4.QtCore import QVariant
 from PyQt4 import QtGui
 
+from library.CRBSearchComboBox import CRBSearchComboBox
 from library.PrintInfo import CRBInfo
-from library.crbcombobox import CRBComboBox
 from library.Utils import forceRef, forceString, forceDate
 from Events.Utils import getEventAidTypeRegionalCode
 
@@ -36,10 +36,10 @@ class CKRITActionPropertyValueType(CActionPropertyValueType):
         tableName = 'soc_spr80'
 
 
-    class CPropEditor(CRBComboBox):
+    class CPropEditor(CRBSearchComboBox):
         def __init__(self, action, domain, parent, clientId, eventTypeId):
-            CRBComboBox.__init__(self, parent)
-            self.setShowFields(CRBComboBox.showCodeAndName)
+            CRBSearchComboBox.__init__(self, parent)
+            self.setShowFields(CRBSearchComboBox.showCodeAndName)
             self.setTable('soc_spr80')
             db = QtGui.qApp.db
             tableSpr80 = db.table('soc_spr80')
@@ -48,9 +48,9 @@ class CKRITActionPropertyValueType(CActionPropertyValueType):
             finalDomain = domain[:]
             regionalCode = getEventAidTypeRegionalCode(eventTypeId)
             if regionalCode in ['301', '302', '511', '522']:
-                finalDomain.append('type = 0')
+                finalDomain.append('type in (0, 21)')
             else:
-                finalDomain.append('type <> 0')
+                finalDomain.append('type not in (0, 21)')
 
             if not endDateAction.isNull():
                 finalDomain.append(tableSpr80['begDate'].le(endDateAction))
@@ -61,7 +61,7 @@ class CKRITActionPropertyValueType(CActionPropertyValueType):
             self.setFilter(db.joinAnd(finalDomain))
 
         def setValue(self, value):
-            CRBComboBox.setValue(self, forceRef(value))
+            CRBSearchComboBox.setValue(self, forceRef(value))
 
     def __init__(self, domain=None):
         CActionPropertyValueType.__init__(self, domain)
@@ -146,6 +146,20 @@ class CKRITActionPropertyValueType(CActionPropertyValueType):
                         type = 25
                     elif vallower == u'лечение гепb':
                         type = 26
+                    elif vallower == u'вазод':
+                        type = 27
+                    elif vallower == u'плазма':
+                        type = 28
+                    elif vallower == u'досут':
+                        type = 29
+                    elif vallower == u'сложнневр':
+                        type = 30
+                    elif vallower == u'интравитр':
+                        type = 31
+                    elif vallower == u'высиммун':
+                        type = 32
+                    elif vallower == u'сурф':
+                        type = 33
                 else:
                     raise ValueError, self.badKey % locals()
                     

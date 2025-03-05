@@ -16,8 +16,8 @@ import json
 from PyQt4 import QtGui
 from PyQt4.QtCore import QVariant
 
-from Stock.NomenclatureComboBox import CNomenclatureComboBox
-from library.Utils              import forceRef, forceString, forceInt
+from Stock.NomenclatureComboBox import CNomenclatureComboBox, CNomenclatureActionPropertyComboBox
+from library.Utils              import forceRef, forceString, forceInt, forceStringEx
 from ActionPropertyValueType    import CActionPropertyValueType
 from FeatureActionPropertyValueType import CFeatureActionPropertyValueType
 
@@ -29,13 +29,15 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
     name         = u'Номенклатура ЛСиИМН'
     cacheText = True
 
-    class CPropEditor(CNomenclatureComboBox):
+    class CPropEditor(CNomenclatureActionPropertyComboBox):
         def __init__(self, action, domain, parent, clientId, eventTypeId, eventEditor=None):
-            CNomenclatureComboBox.__init__(self, parent)
+            CNomenclatureActionPropertyComboBox.__init__(self, parent)
             self.setUseClientUnitId()
             actionType = action.getType()
             actionTypeId = actionType.id
             self.action = action
+            smnnUUID = None
+            smnnGrlsLfId = None
             if self.action:
                 propertyList = self.action.getProperties()
                 for actionProperty in propertyList:
@@ -44,6 +46,18 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
                         property = self.action.getPropertyById(propertyType.id)
                         self.setNomenclatureActiveSubstanceId(property.getValue())
                         break
+                    elif propertyType.isNomenclatureSmnnActionPropertyValueType():
+                        property = self.action.getPropertyById(propertyType.id)
+                        self.setNomenclatureSmnnUUID(property.getValue())
+                        smnnUUID = property.getValue()
+                        self.setNomenclatureSmnnUUID(smnnUUID)
+                        smnnName = property.getText()
+                        self.setNomenclatureSmnnName(smnnName if smnnName is not None else '')
+                    elif propertyType.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                        property = self.action.getPropertyById(propertyType.id)
+                        self.setLfFormId(property.getValue())
+                        smnnGrlsLfId = property.getValue()
+                        self.setLfFormId(smnnGrlsLfId)
             cols = ['nomenclatureClass_id', 'nomenclatureKind_id', 'nomenclatureType_id']  # wtf
             record = QtGui.qApp.db.getRecord('ActionType', cols, actionTypeId)
 
@@ -79,6 +93,7 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
                     pass
 
             self.setOrgStructureId(QtGui.qApp.currentOrgStructureId())
+            self.setIsOnlyMnnEsklpFormVisible(bool(smnnUUID) and bool(smnnGrlsLfId))
             self.setOnlyNomenclature(True)
             self.setOnlyExists(actionType.isNomenclatureExpense)
             self.setPreferredWidth(QtGui.QApplication.desktop().width() - self.mapToGlobal(self.rect().bottomLeft()).x())
@@ -99,9 +114,59 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
             return None
 
         def setValue(self, value):
-            if forceRef(value):
-                self.setFilter('')
-                CNomenclatureComboBox.setValue(self, forceRef(value))
+            from Events.Utils import getLfFormIdList
+            nomenclatureId = forceRef(value)
+            self.setFilter('')
+            oldNomenclatureId = None
+            propertyListNC = self.action.getProperties()
+            for actionPropertyNC in propertyListNC:
+                propertyTypeNC = actionPropertyNC.type()
+                if propertyTypeNC.isNomenclatureValueType():
+                    propertyNC = self.action.getPropertyById(propertyTypeNC.id)
+                    oldNomenclatureId = propertyNC.getValue()
+                    break
+            CNomenclatureComboBox.setValue(self, nomenclatureId)
+            if self.action and nomenclatureId:
+                propertyList = self.action.getProperties()
+                for actionProperty in propertyList:
+                    propertyType = actionProperty.type()
+                    if propertyType.isNomenclatureSmnnActionPropertyValueType():
+                        property = self.action.getPropertyById(propertyType.id)
+                        propertyVal = property.getValue()
+                        db = QtGui.qApp.db
+                        tableEsklp_Smnn = db.table('esklp.Smnn')
+                        tableNC = db.table('rbNomenclature')
+                        tableESKLP_Klp = db.table('esklp.Klp')
+                        cond = []
+                        order = u'esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form'
+                        queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
+                        queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
+                        cond.append(tableNC['id'].eq(nomenclatureId))
+                        records = db.getRecordList(queryTable, [tableEsklp_Smnn['UUID']], cond, order=order)
+                        UUID = ''
+                        if len(records) == 1:
+                            record = records[0]
+                            UUID = forceStringEx(record.value('UUID')) if record else ''
+                        if propertyVal != UUID or nomenclatureId != oldNomenclatureId:
+                            property.setValue(UUID)
+                            propertyListGrlsLf = self.action.getProperties()
+                            for actionPropertyGrlsLf in propertyListGrlsLf:
+                                propertyTypeGrlsLf = actionPropertyGrlsLf.type()
+                                if propertyTypeGrlsLf.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                                    propertyGrlsLf = self.action.getPropertyById(propertyTypeGrlsLf.id)
+                                    if UUID:
+                                        propertyValGrlsLf = propertyGrlsLf.getValue()
+                                        lfFormIdList = getLfFormIdList(nomenclatureId = nomenclatureId, smnnUUID = UUID)
+                                        if len(lfFormIdList) == 1:
+                                            lfFormId = lfFormIdList[0]
+                                            if propertyValGrlsLf != lfFormId:
+                                                propertyGrlsLf.setValue(lfFormId)
+                                        elif propertyValGrlsLf not in lfFormIdList:
+                                            propertyGrlsLf.setValue(None)
+                                    else:
+                                        propertyGrlsLf.setValue(None)
+                                    break
+                        break
 
         def setFinanceMedicalAidKind(self, var):
             if (self._financeId != self._popup._financeId or self._medicalAidKindId != self._popup._medicalAidKindId):
@@ -126,7 +191,7 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
             return ''
 
         db = QtGui.qApp.db
-        fields = 'code, name, mnnLatin, originName, internationalNonproprietaryName'
+        fields = 'code, mnnLatin, originName, name, internationalNonproprietaryName, dosageValue'
         record = db.getRecord('rbNomenclature', fields, nomenclatureId)
         if record:
             code = forceString(record.value('code'))

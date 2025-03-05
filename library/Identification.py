@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -103,6 +103,14 @@ def getIdentificationInfo(tableName, id, urn, byCode=False):
     table = tableIdentification.innerJoin(tableAccountingSystem,
                                           tableAccountingSystem['id'].eq(tableIdentification['system_id'])
                                           )
+    # Проверка на есть ли в этой таблице идентификации столбец value_spr
+    stmt_check_column = u"""select column_name from information_schema.COLUMNS where table_name like '""" \
+                        + identificationTableName+u"' and column_name like 'value_spr' "
+    query_check_column = QtGui.qApp.db.query(stmt_check_column)
+    is_column_value_spr = False
+    if query_check_column.next():
+            is_column_value_spr = True
+
     cols = [tableAccountingSystem['code'],
             tableAccountingSystem['name'],
             tableAccountingSystem['urn'],
@@ -111,6 +119,10 @@ def getIdentificationInfo(tableName, id, urn, byCode=False):
             tableIdentification['note'],
             tableIdentification['checkDate']
             ]
+    if is_column_value_spr:
+        cols.append(tableIdentification['value_spr'])
+
+
     cond = [tableIdentification['deleted'].eq(0),
             tableIdentification['master_id'].eq(id)
             ]
@@ -128,8 +140,25 @@ def getIdentificationInfo(tableName, id, urn, byCode=False):
         value = forceString(record.value('value'))
         note = forceString(record.value('note'))
         checkDate = forceDate(record.value('checkDate'))
-        return code, name, urn, version, value, note, checkDate
-    return None, None, None, None, None, None, None
+        code_spr = None     # value_spr из таблиц идентификации table_name + _Identification
+        if is_column_value_spr:
+            code_spr = forceRef(record.value('value_spr'))
+        # Проверить, есть ли в базе такое представление
+        stmt_check_view = u"""select * from information_schema.views where table_name like '"""+ \
+                          urn.replace(u'urn:oid:', u'v')+u"'"
+        query_check_view = QtGui.qApp.db.query(stmt_check_view)
+        record_view = None
+        name_from_view = None
+        if query_check_view.next():     # Если есть такое представление, то получаем строку оттуда
+            if code_spr:
+                stmt_view = u"""select * from `""" + urn.replace(u'urn:oid:', u'v') + u"` where id = {0}".format(code_spr)
+                query_view = QtGui.qApp.db.query(stmt_view)
+                if query_view.next():
+                    record_view = query_view.record()
+                    name_from_view = forceString(record_view.value('name'))
+
+        return code, name, urn, version, value, note, checkDate, code_spr, name_from_view, record_view
+    return None, None, None, None, None, None, None, None, None, None
 
 def getIdentificationInfoList(tableName, id, urn, byCode=False):
     u'Получить идентификатор и версию записи таблицы tableName c заданным id в справочнике с заданным urn'
@@ -140,6 +169,12 @@ def getIdentificationInfoList(tableName, id, urn, byCode=False):
     table = tableIdentification.innerJoin(tableAccountingSystem,
                                           tableAccountingSystem['id'].eq(tableIdentification['system_id'])
                                           )
+    stmt_check_column = u"""select column_name from information_schema.COLUMNS where table_name like '""" \
+                        + identificationTableName + u"' and column_name like 'value_spr' "
+    query_check_column = QtGui.qApp.db.query(stmt_check_column)
+    is_column_value_spr = False
+    if query_check_column.next():
+        is_column_value_spr = True
     cols = [tableAccountingSystem['code'],
             tableAccountingSystem['name'],
             tableAccountingSystem['urn'],
@@ -148,6 +183,8 @@ def getIdentificationInfoList(tableName, id, urn, byCode=False):
             tableIdentification['note'],
             tableIdentification['checkDate']
             ]
+    if is_column_value_spr:
+        cols.append(tableIdentification['value_spr'])
     cond = [tableIdentification['deleted'].eq(0),
             tableIdentification['master_id'].eq(id)
             ]
@@ -157,7 +194,6 @@ def getIdentificationInfoList(tableName, id, urn, byCode=False):
         cond.append(tableAccountingSystem['urn'].eq(urn))
 
     record = db.getRecordList(table, cols, cond, [tableIdentification['id'].name() + ' DESC'])
-
     return record
 
 def getIdentificationInfoById(tableName, _id):
@@ -169,6 +205,13 @@ def getIdentificationInfoById(tableName, _id):
     table = tableIdentification.innerJoin(tableAccountingSystem,
                                           tableAccountingSystem['id'].eq(tableIdentification['system_id'])
                                           )
+    stmt_check_column = u"""select column_name from information_schema.COLUMNS where table_name like '""" \
+                        + identificationTableName + u"' and column_name like 'value_spr' "
+    query_check_column = QtGui.qApp.db.query(stmt_check_column)
+    is_column_value_spr = False
+    if query_check_column.next():
+        is_column_value_spr = True
+
     cols = [tableAccountingSystem['code'],
             tableAccountingSystem['name'],
             tableAccountingSystem['urn'],
@@ -176,7 +219,10 @@ def getIdentificationInfoById(tableName, _id):
             tableIdentification['value'],
             tableIdentification['note'],
             tableIdentification['checkDate']
+
             ]
+    if is_column_value_spr:
+        cols.append(tableIdentification['value_spr'])
     cond = [tableIdentification['deleted'].eq(0),
             tableIdentification['id'].eq(_id)
             ]
@@ -190,8 +236,25 @@ def getIdentificationInfoById(tableName, _id):
         value = forceString(record.value('value'))
         note = forceString(record.value('note'))
         checkDate = forceDate(record.value('checkDate'))
-        return code, name, urn, version, value, note, checkDate
-    return None, None, None, None, None, None, None
+        code_spr = None  # value_spr из таблиц идентификации table_name + _Identification
+        if is_column_value_spr:
+            code_spr = forceRef(record.value('value_spr'))
+        # Проверить, есть ли в базе такое представление
+        stmt_check_view = u"""select * from information_schema.views where table_name like '""" + \
+                          urn.replace(u'urn:oid:', u'v') + u"'"
+        query_check_view = QtGui.qApp.db.query(stmt_check_view)
+        record_view = None
+        name_from_view = None
+        if query_check_view.next():  # Если есть такое представление, то получаем строку оттуда
+            if code_spr:
+                stmt_view = u"""select * from `""" + urn.replace(u'urn:oid:', u'v') + u"` where id = {0}".format(code_spr)
+                query_view = QtGui.qApp.db.query(stmt_view)
+                if query_view.next():
+                    record_view = query_view.record()
+                    name_from_view = forceString(record_view.value('name'))
+
+        return code, name, urn, version, value, note, checkDate, code_spr, name_from_view, record_view
+    return None, None, None, None, None, None, None, None, None, None
 
 
 def getIdentificationRecords(tableName, cols, urn, value, limit=None):
@@ -212,7 +275,6 @@ def getIdentificationRecords(tableName, cols, urn, value, limit=None):
                                   limit
                                  )
     return recordList
-
 
 
 def findByIdentification(tableName, urn, value, raiseIfNonFound=True):
@@ -239,3 +301,5 @@ def addIdentification(tableName, id, urn, value):
     record.setValue('system_id', systemId)
     record.setValue('value', value)
     db.insertRecord(tableIdentification, record)
+
+

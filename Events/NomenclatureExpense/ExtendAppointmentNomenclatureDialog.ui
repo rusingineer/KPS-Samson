@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" ?>
 <ui version="4.0">
  <class>ExtendAppointmentNomenclatureDialog</class>
  <widget class="QDialog" name="ExtendAppointmentNomenclatureDialog">
@@ -20,7 +20,7 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="3" column="0">
+   <item column="0" row="3">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -33,29 +33,29 @@
      </property>
     </spacer>
    </item>
-   <item row="2" column="0" colspan="2">
+   <item colspan="2" column="0" row="2">
     <widget class="QCheckBox" name="chkLastDayCourse">
      <property name="text">
       <string>По последнему дню курса</string>
      </property>
     </widget>
    </item>
-   <item row="1" column="0">
+   <item column="0" row="1">
     <widget class="QLabel" name="lblSkipAfterLastDayCourse">
      <property name="text">
       <string>После последнего дня курса пропустить:</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
+   <item column="0" row="0">
     <widget class="QLabel" name="lblQuantityDay">
      <property name="text">
       <string>Количество дней:</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QSpinBox" name="edtQuantityDay">
+   <item column="1" row="0">
+    <widget class="CSpinBox" name="edtQuantityDay">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
        <horstretch>0</horstretch>
@@ -70,8 +70,8 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QSpinBox" name="edtSkipAfterLastDayCourse">
+   <item column="1" row="1">
+    <widget class="CSpinBox" name="edtSkipAfterLastDayCourse">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
        <horstretch>0</horstretch>
@@ -80,7 +80,7 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="2">
+   <item column="2" row="0">
     <spacer name="horizontalSpacer">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -93,7 +93,7 @@
      </property>
     </spacer>
    </item>
-   <item row="4" column="0" colspan="3">
+   <item colspan="3" column="0" row="4">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -146,4 +146,11 @@
    </hints>
   </connection>
  </connections>
+ <customwidgets>
+  <customwidget>
+   <class>CSpinBox</class>
+   <extends>QSpinBox</extends>
+   <header>library/SpinBox.h</header>
+  </customwidget>
+ </customwidgets>
 </ui>

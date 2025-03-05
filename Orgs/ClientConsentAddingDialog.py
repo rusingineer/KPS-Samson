@@ -16,7 +16,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QVariant
 
-
+from Registry.Utils import getClientBanner
 from library.DialogBase import CDialogBase
 from library.InDocTable import CInDocTableModel, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
 from library.Utils      import forceDate, forceInt, forceRef, toVariant
@@ -28,6 +28,7 @@ class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
     def __init__(self, parent=None, clientId=None, clientConsentTypeList=None):
         CDialogBase.__init__(self, None)
         self.setupUi(self)
+        self.parent = parent
         self.addModels('ClientConsents', CClientConsentModel(self))
         self.setModels(self.tblClientConsents, self.modelClientConsents, self.selectionModelClientConsents)
         if clientId and clientConsentTypeList:
@@ -60,8 +61,63 @@ class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
         date = self.edtDate.date() if self.edtDate.date() else QDate.currentDate()
         self.modelClientConsents.setRepresenterClientAndDateValues(representerClientId, date)
         self.modelClientConsents.saveItems(self._clientId)
+        clientBanner = getClientBanner(self._clientId, aDateAttaches=QDate.currentDate())
+        if hasattr(self.parent, 'txtClientInfoBrowser'):
+            self.parent.txtClientInfoBrowser.setHtml(clientBanner)
+        if hasattr(self.parent, 'txtClientInfoBrowserEvents'):
+            self.parent.txtClientInfoBrowserEvents.setHtml(clientBanner)
+        if hasattr(self.parent, 'txtClientInfoBrowserActions'):
+            self.parent.txtClientInfoBrowserActions.setHtml(clientBanner)
         return True
 
+
+    def getSelectedConsent(self):
+        self.selectedClientConsent_id = self.cmbRepresenterClient.value() if self.cmbRepresenterClient.value() else None
+        self.dateSignatory = forceDate(self.edtDate.date()) if self.edtDate.date() else None
+        self.listSelectedConsent = []   # На всякий случай
+        temp_db = QtGui.qApp.db
+        stmt_consentType = u"""select cct.name from rbClientConsentType cct where cct.id = <cctid> """
+        if self.tblClientConsents.getSelectedRows():  # Смотрим выделенные строки, в противном случае, будет выбран первый в списке
+            for row in self.tblClientConsents.getSelectedRows():
+                dictSelectedConsent = {'clientConsentType_id': None, 'value': None, 'endDate': None,
+                                            'note': None, 'id': None, 'client_id': None, 'representerClient_id': None,
+                                            'date': None, 'clientConsentType_name': None}
+                dictSelectedConsent['clientConsentType_id'] = forceInt(self.tblClientConsents.model().value(row, 'clientConsentType_id')) if not self.tblClientConsents.model().value(row, 'clientConsentType_id').isNull() else None
+                query_consentType = temp_db.query(stmt_consentType.replace(u'<cctid>', forceString(self.tblClientConsents.model().value(row, 'clientConsentType_id').toString())))
+                query_consentType.next()
+                record_consentType = query_consentType.record()
+                dictSelectedConsent['clientConsentType_name'] = forceString(record_consentType.value('name'))
+                dictSelectedConsent['value'] = forceInt(self.tblClientConsents.model().value(row, 'value')) if not self.tblClientConsents.model().value(row, 'value').isNull() else None
+                dictSelectedConsent['endDate'] = forceDate(self.tblClientConsents.model().value(row, 'endDate')) if not self.tblClientConsents.model().value(row, 'endDate').isNull() else None
+                dictSelectedConsent['note'] = forceString(self.tblClientConsents.model().value(row, 'note')) if not self.tblClientConsents.model().value(row, 'note').isNull() else None
+                dictSelectedConsent['id'] = forceInt(self.tblClientConsents.model().value(row, 'id')) if not self.tblClientConsents.model().value(row, 'id').isNull() else None
+                dictSelectedConsent['client_id'] = forceInt(self.tblClientConsents.model().value(row, 'client_id')) if not self.tblClientConsents.model().value(row, 'client_id').isNull() else None
+                dictSelectedConsent['representerClient_id'] = forceInt(self.tblClientConsents.model().value(row, 'representerClient_id')) if not self.tblClientConsents.model().value(row, 'representerClient_id').isNull() else None
+                dictSelectedConsent['date'] = forceDate(self.tblClientConsents.model().value(row, 'date')) if not self.tblClientConsents.model().value(row, 'date').isNull() else None
+                self.listSelectedConsent.append(dictSelectedConsent)
+        else:
+            if self.tblClientConsents.model().items():  # Есть ли вообще согласия, вдруг их нет ¯\_(о_0)_/¯
+                dictSelectedConsent = {'clientConsentType_id': None, 'value': None, 'endDate': None,
+                                       'note': None, 'id': None, 'client_id': None, 'representerClient_id': None,
+                                       'date': None, 'clientConsentType_name': None}
+                dictSelectedConsent['clientConsentType_id'] = forceInt(self.tblClientConsents.model().value(0, 'clientConsentType_id')) if not self.tblClientConsents.model().value(0, 'clientConsentType_id').isNull() else None
+                query_consentType = temp_db.query(stmt_consentType.replace(u'<cctid>', forceString(self.tblClientConsents.model().value(0, 'clientConsentType_id'))))
+                query_consentType.next()
+                record_consentType = query_consentType.record()
+                dictSelectedConsent['clientConsentType_name'] = forceString(record_consentType.value('name'))
+                dictSelectedConsent['value'] = forceInt(self.tblClientConsents.model().value(0, 'value')) if not self.tblClientConsents.model().value(0, 'value').isNull() else None
+                dictSelectedConsent['endDate'] = forceDate(self.tblClientConsents.model().value(0, 'endDate')) if not self.tblClientConsents.model().value(0, 'endDate').isNull() else None
+                dictSelectedConsent['note'] = forceString(self.tblClientConsents.model().value(0, 'note')) if not self.tblClientConsents.model().value(0, 'note').isNull() else None
+                dictSelectedConsent['id'] = forceInt(self.tblClientConsents.model().value(0, 'id')) if not self.tblClientConsents.model().value(0, 'id').isNull() else None
+                dictSelectedConsent['client_id'] = forceInt(self.tblClientConsents.model().value(0, 'client_id')) if not self.tblClientConsents.model().value(0, 'client_id').isNull() else None
+                dictSelectedConsent['representerClient_id'] = forceInt(self.tblClientConsents.model().value(0, 'representerClient_id')) if not self.tblClientConsents.model().value(0, 'representerClient_id').isNull() else None
+                dictSelectedConsent['date'] = forceDate(self.tblClientConsents.model().value(0, 'date')) if not self.tblClientConsents.model().value(0, 'date').isNull() else None
+                self.listSelectedConsent.append(dictSelectedConsent)
+            else:
+                dictSelectedConsent = {'clientConsentType_id': None, 'value': None, 'endDate': None,
+                                       'note': None, 'id': None, 'client_id': None, 'representerClient_id': None,
+                                       'date': None, 'clientConsentType_name': None}
+                self.listSelectedConsent.append(dictSelectedConsent)
 
 
 class CClientConsentModel(CInDocTableModel):

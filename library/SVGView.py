@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,25 +17,27 @@ import os.path
 import re
 
 from PyQt4.QtCore import Qt, pyqtSignature, QByteArray, QFileInfo, QRectF, QSizeF, QString,  QVariant, QChar, QTemporaryFile
-#from PyQt4.Qt import Key_W, Key_A, Key_S, Key_D
 from cStringIO import StringIO
 
 from PyQt4 import QtGui
 from PyQt4 import QtSvg
 from PyQt4 import QtXml
 
-from library.Utils import forceInt
+from library.Utils import forceInt, forceString
 from library.PDF.fixPdf import fixPdf
 
 from Ui_SVGView import Ui_SVGViewDialog
 
 
-def showSVG(widget, templateResult, pageFormat, signAndAttachHandler=None, printBlank = None):
+def showSVG(widget, templateResult, pageFormat, signAndAttachHandler=None, printBlank=None, btnRedoInfo=None):
     view = CSVGView(pageFormat, widget)
     view.setDocName(unicode(templateResult.documentName))
     view.setContent(templateResult.content, templateResult.canvases, printBlank)
     view.setSignAndAttachHandler(signAndAttachHandler)
+    view.setRedoInfo(btnRedoInfo)
     view.setSupplements(templateResult.supplements)
+    view.currentAction = templateResult.currentAction
+    view.templateContent = templateResult.content
     view.exec_()
 
 
@@ -184,6 +186,11 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
     def __init__(self, pageFormat, parent=None):
         QtGui.QDialog.__init__(self, parent)
 
+        self.btnRedo = QtGui.QPushButton(u'Повторить', self)
+        self.btnRedo.setObjectName('btnRedo')
+        self.btnRedo.setDefault(True)
+        self.btnRedo.setVisible(False)
+
         self.btnPrint = QtGui.QPushButton(u'Печатать', self)
         self.btnPrint.setObjectName('btnPrint')
         self.btnPrint.setDefault(True)
@@ -208,6 +215,10 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
         self.doc = CSVGDocument()
         self.pageFormat = pageFormat
         self.pageIdList = []
+        self.currentAction = None
+        self.templateContent = None
+        self.templateId = None
+        self.templateData = None
         self.initItems()
         self.setupPagesControl()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
@@ -263,6 +274,16 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
     def setSignAndAttachHandler(self, signAndAttachHandler):
         self.signAndAttachHandler = signAndAttachHandler
         self.btnSignAndAttach.setEnabled(bool(self.signAndAttachHandler))
+
+
+    def setRedoInfo(self, redoInfo):
+        if redoInfo:
+            self.btnRedo.setEnabled(True)
+            if self.btnRedo.isEnabled():
+                self.buttonBox.addButton(self.btnRedo, QtGui.QDialogButtonBox.ActionRole)
+            self.templateId = redoInfo[0]
+            self.templateData = redoInfo[1]
+            self.signAndAttachHandler = redoInfo[2]
 
 
     def setSupplements(self, supplements):
@@ -394,6 +415,14 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
 
 
     @pyqtSignature('')
+    def on_btnRedo_clicked(self):
+        from library.PrintTemplates import applyTemplate
+        self.reject()
+        parent = self.parentWidget()
+        applyTemplate(parent, self.templateId, self.templateData, signAndAttachHandler=self.signAndAttachHandler)
+
+
+    @pyqtSignature('')
     def on_btnPrint_clicked(self):
         defaultPrinterInfo = QtGui.QPrinterInfo.defaultPrinter()
         if not defaultPrinterInfo.isNull():
@@ -443,7 +472,7 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
                 QtGui.QMessageBox.Ok
             )
             return
-        mainFileName = unicode(self.windowTitle()) + '.pdf'
+        mainFileName = unicode(self.windowTitle())
         ok, trail = self.signAndAttach()
         if ok:
             if trail:
@@ -465,11 +494,25 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
             self.isSignAndAttachResult = True
 
 
-    def signAndAttach(self):
-        pdfBytes = None
+    def signAndAttach(self, templateId=None, snils=None, requireSignerPerson=0):
+        if self.currentAction:
+            templateId = self.templateId
+            db = QtGui.qApp.db
+            actionRecord = self.currentAction.record
+            personIdColName = 'person_id'
+            requireSignerPerson = forceInt(db.translate('rbPrintTemplate', 'id', templateId, 'requireSignerPerson'))
+            if requireSignerPerson == 1:
+                personIdColName = 'setPerson_id'
+            personId = forceInt(actionRecord.value(personIdColName))
+            if personId:
+                snils = forceString(db.translate('Person', 'id', personId, 'SNILS'))
+            else:
+                snils = 'empty'
+
         tmpFile = QTemporaryFile()
         if not tmpFile.open():
             raise Exception('QTemporaryFile.open() failed')
+        pdfBytes = None
         try:
             self.saveAsPdfOrPS(tmpFile.fileName(), QtGui.QPrinter.PdfFormat)
             with open(unicode(tmpFile.fileName()),'rb') as source:
@@ -489,14 +532,16 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
         if pdfBytes is None:
             raise Exception('no bytes to sign')
 
+        pdfDoc = self.templateContent
+        html = forceString(pdfDoc)
         mainFileName = unicode(self.windowTitle()) + '.pdf'
-        items = [(mainFileName, pdfBytes, False)]
+        items = [(mainFileName, pdfBytes, templateId, html)]
         for name, supplement in self.supplements.iteritems():
             supplementFileName = self.getSupplementFileName(self.fileName, name)
             if isinstance(supplement, unicode):
                 supplement = supplement.encode('utf-8')
-            items.append((supplementFileName, supplement, False))
-        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, ))
+            items.append((supplementFileName, supplement, templateId))
+        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson))
 
 
     def getSupplementFileName(self, mainFileName, supplementName):

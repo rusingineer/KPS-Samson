@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>558</width>
-    <height>346</height>
+    <height>389</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -36,6 +36,39 @@
      </property>
     </widget>
    </item>
+   <item row="0" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtBatch"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblShelfTime">
+     <property name="text">
+      <string>Срок годности</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="CDateEdit" name="edtShelfTime">
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="2" column="0">
     <widget class="QLabel" name="lblFinance">
      <property name="sizePolicy">
@@ -48,6 +81,9 @@
       <string>Тип финансирования</string>
      </property>
     </widget>
+   </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbFinance"/>
    </item>
    <item row="3" column="0">
     <widget class="QLabel" name="lblMedicalAidKind">
@@ -62,66 +98,46 @@
      </property>
     </widget>
    </item>
-   <item row="6" column="0" colspan="4">
-    <widget class="CTableView" name="tblStockBatchList">
-     <property name="selectionBehavior">
-      <enum>QAbstractItemView::SelectRows</enum>
+   <item row="3" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbMedicalAidKind"/>
+   </item>
+   <item row="4" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkDetailBySGTIN">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Детализировать по коду вторичной упаковки</string>
      </property>
     </widget>
    </item>
-   <item row="7" column="0" colspan="4">
+   <item row="5" column="0" colspan="3">
+    <widget class="QDialogButtonBox" name="buttonBoxFilter">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0" colspan="3">
+    <widget class="QSplitter" name="splitter">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="CStockBatchView" name="tblStockBatchList">
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectRows</enum>
+      </property>
+     </widget>
+     <widget class="CTableView" name="tblStockSGTINCodes"/>
+    </widget>
+   </item>
+   <item row="7" column="0" colspan="3">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
      <property name="standardButtons">
       <set>QDialogButtonBox::Close</set>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1" colspan="3">
-    <widget class="QLineEdit" name="edtBatch"/>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblShelfTime">
-     <property name="text">
-      <string>Срок годности</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="3">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="1" colspan="3">
-    <widget class="CRBComboBox" name="cmbFinance"/>
-   </item>
-   <item row="3" column="1" colspan="3">
-    <widget class="CRBComboBox" name="cmbMedicalAidKind"/>
-   </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="CDateEdit" name="edtShelfTime">
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0" colspan="4">
-    <widget class="QDialogButtonBox" name="buttonBoxFilter">
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
      </property>
     </widget>
    </item>
@@ -143,12 +159,18 @@
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
   </customwidget>
+  <customwidget>
+   <class>CStockBatchView</class>
+   <extends>QTableView</extends>
+   <header>Stock/StockBatchView.h</header>
+  </customwidget>
  </customwidgets>
  <tabstops>
   <tabstop>edtBatch</tabstop>
   <tabstop>edtShelfTime</tabstop>
   <tabstop>cmbFinance</tabstop>
   <tabstop>cmbMedicalAidKind</tabstop>
+  <tabstop>chkDetailBySGTIN</tabstop>
   <tabstop>buttonBoxFilter</tabstop>
   <tabstop>tblStockBatchList</tabstop>
   <tabstop>buttonBox</tabstop>

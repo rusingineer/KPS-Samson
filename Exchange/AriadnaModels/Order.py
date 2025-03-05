@@ -10,6 +10,7 @@ class Order(AbstractObject):
         self.date = ''  # String Обязательно Дата заказа
         self.hisId = ''  # String Обязательно Идентификатор заказа в МИС. Должен быть уникальным для каждого заказа
         self.medHistory = ''  # String Необязательно Номер истории болезни
+        self.commentSpecimen = None  # String Необязательно Комментарий к материалу
         super(Order, self).__init__(jsondict)
 
     def elementProperties(self):
@@ -20,5 +21,6 @@ class Order(AbstractObject):
         js.extend([("id", "id", str, False, None, True),
                    ("date", "date", str, False, None, True),
                    ("hisId", "hisId", str, False, None, True),
-                   ("medHistory", "medHistory", str, False, None, False), ])
+                   ("medHistory", "medHistory", str, False, None, False),
+                   ("commentSpecimen", "commentSpecimen", str, False, None, False)])
         return js

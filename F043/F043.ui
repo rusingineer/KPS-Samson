@@ -809,17 +809,17 @@
        </widget>
        <widget class="CEventMedicalDiagnosisPage" name="tabMedicalDiagnosis">
         <attribute name="title">
-         <string>Диагноз</string>
+         <string>Диагно&amp;з</string>
         </attribute>
        </widget>
        <widget class="CEventMesPage" name="tabMes">
         <attribute name="title">
-         <string>Стандарт</string>
+         <string>Ст&amp;андарт</string>
         </attribute>
        </widget>
        <widget class="CActionsPage" name="tabStatus">
         <attribute name="title">
-         <string>Статус</string>
+         <string>&amp;Статус</string>
         </attribute>
        </widget>
        <widget class="CActionsPage" name="tabDiagnostic">
@@ -938,7 +938,7 @@
            </widget>
            <widget class="QWidget" name="tabVitalRestriction">
             <attribute name="title">
-             <string>&amp;Ограничения жизнедеятельности</string>
+             <string>О&amp;граничения жизнедеятельности</string>
             </attribute>
             <layout class="QVBoxLayout" name="verticalLayout_6">
              <property name="spacing">
@@ -968,12 +968,12 @@
        </widget>
        <widget class="CEventCashPage" name="tabCash">
         <attribute name="title">
-         <string>Оплата</string>
+         <string>&amp;Оплата</string>
         </attribute>
        </widget>
        <widget class="QWidget" name="tabExport">
         <attribute name="title">
-         <string>Экспорт</string>
+         <string>&amp;Экспорт</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_55">
          <property name="margin">
@@ -1003,7 +1003,7 @@
             </attribute>
             <layout class="QHBoxLayout" name="horizontalLayout_8">
              <item>
-              <widget class="CInDocTableView" name="tblExport_FileAttach"/>
+              <widget class="CInDocExportTableView" name="tblExport_FileAttach"/>
              </item>
             </layout>
            </widget>
@@ -1013,7 +1013,7 @@
             </attribute>
             <layout class="QHBoxLayout" name="horizontalLayout_7">
              <item>
-              <widget class="CInDocTableView" name="tblExport_VIMIS">
+              <widget class="CInDocExportTableView" name="tblExport_VIMIS">
                <property name="maximumSize">
                 <size>
                  <width>16777215</width>
@@ -1123,24 +1123,19 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CRBComboBox</class>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CStrComboBox</class>
    <extends>QComboBox</extends>
-   <header>library/crbcombobox.h</header>
+   <header>library/StrComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CInDocTableView</class>
    <extends>QTableView</extends>
-   <header>library/InDocTable.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CDateEdit</class>
-   <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
-  </customwidget>
-  <customwidget>
-   <class>CContractComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
+   <header location="global">library/InDocTable.h</header>
   </customwidget>
   <customwidget>
    <class>CTextBrowser</class>
@@ -1148,14 +1143,9 @@
    <header>library/TextBrowser.h</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/PersonComboBoxEx.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CActionsPage</class>
+   <class>CAmbCardPage</class>
    <extends>QWidget</extends>
-   <header>Events/ActionsPage.h</header>
+   <header>Events/AmbCardPage.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -1165,9 +1155,29 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CTempInvalid</class>
-   <extends>QGroupBox</extends>
-   <header>Events/TempInvalid.h</header>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CROComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/ROComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CContractComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionsPage</class>
+   <extends>QWidget</extends>
+   <header>Events/ActionsPage.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
@@ -1177,15 +1187,10 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CAmbCardPage</class>
-   <extends>QWidget</extends>
-   <header>Events/AmbCardPage.h</header>
+   <class>CTempInvalid</class>
+   <extends>QGroupBox</extends>
+   <header>Events/TempInvalid.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>CROComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/ROComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CEventMesPage</class>
@@ -1194,14 +1199,20 @@
    <container>1</container>
   </customwidget>
   <customwidget>
+   <class>CEventMedicalDiagnosisPage</class>
+   <extends>QWidget</extends>
+   <header>Events/EventMedicalDiagnosisPage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CInDocExportTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
+  </customwidget>
+  <customwidget>
    <class>CDentitionTableView</class>
    <extends>QTableView</extends>
    <header>F043/DentitionTable.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CStrComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/StrComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CClientDentitionHistoryTableView</class>
@@ -1222,12 +1233,6 @@
    <class>CDentitionInDocTableView</class>
    <extends>QTableView</extends>
    <header>library/InDocTable.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CEventMedicalDiagnosisPage</class>
-   <extends>QWidget</extends>
-   <header>Events/EventMedicalDiagnosisPage.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

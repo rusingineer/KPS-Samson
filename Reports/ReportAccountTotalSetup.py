@@ -834,7 +834,7 @@ where t.typeFile = 'D'""")
                         kso = '24'  # вызов скорой медицинской помощи (инокраевые застрахованные)
                 elif VP in ['271', '272']:
                     kso = '25'  # по подуш. нормат. финан. на прикреп. лиц в сочетании с оплатой за единицу объема медицинской помощи
-                elif  VP in ['01', '02', '111', '112', '211', '232', '233', '252', '261', '262', '241', '242', '281', '282']:
+                elif  VP in ['01', '02', '111', '112', '211', '232', '233', '244', '252', '261', '262', '241', '242', '281', '282']:
                     kso = '29'  # за посещение в поликлинике
                 elif VP in ['21', '22', '31', '32']:
                     if event['hasObrService']:
@@ -845,7 +845,7 @@ where t.typeFile = 'D'""")
                     kso = ''
                 rec_p['KSO'] = kso
 
-                if VP in ['01', '02', '111', '112', '21', '22', '211', '232', '233', '252', '261', '262', '271', '272', '241',
+                if VP in ['01', '02', '111', '112', '21', '22', '211', '232', '233', '244', '252', '261', '262', '271', '272', '241',
                           '242', '31', '32', '201', '202', '60', '281', '282']:
                     # старые коды
                     if rec_p['DATO'] <= datetime.date(2018, 3, 31):
@@ -853,7 +853,7 @@ where t.typeFile = 'D'""")
                             cel = '2'
                         elif VP in ['111', '112']:  # приемные отделения
                             cel = '9'
-                        elif VP in ['01', '02', '211', '232', '233', '252', '261', '262']:  # ЦЗ и дисп
+                        elif VP in ['01', '02', '211', '232', '233', '244', '252', '261', '262']:  # ЦЗ и дисп
                             cel = '1'
                         elif event['hasObrService']:  # обращение
                             cel = '3'
@@ -865,7 +865,7 @@ where t.typeFile = 'D'""")
                             cel = '1.1' # посещениe в неотложной форме
                         elif VP in ['261', '262']:
                             cel = '2.1' # медицинский осмотр
-                        elif VP in ['211', '232', '233', '252']:
+                        elif VP in ['211', '232', '233', '244', '252']:
                             cel = '2.2' # диспансеризация
                         elif VP in ['01', '02']:
                             cel = '2.3' # комплексное обследование
@@ -1401,7 +1401,7 @@ where t.typeFile = 'D'""")
         vpsumm = 0.0
         kolpos = 0
         for key in reps:
-            if key in ['211', '233']:
+            if key in ['211', '233', '244']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
         invoiceDict[u'Дисп. взрослых'][u'kolpos'] += kolpos
@@ -2083,7 +2083,7 @@ where t.typeFile = 'D'""")
   Action.begDate AS actionDate,
   Action.endDate AS actionEndDate,
   Diagnosis.MKB AS MKBXP,
-  IF(rbEventProfile.regionalCode IN ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019')
+  IF(rbEventProfile.regionalCode IN ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019', '8020', '8021', '8022')
   OR mt.regionalCode IN ('31', '32'), IF(IFNULL(Action.MKB, '') <> '', Action.MKB, Diagnosis.MKB), Diagnosis.MKB) AS MKB,
   rbDiseasePhases.code as phasesCode,
   AssociatedDiagnosis.MKB as MKBXSP,
@@ -2130,7 +2130,7 @@ where t.typeFile = 'D'""")
   CONCAT(
   CASE WHEN Client.id <> ClientPolicy.client_id THEN '2' ELSE '' END,
   CASE WHEN Client.patrName = '' or Client.id <> ClientPolicy.client_id and repr.patrName = '' THEN '4' ELSE '' END,
-  CASE WHEN rbEventProfile.regionalCode IN ('8008', '8010', '8014', '102', '8012', '8013', '8017', '8018') THEN '5' WHEN rbEventProfile.regionalCode IN ('8009', '8015', '8016', '103', '8019') THEN '6' ELSE '' END,
+  CASE WHEN rbEventProfile.regionalCode IN ('8008', '8010', '8014', '102', '8012', '8013', '8017', '8018', '8020', '8022') THEN '5' WHEN rbEventProfile.regionalCode IN ('8009', '8015', '8016', '103', '8019', '8021') THEN '6' ELSE '' END,
   IF(mt.regionalCode = '12' AND Event.relative_id IS NOT NULL AND age(Client.birthDate, Event.setDate) BETWEEN 4 AND 17, '7', ''),
   IFNULL((select case aps.value
             when 'a-проведение 1 этапа ЭКО(стимуляция суперовуляции)' then 'a'
@@ -2159,7 +2159,7 @@ where t.typeFile = 'D'""")
   ) AS Q_G,
   IFNULL(ActionOrg.infisCode, '') AS outOrgCode,
   IF(ActionOrg.infisCode is null or
-      (mt.regionalCode = '211' 
+      (mt.regionalCode in ('211', '233', '244')
       and EXISTS(select 1 from OrgStructure o where o.bookkeeperCode = ActionOrg.infisCode and o.deleted = 0)), 0, 1) as IS_OUT,
   repr.lastName AS FAMP,
   repr.firstName AS IMP,
@@ -2170,23 +2170,23 @@ where t.typeFile = 'D'""")
   Event.externalId,
   rbDiseaseCharacter.id as diseaseCharacterId,
   IF(rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR,
-  IF(mt.regionalCode in ('261', '262', '211', '232', '252') and rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR_P20,
+  IF(mt.regionalCode in ('261', '262', '211', '233', '244', '232', '252') and rbDiseaseCharacter.code in ('1', '2'), '1', '0') as MKBX_PR_P20,
   IF(AssociatedCharacter.code in ('1', '2'), '1', '0') as MKBXS_PR,
   CASE WHEN rbDispanser.code = '1' then '1'
     WHEN rbDispanser.code in ('2', '6') then '2'
     WHEN rbDispanser.code = '4' then '4'
     WHEN rbDispanser.code in ('3', '5') then '6'
-    WHEN IFNULL(rbDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252') then '3'
+    WHEN IFNULL(rbDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '233', '244', '232', '252') then '3'
     ELSE '0' END  as PR_D_N,
    CASE WHEN AssocDiagDispanser.code = '1' then '1'
     WHEN AssocDiagDispanser.code in ('2', '6') then '2'
     WHEN AssocDiagDispanser.code = '4' then '4'
     WHEN AssocDiagDispanser.code in ('3', '5') then '6'
-    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '232', '252') then '3'
+    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '3', '4', '5', '6') and mt.regionalCode in ('261', '262', '211', '233', '244', '232', '252') then '3'
     ELSE '0' END  as PR_DS_N,
    CASE WHEN AssocDiagDispanser.code = '1' then '1'
     WHEN AssocDiagDispanser.code in ('2', '6') then '2'
-    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '6') and mt.regionalCode in ('261', '262', '211', '232', '252') then '3'
+    WHEN IFNULL(AssocDiagDispanser.code, '0') not in ('1', '2', '6') and mt.regionalCode in ('261', '262', '211', '233', '244', '232', '252') then '3'
     ELSE '0' END as PR_MS_N,
   PersonProfile.regionalCode as personProfileRegionalCode,
   RelegateOrg.smoCode as NAPR_MO,
@@ -2194,11 +2194,13 @@ where t.typeFile = 'D'""")
   Event.srcNumber as NAPR_N,
   Event.srcDate as NAPR_D,
   KRITAction.id as kritActionid,
-  IF(rbItemService.name like 'Обращен%%' and rbItemService.infis regexp '^B0[12]' 
-        OR rbItemService.infis in ('B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
-                 'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
-                 'B05.070.010', 'B05.070.011', 'B05.070.012', 'B03.014.018'), 1, 0) as isObr,
-  IF(rbItemService.name like '%%диспансерн%%' and mt.regionalCode not in ('261', '262', '211', '232', '252', '233'), 1, 0) as DNService,
+  IF(rbItemService.infis in ('B04.001.001', 'B04.008.001', 'B04.014.002', 'B04.015.003', 'B04.023.001', 'B04.026.001',
+                             'B04.027.001', 'B04.028.001', 'B04.029.001', 'B04.029.005', 'B04.040.002', 'B04.046.001',
+                             'B04.047.001', 'B04.047.003', 'B04.047.005', 'B04.050.001', 'B04.053.001', 'B04.057.001',
+                             'B04.058.005', 'B04.064.003', 'B04.065.001', 'B04.065.003', 'B04.065.005', 'B04.001.006',
+                             'B04.008.005', 'B04.009.001', 'B04.010.001', 'B04.014.007', 'B04.015.005', 'B04.023.016',
+                             'B04.026.004', 'B04.028.004', 'B04.029.006', 'B04.031.001', 'B04.031.003', 'B04.050.008',
+                             'B04.053.003', 'B04.058.002') and mt.regionalCode in ('21', '22', '31', '32'), 1, 0) as DNService,
   IF(rbItemService.name like '%%беременной%%' or rbItemService.name like '%%патронаж%%', 1, 0) as patronService,
   IF(rbItemService.infis in ('B01.047.015', 'B01.031.008'), 1, 0) as homeService,
   Account_Item.usedCoefficients as KSLP,
@@ -2871,7 +2873,10 @@ WHERE %s""" % self.db.joinAnd(cond)
 
             if serviceCode[:1] in ('G', 'V'):
                 dayCount = forceInt(record.value('dayCount'))
-                dbfRecord['KD'] = dayCount if dayCount > 1 else 1
+                if serviceCode in ['st36.013', 'st36.014', 'st36.015']:
+                    dbfRecord['KD'] = 0
+                else:
+                    dbfRecord['KD'] = dayCount if dayCount > 1 else 1
 
             # дата начала выполнения услуги обязательное
             servDate = forceDate(record.value('actionDate'))

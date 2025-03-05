@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -35,7 +35,8 @@ __all__ = ( 'CInfoContext',
             'CImageInfo',
           )
 
-_identification = namedtuple('identification', ('code', 'name', 'urn', 'version', 'value', 'note', 'checkDate'))
+_identification = namedtuple('identification', ('code', 'name', 'urn', 'version', 'value', 'note', 'checkDate', 'value_spr', 'name_spr', 'record'))
+
 
 class CInfoContext(object):
     u'Отображение (класс объекта, параметры объекта) -> Экземпляр класса'
@@ -199,12 +200,14 @@ class CIdentificationInfoMixin:
             if urn in self._mapUrnToIdentifierInfo:
                 return self._mapUrnToIdentifierInfo[urn]
             else:
-                code, name, urn, version, value, note, checkDate = getIdentificationInfo(self.tableName, self.id, urn)
-                result = _identification(code, name, urn, version, value, note, CDateInfo(checkDate))
+                code, name, urn, version, value, note, checkDate, value_spr, name_spr, record = getIdentificationInfo(self.tableName, self.id, urn)
+                result = _identification(code, name, urn, version, value, note, CDateInfo(checkDate), value_spr, name_spr, record)
                 self._mapUrnToIdentifierInfo[urn] = result
                 return result
         else:
-            return _identification(None, None, None, None, None, None, None)
+            return _identification(None, None, None, None, None, None, None, None, None, None)
+
+
 
     def identifyInfoByUrnList(self, urn):
         if self.id:
@@ -213,6 +216,14 @@ class CIdentificationInfoMixin:
             else:
                 # code, name, urn, version, value, note, checkDate = getIdentificationInfoList(self.tableName, self.id, urn)
                 records = getIdentificationInfoList(self.tableName, self.id, urn)
+                stmt_check_view = u"""select * from information_schema.views where table_name like '""" + \
+                                  urn.replace(u'urn:oid:', u'v') + u"'"
+                query_check_view = QtGui.qApp.db.query(stmt_check_view)
+                view_exist = False
+                list_record_from_view = None
+                if query_check_view.next():
+                    view_exist = True
+                    list_record_from_view = QtGui.qApp.db.getRecordList(urn.replace(u'urn:oid:', u'v'))
                 if records:
                     result = []
                     for record in records:
@@ -223,25 +234,35 @@ class CIdentificationInfoMixin:
                         value = forceString(record.value('value'))
                         note = forceString(record.value('note'))
                         checkDate = forceDate(record.value('checkDate'))
-                        result.append(_identification(code, name, urn, version, value, note, CDateInfo(checkDate)))
+                        value_spr = None
+                        name_spr = None
+                        record_spr = None
+                        if view_exist and len(list_record_from_view):
+                            for view_record in list_record_from_view:
+                                if view_record.value('id') == record.value('value_spr'):
+                                    value_spr = forceString(view_record.value('id'))
+                                    name_spr = forceString(view_record.value('name'))
+                                    record_spr = view_record
+                                    break
+                        result.append(_identification(code, name, urn, version, value, note, CDateInfo(checkDate), value_spr,name_spr,record_spr))
                     self._mapUrnToIdentifierInfoList[urn] = result
                     return result
                 else:
-                    return [_identification(None, None, None, None, None, None, None)]
+                    return [_identification(None, None, None, None, None, None, None, None, None, None)]
         else:
-            return _identification(None, None, None, None, None, None, None)
+            return _identification(None, None, None, None, None, None, None, None, None, None)
 
     def identifyInfoByCode(self, code):
         if self.id:
             if code in self._mapCodeToIdentifierInfo:
                 return self._mapCodeToIdentifierInfo[code]
             else:
-                code, name, urn, version, value, note, checkDate = getIdentificationInfo(self.tableName, self.id, code, byCode=True)
-                result = _identification(code, name, urn, version, value, note, CDateInfo(checkDate))
+                code, name, urn, version, value, note, checkDate, value_spr, name_spr, record = getIdentificationInfo(self.tableName, self.id, code, byCode=True)
+                result = _identification(code, name, urn, version, value, note, CDateInfo(checkDate), value_spr, name_spr, record)
                 self._mapCodeToIdentifierInfo[code] = result
                 return result
         else:
-            return _identification(None, None, None, None, None, None, None)
+            return _identification(None, None, None, None, None, None, None, None, None, None)
 
 
 class CDictInfoMixin:
@@ -554,10 +575,10 @@ class CRBInfo(CInfo):
     def __init__(self, context, id):
         CInfo.__init__(self, context)
         self.id = id
-        assert self.tableName, 'tableName must be defined in derivative'
 
 
     def _load(self):
+        assert self.tableName, 'tableName must be defined in derivative'
         db = QtGui.qApp.db
         record = db.getRecord(self.tableName, '*', self.id) if self.id else None
         if record:

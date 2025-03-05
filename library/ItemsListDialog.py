@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,6 +17,7 @@ from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QObject, QVariant
 
 from Reports.ReportView import CReportViewDialog
 from library.DialogBase import CDialogBase
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.TableModel import CTableModel
 from library.RecordLock import CRecordLockMixin
 from library.Utils      import exceptionToUnicode, forceRef, forceString, forceStringEx, toVariant
@@ -72,7 +73,7 @@ class CItemsListDialog(CDialogBase, Ui_ItemsListDialog):
         self.order = order
         self.addModels('', CTableModel(self, cols))
         self.model.idFieldName = self.idFieldName
-        self.model.setTable(tableName)
+        self.model.setTable(tableName, recordCacheCapacity=QtGui.qApp.db.getCount(tableName, 'id'))
         self.setModels(self.tblItems, self.model, self.selectionModel)
 #        self.createPopupMenu(self.tblItems)
         self.btnSelect.setEnabled(self.forSelect)
@@ -95,7 +96,11 @@ class CItemsListDialog(CDialogBase, Ui_ItemsListDialog):
         idList = self.select(self.props)
         self.model.setIdList(idList)
         if idList:
-            self.tblItems.selectRow(0)
+            itemId = self.props.get('itemId', None)
+            if itemId:
+                self.tblItems.setCurrentItemId(itemId)
+            else:
+                self.tblItems.selectRow(0)
         self.label.setText(u'всего: %d' % len(idList))
         return CDialogBase.exec_(self)
 
@@ -447,6 +452,72 @@ class CItemsListDialogEx(CItemsListDialog):
 # ##########################################################################
 #
 
+class CItemsListDialogWithProxy(CItemsListDialog):
+    u'CItemsListDialog, у которого для tblItems используется прокси-модель'
+    def __init__(self, *args, **kwargs):
+        CItemsListDialog.__init__(self, *args, **kwargs)
+
+    def setup(self, cols, tableName, order, forSelect=False, filterClass=None):
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+        self.forSelect = forSelect
+        self.filterClass = filterClass
+        self.props = {}
+        self.order = order
+        self.addModels('', CTableModel(self, cols))
+        self.model.idFieldName = self.idFieldName
+        self.model.setTable(tableName, recordCacheCapacity=QtGui.qApp.db.getCount(tableName, 'id'))
+        self.proxyModel = CSortFilterProxyTableModel(self, self.model)
+        self.tblItems.setModel(self.proxyModel)
+        self.btnSelect.setEnabled(self.forSelect)
+        self.btnSelect.setVisible(self.forSelect)
+        self.btnSelect.setDefault(self.forSelect)
+        self.btnFilter.setEnabled(self.forSelect and bool(self.filterClass))
+        self.btnFilter.setEnabled(bool(self.filterClass))
+        self.btnFilter.setVisible(bool(self.filterClass))
+        self.btnEdit.setDefault(not self.forSelect)
+        self.tblItems.setFocus(Qt.OtherFocusReason)
+
+        self.btnNew.setShortcut('F9')
+        self.btnEdit.setShortcut('F4')
+        self.btnPrint.setShortcut('F6')
+        self.tblItems.setSortingEnabled(True)
+
+    def renewListAndSetTo(self, itemId=None):
+        idList = self.select(self.props)
+        self.tblItems.setIdList(idList, itemId)
+        self.proxyModel.reset()
+        self.label.setText(u'всего: %d' % len(idList))
+
+    def exec_(self):
+        idList = self.select(self.props)
+        self.model.setIdList(idList)
+        if idList:
+            self.tblItems.selectRow(0)
+        self.label.setText(u'всего: %d' % len(idList))
+        return CDialogBase.exec_(self)
+
+    def setCurrentItemId(self, itemId):
+        row = self.model().findItemIdIndex(itemId)
+        proxyIndex = self.proxyModel.index(row, 0)
+        sourceIndex = self.proxyModel.mapToSource(proxyIndex)
+        self.tblItems.setCurrentIndex(sourceIndex)
+
+    def currentItemId(self):
+        index = self.currentIndex()
+        return self.tblItems.itemId(index)
+
+    def currentIndex(self):
+        proxyIndex = self.tblItems.currentIndex()
+        sourceIndex = self.proxyModel.mapToSource(proxyIndex)
+        return sourceIndex
+
+    def currentData(self, col):
+        index = self.currentIndex()
+        return self.model.data(index)
+
+#
+# ##########################################################################
+#
 class CItemsSplitListDialogEx(CItemsSplitListDialog):
     # поскольку виртуальное наследование не поддерживается,
     # наследуем от одного класса, а методы второго просто копируем

@@ -13,14 +13,14 @@
   <property name="windowTitle">
    <string>Обслуживание пациентов</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout_29">
-   <property name="margin">
-    <number>4</number>
-   </property>
+  <layout class="QVBoxLayout" name="verticalLayout_23">
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="0" column="0">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <item>
     <widget class="QTabWidget" name="tabMain">
      <property name="enabled">
       <bool>true</bool>
@@ -73,7 +73,7 @@
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -280,7 +280,7 @@ p, li { white-space: pre-wrap; }
              <enum>QTabWidget::Rounded</enum>
             </property>
             <property name="currentIndex">
-             <number>1</number>
+             <number>0</number>
             </property>
             <widget class="QWidget" name="tabFind">
              <attribute name="title">
@@ -303,8 +303,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>260</width>
-                   <height>1025</height>
+                   <width>317</width>
+                   <height>1152</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_18">
@@ -1559,6 +1559,32 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </spacer>
                   </item>
+                  <item row="2" column="0">
+                   <layout class="QVBoxLayout" name="verticalLayout_25">
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <item>
+                     <widget class="QComboBox" name="cmbFilterArchive">
+                      <item>
+                       <property name="text">
+                        <string>Рабочий список пациентов</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Архивный список пациентов</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Все</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
                  </layout>
                 </widget>
                </widget>
@@ -1586,8 +1612,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>321</width>
-                   <height>1102</height>
+                   <width>359</width>
+                   <height>1232</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_17">
@@ -2970,8 +2996,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>170</width>
-                   <height>464</height>
+                   <width>194</width>
+                   <height>537</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -3223,11 +3249,11 @@ p, li { white-space: pre-wrap; }
       <attribute name="title">
        <string>&amp;Обращение</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout_8">
+      <layout class="QGridLayout" name="gridLayout_29">
        <property name="margin">
         <number>1</number>
        </property>
-       <item>
+       <item row="0" column="0">
         <widget class="QSplitter" name="splitterEvents">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -3258,7 +3284,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -3332,15 +3358,32 @@ p, li { white-space: pre-wrap; }
                <attribute name="title">
                 <string>&amp;Посещения</string>
                </attribute>
-               <layout class="QGridLayout">
-                <property name="margin">
-                 <number>4</number>
-                </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_92">
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <item row="0" column="0">
+                <property name="margin">
+                 <number>4</number>
+                </property>
+                <item>
                  <widget class="CTableView" name="tblEventVisits"/>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="tabEventExportFile">
+               <attribute name="title">
+                <string>Документы</string>
+               </attribute>
+               <layout class="QGridLayout" name="gridLayout_58">
+                <item row="0" column="0">
+                 <widget class="CTableView" name="tblEventExportFile">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
                 </item>
                </layout>
               </widget>
@@ -3365,8 +3408,8 @@ p, li { white-space: pre-wrap; }
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>205</width>
-                     <height>236</height>
+                     <width>238</width>
+                     <height>272</height>
                     </rect>
                    </property>
                    <layout class="QGridLayout" name="gridLayout">
@@ -3765,7 +3808,7 @@ p, li { white-space: pre-wrap; }
          </widget>
         </widget>
        </item>
-       <item>
+       <item row="0" column="1">
         <widget class="QGroupBox" name="grbEventFilter">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -3830,8 +3873,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>323</width>
-                   <height>793</height>
+                   <width>319</width>
+                   <height>890</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_23">
@@ -4525,8 +4568,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>191</width>
-                   <height>957</height>
+                   <width>219</width>
+                   <height>1086</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -5165,7 +5208,7 @@ p, li { white-space: pre-wrap; }
                   <item>
                    <layout class="QHBoxLayout" name="horizontalLayout_68">
                     <item>
-                     <widget class="COrgComboBox" name="cmbFilterEventPayer" native="true">
+                     <widget class="COrgComboBox" name="cmbFilterEventPayer">
                       <property name="enabled">
                        <bool>false</bool>
                       </property>
@@ -5477,7 +5520,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -5531,7 +5574,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -5584,7 +5627,43 @@ p, li { white-space: pre-wrap; }
                    <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
                   </property>
                  </widget>
-                 <widget class="CActionPropertiesTableView" name="tblActionsStatusProperties"/>
+                 <widget class="QTabWidget" name="tabWidgetActionsStatus">
+                  <property name="currentIndex">
+                   <number>0</number>
+                  </property>
+                  <widget class="QWidget" name="tabActionsStatusProperties">
+                   <attribute name="title">
+                    <string>Свойства</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_300">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CActionPropertiesTableView" name="tblActionsStatusProperties"/>
+                    </item>
+                   </layout>
+                  </widget>
+                  <widget class="QWidget" name="tabActionsStatusAttachedDocuments">
+                   <attribute name="title">
+                    <string>Прикрепленные документы</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_301">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="CAttachFilesTable" name="tblActionsStatusAttachedDocuments"/>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
                 </widget>
                </item>
                <item row="1" column="0">
@@ -5627,7 +5706,43 @@ p, li { white-space: pre-wrap; }
                    <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
                   </property>
                  </widget>
-                 <widget class="CActionPropertiesTableView" name="tblActionsDiagnosticProperties"/>
+                 <widget class="QTabWidget" name="tabWidgetActionsDiagnostic">
+                  <property name="currentIndex">
+                   <number>0</number>
+                  </property>
+                  <widget class="QWidget" name="tabActionsDignosticProperties">
+                   <attribute name="title">
+                    <string>Свойства</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_302">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CActionPropertiesTableView" name="tblActionsDiagnosticProperties"/>
+                    </item>
+                   </layout>
+                  </widget>
+                  <widget class="QWidget" name="tabActionsDiagnosticAttachedDocuments">
+                   <attribute name="title">
+                    <string>Прикрепленные документы</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_303">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CAttachFilesTable" name="tblActionsDiagnosticAttachedDocuments"/>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
                 </widget>
                </item>
                <item row="1" column="0">
@@ -5670,7 +5785,43 @@ p, li { white-space: pre-wrap; }
                    <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
                   </property>
                  </widget>
-                 <widget class="CActionPropertiesTableView" name="tblActionsCureProperties"/>
+                 <widget class="QTabWidget" name="tabWidgetActionsCure">
+                  <property name="currentIndex">
+                   <number>0</number>
+                  </property>
+                  <widget class="QWidget" name="tabActionsCureProperties">
+                   <attribute name="title">
+                    <string>Свойства</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_304">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CActionPropertiesTableView" name="tblActionsCureProperties"/>
+                    </item>
+                   </layout>
+                  </widget>
+                  <widget class="QWidget" name="tabActionsCureAttachedDocuments">
+                   <attribute name="title">
+                    <string>Прикрепленные документы</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_305">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CAttachFilesTable" name="tblActionsCureAttachedDocuments"/>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
                 </widget>
                </item>
                <item row="1" column="0">
@@ -5713,7 +5864,43 @@ p, li { white-space: pre-wrap; }
                    <set>QAbstractItemView::AnyKeyPressed|QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed|QAbstractItemView::SelectedClicked</set>
                   </property>
                  </widget>
-                 <widget class="CActionPropertiesTableView" name="tblActionsMiscProperties"/>
+                 <widget class="QTabWidget" name="tabWidgetActionsMisc">
+                  <property name="currentIndex">
+                   <number>0</number>
+                  </property>
+                  <widget class="QWidget" name="tabActionsMiscProperties">
+                   <attribute name="title">
+                    <string>Свойства</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_306">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CActionPropertiesTableView" name="tblActionsMiscProperties"/>
+                    </item>
+                   </layout>
+                  </widget>
+                  <widget class="QWidget" name="tabActionsMiscAttachedDocuments">
+                   <attribute name="title">
+                    <string>Прикрепленные документы</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_307">
+                    <property name="margin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0" colspan="2">
+                     <widget class="CAttachFilesTable" name="tblActionsMiscAttachedDocuments"/>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
                 </widget>
                </item>
                <item row="1" column="0">
@@ -5895,8 +6082,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>233</width>
-                   <height>691</height>
+                   <width>267</width>
+                   <height>778</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_8">
@@ -6403,8 +6590,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>252</width>
-                   <height>530</height>
+                   <width>291</width>
+                   <height>874</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_24">
@@ -6423,107 +6610,6 @@ p, li { white-space: pre-wrap; }
                   <property name="spacing">
                    <number>1</number>
                   </property>
-                  <item row="26" column="1" colspan="2">
-                   <widget class="QComboBox" name="cmbFilterActionAttachedFiles">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>не задано</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>присутствуют</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>отсутствуют</string>
-                     </property>
-                    </item>
-                   </widget>
-                  </item>
-                  <item row="11" column="1" colspan="2">
-                   <widget class="QComboBox" name="cmbFilledProperty">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>Нет</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>Да</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>по значению</string>
-                     </property>
-                    </item>
-                   </widget>
-                  </item>
-                  <item row="10" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkTakeIntoAccountProperty">
-                    <property name="text">
-                     <string>Учитывать свойства</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="26" column="0">
-                   <widget class="QLabel" name="lblFilterActionAttachedFiles">
-                    <property name="text">
-                     <string>Прикрепленные файлы</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="11" column="0">
-                   <widget class="QCheckBox" name="chkFilledProperty">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="text">
-                     <string>Заполнено</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="18" column="1" colspan="2">
-                   <widget class="CRBComboBox" name="cmbFilterActionFinance">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="15" column="1" colspan="2">
-                   <widget class="QLineEdit" name="edtThresholdPenaltyGrade">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="maxLength">
-                     <number>3</number>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="21" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionContract">
-                    <property name="text">
-                     <string>Договор</string>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="17" column="0">
                    <widget class="QComboBox" name="cmpFilterActionPayStatusCode">
                     <property name="enabled">
@@ -6555,289 +6641,6 @@ p, li { white-space: pre-wrap; }
                       <string>оплачено</string>
                      </property>
                     </item>
-                   </widget>
-                  </item>
-                  <item row="5" column="1" colspan="2">
-                   <widget class="CDateEdit" name="edtFilterActionEndCreateDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>16777215</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <property name="displayFormat">
-                     <string notr="true">dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="14" column="0" colspan="3">
-                   <widget class="CCheckActionPropertiesTableView" name="tblListOptionActionProperty"/>
-                  </item>
-                  <item row="15" column="0">
-                   <widget class="QCheckBox" name="chkThresholdPenaltyGrade">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="text">
-                     <string>Порог штрафных баллов</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="6" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkFilterActionModifyPerson">
-                    <property name="text">
-                     <string>Автор последнего изменения</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="23" column="0" colspan="2">
-                   <widget class="QLineEdit" name="edtFilterActionContract">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="readOnly">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="20" column="2">
-                   <widget class="QToolButton" name="btnFilterActionSelectPayer">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="text">
-                     <string>...</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="5" column="0">
-                   <widget class="CDateEdit" name="edtFilterActionBegCreateDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>16777215</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <property name="displayFormat">
-                     <string notr="true">dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="4" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionCreateDate">
-                    <property name="text">
-                     <string>Дата создания</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="8" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionModifyDate">
-                    <property name="text">
-                     <string>Дата последнего изменения</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="3" column="0" colspan="3">
-                   <widget class="CPersonComboBoxEx" name="cmbFilterActionCreatePerson">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="7" column="0" colspan="3">
-                   <widget class="CPersonComboBoxEx" name="cmbFilterActionModifyPerson">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="27" column="0" colspan="2">
-                   <spacer>
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>84</width>
-                      <height>181</height>
-                     </size>
-                    </property>
-                   </spacer>
-                  </item>
-                  <item row="16" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionPayStatus">
-                    <property name="text">
-                     <string>Оплата</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="9" column="1" colspan="2">
-                   <widget class="CDateEdit" name="edtFilterActionEndModifyDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>16777215</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <property name="displayFormat">
-                     <string notr="true">dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="24" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkFilterActionExport">
-                    <property name="text">
-                     <string>Экспортировано во внешние ИС</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="2" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionCreatePerson">
-                    <property name="text">
-                     <string>Автор</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="9" column="0">
-                   <widget class="CDateEdit" name="edtFilterActionBegModifyDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>16777215</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <property name="displayFormat">
-                     <string notr="true">dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="20" column="0" colspan="2">
-                   <widget class="COrgComboBox" name="cmbFilterActionPayer" native="true">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="23" column="2">
-                   <widget class="QToolButton" name="btnFilterActionContract">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="text">
-                     <string>...</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="0">
-                   <widget class="QLabel" name="lblListProperty">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="text">
-                     <string>Список свойств по</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="1" colspan="2">
-                   <widget class="QComboBox" name="cmbListPropertyCond">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>ИЛИ</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>И</string>
-                     </property>
-                    </item>
-                   </widget>
-                  </item>
-                  <item row="19" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkFilterActionPayer">
-                    <property name="text">
-                     <string>Плательщик по договору</string>
-                    </property>
                    </widget>
                   </item>
                   <item row="17" column="1" colspan="2">
@@ -6885,6 +6688,382 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="16" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionPayStatus">
+                    <property name="text">
+                     <string>Оплата</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkTakeIntoAccountProperty">
+                    <property name="text">
+                     <string>Учитывать свойства</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="1" colspan="2">
+                   <widget class="CRBComboBox" name="cmbFilterActionFinance">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="19" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkFilterActionPayer">
+                    <property name="text">
+                     <string>Плательщик по договору</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="20" column="0" colspan="2">
+                   <widget class="COrgComboBox" name="cmbFilterActionPayer">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0" colspan="3">
+                   <widget class="QLineEdit" name="edtFilterActionId">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="maxLength">
+                     <number>32767</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionCreatePerson">
+                    <property name="text">
+                     <string>Автор</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="4" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionCreateDate">
+                    <property name="text">
+                     <string>Дата создания</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkFilterActionModifyPerson">
+                    <property name="text">
+                     <string>Автор последнего изменения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="0">
+                   <widget class="CDateEdit" name="edtFilterActionBegCreateDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                    <property name="displayFormat">
+                     <string notr="true">dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0" colspan="3">
+                   <widget class="CPersonComboBoxEx" name="cmbFilterActionModifyPerson">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1" colspan="2">
+                   <widget class="CDateEdit" name="edtFilterActionEndCreateDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                    <property name="displayFormat">
+                     <string notr="true">dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionId">
+                    <property name="text">
+                     <string>Идентификатор</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="8" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionModifyDate">
+                    <property name="text">
+                     <string>Дата последнего изменения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="9" column="1" colspan="2">
+                   <widget class="CDateEdit" name="edtFilterActionEndModifyDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                    <property name="displayFormat">
+                     <string notr="true">dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="0">
+                   <widget class="QCheckBox" name="chkFilledProperty">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="text">
+                     <string>Заполнено</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="1" colspan="2">
+                   <widget class="QComboBox" name="cmbFilledProperty">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Нет</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Да</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>по значению</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="12" column="1" colspan="2">
+                   <widget class="QComboBox" name="cmbListPropertyCond">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>ИЛИ</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>И</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="14" column="0" colspan="3">
+                   <widget class="CCheckActionPropertiesTableView" name="tblListOptionActionProperty">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="3" column="0" colspan="3">
+                   <widget class="CPersonComboBoxEx" name="cmbFilterActionCreatePerson">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="15" column="1" colspan="2">
+                   <widget class="QLineEdit" name="edtThresholdPenaltyGrade">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="maxLength">
+                     <number>3</number>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="9" column="0">
+                   <widget class="CDateEdit" name="edtFilterActionBegModifyDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                    <property name="displayFormat">
+                     <string notr="true">dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="15" column="0">
+                   <widget class="QCheckBox" name="chkThresholdPenaltyGrade">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="text">
+                     <string>Порог штрафных баллов</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="12" column="0">
+                   <widget class="QLabel" name="lblListProperty">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="text">
+                     <string>Список свойств по</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="20" column="2">
+                   <widget class="QToolButton" name="btnFilterActionSelectPayer">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="39" column="0" colspan="2">
+                   <spacer>
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>84</width>
+                      <height>181</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item row="24" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkFilterActionExport">
+                    <property name="text">
+                     <string>Экспортировано во внешние ИС</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionContract">
+                    <property name="text">
+                     <string>Договор</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="23" column="2">
+                   <widget class="QToolButton" name="btnFilterActionContract">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="text">
+                     <string>...</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="23" column="0" colspan="2">
+                   <widget class="QLineEdit" name="edtFilterActionContract">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="readOnly">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="25" column="0" colspan="3">
                    <layout class="QGridLayout" name="gridLayout_50">
                     <item row="0" column="1">
@@ -6919,20 +7098,158 @@ p, li { white-space: pre-wrap; }
                     </item>
                    </layout>
                   </item>
-                  <item row="0" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionId">
-                    <property name="text">
-                     <string>Идентификатор</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="1" column="0" colspan="3">
-                   <widget class="QLineEdit" name="edtFilterActionId">
+                  <item row="38" column="0" colspan="3">
+                   <widget class="QLineEdit" name="edtFilterActionFileAttach">
                     <property name="enabled">
                      <bool>false</bool>
                     </property>
-                    <property name="maxLength">
-                     <number>32767</number>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="26" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionAttachedFiles">
+                    <property name="text">
+                     <string>Прикрепленные файлы</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="28" column="0" colspan="3">
+                   <widget class="QComboBox" name="cmbFilterActionAttachedFiles">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>не задано</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>присутствуют</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>отсутствуют</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="30" column="0">
+                   <widget class="QLabel" name="lblActionTypeDoc">
+                    <property name="text">
+                     <string>Вид документа</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="31" column="0" colspan="3">
+                   <widget class="QComboBox" name="cmbFilterActionTypeDoc">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Все</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>xml</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>pdf</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>sms</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Прочие</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="33" column="0">
+                   <widget class="QLabel" name="lblActionSigned">
+                    <property name="text">
+                     <string>Показать</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="35" column="0" colspan="3">
+                   <widget class="QComboBox" name="cmbFilterActionSigned">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Все</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Не подписанные врачом</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Не подписанные МО</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Подписанные МО</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Подписанные врачом без подписи МО</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Все подписанные</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Все подписанные врачом</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="36" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionFileAttach">
+                    <property name="text">
+                     <string>Идентификатор прикрепленного файла</string>
                     </property>
                    </widget>
                   </item>
@@ -7031,7 +7348,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -7965,8 +8282,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>229</width>
-                       <height>567</height>
+                       <width>250</width>
+                       <height>634</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_2">
@@ -8531,8 +8848,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>174</width>
-                       <height>158</height>
+                       <width>202</width>
+                       <height>178</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_26">
@@ -8932,8 +9249,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>217</width>
-                       <height>560</height>
+                       <width>235</width>
+                       <height>628</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_57">
@@ -9396,8 +9713,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>174</width>
-                       <height>158</height>
+                       <width>202</width>
+                       <height>178</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_59">
@@ -9741,8 +10058,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>173</width>
-                   <height>335</height>
+                   <width>199</width>
+                   <height>377</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_15">
@@ -9950,8 +10267,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>174</width>
-                   <height>197</height>
+                   <width>202</width>
+                   <height>222</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_27">
@@ -10292,39 +10609,14 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CDateEdit</class>
-   <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
-  </customwidget>
-  <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
   </customwidget>
   <customwidget>
-   <class>CTableView</class>
-   <extends>QTableView</extends>
-   <header>library/TableView.h</header>
-  </customwidget>
-  <customwidget>
-   <class>COrgStructureComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgStructComboBoxes.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CApplyResetDialogButtonBox</class>
-   <extends>QDialogButtonBox</extends>
-   <header>library/DialogButtonBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CPrintButton</class>
-   <extends>QPushButton</extends>
-   <header>library/PrintTemplates.h</header>
-  </customwidget>
-  <customwidget>
-   <class>COrgComboBox</class>
-   <extends>QWidget</extends>
-   <header>Orgs/OrgComboBox.h</header>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
   </customwidget>
   <customwidget>
    <class>CPersonComboBoxEx</class>
@@ -10352,6 +10644,46 @@ p, li { white-space: pre-wrap; }
    <header>KLADR/kladrComboxes.h</header>
   </customwidget>
   <customwidget>
+   <class>CPolyclinicComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CApplyResetDialogButtonBox</class>
+   <extends>QDialogButtonBox</extends>
+   <header>library/DialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPrintButton</class>
+   <extends>QPushButton</extends>
+   <header>library/PrintTemplates.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionPropertiesTableView</class>
+   <extends>QTableView</extends>
+   <header>Events/ActionPropertiesTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionStatusComboBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">Events/ActionStatus.h</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgStructureComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgStructComboBoxes.h</header>
+  </customwidget>
+  <customwidget>
    <class>CStreetComboBox</class>
    <extends>QComboBox</extends>
    <header>KLADR/kladrComboxes.h</header>
@@ -10367,11 +10699,6 @@ p, li { white-space: pre-wrap; }
    <header>KLADR/kladrComboxes.h</header>
   </customwidget>
   <customwidget>
-   <class>CPolyclinicComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
-  </customwidget>
-  <customwidget>
    <class>CTextBrowser</class>
    <extends>QTextBrowser</extends>
    <header>library/TextBrowser.h</header>
@@ -10381,11 +10708,6 @@ p, li { white-space: pre-wrap; }
    <extends>QWidget</extends>
    <header>Events/AmbCardPage.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>CActionPropertiesTableView</class>
-   <extends>QTableView</extends>
-   <header>Events/ActionPropertiesTable.h</header>
   </customwidget>
   <customwidget>
    <class>CPolicySerialEdit</class>
@@ -10423,11 +10745,6 @@ p, li { white-space: pre-wrap; }
    <header>library/RBCheckTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CActionStatusComboBox</class>
-   <extends>QComboBox</extends>
-   <header location="global">Events/ActionStatus.h</header>
-  </customwidget>
-  <customwidget>
    <class>CExpertTempInvalidTextEdit</class>
    <extends>QTextEdit</extends>
    <header>ExpertTempInvalidTextEdit.h</header>
@@ -10462,6 +10779,11 @@ p, li { white-space: pre-wrap; }
    <extends>QWidget</extends>
    <header>MyDoctorArea</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CAttachFilesTable</class>
+   <extends>QTableView</extends>
+   <header>library/Attach/AttachFilesTable.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -10532,6 +10854,7 @@ p, li { white-space: pre-wrap; }
   <tabstop>cmbFilterContingentType</tabstop>
   <tabstop>cmbFilterContingentEventTypeStatus</tabstop>
   <tabstop>cmbFilterContingentActionType</tabstop>
+  <tabstop>cmbFilterArchive</tabstop>
   <tabstop>chkFilterCreatePerson</tabstop>
   <tabstop>cmbFilterCreatePerson</tabstop>
   <tabstop>chkFilterCreateDate</tabstop>

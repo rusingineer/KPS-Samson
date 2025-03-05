@@ -43,15 +43,6 @@ class COrgStructureTreePurpose:
 
 
 class COrgStructureRootTreeItem(COrgStructureTreeItem):
-    @staticmethod
-    def getCheckSum():
-        query = QtGui.qApp.db.query('CHECKSUM TABLE OrgStructure')
-        if query.next():
-            return forceLong(query.record().value(1))
-        else:
-            return None
-
-
     def __init__(self, orgId, orgStructureId, emptyRootName, purpose, filter=None):
         if filter and isinstance(filter, (list, tuple)):
             filter = QtGui.qApp.db.joinAnd(filter)
@@ -67,6 +58,10 @@ class COrgStructureRootTreeItem(COrgStructureTreeItem):
         self.filter = filter
         self.timestamp = None
         self.checkSum  = None
+
+
+    def getCheckSum(self):
+        return QtGui.qApp.db.rbChecksum('OrgStructure')
 
 
     def isObsolete(self):
@@ -381,6 +376,12 @@ class COrgStructureHospitalBedsComboBox(COrgStructureComboBox):
     def __init__(self, parent):
         COrgStructureComboBox.__init__(self, parent, emptyRootName='-', purpose=COrgStructureTreePurpose.hospitalBedsSelector)
 
+
+class COrgStructureHospitalBedsComboBoxEx(COrgStructureComboBox):
+    def __init__(self, parent):
+        COrgStructureComboBox.__init__(self, parent, emptyRootName='-', purpose=COrgStructureTreePurpose.hospitalBedsSelector)
+        self.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
+        
 
 class COrgStructureNodeDisableComboBox(COrgStructureComboBox):
     def __init__(self, parent, emptyRootName=None, purpose=None, filter=None):

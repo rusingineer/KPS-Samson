@@ -170,6 +170,7 @@ def restoreFromXml(prototype, xml):
 
 
 def serializeAndRestore(prototype, pyobject):
+    nsdict = getCryptoNsDict()
     sw = SoapWriter(envelope=False, nsdict=nsdict)
     sw.serialize(pyobject, pyobject.typecode, typed=False)
     xml = str(sw)

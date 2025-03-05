@@ -131,8 +131,8 @@ class CActionTemplateSelectDialog(CDialogBase, Ui_ActionTemplateSelectDialog):
                                                    )
                 if res == QtGui.QMessageBox.Yes:
                     db.deleteRecord(table, table['id'].inlist(actionTemplateIdList))
+                    self.modelTree.reset()
                     self.renewListAndSetTo()
-                    self.updateListAndSetTo()
         QtGui.qApp.call(self, deleteCurrentInternal)
 
 
@@ -330,10 +330,10 @@ class CPropertiesTableModel(QAbstractTableModel):
                                 value = u''
                                 propertyApplicable = False
                     checked = Qt.Unchecked if (value is None or value == u'') else Qt.Checked
-                    if property.type().canChangeOnlyOwner and checked:
-                        record = action.getRecord()
-                        if record:
-                            checked = forceRef(record.value('setPerson_id')) == QtGui.qApp.userId
+                    #if property.type().canChangeOnlyOwner and checked:
+                    #    record = action.getRecord()
+                    #    if record:
+                    #        checked = forceRef(record.value('setPerson_id')) == QtGui.qApp.userId
                     self._propertyList.append([property, checked, propertyApplicable])
                 else:
                     self._notCopyableList.append(property)

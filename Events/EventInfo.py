@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -938,7 +938,7 @@ class CActionDispansPhaseInfo(CInfoList):
 
 
 class CEventInfo(CInfo, CTemplatableInfoMixin):
-    def __init__(self, context, id):
+    def __init__(self, context, id, isExecutionPlan=False):
         CInfo.__init__(self, context)
         self.id = id
         self._clientId = None
@@ -947,13 +947,14 @@ class CEventInfo(CInfo, CTemplatableInfoMixin):
         self._tempInvalidListLoaded = False
         self._clientEvents = []
         self._isDirty = False
+        self._actions = self.getInstance(CActionInfoList, None)
+        self.isExecutionPlan = isExecutionPlan
 
     def _load(self):
         db = QtGui.qApp.db
         record = db.getRecord('Event', '*', self.id)
         if record:
             self._clientId = forceRef(record.value('client_id'))
-
             self._pregnancyWeek = forceInt(record.value('pregnancyWeek'))
             self._eventType = self.getInstance(CEventTypeInfo, forceRef(record.value('eventType_id')))
             self._identify = self.getInstance(CEventIdentificationInfo, forceRef(record.value('eventType_id')))
@@ -979,7 +980,7 @@ class CEventInfo(CInfo, CTemplatableInfoMixin):
             self._note = self._notes = forceString(record.value('note'))
             self._curator = self.getInstance(CPersonInfo, forceRef(record.value('curator_id')))
             self._assistant = self.getInstance(CPersonInfo, forceRef(record.value('assistant_id')))
-            self._actions = self.getInstance(CActionInfoList, self.id)
+            self._actions = self.getInstance(CActionInfoList, self.id, self.isExecutionPlan)
             self._diagnosises = self.getInstance(CDiagnosticInfoList, self.id)
             self._feeds = self.getInstance(CFeedInfoList, self.id)
             self._visits = self.getInstance(CVisitInfoList, self.id)
@@ -1252,13 +1253,14 @@ class CEventInfo(CInfo, CTemplatableInfoMixin):
         return duration
 
 class CEventInfoList(CInfoList):
-    def __init__(self, context, accountIdList):
+    def __init__(self, context, accountIdList, isExecutionPlan=False):
         CInfoList.__init__(self, context)
         self.idList = accountIdList
-
-
+        self.isExecutionPlan = isExecutionPlan
+        
+        
     def _load(self):
-        self._items = [ self.getInstance(CEventInfo, id) for id in self.idList ]
+        self._items = [ self.getInstance(CEventInfo, id, self.isExecutionPlan) for id in self.idList ]
         return True
 
 
@@ -1699,7 +1701,12 @@ class CEventLocalContractInfo(CInfo):
         self._ageTuple  = calcAgeTuple(self._birthDate.date, forceDate(record.value('setDate')))
         self._age       = formatAgeTuple(self._ageTuple, self._birthDate.date, forceDate(record.value('setDate')))
         self._document = CClientDocumentInfo(self.context)
-        self._document._documentType = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', record.value('documentType_id'), 'name'))
+        documentTypeId = forceRef(record.value('documentType_id'))
+        self._document._documentType = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'name'))
+        self._document._documentTypeCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'code'))
+        self._document._documentTypeId = documentTypeId
+        self._document._documentTypeFederalCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'federalCode'))
+        self._document._documentTypeRegionalCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'regionalCode'))
         self._document._serial = forceStringEx(record.value('serialLeft'))+' '+forceStringEx(record.value('serialRight'))
         self._document._number = forceString(record.value('number'))
         self._document._origin = forceString(record.value('docOrigin'))
@@ -1718,7 +1725,12 @@ class CEventLocalContractInfo(CInfo):
         self._ageTupleCustom  = calcAgeTuple(self._customerBirthDate.date, forceDate(record.value('setDate')))
         self._customerAge       = formatAgeTuple(self._ageTupleCustom, self._customerBirthDate.date, forceDate(record.value('setDate')))
         self._customerDocument = CClientDocumentInfo(self.context)
-        self._customerDocument._documentType = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', record.value('customerDocumentType_id'), 'name'))
+        customerDocumentTypeId = forceRef(record.value('customerDocumentType_id'))
+        self._customerDocument._documentType = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', customerDocumentTypeId, 'name'))
+        self._customerDocument._documentTypeId = customerDocumentTypeId
+        self._customerDocument._documentTypeCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'code'))
+        self._customerDocument._documentTypeFederalCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'federalCode'))
+        self._customerDocument._documentTypeRegionalCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', documentTypeId, 'regionalCode'))
         self._customerDocument._serial = forceStringEx(record.value('customerSerialLeft'))+' '+forceStringEx(record.value('customerSerialRight'))
         self._customerDocument._number = forceString(record.value('customerNumber'))
         self._customerDocument._origin = forceString(record.value('customerDocOrigin'))
@@ -2045,6 +2057,23 @@ class CDiagnosticInfoList(CInfoList):
         db = QtGui.qApp.db
         table = db.table('Diagnostic')
         idList = db.getIdList(table, 'id', [table['event_id'].eq(self.eventId), table['deleted'].eq(0)], 'id')
+        self._items = [ self.getInstance(CDiagnosticInfo, id) for id in idList ]
+        return True
+
+
+class CDiagnosticForTypeInfoList(CInfoList):
+    def __init__(self, context, eventId, typeCode):
+        CInfoList.__init__(self, context)
+        self.eventId = eventId
+        self.typeCode = typeCode
+
+
+    def _load(self):
+        db = QtGui.qApp.db
+        table = db.table('Diagnostic')
+        tableRBDiagnosisType = db.table('rbDiagnosisType')
+        queryTable = table.innerJoin(tableRBDiagnosisType, tableRBDiagnosisType['id'].eq(table['diagnosisType_id']))
+        idList = db.getIdList(queryTable, table['id'], [table['event_id'].eq(self.eventId), table['deleted'].eq(0), tableRBDiagnosisType['code'].eq(self.typeCode)], 'id')
         self._items = [ self.getInstance(CDiagnosticInfo, id) for id in idList ]
         return True
 
@@ -2425,7 +2454,208 @@ class CEmergencyTypeAssetInfo(CRBInfoWithRegionalCode):
 
 class CCashOperationInfo(CRBInfo):
     tableName = 'rbCashOperation'
-    
+
+
+
+class CCentralizedAccountingEventInfo(CEventInfo):
+    def __init__(self, context, id, isExecutionPlan=False, hBedOSId=None):
+        CEventInfo.__init__(self, context, id, isExecutionPlan)
+        self.id = id
+        self.hBedOSId = hBedOSId
+        self._clientId = None
+        self._localContract = None
+        self._contractTariffCache = None
+        self._tempInvalidListLoaded = False
+        self._clientEvents = []
+        self._isDirty = False
+        self.isExecutionPlan = isExecutionPlan
+
+    def _load(self):
+        db = QtGui.qApp.db
+        record = db.getRecord('Event', '*', self.id)
+        if record:
+            self._clientId = forceRef(record.value('client_id'))
+            self._pregnancyWeek = forceInt(record.value('pregnancyWeek'))
+            self._eventType = self.getInstance(CEventTypeInfo, forceRef(record.value('eventType_id')))
+            self._externalId = forceString(record.value('externalId'))
+            self._org = self.getInstance(COrgInfo, forceRef(record.value('org_id')))
+            self._relegateOrg = self.getInstance(COrgInfo, forceRef(record.value('relegateOrg_id')))
+            self._relegatePerson = self.getInstance(CPersonInfo, forceRef(record.value('relegatePerson_id')))
+            self._client = self.getInstance(CClientInfo, forceRef(record.value('client_id')))
+            self._contract = self.getInstance(CContractInfo, forceRef(record.value('contract_id')))
+            self._prevEventDate = CDateInfo(forceDate(record.value('prevEventDate')))
+            self._setDate = CDateTimeInfo(forceDateTime(record.value('setDate')))
+            self._setPerson = self.getInstance(CPersonInfo, forceRef(record.value('setPerson_id')))
+            self._execDate = CDateTimeInfo(forceDateTime(record.value('execDate')))
+            self._execPerson = self.getInstance(CPersonInfo, forceRef(record.value('execPerson_id')))
+            self._isPrimary = forceInt(record.value('isPrimary'))
+            self._order = forceInt(record.value('order'))
+            self._result = self.getInstance(CResultInfo, forceRef(record.value('result_id')))
+            self._nextEventDate = CDateInfo(forceDate(record.value('nextEventDate')))
+            self._payStatus = forceInt(record.value('payStatus'))
+            self._typeAsset = self.getInstance(CEmergencyTypeAssetInfo, forceRef(record.value('typeAsset_id')))
+            self._note = self._notes = forceString(record.value('note'))
+            self._curator = self.getInstance(CPersonInfo, forceRef(record.value('curator_id')))
+            self._assistant = self.getInstance(CPersonInfo, forceRef(record.value('assistant_id')))
+            self._actions = self.getInstance(CActionInfoList, self.id, self.isExecutionPlan)
+            self._diagnosises = self.getInstance(CDiagnosticInfoList, self.id)
+            self._diagnosises51 = self.getInstance(CDiagnosticForTypeInfoList, self.id, u'51')
+            self._diagnosises52 = self.getInstance(CDiagnosticForTypeInfoList, self.id, u'52')
+            self._diagnosises53 = self.getInstance(CDiagnosticForTypeInfoList, self.id, u'53')
+            self._diagnosises54 = self.getInstance(CDiagnosticForTypeInfoList, self.id, u'54')
+            self._feeds = self.getInstance(CFeedInfoList, self.id)
+            self._visits = self.getInstance(CVisitInfoList, self.id)
+            self._dispansIPhase = self.getInstance(CActionDispansPhaseInfo, self.id, 1)
+            self._dispansIIPhase = self.getInstance(CActionDispansPhaseInfo, self.id, 2)
+            self._localContract = self.getInstance(CEventLocalContractInfo, self.id)
+            self._mes = self.getInstance(CMesInfo, forceRef(record.value('MES_id')))
+            self._mesSpecification = self.getInstance(CMesSpecificationInfo, forceRef(record.value('mesSpecification_id')))
+            self._patientModel = self.getInstance(CPatientModelInfo, forceRef(record.value('patientModel_id')))
+            self._cureType     = self.getInstance(CCureTypeInfo, forceRef(record.value('cureType_id')))
+            self._cureMethod   = self.getInstance(CCureMethodInfo, forceRef(record.value('cureMethod_id')))
+            self._prevEvent = self.getInstance(CEventInfo, forceRef(record.value('prevEvent_id')))
+            self._tempInvalidList = self.getTempInvalidList()
+            self._tempInvalidPatronageList = self.getTempInvalidList(patronage=True)
+            self._relative = self.getInstance(CClientInfo, forceRef(record.value('relative_id')))
+            self._clientEvents = self.getEventCount(self._clientId)
+            self._createDatetime = CDateTimeInfo(forceDateTime(record.value('createDatetime')))
+            self._modifyDatetime = CDateTimeInfo(forceDateTime(record.value('modifyDatetime')))
+            self._modifyPerson = self.getInstance(CPersonInfo, forceRef(record.value('modifyPerson_id')))
+            self._createPerson = self.getInstance(CPersonInfo, forceRef(record.value('createPerson_id')))
+            self._csgList = self.getInstance(CCSGInfoList, self.id)
+            self._srcDate = CDateInfo(forceDate(record.value('srcDate')))
+            self._srcNumber = forceString(record.value('srcNumber'))
+            self._documentLocation = self.getInstance(CDocumentLocationInfo, forceInt(record.value('client_id')), forceString(record.value('externalId')))
+            self._vouchers = self.getInstance(CVoucherInfoList, self.id)
+            self._hospitalBedOrgStructure = self.getInstance(COrgStructureInfo, self.hBedOSId)
+            return True
+        else:
+            self._clientId = None
+            self._clientEvents = []
+            self._pregnancyWeek = 0
+            self._eventType = self.getInstance(CEventTypeInfo, None)
+            self._externalId = ''
+            self._org = self.getInstance(COrgInfo, None)
+            self._relegateOrg = self.getInstance(COrgInfo, None)
+            self._relegatePerson = self.getInstance(CPersonInfo, None)
+            self._client = self.getInstance(CClientInfo, None)
+            self._contract = self.getInstance(CContractInfo, None)
+            self._prevEventDate = CDateInfo()
+            self._setDate = CDateTimeInfo()
+            self._setPerson = self.getInstance(CPersonInfo, None)
+            self._execDate = CDateTimeInfo()
+            self._execPerson = self.getInstance(CPersonInfo, None)
+            self._isPrimary = 0
+            self._order = 0
+            self._result = self.getInstance(CResultInfo, None)
+            self._nextEventDate = CDateInfo()
+            self._payStatus = 0
+            self._typeAsset = self.getInstance(CEmergencyTypeAssetInfo, None)
+            self._note = self._notes = ''
+            self._curator = self.getInstance(CPersonInfo, None)
+            self._assistant = self.getInstance(CPersonInfo, None)
+            self._actions = self.getInstance(CActionInfoList, None)
+            self._diagnosises = self.getInstance(CDiagnosticInfoList, None)
+            self._diagnosises51 = self.getInstance(CDiagnosticForTypeInfoList, None, u'51')
+            self._diagnosises52 = self.getInstance(CDiagnosticForTypeInfoList, None, u'52')
+            self._diagnosises53 = self.getInstance(CDiagnosticForTypeInfoList, None, u'53')
+            self._diagnosises54 = self.getInstance(CDiagnosticForTypeInfoList, None, u'54')
+            self._feeds = self.getInstance(CFeedInfoList, None)
+            self._visits = self.getInstance(CVisitInfoList, None)
+            self._localContract = self.getInstance(CEventLocalContractInfo, None)
+            self._mes = self.getInstance(CMesInfo, None)
+            self._mesSpecification = self.getInstance(CMesSpecificationInfo, None)
+            self._patientModel = self.getInstance(CPatientModelInfo, None)
+            self._cureType     = self.getInstance(CCureTypeInfo, None)
+            self._cureMethod   = self.getInstance(CCureMethodInfo, None)
+            self._prevEvent = self.getInstance(CEventInfo, None)
+            self._tempInvalidList = {}
+            self._tempInvalidPatronageList = {}
+            self._relative = self.getInstance(CClientInfo, None)
+            self._createDatetime = CDateTimeInfo()
+            self._modifyDatetime = CDateTimeInfo()
+            self._modifyPerson = self.getInstance(CPersonInfo, None)
+            self._createPerson = self.getInstance(CPersonInfo, None)
+            self._csgList = self.getInstance(CCSGInfoList, None)
+            self._srcDate = CDateInfo()
+            self._srcNumber = ''
+            self._documentLocation = self.getInstance(CDocumentLocationInfo, None, None)
+            self._vouchers = self.getInstance(CVoucherInfoList, None)
+            self._hospitalBedOrgStructure = self.getInstance(COrgStructureInfo, None)
+            return False
+
+
+    pregnancyWeek = property(lambda self: self.load()._pregnancyWeek)
+    eventType   = property(lambda self: self.load()._eventType)
+    externalId  = property(lambda self: self.load()._externalId)
+    org         = property(lambda self: self.load()._org)
+    relegateOrg = property(lambda self: self.load()._relegateOrg)
+    relegatePerson = property(lambda self: self.load()._relegatePerson)
+    client      = property(lambda self: self.load()._client)
+    contract    = property(lambda self: self.load()._contract)
+    prevEventDate = property(lambda self: self.load()._prevEventDate)
+    setDate     = property(lambda self: self.load()._setDate)
+    setTime     = property(lambda self: self.load()._setTime)
+    setPerson   = property(lambda self: self.load()._setPerson)
+    execDate    = property(lambda self: self.load()._execDate)
+    execTime    = property(lambda self: self.load()._execTime)
+    execPerson  = property(lambda self: self.load()._execPerson)
+    isPrimary   = property(lambda self: self.load()._isPrimary)
+    order       = property(lambda self: self.load()._order)
+    result      = property(lambda self: self.load()._result)
+    nextEventDate = property(lambda self: self.load()._nextEventDate)
+    payStatus   = property(lambda self: self.load()._payStatus)
+    typeAsset   = property(lambda self: self.load()._typeAsset)
+    note        = property(lambda self: self.load()._note)
+    notes       = property(lambda self: self.load()._notes)
+    curator     = property(lambda self: self.load()._curator)
+    assistant   = property(lambda self: self.load()._assistant)
+    finance     = property(lambda self: self.contract.finance)
+    actions     = property(lambda self: self.load()._actions)
+    diagnosises = property(lambda self: self.load()._diagnosises)
+    diagnosises51 = property(lambda self: self.load()._diagnosises51)
+    diagnosises52 = property(lambda self: self.load()._diagnosises52)
+    diagnosises53 = property(lambda self: self.load()._diagnosises53)
+    diagnosises54 = property(lambda self: self.load()._diagnosises54)
+    feeds       = property(lambda self: self.load()._feeds)
+    visits      = property(lambda self: self.load()._visits)
+    localContract = property(lambda self: self.load()._localContract)
+    mes         = property(lambda self: self.load()._mes)
+    mesSpecification = property(lambda self: self.load()._mesSpecification)
+    patientModel= property(lambda self: self.load()._patientModel)
+    cureType    = property(lambda self: self.load()._cureType)
+    cureMethod  = property(lambda self: self.load()._cureMethod)
+    prevEvent   = property(lambda self: self.load()._prevEvent)
+    tempInvalidList = property(lambda self: self.load()._tempInvalidList)
+    tempInvalidPatronageList = property(lambda self: self.load()._tempInvalidPatronageList)
+    relative      = property(lambda self: self.load()._relative)
+    clientEvents      = property(lambda self: self.load()._clientEvents)
+    createDatetime      = property(lambda self: self.load()._createDatetime)
+    modifyDatetime      = property(lambda self: self.load()._modifyDatetime)
+    modifyPerson   = property(lambda self: self.load()._modifyPerson)
+    createPerson   = property(lambda self: self.load()._createPerson)
+    csgList = property(lambda self: self.load()._csgList)
+    srcDate = property(lambda self: self.load()._srcDate)
+    srcNumber = property(lambda self: self.load()._srcNumber)
+    isDirty = property(lambda self: self._isDirty)
+    documentLocation = property(lambda self: self.load()._documentLocation)
+    vouchers      = property(lambda self: self.load()._vouchers)
+    hospitalBedOrgStructure = property(lambda self: self.load()._hospitalBedOrgStructure)
+
+
+class CCentralizedAccountingEventInfoList(CInfoList):
+    def __init__(self, context, accountIdList, isExecutionPlan=False, hBedOSIdDict={}, isSelected=False):
+        CInfoList.__init__(self, context)
+        self.idList = accountIdList
+        self.isExecutionPlan = isExecutionPlan
+        self.hBedOSIdDict = hBedOSIdDict
+        self.isSelected = isSelected
+
+
+    def _load(self):
+        self._items = [ self.getInstance(CCentralizedAccountingEventInfo, id, self.isExecutionPlan, self.hBedOSIdDict.get(id, None)) for id in self.idList ]
+        return True
+       
     
 class CCSGInfoList(CInfoList):
     def __init__(self, context, eventId):
@@ -2479,3 +2709,6 @@ class CAnatomicalLocalizationsInfo(CRBInfo):
     laterality = property(lambda self: self.load()._laterality)
     synonyms = property(lambda self: self.load()._synonyms)
     SNOMED_CT = property(lambda self: self.load()._SNOMED_CT)
+
+class CActionPropertyTemplateInfo(CRBInfo):
+    tableName = 'ActionPropertyTemplate'

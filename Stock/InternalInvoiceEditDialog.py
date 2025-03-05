@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+## -*- coding: utf-8 -*-
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -34,14 +34,11 @@ from Stock.Mdlp.Stage            import CMdlpStage
 from Stock.Mdlp.connection       import CMdlpConnection
 from Stock.Mdlp.iimProcess       import iimProcess
 from Stock.Mdlp.iiwdProcess      import iiwdProcess
-from Stock.Mdlp.iiwrProcess      import iiwrProcess
-
 from Stock.Mdlp.selectWithdrawalsByRegisrar import selectWithdrawalsByRegisrar
-
+from Stock.Mdlp.DisposalOrderEditDialog import CDisposalOrderEditDialog
 from Stock.NomenclatureComboBox  import CNomenclatureInDocTableCol
 from Stock.StockMotionBaseDialog import CStockMotionBaseDialog, CStockMotionItemsCopyPasteMixin, CNomenclatureItemsBaseModel
 from Stock.StockBatchEditor      import CStockBatchEditor
-
 
 from Stock.Utils                 import (
                                           getNomenclatureAnalogies,
@@ -58,6 +55,18 @@ from Ui_InternalInvoice import Ui_InternalInvoiceDialog
 
 class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPasteMixin, Ui_InternalInvoiceDialog):
     stockDocumentType = 0 #Накладная
+    # режимы обмена с МДЛП ( Mdlp Mode )
+    mmNone         = 0 # без МДЛП
+    mmMove         = 1 # перемещение
+    mmDispByDoc    = 2 # выбытие по документу (без РВ)
+    mmDispByReg1   = 3 # выбытие с РВ, первый вариант (данные сканируются РВ)
+    mmDispByReg2   = 4 # выбытие с РВ, второй вариант (отсканированные данные передаются в РВ)
+    mmNames        = { mmNone:         u'без МДЛП',
+                       mmMove:         u'перемещение',
+                       mmDispByDoc:    u'выбытие по документу',
+                       mmDispByReg1:   u'выбытие сканированием РВ',
+                       mmDispByReg2:   u'выбытие с передачей данных в РВ',
+                     }
 
     def __init__(self,  parent):
         CStockMotionBaseDialog.__init__(self, parent)
@@ -66,7 +75,20 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
 
         self.addModels('Items', CItemsModel(self))
         self.addObject('btnPrint', CPrintButton(self, u'Печать'))
-        self.addObject('btnSelectWithdrawalByRegisrar', QtGui.QPushButton(u'Запросить в МДЛП', self))
+        self.addObject('btnPrepareDispRequestToRegistrar', QtGui.QPushButton(u'Подготовить отчёт о выбытии для РВ', self))
+        self.addObject('actReceiveDocument10531', QtGui.QAction(u'Принять документ по схеме 10531', self))
+        self.addObject('actSendDocument531', QtGui.QAction(u'Отправить документ по схеме 531', self))
+        self.addObject('actSendDocument431', QtGui.QAction(u'Отправить документ по схеме 431', self))
+        self.addObject('btnMDLPExchange', QtGui.QPushButton(u'Выполнить обмен с МДЛП', self))
+        self.addObject('mnuMDLPExchange', QtGui.QMenu(self))
+        self.mnuMDLPExchange.addAction(self.actReceiveDocument10531)
+        self.mnuMDLPExchange.addAction(self.actSendDocument531)
+        self.mnuMDLPExchange.addAction(self.actSendDocument431)
+        self.btnMDLPExchange.setMenu(self.mnuMDLPExchange)
+        self.actReceiveDocument10531.setEnabled(False)
+        self.actSendDocument531.setEnabled(False)
+        self.actSendDocument431.setEnabled(False)
+
         self.addObject('btnProductionEditDialog', QtGui.QPushButton(u'Производство', self))
         self.btnPrint.setShortcut('F6')
         self.addObject('actOpenStockBatchEditor', QtGui.QAction(u'Подобрать параметры', self))
@@ -77,6 +99,7 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
         self.cmbSupplierPerson.setSpecialityIndependents()
         self.setupDirtyCather()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
+        self.buttonBox.addButton(self.btnMDLPExchange, QtGui.QDialogButtonBox.ActionRole)
         templates = getPrintTemplates(self.getStockContext())
         if not templates:
             self.btnPrint.setId(-1)
@@ -86,15 +109,17 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
                 self.btnPrint.addAction(action)
             self.btnPrint.menu().addSeparator()
             self.btnPrint.addAction(CPrintAction(u'Напечатать список', -1, self.btnPrint, self.btnPrint))
-        self.buttonBox.addButton(self.btnSelectWithdrawalByRegisrar, QtGui.QDialogButtonBox.ActionRole)
-        self.btnSelectWithdrawalByRegisrar.setEnabled(False)
-        self.buttonBox.addButton(self.btnProductionEditDialog, QtGui.QDialogButtonBox.ActionRole)
+
         self.tblItems.setModel(self.modelItems)
         self.prepareItemsPopupMenu(self.tblItems)
         self.tblItems.popupMenu().addSeparator()
         self.tblItems.popupMenu().addAction(self.actOpenStockBatchEditor)
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+
+        self.buttonBox.addButton(self.btnPrepareDispRequestToRegistrar, QtGui.QDialogButtonBox.ActionRole)
+        self.btnPrepareDispRequestToRegistrar.setEnabled(False)
+        self.buttonBox.addButton(self.btnProductionEditDialog, QtGui.QDialogButtonBox.ActionRole)
         self.requisitionIdList = None
         self.isStockRequsition = False
         self.tblItems.setItemDelegateForColumn(CItemsModel.priceColumnIndex, CPriceItemDelegate(self.tblItems))
@@ -103,9 +128,10 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
         if QtGui.qApp.isMdlpEnabled():
             self.connect(QtGui.qApp, SIGNAL('sgtinReceived(QString)'), self.onSgtinReceived)
         else:
-            self.btnSelectWithdrawalByRegisrar.setDisabled(True)
+            self.btnMDLPExchange.setDisabled(True)
+            self.actReceiveDocument10531.setDisabled(True)
 
-        self.connect(QtGui.qApp, SIGNAL('gtinReceived(QString)'),  self.onGtinReceived)
+#        self.connect(QtGui.qApp, SIGNAL('gtinReceived(QString)'),  self.onGtinReceived)
 
         self.mdlpStage  = None
         self.connection = None
@@ -113,100 +139,39 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
 
         self.supplierMdlpId = None
         self.receiverMdlpId = None
-        self.mdlpMode       = None
+        self.mdlpMode = self.mmNone
 
         self.updateMdlpMode()
+        self._blockSgtinReceiving = False
+        self.tblItems.enableColsMove()
 
 
     def save(self):
         id = CStockMotionBaseDialog.save(self)
-        if (    id
-            and QtGui.qApp.isMdlpEnabled()
-            and self.mdlpStage in (None, CMdlpStage.ready, CMdlpStage.inProgress)
-           ):
-                docNum = unicode(self.edtNumber.text())
-                docDate = self.edtDate.date()
-
-                sgtins = self.modelItems.getSgtins()
-                if self.mdlpMode == 1: # перемещение
-                    with CLogger(self, u'Обмен с МДЛП') as logger:
-                        QtGui.qApp.call(self,
-                                        iimProcess,
-                                        (logger,
-                                         id,
-                                         self.getConnection(),
-                                         self.supplierMdlpId,
-                                         self.receiverMdlpId,
-                                         docNum,
-                                         docDate,
-                                         sgtins
-                                        )
-                                   )
-                # после этого self.mdlpStage нужно бы перечитать?
-                elif self.mdlpMode == 2: # выбытие (без РВ)
-                    with CLogger(self, u'Обмен с МДЛП') as logger:
-                        QtGui.qApp.call(self,
-                                        iiwdProcess,
-                                        (logger,
-                                         id,
-                                         self.getConnection(),
-                                         self.supplierMdlpId,
-                                         docNum,
-                                         docDate,
-                                         sgtins
-                                        )
-                                       )
-                elif self.mdlpMode == 3: # выбытие (c РВ)
-                    with CLogger(self, u'Обмен с МДЛП') as logger:
-                        QtGui.qApp.call(self,
-                                        iiwrProcess,
-                                        (logger,
-                                         id,
-                                         self.getConnection(),
-                                         self.mdlpDocumentIds
-                                        )
-                                       )
-
         return id
 
 
     def evalMdlpMode(self, supplierMdlpId, receiverMdlpId):
-        # 0: без МДЛП
-        # 1: перемещение
-        # 2: выбытие (без РВ)
-        # 3: выбытие (с РВ)
-        # 4: возврат в оборот
-        if not QtGui.qApp.isMdlpEnabled():
-            return 0
-        if receiverMdlpId:
-            if supplierMdlpId:
-                return 1
-            else:
-                return 4
-        else:
-            if supplierMdlpId:
-                connention = self.getConnection()
-                supplier = connention.getBranch(supplierMdlpId)
-                if supplier.canWithdrawViaDocument:
-                    return 2
-                else:
-                    return 3
-            else:
-                return 0
+        if not QtGui.qApp.isMdlpEnabled(): # МДЛП ненастроен
+            return self.mmNone
+
+        if not supplierMdlpId or not self.cmbReceiver.value():             # у поставщика нет идентификации либо получатель отсутствует вовсе
+            return self.mmNone
+        elif receiverMdlpId:               # 431 scheme движение move
+            return self.mmMove
+        elif self.documentDisposalOrder(): # ничего запрашивать и принимать не требуется
+            return self.mmNone
+        elif not self.modelItems.items(): # таблица пуста принять по 10531
+            return self.mmDispByReg1
+        elif not self.documentDisposalOrder() and self.modelItems.items():  # отправить по 531
+            return self.mmDispByDoc
 
 
     def updateMdlpMode(self):
         self.mdlpMode = self.evalMdlpMode(self.supplierMdlpId, self.receiverMdlpId)
-        modes = [ u'без МДЛП',
-                  u'перемещение',
-                  u'выбытие (без РВ)',
-                  u'выбытие (с РВ)',
-                  u'возврат в оборот'
-                ]
-
-        self.setWindowTitle(u'Внутренняя накладная на передачу ЛСиИМН (%s)' % modes[self.mdlpMode]
-                           )
-        self.btnSelectWithdrawalByRegisrar.setEnabled(self.mdlpMode == 3) # выбытие (с РВ)
+        self.setWindowTitle(u'Внутренняя накладная на передачу ЛСиИМН (%s)' % self.mmNames[self.mdlpMode])
+        self.btnMDLPExchange.setEnabled(self.mdlpMode != self.mmNone)
+        self.btnPrepareDispRequestToRegistrar.setEnabled(QtGui.qApp.isMdlpRetRegEnabled()) # Эта кнопка не зависит от состояния накладной
 
 
     # WFT?
@@ -256,13 +221,16 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
                         params['shelfTime'] = forceDate(item.value('shelfTime'))
                         params['medicalAidKindId'] = forceRef(item.value('medicalAidKind_id'))
                         dialog = CStockBatchEditor(self, params)
+                        dialog.setChkDetailBySGTINEnabled(True)
                         dialog.loadData()
                         if dialog.exec_():
-                            outBatch, outFinanceId, outShelfTime, outMedicalAidKindId, outPrice = dialog.getValue()
+                            outBatch, outFinanceId, outShelfTime, outMedicalAidKindId, outPrice, outSGTIN = dialog.getValue()
                             item.setValue('batch', toVariant(outBatch))
                             item.setValue('finance_id', toVariant(outFinanceId))
                             item.setValue('shelfTime', toVariant(outShelfTime))
                             item.setValue('medicalAidKind_id', toVariant(outMedicalAidKindId))
+                            if outSGTIN:
+                                item.setValue('sgtin', toVariant(outSGTIN))
                             if outPrice:
                                 unitId = forceRef(item.value('unit_id'))
                                 nomenclatureId = forceRef(item.value('nomenclature_id'))
@@ -286,6 +254,19 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
         self.actPrintMotions(templateId)
+
+    def on_mnuMDLPExchange_aboutToShow(self):
+        self.actSendDocument431.setEnabled(False)
+        self.actReceiveDocument10531.setEnabled(False)
+        self.actSendDocument531.setEnabled(False)
+
+        self.mdlpMode = self.evalMdlpMode(self.supplierMdlpId, self.receiverMdlpId)
+        if self.mdlpMode == self.mmMove:
+            self.actSendDocument431.setEnabled(True)
+        elif self.mdlpMode == self.mmDispByReg1:
+            self.actReceiveDocument10531.setEnabled(True)
+        elif self.mdlpMode == self.mmDispByDoc:
+            self.actSendDocument531.setEnabled(True)
 
 
     def actPrintMotions(self, templateId):
@@ -384,6 +365,7 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
         if requisitionIdList:
             requisitionId = requisitionIdList[0]
             self.cmbReceiver.setValue(forceRef(QtGui.qApp.db.translate('StockRequisition', 'id', requisitionId, 'recipient_id')))
+            self.cmbReceiverPerson.setValue(forceRef(QtGui.qApp.db.translate('StockRequisition', 'id', requisitionId, 'recipientPerson_id')))
             number = forceString(QtGui.qApp.db.translate('StockRequisition', 'id', requisitionId, 'number'))
             stockMotionsCount = forceInt(QtGui.qApp.db.translate('StockRequisition', 'id', requisitionId, 'stockMotionsCount'))
             idx = forceString(stockMotionsCount + 1)
@@ -407,9 +389,9 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
         record = CStockMotionBaseDialog.getRecord(self)
         getRBComboBoxValue( self.cmbReceiver, record, 'receiver_id')
         getRBComboBoxValue( self.cmbReceiverPerson, record, 'receiverPerson_id')
-        if self.mdlpStage is None:
+        if self.mdlpStage in [None, 0]: # не задан или не нужен - тогда еще можем что-то изменить
             storedMdlpStage = CMdlpStage.unnecessary # нужно не storedMdlpStage а что-то другое...
-            if self.mdlpMode == 1:
+            if self.mdlpMode in [self.mmMove, self.mmDispByDoc]:
                 sgtins = self.modelItems.getSgtins()
                 if sgtins:
                     storedMdlpStage = CMdlpStage.ready
@@ -446,6 +428,15 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
 
         fndict = self.modelItems.getDataAsFNDict()
         preciseGroupDict = {}
+        findFinanceGroupDict = {}
+        notFinanceIdDict = {}
+        for item in requisitionItems:
+            nomenclatureId = forceRef(item.value('nomenclature_id'))
+            financeId = forceRef(item.value('finance_id'))
+            findFinanceLine = findFinanceGroupDict.get(nomenclatureId, [])
+            if financeId and financeId not in findFinanceLine:
+                findFinanceLine.append(financeId)
+                findFinanceGroupDict[nomenclatureId] = findFinanceLine
         for item in requisitionItems:
             masterId = forceInt(item.value('master_id'))
             nomenclatureId = forceRef(item.value('nomenclature_id'))
@@ -473,6 +464,18 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
 #            if oldSatisfiedQnt != satisfiedQnt:
                         sumQnt = oldSatisfiedQnt + satisfiedQnt
                         item.setValue('satisfiedQnt', toVariant(sumQnt))
+            elif not financeId:
+                findFinanceIdLine = findFinanceGroupDict.get(nomenclatureId, [])
+                for nFinanceIdKey, ndictLine in fndict.items():
+                    if nFinanceIdKey:
+                        for nNomenclatureId, nSatisfiedQnt in ndictLine.items():
+                            if nNomenclatureId == nomenclatureId and nFinanceIdKey not in findFinanceIdLine:
+                                notFinanceIdLine = notFinanceIdDict.get(nNomenclatureId, [])
+                                if nFinanceIdKey not in notFinanceIdLine:
+                                    nSumQnt = forceDouble(item.value('satisfiedQnt')) + nSatisfiedQnt
+                                    item.setValue('satisfiedQnt', toVariant(nSumQnt))
+                                    notFinanceIdLine.append(nFinanceIdKey)
+                                    notFinanceIdDict[nNomenclatureId] = notFinanceIdLine
             db.updateRecord('StockRequisition_Item', item)
         if masterId:
             requisition = db.getRecordEx(table,
@@ -521,6 +524,19 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
                 return False
         return True
 
+    def documentDisposalOrder(self):
+        documentNumber = unicode(self.edtNumber.text())
+        documentDate = self.edtDate.date()
+        # documetTime = self.edtTime.time()
+        db = QtGui.qApp.db
+        table = db.table('DisposalOrder')
+        cond = [ table['baseInvoiceNumber'].eq(documentNumber),
+                 table['baseInvoiceDate'].dateEq(documentDate)
+               ]
+        ids = db.getIdList(table, where=cond, order='id', limit=1)
+        return ids[0] if ids else None
+
+
 
     # WTF?
     def setBatchReadOnly(self):
@@ -540,23 +556,41 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
         return self.connection
 
 
+    def useNotificationMode(self):
+        return QtGui.qApp.isMdlpEnabled() and self.getConnection().notificationMode
+
+
     def onSgtinReceived(self, sgtin):
+        if self._blockSgtinReceiving:
+            return
         row = self.modelItems.findRowWithSgtin(sgtin)
         if row is not None:
             self.tblItems.setCurrentIndex(self.modelItems.index(row, self.modelItems.sgtinColumnIndex))
             return
         if self.supplierMdlpId:
             connection = self.getConnection()
-            sgtinObjects = connection.getSgtins(sgtin=unicode(sgtin), ownerId=self.supplierMdlpId)
-            if not sgtinObjects:
+            succ, fail = connection.getPublicSgtinsByList([unicode(sgtin)])
+            if succ:
+                if (    self.useNotificationMode() # не известно у кого
+                     or self.mdlpMode == self.mmDispByReg2 # для проверки выбытия mmDispByReg2
+                     or succ[0].ownerId == self.supplierMdlpId # у поставщика
+                   ):
+                    row = self.modelItems.addSgtinObject(succ[0])
+                    self.tblItems.setCurrentIndex(self.modelItems.index(row, self.modelItems.sgtinColumnIndex))
+                else:
+                    QMessageBox.information(self,
+                                            u'Ошибка',
+                                            u'В МДЛП у поставщика «%s» не найден sgtin «%s»' % (self.supplierMdlpId, sgtin),
+                                            QMessageBox.Close,
+                                            QMessageBox.Close
+                                           )
+            else:
                 QMessageBox.information(self,
                                         u'Ошибка',
-                                        u'В МДЛП у поставщика «%s» не найден sgtin «%s»' % (self.supplierMdlpIdl, sgtin),
+                                        u'В МДЛП не найден sgtin «%s»' % sgtin,
                                         QMessageBox.Close,
                                         QMessageBox.Close
                                        )
-            row = self.modelItems.addSgtin(sgtinObjects[0])
-            self.tblItems.setCurrentIndex(self.modelItems.index(row, self.modelItems.sgtinColumnIndex))
 
 
     def onGtinReceived(self, gtin):
@@ -645,32 +679,109 @@ class CInternalInvoiceEditDialog(CStockMotionBaseDialog, CStockMotionItemsCopyPa
 
 
     @pyqtSignature('')
-    def on_btnSelectWithdrawalByRegisrar_clicked(self):
+    def on_actReceiveDocument10531_triggered(self):
+        self.save()
         date = self.edtDate.date() or QDate.currentDate()
-        mdlpDocumentIds, itemsFromDocument = selectWithdrawalsByRegisrar(self,
-                                                                         self.getConnection(),
-                                                                         date,
-                                                                         self.supplierMdlpId)
-        if itemsFromDocument:
-            items = []
-            for itemFromDocument in itemsFromDocument:
-                item = self.modelItems.getEmptyRecord()
-#                item.setValue('isMdlpRelated',   True)
-#                item.setValue('isConfirmed',     False)
-#                item.setValue('sscc',            itemFromDocument.sscc)
-                item.setValue('sgtin',           itemFromDocument.sgtin)
-                item.setValue('nomenclature_id', findByIdentification('rbNomenclature', 'urn:gtin', itemFromDocument.sgtin[:14], raiseIfNonFound=False))
-                item.setValue('batch',           itemFromDocument.batch)
-                item.setValue('shelfTime',       itemFromDocument.expirationDate)
-                item.setValue('qnt',             1)
-#                item.setValue('price',           itemFromDocument.sum)
-#                item.setValue('sum',             itemFromDocument.sum)
-#                item.setValue('vat',             itemFromDocument.vat)
-                items.append(item)
-            self.mdlpDocumentIds = mdlpDocumentIds
-            self.modelItems.setItems(items)
-            self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
+        try:
+            mdlpDocumentIds, itemsFromDocument = selectWithdrawalsByRegisrar(self,
+                                                                             self.getConnection(),
+                                                                             date,
+                                                                             self.supplierMdlpId)
+            if itemsFromDocument:
+                items = []
+                for itemFromDocument in itemsFromDocument:
+                    item = self.modelItems.getEmptyRecord()
+                    item.setValue('sgtin',           itemFromDocument.sgtin)
+                    item.setValue('nomenclature_id', findByIdentification('rbNomenclature', 'urn:gtin', itemFromDocument.sgtin[:14], raiseIfNonFound=False))
+                    item.setValue('batch',           itemFromDocument.batch)
+                    item.setValue('shelfTime',       itemFromDocument.expirationDate)
+                    item.setValue('qnt',             1)
+                    items.append(item)
+                self.mdlpDocumentIds = mdlpDocumentIds
+                self.modelItems.setItems(items)
+                self.lblSummaryInfo.setText(self.modelItems.getSummaryInfo())
+                # после этого self.mdlpStage нужно бы перечитать?
+        except Exception as e:
+            messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                              e.message,
+                              QtGui.QMessageBox.Ok)
+            messageBox.exec_()
 
+    @pyqtSignature('')
+    def on_actSendDocument531_triggered(self):
+        self.save()
+        docNum = unicode(self.edtNumber.text())
+        docDate = self.edtDate.date()
+        sgtins = self.modelItems.getSgtins()
+        with CLogger(self, u'Обмен с МДЛП') as logger:
+            QtGui.qApp.call(self,
+                            iiwdProcess,
+                            (logger,
+                             self._id,
+                             self.getConnection(),
+                             self.supplierMdlpId,
+                             docNum,
+                             docDate,
+                             sgtins
+                             )
+                            )
+        # после этого self.mdlpStage нужно бы перечитать?
+
+    @pyqtSignature('')
+    def on_actSendDocument431_triggered(self):
+        self.save()
+        docNum = unicode(self.edtNumber.text())
+        docDate = self.edtDate.date()
+        sgtins = self.modelItems.getSgtins()
+        if self.mdlpMode == self.mmMove:
+            with CLogger(self, u'Обмен с МДЛП') as logger:
+                QtGui.qApp.call(self,
+                                iimProcess,
+                                (logger,
+                                 self._id,
+                                 self.getConnection(),
+                                 self.supplierMdlpId,
+                                 self.receiverMdlpId,
+                                 docNum,
+                                 docDate,
+                                 sgtins
+                                 )
+                                )
+
+    # после этого self.mdlpStage нужно бы перечитать?
+
+    @pyqtSignature('')
+    def on_btnPrepareDispRequestToRegistrar_clicked(self):
+        number = unicode(self.edtNumber.text())
+        if not self.edtDate.date():
+            now = QDateTime.currentDateTime()
+            self.edtDate.setDate(now.date())
+            self.edtTime.setTime(now.time())
+        date = QDateTime(self.edtDate.date(), self.edtTime.time())
+        dlg = CDisposalOrderEditDialog(self)
+        dlg.setAttrs(number, date)
+        self._blockSgtinReceiving = True
+        try:
+            toAddSgtins = dlg.exec_()
+        finally:
+            self._blockSgtinReceiving = False
+        if toAddSgtins:
+            sgtins = dlg.getSgtins()
+            for sgtin in sgtins:
+                self.onSgtinReceived(sgtin)
+
+    @pyqtSignature('bool')
+    def on_chkOrgStructureQuarantineZone_toggled(self, checked):
+        self.cmbReceiver.setFilter(u'isQuarantineStorage=%d' % int(checked))
+        if checked:
+            orgIdList = self.cmbReceiver.getItemIdList()
+            if len(orgIdList) == 1 or len(orgIdList) > 2:
+                self.cmbReceiver.setCurrentIndex(0)
+            elif len(orgIdList) == 2:
+                self.cmbReceiver.setValue(orgIdList[0])
+        else:
+            self.cmbReceiver.setCurrentIndex(0)
+        self.cmbReceiverPerson.setOrgStructureId(self.cmbReceiver.value())
 
 
 class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
@@ -1025,22 +1136,41 @@ class CItemsModel(CNomenclatureItemsBaseModel, CSummaryInfoModelMixin):
         return None
 
 
-    def addSgtin(self, sgtinObject):
+    def findInsertRowWithNomenclature(self, nomenclatureId):
+        items = self.items()
+        for row in reversed(xrange(len(items))):
+            item = items[row]
+            if ( forceRef(item.value('nomenclature_id')) == nomenclatureId ):
+                return row+1
+        return len(items)
+
+
+    def addSgtinObject(self, sgtinObject):
         gtin = sgtinObject.sgtin[:14]
         nomenclatureId = findByIdentification('rbNomenclature', 'urn:gtin', gtin, raiseIfNonFound=False)
-        result = self.findRowWithNomenclatureAndWithoutSgtin(nomenclatureId)
-        if result is not None:
-            self.setValue(result, 'sgtin', sgtinObject.sgtin)
+        row = self.findRowWithNomenclatureAndWithoutSgtin(nomenclatureId)
+        if row is not None:
+            qnt = forceDouble(self.value(row, 'qnt'))
+            if abs(qnt-1)>0.001:
+                self.setValue(row, 'qnt', qnt-1)
+                row = None
+                item = self.getEmptyRecord()
+            else:
+                item = self.items()[row]
         else:
-            result = len(self.items())
             item = self.getEmptyRecord()
-            item.setValue('sgtin',           sgtinObject.sgtin)
-            item.setValue('nomenclature_id', nomenclatureId)
-            item.setValue('batch',           sgtinObject.batch)
-            item.setValue('shelfTime',       sgtinObject.expirationDate)
-            item.setValue('qnt',             1)
-            self.addRecord(item) # insert after last row with same nomenclature_id?
-        return result
+
+        item.setValue('sgtin',           sgtinObject.sgtin)
+        item.setValue('nomenclature_id', nomenclatureId)
+        item.setValue('batch',           sgtinObject.batch)
+        item.setValue('shelfTime',       sgtinObject.expirationDate)
+        item.setValue('qnt',             1)
+        if row is None:
+            row = self.findInsertRowWithNomenclature(nomenclatureId)
+            self.insertRecord(row, item)
+        else:
+            self.emitRowChanged(row)
+        return row
 
 
     def getSgtins(self):

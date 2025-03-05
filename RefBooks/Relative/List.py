@@ -57,6 +57,7 @@ class CRBRelativeEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
 
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
 
 
     def checkDataEntered(self):

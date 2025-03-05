@@ -23,6 +23,33 @@
    <property name="spacing">
     <number>4</number>
    </property>
+   <item row="5" column="1">
+    <widget class="QCheckBox" name="chkEditable">
+     <property name="text">
+      <string>&amp;Разрешать изменение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLineEdit" name="edtName">
+     <property name="maxLength">
+      <number>64</number>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>103</width>
+       <height>16</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="1" column="0">
     <widget class="QLabel" name="lblName">
      <property name="sizePolicy">
@@ -39,44 +66,10 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
-    <widget class="QCheckBox" name="chkEditable">
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="chkIsUnique">
      <property name="text">
-      <string>&amp;Разрешать изменение</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="QLineEdit" name="edtName">
-     <property name="maxLength">
-      <number>64</number>
-     </property>
-    </widget>
-   </item>
-   <item row="8" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>103</width>
-       <height>16</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="edtCode">
-     <property name="maxLength">
-      <number>64</number>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0" colspan="2">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+      <string>Требует ввод уникального значения</string>
      </property>
     </widget>
    </item>
@@ -96,17 +89,17 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="1">
-    <widget class="QCheckBox" name="chkIsUnique">
-     <property name="text">
-      <string>Требует ввод уникального значения</string>
+   <item row="10" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
-   <item row="6" column="1">
-    <widget class="QCheckBox" name="chkShowInClientInfo">
-     <property name="text">
-      <string>Отображать в информации о пациенте</string>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtCode">
+     <property name="maxLength">
+      <number>64</number>
      </property>
     </widget>
    </item>
@@ -117,6 +110,13 @@
      </property>
      <property name="buddy">
       <cstring>edtUrn</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="chkShowInClientInfo">
+     <property name="text">
+      <string>Отображать в информации о пациенте</string>
      </property>
     </widget>
    </item>
@@ -137,13 +137,6 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="1">
-    <widget class="QLineEdit" name="edtVersion">
-     <property name="maxLength">
-      <number>4</number>
-     </property>
-    </widget>
-   </item>
    <item row="4" column="0">
     <widget class="QLabel" name="lblDomain">
      <property name="text">
@@ -154,10 +147,24 @@
      </property>
     </widget>
    </item>
+   <item row="3" column="1">
+    <widget class="QLineEdit" name="edtVersion">
+     <property name="maxLength">
+      <number>4</number>
+     </property>
+    </widget>
+   </item>
    <item row="4" column="1">
     <widget class="QLineEdit" name="edtDomain">
      <property name="maxLength">
       <number>255</number>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="chkDeletable">
+     <property name="text">
+      <string>&amp;Разрешать удаление</string>
      </property>
     </widget>
    </item>

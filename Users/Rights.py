@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -45,6 +45,8 @@ urAccessTreatmentScheme = 'wAccessTreatmentScheme'     # имеет доступ
 urAccessTreatmentSchedule = 'wAccessTreatmentSchedule' # имеет доступ к Графику циклов
 urAccessTreatmentControl = 'wAccessTreatmentControl'   # имеет доступ к Управлению циклами
 urAccessTreatmentAppointment = 'wAccessTreatmentAppointment' # право назначать мероприятия по циклам
+urAccessCentralizedAccounting = 'wCentralizedAccounting'# имеет доступ доступ к "Централизованному учету"
+urAccessEditCentralizedAccounting = 'wEditCentralizedAccounting'# право редактировать назначения "Централизованный учет"
 urAccessDispService    = 'wDispService'      # имеет доступ к сервису диспансеризации
 urAccessClientAttachFederalService= 'clientAttachFederalService'  # доступ к меню Прикрепление on-line
 urDemography = 'wDemography'  # Работа: доступ к сервису демографии
@@ -141,6 +143,8 @@ urEditChkOnlyExistsNomenclature = 'editChkOnlyExistsNomenclature' #Право и
 urStockPurchaseContract = 'stockPurchaseContract' #имеет доступ к вкладке Складской учет -> Контракты на закупку
 urNomenclatureExpenseLaterDate = 'nomenclatureExpenseLaterDate' #имеет право списывать ЛСиИМН пациенту на будущие даты
 urNoRestrictRetrospectiveNEClient = 'noRestrictRetrospectiveNEClient' #Право без ограничений ретроспективно списывать ЛСиИМН на пациента
+urStockRequirementsToMe = 'stockRequirementsToMe' # Право на доступ к "Складской учет: Требования ко мне"
+urEditStockRequirementsToMe = 'editStockRequirementsToMe' # Право редактировать требования "Складской учёт: Требования ко мне"
 
 # Сервис
 urAccessAttachClientsForArea = 'attachClientsForArea'  #имеет  доступ к "Выполнить прикрепление пациентов к участкам"
@@ -162,6 +166,8 @@ urPlanningHospitalBedProfileGen = 'planningHospitalBedProfileGen' #Сервис:
 urAccesslogicCntlOMSAccounts = 'logicCntlOMSAccounts' #Сервис: доступ к проверке счетов из меню логического контроля
 urAdminServiceTMK = 'adminServiceTMK' #Сервис: доступ к меню ТМК-Администрирование
 urServiceTMKdirectionList = 'serviceTMKdirectionList' #Сервис: доступ к меню ТМК-список направлений
+urPersonSubstitution = 'wPersonSubstitution' # Доступ к сервису замещения сотрудников
+urCanChangePersonSubstitution = 'canChangePersonSubstitution' # Право редактировать данные о замещающих сотрудниках
 
 # Расчет
 urAccessAccountInfo    = 'acc'                # имеет доступ к учётной информации (договора и счета)
@@ -173,6 +179,11 @@ urAccessAccountingCash = 'accAccountCash'     # Расчеты: доступ к 
 urAccessAccountingTargeted = 'accAccountTargeted' # Расчеты: доступ к счетам с типом финансирования "целевой"
 
 urDeleteAccount        = 'accDeleteAccount'    # Расчёты: имеет право удалять счета
+urDeleteAccountBudget = 'accDeleteAccountBudget' # Расчеты: имеет право удалять счета с типом финансирования "бюджет"
+urDeleteAccountCMI = 'accDeleteAccountCMI' # Расчеты: имеет право удалять счета с типом финансирования "ОМС"
+urDeleteAccountVMI = 'accDeleteAccountVMI' # Расчеты: имеет право удалять счета с типом финансирования "ДМС"
+urDeleteAccountCash = 'accDeleteAccountCash' # Расчеты: имеет право удалять счета с типом финансирования "Платно"
+urDeleteAccountTargeted = 'accDeleteAccountTargeted' # Расчеты: имеет право удалять счета с типом финансирования "Целевой"
 urDeleteAccountsAtOnce = 'accDeleteAccountsAtOnce'  #  Расчеты: имеет право удалять все выделенные реестры без предупреждений
 urDeleteAccountItem    = 'accDeleteAccountItem'  # Расчёты: имеет право удалять позиции счёта
 urDeleteRKEY    = 'accDeleteRKEY'  # Расчёты: имеет право удалять загруженные RKEY
@@ -330,6 +341,7 @@ urAccessContingent             = 'aContingent'             # имеет прав
 urAccessWorkload               = 'aWorkload'               # имеет право на доступ к "Анализ: Выработка"
 urAccessStationary             = 'aStationary'             # имеет право на доступ к "Анализ: Стационар"
 urAccessAccountingAnalysis     = 'aAccountingAnalysis'     # имеет право на доступ к "Анализ: Счета"
+urAccessEconomicAnalysis      = 'aAnalysisEconomicReports' # имеет право на доступ к "Анализ: Экономический анализ"
 urAccessEmergencyCall          = 'aEmergencyCall'          # имеет право на доступ к "Анализ: Скорая помощь"
 urAccessReportImunoprophylaxis = 'aReportImunoprophylaxis' # имеет право на доступ к "Анализ: Иммунопрофилактика"
 urAccessReportLaboratory       = 'aReportLaboratory'       # имеет право на доступ к "Анализ: Лаборатория"
@@ -368,6 +380,7 @@ urAccessF030planner       = 'f030planner'        # показывается пл
 urAccessF043planner       = 'f043planner'        # показывается планировщик Ф.043
 urAccessF110planner       = 'f110planner'        # показывается планировщик Ф.110
 urAccessF072planner       = 'f072planner'        # показывается планировщик Ф.072
+urAccessF090planner       = 'f090planner'        # показывается планировщик Ф.090
 urLoadActionTemplate      = 'loadActionTemplate' # возможно загружать шаблоны действий в F25 etc.
 urSaveActionTemplate      = 'saveActionTemplate' # возможно создавать/изменять шаблоны действий в F25 etc.
 urCopyPrevAction          = 'copyPrevAction'     # Копировать действия из предыдущих событий в F25 etc.
@@ -440,6 +453,7 @@ urCanRenameOwnAttachedFile = 'canRenameOwnAttachedFile' # Право переи�
 urCanRenameAnyAttachedFile = 'canRenameAnyAttachedFile' # Право переименовывать любые прикреплённые файлы
 urCanDeleteOwnAttachedFile = 'canDeleteOwnAttachedFile' # Право удалять свои прикреплённые файлы
 urCanDeleteAnyAttachedFile = 'canDeleteAnyAttachedFile' # Право удалять любые прикреплённые файлы
+urCanDeleteSuccessExpFile   = 'canDeleteSuccessExpFile'   # Право удалять успешно выгруженные файлы
 urCanCreateNewActionTypeGroup = 'canCreateNewActionTypeGroup' # Право создавать шаблоны назначения действий
 urCanEditForeignActionTypeGroup = 'canEditForeignActionTypeGroup' # Право редактировать шаблоны назначения действий, созданные другими пользователями
 urCanDeleteForeignActionTypeGroup = 'canDeleteForeignActionTypeGroup' # Право удалять в справочнике Шаблоны назначения действий записи созданные другими пользователями
@@ -479,6 +493,7 @@ urEnableTabDeposit = 'regEditClientDeposit'  # Имеет доступ к вкл
 urEnableTabConsent = 'regEditClientConsent'  # Имеет доступ к вкладке "Согласия"
 urEnableTabClientMonitoring = 'regEditClientMonitoring'  # Имеет доступ к редактированию вкладки "Мониторинг"
 urEnableTabClientEpidemic = 'regEditClientEpidemic'  # Имеет доступ к редактированию вкладки "ЭпидНаблюдение"
+urRegEditClientHospitalization = 'regEditClientHospitalization'  # Имеет доступ к вкладке "Сведения о госпитализациях"
 
 urRegEditClientAttachEndDateOwnAreaOnly = 'regEditClientAttachEndDateOwnAreaOnly'  # Регистрационная карта: Имеет право заполнять дату и причину открепления только для своего участка
 urRegReadClientVisibleContingentKindOwnAreaOnly = 'regReadClientVisibleContingentKindOwnAreaOnly'  # Регистрационная карта: Имеет доступ к чтению вкладки "Контингент" только пациентов своего участка

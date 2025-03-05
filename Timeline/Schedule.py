@@ -389,8 +389,9 @@ def getScheduleItemIdListForClient(clientId, specialityId, date=None, appointmen
             tableSchedule['deleted'].eq(0),
             tablePerson['deleted'].eq(0),
             tableScheduleItem['client_id'].eq(clientId),
-            tableSchedule['date'].ge(date if date else QDate.currentDate()),
+            # tableSchedule['date'].ge(date if date else QDate.currentDate()),
            ]
+    cond.append(' Schedule.date >= ADDDATE(current_date, 1) ')
     cond.append(tableSchedule['appointmentType'].eq(appointmentType))
     OKSOCode = forceString(db.translate('rbSpeciality', 'id', specialityId, 'OKSOCode'))
     OKSOCodeList = ('040122', '040819', '040110')
@@ -400,6 +401,42 @@ def getScheduleItemIdListForClient(clientId, specialityId, date=None, appointmen
         cond.append(tablePerson['speciality_id'].eq(specialityId))
     return db.getIdList(tableQuery, cols, cond)
 
+
+def getScheduleItemIdFinance(scheduleItem):
+    db = QtGui.qApp.db
+    tableRBAppointmentPurpose = db.table('rbAppointmentPurpose')
+    tableRBFinance = db.table('rbFinance')
+    tableQuery = tableRBAppointmentPurpose
+    tableQuery = tableQuery.leftJoin(tableRBFinance, tableRBAppointmentPurpose['finance_id'].eq(tableRBFinance['id']))
+    cols = [tableRBFinance['code']]
+    cond = [tableRBAppointmentPurpose['id'].eq(scheduleItem.appointmentPurposeId)]
+    return db.getRecordEx(tableQuery, cols, cond)
+
+
+def getScheduleItemIdListForClient_OMS(scheduleItemIdList):
+    db = QtGui.qApp.db
+    tableScheduleItem = db.table('Schedule_Item')
+    tableRBAppointmentPurpose = db.table('rbAppointmentPurpose')
+    tableRBFinance = db.table('rbFinance')
+    tableQuery = tableScheduleItem
+    tableQuery = tableQuery.leftJoin(tableRBAppointmentPurpose, tableRBAppointmentPurpose['id'].eq(tableScheduleItem['appointmentPurpose_id']))
+    tableQuery = tableQuery.leftJoin(tableRBFinance, tableRBAppointmentPurpose['finance_id'].eq(tableRBFinance['id']))
+    cond = [tableScheduleItem['id'].inlist(scheduleItemIdList), tableScheduleItem['deleted'].eq(0), ' (rbFinance.id IS NULL OR rbFinance.code = 2) ']
+    return db.getRecordEx(tableQuery, '1', cond)
+
+
+def getExceptionSpecialty(specialty_id):
+    db = QtGui.qApp.db
+    tableRBSpeciality = db.table('rbSpeciality')
+    tableRBSpeciality_Identification = db.table('rbSpeciality_Identification')
+    tableQuery = tableRBSpeciality
+    tableQuery = tableQuery.leftJoin(tableRBSpeciality_Identification, "rbSpeciality.id = rbSpeciality_Identification.master_id AND rbSpeciality_Identification.system_id = (SELECT id FROM rbAccountingSystem `as` WHERE `as`.urn='urn:oid:1.2.643.5.1.13.13.11.1066') AND rbSpeciality_Identification.deleted=0 ")
+    cond = [tableRBSpeciality['id'].eq(specialty_id), ' rbSpeciality_Identification.value in (SELECT code FROM GetPositionList  WHERE code_last=11) OR (rbSpeciality.isHigh=0 and regionalCode NOT IN (95, 206, 208))']
+    record = db.getRecordEx(tableQuery, '1', cond)
+    if record:
+        return forceRef(record.value('1'))
+    else:
+        return 0
 
 # #####################################################
 

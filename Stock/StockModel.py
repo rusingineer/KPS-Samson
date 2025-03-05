@@ -35,6 +35,7 @@ class CStockMotionType:
     internalConsumption = 8
     supplierRefund = 9
     incomingInvoice = 10
+    residualQuantityWriteDown = 11
 
 
 class CStockMotion(CDocumentModel):

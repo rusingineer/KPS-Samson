@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/Stock/NomenclatureExpense.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\NomenclatureExpense.ui'
 #
-# Created: Wed May  7 18:15:59 2014
-#      by: PyQt4 UI code generator 4.10.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -162,17 +161,7 @@ class Ui_NomenclatureExpenseDialog(object):
         self.lblSupplierPerson.setText(_translate("NomenclatureExpenseDialog", "Ответственный", None))
         self.lblNote.setText(_translate("NomenclatureExpenseDialog", "Примечания", None))
 
-from library.InDocTable import CInDocTableView
+from Orgs.OrgStructComboBoxes import CStorageComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
-from Orgs.OrgStructComboBoxes import CStorageComboBox
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    NomenclatureExpenseDialog = QtGui.QDialog()
-    ui = Ui_NomenclatureExpenseDialog()
-    ui.setupUi(NomenclatureExpenseDialog)
-    NomenclatureExpenseDialog.show()
-    sys.exit(app.exec_())
-
+from library.InDocTable import CInDocTableView

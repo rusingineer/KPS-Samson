@@ -63,6 +63,7 @@ MainRows = [
     ( u'дисфункция яичников', u'5.7', u'E28'),
     ( u'дисфункция яичек', u'5.8', u'E29'),
     ( u'ожирение', u'5.10', u'E66'),
+    ( u'из них, крайняя степень ожирения', u'5.10.1', u'E66.2'),
     ( u'фенилкетонурия', u'5.11', u'E70.0'),
     ( u'нарушения обмена галактозы (галактоземия)', u'5.12', u'E74.2'),
     ( u'болезнь Гоше', u'5.13', u'E75.2'),
@@ -112,7 +113,7 @@ MainRows = [
     ( u'слепота и пониженное зрение', u'8.12', u'H54'),
     ( u'из них: слепота обоих глаз', u'8.12.1', u'H54.0'),
     ( u'болезни уха и сосцевидного отростка', u'9.0', u'H60-H95'),
-    ( u'из них: болезни наружного уха', u'9.1', u'H60-H62'),
+    ( u'из них: болезни наружного уха', u'9.1', u'H60-H61'),
     ( u'болезни среднего уха и сосцевидного отростка', u'9.2', u'H65-H66, H68-H74'),
     ( u'из них: острый средний отит', u'9.2.1', u'H65.0, H65.1, H66.0'),
     ( u'хронический средний отит', u'9.2.2', u'H65.2-4, H66.1-3'),
@@ -202,7 +203,7 @@ MainRows = [
     ( u'из них: артропатии', u'14.1', u'M00-M25'),
     ( u'из них: пневмококковый артрит и полиартрит', u'14.1.1', u'M00.1'),
     ( u'реактивные артропатии', u'14.1.2', u'M02'),
-    ( u'серопозитивный и серонегативный артриты', u'14.1.3', u'M05, M06'),
+    ( u'ревматоидный артрит (серопозитивный и серонегативный)', u'14.1.3', u'M05, M06'),
     ( u'артрозы', u'14.1.5', u'M15-M19'),
     ( u'системные поражения соединительной ткани', u'14.2', u'M30-M35'),
     ( u'из них: системная красная волчанка', u'14.2.1', u'M32'),
@@ -350,7 +351,15 @@ SELECT
         JOIN EventType_Identification AS ETI ON ETI.master_id = EventType.id
         WHERE Event.deleted = 0 AND EventType.deleted = 0 AND ETI.deleted = 0 AND Diagnostic.deleted = 0
         AND ETI.value = 'prof' AND Diagnostic.diagnosis_id = Diagnosis.id
-    ) AS hasProf
+    ) AS hasProf,
+    Client.sex AS sex,
+    Client.deathDate AS isDead,
+    (SELECT D3.MKB
+     FROM Diagnosis AS D3 
+     LEFT JOIN Diagnostic AS D4 ON D4.diagnosis_id = D3.id
+     LEFT JOIN Event AS E2 ON E2.id = D4.event_id
+     LEFT JOIN EventType AS ET2 ON ET2.id = E2.eventType_id
+     WHERE E2.client_id = Client.id AND ET2.code in (15) LIMIT 1) AS deathMKB
 
     FROM Diagnosis
     LEFT JOIN Client ON Client.id = Diagnosis.client_id
@@ -359,7 +368,7 @@ SELECT
     LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
     WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code IN ('7','11','51','52','53','54'))
     AND %s
-    GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNotPrimary, closedEvent, getAdultsDispans, rbDiagnosisType.id
+    GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNotPrimary, closedEvent, getAdultsDispans, rbDiagnosisType.id, Client.id
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -438,8 +447,8 @@ SELECT
     else:
         cond.append(tableClient['sex'].ne(0))
     if ageFrom <= ageTo:
-        cond.append('%s >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
-        cond.append('%s <= SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
+        cond.append('Client.birthDate <= ADDDATE(%s, INTERVAL -%d YEAR)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
+        cond.append('Client.birthDate >= ADDDATE(ADDDATE(%s, INTERVAL -%d YEAR),1)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
     if socStatusTypeId:
         subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
@@ -529,7 +538,14 @@ SELECT
     Diagnosis.MKB AS MKB,
     COUNT(*) AS sickCount,
     rbDiagnosisType.code AS diagnosisType,
-    Diagnosis.client_id
+    Diagnosis.client_id,
+    IF(Client.deathDate is NULL, 0, 1) AS isDead,
+    (SELECT D3.MKB
+     FROM Diagnosis AS D3 
+     LEFT JOIN Diagnostic AS D4 ON D4.diagnosis_id = D3.id
+     LEFT JOIN Event AS E2 ON E2.id = D4.event_id
+     LEFT JOIN EventType AS ET2 ON ET2.id = E2.eventType_id
+     WHERE E2.client_id = Client.id AND ET2.code in (15) LIMIT 1) AS deathMKB
 
     FROM Diagnosis
     LEFT JOIN Client ON Client.id = Diagnosis.client_id
@@ -620,8 +636,8 @@ SELECT
     else:
         cond.append(tableClient['sex'].ne(0))
     if ageFrom <= ageTo:
-        cond.append('%s >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
-        cond.append('%s <= SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
+        cond.append('Client.birthDate <= ADDDATE(%s, INTERVAL -%d YEAR)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
+        cond.append('Client.birthDate >= ADDDATE(ADDDATE(%s, INTERVAL -%d YEAR),1)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
     if socStatusTypeId:
         subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
@@ -705,8 +721,15 @@ def selectObservedData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStr
 SELECT
    Diagnosis.MKB AS MKB,
     COUNT(*) AS sickCount,
-    Diagnosis.client_id
-
+    Diagnosis.client_id,
+    Client.deathDate AS isDead,
+    (SELECT D3.MKB
+     FROM Diagnosis AS D3 
+     LEFT JOIN Diagnostic AS D4 ON D4.diagnosis_id = D3.id
+     LEFT JOIN Event AS E2 ON E2.id = D4.event_id
+     LEFT JOIN EventType AS ET2 ON ET2.id = E2.eventType_id
+     WHERE E2.client_id = Client.id AND ET2.code in (15) LIMIT 1) AS deathMKB
+     
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
@@ -776,8 +799,8 @@ GROUP BY MKB
     else:
         cond.append(tableClient['sex'].ne(0))
     if ageFrom <= ageTo:
-        cond.append('%s >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
-        cond.append('%s <= SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
+        cond.append('Client.birthDate <= ADDDATE(%s, INTERVAL -%d YEAR)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
+        cond.append('Client.birthDate >= ADDDATE(ADDDATE(%s, INTERVAL -%d YEAR),1)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
     if socStatusTypeId:
         subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
@@ -868,7 +891,7 @@ GROUP BY MKB
             WHERE D2.diagnosis_id = Diagnosis.id
             AND D2.dispanser_id IS NOT NULL
             AND  D2.endDate<%s))
-            = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(endDate.addDays(1))))
+            = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(begDate.addDays(1))))
     return db.query(stmt % (stmtAddress,
                             db.joinAnd(cond)))
 
@@ -897,7 +920,7 @@ ORDER BY firstInPeriod DESC"""
     cond = []
     cond.append(tableDiagnosis['deleted'].eq(0))
     cond.append(tableDiagnosis['mod_id'].isNull())
-    cond.append(tableDiagnosis['MKB'].notlike(u'%Z%'))
+    cond.append(tableDiagnosis['MKB'].notlike(u'Z%'))
     cond.append(tableClient['deleted'].eq(0))
     diagnosticQuery = tableDiagnostic
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
@@ -933,8 +956,8 @@ ORDER BY firstInPeriod DESC"""
     if sex:
         cond.append(tableClient['sex'].eq(sex))
     if ageFrom <= ageTo:
-        cond.append('%s >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
-        cond.append('%s <= SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
+        cond.append('Client.birthDate <= ADDDATE(%s, INTERVAL -%d YEAR)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
+        cond.append('Client.birthDate >= ADDDATE(ADDDATE(%s, INTERVAL -%d YEAR),1)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
     if socStatusTypeId:
         subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
@@ -1085,8 +1108,8 @@ GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
     if sex:
         cond.append(tableClient['sex'].eq(sex))
     if ageFrom <= ageTo:
-        cond.append('%s >= ADDDATE(Client.birthDate, INTERVAL %d YEAR)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
-        cond.append('%s <= SUBDATE(ADDDATE(Client.birthDate, INTERVAL %d YEAR),1)'%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
+        cond.append('Client.birthDate <= ADDDATE(%s, INTERVAL -%d YEAR)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageFrom))
+        cond.append('Client.birthDate >= ADDDATE(ADDDATE(%s, INTERVAL -%d YEAR),1)' % (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)), ageTo+1))
     if socStatusTypeId:
         subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
@@ -1172,39 +1195,9 @@ GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
             FROM Diagnostic AS D2
             WHERE D2.diagnosis_id = Diagnosis.id
               AND D2.dispanser_id IS NOT NULL
-              AND D2.endDate < %s)) = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31))))
+              AND D2.endDate < %s)) = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 1, 1))))
     return db.query(stmt % (stmtAddress,
                             db.joinAnd(cond)))
-
-
-def getClientCountFor3004(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params):
-    clientsCount = 0
-    clientsRemovingObserved = 0
-    clientsDeadCount = 0
-    clientsDeadCountI00_99 = 0
-
-    query = selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params)
-    while query.next():
-        record = query.record()
-        sickCount = forceInt(record.value('sickCount'))
-        clientsCount += sickCount
-        clientsRemovingObserved += sickCount
-
-    isDead = params.get('dead', False)
-    params['dead'] = True
-    query = selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params)
-    while query.next():
-        record = query.record()
-        sickCount = forceInt(record.value('sickCount'))
-        MKB = forceString(record.value('MKB'))
-        diagnosisType = forceString(record.value('diagnosisType'))
-
-        clientsDeadCount += sickCount
-        if MKB.startswith('I') and diagnosisType == '4':
-            clientsDeadCountI00_99 += sickCount
-
-    params['dead'] = isDead
-    return (clientsCount, clientsRemovingObserved, clientsDeadCount, clientsDeadCountI00_99)
 
 
 class CStatReportF12Adults_2022(CReport):
@@ -1314,7 +1307,9 @@ class CStatReportF12Adults_2022(CReport):
         else:
             reportMainData = [ [0]*rowSize for row in xrange(len(MainRows)) ]
             reportCompData = [ [0]*rowSizeComp for row in xrange(len(CompRows)) ]
-            
+        
+        registered3004 = [0, 0, 0, 0]
+        registered3006 = [0, 0, 0, 0] 
         query = selectData(begDate, endDate, eventPurposeId, eventTypeList, orgStructureList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params)
         while query.next():
             record = query.record()
@@ -1333,16 +1328,35 @@ class CStatReportF12Adults_2022(CReport):
             getProfilactic = forceBool(record.value('getProfilactic'))
             getAdultsDispans = forceBool(record.value('getAdultsDispans'))
             isNotPrimary = forceBool(record.value('isNotPrimary'))
+            #isDead = forceBool(record.value('isDead'))
+            #deathMKB = normalizeMKB(forceString(record.value('deathMKB')))
+            sex = forceInt(record.value('sex'))
+            
             if (eventId not in eventIdList) and (diseaseCharacter == 1 or diseaseCharacter == 2):
                 eventTypeDDSum += 1
                 eventIdList.append(eventId)
+            
+            if sex == 1 and MKB.startswith('E66'):
+                registered3006[0] += sickCount
+                if MKB.startswith('E66.2'):
+                    registered3006[2] += sickCount
+                    
             cols = [0]
             if getObserved:
                 cols.append(1)
-            if hasMedOsm or hasProf:
                 cols.append(7)
+                if MKB.startswith('I'):
+                    registered3004[0] = registered3004[0] + sickCount
+            elif hasMedOsm or hasProf:
+                cols.append(7)
+                if MKB.startswith('I'):
+                    registered3004[0] = registered3004[0] + sickCount
             if diseaseCharacter == u'1': # острое
                 cols.append(2)
+                if sex == 1 and MKB.startswith('E66'):
+                    registered3006[1] += sickCount
+                    if MKB.startswith('E66.2'):
+                        registered3006[3] += sickCount
                 if getObserved:
                     cols.append(3)
                 if getProfilactic and not getAdultsDispans:
@@ -1351,6 +1365,10 @@ class CStatReportF12Adults_2022(CReport):
                     cols.append(5)
             elif firstInPeriod:
                 cols.append(2)
+                if sex == 1 and MKB.startswith('E66'):
+                    registered3006[1] += sickCount
+                    if MKB.startswith('E66.2'):
+                        registered3006[3] += sickCount
                 if getObserved:
                     cols.append(3)
                 if getProfilactic and not getAdultsDispans:
@@ -1385,32 +1403,50 @@ class CStatReportF12Adults_2022(CReport):
                         if closedEvent:
                             reportLine[2] += sickCount
         
+        sex = params.get('sex', 0)
         queryRemove = selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeList, orgStructureList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params)
         while queryRemove.next():
             record = queryRemove.record()
             MKB = normalizeMKB(forceString(record.value('MKB')))
             sickCount = forceInt(record.value('sickCount'))
             clientId = forceRef(record.value('client_id'))
+            isDead = forceBool(record.value('isDead'))
+            deathMKB = normalizeMKB(forceString(record.value('deathMKB')))
             
             cols = [6]
-                
+            if MKB.startswith('I'):
+                registered3004[1] = registered3004[1] + sickCount
+                if isDead:
+                    registered3004[2] = registered3004[2] + sickCount
+                    if deathMKB.startswith('I'):
+                        registered3004[3] = registered3004[3] + sickCount
             if detailMKB:
                 reportLine = reportMainData.setdefault(MKB, [0]*rowSize)
                 for col in cols:
                     reportLine[col] += sickCount
+                    reportLine[7] -= sickCount
+                    if MKB.startswith('I'):
+                        registered3004[0] = registered3004[0] - sickCount
             else:
                 for row in mapMainRows.get(MKB, []):
                     reportLine = reportMainData[row]
                     for col in cols:
                         reportLine[col] += sickCount
+                        reportLine[7] -= sickCount
+                        if MKB.startswith('I'):
+                            registered3004[0] = registered3004[0] - sickCount
         
         queryObserved = selectObservedData(begDate, endDate, eventPurposeId, eventTypeList, orgStructureList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params)
         while queryObserved.next():
             record    = queryObserved.record()
             MKB       = normalizeMKB(forceString(record.value('MKB')))
             sickCount = forceInt(record.value('sickCount'))
+            #isDead = forceBool(record.value('isDead'))
+            #deathMKB = normalizeMKB(forceString(record.value('deathMKB')))
             
-            cols = [7]
+            cols = [1, 7]
+            if MKB.startswith('I'):
+                registered3004[0] = registered3004[0] + sickCount
             if detailMKB:
                 reportLine = reportMainData.setdefault(MKB, [0]*rowSize)
                 for col in cols:
@@ -1479,17 +1515,17 @@ class CStatReportF12Adults_2022(CReport):
         cursor.insertBlock()
 
         tableColumns = [
-            ('15%', [u'Наименование классов и отдельных болезней',        u'',                                                                     u'',                                                                    u'1'], CReportBase.AlignLeft),
-            ('5%',  [u'№ строки',                                         u'',                                                                     u'',                                                                    u'2'], CReportBase.AlignLeft),
-            ('10%', [u'Код по МКБ-10 пересмотра',                         u'',                                                                     u'',                                                                    u'3'], CReportBase.AlignLeft),
-            ('10%', [u'Зарегистрировано пациентов с данным заболеванием', u'Всего',                                                                u'',                                                                    u'4'], CReportBase.AlignRight),
-            ('10%', [u'',                                                 u'из них(из гр. 4):',                                                    u'взято под диспансерное наблюдение',                                   u'5'], CReportBase.AlignRight),
-            ('10%', [u'',                                                 u'',                                                                     u'с впервые в жизни установленным диагнозом',                           u'6'], CReportBase.AlignRight),
-            ('10%', [u'',                                                 u'из заболеваний с впервые в жизни установленным диагнозом (из гр. 6):', u'взято под диспансерное наблюдение',                                   u'7'], CReportBase.AlignRight),
-            ('10%', [u'',                                                 u'',                                                                     u'выявлено при профосмотре',                                            u'8'], CReportBase.AlignRight),
-            ('10%', [u'',                                                 u'',                                                                     u'выявлено при диспансеризации определенных групп взрослого населения', u'9'], CReportBase.AlignRight),
-            ('10%', [u'Снято с диспансерного наблюдения',                 u'',                                                                     u'',                                                                    u'10'], CReportBase.AlignRight),
-            ('10%', [u'Состоит на д.н. на конец периода',                 u'',                                                                     u'',                                                                    u'11'], CReportBase.AlignRight)
+            ('15%', [u'Наименование классов и отдельных болезней', u'', u'', u'1'], CReportBase.AlignLeft),
+            ('5%', [u'№ строки', u'', u'', u'2'], CReportBase.AlignLeft),
+            ('10%', [u'Код по МКБ-10 пересмотра', u'', u'', u'3'], CReportBase.AlignLeft),
+            ('10%', [u'Зарегистрировано пациентов с данным заболеванием', u'Всего, ед', u'', u'4'], CReportBase.AlignRight),
+            ('10%', [u'', u'из них(из гр. 4):', u'взято под диспансерное наблюдение, чел', u'5'], CReportBase.AlignRight),
+            ('10%', [u'', u'', u'с впервые в жизни установленным диагнозом', u'6'], CReportBase.AlignRight),
+            ('10%', [u'', u'из заболеваний с впервые в жизни установленным диагнозом (из гр. 6):', u'взято под диспансерное наблюдение, чел', u'7'], CReportBase.AlignRight),
+            ('10%', [u'', u'', u'выявлено при профосмотре', u'8'], CReportBase.AlignRight),
+            ('10%', [u'', u'', u'выявлено при диспансеризации определенных групп взрослого населения', u'9'], CReportBase.AlignRight),
+            ('10%', [u'Снято с диспансерного наблюдения, чел', u'', u'', u'10'], CReportBase.AlignRight),
+            ('10%', [u'Состоит на д.н. на конец периода, чел', u'', u'', u'11'], CReportBase.AlignRight)
             ]
 
         table = createTable(cursor, tableColumns)
@@ -1535,8 +1571,26 @@ class CStatReportF12Adults_2022(CReport):
         cursor.insertBlock()
         cursor.insertText(u'(3003) Из числа пациентов, состоящих на конец отчетного года под диспансерным наблюдением (гр. 11): состоит под диспансерным наблюдением лиц с хроническим вирусным гепатитом (B18) и циррозом печени (K74.6) одновременно %d чел.; с хроническим вирусным гепатитом (B18) и гепатоцеллюлярным раком (C22.0) одновременно %d чел.'%(consistsByEnd[1], consistsByEnd[2]))
         cursor.insertBlock()
-        cursor.insertText(u'Число лиц с болезнями системы кровообращения,состоявших под диспансерном наблюдением (стр.10.0 гр.5) %d из них снято %d из них умерло (из графы 2) %d, из из них умерло от болезней системы кровообращения (из графы 3) %d' %
-            getClientCountFor3004(begDate, endDate, eventPurposeId, eventTypeList, orgStructureList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params))
+        cursor.insertText(u'(3004) Число лиц с болезнями системы кровообращения,состоявших под диспансерном наблюдением (стр.10.0 гр.5) {} из них снято {} из них умерло (из графы 2) {}, из из них умерло от болезней системы кровообращения (из графы 3) {}'.format(registered3004[0], registered3004[1], registered3004[2], registered3004[3]))
+        cursor.insertBlock()
+        cursor.insertText(u'(3005) Число взрослых пациентов, находившихся в отчетном году под диспансерным наблюдением по поводу '\
+                          u'перенесенного острого нарушения мозгового кровообращения, инфаркта миокарда, а также которым были '\
+                          u'выполнены аортокоронарное шунтирование, ангиопластика коронарных артерий со стентированием и '\
+                          u'катетерная абляция по поводу сердечно-сосудистых заболеваний, за исключением лиц, имеющих право на '\
+                          u'получение социальной услуги в виде обеспечения лекарственными препаратами в соответствии '\
+                          u'с Федеральным законом "О государственной социальной помощи" от 17 июля 1999 г. N 178 1 '\
+                          u'_______________, из них число взрослых пациентов, находившихся в отчетном году под диспансерным '\
+                          u'наблюдением по поводу перенесенного острого нарушения мозгового кровообращения, инфаркта '\
+                          u'миокарда, а также которым были выполнены аортокоронарное шунтирование, ангиопластика коронарных '\
+                          u'артерий со стентированием и катетерная абляция по поводу сердечно-сосудистых заболеваний и '\
+                          u'бесплатно получавших необходимые лекарственные препараты в амбулаторных условиях, за исключением '\
+                          u'лиц, имеющих право на социальную помощь 2 _____________________.')
+        cursor.insertBlock() 
+        cursor.insertText(
+            u'(3006) Число зарегистрированных заболеваний ожирением (из гр. 4 стр. 5.10) у мужчин 1 - {}, '\
+            u'из них с впервые в жизни установленным диагнозом (из гр. 1) 2 - {}, '\
+            u'крайняя степень ожирения (из гр. 4 стр. 5.10.1) у мужчин 3 - {}, '\
+            u'из них с впервые в жизни установленным диагнозом (из гр. 3) 4 - {}'.format(registered3006[0], registered3006[1], registered3006[2], registered3006[3]))
         cursor.insertBlock()
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.setCharFormat(CReportBase.ReportTitle)

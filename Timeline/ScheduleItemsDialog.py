@@ -15,6 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QAbstractTableModel, QDate, QDateTime, QTime, QVariant, pyqtSignature, SIGNAL
 
+from Registry.ResourcesDock import isAppointmentEnabledForClient, isAppointmentEnabledForDate
 from library.DialogBase               import CDialogBase
 from library.RecordLock               import CRecordLockMixin
 from library.TableModel               import CTableModel, CDesignationCol, CNameCol, CRefBookCol, CTextCol, CTimeCol
@@ -22,8 +23,9 @@ from library.TimeItemDelegate         import CTimeItemDelegate
 from library.Utils import forceBool, forceRef, forceString, forceTime, toVariant, forceInt
 
 from Registry.Utils                   import getClientBanner, getClientMiniInfo
-from Timeline.Schedule                import freeScheduleItemInt
-from Users.Rights                     import urAccessEditTimeLine
+from Timeline.Schedule import freeScheduleItemInt, getScheduleItemIdListForClient, getScheduleItemIdListForClient_OMS, \
+    getExceptionSpecialty, getScheduleItemIdFinance, CScheduleItem
+from Users.Rights import urAccessEditTimeLine
 
 from Timeline.Ui_ScheduleItemsDialog  import Ui_ScheduleItemsDialog
 from Timeline.Ui_RecordTransferDialog import Ui_RecordTransferDialog
@@ -510,6 +512,47 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
         button = self.buttonBox.button(QtGui.QDialogButtonBox.Ok)
         button.setEnabled(value)
 
+    def queueingEnabled(self, scheduleItemId, date, personId, specialityId, clientId, scheduleItem):
+        appointmentPurposeId = forceRef(scheduleItem.record.value('appointmentPurpose_id'))
+
+        if not isAppointmentEnabledForClient(appointmentPurposeId, personId, date, clientId):
+            QtGui.QMessageBox.warning(self, u'Внимание!', u'Назначение приёма препятствует записи пациента')
+            return False
+
+        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem):
+            QtGui.QMessageBox.warning(self, u'Внимание!',
+                                      u'Запись за горизонт 14 дней разрешена только для повторной записи самому к себе')
+            return False
+
+        scheduleItemIdList = getScheduleItemIdListForClient(clientId, specialityId, date, '1')
+        if scheduleItemIdList:
+            scheduleItemIdList.remove(self.scheduleItem.id)
+        if scheduleItemIdList:
+            scheduleItemIdList_OMS = getScheduleItemIdListForClient_OMS(scheduleItemIdList)
+            exceptionSpecialty = getExceptionSpecialty(specialityId)
+            checkFinance = None
+            if scheduleItemId and appointmentPurposeId:
+                recordFinance = getScheduleItemIdFinance(scheduleItem)
+                if recordFinance:
+                    checkFinance = forceString(recordFinance.value('code'))
+                else:
+                    checkFinance = None
+            if QtGui.qApp.isReStagingInQueue() or (checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1:
+                messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                               u'Этот пациент уже записан к врачу этой специальности\nВы подтверждаете повторную запись?')
+            else:
+                messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                               u'Этот пациент уже записан к врачу этой специальности')
+            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            if QtGui.qApp.isReStagingInQueue() or (
+                    checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1:
+                messageBox.addButton(u'Ок', QtGui.QMessageBox.YesRole)
+            messageBox.addButton(u'Отмена', QtGui.QMessageBox.NoRole)
+            confirmation = messageBox.exec_()
+            if (confirmation == 1 or not (QtGui.qApp.isReStagingInQueue() or (checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1)) :
+                return False
+        return True
+
 
     def doRecordTransfer(self):
         db = QtGui.qApp.db
@@ -520,16 +563,13 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
         if lockId:
             try:
                 destRecord = db.getRecord('Schedule_Item', '*', destScheduleItemId)
+                scheduleItem = CScheduleItem(destRecord)
                 result = ( bool(destRecord)
                            and not forceBool(destRecord.value('deleted'))
                            and not forceRef(destRecord.value('client_id'))
+                           and self.queueingEnabled(destScheduleItemId, self.calendar.selectedDate(), self.personId, self.specialityId, self.scheduleItem.clientId, scheduleItem)
                          )
                 if not result:
-                    QtGui.QMessageBox.critical(self,
-                        u'Внимание!',
-                        u'Перенос на это время невозможен',
-                        QtGui.QMessageBox.Ok,
-                        QtGui.QMessageBox.Ok)
                     return result
                 for fieldName in ('client_id',
                                   'recordDatetime',

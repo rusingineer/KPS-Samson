@@ -14,13 +14,11 @@
 
 
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
+from PyQt4 import QtGui
+from PyQt4.QtCore import Qt
 
-from library.Utils import *
-from library.interchange import *
-from library.TableModel import *
-from library.ItemsListDialog import *
+from library.ItemsListDialog import CItemEditorBaseDialog
+from library.Utils import forceRef
 
 
 class CItemEditorDialogEx(CItemEditorBaseDialog):

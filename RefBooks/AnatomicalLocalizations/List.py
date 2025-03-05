@@ -166,6 +166,7 @@ class CEditDialog(CDialogBase, Ui_EditDialog):
         self.modelIdentification = CAnatomicalLocalizationsIdentificationModel(self)
         self.tblIdentification.setModel(self.modelIdentification)
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
 
 
     def setItemId(self, itemId):

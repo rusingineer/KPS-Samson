@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@ import urlparse
 
 import requests
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import Qt, QDate, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QDate, QVariant, pyqtSignature, SIGNAL, QDateTime
 
 from Registry.ClientEditDialog import CClientEditDialog
 from Registry.ClientSearchDialog import CExternalClientSearchDialog
@@ -37,6 +37,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.edtFilterRequestBegDate.setDate(QDate())
         self.edtFilterRequestEndDate.setDate(QDate())
+        self.edtFilterBirthDate.setDate(QDate())
         self.addModels('Statements',    CStatementsModel(self))
         self.setModels(self.tblStatements, self.modelStatements, self.selectionModelStatements)
         self.btnApplyFilters.clicked.connect(self.applyFilters)
@@ -57,7 +58,9 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         if self.servicesURL:
             self.servicesURL = self.servicesURL.replace('\\\\','//')
             self.servicesURL = urlparse.urljoin(self.servicesURL, 'api/AttachMO/fhir')
-
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 0)
+        self.btnDetachClient.setVisible(False)
 
     def applyStatement(self):
         """Кнопка Выполнить заявку"""
@@ -255,6 +258,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                 taskRecord.setValue('PractitionerSNILS', practitioner.get('practitionerSNILS', None))
                 taskRecord.setValue('PractitionerSpecialityName', practitioner.get('practitionerSpecialityName', None))
                 taskRecord.setValue('need_upload', toVariant(True))
+                taskRecord.setValue('completedPersonID', toVariant(QtGui.qApp.userId))
+                taskRecord.setValue('dateCompleted', toVariant(QDateTime.currentDateTime()))
                 db.updateRecord(tableTask, taskRecord)
                 self.sendRequest(taskId, '$UpdateTaskStatus')
         elif orderTypeId == 2:  # Открепление
@@ -269,6 +274,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                 # Подготавливаем для выгрузки заявку
                 taskRecord.setValue('status', toVariant("completed"))
                 taskRecord.setValue('need_upload', toVariant(True))
+                taskRecord.setValue('completedPersonID', toVariant(QtGui.qApp.userId))
+                taskRecord.setValue('dateCompleted', toVariant(QDateTime.currentDateTime()))
                 db.updateRecord(tableTask, taskRecord)
                 self.sendRequest(taskId, '$UpdateTaskStatus')
         elif orderTypeId == 3:  # Отмена заявки
@@ -277,6 +284,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                 # Подготавливаем для выгрузки заявку
                 taskRecord.setValue('status', toVariant("completed"))
                 taskRecord.setValue('need_upload', toVariant(True))
+                taskRecord.setValue('completedPersonID', toVariant(QtGui.qApp.userId))
+                taskRecord.setValue('dateCompleted', toVariant(QDateTime.currentDateTime()))
                 db.updateRecord(tableTask, taskRecord)
                 self.sendRequest(taskId, '$UpdateTaskStatus')
 
@@ -318,6 +327,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         taskRecord.setValue('reasonReject_id', toVariant(ReasonCode))
         taskRecord.setValue('statusComment', toVariant(ReasonComment))
         taskRecord.setValue('need_upload', toVariant(True))
+        taskRecord.setValue('completedPersonID', toVariant(QtGui.qApp.userId))
+        taskRecord.setValue('dateCompleted', toVariant(QDateTime.currentDateTime()))
         db.updateRecord(tableTask, taskRecord)
         self.sendRequest(taskId, '$UpdateTaskStatus')
 
@@ -443,7 +454,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         clientGuid = forceString(model.value(row, 'person_guid'))
         clientFullname = forceString(model.value(row, 'patient_fullName'))
         clientBirthdate = forceString(model.value(row, 'birthDate'))
-        clientSex = u'мужской' if forceString(model.value(row, 'sex')) else u'женский'
+        clientSex = u'мужской' if forceString(model.value(row, 'sex')) == 'male' else u'женский'
         clientPhone = forceString(model.value(row, 'phone'))
         clientBirthPlace = forceString(model.value(row, 'birthPlace'))
         clientCitizenship = forceString(model.value(row, 'citizenship'))
@@ -579,7 +590,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         hasRelatedTask = forceInt(model.value(row, 'relatedTask_id'))
         if hasRelatedTask:
             openRelated = QtGui.QAction(u'Открыть связанное заявление', self)
-            openRelated.triggered.connect(lambda: self.getTaskWithRelated())
+            openRelated.triggered.connect(self.getTaskWithRelated)
             self.menu.addAction(openRelated)
             self.menu.popup(QtGui.QCursor.pos())
 
@@ -591,12 +602,16 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         model.loadData(id=[taskId, relatedTaskId])
 
     def applyFilters(self):
-        filters = dict.fromkeys(['statementType', 'statementStatus',
-                                 'requestBegDate', 'requestEndDate'])
+        filters = dict.fromkeys(['statementType', 'statementStatus','requestBegDate', 'requestEndDate',
+                                 'patientSurname', 'patientName', 'patientPatronymic', 'patientBirthDate'])
         requestBegDate = self.edtFilterRequestBegDate.date()
         requestEndDate = self.edtFilterRequestEndDate.date()
         statementType = forceInt(self.cmbFilterStatementType.currentIndex())
         statementStatus = forceInt(self.cmbFilterStatementStatus.currentIndex())
+        patientSurname = forceString(self.leFilterSurname.text())
+        patientName = forceString(self.leFilterName.text())
+        patientPatronymic = forceString(self.leFilterPatronymic.text())
+        patientBirthDate = self.edtFilterBirthDate.date()
 
         if requestBegDate:
             filters['requestBegDate'] = requestBegDate
@@ -604,6 +619,14 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
             filters['requestEndDate'] = requestEndDate
         filters['statementType'] = statementType
         filters['statementStatus'] = statementStatus
+        if patientSurname:
+            filters['patientSurname'] = patientSurname + u'...'
+        if patientName:
+            filters['patientName'] = patientName + u'...'
+        if patientPatronymic:
+            filters['patientPatronymic'] = patientPatronymic + u'...'
+        if patientBirthDate:
+            filters['patientBirthDate'] = patientBirthDate
 
         self.loadData(filters)
 
@@ -612,6 +635,11 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         self.edtFilterRequestEndDate.setDate(QDate())
         self.cmbFilterStatementStatus.setCurrentIndex(0)
         self.cmbFilterStatementType.setCurrentIndex(0)
+        self.leFilterSurname.setText('')
+        self.leFilterName.setText('')
+        self.leFilterPatronymic.setText('')
+        self.edtFilterBirthDate.setDate(QDate())
+
         self.loadData()
 
     def loadData(self, filters=None):
@@ -639,17 +667,19 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         cursor.insertText(u'Заявки прикрепления on-line')
         cursor.insertBlock()
         model = self.tblStatements.model()
-        tableColumns = [('10%', [u'Тип заявления'], CReportBase.AlignLeft),
-                        ('8%', [u'Статус заявления'], CReportBase.AlignLeft),
-                        ('8%', [u'Идентификатор заявления'], CReportBase.AlignLeft),
-                        ('8%', [u'Дата получения заявления'], CReportBase.AlignLeft),
-                        ('14%', [u'ФИО пациента'], CReportBase.AlignLeft),
-                        ('5%', [u'Дата рождения'], CReportBase.AlignLeft),
-                        ('13%', [u'Адрес регистрации'], CReportBase.AlignLeft),
-                        ('13%', [u'Адрес проживания'], CReportBase.AlignLeft),
-                        ('8%', [u'Идентификатор связанного заявления'], CReportBase.AlignLeft),
-                        ('8%', [u'Результат выгрузки'], CReportBase.AlignLeft),
-                        ('5%', [u'Дата выгрузки'], CReportBase.AlignLeft),
+        tableColumns = [('9%', [u'Тип заявления'], CReportBase.AlignLeft),
+                        ('7%', [u'Статус заявления'], CReportBase.AlignLeft),
+                        ('7%', [u'Идентификатор заявления'], CReportBase.AlignLeft),
+                        ('7%', [u'Дата получения заявления'], CReportBase.AlignLeft),
+                        ('13%', [u'ФИО пациента'], CReportBase.AlignLeft),
+                        ('4%', [u'Дата рождения'], CReportBase.AlignLeft),
+                        ('12%', [u'Адрес регистрации'], CReportBase.AlignLeft),
+                        ('12%', [u'Адрес проживания'], CReportBase.AlignLeft),
+                        ('7%', [u'Идентификатор связанного заявления'], CReportBase.AlignLeft),
+                        ('7%', [u'Результат выгрузки'], CReportBase.AlignLeft),
+                        ('4%', [u'Дата выгрузки'], CReportBase.AlignLeft),
+                        ('7%', [u'ФИО отработавшего'], CReportBase.AlignLeft),
+                        ('4%', [u'Дата выполнения'], CReportBase.AlignLeft),
                         ]
         table = createTable(cursor, tableColumns)
         for row in range(len(model._items)):
@@ -723,7 +753,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
             <b>Адрес регистрации пациента: </b> {20} {21}<br>
             <b>Адрес проживания пациента: </b> {22} {23}<br>
             """.format(forceString(model.value(row, 'person_guid')), forceString(model.value(row, 'patient_fullName')),
-                       forceString(model.value(row, 'birthDate')), u'мужской' if forceString(model.value(row, 'sex')) else u'женский',
+                       forceString(model.value(row, 'birthDate')), u'мужской' if forceString(model.value(row, 'sex')) == 'male' else u'женский',
                        forceString(model.value(row, 'phone')), forceString(model.value(row, 'birthPlace')),
                        forceString(model.value(row, 'citizenship')), forceString(model.value(row, 'docTypeName')),
                        forceString(model.value(row, 'documentSerial')), forceString(model.value(row, 'documentNumber')),
@@ -797,6 +827,8 @@ class CStatementsModel(CRecordListModel):
         self.addCol(CInDocTableCol(u'Идентификатор связанного заявления', 'relatedTask_id', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Результат выгрузки', 'uploadResult', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата выгрузки', 'uploadDate', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'ФИО отработавшего', 'completedPerson', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата выполнения', 'dateCompleted', 20)).setReadOnly()
         self.loadData()
         self.countItems = len(self._items)
 
@@ -818,6 +850,7 @@ class CStatementsModel(CRecordListModel):
         tableDocType = db.table('rbDocumentType')
         tableDocTypeP = db.table('rbDocumentType').alias('rbDocumentTypePerson')
         tablePolicyKind = db.table('rbPolicyKind')
+        tablePerson = db.table('Person')
 
         tableQuery = tableAttachTask
         tableQuery = tableQuery.leftJoin(tableAttachReason, tableAttachReason['id'].eq(tableAttachTask['reason_id']))
@@ -829,6 +862,7 @@ class CStatementsModel(CRecordListModel):
         tableQuery = tableQuery.leftJoin(tableDocType, tableAttachPersonC['documentTypeCode'].eq(tableDocType['regionalCode']))
         tableQuery = tableQuery.leftJoin(tableDocTypeP, tableAttachPersonP['documentTypeCode'].eq(tableDocTypeP['regionalCode']))
         tableQuery = tableQuery.leftJoin(tablePolicyKind, tableAttachPersonC['policyType'].eq(tablePolicyKind['code']))
+        tableQuery = tableQuery.leftJoin(tablePerson, tableAttachTask['completedPersonID'].eq(tablePerson['id']))
 
 
         cols = [
@@ -864,6 +898,7 @@ class CStatementsModel(CRecordListModel):
             tableAttachTask['PractitionerSNILS'],
             tableAttachTask['PractitionerSpecialityName'],
             tableAttachTask['PractitionerArea'],
+            tableAttachTask['dateCompleted'],
 
             tableAttachReason['name'].alias('ReasonName'),
             tableAttachReasonReject['name'].alias('RejectName'),
@@ -921,6 +956,8 @@ class CStatementsModel(CRecordListModel):
             tableAttachPersonP['relationship'].alias('relationshipP'),
             tableAttachPersonP['SNILS'].alias('SNILSP'),
 
+            u"CONCAT_WS(' ', Person.lastName, Person.firstName, Person.patrName) AS completedPerson",
+
         ]
         cond = []
         if _id:
@@ -941,6 +978,14 @@ class CStatementsModel(CRecordListModel):
             if filters['statementStatus']:
                 statusDict = {1: 'completed', 3: 'in-progress', 2: 'rejected'}
                 cond.append(tableAttachTask['status'].eq(statusDict[filters['statementStatus']]))
+            if filters['patientSurname']:
+                cond.append(tableAttachPersonC['lastName'].like(filters['patientSurname']))
+            if filters['patientName']:
+                cond.append(tableAttachPersonC['firstName'].like(filters['patientName']))
+            if filters['patientPatronymic']:
+                cond.append(tableAttachPersonC['patrName'].like(filters['patientPatronymic']))
+            if filters['patientBirthDate']:
+                cond.append(tableAttachPersonC['birthDate'].eq(filters['patientBirthDate']))
         return tableQuery, cols, cond
 
     def loadData(self, filters=None, id=None):

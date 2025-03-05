@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,10 +11,10 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+import datetime
 import hashlib
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, QObject, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QDate, QObject, pyqtSignature, SIGNAL, QVariant
 
 from library.IdentificationModel import CIdentificationModel, checkIdentification
 from library.InDocTable          import CInDocTableModel, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
@@ -33,20 +33,23 @@ from library.interchange         import (
                                           setSpinBoxValue,
                                         )
 from library.ItemsListDialog     import CItemsListDialog, CItemEditorBaseDialog
-from library.TableModel          import CDesignationCol, CRefBookCol, CTextCol
-from library.Utils               import (
-                                          addDotsEx,
-                                          agreeNumberAndWord,
-                                          exceptionToUnicode,
-                                          forceDate,
-                                          forceInt,
-                                          forceRef,
-                                          forceString,
-                                          forceStringEx,
-                                          nameCase,
-                                          toVariant,
-                                          trim,
-                                        )
+from library.TableModel import CDesignationCol, CRefBookCol, CTextCol, CDateTimeCol
+from library.Utils import (
+    addDotsEx,
+    agreeNumberAndWord,
+    exceptionToUnicode,
+    forceDate,
+    forceInt,
+    forceRef,
+    forceString,
+    forceStringEx,
+    nameCase,
+    toVariant,
+    trim,
+    formatSNILS,
+    isNameValid,
+    forceBool,
+)
 from library.PrintTemplates      import (
                                           getPrintButton,
                                           applyTemplate,
@@ -80,7 +83,7 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
     def __init__(self, parent):
         CItemsListDialog.__init__(self, parent, [
             CTextCol(u'Код', ['code'], 6),
-            CTextCol(u'СНИЛС', ['SNILS'], 20),
+            CSNILSCol(u'СНИЛС', ['SNILS'], 20),
             CTextCol(u'Фамилия', ['lastName'], 20),
             CTextCol(u'Имя', ['firstName'], 20),
             CTextCol(u'Отчество', ['patrName'], 20),
@@ -91,6 +94,7 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
             CRefBookCol(u'Должность', ['post_id'], 'rbPost', 20),
             CRefBookCol(u'Специальность', ['speciality_id'], 'rbSpeciality', 10),
             CRefBookCol(u'Профиль', ['userProfile_id'], 'rbUserProfile', 10),
+            CDateTimeCol(u'Дата увольнения', ['retireDate'], 8),
 ###            CTextCol(u'ИНФИС код', ['infis'], 20),
             ], 'Person',
 #            ['code', 'lastName', 'firstName', 'patrName'])
@@ -102,6 +106,7 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
         self.cmbUserRightsProfile.setAddNone(True, u'все,не задано')
         self.cmbUserRightsProfile.setValue(None)
 
+        
         self._recordList = []
         self._tableName = 'rbPost'
 
@@ -171,6 +176,7 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
         self.tblItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.chkUserLogin.setVisible(False)
         self.edtUserLogin.setVisible(False)
+        self.personItems = []
 
 
     def preSetupUi(self):
@@ -195,12 +201,15 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
         cond = [table['deleted'].eq(0)]
         onlyOwn = self.chkOnlyOwn.isChecked()
         onlyWorking = self.chkOnlyWorking.isChecked()
+        onlyRetired = self.chkOnlyRetired.isChecked()
         if self.chkChairPerson.isChecked():
             cond.append(table['chairPerson'].eq(1))
         if onlyOwn:
             cond.append(table['org_id'].eq(QtGui.qApp.currentOrgId()))
         if onlyWorking:
             cond.append(table['retireDate'].isNull())
+        if onlyRetired:
+            cond.append(table['retireDate'].isNotNull())
         if self.chkStrPodr.isChecked():
             orgStructure_id = self.boxStrPodr.value()
             orgStructureIdList = getOrgStructureDescendants(orgStructure_id)
@@ -241,9 +250,19 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
             else:
                 cond.append(table['lastName'].eq(u''))
         if self.chkSNILS.isChecked():
-            SNILS = trim(self.edtSNILS.text())
+            SNILS = forceString(self.edtSNILS.text()).replace(' ', '-').split('-')
             if SNILS:
-                cond.append(table['SNILS'].like(u'%%{}%%'.format(SNILS)))
+                if SNILS[0]:
+                    cond.append(table['SNILS'].like(u'{}%%'.format(SNILS[0])))
+
+                if SNILS[1]:
+                    cond.append(table['SNILS'].like(u'___{}%%'.format(SNILS[1])))
+
+                if SNILS[2]:
+                    cond.append(table['SNILS'].like(u'______{}%%'.format(SNILS[2])))
+
+                if SNILS[3]:
+                    cond.append(table['SNILS'].like(u'_________{}%%'.format(SNILS[3])))
             else:
                 cond.append(table['SNILS'].eq(u''))
         if self.chkPost.isChecked():
@@ -294,8 +313,6 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
         return result
 
 
-
-
     @pyqtSignature('int')
     def on_chkOnlyOwn_stateChanged(self, state):
         self.renewListAndSetTo(self.currentItemId())
@@ -318,8 +335,20 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
 
     @pyqtSignature('int')
     def on_chkOnlyWorking_stateChanged(self, state):
+        self.chkStateChangeWithoutRenew(state, self.chkOnlyRetired, self.on_chkOnlyRetired_stateChanged)
         self.renewListAndSetTo(self.currentItemId())
 
+    @pyqtSignature('int')
+    def on_chkOnlyRetired_stateChanged(self, state):
+        # синхронизирую состояние чекбоксов
+        self.chkStateChangeWithoutRenew(state, self.chkOnlyWorking, self.on_chkOnlyWorking_stateChanged)
+        self.renewListAndSetTo(self.currentItemId())
+
+    def chkStateChangeWithoutRenew(self, state, wgt, fn):
+        if state and isinstance(wgt, QtGui.QCheckBox):
+            wgt.stateChanged.disconnect()
+            wgt.setChecked(not state)
+            wgt.stateChanged.connect(fn)
 
     @pyqtSignature('int')
     def on_chkStrPodr_stateChanged(self, state):
@@ -432,6 +461,8 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
                 cursor.insertText(u'Только свои\n')
             if self.chkOnlyWorking.isChecked():
                 cursor.insertText(u'Только работающие\n')
+            if self.chkOnlyRetired.isChecked():
+                cursor.insertText(u'Только уволенные\n')
             if self.chkStrPodr.isChecked():
                 cursor.insertText(u'Структурное подразделение: %s\n' % self.boxStrPodr.currentText())
             if self.chkSpec.isChecked():
@@ -516,6 +547,7 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
             data = {
                     'isOnlyOwn':           self.chkOnlyOwn.isChecked(),  # Только свои (org_id = QtGui.qApp.currentOrgId())
                     'isOnlyWorking':       self.chkOnlyWorking.isChecked(),  # Только работающие (retireDate IS NULL)
+                    'isOnlyRetired':       self.chkOnlyRetired.isChecked(),  # Только уволенные (retireDate IS NOT NULL)
                     'isChairPerson':       self.chkChairPerson.isChecked(),  # Председатель ВК (chairPerson = 1)
                     'orgStructureIdList':  context.getInstance(COrgStructureInfoList, orgStructureIdList),  # Структурное подразделение
                     'specialityType':      specialityType,  # Специальность 0:'Не задано', 1:'Без специальности', 2:'Любая специальность'
@@ -533,6 +565,14 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
     def setSort(self, col):
         name = self.model.cols()[col].fields()[0]
         self.order = name
+        if self.order == u'post_id':
+            self.order = u' (select rbPost.name from rbPost where rbPost.id = Person.post_id) '
+        elif self.order == u'speciality_id':
+            self.order = u' (select rbSpeciality.name from rbSpeciality where rbSpeciality.id = Person.speciality_id) '
+        elif self.order == u'userProfile_id':
+            self.order = u' (select rbUserProfile.name from rbUserProfile where rbUserProfile.id = Person.userProfile_id) '
+        elif self.order == u'orgStructure_id':
+            self.order = u' (select OrgStructure.name from OrgStructure where OrgStructure.id = Person.orgStructure_id) '
         header = self.tblItems.horizontalHeader()
         header.setSortIndicatorShown(True)
         self.isAscending = not self.isAscending
@@ -543,6 +583,11 @@ class CPersonList(Ui_PersonsListDialog, CItemsListDialog):
             self.order = self.order + u' DESC'
         self.renewListAndSetTo(self.currentItemId())
 
+
+class CSNILSCol(CTextCol):
+    def format(self, values):
+        val = unicode(values[0].toString())
+        return QVariant(formatSNILS(val))
 
 #
 # ##########################################################################
@@ -688,6 +733,12 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.cmbUserRightsProfile.setFilter('deleted=0')
         self.btnCopyPrevAddress.setEnabled(bool(CPersonEditor.prevAddress))
         self.cmbDocType.setTable('rbDocumentType', True, 'group_id IN (SELECT id FROM rbDocumentTypeGroup WHERE code=\'1\')')
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.chkAvailableForStand.setVisible(False)
+            self.chkAvailableForSuspendedAppointment.setVisible(False)
+        else:
+            self.chkAvailableForStand.setVisible(True)
+            self.chkAvailableForSuspendedAppointment.setVisible(True)
 
 #        self.tblCombinedArea.setModel(self.__modelSortCombinedArea)
         self.setModels(self.tblEducationDocs,  self.modelEducationDocs,  self.selectionModelEducationDocs)
@@ -702,6 +753,7 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.tblPersonJobType.addPopupDelRow()
         self.tblPersonContacts.addPopupDelRow()
         self.tblIdentification.addPopupDelRow()
+        self.tblIdentification.setDelRowsChecker(self.modelIdentification.delRowsChecker)
         self.tblCombinedArea.addPopupDelRow()
 
         self.modelTimeTable.setPeriod(0, 1) # для новой записи
@@ -740,6 +792,22 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         del self.modelPersonContacts
         del self.modelCombinedArea
 
+    def checkPersonOrderDocsMoving(self):
+        is_uncorrect_row = False
+        for indx in range(self.modelOrderDocs.items().__len__()):
+            if self.modelOrderDocs.value( indx,'type').toString() == u'6':
+                if not ((self.modelOrderDocs.value(indx, 'post_id').toString() != u'0' \
+                         and self.modelOrderDocs.value(indx, 'post_id').toString() != u'') \
+                        and (self.modelOrderDocs.value( indx,'orgStructure_id').toString() != u'0' \
+                                and self.modelOrderDocs.value( indx,'orgStructure_id').toString() != u'')):
+                    is_uncorrect_row = True
+                    self.checkValueMessage(u'Для типа перемещения "Прикрепление к участку" обязательно указание '
+                                           u'Должности и Подразделения', False,\
+                                           self.tblOrderDocs)
+                    break
+
+        return is_uncorrect_row
+
     # WTF? свой save - так неожиданно...
     def save(self):
         try:
@@ -757,18 +825,22 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
                 documentRecord, documentRecordChanged = self.getDocumentRecord(id)
                 if documentRecordChanged and documentRecord is not None:
                     db.insertOrUpdate('Person_Document', documentRecord)
-                self.modelEducationDocs.saveItems(id)
-                self.modelOrderDocs.saveItems(id)
-                self.modelPersonActivity.saveItems(id)
-                self.modelPersonJobType.saveItems(id)
-                self.modelTimeTable.saveItems(id)
-                self.modelPersonContacts.saveItems(id)
-                self.modelIdentification.saveItems(id)
-                self.modelCombinedArea.saveItems(id)
-                if not forceRef(record.value('userProfile_id')):
-                    tableLoginPerson = db.table('Login_Person')
-                    db.deleteRecordSimple(tableLoginPerson, tableLoginPerson['person_id'].eq(id))
-                db.commit()
+                try:
+                    self.modelEducationDocs.saveItems(id)
+                    self.modelOrderDocs.saveItems(id)
+                    self.modelPersonActivity.saveItems(id)
+                    self.modelPersonJobType.saveItems(id)
+                    self.modelTimeTable.saveItems(id)
+                    self.modelPersonContacts.saveItems(id)
+                    self.modelIdentification.saveItems(id)
+                    self.modelCombinedArea.saveItems(id)
+                    if not forceRef(record.value('userProfile_id')):
+                        tableLoginPerson = db.table('Login_Person')
+                        db.deleteRecordSimple(tableLoginPerson, tableLoginPerson['person_id'].eq(id))
+                    db.commit()
+                except UserWarning:
+                    db.rollback()
+                    return None
             except:
                 db.rollback()
                 QtGui.qApp.logCurrentException()
@@ -1115,6 +1187,7 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         result = result and checkSNILSEntered(self)
         result = result and self.checkCombinedAreaPeriods()
         result = result and checkIdentification(self, self.tblIdentification)
+        result = result and (not self.checkPersonOrderDocsMoving())
         return result
 
 
@@ -1335,7 +1408,89 @@ class COrderDocsModel(CInDocTableModel):
         self.addCol(CRBInDocTableCol(u'Должность', 'post_id', 30, 'rbPost'))
         self.addCol(COrgStructureInDocTableCol(u'Подразделение',  'orgStructure_id',  15,  'OrgStructure'))
         self.addCol(CInDocTableCol(u'Ставка', 'salary', 15))
+        self.parent = parent
 
+    def saveItems(self, masterId):
+        if self._items is not None:
+            db = QtGui.qApp.db
+            table = self._table
+            masterId = toVariant(masterId)
+            masterIdFieldName = self._masterIdFieldName
+            idFieldName = self._idFieldName
+            idList = []
+            try:
+                if len(self.parent.parent().personItems) == 0:
+                    self.parent.parent().personItems.append(forceInt(masterId))
+            except:
+                self.parent.parent().personItems = []
+                self.parent.parent().personItems.append(forceInt(masterId))
+            for idx, record in enumerate(self._items):
+
+                record.setValue(masterIdFieldName, masterId)
+                if self._idxFieldName:
+                    record.setValue(self._idxFieldName, toVariant(idx))
+                if self._extColsPresent:
+                    outRecord = self.removeExtCols(record)
+                else:
+                    outRecord = record
+                id = db.insertOrUpdate(table, outRecord)
+                if forceString(record.value('type')) == '6':
+                    if forceDate(record.value('validFromDate')):
+                        isHigh = forceBool(QtGui.qApp.db.getRecordEx('rbSpeciality', 'isHigh', "id = '%s'" % (forceString(self.parent.cmbSpeciality.value()))).value(0))
+                        if (not forceDate(record.value('validToDate')) or (forceDate(record.value('validToDate')) >= datetime.datetime.now().date())) and isHigh:
+                            self.checkArea(record)
+                    else:
+                        QtGui.QMessageBox.critical(None,
+                                                   u'Ошибка!',
+                                                   u'Не заполнена дата "Действителен с"')
+                        raise UserWarning
+                record.setValue(idFieldName, toVariant(id))
+                idList.append(id)
+                self.saveDependence(idx, id)
+
+            filter = [table[masterIdFieldName].eq(masterId),
+                      'NOT (' + table[idFieldName].inlist(idList) + ')']
+            if self._filter:
+                filter.append(self._filter)
+            db.deleteRecord(table, filter)
+
+    def checkArea(self, record): 
+        begDate = forceDate(record.value('validFromDate')).toString('yyyy-MM-dd')
+        endDate = u'"' + forceDate(record.value('validToDate')).toString('yyyy-MM-dd') + u'"' if forceDate(
+            record.value('validToDate')) else '   ADDDATE(CURDATE(), 36500  ) '
+        recScene = QtGui.qApp.db.getRecordEx('Person_Order', 'master_id',
+                                             "master_id <> %(master_id)s AND type=6 and (SELECT 1 FROM Person p INNER JOIN rbSpeciality s ON p.speciality_id = s.id  WHERE p.id = Person_Order.master_id AND p.deleted=0 AND isHigh=1) AND orgStructure_id = %(orgStructure_id)s AND deleted = 0 AND ((validToDate IS NULL and validFromDate BETWEEN '%(begDate)s' AND  %(endDate)s)  OR (validToDate IS NOT NULL AND (validFromDate BETWEEN '%(begDate)s' AND  %(endDate)s or validToDate BETWEEN '%(begDate)s' AND  %(endDate)s))) AND (validToDate IS NULL OR validToDate >= CURRENT_DATE()) " % {
+                                                 'master_id': forceString(record.value('master_id')),
+                                                 'orgStructure_id': forceString(record.value('orgStructure_id')),
+                                                 'begDate': begDate, 'endDate': endDate})
+        confirmation = 1
+        if recScene:
+            personId = forceInt(recScene.value('master_id'))
+            person = forceString(QtGui.qApp.db.translate('Person', 'id', personId, 'formatPersonName(id)'))
+            messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание', u'Обнаружено пересечение периода прикрепления к участку\nОткрыть карточку врача ' + person + '?')
+            messageBox.addButton(u'Да', QtGui.QMessageBox.YesRole)
+            messageBox.addButton(u'Отмена', QtGui.QMessageBox.NoRole)
+            confirmation = messageBox.exec_()
+            if confirmation == 0:
+                QtGui.qApp.db.rollback()
+                if personId not in self.parent.parent().personItems:
+                    self.parent.parent().personItems.append(personId)
+                    try:
+                        dialog = self.parent.parent().getItemEditor()
+                    except:
+                        dialog = CPersonEditor(self.parent.parent())
+                    try:
+                        dialog.load(personId)
+                        if dialog.exec_():
+                            pass
+                    finally:
+                        self.parent.parent().personItems.remove(personId)
+                        dialog.deleteLater()
+                else:
+                    QtGui.QMessageBox.information(None,
+                                               u'Внмимание!',
+                                               u'Карточка врача '+person+u' открыта ранее')
+            raise UserWarning
 
 class CPersonActivityModel(CInDocTableModel):
     def __init__(self, parent):

@@ -80,7 +80,8 @@ class AbstractObject(object):
                 if not_optional:
                     nonoptionals.add(of_many or jsname)
                 continue
-
+            if jsondict[jsname] is None:
+                continue
             if hasattr(typ, 'with_json_and_owner'):
                 setattr(self, name, typ.with_json_and_owner(jsondict[jsname], self))
             else:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Registry\SMPAddEventDialog.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client\Registry\SMPAddEventDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -41,6 +41,7 @@ class Ui_Dialog(object):
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.verticalLayout.addWidget(self.label_2)
         self.edtNote = QtGui.QLineEdit(Dialog)
+        self.edtNote.setEnabled(True)
         self.edtNote.setObjectName(_fromUtf8("edtNote"))
         self.verticalLayout.addWidget(self.edtNote)
         spacerItem = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
@@ -58,7 +59,6 @@ class Ui_Dialog(object):
         self.verticalLayout.addLayout(self.horizontalLayout)
 
         self.retranslateUi(Dialog)
-        QtCore.QObject.connect(self.btnOK, QtCore.SIGNAL(_fromUtf8("clicked()")), Dialog.accept)
         QtCore.QObject.connect(self.btnCancel, QtCore.SIGNAL(_fromUtf8("clicked()")), Dialog.reject)
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
@@ -67,5 +67,5 @@ class Ui_Dialog(object):
         self.label.setText(_translate("Dialog", "Статус вызова", None))
         self.label_2.setText(_translate("Dialog", "Примечание", None))
         self.btnOK.setText(_translate("Dialog", "Отправить", None))
-        self.btnCancel.setText(_translate("Dialog", "Отменить", None))
+        self.btnCancel.setText(_translate("Dialog", "Закрыть", None))
 

@@ -136,6 +136,7 @@ def selectData(params):
 
     cols = [table['id'].alias('actionId'),
             table['endDate'],
+            u'''TIMESTAMPDIFF(DAY, Action.begDate, Action.endDate) AS duration''',
             tablePerson['name'].alias('personName'),
             tableOrganisation['shortName'].alias('orgName'),
             tableClient['id'].alias(u'clientId'),
@@ -143,12 +144,13 @@ def selectData(params):
             tableClient['birthDate'],
             tableClient['sex'],
             table['MKB'],
-            u'''(SELECT A.endDate FROM Action AS A WHERE A.prevAction_id = Action.id AND A.deleted = 0 ORDER BY A.endDate DESC LIMIT 1) AS prevEndDate''',
+            u'''(SELECT A.endDate FROM Action AS A WHERE A.prevAction_id = Action.id AND A.deleted = 0/* ORDER BY A.endDate DESC*/ LIMIT 1) AS prevEndDate''',
             ]
     if params.get('isRegAddress', 0):
         cols.append(u'getClientRegAddress(Client.id) AS address')
     if params.get('isNumberPolicy', 0):
         cols.append(u'getClientPolicy(Client.id, 1) AS policy')
+    cols.append(u'getClientWork(Client.id) as work')
     cols.append(getPropertyValue(u'Номер', u'expertNumberExpertise', u'ActionProperty_String'))
     cols.append(getPropertyValueRBTable(u'Характеристика экспертизы', u'expertiseCharacter', u'ActionProperty_rbMedicalBoardExpertiseCharacter', u'rbMedicalBoardExpertiseCharacter'))
     cols.append(getPropertyValueRBTable(u'Вид экспертизы', u'expertiseKind', u'ActionProperty_rbMedicalBoardExpertiseKind', u'rbMedicalBoardExpertiseKind'))
@@ -179,6 +181,14 @@ ORDER BY ClientSocStatus.begDate DESC, ClientSocStatus.endDate DESC
 LIMIT 1) AS socStatus''')
 
     return db.getRecordList(queryTable, cols, cond, u'Action.endDate, expertNumberExpertise')
+
+
+def getPersonName(personId):
+    db = QtGui.qApp.db
+    query = db.query("select vp.name from vrbPerson vp where vp.id = {0}".format(personId))
+    if query.next():
+        return forceString(query.value(0))
+    return str()
 
 
 class CTempInvalidBookF035(CReport):
@@ -260,11 +270,11 @@ class CTempInvalidBookF035(CReport):
             ('4.9%', [u'Фамилия, имя, отчество пациента', u'', u'4' ], CReportBase.AlignLeft),
             ('4.9%', [u'Адрес (либо номер страхового полиса или медицинского документа) пациента', u'', u'5' ], CReportBase.AlignLeft),
             ('4.9%', [u'Дата рождения', u'', u'6' ], CReportBase.AlignLeft),
-            ('4.9%', [u'Пол', u'', u'7' ], CReportBase.AlignRight),
+            ('2%', [u'Пол', u'', u'7' ], CReportBase.AlignRight),
             ('4.9%', [u'Социальный статус', u'профессия', u'8' ], CReportBase.AlignLeft),
-            ('4.9%', [u'Причина обращения, Диагноз (основной, сопутствующий) в соответсвии с МКБ-10', u'', u'9' ], CReportBase.AlignLeft),
+            ('2%', [u'Причина обращения, Диагноз (основной, сопутствующий) в соответсвии с МКБ-10', u'', u'9' ], CReportBase.AlignLeft),
             ('4.9%', [u'Характеристика случая экспертизы', u'', u'10' ], CReportBase.AlignLeft),
-            ('4.9%', [u'Вид и предмет экспертизы', u'(проставляется N Л/Н, количество дней нетрудоспосо-бности, длительность пребывания в ЛПУ и др. в зависимости от вида экспертизы)', u'11' ], CReportBase.AlignLeft),
+            ('5%', [u'Вид и предмет экспертизы', u'(проставляется N Л/Н, количество дней нетрудоспосо-бности, длительность пребывания в ЛПУ и др. в зависимости от вида экспертизы)', u'11' ], CReportBase.AlignLeft),
             ('4.9%', [u'Выявлено при экспертизе', u'отклонение от стандартов', u'12'], CReportBase.AlignLeft),
             ('4.9%', [u'', u'дефекты, нарушения, ошибки и др.', u'13'], CReportBase.AlignLeft),
             ('4.9%', [u'', u'достижение результата этапа или исхода лечебно- профилактического мероприятия', u'14'], CReportBase.AlignLeft),
@@ -277,7 +287,7 @@ class CTempInvalidBookF035(CReport):
             ('4.9%', [u'Подписи экспертов', u'', u'21'], CReportBase.AlignLeft),
             ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
         table.mergeCells(0, 0, 2, 1)
         table.mergeCells(0, 1, 2, 1)
         table.mergeCells(0, 2, 2, 1)
@@ -319,11 +329,15 @@ class CTempInvalidBookF035(CReport):
                 if isClientId:
                     columnN5 += u'Номер карты: ' + forceString(record.value('clientId'))
                 socStatus = forceString(record.value('socStatus'))
+                work = forceString(record.value('work'))
+                socStatusWork = socStatus + ', ' + work if socStatus else work
+                duration = forceString(record.value('duration'))
+                duration = str(duration) + u' дн.' if duration else u'0 дн.'
                 expertiseCharacter = forceString(record.value('expertiseCharacter'))
                 expertiseKind = forceString(record.value('expertiseKind'))
-                expertiseKindName = (u'Вид экспертизы:' + expertiseKind) if expertiseKind else u''
+                expertiseKindName = (u'Вид:' + expertiseKind) if expertiseKind else u''
                 expertiseObject = forceString(record.value('expertiseObject'))
-                expertiseObjectName = (u'Предмет экспертизы:' + expertiseObject) if expertiseObject else u''
+                expertiseObjectName = (u'Предмет:' + expertiseObject) if expertiseObject else u''
                 expertNumberMC = forceString(record.value('expertNumberMC'))
                 expertNumberMCName = (u'Номер ЛН:' + expertNumberMC) if expertNumberMC else u''
                 expertDeviation = forceString(record.value('expertDeviation'))
@@ -344,9 +358,13 @@ class CTempInvalidBookF035(CReport):
                 dateLastMSE = forceString(record.value('dateLastMSE'))
                 dateLastMSEName = (u'Дата очередного освидетельствования: ' + dateLastMSE) if dateLastMSE else u''
                 expert1 = forceString(record.value('expert1'))
+                expert1 = getPersonName(expert1) if expert1.isdigit() else expert1
                 expert2 = forceString(record.value('expert2'))
+                expert2 = getPersonName(expert2) if expert2.isdigit() else expert2
                 expert3 = forceString(record.value('expert3'))
+                expert3 = getPersonName(expert3) if expert3.isdigit() else expert3
                 expert4 = forceString(record.value('expert4'))
+                expert4 = getPersonName(expert4) if expert4.isdigit() else expert4
 
                 i = table.addRow()
                 table.setText(i, 0, cnt)
@@ -356,10 +374,10 @@ class CTempInvalidBookF035(CReport):
                 table.setText(i, 4, columnN5)
                 table.setText(i, 5, birthDate)
                 table.setText(i, 6, sex)
-                table.setText(i, 7, socStatus)
+                table.setText(i, 7, socStatusWork)
                 table.setText(i, 8, MKB)
                 table.setText(i, 9, expertiseCharacter)
-                table.setText(i, 10, u'\n'.join(name for name in [expertiseKindName, expertiseObjectName, expertNumberMCName] if name))
+                table.setText(i, 10, u'\n'.join(name for name in [expertiseKindName, expertiseObjectName, expertNumberMCName, duration] if name))
                 table.setText(i, 11, expertDeviation)
                 table.setText(i, 12, expertError)
                 table.setText(i, 13, expertResult)

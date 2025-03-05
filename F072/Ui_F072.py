@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\F072\F072.ui'
+# Form implementation generated from reading ui file 'C:\proj\Samson\UP_s11\client_test\F072\F072.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu May 23 16:58:19 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +29,8 @@ class Ui_Dialog(object):
         Dialog.resize(1191, 878)
         Dialog.setSizeGripEnabled(True)
         self.gridLayout_5 = QtGui.QGridLayout(Dialog)
-        self.gridLayout_5.setMargin(4)
         self.gridLayout_5.setSpacing(4)
+        self.gridLayout_5.setMargin(4)
         self.gridLayout_5.setObjectName(_fromUtf8("gridLayout_5"))
         self.splitter_3 = QtGui.QSplitter(Dialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
@@ -61,8 +62,8 @@ class Ui_Dialog(object):
         self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1181, 723))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.gridLayout_4 = QtGui.QGridLayout(self.scrollAreaWidgetContents)
-        self.gridLayout_4.setMargin(4)
         self.gridLayout_4.setSpacing(4)
+        self.gridLayout_4.setMargin(4)
         self.gridLayout_4.setObjectName(_fromUtf8("gridLayout_4"))
         self.tabWidget = QtGui.QTabWidget(self.scrollAreaWidgetContents)
         self.tabWidget.setTabPosition(QtGui.QTabWidget.North)
@@ -71,8 +72,8 @@ class Ui_Dialog(object):
         self.tabToken = QtGui.QWidget()
         self.tabToken.setObjectName(_fromUtf8("tabToken"))
         self.gridLayout_3 = QtGui.QGridLayout(self.tabToken)
-        self.gridLayout_3.setMargin(4)
         self.gridLayout_3.setSpacing(4)
+        self.gridLayout_3.setMargin(4)
         self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
         self.splitter_2 = QtGui.QSplitter(self.tabToken)
         self.splitter_2.setOrientation(QtCore.Qt.Vertical)
@@ -84,8 +85,8 @@ class Ui_Dialog(object):
         self.frameBaseAndDiagnosises.setFrameShadow(QtGui.QFrame.Raised)
         self.frameBaseAndDiagnosises.setObjectName(_fromUtf8("frameBaseAndDiagnosises"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.frameBaseAndDiagnosises)
-        self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setSpacing(4)
+        self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.grpBase = QtGui.QGroupBox(self.frameBaseAndDiagnosises)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
@@ -95,8 +96,8 @@ class Ui_Dialog(object):
         self.grpBase.setSizePolicy(sizePolicy)
         self.grpBase.setObjectName(_fromUtf8("grpBase"))
         self.gridLayout_2 = QtGui.QGridLayout(self.grpBase)
-        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setSpacing(4)
+        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.btnExecPersonList = QtGui.QToolButton(self.grpBase)
         self.btnExecPersonList.setObjectName(_fromUtf8("btnExecPersonList"))
@@ -165,8 +166,8 @@ class Ui_Dialog(object):
         self.frame_2.setLineWidth(0)
         self.frame_2.setObjectName(_fromUtf8("frame_2"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout(self.frame_2)
-        self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setSpacing(4)
+        self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.edtBegDate = CDateEdit(self.frame_2)
         self.edtBegDate.setCalendarPopup(True)
@@ -184,8 +185,8 @@ class Ui_Dialog(object):
         self.frame_3.setLineWidth(0)
         self.frame_3.setObjectName(_fromUtf8("frame_3"))
         self.horizontalLayout_3 = QtGui.QHBoxLayout(self.frame_3)
-        self.horizontalLayout_3.setMargin(0)
         self.horizontalLayout_3.setSpacing(4)
+        self.horizontalLayout_3.setMargin(0)
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
         self.edtEndDate = CDateEdit(self.frame_3)
         self.edtEndDate.setCalendarPopup(True)
@@ -254,8 +255,8 @@ class Ui_Dialog(object):
         self.grpInspections_2 = QtGui.QGroupBox(self.splitter)
         self.grpInspections_2.setObjectName(_fromUtf8("grpInspections_2"))
         self._4 = QtGui.QVBoxLayout(self.grpInspections_2)
-        self._4.setMargin(4)
         self._4.setSpacing(4)
+        self._4.setMargin(4)
         self._4.setObjectName(_fromUtf8("_4"))
         self.tblPreliminaryDiagnostics = CDiagnosticsInDocTableView(self.grpInspections_2)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Maximum)
@@ -269,8 +270,8 @@ class Ui_Dialog(object):
         self.grpInspections = QtGui.QGroupBox(self.splitter)
         self.grpInspections.setObjectName(_fromUtf8("grpInspections"))
         self._2 = QtGui.QVBoxLayout(self.grpInspections)
-        self._2.setMargin(4)
         self._2.setSpacing(4)
+        self._2.setMargin(4)
         self._2.setObjectName(_fromUtf8("_2"))
         self.tblFinalDiagnostics = CDiagnosticsInDocTableView(self.grpInspections)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Maximum)
@@ -287,14 +288,14 @@ class Ui_Dialog(object):
         self.frame.setFrameShadow(QtGui.QFrame.Plain)
         self.frame.setObjectName(_fromUtf8("frame"))
         self.verticalLayout = QtGui.QVBoxLayout(self.frame)
-        self.verticalLayout.setMargin(0)
         self.verticalLayout.setSpacing(4)
+        self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.grpActions = QtGui.QGroupBox(self.frame)
         self.grpActions.setObjectName(_fromUtf8("grpActions"))
         self._3 = QtGui.QGridLayout(self.grpActions)
-        self._3.setMargin(4)
         self._3.setSpacing(4)
+        self._3.setMargin(4)
         self._3.setObjectName(_fromUtf8("_3"))
         self.tblActions = CInDocTableView(self.grpActions)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -331,16 +332,16 @@ class Ui_Dialog(object):
         self.tabTempInvalidEtc = QtGui.QWidget()
         self.tabTempInvalidEtc.setObjectName(_fromUtf8("tabTempInvalidEtc"))
         self.gridLayout = QtGui.QGridLayout(self.tabTempInvalidEtc)
-        self.gridLayout.setMargin(4)
         self.gridLayout.setSpacing(4)
+        self.gridLayout.setMargin(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.tabTempInvalidAndAegrotat = QtGui.QTabWidget(self.tabTempInvalidEtc)
         self.tabTempInvalidAndAegrotat.setObjectName(_fromUtf8("tabTempInvalidAndAegrotat"))
         self.tabTempInvalid = QtGui.QWidget()
         self.tabTempInvalid.setObjectName(_fromUtf8("tabTempInvalid"))
         self.verticalLayout_5 = QtGui.QVBoxLayout(self.tabTempInvalid)
-        self.verticalLayout_5.setMargin(4)
         self.verticalLayout_5.setSpacing(4)
+        self.verticalLayout_5.setMargin(4)
         self.verticalLayout_5.setObjectName(_fromUtf8("verticalLayout_5"))
         self.grpTempInvalid = CTempInvalid(self.tabTempInvalid)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -355,8 +356,8 @@ class Ui_Dialog(object):
         self.tabAegrotat = QtGui.QWidget()
         self.tabAegrotat.setObjectName(_fromUtf8("tabAegrotat"))
         self.verticalLayout_4 = QtGui.QVBoxLayout(self.tabAegrotat)
-        self.verticalLayout_4.setMargin(4)
         self.verticalLayout_4.setSpacing(4)
+        self.verticalLayout_4.setMargin(4)
         self.verticalLayout_4.setObjectName(_fromUtf8("verticalLayout_4"))
         self.grpAegrotat = CTempInvalid(self.tabAegrotat)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -371,8 +372,8 @@ class Ui_Dialog(object):
         self.tabDisability = QtGui.QWidget()
         self.tabDisability.setObjectName(_fromUtf8("tabDisability"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.tabDisability)
-        self.verticalLayout_2.setMargin(4)
         self.verticalLayout_2.setSpacing(4)
+        self.verticalLayout_2.setMargin(4)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.grpDisability = CTempInvalid(self.tabDisability)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -387,8 +388,8 @@ class Ui_Dialog(object):
         self.tabVitalRestriction = QtGui.QWidget()
         self.tabVitalRestriction.setObjectName(_fromUtf8("tabVitalRestriction"))
         self.verticalLayout_6 = QtGui.QVBoxLayout(self.tabVitalRestriction)
-        self.verticalLayout_6.setMargin(4)
         self.verticalLayout_6.setSpacing(4)
+        self.verticalLayout_6.setMargin(4)
         self.verticalLayout_6.setObjectName(_fromUtf8("verticalLayout_6"))
         self.grpVitalRestriction = CTempInvalid(self.tabVitalRestriction)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -516,8 +517,8 @@ class Ui_Dialog(object):
         self.grpInspections.setTitle(_translate("Dialog", "&Заключительный диагноз", None))
         self.grpActions.setTitle(_translate("Dialog", "&Мероприятия", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("Dialog", "Стат.&учёт", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагноз", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Стандарт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагно&з", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Ст&андарт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("Dialog", "&Статус", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabDiagnostic), _translate("Dialog", "&Диагностика", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCure), _translate("Dialog", "&Лечение", None))
@@ -526,30 +527,40 @@ class Ui_Dialog(object):
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabTempInvalid), _translate("Dialog", "Листок &нетрудоспособности", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabAegrotat), _translate("Dialog", "С&правка", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabDisability), _translate("Dialog", "Инвалидность", None))
-        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "&Ограничения жизнедеятельности", None))
+        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "О&граничения жизнедеятельности", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabTempInvalidEtc), _translate("Dialog", "Т&рудоспособность", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabFeed), _translate("Dialog", "Питание", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabFeed), _translate("Dialog", "П&итание", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "&Оплата", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("Dialog", "Приме&чания", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabVoucher), _translate("Dialog", "Путевка", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabVoucher), _translate("Dialog", "Путе&вка", None))
         self.statusBar.setToolTip(_translate("Dialog", "A status bar", None))
         self.statusBar.setWhatsThis(_translate("Dialog", "A status bar.", None))
 
-from Events.ActionsPage import CActionsPage
-from Events.AmbCardPage import CAmbCardPage
-from Events.EventCashPage import CEventCashPage
-from Events.EventDiagnosticsTable import CDiagnosticsInDocTableView
-from Events.EventFeedPage import CEventFeedPage
-from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
-from Events.EventMesPage import CEventMesPage
-from Events.EventVoucherNotesPage import CEventVoucherNotesPage
-from Events.EventVoucherPage import CEventVoucherPage
 from Events.TempInvalid import CTempInvalid
 from Orgs.OrgComboBox import CContractComboBox
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from Registry.Utils import CClientRelationComboBoxPatron
-from library.DateEdit import CDateEdit
-from library.InDocTable import CInDocTableView
-from library.ROComboBox import CROComboBox
-from library.TextBrowser import CTextBrowser
 from library.crbcombobox import CRBComboBox
+from Events.EventVoucherPage import CEventVoucherPage
+from Events.EventMesPage import CEventMesPage
+from Events.EventDiagnosticsTable import CDiagnosticsInDocTableView
+from library.InDocTable import CInDocTableView
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from Events.EventVoucherNotesPage import CEventVoucherNotesPage
+from library.ROComboBox import CROComboBox
+from Events.ActionsPage import CActionsPage
+from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
+from Registry.Utils import CClientRelationComboBoxPatron
+from library.TextBrowser import CTextBrowser
+from Events.EventCashPage import CEventCashPage
+from Events.AmbCardPage import CAmbCardPage
+from Events.EventFeedPage import CEventFeedPage
+from library.DateEdit import CDateEdit
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    Dialog = QtGui.QDialog()
+    ui = Ui_Dialog()
+    ui.setupUi(Dialog)
+    Dialog.show()
+    sys.exit(app.exec_())
+

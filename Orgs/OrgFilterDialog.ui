@@ -7,19 +7,65 @@
     <x>0</x>
     <y>0</y>
     <width>404</width>
-    <height>350</height>
+    <height>379</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Выбор организации</string>
   </property>
   <layout class="QGridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblName">
+     <property name="text">
+      <string>&amp;Название содержит</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblOKVED">
+     <property name="text">
+      <string>ОКВЭ&amp;Д</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtOKVED</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="lblIsInsurer">
+     <property name="text">
+      <string>&amp;Страховая компания</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbIsInsurer</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblHead">
+     <property name="text">
+      <string>Головная организация</string>
+     </property>
+    </widget>
+   </item>
    <item row="4" column="0">
     <widget class="QLabel" name="lblOKATO">
      <property name="text">
@@ -29,16 +75,6 @@
    </item>
    <item row="0" column="1">
     <widget class="COrgComboBox" name="cmbHead"/>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblINN">
-     <property name="text">
-      <string>&amp;ИНН</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtINN</cstring>
-     </property>
-    </widget>
    </item>
    <item row="3" column="0">
     <widget class="QLabel" name="lblOGRN">
@@ -50,50 +86,13 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblHead">
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblINN">
      <property name="text">
-      <string>Головная организация</string>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="0">
-    <widget class="QLabel" name="lblIsInsurer">
-     <property name="text">
-      <string>&amp;Страховая компания</string>
+      <string>&amp;ИНН</string>
      </property>
      <property name="buddy">
-      <cstring>cmbIsInsurer</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0">
-    <widget class="QLabel" name="lblHospitalBedProfile">
-     <property name="text">
-      <string>Профиль койки</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbHospitalBedProfile</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="0">
-    <widget class="QLabel" name="lblOKVED">
-     <property name="text">
-      <string>ОКВЭ&amp;Д</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtOKVED</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblName">
-     <property name="text">
-      <string>&amp;Название содержит</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtName</cstring>
+      <cstring>edtINN</cstring>
      </property>
     </widget>
    </item>
@@ -107,32 +106,115 @@
      </property>
     </widget>
    </item>
-   <item row="10" column="0">
-    <widget class="QLabel" name="lblIsHospital">
+   <item row="6" column="0">
+    <widget class="QLabel" name="lblSMOCode">
      <property name="text">
-      <string>ЛПУ</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbHospitalBedProfile</cstring>
+      <string>Код ФФОМС</string>
      </property>
     </widget>
    </item>
-   <item row="8" column="0">
-    <widget class="QLabel" name="lblNotActive">
-     <property name="text">
-      <string>Активность</string>
-     </property>
+   <item row="7" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtOKVED"/>
+   </item>
+   <item row="8" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbIsInsurer">
+     <item>
+      <property name="text">
+       <string>не задано</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Нет</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Да</string>
+      </property>
+     </item>
     </widget>
    </item>
-   <item row="14" column="0" colspan="3">
-    <widget class="QDialogButtonBox" name="buttonBox">
+   <item row="14" column="0">
+    <spacer>
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Vertical</enum>
      </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="9" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbActive">
+     <item>
+      <property name="text">
+       <string>не задано</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Не активна</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Активна</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtOKATO"/>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtName"/>
+   </item>
+   <item row="0" column="2">
+    <widget class="QToolButton" name="btnSelectHeadOrganisation">
+     <property name="text">
+      <string>...</string>
      </property>
     </widget>
+   </item>
+   <item row="12" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbSupplier">
+     <item>
+      <property name="text">
+       <string>не задано</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Нет</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Да</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="13" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkHeadVisible">
+     <property name="text">
+      <string>Отображать головные организации</string>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="0">
+    <widget class="QLabel" name="lblSupplier">
+     <property name="text">
+      <string>Поставщик</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbHospitalBedProfile"/>
    </item>
    <item row="5" column="1" colspan="2">
     <widget class="QLineEdit" name="edtTfomsCode"/>
@@ -140,10 +222,7 @@
    <item row="3" column="1" colspan="2">
     <widget class="QLineEdit" name="edtOGRN"/>
    </item>
-   <item row="9" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbHospitalBedProfile"/>
-   </item>
-   <item row="10" column="1" colspan="2">
+   <item row="11" column="1" colspan="2">
     <widget class="QComboBox" name="cmbIsMedical">
      <item>
       <property name="text">
@@ -180,105 +259,45 @@
    <item row="2" column="1" colspan="2">
     <widget class="QLineEdit" name="edtINN"/>
    </item>
-   <item row="6" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtOKVED"/>
-   </item>
-   <item row="7" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbIsInsurer">
-     <item>
-      <property name="text">
-       <string>не задано</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Нет</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Да</string>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item row="4" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtOKATO"/>
-   </item>
-   <item row="8" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbActive">
-     <item>
-      <property name="text">
-       <string>не задано</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Не активна</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Активна</string>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtName"/>
-   </item>
-   <item row="13" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="0" column="2">
-    <widget class="QToolButton" name="btnSelectHeadOrganisation">
-     <property name="text">
-      <string>...</string>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkHeadVisible">
-     <property name="text">
-      <string>Отображать головные организации</string>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbSupplier">
-     <item>
-      <property name="text">
-       <string>не задано</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Нет</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Да</string>
-      </property>
-     </item>
-    </widget>
-   </item>
    <item row="11" column="0">
-    <widget class="QLabel" name="lblSupplier">
+    <widget class="QLabel" name="lblIsHospital">
      <property name="text">
-      <string>Поставщик</string>
+      <string>ЛПУ</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbHospitalBedProfile</cstring>
      </property>
     </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QLabel" name="lblNotActive">
+     <property name="text">
+      <string>Активность</string>
+     </property>
+    </widget>
+   </item>
+   <item row="15" column="0" colspan="3">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0">
+    <widget class="QLabel" name="lblHospitalBedProfile">
+     <property name="text">
+      <string>Профиль койки</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbHospitalBedProfile</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtSMOCode"/>
    </item>
   </layout>
  </widget>

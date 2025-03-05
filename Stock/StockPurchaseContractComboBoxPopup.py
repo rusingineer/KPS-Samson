@@ -50,7 +50,7 @@ class CStockPurchaseContractComboBoxPopup(Ui_StockPurchaseContractComboBoxPopup,
                        self.modelPurchaseContracts,
                        self.selectionModelPurchaseContracts
                       )
-        self.setFocusProxy(self.tblPurchaseContracts)
+        #self.setFocusProxy(self.tblPurchaseContracts)
 
         self.actSearch.setShortcuts([Qt.Key_Return, Qt.Key_Enter])
         self.tabSearch.addAction(self.actSearch)
@@ -112,8 +112,8 @@ class CStockPurchaseContractComboBoxPopup(Ui_StockPurchaseContractComboBoxPopup,
             self.tblPurchaseContracts.setFocus(Qt.OtherFocusReason)
         else:
             self.tabWidget.setCurrentIndex(1)
+            self.setFocusProxy(self.edtNumber)
             self.tabWidget.setTabEnabled(0, False)
-            self.edtNumber.setFocus(Qt.OtherFocusReason)
 
 
     def getStockPurchaseContractIdList(self):

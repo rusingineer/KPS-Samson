@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Exchange\ExportRbService_Wizard_1.ui'
+# Form implementation generated from reading ui file 'C:/proj/client_test/Exchange/ExportRbService_Wizard_1.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Jun  6 19:05:08 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +29,8 @@ class Ui_ExportRbService_Wizard_1(object):
         ExportRbService_Wizard_1.setWindowModality(QtCore.Qt.NonModal)
         ExportRbService_Wizard_1.resize(453, 343)
         self.gridlayout = QtGui.QGridLayout(ExportRbService_Wizard_1)
-        self.gridlayout.setMargin(4)
         self.gridlayout.setSpacing(4)
+        self.gridlayout.setMargin(4)
         self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
         self.hboxlayout = QtGui.QHBoxLayout()
         self.hboxlayout.setObjectName(_fromUtf8("hboxlayout"))
@@ -40,6 +41,11 @@ class Ui_ExportRbService_Wizard_1(object):
         self.hboxlayout.addItem(spacerItem)
         self.gridlayout.addLayout(self.hboxlayout, 0, 0, 1, 1)
         self.splitterTree = QtGui.QSplitter(ExportRbService_Wizard_1)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.splitterTree.sizePolicy().hasHeightForWidth())
+        self.splitterTree.setSizePolicy(sizePolicy)
         self.splitterTree.setOrientation(QtCore.Qt.Horizontal)
         self.splitterTree.setObjectName(_fromUtf8("splitterTree"))
         self.tblItems = CTableView(self.splitterTree)
@@ -94,16 +100,10 @@ class Ui_ExportRbService_Wizard_1(object):
         self.gridLayout.addWidget(self.bbxFilter, 8, 0, 1, 1)
         spacerItem1 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem1, 7, 0, 1, 1)
-        self.chkFilterCode.raise_()
-        self.edtFilterCode.raise_()
-        self.chkFilterEIS.raise_()
-        self.chkFilterNomenclature.raise_()
-        self.chkFilterPeriod.raise_()
-        self.bbxFilter.raise_()
         self.gridlayout.addWidget(self.splitterTree, 2, 0, 1, 1)
         self.hboxlayout1 = QtGui.QHBoxLayout()
-        self.hboxlayout1.setMargin(0)
         self.hboxlayout1.setSpacing(6)
+        self.hboxlayout1.setMargin(0)
         self.hboxlayout1.setObjectName(_fromUtf8("hboxlayout1"))
         self.btnSelectAll = QtGui.QPushButton(ExportRbService_Wizard_1)
         self.btnSelectAll.setObjectName(_fromUtf8("btnSelectAll"))
@@ -155,3 +155,13 @@ class Ui_ExportRbService_Wizard_1(object):
         self.statusBar.setWhatsThis(_translate("ExportRbService_Wizard_1", "A status bar.", None))
 
 from library.TableView import CTableView
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    ExportRbService_Wizard_1 = QtGui.QDialog()
+    ui = Ui_ExportRbService_Wizard_1()
+    ui.setupUi(ExportRbService_Wizard_1)
+    ExportRbService_Wizard_1.show()
+    sys.exit(app.exec_())
+

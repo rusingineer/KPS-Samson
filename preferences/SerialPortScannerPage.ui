@@ -7,40 +7,30 @@
     <x>0</x>
     <y>0</y>
     <width>559</width>
-    <height>300</height>
+    <height>328</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Подключение сканера</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblScanPort">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>130</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>&amp;Порт</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtScanPort</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="3">
-    <spacer name="horizontalSpacer_8">
+   <item row="4" column="3">
+    <spacer name="horizontalSpacer_12">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
@@ -52,27 +42,21 @@
      </property>
     </spacer>
    </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblScanBaudrate">
-     <property name="enabled">
-      <bool>false</bool>
+   <item row="11" column="3">
+    <spacer name="horizontalSpacer_11">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
-     <property name="minimumSize">
+     <property name="sizeHint" stdset="0">
       <size>
-       <width>130</width>
-       <height>0</height>
+       <width>84</width>
+       <height>20</height>
       </size>
      </property>
-     <property name="text">
-      <string>&amp;Скорость, бод</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbScanBaudrate</cstring>
-     </property>
-    </widget>
+    </spacer>
    </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtScanPort">
+   <item row="11" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtScanPromobotAddress">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -81,52 +65,23 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0" colspan="4">
-    <widget class="QCheckBox" name="chkScanEnable">
-     <property name="text">
-      <string>&amp;Включить поддержку сканера</string>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="3">
-    <spacer name="horizontalSpacer_10">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>84</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="3" column="1">
-    <widget class="QComboBox" name="cmbScanParity">
+   <item row="11" column="0">
+    <widget class="QLabel" name="lblScanPromobotUrl">
      <property name="enabled">
       <bool>false</bool>
      </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
+     <property name="minimumSize">
+      <size>
+       <width>130</width>
+       <height>0</height>
+      </size>
      </property>
-     <item>
-      <property name="text">
-       <string>None</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Odd</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Even</string>
-      </property>
-     </item>
+     <property name="text">
+      <string>Адрес сканера</string>
+     </property>
+     <property name="buddy">
+      <cstring></cstring>
+     </property>
     </widget>
    </item>
    <item row="2" column="3">
@@ -141,6 +96,67 @@
       </size>
      </property>
     </spacer>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblScanParity">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>130</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Бит &amp;чётности</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbScanParity</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QComboBox" name="cmbScanStopBits">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <item>
+      <property name="text">
+       <string>1</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>2</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblScanStopBits">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>130</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>С&amp;топ-битов</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbScanStopBits</cstring>
+     </property>
+    </widget>
    </item>
    <item row="2" column="1">
     <widget class="QComboBox" name="cmbScanBaudrate">
@@ -193,8 +209,64 @@
      </item>
     </widget>
    </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="lblScanParity">
+   <item row="6" column="1" colspan="3">
+    <widget class="QCheckBox" name="chkScanCorrectBackslashes">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Исправлять дублирование '\'</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1" colspan="3">
+    <widget class="QCheckBox" name="chkScanParseReport">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Сообщать о проблемах распознавания</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0" colspan="4">
+    <widget class="QCheckBox" name="chkScanPromobotEnable">
+     <property name="text">
+      <string>&amp;Включить поддержку сканера Promobot Scanner</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1">
+    <widget class="QPushButton" name="btnScanTest">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Проверить</string>
+     </property>
+    </widget>
+   </item>
+   <item row="13" column="0">
+    <spacer name="verticalSpacer_5">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>42</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblScanPort">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -205,15 +277,15 @@
       </size>
      </property>
      <property name="text">
-      <string>Бит &amp;чётности</string>
+      <string>&amp;Порт</string>
      </property>
      <property name="buddy">
-      <cstring>cmbScanParity</cstring>
+      <cstring>edtScanPort</cstring>
      </property>
     </widget>
    </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblScanStopBits">
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblScanBaudrate">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -224,15 +296,58 @@
       </size>
      </property>
      <property name="text">
-      <string>С&amp;топ-битов</string>
+      <string>&amp;Скорость, бод</string>
      </property>
      <property name="buddy">
-      <cstring>cmbScanStopBits</cstring>
+      <cstring>cmbScanBaudrate</cstring>
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
-    <widget class="QComboBox" name="cmbScanStopBits">
+   <item row="1" column="1" colspan="2">
+    <widget class="QLineEdit" name="edtScanPort">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;для Windows:&lt;/p&gt;&lt;ul style=&quot;margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;&quot;&gt;&lt;li style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;com&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;для linux (обычно):&lt;/p&gt;&lt;ul style=&quot;margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;&quot;&gt;&lt;li style=&quot; margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;RS-232:&lt;span style=&quot; font-weight:600;&quot;&gt;/dev/ttyS&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt; ,&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;USB: &lt;span style=&quot; font-weight:600;&quot;&gt;/dev/ttyUSB&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="4">
+    <widget class="QCheckBox" name="chkScanEnable">
+     <property name="text">
+      <string>&amp;Включить поддержку сканера</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="3">
+    <spacer name="horizontalSpacer_10">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>84</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="3">
+    <spacer name="horizontalSpacer_8">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>84</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="3" column="1">
+    <widget class="QComboBox" name="cmbScanParity">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -244,12 +359,17 @@
      </property>
      <item>
       <property name="text">
-       <string>1</string>
+       <string>None</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>2</string>
+       <string>Odd</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Even</string>
       </property>
      </item>
     </widget>
@@ -273,6 +393,19 @@
      </property>
     </widget>
    </item>
+   <item row="9" column="2">
+    <spacer name="horizontalSpacer_13">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>85</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="5" column="1" colspan="2">
     <widget class="QComboBox" name="cmbScanFlowControl">
      <property name="enabled">
@@ -295,19 +428,6 @@
      </item>
     </widget>
    </item>
-   <item row="9" column="2">
-    <spacer name="horizontalSpacer_13">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>85</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
    <item row="7" column="1" colspan="3">
     <widget class="QCheckBox" name="chkScanConnectionReport">
      <property name="enabled">
@@ -318,116 +438,12 @@
      </property>
     </widget>
    </item>
-   <item row="8" column="1" colspan="3">
-    <widget class="QCheckBox" name="chkScanParseReport">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
+   <item row="12" column="0" colspan="3">
+    <widget class="QCheckBox" name="chkTabletSignEnable">
      <property name="text">
-      <string>Сообщать о проблемах распознавания</string>
+      <string>&amp;Включить отображение кнопки &quot;Планшет&quot;</string>
      </property>
     </widget>
-   </item>
-   <item row="6" column="1" colspan="3">
-    <widget class="QCheckBox" name="chkScanCorrectBackslashes">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Исправлять дублирование '\'</string>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="1">
-    <widget class="QPushButton" name="btnScanTest">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Проверить</string>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="0">
-    <spacer name="verticalSpacer_5">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>42</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="10" column="0" colspan="4">
-    <widget class="QCheckBox" name="chkScanPromobotEnable">
-     <property name="text">
-      <string>&amp;Включить поддержку сканера Promobot Scanner</string>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="0">
-    <widget class="QLabel" name="lblScanPromobotUrl">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>130</width>
-       <height>0</height>
-      </size>
-     </property>
-     <property name="text">
-      <string>Адрес сканера</string>
-     </property>
-     <property name="buddy">
-      <cstring></cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtScanPromobotAddress">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;для Windows:&lt;/p&gt;&lt;ul style=&quot;margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;&quot;&gt;&lt;li style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;com&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;для linux (обычно):&lt;/p&gt;&lt;ul style=&quot;margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;&quot;&gt;&lt;li style=&quot; margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;RS-232:&lt;span style=&quot; font-weight:600;&quot;&gt;/dev/ttyS&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt; ,&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;USB: &lt;span style=&quot; font-weight:600;&quot;&gt;/dev/ttyUSB&lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;{N}&lt;/span&gt;&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="3">
-    <spacer name="horizontalSpacer_11">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>84</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="4" column="3">
-    <spacer name="horizontalSpacer_12">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>84</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
    </item>
   </layout>
  </widget>

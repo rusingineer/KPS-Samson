@@ -325,7 +325,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
         reanimProfiles = ['1I', '1J', '1S', '1T']
 
         # количество коек по профилям (столбец 3)
-        def getPermamentHospitalBeds(orgStructureList, bedsSchedule, begDate, endDate):
+        def getPermamentHospitalBeds(orgStructureList, bedsSchedule, begDate, endDate, permamentBed):
             cols = [tableRbHospitalBedProfile['regionalCode'],
                     'count(OrgStructure_HospitalBed.id) as cnt',
                     u'''IF(cast(case when OrgStructure_HospitalBed.age like '%-%г' then substring_index(OrgStructure_HospitalBed.age, '-', -1)
@@ -334,12 +334,14 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                   else 150 end as unsigned integer) < 18, 1, 0) as isChild'''
                     ]
             cond = [tableOS['deleted'].eq(0),
-                    tableOSHB['isPermanent'].eq(1),
+                    tableOSHB['deleted'].eq(0),
                     db.joinOr([tableOSHB['begDate'].isNull(),
                                db.joinAnd([tableOSHB['begDate'].isNotNull(), tableOSHB['begDate'].le(begDate)])]),
                     db.joinOr([tableOSHB['endDate'].isNull(),
                                db.joinAnd([tableOSHB['endDate'].isNotNull(), tableOSHB['endDate'].ge(endDate)])])
                     ]
+            if not permamentBed:
+                cond.append(tableOSHB['isPermanent'].eq(1))
             queryTable = tableOS.leftJoin(tableOSHB, tableOSHB['master_id'].eq(tableOS['id']))
             queryTable = queryTable.leftJoin(tableRbHospitalBedProfile, tableRbHospitalBedProfile['id'].eq(tableOSHB['profile_id']))
             if orgStructureList:
@@ -355,7 +357,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
 
 
         # среднегодовые койки
-        def averageDaysHospitalBed(orgStructureIdList, bedsSchedule, begDatePeriod, endDatePeriod):
+        def averageDaysHospitalBed(orgStructureIdList, bedsSchedule, begDatePeriod, endDatePeriod, permamentBed):
             days = 0
             cols = [tableRbHospitalBedProfile['regionalCode'], tableOSHB['begDate'], tableOSHB['endDate'],
                     u'''IF(cast(case when OrgStructure_HospitalBed.age like '%-%г' then substring_index(OrgStructure_HospitalBed.age, '-', -1)
@@ -366,12 +368,14 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             queryTable = tableOS.leftJoin(tableOSHB, tableOSHB['master_id'].eq(tableOS['id']))
             queryTable = queryTable.leftJoin(tableRbHospitalBedProfile, tableRbHospitalBedProfile['id'].eq(tableOSHB['profile_id']))
             cond = [tableOS['deleted'].eq(0),
-                    tableOSHB['isPermanent'].eq('1'),
+                    tableOSHB['deleted'].eq(0),
                     db.joinOr([tableOSHB['begDate'].isNull(),
                                db.joinAnd([tableOSHB['begDate'].isNotNull(), tableOSHB['begDate'].le(begDatePeriod)])]),
                     db.joinOr([tableOSHB['endDate'].isNull(),
                                db.joinAnd([tableOSHB['endDate'].isNotNull(), tableOSHB['endDate'].ge(endDatePeriod)])])
                     ]
+            if not permamentBed:
+                cond.append(tableOSHB['isPermanent'].eq(1))
             if orgStructureIdList:
                 cond.append(tableOSHB['master_id'].inlist(orgStructureIdList))
             if bedsSchedule:
@@ -412,10 +416,12 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
         # поступившие (столбцы 6-9)
         def getReceived(orgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, addressType, permamentBed, eventExpose):
             cond = [tableEvent['deleted'].eq(0),
+                    tableOSHB['deleted'].eq(0),
                     db.joinOr(
                         [tableAction['actionType_id'].inlist(getActionTypeIdListByFlatCode('received%')),
                          db.joinAnd([tableAction['actionType_id'].inlist(getActionTypeIdListByFlatCode('moving%')),
-                                     tableRbHospitalBedProfile['regionalCode'].eq('1I')])]),
+                                     tableRbHospitalBedProfile['regionalCode'].eq('1I'),
+                                     tableAction['id'].ne(tableMovingAction['id'])])]),
                     tableAction['deleted'].eq(0),
                     tableClient['deleted'].eq(0),
                     tableEvent['setDate'].ge(begDateTime),
@@ -500,6 +506,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
         def getLeaved(orgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, permanentBed, eventExpose):
 
             cond = [tableEvent['deleted'].eq(0),
+                    tableOSHB['deleted'].eq(0),
                     db.joinOr(
                         [tableAction['actionType_id'].inlist(getActionTypeIdListByFlatCode('leaved%')),
                          db.joinAnd([tableAction['actionType_id'].inlist(getActionTypeIdListByFlatCode('moving%')),
@@ -632,7 +639,8 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                     tableEvent['setDate'].le(endDateTime),
                     db.joinOr([tableEvent['execDate'].isNull(), tableEvent['execDate'].ge(begDateTime)]),
                     tableEventType['context'].notInlist(['relatedAction', 'inspection']),
-                    tableEventType['code'].notInlist(['hospDir', 'egpuDisp', 'plng'])
+                    tableEventType['code'].notInlist(['hospDir', 'egpuDisp', 'plng']),
+                    tableOSHB['deleted'].eq(0)
                     ]
             actionTypeMovingList = getActionTypeIdListByFlatCode('moving%')
             queryTable = tableEvent.leftJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
@@ -733,7 +741,8 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                     db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].ge(begDateTime)]),
                     tableRbHospitalBedProfile['regionalCode'].inlist(reanimProfiles),
                     tableEventType['context'].notInlist(['relatedAction', 'inspection']),
-                    tableEventType['code'].notInlist(['hospDir', 'egpuDisp', 'plng'])
+                    tableEventType['code'].notInlist(['hospDir', 'egpuDisp', 'plng']),
+                    tableOSHB['deleted'].eq(0),
                     ]
             queryTable = tableEvent.leftJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
             queryTable = queryTable.leftJoin(tableMAT, tableMAT['id'].eq(tableEventType['medicalAidType_id']))
@@ -811,7 +820,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
 
 
         # койко-дни закрытия на ремонт (столбец 17)
-        def involuteBedDays(orgStructureIdList, bedsSchedule, begDatePeriod, endDatePeriod):
+        def involuteBedDays(orgStructureIdList, bedsSchedule, begDatePeriod, endDatePeriod, permamentBed):
             cols = [tableRbHospitalBedProfile['regionalCode'], tableOSHBI['begDate'], tableOSHBI['endDate'],
                     u'''IF(cast(case when OrgStructure_HospitalBed.age like '%-%г' then substring_index(OrgStructure_HospitalBed.age, '-', -1)
                                                          when OrgStructure_HospitalBed.age like '%-%м' then FLOOR(substring_index(OrgStructure_HospitalBed.age, '-', -1)/12)
@@ -822,7 +831,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             queryTable = queryTable.leftJoin(tableRbHospitalBedProfile, tableRbHospitalBedProfile['id'].eq(tableOSHB['profile_id']))
             queryTable = queryTable.leftJoin(tableOSHBI, tableOSHBI['master_id'].eq(tableOSHB['id']))
             cond = [tableOS['deleted'].eq(0),
-                    tableOSHB['isPermanent'].eq('1'),
+                    tableOSHB['deleted'].eq(0),
                     tableOSHBI['involutionType'].eq(1),
                     db.joinOr([tableOSHB['begDate'].isNull(),
                                db.joinAnd([tableOSHB['begDate'].isNotNull(), tableOSHB['begDate'].le(begDatePeriod)])]),
@@ -832,6 +841,8 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                     db.joinOr([tableOSHBI['endDate'].isNull(),
                                db.joinAnd([tableOSHBI['endDate'].isNotNull(), tableOSHBI['endDate'].ge(begDatePeriod)])])
                     ]
+            if not permamentBed:
+                cond.append(tableOSHB['isPermanent'].eq(1))
             if orgStructureIdList:
                 cond.append(tableOSHB['master_id'].inlist(orgStructureIdList))
             if bedsSchedule:
@@ -955,7 +966,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
         table.mergeCells(1, 15, 3, 1)
 
         # вычисление столбца 3
-        records = getPermamentHospitalBeds(begOrgStructureIdList, bedsSchedule, begDate, endDate)
+        records = getPermamentHospitalBeds(begOrgStructureIdList, bedsSchedule, begDate, endDate, isPermanentBed)
         for record in records:
             ageCond = ''
             profile = forceString(record.value('regionalCode'))
@@ -973,7 +984,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 reportLine[0] += cnt
 
         # вычисление столбца 5
-        mapProfileDays = averageDaysHospitalBed(begOrgStructureIdList, bedsSchedule, begDate, endDate)
+        mapProfileDays = averageDaysHospitalBed(begOrgStructureIdList, bedsSchedule, begDate, endDate, isPermanentBed)
         period = begDate.daysTo(endDate)
         for key in mapProfileDays.keys():
             rows = mapMainRows.get(key, [])[:]
@@ -1067,7 +1078,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 reportLine[12] += days[1]
 
         # вычисление столбца 17
-        mapProfileInvoluteDays = involuteBedDays(begOrgStructureIdList, bedsSchedule, begDateTime, endDateTime)
+        mapProfileInvoluteDays = involuteBedDays(begOrgStructureIdList, bedsSchedule, begDateTime, endDateTime, isPermanentBed)
         for key in mapProfileInvoluteDays.keys():
             rows = mapMainRows.get(key, [])[:]
             days = mapProfileInvoluteDays[key]

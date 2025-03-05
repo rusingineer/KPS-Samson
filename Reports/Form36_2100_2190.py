@@ -153,7 +153,7 @@ def selectGetRemovingObserved(params):
     if typeDN:
         stmt = u"""SELECT 
   IF(cck.exSubclassMKB IS NOT NULL, CONCAT(cck.MKB, cck.exSubclassMKB), cck.MKB) AS MKB,
-  IF(cck.reason = 1, 1, 0) removedToRecover
+  IF(cck.contingentKindRemoval_id = 1, 1, 0) removedToRecover
 FROM Client c
 LEFT JOIN ClientContingentKind cck ON cck.client_id = c.id
 LEFT JOIN rbContingentKind ck ON cck.contingentKind_id = ck.id
@@ -233,7 +233,7 @@ def selectObserved(params):
           left JOIN rbContingentKind ck2 ON cck2.contingentKind_id = ck2.id
           WHERE cck2.client_id = c.id AND ck2.code = '{typeContingent2}' AND cck2.deleted = 0
             AND cck2.endDate between {begDate} AND {endDate} 
-            AND cck2.reason in (1,5)
+            AND cck2.contingentKindRemoval_id in (1,5)
          ) AS transferFromPDLR, c.sex as sex
 FROM Client c
 LEFT JOIN ClientContingentKind cck ON cck.client_id = c.id
@@ -280,7 +280,7 @@ AND cck.MKB LIKE 'F%' AND cck.MKB NOT LIKE 'F1%';""".format(begDate=db.formatDat
           left JOIN rbContingentKind ck ON cck.contingentKind_id = ck.id
           WHERE cck.client_id = Client.id AND ck.code = 'ПДЛР' AND cck.deleted = 0
           AND cck.endDate between {begDate} AND {endDate}
-          AND cck.reason = 5
+          AND cck.contingentKindRemoval_id = 5
          ) AS transferFromPDLR
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
@@ -378,7 +378,7 @@ AND cck.MKB LIKE 'F%' AND cck.MKB NOT LIKE 'F1%';""".format(begDate=db.formatDat
           left JOIN rbContingentKind ck ON cck.contingentKind_id = ck.id
           WHERE cck.client_id = Client.id AND ck.code = 'ПДЛР' AND cck.deleted = 0
           AND cck.endDate between {begDate} AND {endDate}
-          AND cck.reason = 5
+          AND cck.contingentKindRemoval_id = 5
          ) AS transferFromPDLR
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id

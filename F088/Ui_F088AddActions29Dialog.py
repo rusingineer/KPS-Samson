@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_ekslp\F088\F088AddActions29Dialog.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_test\F088\F088AddActions29Dialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #

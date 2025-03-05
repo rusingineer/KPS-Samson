@@ -24,8 +24,8 @@ from library.Utils import forceRef, forceInt, forceBool, firstMonthDay
 from Events.AmbulatoryCardDialog import CAmbulatoryCardDialog
 from Events.CreateEvent import editEvent
 from Events.TempInvalidEditDialog import CTempInvalidEditDialog
-from Orgs.Utils import getOrgStructureDescendants, getOrgStructurePersonIdList
-from Registry.Utils import getClientContextData, getOrgStructureName, getClientMiniInfo
+from Orgs.Utils import getOrgStructureDescendants, getOrgStructurePersonIdList, getOrgStructureName
+from Registry.Utils import getClientContextData, getClientMiniInfo
 
 from Ui_MyDoctorArea import Ui_MyDoctorArea
 
@@ -370,6 +370,8 @@ class CSMPTableModel(CRecordListModel):
         self.addCol(CTextInDocTableCol(u'ФИО', 'clientName', 100, readOnly=True))
         self.addCol(CTextInDocTableCol(u'Пол', 'sex', 4, readOnly=True))
         self.addCol(CDateInDocTableCol(u'Дата рождения', 'birthDate', 10, readOnly=True, highlightRedDate=False))
+        self.addCol(CTextInDocTableCol(u'Причина вызова', 'callOccasion', 150, readOnly=True))
+        self.addCol(CTextInDocTableCol(u'Диагноз', 'diseaseBasic', 150, readOnly=True))
         self.addCol(CTextInDocTableCol(u'Адрес вызова', 'address', 150, readOnly=True))
         self.addHiddenCol('client_id')
         self.callType = callType
@@ -413,6 +415,8 @@ class CSMPTableModel(CRecordListModel):
 
             cols = ["CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
+                    u'smp_callinfo.callOccasion as callOccasion',
+                    u'smp_callinfo.diseaseBasic AS diseaseBasic',
                     tableClient['birthDate'],
                     u"""CONCAT_WS(', ', IF(smp_callinfo.settlement = '', NULL, smp_callinfo.settlement),
                       IF(smp_callinfo.street = '', NULL, smp_callinfo.street),
@@ -443,6 +447,8 @@ class CSMPTableModel(CRecordListModel):
                     tableClientAttach['orgStructure_id'].inlist(orgStructureIdList)]
 
             cols = ["CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
+                    u'smp_callinfo.callOccasion as callOccasion',
+                    u'smp_callinfo.diseaseBasic AS diseaseBasic',
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
                     tableClient['birthDate'],
                     u"""CONCAT_WS(', ', IF(smp_callinfo.settlement = '', NULL, smp_callinfo.settlement),
@@ -637,7 +643,7 @@ class CDeathsTableModel(CRecordListModel):
                     tableDispanser['code'].inlist([1, 2, 6]),
                     tableEvent['execPerson_id'].inlist(narrowPersonList),
                     u"""
-                    (Diagnosis.id = (SELECT dgns.id  
+                    (Diagnosis.id in (SELECT dgns.id  
                     FROM Event evt
                     LEFT JOIN Diagnostic dgn ON dgn.event_id = evt.id 
                     AND evt.id = (SELECT MAX(evt2.id) FROM Event evt2
@@ -662,7 +668,7 @@ class CDeathsTableModel(CRecordListModel):
                 table['birthDate'],
                 table['deathDate'],
                 table['client_id']]
-            items = db.getRecordList(queryTable, cols, where=cond, order='demogr_Certificate.deathDate desc')
+            items = db.getDistinctRecordList(queryTable, cols, where=cond, order='demogr_Certificate.deathDate desc')
         else:
             table = db.table('demogr_Certificate')
             tableClient = db.table('Client')
@@ -741,7 +747,7 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     AND e.client_id = Client.id
                     )""",
 
-                    u"""(ExternalNotification.MKB in (SELECT dgns.MKB  
+                    u"""(ExternalNotification.mkb in (SELECT dgns.MKB  
                       FROM Event evt
                            LEFT JOIN Diagnostic dgn ON dgn.event_id = evt.id 
                            AND evt.id = (SELECT MAX(evt2.id) FROM Event evt2

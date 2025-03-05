@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -22,8 +22,7 @@ from library.TableModel import CTableModel, CTextCol, CBoolCol, CEnumCol
 from library.database   import decorateString
 
 from xml.etree.ElementTree              import ElementTree, Element, SubElement
-from Exchange.Ui_ExportEvents_Wizard_2  import Ui_ExportEvents_Wizard_2
-
+from Exchange.Ui_ExportEvents_Wizard_2 import Ui_ExportEvents_Wizard_2, _fromUtf8, _translate
 
 
 def ExportRbPrintTemplate():
@@ -304,7 +303,64 @@ class CExportWizardPage2(QtGui.QWizardPage, Ui_ExportEvents_Wizard_2):
         self.btnExport.setEnabled(self._wizard.fileName != '')
         self.checkRAR.setChecked(self._wizard.compressRAR)
         self.done = False
+        self.over = False
 
+    def exportSQL(self):
+        if forceString(self.edtFileName.text()) != '' and forceString(self.edtFileName.text())[-4:].lower() == '.sql':
+            dialog = QtGui.QDialog(self)
+
+            gridlayout = QtGui.QGridLayout(dialog)
+            gridlayout.setObjectName(_fromUtf8("gridlayout"))
+            hboxlayout = QtGui.QHBoxLayout()
+            hboxlayout.setMargin(0)
+            hboxlayout.setSpacing(6)
+            hboxlayout.setObjectName(_fromUtf8("hboxlayout"))
+            label_versionBD = QtGui.QLabel(self)
+            label_versionBD.setObjectName(_fromUtf8("label"))
+            label_versionBD.setText(u'Укажите версию обновления')
+            hboxlayout.addWidget(label_versionBD)
+            self.versionBD = QtGui.QSpinBox(self)
+            self.versionBD.setMinimum(0)
+            self.versionBD.setMaximum(999)
+            self.versionBD.setObjectName(_fromUtf8("versionBD"))
+            hboxlayout.addWidget(self.versionBD)
+            label_overUpdate = QtGui.QLabel(self)
+            label_overUpdate.setObjectName(_fromUtf8("label"))
+            label_overUpdate.setText(u'Промежуточный скрипт (внеобновления "overUpdate")')
+            hboxlayout.addWidget(label_overUpdate)
+            self.overUpdate = QtGui.QCheckBox(self)
+            self.overUpdate.setCheckable(True)
+            hboxlayout.addWidget(self.overUpdate)
+            gridlayout.addLayout(hboxlayout, 0, 0, 1, 1)
+
+            info = QtGui.QTextBrowser(self)
+            info.setObjectName(_fromUtf8("edtFileName_"))
+            gridlayout.addWidget(info, 1, 0, 2, 1)
+
+            buttonBox = QtGui.QDialogButtonBox()
+            buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+            buttonBox.accepted.connect(dialog.accept)
+            buttonBox.rejected.connect(dialog.reject)
+            gridlayout.addWidget(buttonBox, 3, 0, 1, 1)
+            dialog.setWindowTitle(u'Параметры')
+
+            a = u'''<h3 align=center><span style='color: red;'>Памятка для оформления скриптов СЭМДов supplement</span></h3>
+<h4>Для обновлений МИС Самсон:</h4>
+- При замене шаблонов печати с контекстом supplement, предназначенных для формирования СЭМД для РЭМД выставлять в скрипте шаблона <br>
+rbPrintTemplate.deleted = 2, rbPrintTemplate.modifyDatetime = NOW(), rbPrintTemplate.modifyPerson_id = NULL т.е. отмечаем шаблон к удалению и добавляем новый.<br><br>
+- При замене шаблонов печати, из которых формируются PDF-файлы обновляем контекст печати, дату модификации и пользователя<br>
+context = CONCAT(rbPrintTemplate.context,'_','updateXXX'), где XXX- это номер обновления, в составе которого скрипты,  rbPrintTemplate.modifyDatetime = NOW(), rbPrintTemplate.modifyPerson_id = NULL<br>
+
+<h4>Для выполнении скриптов между обновлениями в ручном режиме:</h4>
+- При выполнении скриптов между обновлениями в ручном режиме для шаблонов печати  supplement, предназначенных для формирования СЭМД для РЭМД, применять правила, аналогичные обновлениям. <br><br>
+- При замене шаблонов печати, из которых формируются PDF-файлы обновляем контекст печати, дату модификации и пользователя, контекст формируем по правилу <br>
+CONCAT(rbPrintTemplate.context,'_','overUpdateXXX'), 
+где XXX- это номер последнего вышедшего обновления МИС, после которого устанавливается скрипт и новый шаблон'''
+            info.setHtml(_translate("ExportEvents_Wizard_2", a, None))
+            if dialog.exec_():
+                self.over = self.overUpdate.isChecked()
+                self.BD = self.versionBD.text()
+                return 1
 
     def isComplete(self):
         return self.done
@@ -312,8 +368,15 @@ class CExportWizardPage2(QtGui.QWizardPage, Ui_ExportEvents_Wizard_2):
 
     @pyqtSignature('')
     def on_btnSelectFile_clicked(self):
+        saveFormats = [u'Файлы XML (*.xml)',
+                       u'Файлы SQL (*.sql)'
+                       ]
+
+        initialFilter = u'Файлы XML (*.xml)'
+        if self.edtFileName.text().split('.').count()==2 and self.edtFileName.text().split('.')[1] == 'sql':
+            initialFilter = u'Файлы SQL (*.sql)'
         fileName = QtGui.QFileDialog.getSaveFileName(
-            self, u'Укажите файл с данными', self.edtFileName.text(), u'Файлы XML (*.xml)')
+            self, u'Укажите файл с данными', self.edtFileName.text(), ';;'.join(saveFormats),initialFilter)
         if fileName != '':
             fileName = QDir.toNativeSeparators(fileName)
             self.edtFileName.setText(fileName)
@@ -324,9 +387,19 @@ class CExportWizardPage2(QtGui.QWizardPage, Ui_ExportEvents_Wizard_2):
     @pyqtSignature('')
     def on_btnExport_clicked(self):
         assert self._wizard.exportAll or len(self._wizard.selectedItemIdList) > 0
+
+        if self.edtFileName.text().split('.').count() < 2:
+            self.edtFileName.setText(self.edtFileName.text()+ '.xml')
+
         fileName = forceString(self.edtFileName.text())
         if not fileName:
             return
+
+        if fileName.split('.')[-1].lower() == 'sql':
+            self.over = ''
+            self.BD = ''
+            if not self.exportSQL():
+                return
 
         db = QtGui.qApp.db
         table = db.table('rbPrintTemplate')
@@ -339,40 +412,72 @@ class CExportWizardPage2(QtGui.QWizardPage, Ui_ExportEvents_Wizard_2):
         records = db.getRecordList('rbPrintTemplate', '*', cond)
         self.progressBar.setMaximum(len(records))
         xmlRoot = Element('items')
+        text = ''
+        context = ''
+        contextList = []
         for record in records:
             self.progressBar.setValue(self.progressBar.value() + 1)
             QtGui.qApp.processEvents()
 
             itemId = forceInt(record.value('id'))
-            xmlItem = SubElement(xmlRoot, 'rbPrintTemplate', attrib={
-                    'context': forceString(record.value('context')),
-                    'name': forceString(record.value('name')),
-                    'code': forceString(record.value('code')),
-                    'groupName': forceString(record.value('groupName')),
-                    'inAmbCard': forceString(record.value('inAmbCard')),
-                    'type': forceString(record.value('type')),
-                    'default': forceString(record.value('default')),
-                    'fileName': forceString(record.value('fileName')),
-                })
-
-            consentTypes = db.getRecordList(
-                'rbPrintTemplate_ClientConsentType',
-                [
-                'value',
-                '(SELECT name FROM rbClientConsentType WHERE id = clientConsentType_id) AS name',
-                '(SELECT code FROM rbClientConsentType WHERE id = clientConsentType_id) AS code',
-                ],
-                'master_id = %d' % itemId)
-            for consentRecord in consentTypes:
-                SubElement(xmlItem, 'rbClientConsentType', attrib={
-                        'code': forceString(consentRecord.value('code')),
-                        'name': forceString(consentRecord.value('name')),
-                        'value': forceString(consentRecord.value('value')),
+            if fileName and fileName.split('.')[-1].lower() == 'xml':
+                xmlItem = SubElement(xmlRoot, 'rbPrintTemplate', attrib={
+                        'context': forceString(record.value('context')),
+                        'name': forceString(record.value('name')),
+                        'code': forceString(record.value('code')),
+                        'groupName': forceString(record.value('groupName')),
+                        'inAmbCard': forceString(record.value('inAmbCard')),
+                        'type': forceString(record.value('type')),
+                        'default': forceString(record.value('default')),
+                        'fileName': forceString(record.value('fileName')),
                     })
 
+                consentTypes = db.getRecordList(
+                    'rbPrintTemplate_ClientConsentType',
+                    [
+                    'value',
+                    '(SELECT name FROM rbClientConsentType WHERE id = clientConsentType_id) AS name',
+                    '(SELECT code FROM rbClientConsentType WHERE id = clientConsentType_id) AS code',
+                    ],
+                    'master_id = %d' % itemId)
+                for consentRecord in consentTypes:
+                    SubElement(xmlItem, 'rbClientConsentType', attrib={
+                            'code': forceString(consentRecord.value('code')),
+                            'name': forceString(consentRecord.value('name')),
+                            'value': forceString(consentRecord.value('value')),
+                        })
+            else:
+                text += u'(now(), 0,"' + forceString(record.value('code')) + u'","' + forceString(record.value('name')) + u'","' + forceString(record.value('groupName')) + u'","' \
+                        + forceString(record.value('context')) + u'","' + forceString(record.value('fileName')) + u'",\'' + forceString(record.value('default')).replace("'","''").replace("\t","\\t").replace('\\n','\\\\n').replace('\n','\\n') + u'\',"' \
+                        + forceString(record.value('dpdAgreement')) + u'","' + forceString(record.value('dsoAgreement')) + u'","' + forceString(record.value('type')) + u'","' \
+                        + forceString(record.value('inAmbCard')) + u'"),'
+
+                if forceString(record.value('context')) not in contextList:
+                    contextList.append(forceString(record.value('context')))
+                    if (u'supplement' in forceString(record.value('context')) and '<?xml version="1.0" encoding="UTF-8"?>' in forceString(record.value('default')))\
+                            or u'checksList' in forceString(record.value('name')):
+                        context += u'''UPDATE rbPrintTemplate pt
+                          SET deleted = 2, modifyDatetime = NOW(), modifyPerson_id = NULL
+                          WHERE pt.context in ("'''+forceString(record.value('context'))+u'''") AND pt.deleted= 0 ; \n\n\n'''
+                    else:
+                        context += u'''UPDATE rbPrintTemplate pt
+                                              SET modifyDatetime = NOW(), modifyPerson_id = NULL, context = CONCAT(context,'_','updateXXX')
+                                              WHERE pt.context in ("''' + forceString(record.value('context')) + u'''") AND pt.deleted= 0 ; \n\n\n'''
         try:
-            with open(fileName, 'w') as file:
-                ElementTree(xmlRoot).write(file, encoding='utf-8')
+            if text:
+                import codecs
+                with codecs.open(fileName, 'w', encoding='utf-8') as file:
+                    if self.over == True:
+                        context =  context.replace('updateXXX', 'overUpdate' + forceString(self.BD))
+                    else:
+                        context = context.replace('updateXXX', 'update' + forceString(self.BD))
+                    text = u'''SET NAMES 'utf8';\n SET SQL_SAFE_UPDATES = 0;\n\n '''+context+u''';
+                      INSERT INTO rbPrintTemplate (modifyDatetime, deleted, code, name, groupName, context, fileName, `default`, dpdAgreement, dsoAgreement, type, inAmbCard) VALUES
+                      ''' + text[:-1] + u'; \n\nSET SQL_SAFE_UPDATES = 1;'
+                    file.write(text)
+            else:
+                with open(fileName, 'w') as file:
+                    ElementTree(xmlRoot).write(file, encoding='utf-8')
         except Exception as e:
             QtGui.QMessageBox.critical(None, u'Ошибка', u'Ошибка записи файла:\n' + unicode(e))
             return

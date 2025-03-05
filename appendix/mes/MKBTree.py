@@ -12,15 +12,13 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+from PyQt4 import QtGui
+from PyQt4.QtCore import QString
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-
+from library.ICDCodeEdit import CICDCodeEdit
+from library.ICDInDocTableCol import CICDExInDocTableCol
+from library.Utils import forceString, forceRef, toVariant
 from library.database import CDatabaseException
-from library.ICDTree import *
-from library.ICDCodeEdit    import CICDCodeEdit, CICDCodeEditEx
-from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
 
 u"""Столбик и выпадающая таблица с деревом для выбора кода МКБ.
 Сведения о кодах МКБ берутся из таблицы s11.MKB

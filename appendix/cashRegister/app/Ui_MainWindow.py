@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'MainWindow.ui'
+# Form implementation generated from reading ui file '/home/green/s11_trunk/appendix/cashRegister/app/MainWindow.ui'
 #
 # Created by: PyQt4 UI code generator 4.12.1
 #
@@ -29,7 +29,7 @@ class Ui_CMainWindow(object):
         self.centralwidget = CMdiArea(CMainWindow)
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.menubar = QtGui.QMenuBar(CMainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 551, 25))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 551, 24))
         self.menubar.setObjectName(_fromUtf8("menubar"))
         self.menuPreferences = QtGui.QMenu(self.menubar)
         self.menuPreferences.setObjectName(_fromUtf8("menuPreferences"))
@@ -93,6 +93,8 @@ class Ui_CMainWindow(object):
         self.actReportShiftTotalCounters.setObjectName(_fromUtf8("actReportShiftTotalCounters"))
         self.actReportFnTotalCounters = QtGui.QAction(CMainWindow)
         self.actReportFnTotalCounters.setObjectName(_fromUtf8("actReportFnTotalCounters"))
+        self.actReportCashier = QtGui.QAction(CMainWindow)
+        self.actReportCashier.setObjectName(_fromUtf8("actReportCashier"))
         self.menuPreferences.addAction(self.actConnection)
         self.menuPreferences.addSeparator()
         self.menuPreferences.addAction(self.actAppPreferences)
@@ -109,6 +111,7 @@ class Ui_CMainWindow(object):
         self.menuReports.addAction(self.actReportOfdTest)
         self.menuReports.addAction(self.actReportCashRegisterInfo)
         self.menuReports.addAction(self.actReportRegistration)
+        self.menuReports.addAction(self.actReportCashier)
         self.menuFile.addAction(self.actLogin)
         self.menuFile.addAction(self.actLogout)
         self.menuFile.addSeparator()
@@ -154,6 +157,7 @@ class Ui_CMainWindow(object):
         self.actReportRegistration.setText(_translate("CMainWindow", "Печать итогов регистрации / перерегистрации", None))
         self.actReportShiftTotalCounters.setText(_translate("CMainWindow", "Счетчики итогов смены", None))
         self.actReportFnTotalCounters.setText(_translate("CMainWindow", "Счетчики итогов ФН", None))
+        self.actReportCashier.setText(_translate("CMainWindow", "Отчет по кассирам", None))
 
 from library.MdiArea import CMdiArea
 

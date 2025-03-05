@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,6 +16,7 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QEvent, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtSql import QSqlField
 
 from library.DialogBase         import CDialogBase
 from library.ItemsListDialog import CItemEditorBaseDialog
@@ -26,6 +27,7 @@ from library.Utils              import (
 )
 from library.interchange import setComboBoxValue, getComboBoxValue
 
+from library.database import CTable
 from Accounting.Tariff          import CTariff
 from Events.Action              import CActionTypeCache
 from Events.ActionsSelectorSelectedTable import CCheckedActionsModel
@@ -38,8 +40,9 @@ from Events.Utils               import (
 from Orgs.Utils                 import getOrgStructureActionTypeIdSet
 
 from RefBooks.ActionTypeGroup.List import CActionTypeGroupsModel, ACTION_TYPE_GROUP_APPOINTMENT
+from RefBooks.ActionTypeGroup.RBActionTypeGroupEditor import ActionTypeGroupEditor
 
-from Users.Rights import urCanDeleteForeignActionTypeGroup, urEditContractConditionF9
+from Users.Rights import urAdmin, urCanCreateNewActionTypeGroup, urEditContractConditionF9, urCanDeleteForeignActionTypeGroup
 
 from Events.Ui_ActionsSelectorDialog import Ui_ActionTypesSelectorDialog
 from Events.Ui_SelectorTemplateEditor import Ui_SelectorTemplateEditor
@@ -109,6 +112,65 @@ def selectActionTypes(parent, eventEditor, actionTypeClasses=[], orgStructureId=
             result = []
     finally:
         dlg.saveChkBoxPreferences()
+        dlg.deleteLater()
+    return result
+
+
+def selectActionTypesEx(parent, eventEditor, actionTypeClasses=[], orgStructureId=None, eventTypeId=None, contractId=None, mesId=None, chkContractByFinanceId=None, eventId=None, existsActionTypesList=[], visibleTblSelected=True, contractTariffCache=None, clientMesInfo=None, eventDate=None, preActionTypeIdList=[]):
+    QtGui.qApp.setOverrideCursor(QtGui.QCursor(Qt.WaitCursor))
+    dlg = CActionTypesSelectionDialog(parent, eventEditor, eventTypeId)
+    result = []
+    try:
+        dlg.setBlockSignals(True)
+        try:
+            dlg.setExistsActionTypes(existsActionTypesList)
+            dlg.setOrgStructurePriority(eventTypeId)
+            if hasattr(eventEditor, 'cmbPerson'):
+                dlg.setExecPerson(eventEditor.cmbPerson.value())
+            dlg.setMesId(mesId, clientMesInfo)
+            dlg.setActionTypeClasses(actionTypeClasses)
+            dlg.setSexAndAge(eventEditor.clientSex, eventEditor.clientAge, eventEditor.clientBirthDate)
+            dlg.setEventId(eventId)
+            dlg.setEventDate(eventDate or eventEditor.eventDate)
+            dlg.setSpecialityId()
+            dlg.setEventTypeId(eventTypeId)
+            dlg.setCSGEnabled(eventEditor)
+            dlg.setOrgStructureId(orgStructureId)
+            dlg.setContractId(contractId, chkContractByFinanceId)
+            dlg.updateSelectedCount()
+            dlg.getDepositClient()
+            dlg.setVisibleTblSelected(visibleTblSelected)
+            dlg.setPreActionTypeIdList(preActionTypeIdList)
+            dlg.setContractTariffCache(contractTariffCache)
+            dlg.setClientId()
+            dlg.updateContractTariffLimitationsChecked()
+            dlg.updateConditionsByEventTypeDefaults()
+        finally:
+            dlg.chkOnlyNotExists.setChecked(False)
+            dlg.chkPreferable.setChecked(False)
+            dlg.chkContract.setChecked(True)
+            dlg.chkSexAndAge.setChecked(True)
+            dlg.chkPriceList.setChecked(False)
+            dlg.chkNomenclative.setChecked(True)
+            dlg.chkMes.setChecked(True)
+            dlg.tblActionTypes.model().setCheckMesGroups(True)
+            dlg.chkIsNecessary.setChecked(False)
+            dlg.chkContractTariffLimitations.setChecked(False)
+            dlg.chkOrgStructure.setChecked(False)
+            dlg.chkPlanner.setChecked(False)
+            dlg.isOrgStructirePriority = False
+            dlg.cmbSpeciality.setEnabled(False)
+            dlg.cmbOrgStructure.setEnabled(False)
+            dlg.updateTreeData()
+            dlg.setBlockSignals(False)
+            dlg.on_bntSelectAll_pressed()
+        QtGui.qApp.restoreOverrideCursor()
+        if dlg.exec_():
+            result = dlg.getSelectedList()
+        else:
+            result = []
+        QtGui.qApp.restoreOverrideCursor()
+    finally:
         dlg.deleteLater()
     return result
 
@@ -225,6 +287,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         self.contractId = None
         self.contractSum = 0
         self.specialityId = None
+        self.specialityRegionalCode = None
         self.mesId = None
         self.clientMesInfo = None
         self.nomenclativeActionTypes = None
@@ -277,6 +340,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         self.splSelectedActionTypes.setCollapsible(0, False)
         
         self.treeActionTypeGroups.header().setVisible(False)
+        self.btnSaveTemplate.setEnabled(QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanCreateNewActionTypeGroup))
 
     def setPreActionTypeIdList(self, preActionTypeIdList):
         self.preActionTypeIdList = preActionTypeIdList
@@ -583,14 +647,10 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
                     eventCSGId = forceRef(csgRecord.value('id')) if csgRecord else None
                     record.setValue('eventCSG_id', toVariant(eventCSGId))
 
-                medicalAidKindId = action.getMedicalAidKindId()
-                if QtGui.qApp.controlSMFinance() == 0:
-                    action.initNomenclatureReservation(self.getClientId(),
-                                                                    medicalAidKindId=medicalAidKindId)
-                else:
-                    action.initNomenclatureReservation(self.getClientId(),
-                                                                    financeId=action.getFinanceId(),
-                                                                    medicalAidKindId=medicalAidKindId)
+                actionType = action.getType()
+                if actionType.isNomenclatureExpense:
+                    medicalAidKindId = action.getMedicalAidKindId()
+                    action.initNomenclatureReservation(self.getClientId(), financeId=action.getFinanceId(), medicalAidKindId=medicalAidKindId)
                 if not action.deleteMark:
                     item = (actionTypeId, action, csgRecord)
                     result.append(item)
@@ -1071,6 +1131,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         if specialityId:
             self.specialityId = specialityId
             self.cmbSpeciality.setValue(self.specialityId)
+            self.specialityRegionalCode = forceString(QtGui.qApp.db.translate('rbSpeciality', 'id', self.specialityId, 'regionalCode'))
 
 
     def getPlannedActionTypes(self):
@@ -1237,7 +1298,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
             enabledActionTypes = None
         restrictActionTypes = self.getNotRestrictActionTypes()
         if restrictActionTypes and enabledActionTypes:
-            enabledActionTypes = list(set(enabledActionTypes) - restrictActionTypes)
+            enabledActionTypes = list(set(enabledActionTypes or []) - restrictActionTypes)
         if self.chkOnlyNotExists.isChecked():
             self.disabledActionTypeIdList = list(self.existsActionTypesList)
             if self.chkMes.isChecked():
@@ -1261,7 +1322,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         self.enabledActionTypes = enabledActionTypes
         if self.chkFindFilter.isChecked() and self.findFilterText:
             findFilterActionTypes = self.getActionTypeIdListByFindFilter()
-            enabledActionTypes = list(set(enabledActionTypes) & findFilterActionTypes)
+            enabledActionTypes = list(set(enabledActionTypes) & findFilterActionTypes) if enabledActionTypes else findFilterActionTypes
             self.enabledActionTypes = enabledActionTypes
         if self.chkCSG.isChecked():
             indexCSG = self.cmbCSG.currentIndex()
@@ -1273,7 +1334,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
                 recordCSG = db.getRecordEx(tableCSG, 'mes.CSG.id', [tableCSG['code'].like(CSGCode)])
                 self.CSGId = forceRef(recordCSG.value('id')) if recordCSG else None
                 CSGCodeActionTypes = self.getActionTypeIdListByCSGCode()
-                enabledActionTypes = list(set(enabledActionTypes) & CSGCodeActionTypes)
+                enabledActionTypes = list(set(enabledActionTypes) & CSGCodeActionTypes) if enabledActionTypes else CSGCodeActionTypes
                 self.enabledActionTypes = enabledActionTypes
 
         self.modelActionTypeGroups.setEnabledActionTypeIdList(enabledActionTypes)
@@ -1326,10 +1387,16 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         cond = [tableActionType['deleted'].eq(0),
                 tableActionType['showInForm'].ne(0),
                 tableActionType['class'].inlist(self.actionTypeClasses)
-               ]
+                ]
         if groupId:
             groupIdList = db.getDescendants('ActionType', 'group_id', groupId)
+            groupIdList = db.getDistinctIdList(tableActionType, [tableActionType['id']], [tableActionType['group_id'].inlist(groupIdList), tableActionType['deleted'].eq(0), tableActionType['showInForm'].ne(0)])
+            groupIdList.append(groupId)
             cond.append(tableActionType['group_id'].inlist(groupIdList))
+        else:
+            cond.append(u'(ActionType.group_id IS NULL OR'
+                        u' (EXISTS(SELECT AT.id FROM ActionType AS AT WHERE'
+                        u' AT.id = ActionType.group_id AND AT.showInForm != 0 AND AT.deleted = 0)))')
         if _class is not None:
             cond.append(tableActionType['class'].eq(_class))
         if self.mesActionTypeIdList:
@@ -1664,24 +1731,40 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
 
 
     @pyqtSignature('')
+    @withWaitCursor
     def on_bntSelectAll_pressed(self):
         notSelected = []
         chkMes = self.chkMes.isChecked()
-        for actionTypeId in self.modelActionTypes.idList():
-            if chkMes:
-                if actionTypeId not in notSelected:
-                    checkMesGroupsHelper = self.tblActionTypes.model().getCheckMesGroupsHelper()
-                    mesExistsList = checkMesGroupsHelper.getListByIdOverGroupCodeLimit(actionTypeId)
-                    mesExistsListId = [at.id for at in mesExistsList]
-                    if actionTypeId in mesExistsListId:
-                        mesExistsListId.pop(mesExistsListId.index(actionTypeId))
-                        notSelected += mesExistsListId
-            if actionTypeId not in notSelected:
-                self.setSelected(actionTypeId, True)
-            else:
+        self.setEnabled(False)
+        try:
+            for i, actionTypeId in enumerate(self.modelActionTypes.idList()):
+                if i % 50 == 0:
+                    QtGui.qApp.processEvents()
                 if chkMes:
-                    self.setSelected(actionTypeId, False)
-        self.invalidateChecks()
+                    if actionTypeId not in notSelected:
+                        checkMesGroupsHelper = self.tblActionTypes.model().getCheckMesGroupsHelper()
+                        mesExistsList = checkMesGroupsHelper.getListByIdOverGroupCodeLimit(actionTypeId)
+                        mesExistsListId = [at.id for at in mesExistsList]
+                        actionType = CActionTypeCache.getById(actionTypeId)
+                        if actionTypeId in mesExistsListId:
+                            # ТТ 2691 исключение должно быть для услуг врачей терапевта B04.047 или врача общей практики B04.026
+                            if actionType.code.startswith('B04.047') or actionType.code.startswith('B04.026'):
+                                if bool(actionType.code.startswith('B04.047') and self.specialityRegionalCode == '76') or bool(actionType.code.startswith('B04.026') and self.specialityRegionalCode in ['39', '224']):
+                                    mesExistsListId.pop(mesExistsListId.index(actionTypeId))
+                                    notSelected += mesExistsListId
+                                else:
+                                    notSelected.append(actionTypeId)
+                            else:
+                                mesExistsListId.pop(mesExistsListId.index(actionTypeId))
+                                notSelected += mesExistsListId
+                if actionTypeId not in notSelected:
+                    self.setSelected(actionTypeId, True)
+                else:
+                    if chkMes:
+                        self.setSelected(actionTypeId, False)
+            self.invalidateChecks()
+        finally:
+            self.setEnabled(True)
 
 
     @pyqtSignature('')
@@ -1694,75 +1777,26 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
 
     @pyqtSignature('')
     def on_btnSaveTemplate_pressed(self):
-        class_ = self.actionTypeClasses[0] if len(self.actionTypeClasses) == 1 else None
-        dlg = CTemplateEditor(self, class_)
-        if dlg.exec_():
-            db = QtGui.qApp.db
-            db.transaction()
-            try:
-                actionTypeGroupId = dlg.itemId()
-                table = db.table('ActionTypeGroup_Item')
-                items = self.tblSelectedActionTypes.model().items()
-                mapActionTypeIdToPropertyValues = self.tblSelectedActionTypes.model()._mapActionTypeIdToPropertyValues
-                idRowToAction = self.tblSelectedActionTypes.model()._idRowToAction
-                rows = []
-                for actionTypeId in self.selectedActionTypeIdList:
-                    actions = self.modelSelectedActionTypes.getSelectedAction(actionTypeId)
-                    actionTemplateId = None
-                    for action in actions:
-                        actionTemplateId = action._actionTemplateId
-                    for row, item in enumerate(items):
-                        if row not in rows and actionTypeId == forceRef(item.value('actionType_id')):
-                            newRecord = table.newRecord()
-                            newRecord.setValue('master_id', actionTypeGroupId)
-                            newRecord.setValue('actionType_id', actionTypeId)
-                            newRecord.setValue('actionTemplate_id', actionTemplateId)
-                            fieldNameRecipe = item.fieldName(item.indexOf('recipe'))
-                            fieldNameDoses = item.fieldName(item.indexOf('doses'))
-                            fieldNameSigna = item.fieldName(item.indexOf('signa'))
-                            fieldNameActiveSubstance = item.fieldName(item.indexOf('activeSubstance_id'))
-                            action = idRowToAction[(actionTypeId, row)]
-                            values = mapActionTypeIdToPropertyValues.get(actionTypeId, None)
-                            if values:
-                                if fieldNameRecipe == 'recipe' and forceString(fieldNameRecipe) in values.keys():
-                                    value = values[forceString(fieldNameRecipe)]
-                                    if u'propertyType' in value.keys():
-                                        propertyType = value['propertyType']
-                                        if propertyType.inActionsSelectionTable == _RECIPE:
-                                            property = action.getPropertyById(propertyType.id)
-                                            newRecord.setValue('nomenclature_id', toVariant(property.getValue()))
-                                if fieldNameDoses == 'doses' and forceString(fieldNameDoses) in values.keys():
-                                    value = values[forceString(fieldNameDoses)]
-                                    if u'propertyType' in value.keys():
-                                        propertyType = value['propertyType']
-                                        if propertyType.inActionsSelectionTable == _DOSES:
-                                            property = action.getPropertyById(propertyType.id)
-                                            newRecord.setValue('doses', toVariant(property.getText()))
-                                if fieldNameSigna == 'signa' and forceString(fieldNameSigna) in values.keys():
-                                    value = values[forceString(fieldNameSigna)]
-                                    if u'propertyType' in value.keys():
-                                        propertyType = value['propertyType']
-                                        if propertyType.inActionsSelectionTable == _SIGNA:
-                                            property = action.getPropertyById(propertyType.id)
-                                            newRecord.setValue('signa', toVariant(property.getValue()))
-                                if fieldNameActiveSubstance == 'activeSubstance_id' and forceString(fieldNameActiveSubstance) in values.keys():
-                                    value = values[forceString(fieldNameActiveSubstance)]
-                                    if u'propertyType' in value.keys():
-                                        propertyType = value['propertyType']
-                                        if propertyType.inActionsSelectionTable == _ACTIVESUBSTANCE:
-                                            property = action.getPropertyById(propertyType.id)
-                                            newRecord.setValue('activeSubstance_id', toVariant(property.getValue()))
-                            db.insertRecord(table, newRecord)
-                            rows.append(row)
-                self.tabWgtActionTypes.setCurrentIndex(_TEMPLATES_TAB_INDEX)
-                self.modelTemplates.reloadData(class_)
-                self.tblTemplates.setCurrentItemId(actionTypeGroupId)
-            except:
-                db.rollback()
-                raise
-            else:
-                db.commit()
-        dlg.deleteLater()
+#        class_ = self.actionTypeClasses[0] if len(self.actionTypeClasses) == 1 else None
+        # т.к. редактор шаблонов требует во входных данных информацию о классе каждого добавляемого действия -
+        # вытаскиваем эту информацию из БД, т.к. информация о классах действий не хранится в диалоге
+        db = QtGui.qApp.db
+        table = CTable('ActionType', db)
+        recs = db.getRecordList(table, ['id', 'class'], table['id'].inlist(self.selectedActionTypeIdList))
+        mapActionTypeIdToClass = {}
+        for rec in recs:
+            mapActionTypeIdToClass[forceRef(rec.value('id'))] = forceInt(rec.value('class'))
+        actionsList = []
+        for record in self.tblSelectedActionTypes.model().items():
+            newRecord = record
+            newRecord.append(QSqlField('class', QVariant.Int))  # Для редактора шаблона нужна информация о классе добавляемого действия
+            newRecord.setValue('class', toVariant(mapActionTypeIdToClass.get(forceRef(newRecord.value('actionType_id')), None)))
+            actionsList.append(newRecord)
+
+        curTemplateId = None
+        dlg = ActionTypeGroupEditor(self, curTemplateId)
+        dlg.setActionTypes(actionsList)
+        dlg.exec_()
 
 
     @pyqtSignature('QString')
@@ -2216,38 +2250,6 @@ class CExistsClientActionsModel(CTableModel):
 
 
 # #########################################################
-_ACTION_GROUP_TEMPLATE = 0
-
-
-class CTemplateEditor(CItemEditorBaseDialog, Ui_SelectorTemplateEditor):
-    def __init__(self, parent, class_=None, isOffset=False):
-        CItemEditorBaseDialog.__init__(self, parent, 'ActionTypeGroup')
-        self.setupUi(self)
-        self.setWindowTitle(u'Шаблон')
-        self.isOffset = isOffset
-        self.chkOffset.setVisible(self.isOffset)
-        self._class = class_
-
-    def setRecord(self, record):
-        CItemEditorBaseDialog.setRecord(self, record)
-        self.edtCode.setText(forceString(record.value('code')))
-        self.edtName.setText(forceString(record.value('name')))
-        setComboBoxValue(self.cmbAvailability, record, 'availability')
-        if self.isOffset:
-            self.chkOffset.setChecked(forceBool(record.value('isOffset')))
-
-
-    def getRecord(self):
-        record = CItemEditorBaseDialog.getRecord(self)
-        record.setValue('code', toVariant(forceStringEx(self.edtCode.text())))
-        record.setValue('name', toVariant(forceStringEx(self.edtName.text())))
-        getComboBoxValue(self.cmbAvailability, record, 'availability')
-        record.setValue('type', _ACTION_GROUP_TEMPLATE)
-        record.setValue('class', self._class)
-        if self.isOffset:
-            record.setValue('isOffset', toVariant(forceInt(self.chkOffset.isChecked())))
-        return record
-
 
 class CActionTypeGroupsTemplatesModel(CActionTypeGroupsModel):
     def __init__(self, parent):
@@ -2256,6 +2258,7 @@ class CActionTypeGroupsTemplatesModel(CActionTypeGroupsModel):
         self.templates_order = 'ActionTypeGroup.code ASC'
         self.last_class = None
         self.filter = u''
+        self._type = 0
 
 
     def setFilter(self, filter):

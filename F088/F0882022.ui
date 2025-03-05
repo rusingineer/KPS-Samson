@@ -704,7 +704,7 @@ p, li { white-space: pre-wrap; }
           </property>
           <widget class="QWidget" name="tabToken">
            <attribute name="title">
-            <string>Основная информация</string>
+            <string>&amp;Основная информация</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_21">
             <property name="margin">
@@ -1977,7 +1977,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabClientData">
            <attribute name="title">
-            <string>Данные о пациенте</string>
+            <string>&amp;Данные о пациенте</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_25">
             <property name="margin">
@@ -2385,7 +2385,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabPrevMSI">
            <attribute name="title">
-            <string>Предыдущая МСЭ (п.20)</string>
+            <string>&amp;Предыдущая МСЭ (п.20)</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_28">
             <property name="margin">
@@ -2562,7 +2562,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabAnamnesis">
            <attribute name="title">
-            <string>Анамнез</string>
+            <string>&amp;Анамнез</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_60">
             <property name="margin">
@@ -3303,7 +3303,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabTempInvalidVUT">
            <attribute name="title">
-            <string>ВУТ</string>
+            <string>В&amp;УТ</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_27">
             <property name="margin">
@@ -3465,7 +3465,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabIPRA">
            <attribute name="title">
-            <string>ИПРА п.27</string>
+            <string>&amp;ИПРА п.27</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_49">
             <property name="margin">
@@ -4013,7 +4013,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabStatus">
            <attribute name="title">
-            <string>Статус (п.29)</string>
+            <string>&amp;Статус (п.29)</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_50">
             <property name="margin">
@@ -4273,9 +4273,233 @@ p, li { white-space: pre-wrap; }
             </item>
            </layout>
           </widget>
+          <widget class="QWidget" name="tabDiagnosis">
+           <attribute name="title">
+            <string>Диагно&amp;зы</string>
+           </attribute>
+           <layout class="QGridLayout" name="gridLayout_54">
+            <property name="margin">
+             <number>1</number>
+            </property>
+            <property name="spacing">
+             <number>1</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QSplitter" name="splitter_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <widget class="QWidget" name="layoutWidget_3">
+               <layout class="QGridLayout" name="gridLayout">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <item row="0" column="0" colspan="2">
+                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>31. Диагноз при направлении на медико-социальную экспертизу:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0" colspan="2">
+                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_1">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>31.1. основное заболевание:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="6" column="0" colspan="2">
+                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_4">
+                  <property name="lineWidth">
+                   <number>10</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_3">
+                  <property name="lineWidth">
+                   <number>10</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0" colspan="2">
+                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_3">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>31.3. осложнения основного заболевания:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="0" colspan="2">
+                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_4">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>31.4. сопутствующие заболевания:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0" colspan="2">
+                 <widget class="CF088_30_1VerticalInDocTableView" name="tblDiagnosisDisease_31_1">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>70</height>
+                   </size>
+                  </property>
+                  <property name="baseSize">
+                   <size>
+                    <width>0</width>
+                    <height>100</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item row="8" column="0" colspan="2">
+                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_6">
+                  <property name="lineWidth">
+                   <number>10</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="0" colspan="2">
+                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_6">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>31.6. осложнения сопутствующих заболеваний:</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="layoutWidget_4">
+               <layout class="QGridLayout" name="gridLayout_26">
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <item row="8" column="0">
+                 <spacer name="verticalSpacer_2">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>40</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="QLabel" name="lblRehabilitationPotential">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>33. Реабилитационный потенциал:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0" colspan="2">
+                 <widget class="QLabel" name="lblClinicalPrognosis">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>32. Клинический прогноз:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0" colspan="2">
+                 <widget class="CStrComboBox" name="cmbClinicalPrognosis">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="0" colspan="2">
+                 <widget class="CStrComboBox" name="cmbRehabilitationPotential">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="0" colspan="2">
+                 <widget class="CStrComboBox" name="cmbRehabilitationPrognosis">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                 </widget>
+                </item>
+                <item row="6" column="0" colspan="2">
+                 <widget class="QLabel" name="lblRehabilitationPrognosis">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="text">
+                   <string>34. Реабилитационный прогноз:</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </widget>
+            </item>
+           </layout>
+          </widget>
           <widget class="QWidget" name="tabInspection">
            <attribute name="title">
-            <string>Обследование (п.30)</string>
+            <string>О&amp;бследование (п.30)</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_57">
             <property name="margin">
@@ -4612,233 +4836,9 @@ p, li { white-space: pre-wrap; }
             </item>
            </layout>
           </widget>
-          <widget class="QWidget" name="tabDiagnosis">
-           <attribute name="title">
-            <string>Диагнозы</string>
-           </attribute>
-           <layout class="QGridLayout" name="gridLayout_54">
-            <property name="margin">
-             <number>1</number>
-            </property>
-            <property name="spacing">
-             <number>1</number>
-            </property>
-            <item row="0" column="0">
-             <widget class="QSplitter" name="splitter_2">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <widget class="QWidget" name="layoutWidget_3">
-               <layout class="QGridLayout" name="gridLayout">
-                <property name="spacing">
-                 <number>0</number>
-                </property>
-                <item row="0" column="0" colspan="2">
-                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>31. Диагноз при направлении на медико-социальную экспертизу:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="0" colspan="2">
-                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_1">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>31.1. основное заболевание:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="6" column="0" colspan="2">
-                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_4">
-                  <property name="lineWidth">
-                   <number>10</number>
-                  </property>
-                 </widget>
-                </item>
-                <item row="4" column="0" colspan="2">
-                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_3">
-                  <property name="lineWidth">
-                   <number>10</number>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="0" colspan="2">
-                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_3">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>31.3. осложнения основного заболевания:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="5" column="0" colspan="2">
-                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_4">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>31.4. сопутствующие заболевания:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="0" colspan="2">
-                 <widget class="CF088_30_1VerticalInDocTableView" name="tblDiagnosisDisease_31_1">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="minimumSize">
-                   <size>
-                    <width>0</width>
-                    <height>70</height>
-                   </size>
-                  </property>
-                  <property name="baseSize">
-                   <size>
-                    <width>0</width>
-                    <height>100</height>
-                   </size>
-                  </property>
-                 </widget>
-                </item>
-                <item row="8" column="0" colspan="2">
-                 <widget class="CF088VerticalInDocTableView" name="tblDiagnosisDisease_31_6">
-                  <property name="lineWidth">
-                   <number>10</number>
-                  </property>
-                 </widget>
-                </item>
-                <item row="7" column="0" colspan="2">
-                 <widget class="QLabel" name="lblDiagnosisDirectionMSI_31_6">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>31.6. осложнения сопутствующих заболеваний:</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-              <widget class="QWidget" name="layoutWidget_4">
-               <layout class="QGridLayout" name="gridLayout_26">
-                <property name="spacing">
-                 <number>0</number>
-                </property>
-                <item row="8" column="0">
-                 <spacer name="verticalSpacer_2">
-                  <property name="orientation">
-                   <enum>Qt::Vertical</enum>
-                  </property>
-                  <property name="sizeHint" stdset="0">
-                   <size>
-                    <width>20</width>
-                    <height>40</height>
-                   </size>
-                  </property>
-                 </spacer>
-                </item>
-                <item row="4" column="0" colspan="2">
-                 <widget class="QLabel" name="lblRehabilitationPotential">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>33. Реабилитационный потенциал:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="0" colspan="2">
-                 <widget class="QLabel" name="lblClinicalPrognosis">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>32. Клинический прогноз:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="0" colspan="2">
-                 <widget class="CStrComboBox" name="cmbClinicalPrognosis">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                 </widget>
-                </item>
-                <item row="5" column="0" colspan="2">
-                 <widget class="CStrComboBox" name="cmbRehabilitationPotential">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                 </widget>
-                </item>
-                <item row="7" column="0" colspan="2">
-                 <widget class="CStrComboBox" name="cmbRehabilitationPrognosis">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                 </widget>
-                </item>
-                <item row="6" column="0" colspan="2">
-                 <widget class="QLabel" name="lblRehabilitationPrognosis">
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="text">
-                   <string>34. Реабилитационный прогноз:</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </widget>
-            </item>
-           </layout>
-          </widget>
           <widget class="QWidget" name="tabRecommend">
            <attribute name="title">
-            <string>Рекомендации</string>
+            <string>&amp;Рекомендации</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_52">
             <property name="margin">
@@ -4901,7 +4901,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabNomenclatureExpense">
            <attribute name="title">
-            <string>Перечень ЛПиМИ</string>
+            <string>Перечень &amp;ЛПиМИ</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_66">
             <property name="margin">
@@ -4980,7 +4980,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabCommission">
            <attribute name="title">
-            <string>Комиссия</string>
+            <string>&amp;Комиссия</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_55">
             <property name="margin">
@@ -5006,12 +5006,12 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CExtendedMSEWidget" name="tabExtendedMSE">
            <attribute name="title">
-            <string>Связанные ЭМД</string>
+            <string>С&amp;вязанные ЭМД</string>
            </attribute>
           </widget>
           <widget class="QWidget" name="tabResultMSE">
            <attribute name="title">
-            <string>Результат МСЭ</string>
+            <string>Р&amp;езультат МСЭ</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_2" columnstretch="0,0,0,1,5">
             <item row="0" column="0" colspan="3">
@@ -5118,7 +5118,7 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="QWidget" name="tabExport">
            <attribute name="title">
-            <string>Экспорт</string>
+            <string>&amp;Экспорт</string>
            </attribute>
            <layout class="QHBoxLayout" name="horizontalLayout_6">
             <item>
@@ -5142,7 +5142,7 @@ p, li { white-space: pre-wrap; }
                </attribute>
                <layout class="QHBoxLayout" name="horizontalLayout_20">
                 <item>
-                 <widget class="CInDocTableView" name="tblExport_FileAttach"/>
+                 <widget class="CInDocExportTableView" name="tblExport_FileAttach"/>
                 </item>
                </layout>
               </widget>
@@ -5152,7 +5152,7 @@ p, li { white-space: pre-wrap; }
                </attribute>
                <layout class="QHBoxLayout" name="horizontalLayout_21">
                 <item>
-                 <widget class="CInDocTableView" name="tblExport_VIMIS">
+                 <widget class="CInDocExportTableView" name="tblExport_VIMIS">
                   <property name="maximumSize">
                    <size>
                     <width>16777215</width>
@@ -5181,12 +5181,12 @@ p, li { white-space: pre-wrap; }
           </widget>
           <widget class="CAmbCardPage" name="tabAmbCard">
            <attribute name="title">
-            <string>Мед.карта</string>
+            <string>&amp;Мед.карта</string>
            </attribute>
           </widget>
           <widget class="CEventNotesPage" name="tabNotes">
            <attribute name="title">
-            <string>Примечание</string>
+            <string>Приме&amp;чание</string>
            </attribute>
           </widget>
          </widget>
@@ -5202,18 +5202,47 @@ p, li { white-space: pre-wrap; }
   <customwidget>
    <class>CDateEdit</class>
    <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CStrComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/StrComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPolyclinicComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionPropertiesTableView</class>
+   <extends>QTableView</extends>
+   <header>Events/ActionPropertiesTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionStatusComboBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">Events/ActionStatus.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Events/ActionTypeComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgStructureComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgStructComboBoxes.h</header>
   </customwidget>
   <customwidget>
    <class>CTextBrowser</class>
    <extends>QTextBrowser</extends>
    <header>library/TextBrowser.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CEventNotesPage</class>
-   <extends>QWidget</extends>
-   <header>Events/EventNotesPage.h</header>
-   <container>1</container>
   </customwidget>
   <customwidget>
    <class>CAmbCardPage</class>
@@ -5222,9 +5251,20 @@ p, li { white-space: pre-wrap; }
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CActionStatusComboBox</class>
+   <class>COrgComboBoxEx</class>
    <extends>QComboBox</extends>
-   <header location="global">Events/ActionStatus.h</header>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRegistryActionsTableView</class>
+   <extends>QTableView</extends>
+   <header>Registry/RegistryTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CEventNotesPage</class>
+   <extends>QWidget</extends>
+   <header>Events/EventNotesPage.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>CPersonWithOrgListComboBoxEx</class>
@@ -5232,49 +5272,14 @@ p, li { white-space: pre-wrap; }
    <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
   <customwidget>
-   <class>CPolyclinicComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
-  </customwidget>
-  <customwidget>
    <class>CTimeEdit</class>
    <extends>QTimeEdit</extends>
    <header>library/TimeEdit.h</header>
   </customwidget>
   <customwidget>
-   <class>COrgStructureComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgStructComboBoxes.h</header>
-  </customwidget>
-  <customwidget>
    <class>CClientRelationComboBoxPatron</class>
    <extends>QComboBox</extends>
    <header>Registry/Utils.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CActionTypeComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Events/ActionTypeComboBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CActionPropertiesTableView</class>
-   <extends>QTableView</extends>
-   <header location="global">Events/ActionPropertiesTable.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CRegistryActionsTableView</class>
-   <extends>QTableView</extends>
-   <header location="global">Registry/RegistryTable.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CStrComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/StrComboBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CInDocTableView</class>
-   <extends>QTableView</extends>
-   <header>library/InDocTable.h</header>
   </customwidget>
   <customwidget>
    <class>CTempInvalidF088</class>
@@ -5288,9 +5293,15 @@ p, li { white-space: pre-wrap; }
    <header>Orgs/OrgComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>COrgComboBoxEx</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
+   <class>CExtendedMSEWidget</class>
+   <extends>QWidget</extends>
+   <header>F088/ExtendedMSE.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CInDocExportTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
   </customwidget>
   <customwidget>
    <class>CF088ActionPropertiesTableView</class>
@@ -5311,12 +5322,6 @@ p, li { white-space: pre-wrap; }
    <class>CF088AddActions29InDocTableView</class>
    <extends>QTableView</extends>
    <header>F088/F088AddActions29InDocTableView.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CExtendedMSEWidget</class>
-   <extends>QWidget</extends>
-   <header>F088/ExtendedMSE.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

@@ -2,7 +2,7 @@
 
 #############################################################################
 ##
-## Copyright (C) 2017-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2017-2023 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,12 +21,12 @@ import sys
 import tempfile
 import traceback
 
-from logging.handlers       import RotatingFileHandler
+from logging.handlers import RotatingFileHandler
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDir, QTimer, QVariant, qInstallMsgHandler, SIGNAL
 
-import library.patches
+import library.patches # noqa
 
 from library                import database
 from library.Calendar       import CCalendarInfo
@@ -56,7 +56,7 @@ from Users.UserInfo         import CUserInfo
 
 #from localPreferences.appPreferencesDialog import CAppPreferencesDialog
 from Atol.AtolInterface     import CAtolInterface
-
+from Shtrih.ShtrihInterface import CShtrihInterface
 
 
 class CApp(QtGui.QApplication):
@@ -91,9 +91,16 @@ class CApp(QtGui.QApplication):
                u'"Система Автоматизации Медико-Страхового Обслуживания Населения"\n' \
                u'«%s»\n'   \
                u'Версия %s (ревизия %s от %s)\n' \
-               u'Copyright © 2017-2021 ООО "САМСОН Групп"\n' \
+               u'Copyright © 2017-2023 ООО "САМСОН Групп"\n' \
                u'распространяется под лицензией GNU GPL v.3 или выше\n' \
                u'телефон тех.поддержки: (812) 418-39-70' % ( cls.title, cls.version, cls.lastChangedRev, cls.lastChangedDate )
+
+
+    # для работы CReportViewDialog
+    @staticmethod
+    def documentEditor():
+        return None
+
 
     def __init__(self, args, logSql=False):
         QtGui.QApplication.__init__(self, args)
@@ -122,7 +129,8 @@ class CApp(QtGui.QApplication):
         self.registerDocumentTables()
         self._currentClientId = None
         self.userInfo = None
-        self.device = CAtolInterface()
+#        self.device = CAtolInterface()
+        self.device = None
         self.deviceOk = False
         self.deviceNameOrMessage = ''
         self.ofdExchangeMessage  = ''
@@ -139,6 +147,7 @@ class CApp(QtGui.QApplication):
 
     def __del__(self):
         self.closeDevice()
+
 
     def getLogFilePath(self):
         if not os.path.exists(self.logDir):
@@ -431,13 +440,17 @@ class CApp(QtGui.QApplication):
         return self.deviceOk
 
 
+    def deviceHasMethod(self, methodName):
+        #return isinstance(getattr(self.device, methodName,  None), types.MethodType)
+        return callable(getattr(self.device, methodName,  None))
+
+
     def getDeviceNameOrMessage(self):
         return self.deviceNameOrMessage
 
 
     def getOfdExchangeMessage(self):
         return self.ofdExchangeMessage
-
 
 
     def openDatabase(self):
@@ -523,38 +536,51 @@ class CApp(QtGui.QApplication):
 
 
     def openDevice(self):
-        if self.device.isOpen():
+        if self.device and self.device.isOpen():
             self.device.close()
         try:
-            self.device.setup(self.preferences.appPrefs)
-            self.device.setOperatorName(self.getUserName())
-            self.device.setOperatorVatin(self.getUserInn())
-            self.device.open()
+            self.device = None
+            driverIdx = forceRef(self.preferences.appPrefs.get('driver', QVariant()))
+            if driverIdx == 1:
+                self.device = CAtolInterface()
+            elif driverIdx == 2:
+                self.device = CShtrihInterface()
+            if self.device:
+                self.device.setup(self.preferences.appPrefs)
+                self.device.setOperatorName(self.getUserName())
+                self.device.setOperatorVatin(self.getUserInn())
+                self.device.open()
         except:
             pass
 
 
     def closeDevice(self):
-        if self.device.isOpen():
+        if self.device and self.device.isOpen():
             self.device.close()
+        self.device = None
 
 
     def checkDevice(self):
-        if not self.device.isOpen():
+        if not self.device or not self.device.isOpen():
             self.openDevice()
 
-        if self.device.isOpen():
-            try:
-                dt = self.device.getModelInfo()
-                deviceName = u'%s %s' % ( dt['name'], dt['version'] )
-                self.setDeviceName(deviceName)
-            except Exception, e:
-                self.setDeviceError( unicode(e) )
-        else:
-            if self.device.driverLoaded():
-                self.setDeviceError( u'Устройство не подключено' )
+        if self.device:
+            if self.device.isOpen():
+                try:
+                    dt = self.device.getModelInfo()
+                    fn = self.device.getFactoryNumber()
+    #                deviceName = u'%s %s' % ( dt['name'], dt['version'] )
+                    deviceName = u'%s %s' % ( dt['name'], fn )
+                    self.setDeviceName(deviceName)
+                except Exception, e:
+                    self.setDeviceError( unicode(e) )
             else:
-                self.setDeviceError( u'Драйвер не загружен' )
+                if self.device.driverLoaded():
+                    self.setDeviceError( u'ККТ не подключена' )
+                else:
+                    self.setDeviceError( u'Драйвер ККТ не загружен' )
+        else:
+            self.setDeviceError( u'Не настроено подключение к ККТ ' )
 
         message = '-'
         if self.deviceOk:

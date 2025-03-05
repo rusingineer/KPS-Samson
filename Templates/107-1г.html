@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta charset="windows-1251">
+<meta name="qrichtext" content="1" />
+{setPageSize('A4')}
+{setOrientation('Landscape')}
+{setMargins(10)}
+</head>
+{:lgota=range(len(client.socStatuses))}
+{if: len(client.socStatuses)}
+{for: i,s in enumerate(client.socStatuses)}
+{if: u"льгота" in s.classes}
+{:lgota[i]=s.code+" , "+s.name}
+{end:}
+{end:}
+{end:}
+
+{if: i>0}
+{: dialogLgotas = dialogs.dialMultiList(u"Выберите активную льготу", lgota)} 
+{:lgot=dialogLgotas.getVar()}
+{: lgot1 = client.socStatuses[lgot[0]].code if lgot and len(lgot) else None} 
+{else:}
+{:lgot1=u''}
+{if: len(client.socStatuses)}
+{for: s in reversed(client.socStatuses)}
+{if: (u"льгота" in s.classes) and lgot1==u''}
+{:lgot1=s.code}
+{end:}
+{end:}
+{end:}
+{end:}
+
+
+
+{if: (action.person)}
+{if: (action.person.orgStructure.bookkeeperCode)}
+{:orgCode=action.person.orgStructure.bookkeeperCode}
+{else:}
+{if: (action.person.orgStructure.parent)}
+{if: (action.person.orgStructure.parent.bookkeeperCode)}
+{:orgCode=action.person.orgStructure.parent.bookkeeperCode}
+{else:}
+{:orgCode=currentOrganisation.tfomsCode}
+{end:}
+{else:}
+{:orgCode=currentOrganisation.tfomsCode}
+{end:}
+{end:}
+{else:}
+{:orgCode=currentOrganisation.tfomsCode}
+{end:}
+
+<body style=" font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:400; font-style:normal;">
+<div style="page-break-after:always;">
+<table width=100%>
+<tr>
+<td width=50%>
+
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr><td align="center" width=100%>Форма N 148-1/y-88 <br> РЕЦЕПТУРНЫЙ БЛАНК</td></tr>
+<tr><td>
+<table width=25%>
+<tr><td width=50%>Министерство здравоохранения<br>
+Российской Федерации<br>
+Наименование(штамп)<br>медицинской организации:</td></tr>
+<tr><td width=20%><table width=20% border="1" cellpadding=0 cellspacing=0><tr><td align="center" style="font-size:8pt">
+{orgCode}
+</td></tr></table></td><td width=80%></td></tr>
+
+
+</table>
+</td><td align=left >
+Код формы по ОКУД<br>
+Код учреждения по ОКПО<br>
+Медицинская документация<br>
+<b>Форма N 107-1/у</b><br>
+Утверждена приказом<br>
+Министерства здравоохранения<br>
+Российской Федерации<br>
+от 20 декабря 2012 года N 1175н<br>экз.1</b>
+</td></tr>
+</table>
+<br>
+<br>
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr><td width=100% align=center><b>Рецепт</b></td></tr>
+</table>
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr>
+<td align=center>({if: client.age>=u'18'}<u>{end:}взрослый{if: client.age>=u'18'}</u>{end:},{if: client.age<u'18'}<u>{end:} детский{if: client.age<u'18'}</u>{end:} - нужное подчеркнуть)</td>
+<br>
+<td></td></tr>
+<tr><td width=100% align=center><u>{action.endDate.toString("dd.MM.yyyy")}</u></td></tr>
+<br>
+<tr><td>Ф.И.О. Пациента: <b><u>{client.lastName} {client.firstName} {client.patrName}</u></b></td></tr>
+
+<tr><td>Возраст: <b><u>{client.age}</u></b></td></tr>
+
+<tr><td>Ф.И.О. лечащего врача: <b><u>{action.person.longName}</u></b></td></tr>
+
+<tr><td>Руб. Коп. Rp 
+<b><u>{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td>Руб. Коп. Rp 
+<b><u>
+{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td>Руб. Коп. Rp 
+<b><u>{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td><table><tr><td>Подпись и личная печать лечащего</td><td align="center">М.П.</td></tr>
+<tr><td>врача</td></tr>
+<br>
+<tr><td>Рецепт действителен в</td></tr>
+<tr><td width=50%>течение 2 месяцев, до 1 года</td><td width=50%>({"_"*50})</table></td></tr>
+
+
+
+
+</td>
+<td width=50%>
+
+
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr><td align="center" width=100%>Форма N 148-1/y-88 <br> РЕЦЕПТУРНЫЙ БЛАНК</td></tr>
+<tr><td>
+<table width=25%>
+<tr><td width=50%>Министерство здравоохранения<br>
+Российской Федерации<br>
+Наименование(штамп)<br>медицинской организации:</td></tr>
+<tr><td width=20%><table width=20% border="1" cellpadding=0 cellspacing=0><tr><td align="center" style="font-size:8pt">
+{orgCode}
+</td></tr></table></td><td width=80%></td></tr>
+
+
+</table>
+</td><td align=left >
+Код формы по ОКУД<br>
+Код учреждения по ОКПО<br>
+Медицинская документация<br>
+<b>Форма N 107-1/у</b><br>
+Утверждена приказом<br>
+Министерства здравоохранения<br>
+Российской Федерации<br>
+от 20 декабря 2012 года N 1175н<br>экз.1</b>
+</td></tr>
+</table>
+<br>
+<br>
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr><td width=100% align=center><b>Рецепт</b></td></tr>
+</table>
+<table cellpadding=0 cellspacing=0 width=100%>
+<tr>
+<td align=center>({if: client.age>=u'18'}<u>{end:}взрослый{if: client.age>=u'18'}</u>{end:},{if: client.age<u'18'}<u>{end:} детский{if: client.age<u'18'}</u>{end:} - нужное подчеркнуть)</td>
+<br>
+<td></td></tr>
+<tr><td width=100% align=center><u>{action.endDate.toString("dd.MM.yyyy")}</u></td></tr>
+<br>
+<tr><td>Ф.И.О. Пациента: <b><u>{client.lastName} {client.firstName} {client.patrName}</u></b></td></tr>
+
+<tr><td>Возраст: <b><u>{client.age}</u></b></td></tr>
+
+<tr><td>Ф.И.О. лечащего врача: <b><u>{action.person.longName}</u></b></td></tr>
+
+<tr><td>Руб. Коп. Rp 
+<b><u>{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td>Руб. Коп. Rp 
+<b><u>
+{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td>Руб. Коп. Rp 
+<b><u>{if: action[u'Выписано'].value.internationalNonproprietaryName==u""}
+{action[u'Выписано'].value.latinTradeName+action[u'Выписано'].value.lfForm.name}
+{else:}
+{action[u'Выписано'].value.internationalNonproprietaryName+u" "+action[u'Выписано'].value.lfForm.latinName+u" "+action[u'Выписано'].value.dosageValue+u" "+action[u'Выписано'].value.unit.name+u" "}{action[u'Выписано'].value.packSize}
+{end:}</u></b>
+</td></tr>
+<br>
+<tr><td>{"-"*75}</td></tr>
+<br>
+<tr><td><table><tr><td>Подпись и личная печать лечащего</td><td align="center">М.П.</td></tr>
+<tr><td>врача</td></tr>
+<br>
+<tr><td>Рецепт действителен в</td></tr>
+<tr><td width=50%>течение 2 месяцев, до 1 года</td><td width=50%>({"_"*50})</table></td></tr>
+
+
+
+</td>
+</tr>
+</body>
+</html>
+
+

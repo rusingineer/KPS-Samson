@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Accounting\AccountCheckDialog.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Accounting\AccountCheckDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Apr 18 13:39:37 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -45,8 +46,8 @@ class Ui_AccountCheckDialog(object):
         self.horizontalLayoutWidget = QtGui.QWidget(self.splitter)
         self.horizontalLayoutWidget.setObjectName(_fromUtf8("horizontalLayoutWidget"))
         self.horizontalLayout = QtGui.QHBoxLayout(self.horizontalLayoutWidget)
-        self.horizontalLayout.setMargin(9)
         self.horizontalLayout.setSpacing(6)
+        self.horizontalLayout.setMargin(0)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.groupBox = QtGui.QGroupBox(self.horizontalLayoutWidget)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
@@ -65,8 +66,6 @@ class Ui_AccountCheckDialog(object):
         self.groupBox_2 = QtGui.QGroupBox(self.horizontalLayoutWidget)
         self.groupBox_2.setObjectName(_fromUtf8("groupBox_2"))
         self.verticalLayout = QtGui.QVBoxLayout(self.groupBox_2)
-        self.verticalLayout.setMargin(9)
-        self.verticalLayout.setSpacing(6)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.twAccounts = QtGui.QTabWidget(self.groupBox_2)
         self.twAccounts.setObjectName(_fromUtf8("twAccounts"))
@@ -140,8 +139,6 @@ class Ui_AccountCheckDialog(object):
         self.twAccounts.addTab(self.tabPeriod, _fromUtf8(""))
         self.verticalLayout.addWidget(self.twAccounts)
         self.horizontalLayout_3 = QtGui.QHBoxLayout()
-        self.horizontalLayout_3.setMargin(9)
-        self.horizontalLayout_3.setSpacing(6)
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
         self.btnBeginCheck = QtGui.QPushButton(self.groupBox_2)
         self.btnBeginCheck.setObjectName(_fromUtf8("btnBeginCheck"))
@@ -157,8 +154,7 @@ class Ui_AccountCheckDialog(object):
         self.horizontalLayoutWidget_2 = QtGui.QWidget(self.splitter)
         self.horizontalLayoutWidget_2.setObjectName(_fromUtf8("horizontalLayoutWidget_2"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout(self.horizontalLayoutWidget_2)
-        self.horizontalLayout_2.setMargin(9)
-        self.horizontalLayout_2.setSpacing(6)
+        self.horizontalLayout_2.setMargin(0)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.groupBox_3 = QtGui.QGroupBox(self.horizontalLayoutWidget_2)
         self.groupBox_3.setObjectName(_fromUtf8("groupBox_3"))
@@ -167,6 +163,7 @@ class Ui_AccountCheckDialog(object):
         self.gridLayout_2.setSpacing(4)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.tblAccountItems = CTableView(self.groupBox_3)
+        self.tblAccountItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblAccountItems.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tblAccountItems.setObjectName(_fromUtf8("tblAccountItems"))
         self.gridLayout_2.addWidget(self.tblAccountItems, 4, 1, 1, 1)
@@ -195,8 +192,6 @@ class Ui_AccountCheckDialog(object):
         self.tblAccountItemsFLC.setObjectName(_fromUtf8("tblAccountItemsFLC"))
         self.gridLayout_8.addWidget(self.tblAccountItemsFLC, 0, 0, 1, 1)
         self.horizontalLayout_4 = QtGui.QHBoxLayout()
-        self.horizontalLayout_4.setMargin(9)
-        self.horizontalLayout_4.setSpacing(6)
         self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
         self.btnBeginCheckFLC = QtGui.QPushButton(self.tabFLC)
         self.btnBeginCheckFLC.setObjectName(_fromUtf8("btnBeginCheckFLC"))
@@ -249,8 +244,8 @@ class Ui_AccountCheckDialog(object):
         self.btnNext.setText(_translate("AccountCheckDialog", "Продолжить", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabFLC), _translate("AccountCheckDialog", "ФЛК", None))
 
-from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from library.crbcombobox import CRBComboBox
 from library.DbComboBox import CDbComboBox
 from library.TableView import CTableView
-from library.crbcombobox import CRBComboBox
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\_SVN\client_test\Exchange\ExportActions_Wizard_1.ui'
+# Form implementation generated from reading ui file 'C:/proj/client_test/Exchange/ExportActions_Wizard_1.ui'
 #
-# Created: Thu Apr 20 10:12:50 2023
+# Created: Thu Jun  6 19:25:01 2024
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -27,12 +27,17 @@ class Ui_ExportActions_Wizard_1(object):
     def setupUi(self, ExportActions_Wizard_1):
         ExportActions_Wizard_1.setObjectName(_fromUtf8("ExportActions_Wizard_1"))
         ExportActions_Wizard_1.setWindowModality(QtCore.Qt.NonModal)
-        ExportActions_Wizard_1.resize(847, 416)
+        ExportActions_Wizard_1.resize(847, 537)
         self.gridlayout = QtGui.QGridLayout(ExportActions_Wizard_1)
         self.gridlayout.setSpacing(4)
         self.gridlayout.setMargin(4)
         self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
         self.splitterTree = QtGui.QSplitter(ExportActions_Wizard_1)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.splitterTree.sizePolicy().hasHeightForWidth())
+        self.splitterTree.setSizePolicy(sizePolicy)
         self.splitterTree.setOrientation(QtCore.Qt.Horizontal)
         self.splitterTree.setObjectName(_fromUtf8("splitterTree"))
         self.treeItems = CTreeView(self.splitterTree)
@@ -98,3 +103,13 @@ class Ui_ExportActions_Wizard_1(object):
 
 from library.TreeView import CTreeView
 from library.TableView import CTableView
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    ExportActions_Wizard_1 = QtGui.QDialog()
+    ui = Ui_ExportActions_Wizard_1()
+    ui.setupUi(ExportActions_Wizard_1)
+    ExportActions_Wizard_1.show()
+    sys.exit(app.exec_())
+

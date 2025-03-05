@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client\Orgs\ActionFileAttachDialog.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Orgs\ActionFileAttachDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -25,7 +25,7 @@ except AttributeError:
 class Ui_ActionFileAttachDialog(object):
     def setupUi(self, ActionFileAttachDialog):
         ActionFileAttachDialog.setObjectName(_fromUtf8("ActionFileAttachDialog"))
-        ActionFileAttachDialog.resize(1133, 913)
+        ActionFileAttachDialog.resize(1185, 985)
         self.gridLayout_4 = QtGui.QGridLayout(ActionFileAttachDialog)
         self.gridLayout_4.setMargin(4)
         self.gridLayout_4.setObjectName(_fromUtf8("gridLayout_4"))
@@ -49,6 +49,15 @@ class Ui_ActionFileAttachDialog(object):
         self.tblProphylaxisPlanningFileAttach.setObjectName(_fromUtf8("tblProphylaxisPlanningFileAttach"))
         self.gridLayout_5.addWidget(self.tblProphylaxisPlanningFileAttach, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tabProphylaxisPlanning, _fromUtf8(""))
+        self.tabEvent = QtGui.QWidget()
+        self.tabEvent.setObjectName(_fromUtf8("tabEvent"))
+        self.gridLayout_3 = QtGui.QGridLayout(self.tabEvent)
+        self.gridLayout_3.setMargin(4)
+        self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
+        self.tblEventFileAttach = CTableView(self.tabEvent)
+        self.tblEventFileAttach.setObjectName(_fromUtf8("tblEventFileAttach"))
+        self.gridLayout_3.addWidget(self.tblEventFileAttach, 0, 0, 1, 1)
+        self.tabWidget.addTab(self.tabEvent, _fromUtf8(""))
         self.gridLayout_4.addWidget(self.tabWidget, 0, 0, 1, 1)
         self.horizontalLayout_4 = QtGui.QHBoxLayout()
         self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
@@ -284,6 +293,7 @@ class Ui_ActionFileAttachDialog(object):
         ActionFileAttachDialog.setWindowTitle(_translate("ActionFileAttachDialog", "Подписание документов", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAction), _translate("ActionFileAttachDialog", "Действие", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabProphylaxisPlanning), _translate("ActionFileAttachDialog", "ККДН", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabEvent), _translate("ActionFileAttachDialog", "События", None))
         self.lblCount.setText(_translate("ActionFileAttachDialog", "Записей в списке: 0", None))
         self.btnSign.setText(_translate("ActionFileAttachDialog", "Подписать", None))
         self.cmbSign.setItemText(0, _translate("ActionFileAttachDialog", "Выбранный документ", None))

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>782</width>
-    <height>468</height>
+    <height>498</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -42,28 +42,8 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="3">
-        <widget class="QLineEdit" name="edtMnnLatinFilter"/>
-       </item>
-       <item row="1" column="0" colspan="4">
+       <item row="0" column="0" colspan="2">
         <widget class="CSortFilterProxyTableView" name="tblNomenclature"/>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLineEdit" name="edtNameFilter"/>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="lblFindName">
-         <property name="text">
-          <string>Наименование</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="2">
-        <widget class="QLabel" name="lblFindMnnLatin">
-         <property name="text">
-          <string>МНН на латыни</string>
-         </property>
-        </widget>
        </item>
       </layout>
      </widget>
@@ -97,82 +77,100 @@
            <property name="spacing">
             <number>4</number>
            </property>
+           <item row="1" column="1">
+            <widget class="CRBComboBox" name="cmbKind"/>
+           </item>
            <item row="12" column="1">
+            <widget class="CActiveSubstanceComboBox" name="cmbActiveSubstance">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="0">
+            <widget class="QLabel" name="lblMedicalAidKind">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Вид мед помощи</string>
+             </property>
+             <property name="buddy">
+              <cstring>cmbMedicalAidKind</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="13" column="1">
+            <widget class="QCheckBox" name="chkOnlyMnnEsklpForm">
+             <property name="text">
+              <string>Учитывать только наименования МНН и Формы выпуска по ЕСКЛП</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QLineEdit" name="edtName"/>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="lblCode">
+             <property name="text">
+              <string>&amp;Код</string>
+             </property>
+             <property name="buddy">
+              <cstring>edtCode</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="1">
+            <widget class="CRBComboBox" name="cmbMedicalAidKind">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="0">
+            <widget class="QCheckBox" name="chkActiveSubstance">
+             <property name="text">
+              <string>Действующее вещество</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QPushButton" name="btnName">
+             <property name="text">
+              <string>На&amp;именование cодержит</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="CRBComboBox" name="cmbClass"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="lblType">
+             <property name="text">
+              <string>&amp;Тип</string>
+             </property>
+             <property name="buddy">
+              <cstring>cmbType</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="14" column="1">
             <widget class="QCheckBox" name="chkIncludeAnalogies">
              <property name="text">
               <string>Включая аналоги</string>
              </property>
             </widget>
            </item>
-           <item row="8" column="0">
-            <widget class="QLabel" name="lblLfForm">
-             <property name="text">
-              <string>&amp;Форма выпуска</string>
-             </property>
-             <property name="buddy">
-              <cstring>cmbLfForm</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="7" column="1">
-            <widget class="QLineEdit" name="edtATC"/>
-           </item>
-           <item row="8" column="1">
-            <widget class="CRBComboBox" name="cmbLfForm"/>
-           </item>
-           <item row="15" column="0">
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>17</width>
-               <height>103</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item row="9" column="1">
-            <widget class="CRBComboBox" name="cmbFinance">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="7" column="0">
-            <widget class="QLabel" name="lblATC">
-             <property name="text">
-              <string>Код &amp;АТХ</string>
-             </property>
-             <property name="buddy">
-              <cstring>edtATC</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="lblClass">
-             <property name="text">
-              <string>&amp;Класс</string>
-             </property>
-             <property name="buddy">
-              <cstring>cmbClass</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="CRBComboBox" name="cmbType"/>
-           </item>
            <item row="6" column="1">
-            <widget class="QLineEdit" name="edtProducer"/>
-           </item>
-           <item row="5" column="1">
             <widget class="QLineEdit" name="edtMnnFilter"/>
            </item>
-           <item row="13" column="1">
-            <widget class="QCheckBox" name="chkOnlyExists">
+           <item row="7" column="0">
+            <widget class="QLabel" name="lblProducer">
              <property name="text">
-              <string>Только в наличии</string>
+              <string>&amp;Производитель</string>
+             </property>
+             <property name="buddy">
+              <cstring>edtProducer</cstring>
              </property>
             </widget>
            </item>
@@ -186,46 +184,53 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
-            <widget class="QLabel" name="lblType">
+           <item row="17" column="0">
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>17</width>
+               <height>103</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="2" column="1">
+            <widget class="CRBComboBox" name="cmbType"/>
+           </item>
+           <item row="9" column="0">
+            <widget class="QLabel" name="lblLfForm">
              <property name="text">
-              <string>&amp;Тип</string>
+              <string>&amp;Форма выпуска</string>
              </property>
              <property name="buddy">
-              <cstring>cmbType</cstring>
+              <cstring>cmbLfForm</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="1">
+            <widget class="CRBComboBox" name="cmbFinance">
+             <property name="enabled">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
            <item row="3" column="1">
             <widget class="QLineEdit" name="edtCode"/>
            </item>
-           <item row="0" column="1">
-            <widget class="CRBComboBox" name="cmbClass"/>
-           </item>
-           <item row="6" column="0">
-            <widget class="QLabel" name="lblProducer">
+           <item row="8" column="0">
+            <widget class="QLabel" name="lblATC">
              <property name="text">
-              <string>&amp;Производитель</string>
+              <string>Код &amp;АТХ</string>
              </property>
              <property name="buddy">
-              <cstring>edtProducer</cstring>
+              <cstring>edtATC</cstring>
              </property>
             </widget>
            </item>
-           <item row="4" column="0">
-            <widget class="QLabel" name="lblName">
-             <property name="text">
-              <string>На&amp;именование cодержит</string>
-             </property>
-             <property name="buddy">
-              <cstring>edtName</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="1">
-            <widget class="QLineEdit" name="edtName"/>
-           </item>
-           <item row="9" column="0">
+           <item row="10" column="0">
             <widget class="QLabel" name="lblFinance">
              <property name="enabled">
               <bool>false</bool>
@@ -238,7 +243,30 @@
              </property>
             </widget>
            </item>
-           <item row="5" column="0">
+           <item row="0" column="0">
+            <widget class="QLabel" name="lblClass">
+             <property name="text">
+              <string>&amp;Класс</string>
+             </property>
+             <property name="buddy">
+              <cstring>cmbClass</cstring>
+             </property>
+            </widget>
+           </item>
+           <item row="16" column="1">
+            <widget class="QCheckBox" name="chkOnlyExists">
+             <property name="text">
+              <string>Только в наличии</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="1">
+            <widget class="QLineEdit" name="edtProducer"/>
+           </item>
+           <item row="8" column="1">
+            <widget class="QLineEdit" name="edtATC"/>
+           </item>
+           <item row="6" column="0">
             <widget class="QLabel" name="lblMnnFilter">
              <property name="text">
               <string>&amp;МНН содержит</string>
@@ -248,54 +276,10 @@
              </property>
             </widget>
            </item>
-           <item row="10" column="1">
-            <widget class="CRBComboBox" name="cmbMedicalAidKind">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-            </widget>
+           <item row="9" column="1">
+            <widget class="CRBComboBox" name="cmbLfForm"/>
            </item>
-           <item row="10" column="0">
-            <widget class="QLabel" name="lblMedicalAidKind">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="text">
-              <string>Вид мед помощи</string>
-             </property>
-             <property name="buddy">
-              <cstring>cmbMedicalAidKind</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="CRBComboBox" name="cmbKind"/>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="lblCode">
-             <property name="text">
-              <string>&amp;Код</string>
-             </property>
-             <property name="buddy">
-              <cstring>edtCode</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="11" column="0">
-            <widget class="QCheckBox" name="chkActiveSubstance">
-             <property name="text">
-              <string>Действующее вещество</string>
-             </property>
-            </widget>
-           </item>
-           <item row="11" column="1">
-            <widget class="CActiveSubstanceComboBox" name="cmbActiveSubstance">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="14" column="1">
+           <item row="15" column="1">
             <widget class="QCheckBox" name="chkOnlyLs">
              <property name="enabled">
               <bool>true</bool>
@@ -303,6 +287,37 @@
              <property name="text">
               <string>Отображать только лс</string>
              </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="lblVEN">
+             <property name="text">
+              <string>VEN-классификация</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QComboBox" name="cmbVEN">
+             <item>
+              <property name="text">
+               <string>не задано</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>жизненно важные</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>необходимые</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>второстепенные</string>
+              </property>
+             </item>
             </widget>
            </item>
           </layout>
@@ -386,14 +401,13 @@
  </customwidgets>
  <tabstops>
   <tabstop>tabWidget</tabstop>
-  <tabstop>edtNameFilter</tabstop>
-  <tabstop>edtMnnLatinFilter</tabstop>
   <tabstop>tblNomenclature</tabstop>
   <tabstop>tabSearchAttributes</tabstop>
   <tabstop>cmbClass</tabstop>
   <tabstop>cmbKind</tabstop>
   <tabstop>cmbType</tabstop>
   <tabstop>edtCode</tabstop>
+  <tabstop>btnName</tabstop>
   <tabstop>edtName</tabstop>
   <tabstop>edtMnnFilter</tabstop>
   <tabstop>edtProducer</tabstop>
@@ -403,6 +417,7 @@
   <tabstop>cmbMedicalAidKind</tabstop>
   <tabstop>chkActiveSubstance</tabstop>
   <tabstop>cmbActiveSubstance</tabstop>
+  <tabstop>chkOnlyMnnEsklpForm</tabstop>
   <tabstop>chkIncludeAnalogies</tabstop>
   <tabstop>chkOnlyExists</tabstop>
   <tabstop>tblFeatures</tabstop>

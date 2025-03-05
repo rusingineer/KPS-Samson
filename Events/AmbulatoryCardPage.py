@@ -335,7 +335,7 @@ class CActionsTableModel(CTreeModel):
         cond.append(tableEvent['client_id'].eq(clientId))
         cond.append(tableEvent['deleted'].eq(0))
         cond.append(tableActionType['flatCode'].ne('soc001'))
-        codeList = ['21', '22', '31', '32', '01', '02', '271', '272', '261', '262', '211', '241']
+        codeList = ['21', '22', '31', '32', '01', '02', '271', '272', '261', '262', '211', '233', '244', '241']
         cond.append(db.joinOr([tableMAT['regionalCode'].inlist(codeList), tableActionType['flatCode'].eq('epikriz')]))
         self.mapGroupIdToItems = {}
         self.mapIdToItems = {}

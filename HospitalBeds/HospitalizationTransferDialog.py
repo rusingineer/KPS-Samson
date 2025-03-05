@@ -20,7 +20,7 @@ from Events.Utils  import getAvailableCharacterIdByMKB, specifyDiagnosis, getChi
 from library.Utils import forceBool, forceInt, forceRef, forceString
 
 from Ui_HospitalizationTransferDialog import Ui_HospitalizationTransferDialog
-
+from HospitalBedComboBox import CHospitalBedModel
 
 class CHospitalizationTransferDialog(QtGui.QDialog, Ui_HospitalizationTransferDialog):
     def __init__(self, parent, purposeId):
@@ -51,7 +51,27 @@ class CHospitalizationTransferDialog(QtGui.QDialog, Ui_HospitalizationTransferDi
         self.edtDiagnosis.connect(self.edtDiagnosis._lineEdit, SIGNAL('editingFinished()'), self.on_edtDiagnosis_editingFinished)
         self.edtDiagnosisEnd.connect(self.edtDiagnosisEnd._lineEdit, SIGNAL('editingFinished()'), self.on_edtDiagnosisEnd_editingFinished)
         self.setHospitalBedVisible(False)
-        
+        # self.cmbOrgStructure.connect(self.cmbOrgStructure, SIGNAL('currentIndexChanged()'), self.on_cmbOrgStructureChanged)
+        self.cmbOrgStructure.currentIndexChanged.connect(self.on_cmbOrgStructure_currentIndexChanged)
+
+    def on_cmbOrgStructureChanged(self):
+        if self.cmbOrgStructure.value() != '' and self.cmbOrgStructure.value() != None:
+            self.cmbHospitalBed.filter['orgStructureId'] = self.cmbOrgStructure.value()
+            self.cmbHospitalBed._model = CHospitalBedModel(self.cmbHospitalBed, self.cmbHospitalBed.filter)
+            self.cmbHospitalBed.setModel(self.cmbHospitalBed._model)
+            if not self.cmbHospitalBed._popup:
+                self.cmbHospitalBed.showPopup()
+            self.cmbHospitalBed._popup.tableModel = self.cmbHospitalBed._model
+            self.cmbHospitalBed._popup.tblHospitalBedFind.setModel(self.cmbHospitalBed._popup.tableModel)
+            self.cmbHospitalBed._popup.tblHospitalBedFind.expandAll()
+            self.cmbHospitalBed._popup.close()
+            self.setHospitalBedVisible(True)
+            chief_id = getChiefId(self.cmbOrgStructure.value())
+            if chief_id:
+                self.setExecPerson(chief_id)
+        else:
+            self.setHospitalBedVisible(False)
+
 
     def dialogResultEnabled(self):
         visible = True
@@ -81,6 +101,7 @@ class CHospitalizationTransferDialog(QtGui.QDialog, Ui_HospitalizationTransferDi
         self.cmbPerson.setOrgStructureId(self.orgStructureId, True)
         self.cmbExecPerson.setOrgStructureId(orgStructureId, True)
         self.dialogResultEnabled()
+        self.on_cmbOrgStructureChanged()
 
 
     @pyqtSignature('int')

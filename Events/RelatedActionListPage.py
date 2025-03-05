@@ -52,6 +52,23 @@ class CRelatedActionListPage(CDialogBase, CAmbCardMixin, Ui_RelatedActionListPag
         items = self.tblRelatedActionList.model().items()
         return [items[row] for row in self.getSelectedRows()]
 
+    
+    def nomenclatureGroupingRows(self, rows):
+        model = self.tblRelatedActionList.model()
+        for proxyRow in rows:
+            group = model.items[proxyRow]
+            if group[10] != group[11]:
+                for subrow in rows:
+                    if model.items[subrow][11] == group[10]:
+                        return True
+                QtGui.QMessageBox().warning(self,
+                            u'Предупреждение!',
+                            u'Невозможно добавить действие ({}) без группирующего действия.'.format(forceString(model.items[proxyRow][2])),
+                            QtGui.QMessageBox.Ok,
+                            QtGui.QMessageBox.Ok)
+                return False
+        return True
+    
 
     @pyqtSignature('')
     def on_btnClose_clicked(self):
@@ -88,6 +105,8 @@ class CRelatedActionListPage(CDialogBase, CAmbCardMixin, Ui_RelatedActionListPag
                                          QtGui.QMessageBox.Cancel) == QtGui.QMessageBox.Yes:
                 db = QtGui.qApp.db
                 actionModels = {}
+                if not self.nomenclatureGroupingRows(selectedRows):
+                    return False
                 for row in selectedRows:
                     actionId = model.items[row][5]
                     action = CAction(record=db.getRecord('Action', '*', actionId))
@@ -242,6 +261,7 @@ class CRelatedActionListModel(QAbstractTableModel):
         tableCreatePWS = db.table('vrbPersonWithSpeciality').alias('CPWS')
         tableActionType = db.table('ActionType')
         tableAction = db.table('Action')
+        tableEPI = db.table('ActionExecutionPlan_Item')
         cols = [tableEvent['id'].alias('eventId'),
                 tableAction['id'],
                 tableEvent['client_id'],
@@ -254,6 +274,8 @@ class CRelatedActionListModel(QAbstractTableModel):
                 tablePWS['name'].alias('namePerson'),
                 tableCreatePWS['name'].alias('nameCreatedPerson'),
                 tableAction['master_id'],
+                tableEPI['group_id'],
+                tableEPI['id'].alias('EPIID')
                 ]
 
         cond = [tableEvent['deleted'].eq(0),
@@ -276,6 +298,7 @@ class CRelatedActionListModel(QAbstractTableModel):
         table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
         table = table.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
         table = table.leftJoin(tableCreatePWS, tableCreatePWS['id'].eq(tableAction['createPerson_id']))
+        table = table.leftJoin(tableEPI, tableEPI['action_id'].eq(tableAction['id']))
         records = db.getRecordList(table, cols, cond, 'Action.begDate')
         for record in records:
             item = [forceDateTime(record.value('begDate')),
@@ -288,6 +311,8 @@ class CRelatedActionListModel(QAbstractTableModel):
                     forceRef(record.value('actionTypeId')),
                     forceInt(record.value('class')),
                     forceInt(record.value('master_id')),
+                    forceInt(record.value('group_id')),
+                    forceInt(record.value('EPIID')),
                     ]
             self.items.append(item)
         self.reset()

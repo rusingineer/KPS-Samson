@@ -576,7 +576,7 @@ def dateTimeToFHIRDate(dateTime):
 
 
 class CFHIRExchange:
-    SAMSON           = 'urn:oid:1.2.643.2.69.1.2.5'  # идентификатор САМСОНа в сервисе
+    # SAMSON           = 'urn:oid:1.2.643.2.69.1.2.5'  # идентификатор САМСОНа в сервисе #Переехало в GlobalPreferences.Code == Netrika.MIS_OID
     orgUrn           = 'urn:oid:1.2.643.2.69.1.1.1.64'   # кодификатор организаций
     documentTypeUrn  = 'urn:oid:1.2.643.5.1.34'          # паспорт или свид. о рождении
     snilsUrn         = 'urn:oid:1.2.643.3.9'             # СНИЛС
@@ -603,7 +603,8 @@ class CFHIRExchange:
         url           = opts['url']
         authorization = opts['authorization']
         target        = opts.get('target', None)
-
+        self.SAMSON = 'urn:oid:' + forceString(
+            QtGui.qApp.db.translate('GlobalPreferences', 'code', 'Netrika.MIS_OID', 'value'))
         self.misCode  = opts.get('misCode', self.SAMSON)
         self.orgShortCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', orgId, 'infisCode'))
         self.externalSystemId = forceRef(QtGui.qApp.db.translate('rbExternalSystem', 'code', 'N3.ODLI', 'id'))

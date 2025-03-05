@@ -13,12 +13,10 @@
 #############################################################################
 
 from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-from library.ClientRecordProperties import CRecordProperties
-from library.Utils import *
-from library.TableModel import *
-from library.TableView  import *
-from library.PreferencesMixin import CPreferencesMixin
+from PyQt4.QtCore import pyqtSignature
+
+from library.TableView import CTableView
+from library.Utils import toVariant, forceString
 
 
 class CCSGListTableView(CTableView):

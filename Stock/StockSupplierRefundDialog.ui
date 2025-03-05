@@ -20,17 +20,17 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="7" column="0">
-    <widget class="QLabel" name="lblNote">
-     <property name="text">
-      <string>Примечания</string>
+   <item row="8" column="1" colspan="4">
+    <widget class="CPersonComboBoxEx" name="cmbSupplierPerson">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
      </property>
     </widget>
    </item>
-   <item row="4" column="3" colspan="2">
-    <widget class="QLineEdit" name="edtSupplierOrgPerson"/>
-   </item>
-   <item row="5" column="0">
+   <item row="7" column="0">
     <widget class="QLabel" name="lblSupplier">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -46,7 +46,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1" colspan="4">
+   <item row="7" column="1" colspan="4">
     <widget class="CStorageComboBox" name="cmbSupplier">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -56,14 +56,14 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="2">
-    <widget class="QLabel" name="lblSupplierOrgPerson">
+   <item row="9" column="0">
+    <widget class="QLabel" name="lblNote">
      <property name="text">
-      <string>Ответственный</string>
+      <string>Примечания</string>
      </property>
     </widget>
    </item>
-   <item row="6" column="0">
+   <item row="8" column="0">
     <widget class="QLabel" name="lblSupplierPerson">
      <property name="text">
       <string>Ответственный</string>
@@ -73,56 +73,13 @@
      </property>
     </widget>
    </item>
-   <item row="6" column="1" colspan="4">
-    <widget class="CPersonComboBoxEx" name="cmbSupplierPerson">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
+   <item row="6" column="3" colspan="2">
+    <widget class="QLineEdit" name="edtSupplierOrgPerson"/>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblNumber">
+   <item row="6" column="2">
+    <widget class="QLabel" name="lblSupplierOrgPerson">
      <property name="text">
-      <string>Номер</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtNumber</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="edtNumber"/>
-   </item>
-   <item row="0" column="2">
-    <widget class="QLabel" name="lblDate">
-     <property name="text">
-      <string>Дата</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="4">
-    <widget class="QTimeEdit" name="edtTime">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="displayFormat">
-      <string>HH:mm</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblInvoiceNumber">
-     <property name="text">
-      <string>Накладная</string>
+      <string>Ответственный</string>
      </property>
     </widget>
    </item>
@@ -152,14 +109,70 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0">
+   <item row="0" column="2">
+    <widget class="QLabel" name="lblDate">
+     <property name="text">
+      <string>Дата</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblInvoiceNumber">
+     <property name="text">
+      <string>Накладная</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
     <widget class="QLabel" name="lblReceiver">
      <property name="text">
       <string>Поставщик</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="0">
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtNumber"/>
+   </item>
+   <item row="0" column="4">
+    <widget class="QTimeEdit" name="edtTime">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>HH:mm</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="COrgComboBox" name="cmbSupplierOrg"/>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblNumber">
+     <property name="text">
+      <string>Номер</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtNumber</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="1" colspan="4">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
     <widget class="QLabel" name="lblReceiverPerson">
      <property name="text">
       <string>Ответственный</string>
@@ -169,25 +182,15 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="1" colspan="4">
-    <widget class="CPersonComboBoxEx" name="cmbReceiverPerson">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblSupplierOrg">
+   <item row="1" column="2">
+    <widget class="QLabel" name="lblInvoiceDate">
      <property name="text">
-      <string>Внешний Получатель</string>
+      <string>Дата накладной</string>
      </property>
     </widget>
    </item>
-   <item row="4" column="1">
-    <widget class="COrgComboBox" name="cmbSupplierOrg"/>
+   <item row="9" column="1" colspan="4">
+    <widget class="QLineEdit" name="edtNote"/>
    </item>
    <item row="1" column="4">
     <widget class="QTimeEdit" name="edtInvoiceTime">
@@ -202,20 +205,30 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QLineEdit" name="edtInvoiceNumber"/>
-   </item>
-   <item row="2" column="1" colspan="4">
-    <widget class="CStorageComboBox" name="cmbReceiver"/>
-   </item>
-   <item row="1" column="2">
-    <widget class="QLabel" name="lblInvoiceDate">
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblFinance">
      <property name="text">
-      <string>Дата накладной</string>
+      <string>Тип финансирования</string>
      </property>
     </widget>
    </item>
-   <item row="8" column="0" colspan="5">
+   <item row="4" column="1" colspan="4">
+    <widget class="CStorageComboBox" name="cmbReceiver"/>
+   </item>
+   <item row="5" column="1" colspan="4">
+    <widget class="CPersonComboBoxEx" name="cmbReceiverPerson">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLineEdit" name="edtInvoiceNumber"/>
+   </item>
+   <item row="10" column="0" colspan="5">
     <widget class="CInDocTableView" name="tblItems">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -225,25 +238,32 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="1" colspan="4">
-    <widget class="QLineEdit" name="edtNote"/>
-   </item>
-   <item row="10" column="1" colspan="4">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0" colspan="5">
+   <item row="11" column="0" colspan="5">
     <widget class="QLabel" name="lblSummaryInfo">
      <property name="text">
       <string/>
      </property>
     </widget>
+   </item>
+   <item row="2" column="1" colspan="4">
+    <widget class="CRBComboBox" name="cmbFinance"/>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="lblSupplierOrg">
+     <property name="text">
+      <string>Внешний Получатель</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblContractType">
+     <property name="text">
+      <string>Тип договора</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="4">
+    <widget class="CContractTypeComboBox" name="cmbContractType"/>
    </item>
   </layout>
  </widget>
@@ -272,6 +292,16 @@
    <class>COrgComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CContractTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Stock/Utils.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

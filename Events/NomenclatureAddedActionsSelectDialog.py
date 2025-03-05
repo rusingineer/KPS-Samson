@@ -16,11 +16,12 @@ from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QAbstractTableModel, QVariant, pyqtSignature, SIGNAL
 
 from library.InDocTable  import CInDocTableModel, CRBInDocTableCol, CBoolInDocTableCol, CIntInDocTableCol, CFloatInDocTableCol
-from library.Utils       import forceInt, forceBool, forceRef
+from library.Utils       import forceInt, forceBool, forceRef, forceString, forceDate, forceDouble, forceStringEx, toVariant
 from library.DialogBase  import CDialogBase
 from library.crbcombobox import CRBComboBox
 from Stock.NomenclatureComboBox import CNomenclatureInDocTableCol
 from Stock.ClientInvoiceEditDialog import CClientInvoiceEditDialog, CClientRefundInvoiceEditDialog
+from Stock.Utils import getExistsNomenclatureAmount, getStockMotionItemQntEx, getNomenclatureUnitRatio, getNomenclatureSimpleUnitRatio
 
 from Events.Ui_NomenclatureAddedActionsSelectDialog import Ui_NomenclatureAddedActionsSelectDialog
 
@@ -39,6 +40,8 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
         self.setModels(self.tblNomenclatureExpense, self.modelNomenclatureExpense, self.selectionModelNomenclatureExpense)
         self.actionExpenseItems = actionExpenseItems
         self.firstEntry = True
+        self._mapNomenclatureIdToUnitId = {}
+        self.isControlExecWriteOffNE = True
         self.modelNomenclatureExpense.setEnableAppendLine(False)
         self.modelActionsExpense.loadItems()
         self.loadNomenclatureToAction()
@@ -113,6 +116,14 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
             self.on_buttonBox_reset()
 
 
+    def exec_(self):
+        result = CDialogBase.exec_(self)
+        if not self.isControlExecWriteOffNE:
+            result = QtGui.QDialog.Rejected
+        self.setResult(result)
+        return result
+
+
     def getIncludeAvailable(self, aTNomenclatureItems, currentGroup):
         for item in aTNomenclatureItems:
             if currentGroup == forceInt(item.value('selectionGroup')) and forceBool(item.value('available')) and forceBool(item.value('include')):
@@ -141,6 +152,7 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
 
 
     def on_buttonBox_ok(self):
+        self.isControlExecWriteOffNE = True
         self.modelNomenclatureExpense.setNomenclatureToAction(self.modelActionsExpense.actionTypeId(self.tblActionsExpense.currentRow()), self.tblActionsExpense.currentRow())
         mapNomenclatureToAction = self.getNomenclatureToActions()
         for row, (record, action) in enumerate(self.modelActionsExpense._items):
@@ -161,7 +173,150 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
 #                    for stockMotionItem in stockMotionItems:
 #                        action.nomenclatureExpense._applyBatchFinanceIdShelfTime(stockMotionItem)
             self.modelNomenclatureExpense.isUpdateInclude = False
-        QtGui.QDialog.accept(self)
+        
+        isControlExecWriteOffNomenclatureExpense = QtGui.qApp.controlExecutionWriteOffNomenclatureExpense()
+        if isControlExecWriteOffNomenclatureExpense:
+            mapNomenclatureToAction = self.getNomenclatureToActions()
+            db = QtGui.qApp.db
+            message = u''
+            nomenclatureLine = []
+            resQntDict = {}
+            aTNomenclatureList = []
+            tableNomenclature = db.table('rbNomenclature')
+            for row, (record, action) in enumerate(self.modelActionsExpense._items):
+                if action.nomenclatureExpense:
+                    supplierId = forceRef(action.getRecord().value('orgStructure_id'))
+                    if supplierId:
+                        action.nomenclatureExpense.setSupplierId(supplierId)
+                    masterId = forceRef(record.value('actionType_id'))
+                    aTNomenclatureItems = mapNomenclatureToAction.get((masterId, row), [])
+                    for item in aTNomenclatureItems:
+                        include = forceBool(item.value('include'))
+                        if include and (not forceBool(item.value('selectionGroup')) or forceBool(item.value('available')) or self.getIncludeAvailable(aTNomenclatureItems, forceInt(item.value('selectionGroup')))):
+                            aTNomenclatureList.append(item)
+                    nomenclatureIdDict = {}
+                    for aTNomenclature in aTNomenclatureList:
+                        nomenclatureIdAT = forceRef(aTNomenclature.value('nomenclature_id'))
+                        nomenclatureIdDict[nomenclatureIdAT] = forceDouble(aTNomenclature.value('amount'))
+                    stockMotionItems = action.nomenclatureExpense.stockMotionItems()
+                    for stockMotionItem in stockMotionItems:
+                        price = forceDouble(stockMotionItem.value('price'))
+                        oldPrice = price
+                        nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
+                        if nomenclatureId and nomenclatureId not in nomenclatureLine:
+                            qnt = forceDouble(stockMotionItem.value('qnt'))
+                            resQnt, planQnt, simpleRatio = resQntDict.get(nomenclatureId, (None, None, 2))
+                            unitId = forceRef(stockMotionItem.value('unit_id'))
+                            stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
+                            ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
+                            if ratio is not None:
+                                price = price*ratio
+                                qnt = qnt / ratio
+                            qnt = round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if planQnt is None:
+                                dosage = nomenclatureIdDict.get(nomenclatureId, 0)
+                                planQnt = action.nomenclatureExpense.getNomenclatureDosageToQntValue(nomenclatureId, dosage)
+                                if ratio is not None:
+                                    planQnt = planQnt / ratio
+                                planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            financeId = forceRef(stockMotionItem.value('finance_id'))
+                            batch = forceString(stockMotionItem.value('batch'))
+                            shelfTime = forceDate(stockMotionItem.value('shelfTime'))
+                            shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
+                            medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
+                            otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
+                            existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, orgStructureId=supplierId, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                            masterId = forceRef(stockMotionItem.value('master_id'))
+                            prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if masterId else 0
+                            reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=action.nomenclatureExpense._clientId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
+                            if existsQnt < 0:
+                                existsQnt = 0
+                            if prevQnt < 0:
+                                prevQnt = 0
+                            if reservationQnt < 0:
+                                reservationQnt = 0
+                            if resQnt is None:
+                                resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
+                            else:
+                                resQnt += (existsQnt + reservationQnt + prevQnt) - qnt
+                            resQnt = round(resQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            planQnt = planQnt - qnt
+                            planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            resQntDict[nomenclatureId] = (resQnt, planQnt, len(forceStringEx(self.getSimpleRatio(nomenclatureId, stockUnitId, unitId))))
+                    for nomenclatureIdKey, (resQntValue, planQntValue, simpleQntRatio) in resQntDict.items():
+                        if resQntValue < 0 or resQntValue is None or (round(planQntValue, simpleQntRatio) != 0 and planQntValue is not None):
+                            nomenclatureLine.append(nomenclatureIdKey)
+                    if nomenclatureLine:
+                        records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
+                        nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
+                        message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n'''%(action._actionType.name, nomenclatureName)
+                    if message:
+                        if isControlExecWriteOffNomenclatureExpense == 1:
+                            button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?'%(nomenclatureName)
+                        else:
+                            button = QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n'%(nomenclatureName)
+                        res = QtGui.QMessageBox.warning(None,
+                                                  u'Внимание!',
+                                                  message2,
+                                                  button,
+                                                  QtGui.QMessageBox.Cancel)
+                        if res == QtGui.QMessageBox.Cancel:
+                            self.isControlExecWriteOffNE = False
+                            action.getRecord().setValue('status', toVariant(action.getType().defaultStatus))
+        if self.isControlExecWriteOffNE:
+            QtGui.QDialog.accept(self)
+        else:
+            QtGui.QDialog.reject(self)
+
+
+    def _getNomenclatureDefaultUnits(self, nomenclatureId):
+        if not nomenclatureId:
+            return {}
+        result = self._mapNomenclatureIdToUnitId.get(nomenclatureId)
+        if result is None:
+            record = QtGui.qApp.db.getRecord('rbNomenclature',
+                                             ('defaultStockUnit_id', 'defaultClientUnit_id'),
+                                             nomenclatureId
+                                            )
+            if record:
+                defaultStockUnitId = forceRef(record.value('defaultStockUnit_id'))
+                defaultClientUnitId = forceRef(record.value('defaultClientUnit_id'))
+            else:
+                defaultStockUnitId = defaultClientUnitId = None
+            result = {
+                       'defaultStockUnitId' : defaultStockUnitId,
+                       'defaultClientUnitId': defaultClientUnitId
+                     }
+            self._mapNomenclatureIdToUnitId[nomenclatureId] = result
+        return result
+
+
+    def getDefaultStockUnitId(self, nomenclatureId):
+        return self._getNomenclatureDefaultUnits(nomenclatureId).get('defaultStockUnitId')
+
+
+    def getRatio(self, nomenclatureId, oldUnitId, newUnitId):
+        if oldUnitId is None:
+            oldUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if newUnitId is None:
+            newUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if oldUnitId == newUnitId:
+            return 1
+        ratio = getNomenclatureUnitRatio(nomenclatureId, oldUnitId, newUnitId)
+        return ratio
+
+
+    def getSimpleRatio(self, nomenclatureId, oldUnitId, newUnitId):
+        if oldUnitId is None:
+            oldUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if newUnitId is None:
+            newUnitId = self.getDefaultStockUnitId(nomenclatureId)
+        if oldUnitId == newUnitId:
+            return 1
+        ratio = getNomenclatureSimpleUnitRatio(nomenclatureId, oldUnitId, newUnitId)
+        return ratio
 
 
     def on_buttonBox_reset(self):
@@ -178,10 +333,13 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
         row = self.tblActionsExpense.currentIndex().row()
         if 0 <= row < len(items):
             record, action = items[row]
-            self._openNomenclatureEditor(action, record)
+            self._openNomenclatureEditor(action, record, row)
+#            if not self._openNomenclatureEditor(action, record, row):
+#                if action.nomenclatureExpense:
+#                    action.nomenclatureExpense.cancelEx()
 
 
-    def _openNomenclatureEditor(self, action, record, requireItems=False):
+    def _openNomenclatureEditor(self, action, record, row, requireItems=False):
         if not action:
             return False
         if not action.getType().isNomenclatureExpense:
@@ -193,29 +351,103 @@ class CNomenclatureAddedActionsSelectDialog(CDialogBase, Ui_NomenclatureAddedAct
             supplierId = forceRef(action.getRecord().value('orgStructure_id'))
             if supplierId:
                 action.nomenclatureExpense.setSupplierId(supplierId)
-            if requireItems and not action.nomenclatureExpense.stockMotionItems():
+#            if requireItems and not action.nomenclatureExpense.stockMotionItems():
+#                nomenclatureIdDict = {}
+#                nomenclatureId = action.findNomenclaturePropertyValue()
+#                if not nomenclatureId:
+#                    return True
+#                nomenclatureIdDict[nomenclatureId] = (action.getRecord(), action.findDosagePropertyValue())
+#                action.nomenclatureExpense.updateNomenclatureIdListToAction(nomenclatureIdDict)
+            if not action.nomenclatureExpense.stockMotionItems():
+                return True
+            isControlExecWriteOffNomenclatureExpense = QtGui.qApp.controlExecutionWriteOffNomenclatureExpense()
+            if isControlExecWriteOffNomenclatureExpense:
+                mapNomenclatureToAction = self.getNomenclatureToActions()
+                db = QtGui.qApp.db
+                message = u''
+                nomenclatureLine = []
+                resQntDict = {}
                 nomenclatureIdDict = {}
-                nomenclatureId = action.findNomenclaturePropertyValue()
-                if not nomenclatureId:
-                    return True
-                nomenclatureIdDict[nomenclatureId] = (action.getRecord(), action.findDosagePropertyValue())
-                action.nomenclatureExpense.updateNomenclatureIdListToAction(nomenclatureIdDict)
-                if not action.nomenclatureExpense.stockMotionItems():
-                    return True
-#            dosesPropertyAmount = None
-#            for i, type in enumerate(action._properties):
-#                type = type._type.name
-#                if type == u'Доза':
-#                    dosesPropertyAmount = action._properties[i]._value
-#            for itemRecord in action.nomenclatureExpense.stockMotionItems():
-#                if dosesPropertyAmount and len(action.actionType().getNomenclatureRecordList()):
-#                    itemRecord.setValue('qnt', dosesPropertyAmount*forceDouble(itemRecord.value('qnt')) if forceDouble(itemRecord.value('qnt')) else 1)
-#                elif forceDouble(itemRecord.value('qnt')) > 1:
-#                    itemRecord.setValue('qnt', forceDouble(itemRecord.value('qnt')))
-#                elif dosesPropertyAmount:
-#                    itemRecord.setValue('qnt', dosesPropertyAmount)
-#                else:
-#                    itemRecord.setValue('qnt', forceDouble(itemRecord.value('qnt')))
+                tableNomenclature = db.table('rbNomenclature')
+                if action.nomenclatureExpense:
+                    aTNomenclatureList = []
+                    masterId = forceRef(record.value('actionType_id'))
+                    aTNomenclatureItems = mapNomenclatureToAction.get((masterId, row), [])
+                    for item in aTNomenclatureItems:
+                        include = forceBool(item.value('include'))
+                        if include and (not forceBool(item.value('selectionGroup')) or forceBool(item.value('available')) or self.getIncludeAvailable(aTNomenclatureItems, forceInt(item.value('selectionGroup')))):
+                            aTNomenclatureList.append(item)
+                    nomenclatureIdDict = {}
+                    for aTNomenclature in aTNomenclatureList:
+                        nomenclatureIdAT = forceRef(aTNomenclature.value('nomenclature_id'))
+                        nomenclatureIdDict[nomenclatureIdAT] = forceDouble(aTNomenclature.value('amount'))
+                    stockMotionItems = action.nomenclatureExpense.stockMotionItems()
+                    for stockMotionItem in stockMotionItems:
+                        price = forceDouble(stockMotionItem.value('price'))
+                        oldPrice = price
+                        nomenclatureId = forceRef(stockMotionItem.value('nomenclature_id'))
+                        if nomenclatureId and nomenclatureId not in nomenclatureLine:
+                            qnt = forceDouble(stockMotionItem.value('qnt'))
+                            resQnt, planQnt, simpleRatio = resQntDict.get(nomenclatureId, (None, None, 2))
+                            unitId = forceRef(stockMotionItem.value('unit_id'))
+                            stockUnitId = self.getDefaultStockUnitId(nomenclatureId)
+                            ratio = self.getRatio(nomenclatureId, stockUnitId, unitId)
+                            if ratio is not None:
+                                price = price*ratio
+                                qnt = qnt / ratio
+                            qnt = round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            if planQnt is None:
+                                dosage = nomenclatureIdDict.get(nomenclatureId, 0)
+                                planQnt = action.nomenclatureExpense.getNomenclatureDosageToQntValue(nomenclatureId, dosage)
+                                if ratio is not None:
+                                    planQnt = planQnt / ratio
+                                planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            financeId = forceRef(stockMotionItem.value('finance_id'))
+                            batch = forceString(stockMotionItem.value('batch'))
+                            shelfTime = forceDate(stockMotionItem.value('shelfTime'))
+                            shelfTime = shelfTime.toPyDate() if bool(shelfTime) else None
+                            medicalAidKindId = forceRef(stockMotionItem.value('medicalAidKind_id'))
+                            otherHaving=[u'(shelfTime>=curDate()) OR shelfTime is NULL']
+                            existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, orgStructureId=supplierId, unitId=stockUnitId, medicalAidKindId = medicalAidKindId, shelfTime=shelfTime, otherHaving=otherHaving, exact=True, price=price, isStockUtilization=False, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                            masterId = forceRef(stockMotionItem.value('master_id'))
+                            prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=masterId, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=oldPrice, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if masterId else 0
+                            reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=action.nomenclatureExpense._clientId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
+                            if existsQnt < 0:
+                                existsQnt = 0
+                            if prevQnt < 0:
+                                prevQnt = 0
+                            if reservationQnt < 0:
+                                reservationQnt = 0
+                            if resQnt is None:
+                                resQnt = (existsQnt + reservationQnt + prevQnt) - qnt
+                            else:
+                                resQnt += (existsQnt + reservationQnt + prevQnt) - qnt
+                            resQnt = round(resQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            planQnt = planQnt - qnt
+                            planQnt = round(planQnt, QtGui.qApp.numberDecimalPlacesQnt())
+                            resQntDict[nomenclatureId] = (resQnt, planQnt, len(forceStringEx(self.getSimpleRatio(nomenclatureId, stockUnitId, unitId))))
+                    for nomenclatureIdKey, (resQntValue, planQntValue, simpleQntRatio) in resQntDict.items():
+                        if resQntValue < 0 or resQntValue is None or (round(planQntValue, simpleQntRatio) != 0 and planQntValue is not None):
+                            nomenclatureLine.append(nomenclatureIdKey)
+                    if nomenclatureLine:
+                        records = db.getRecordList(tableNomenclature, [tableNomenclature['name']], [tableNomenclature['id'].inlist(nomenclatureLine)], order = tableNomenclature['name'].name())
+                        nomenclatureName = u','.join(forceString(recordNomenclature.value('name')) for recordNomenclature in records)
+                        message += u'''Действие типа %s.\nОтсутствуют ЛСиИМН: %s!\n'''%(action._actionType.name, nomenclatureName)
+                    if message:
+                        if isControlExecWriteOffNomenclatureExpense == 1:
+                            button = QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнить списание?'%(nomenclatureName)
+                        else:
+                            button = QtGui.QMessageBox.Cancel
+                            message2 = u'Списываемого ЛСиИМН %s недостаточно на остатке подразделения. Выполнение назначения невозможно!\n'%(nomenclatureName)
+                        res = QtGui.QMessageBox.warning(None,
+                                                  u'Внимание!',
+                                                  message2,
+                                                  button,
+                                                  QtGui.QMessageBox.Cancel)
+                        if res == QtGui.QMessageBox.Cancel:
+                            return False
+                        
             if QtGui.qApp.keyboardModifiers() & Qt.ShiftModifier:
                 dlg = CClientRefundInvoiceEditDialog(self)
                 dlg.setData(action.nomenclatureExpense)

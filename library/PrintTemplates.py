@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -47,15 +47,12 @@ try:
     import exaro
     exaroSupport = True
     exaroSupportError = u'-'
-except ImportError,  e:
+except ImportError as e:
     exaroSupport = False
     exaroSupportError += str(e).decode('cp1251') if sys.platform == 'win32' else str(e)
 
-# import logging
-# fileh = logging.FileHandler('matplotlib.log', 'w')
-# mplLogger = logging.getLogger('matplotlib')
-# mplLogger.setLevel(logging.DEBUG)
-# mplLogger.addHandler(fileh)
+import io
+
 
 from Reports.ReportView    import CPageFormat, CReportViewDialog, printTextDocument
 from Orgs.Utils            import COrgInfo, COrgStructureInfo
@@ -79,7 +76,6 @@ from library.Barcodes.qrcode     import qrcodeImage
 from library.Barcodes.datamatrix import datamatrixImage
 from library.Utils import forceInt, forceRef, forceString, forceStringEx, smartDict, unformatSNILS, toVariant, forceBool
 
-# import io
 
 u"""Шаблоны печати"""
 
@@ -113,6 +109,7 @@ exaroTemplate = 1
 svgTemplate = 2
 cssTemplate = 3
 
+loadTemplatePageFormat = None
 
 CPrintTemplateMiniDescr = namedtuple('CPrintTemplateMiniDescr', ['name', 'id', 'group'])
 
@@ -379,7 +376,9 @@ def getTemplate(templateId, retCode=False):
     code = None
     name = ''
     record = None
+    printBlank = None
     type = None
+    printBlank = False
     if templateId:
         record = QtGui.qApp.db.getRecord('rbPrintTemplate', '*', templateId)
     if record:
@@ -416,9 +415,9 @@ def getTemplate(templateId, retCode=False):
 
 
 
-def compileTemplate(template, fromWidget=None):
+def compileTemplate(template, fromWidget=None, templateId=None):
     # result is tuple (complied_code, source_code)
-    parser = CTemplateParser(template)
+    parser = CTemplateParser(template, templateId=templateId)
     try:
         return parser.compileToCode()
     except:
@@ -441,7 +440,7 @@ class CTemplateExecutionResult(object):
         self.propertiesData = propertiesData
 
 
-def execTemplate(documentName, code, data, pageFormat=None, fromWidget=None):
+def execTemplate(documentName, code, data, templateId, pageFormat=None, fromWidget=None):
     # code is tuple (complied_code, source_code, filename)
     filename = code[2]
     if not pageFormat:
@@ -462,9 +461,13 @@ def execTemplate(documentName, code, data, pageFormat=None, fromWidget=None):
         supplements = {}
         try:
             sys.stdout = stream
-            execContext = CTemplateContext(data, infoContext, stream, documentName, pageFormat)
+            execContext = CTemplateContext(data, infoContext, stream, documentName, pageFormat, templateId)
             # exec code[0] in execContext.globals, execContext
             execfile(filename, execContext.globals, execContext)
+            global loadTemplatePageFormat
+            if loadTemplatePageFormat:
+                pageFormat.__dict__.update(loadTemplatePageFormat.__dict__)
+                loadTemplatePageFormat = None
             canvases = execContext.getCanvases()
             supplements = execContext.getSupplements()
             documentName = execContext.getDocumentName()
@@ -488,6 +491,8 @@ def execTemplate(documentName, code, data, pageFormat=None, fromWidget=None):
                 QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
             QtGui.qApp.logCurrentException()
             return CTemplateExecutionResult(None, None, None, None)
+    except UserWarning:
+        raise
     except Exception:
         if fromWidget:
             fromWidget.setText(u'ОШИБКА ЗАПОЛНЕНИЯ ШАБЛОНА')
@@ -497,9 +502,9 @@ def execTemplate(documentName, code, data, pageFormat=None, fromWidget=None):
             raise
 
 
-def compileAndExecTemplate(documentName, template, data, pageFormat=None):
+def compileAndExecTemplate(documentName, template, data, pageFormat=None, templateId=None):
     # u"""Заполняет шаблон печати данными и возвращает готовый код HTML/XML"""
-        return execTemplate(documentName, compileTemplate(template), data, pageFormat)
+        return execTemplate(documentName, compileTemplate(template), data, templateId, pageFormat)
 
 class CConsentTypeListCache(CDbEntityCache):
     templateId2ConsentTypeList = {}
@@ -562,13 +567,14 @@ def applyTemplate(widget, templateId, data, fromWidget=None, signAndAttachHandle
     except:
         pass
 
-    applyTemplateInt(widget, name, template, data, templateType, fromWidget, signAndAttachHandler, printBlank)
+    applyTemplateInt(widget, name, template, data, templateType, fromWidget, signAndAttachHandler, printBlank, templateId)
 
 
 
-def applyTemplateInt(widget, name, template, data, templateType=htmlTemplate, fromWidget=None, signAndAttachHandler=None, printBlank = None):
+def applyTemplateInt(widget, name, template, data, templateType=htmlTemplate, fromWidget=None, signAndAttachHandler=None, printBlank = None, templateId = None):
     # u'''Выводит на печать шаблон печати по имени name с кодом template и данными data'''
     pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Portrait, leftMargin=5, topMargin=5, rightMargin=5,  bottomMargin=5)
+    btnRedoInfo = [templateId, data, signAndAttachHandler]
     if QtGui.qApp.isPrintDebugEnabled or forceBool(QtGui.qApp.preferences.appPrefs.get('templateEdit', False)):
         QtGui.qApp.debugPrintData.template = template
         QtGui.qApp.debugPrintData.data = data
@@ -579,18 +585,18 @@ def applyTemplateInt(widget, name, template, data, templateType=htmlTemplate, fr
     else:
         templateResult = compileAndExecTemplate(name, template, data, pageFormat)
     templateResult.propertiesData = {}
+    if data.get('currentAction', None):
+        templateResult.currentAction = data['currentAction']
 
     if templateResult.content is not None:
         if templateType == exaroTemplate:
             printExaroTemplate(templateResult.content, None, True)
         elif templateType == svgTemplate:
-            showSVG(widget, templateResult, pageFormat, signAndAttachHandler, printBlank)
+            showSVG(widget, templateResult, pageFormat, signAndAttachHandler, printBlank, btnRedoInfo)
         elif templateType == cssTemplate:
             showCSS(widget, templateResult.content, data)
         else:
-            if data.get('currentAction', None):
-                templateResult.currentAction = data['currentAction']
-            showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler)
+            showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler, btnRedoInfo)
 
 # ###
 
@@ -644,14 +650,14 @@ def showCSS(widget, content, data):
 def applyTemplateList(widget, templateId, dataList, fromWidget=None, signAndAttachHandler=None):
     try:
         name, template, templateType, printBlank = getTemplate(templateId)
-        applyTemplateListInt(widget, name, template, dataList, templateType, fromWidget, signAndAttachHandler, printBlank)
+        applyTemplateListInt(widget, name, template, templateId, dataList, templateType, fromWidget, signAndAttachHandler, printBlank)
         if widget and hasattr(widget, 'lblTemplateName'): # WTF?
             widget.lblTemplateName.setText(name)
     except:
         fromWidget.setText(u'ОШИБКА ЗАПОЛНЕНИЯ ШАБЛОНА')
 
 
-def applyTemplateListInt(widget, name, template, dataList, templateType=htmlTemplate, fromWidget=None, signAndAttachHandler=None, printBlank = None):
+def applyTemplateListInt(widget, name, template, templateId, dataList, templateType=htmlTemplate, fromWidget=None, signAndAttachHandler=None, printBlank = None):
     pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Portrait, leftMargin=5, topMargin=5, rightMargin=5,  bottomMargin=5)
 
     if templateType == exaroTemplate and not exaroSupport:
@@ -665,7 +671,7 @@ def applyTemplateListInt(widget, name, template, dataList, templateType=htmlTemp
         for idx, data in enumerate(dataList):
             # if idx > 0:
             #     content += '<BR clear=all style=\'page-break-before:always\'>'
-            partTemplateResult = execTemplate(name, code, data, pageFormat, fromWidget)
+            partTemplateResult = execTemplate(name, code, data, templateId, pageFormat=pageFormat, fromWidget=fromWidget)
             if partTemplateResult.content is not None:
                 if content is None:
                     content = ''
@@ -702,7 +708,7 @@ def applyMultiTemplateListInt(widget, templateIdAndDataList, fromWidget=None, si
             continue
         pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Portrait, leftMargin=5, topMargin=5, rightMargin=5,  bottomMargin=5)
         code = compileTemplate(template, fromWidget)
-        partTemplateResult = execTemplate(name, code, data, pageFormat, fromWidget)
+        partTemplateResult = execTemplate(name, code, data, templateId, pageFormat=pageFormat, fromWidget=fromWidget)
         if partTemplateResult and partTemplateResult.content is not None:
             content.append(partTemplateResult.content)
             pageFormats.append(pageFormat)
@@ -716,10 +722,12 @@ def applyMultiTemplateListInt(widget, templateIdAndDataList, fromWidget=None, si
         showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler)
 
 
-def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachHandler=None):
+def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachHandler=None, btnRedoInfo = None):
     if fromWidget:
         fromWidget.setText(templateResult.content)
         fromWidget.setCanvases(templateResult.canvases)
+        if getattr(fromWidget, 'setPrintData', None):
+            fromWidget.setPrintData({'templateResult': templateResult, 'pageFormat': pageFormat})
     else:
         reportView = CReportViewDialog(widget)
         reportView.setWindowTitle(unicode(templateResult.documentName))
@@ -730,6 +738,7 @@ def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachH
         reportView.setSupplements(templateResult.supplements)
         reportView.setPageFormat(pageFormat)
         reportView.setSignAndAttachHandler(signAndAttachHandler)
+        reportView.setRedoInfo(btnRedoInfo)
 
         # для самосборного эпикриза
         if BeautifulSoup:
@@ -937,7 +946,7 @@ class CPrintButton(QtGui.QPushButton):
 
 
 class CTemplateParser(object):
-    def __init__(self, txt, filename = None):
+    def __init__(self, txt, filename = None, templateId=None):
         self.blockText = re.compile(r'''([^\\{]|\\.)*''')
         # self.blockCode = re.compile(r'''\{([^\\'"}]|\\.|'(\\.|[^'])*'|"(\\.|[^"])*")*\}''')
         self.keywords  = [('if',   re.compile(r'''\s*if\s*:\s*''')),
@@ -1003,7 +1012,7 @@ class CTemplateParser(object):
                 if check:
                     self.checkExprSyntax(lex[1], expr)
                 fmt = lex[3]
-                if fmt == 'h':
+                if fmt == 'h' or lex[2].startswith('loadTemplate('):
                     print >>self.stream, prefix+'write('+expr+')'
                 elif fmt == 'n':
                     print >>self.stream, prefix+'write(escapenl('+expr+'))'
@@ -1198,7 +1207,7 @@ class CTemplateParser(object):
 
 class CDictProxy(object):
     def __init__(self, path, data):
-        object.__setattr__(self, 'path', path)
+        object.__setattr__(self, 'path', unicode(path))
         object.__setattr__(self, 'data', data)
 
 
@@ -1206,11 +1215,11 @@ class CDictProxy(object):
         if self.data.has_key(name):
             result = self.data[name]
             if type(result) == dict:
-                return CDictProxy(self.path+'.'+name, result)
+                return CDictProxy(self.path+'.'+unicode(name), result)
             else:
                 return result
         else:
-            s = self.path+'.'+name
+            s = self.path+'.'+unicode(name)
             QtGui.qApp.log(u'Ошибка при печати шаблона',
                            u'Переменная или функция "%s" не определена.\nвозвращается None'%s)
             return None
@@ -1218,6 +1227,18 @@ class CDictProxy(object):
 
     def __setattr__(self, name, value):
         self.data[name] = value
+
+
+    def __getitem__(self, name):
+        return self.__getattr__(name)
+
+
+    def __setitem__(self, name, value):
+        self.__setattr__(name, value)
+
+
+    def __repr__(self):
+        return repr(self.data)
 
 
 # ####################################
@@ -1297,10 +1318,11 @@ class ETemplateContext(Exception):
 
 
 class CTemplateContext(object):
-    def __init__(self, data, infoContext, stream, documentName, pageFormat):
+    def __init__(self, data, infoContext, stream, documentName, pageFormat, templateId):
         self.data = data
-        # self.pyplot = None
+        self.pyplot = None
         now = QDateTime.currentDateTime()
+        self.templateId = templateId
         builtins = {
                  'escape'              : escape,
                  'clearStyle'              : clearStyle,
@@ -1313,6 +1335,7 @@ class CTemplateContext(object):
                  'urlread'             : readUrl,
                  'readUrl'             : readUrl,
                  'loadJson'            : loadJson,
+                 'loadTemplate'        : self.loadTemplate,
                  'runBrowser'          : self.runBrowser,
                  'currentDate'         : CDateInfo(now.date()),
                  'currentTime'         : CTimeInfo(now.time()),
@@ -1349,8 +1372,8 @@ class CTemplateContext(object):
                  'userCertPlate'       : userCertPlate,
                  'exit'                : sys.exit,
                  'error'               : self.error,
-                 # 'plt'                 : self.getPlt,
-                 # 'getPltImage'         : self.getPltImage
+                 'plt'                 : self.getPlt,
+                 'getPltImage'         : self.getPltImage
                }
         if pageFormat:
             builtins['setPageSize'] = pageFormat.setPageSize
@@ -1426,6 +1449,25 @@ class CTemplateContext(object):
             self.supressPreview = True
         else:
             raise ExTemplateContext(u'Невозможно открыть браузер')
+        
+    
+    def loadTemplate(self, templateId=None):
+        content = ''
+        if not templateId or templateId == self.templateId:
+            return content
+        data = self.globals
+        name, template, templateType, printBlank = getTemplate(templateId)
+        pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Portrait, leftMargin=5, topMargin=5,
+                                 rightMargin=5, bottomMargin=5)
+        templateResult = compileAndExecTemplate(name, template, data, pageFormat, templateId)
+        if templateResult.content:
+            content = templateResult.content
+        if templateResult.supplements:
+            self._supplements.update(templateResult.supplements)
+        if pageFormat:
+            global loadTemplatePageFormat
+            loadTemplatePageFormat = pageFormat
+        return content
 
 
     def __encodeUrl(self, scheme, params):
@@ -1448,30 +1490,19 @@ class CTemplateContext(object):
         return 'data:image/png;base64,' + b64encode(ba)
 
     
-    # def getPlt(self):
-    #     if self.pyplot is None:
-    #         try:
-    #             configDir = QtGui.qApp.preferences.getDir()
-    #             os.environ[ 'MPLCONFIGDIR' ] = os.path.join(configDir, 'matplotlib')
-    #             os.environ[ 'MPLBACKEND' ] = 'Agg'
-    #             self.pyplot = __import__('matplotlib.pyplot', fromlist=[''])
-    #         except ImportError:
-    #             self.pyplot = None
-    #     if self.pyplot:
-    #         return self.pyplot
-    #     else:
-    #         raise ETemplateContext(u'Отсутствует пакет matplotlib!')
-    #
-    # def getPltImage(self):
-    #     if self.pyplot:
-    #         buf = io.BytesIO()
-    #         self.pyplot.savefig(buf, format='png')
-    #         buf.seek(0)
-    #         ba = QByteArray(buf.getvalue())
-    #         return 'data:image/png;base64,' + b64encode(ba)
-    #     else:
-    #         raise ETemplateContext(u'Отсутствует пакет matplotlib!')
-    
+    def getPlt(self):
+        if self.pyplot is None:
+            try:
+                configDir = QtGui.qApp.preferences.getDir()
+                os.environ[ 'MPLCONFIGDIR' ] = os.path.join(configDir, 'matplotlib')
+                os.environ[ 'MPLBACKEND' ] = 'Agg'
+                self.pyplot = __import__('matplotlib.pyplot', fromlist=[''])
+            except ImportError:
+                self.pyplot = None
+        if self.pyplot:
+            return self.pyplot
+        else:
+            raise ETemplateContext(u'Отсутствует пакет matplotlib!')
 
     def getPltImage(self):
         if self.pyplot:
@@ -1482,7 +1513,7 @@ class CTemplateContext(object):
             return 'data:image/png;base64,' + b64encode(ba)
         else:
             raise ETemplateContext(u'Отсутствует пакет matplotlib!')
-    
+
 
     def pdf417Url(self, data, **params):
 #        params['data'] = data
@@ -1810,27 +1841,30 @@ def escape(s):
 
 def clearStyle(s):
     if s and (isinstance(s, unicode) or isinstance(s, str)):
-        start_body = s.find(u'<body')
-        end_body = s[start_body:].find(u'>')
-        kill_body = s[:(start_body + end_body) + 1]
-        s = s.replace(kill_body, '')
-        for i in range(s.count(u'<span')):
-            beg_span = s.find(u'<span')
-            end_span = s[beg_span:].find(u'>')
-            kill_span = s[beg_span:(beg_span + end_span) + 1]
-            s = s.replace(kill_span, '')
-        s = s.replace(u'</span>', '').replace(u'</body>', '').replace(u'</html>', '')
-        for i in range(s.count(u'<p')):
-            beg_p = s.find(u'<p')
-            end_p = s[beg_p:].find(u'>')
-            kill_p = s[beg_p:(beg_p + end_p) + 1]
-            s = s.replace(kill_p, '')
-        s = s.replace(u'</p>', '')
-        beg_table = s.find(u'<table')
-        if beg_table > 0:
-            kill_table = s[:beg_table]
-            s = s.replace(kill_table, '')
-        return s
+        if (u'<body' in s):
+            start_body = s.find(u'<body')
+            end_body = s[start_body:].find(u'>')
+            kill_body = s[:(start_body + end_body) + 1]
+            s = s.replace(kill_body, '')
+            for i in range(s.count(u'<span')):
+                beg_span = s.find(u'<span')
+                end_span = s[beg_span:].find(u'>')
+                kill_span = s[beg_span:(beg_span + end_span) + 1]
+                s = s.replace(kill_span, '')
+            s = s.replace(u'</span>', '').replace(u'</body>', '').replace(u'</html>', '')
+            for i in range(s.count(u'<p')):
+                beg_p = s.find(u'<p')
+                end_p = s[beg_p:].find(u'>')
+                kill_p = s[beg_p:(beg_p + end_p) + 1]
+                s = s.replace(kill_p, '')
+            s = s.replace(u'</p>', '')
+            beg_table = s.find(u'<table')
+            if beg_table > 0:
+                kill_table = s[:beg_table]
+                s = s.replace(kill_table, '')
+            return s
+        else:
+            return s
     else:
         return
 

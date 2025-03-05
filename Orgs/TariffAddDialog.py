@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,11 +18,12 @@ from PyQt4.QtCore import QDate, Qt, pyqtSignature, QVariant
 from PyQt4.QtSql import QSqlField
 from library.InDocTable import CInDocTableModel, CInDocTableCol, CBoolInDocTableCol
 from library.DialogBase import CDialogBase
-from library.Utils import forceString, forceDouble, toVariant
+from library.Utils import forceRef, forceString, forceDouble, toVariant
 from Accounting.Tariff import CTariff
 from library.TableModel import CTableModel, CTextCol
 
 from Ui_TariffAddDialog import Ui_TariffAddDialog
+
 
 class FloatDelegate(QtGui.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
@@ -41,6 +42,7 @@ class CTariffAddDialog(CDialogBase,  Ui_TariffAddDialog):
         self.cmbAid.setTable('rbMedicalAidUnit', False)
         self.masterId = parent._id
         self.newRecords = []
+        self.updatedRecords = {}
         
         self.edtDateChange.setDate(QDate.currentDate())
         
@@ -56,7 +58,11 @@ class CTariffAddDialog(CDialogBase,  Ui_TariffAddDialog):
         
         self.tariffServicesModel = CTariffServicesModel(self)
         self.tblTariffServices.setModel(self.tariffServicesModel)
-        
+
+        self.parent = parent
+
+        if self.parent.lastAddDialogDate:
+            self.edtDate.setDate(self.parent.lastAddDialogDate)
         
     def serviceInfisById(self, serviceId):
         if serviceId.isNull():
@@ -117,6 +123,8 @@ class CTariffAddDialog(CDialogBase,  Ui_TariffAddDialog):
         
     def save(self):
         self.newRecords = []
+        self.updatedRecords = {}
+        self.parent.lastAddDialogDate = self.edtDate.date()
         for record in self.model._items:
             if(record.value("isActive").toBool()):
                 service_id = record.value("id").toInt()[0]
@@ -189,6 +197,8 @@ class CTariffAddDialog(CDialogBase,  Ui_TariffAddDialog):
                         #     tariff.setValue('unit_id',  toVariant(unitRecord.value("id")))
                             
                     #QtGui.qApp.db.insertRecord(table, tariff)
+                    if oldTariff:
+                        self.updatedRecords[forceRef(oldTariff.value('id'))] = oldTariff
                     tariff.modified = True
                     self.newRecords.append(tariff)
         if not self.newRecords and not oldTariff:
@@ -266,6 +276,8 @@ class CTariffAddDialog(CDialogBase,  Ui_TariffAddDialog):
                         newTariff.setValue('frag2Sum', toVariant(newPrice))
 
                     #db.insertRecord(tableContractTariff, newTariff)
+                    if oldTariff:
+                        self.updatedRecords[forceRef(oldTariff.value('id'))] = oldTariff
                     self.newRecords.append(newTariff)
         if insertCount == 0:
             QtGui.QMessageBox.warning(self,

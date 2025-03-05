@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,6 +16,7 @@ u"""Работа: складской учёт"""
 
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QTime, QVariant, pyqtSignature, QString
+from PyQt4.QtGui import QColor
 
 from library.crbcombobox              import CRBComboBox, CRBModelDataCache
 from library.database                 import undotLikeMask
@@ -24,8 +25,8 @@ from library.DialogBase               import CDialogBase
 from library.InDocTable               import CRecordListModel, CInDocTableCol, CRBInDocTableCol, CFloatInDocTableCol, CDateInDocTableCol
 from library.PrintInfo                import CInfoContext, CDateInfo
 from library.PrintTemplates           import applyTemplate, CPrintAction, getPrintTemplates, getPrintButton
-from library.TableModel               import CTableModel, CDateCol, CDateTimeCol, CRefBookCol, CTextCol, CCol, CSumCol, CBoolCol, CDoubleCol
-from library.Utils                    import forceDouble, forceInt, forceDate, forceRef, forceString, forceStringEx, forceBool, formatRecordsCount, smartDict, toVariant
+from library.TableModel               import CTableModel, CDateCol, CDateTimeCol, CRefBookCol, CTextCol, CCol, CSumCol, CBoolCol, CDoubleCol, CEnumCol
+from library.Utils                    import forceDouble, forceInt, forceDate, forceDateTime, forceRef, forceString, forceStringEx, forceBool, formatRecordsCount, smartDict, toVariant
 from library.Counter                  import CCounterController
 
 from Orgs.Utils                       import getOrgStructureDescendants, getOrgStructureFullName
@@ -38,11 +39,12 @@ from Stock.ClientInvoiceEditDialog    import CClientRefundInvoiceEditDialog
 from Stock.FinTransferEditDialog      import CFinTransferEditDialog
 from Stock.InventoryEditDialog        import CInventoryEditDialog
 from Stock.IncomingInvoiceEditDialog  import CIncomingInvoiceEditDialog
+from Stock.PurchaseInvoiceEditDialog  import CPurchaseInvoiceEditDialog
 from Stock.InternalInvoiceEditDialog  import CInternalInvoiceEditDialog
 from Stock.StockModel                 import CStockMotionType
 from Stock.NomenclatureComboBox       import CNomenclatureInDocTableCol
 from Stock.ProductionEditDialog       import CProductionEditDialog
-from Stock.StockMotion                import editStockMotion, getDialogName, stockMotionType, openReadOnlyMotion
+from Stock.StockMotion                import CStockPurchaseType, editStockMotion, getDialogName, stockMotionType, openReadOnlyMotion
 from Stock.StockRequisitionEditDialog import CStockRequisitionEditDialog
 from Stock.PurchaseContractDialog     import CPurchaseContractEditDialog
 from Stock.StockSupplierRefundEditDialog import CStockSupplierRefundEditDialog
@@ -58,7 +60,9 @@ from Users.Rights                     import (urEditOwnMotions,
                                               urDeleteMotions,
                                               urStockPurchaseContract,
                                               urAccessStockAgreeRequirements,
-                                              urAccessViewRequirementsForAllStock)
+                                              urAccessViewRequirementsForAllStock,
+                                              urStockRequirementsToMe,
+                                              urEditStockRequirementsToMe)
 from Stock.Utils import (
     getStockMotionItemQuantityColumn,
     getRemainingHistory,
@@ -149,6 +153,13 @@ class CInMemoryStorageMixin(object):
 
 
 class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
+    realtimeStatusDict = {0: (u'Документ создан', ''),
+                          1: (u'Документ редактируется Заказчиком', QColor(240, 248, 144)),
+                          2: (u'Документ подготовлен Заказчиком', QColor(255, 228, 181)),
+                          3: (u'Документ редактируется Поставщиком', QColor(240, 248, 144)),
+                          4: (u'Документ обрабатывается Поставщиком', QColor(240, 248, 144)),
+                          5: (u'Документ обработан Поставщиком', QColor(179, 228, 148))}
+
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
         self._tableViewSorter = CTableViewSorter()
@@ -171,7 +182,9 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.addObject('actAddClientRefundInvoice',  QtGui.QAction(u'Создать возврат', self))
         self.addObject('actAddSupplierRefund',  QtGui.QAction(u'Создать возврат поставщику', self))
         self.addObject('actAddUtilization',     QtGui.QAction(u'Утилизация', self))
+        self.addObject('actAddTransUtilization', QtGui.QAction(u'Передача на утилизацию', self))
         self.addObject('actAddInternalConsumption', QtGui.QAction(u'Внутреннее потребление', self))
+        self.addObject('actAddResidualQuantityWriteDown', QtGui.QAction(u'Списание остаточных количеств', self))
         self.addObject('actEditMotion',        QtGui.QAction(u'Редактировать движение', self))
         self.addObject('actDeleteMotion',      QtGui.QAction(u'Удалить запись', self))
         self.addObject('actMdlpExchange',      QtGui.QAction(u'Выполнить обмен с МДЛП', self))
@@ -187,7 +200,9 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.mnuMotions.addAction(self.actAddClientRefundInvoice)
         self.mnuMotions.addAction(self.actAddSupplierRefund)
         self.mnuMotions.addAction(self.actAddUtilization)
+        self.mnuMotions.addAction(self.actAddTransUtilization)
         self.mnuMotions.addAction(self.actAddInternalConsumption)
+        self.mnuMotions.addAction(self.actAddResidualQuantityWriteDown)
         self.mnuMotions.addSeparator()
         self.mnuMotions.addAction(self.actEditMotion)
         self.mnuMotions.addAction(self.actDeleteMotion)
@@ -222,9 +237,11 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.addObject('actShowRTMOverhead', QtGui.QAction(u'Показать связанные накладные', self))
         self.addObject('actChangeAgreementStatus', QtGui.QAction(u'Изменить статус согласования', self))
 #        self.addObject('actRejectRequisition', QtGui.QAction(u'Отказать в требование', self))
+        self.addObject('actEditRTMsRequisition', QtGui.QAction(u'Редактировать требование', self))
         self.mnuRTMs.addAction(self.actCreateMotionByRequisition)
         self.mnuRTMs.addAction(self.actShowRTMOverhead)
         self.mnuRTMs.addAction(self.actChangeAgreementStatus)
+        self.mnuRTMs.addAction(self.actEditRTMsRequisition)
 #        self.mnuRTMs.addAction(self.actRejectRequisition)
         self.addModels('RTMContent', CRequisitionContentModel(self))
 
@@ -233,11 +250,13 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.addObject('mnuPurchaseContract',       QtGui.QMenu(self))
         self.addObject('mnuPurchaseContractItems',  QtGui.QMenu(self))
         self.addObject('actAddPurchaseContract',    QtGui.QAction(u'Создать контракт на закупку', self))
-        self.addObject('actEditPurchaseContract',   QtGui.QAction(u'Редактировать контракт на закупку', self))
-        self.addObject('actDeletePurchaseContract', QtGui.QAction(u'Удалить контракт на закупку', self))
+        self.addObject('actEditPurchaseContract',   QtGui.QAction(u'Редактировать документ', self))
+        self.addObject('actDeletePurchaseContract', QtGui.QAction(u'Удалить документ', self))
+        self.addObject('actAddPurchaseInvoice',     QtGui.QAction(u'Создать заявку на поставку', self))
         self.mnuPurchaseContract.addAction(self.actAddPurchaseContract)
         self.mnuPurchaseContract.addAction(self.actEditPurchaseContract)
         self.mnuPurchaseContract.addAction(self.actDeletePurchaseContract)
+        self.mnuPurchaseContract.addAction(self.actAddPurchaseInvoice)
 
         self.templateNames = {0:'StockMotions', 1:'StockRemainings', 2:'StockMyRequisitions', 3:'StockRequirementsToMe', 4:'StockPurchaseContract'}
         self.addObject('btnPrint', getPrintButton(self, ''))
@@ -378,11 +397,14 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.tblRemainings.addPopupAction(self.actRemainingsShowStockMotions)
 
         self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.tabPurchaseContract), QtGui.qApp.userHasRight(urStockPurchaseContract))
+        self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.tabRequirementsToMe), QtGui.qApp.userHasRight(urStockRequirementsToMe))
 
         self.connect(self.actRemainingsShowStockMotions, QtCore.SIGNAL('triggered()'), self.on_actRemainingsShowStockMotions_triggered)
 
         self.connect(self.tblMotions.horizontalHeader(), QtCore.SIGNAL('sectionClicked(int)'), self.on_motionsSortByColumn)
 
+        self.setMouseTracking(True)
+        self.startTime = QTime.currentTime()
 
     @pyqtSignature('')
     def on_mnuRTMs_aboutToShow(self):
@@ -421,8 +443,10 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
                                 agreementDate = forceDate(record.value('agreementDate'))
                                 agreementPersonId = forceRef(record.value('agreementPerson_id'))
                                 isEnabled = forceBool(agreementDate and agreementPersonId and forceInt(record.value('agreementStatus'))==1)
-        self.actCreateMotionByRequisition.setEnabled(isEnabled)
-        self.actChangeAgreementStatus.setEnabled(isChangeAgreementStatusEnabled and QtGui.qApp.userHasRight(urAccessStockAgreeRequirements))
+        self.actEditRTMsRequisition.setEnabled(currentIndex and currentIndex.isValid() and QtGui.qApp.userHasRight(urEditStockRequirementsToMe))
+        self.actCreateMotionByRequisition.setEnabled(isEnabled and QtGui.qApp.userHasRight(urEditStockRequirementsToMe))
+        self.actShowRTMOverhead.setEnabled(QtGui.qApp.userHasRight(urEditStockRequirementsToMe))
+        self.actChangeAgreementStatus.setEnabled(isChangeAgreementStatusEnabled and QtGui.qApp.userHasRight(urAccessStockAgreeRequirements) and QtGui.qApp.userHasRight(urEditStockRequirementsToMe))
 
 
     def exec_(self):
@@ -438,7 +462,17 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         self.actAddPurchaseContract.setEnabled(QtGui.qApp.userHasRight(urStockPurchaseContract))
         self.actEditPurchaseContract.setEnabled(enable)
         self.actDeletePurchaseContract.setEnabled(enable)
-
+        if enable:
+            purchaseContractId = self.tblPurchaseContract.currentItemId()
+            if purchaseContractId:
+                db = QtGui.qApp.db
+                tableSPC = db.table('StockPurchaseContract')
+                record = db.getRecordEx(tableSPC, '*', [tableSPC['id'].eq(purchaseContractId), tableSPC['deleted'].eq(0)])
+                if record and forceInt(record.value('type')) > 0:
+                    enable = False
+            else:
+                enable = False
+        self.actAddPurchaseInvoice.setEnabled(enable)
 
     def syncSplitters(self, nextSplitter):
         if self.controlSplitter and nextSplitter != self.controlSplitter:
@@ -789,9 +823,10 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         db = QtGui.qApp.db
         table = db.table('StockRequisition')
         tableItems = db.table('StockRequisition_Item')
-        cond = [table['deleted'].eq(0),
-                table['recipient_id'].eq(QtGui.qApp.currentOrgStructureId()),
-               ]
+        orgStructureId = QtGui.qApp.currentOrgStructureId()
+        cond = [table['deleted'].eq(0)]
+        if orgStructureId:
+            cond.append(table['recipient_id'].inlist(getOrgStructureDescendants(orgStructureId)))
         if filter.orgStructureId:
             cond.append(table['supplier_id'].inlist(getOrgStructureDescendants(filter.orgStructureId)))
         if filter.onlyActive:
@@ -821,42 +856,77 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         if filter.agreementFilter:
             cond.append(table['agreementStatus'].eq(filter.agreementFilter-1))
         idList = db.getIdList(table, idCol=table['id'], where=cond, order='date DESC, deadline')
+        self.actEditRequisition.setEnabled(len(idList))
         self.tblMRs.setIdList(idList, currentId)
         self.lblMRs.setText(formatRecordsCount(len(idList)))
 
+    def updateRealTimeStatus(self, itemId, status):
+        db = QtGui.qApp.db
+        table = db.table('StockRequisition')
+        cond = [table['deleted'].eq(0), table['id'].eq(itemId)]
+        db.updateRecords(table, [table['realtimeStatus'].eq(status)], cond)
+
+    def getRealTimeStatus(self, id, items):
+        stockRequsitionMotionsId = forceRef(QtGui.qApp.db.translate('StockRequisition_Motions', 'master_id', id, 'id'))
+        stockRequsitionItemId = forceRef(QtGui.qApp.db.translate('StockRequisition_Item', 'master_id', id, 'id'))
+        status = 0 if not stockRequsitionItemId else 5 if stockRequsitionMotionsId else 2
+        return status
 
     def addRequisition(self):
         counterController = QtGui.qApp.counterController()
         if not counterController:
             QtGui.qApp.setCounterController(CCounterController(self))
         dialog = CStockRequisitionEditDialog(self, isAddRequisition=True)
+        res = None
         try:
             dialog.setDefaults()
             dialog._generateStockMotionNumber()
             dialog.setAgreementRequirementsStock()
-            id = dialog.exec_()
-            if id:
-                self.updateMRsList(id)
+            res = dialog.exec_()
+            if res:
+                currentItemId = dialog.itemId()
+                self.updateRealTimeStatus(currentItemId, 2 if dialog.tblItems.model().itemIdList() else 0)
+                self.updateMRsList(currentItemId)
+        finally:
+            if res:
                 QtGui.qApp.delAllCounterValueIdReservation()
             else:
                 QtGui.qApp.resetAllCounterValueIdReservation()
-        finally:
             dialog.deleteLater()
 
 
     def editRequisition(self, id):
         dialog = CStockRequisitionEditDialog(self)
         try:
+            self.updateRealTimeStatus(id, 1)
             dialog.load(id)
-            id = dialog.exec_()
-            if id:
+            res = dialog.exec_()
+            if res:
                 self.updateMRsList(id)
                 QtGui.qApp.delAllCounterValueIdReservation()
             else:
                 QtGui.qApp.resetAllCounterValueIdReservation()
         finally:
+            status = self.getRealTimeStatus(id, dialog.tblItems.model().itemIdList())
+            self.updateRealTimeStatus(id, status)
             dialog.deleteLater()
 
+    def editRTMsRequisition(self, id, isEditRTMsRequisitionEnabled=True):
+        dialog = CStockRequisitionEditDialog(self)
+        try:
+            self.updateRealTimeStatus(id, 3)
+            dialog.setIsEditRTMsRequisitionEnabled(isEditRTMsRequisitionEnabled)
+            dialog.load(id)
+            res = dialog.exec_()
+            if res:
+                self.updateRTMsList(id)
+                QtGui.qApp.delAllCounterValueIdReservation()
+            else:
+                QtGui.qApp.resetAllCounterValueIdReservation()
+        finally:
+            status = self.getRealTimeStatus(id, dialog.tblItems.model().itemIdList())
+            self.updateRealTimeStatus(id, status)
+            dialog.deleteLater()
 
     def updateMRContent(self, requisitionId):
         self.tblMRContent.setIdList(self.getRequisitionItemIdList([requisitionId]))
@@ -926,8 +996,8 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
             table['deleted'].eq(0),
         ]
         if QtGui.qApp.currentOrgStructureId():
-            cond.append(db.joinOr([ table['supplier_id'].eq(QtGui.qApp.currentOrgStructureId()),
-                                    table['receiver_id'].eq(QtGui.qApp.currentOrgStructureId())
+            cond.append(db.joinOr([ table['supplier_id'].inlist(getOrgStructureDescendants(QtGui.qApp.currentOrgStructureId())),
+                                    table['receiver_id'].inlist(getOrgStructureDescendants(QtGui.qApp.currentOrgStructureId()))
                                   ]
                                  )
                        )
@@ -1078,30 +1148,55 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
             self.tblMotionsItems.setCurrentItemId(currentMotionId)
 
 
-    def addMotion(self, dialogClass, requisitionIdList = None, isStockRequsition = False):
+    def addMotion(self, dialogClass, requisitionIdList = None, isStockRequsition = False, id=None):
         dialog = dialogClass(self)
         try:
+            self.updateRealTimeStatus(id, 4)
             dialog.setDefaults()
             if hasattr(dialog, 'setIsStockRequsition'):
                 dialog.setIsStockRequsition(isStockRequsition)
+            if dialog.objectName() == 'StockTransUtilizationDialog':
+                dialog.tblItems.model().setItems(self.tblMotionsItems.model().recordCache().map.values())
             if requisitionIdList:
                 dialog.setRequsitions(requisitionIdList)
-            id = dialog.exec_()
-            if id:
+            res = dialog.exec_()
+            if res:
                 self.updateMotionsList(id)
                 QtGui.qApp.delAllCounterValueIdReservation()
             else:
                 QtGui.qApp.resetAllCounterValueIdReservation()
         finally:
+            if isinstance(dialog, CStockRequisitionEditDialog) or isinstance(dialog, CStockRequisitionEditDialog):
+                status = self.getRealTimeStatus(id, dialog.tblItems.model().itemIdList())
+                self.updateRealTimeStatus(id, status)
             dialog.deleteLater()
 
 
     def addIncomingInvoice(self, requisitionIdList = None):
         self.addMotion(CIncomingInvoiceEditDialog, requisitionIdList)
 
-
-    def addInternalInvoice(self, requisitionIdList = None, isStockRequsition=False):
-        self.addMotion(CInternalInvoiceEditDialog, requisitionIdList, isStockRequsition=isStockRequsition)
+    def addPurchaseInvoice(self, requisitionIdList=None):
+        purchaseContractId = self.tblPurchaseContract.currentItemId()
+        if purchaseContractId:
+            dialog = CPurchaseInvoiceEditDialog(self)
+            try:
+                db = QtGui.qApp.db
+                tableSPC = db.table('StockPurchaseContract')
+                record = db.getRecordEx(tableSPC, '*', [tableSPC['id'].eq(purchaseContractId), tableSPC['deleted'].eq(0)])
+                type = forceInt(record.value('type')) if record else -1
+                if type == 0:
+                    dialog.setPurchaseContractInfo(record)
+                    id = dialog.exec_()
+                    if id:
+                        self.applyPurchaseContractFilter()
+                        QtGui.qApp.delAllCounterValueIdReservation()
+                    else:
+                        QtGui.qApp.resetAllCounterValueIdReservation()
+            finally:
+                dialog.deleteLater()
+                
+    def addInternalInvoice(self, requisitionIdList = None, isStockRequsition=False, id=None):
+        self.addMotion(CInternalInvoiceEditDialog, requisitionIdList, isStockRequsition=isStockRequsition, id=id)
 
 
     def addPurchaseContract(self):
@@ -1132,10 +1227,39 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         from Stock.StockUtilizationEditDialog import CStockUtilizationEditDialog
         self.addMotion(CStockUtilizationEditDialog)
 
+    def addTransUtilization(self):
+        from Stock.StockTransUtilizationEditDialog import CStockTransUtilizationEditDialog
+        self.addMotion(CStockTransUtilizationEditDialog)
+        
     def addInternalConsumption(self):
         from Stock.StockUtilizationEditDialog import CStockInternalConsumptionEditDialog
         self.addMotion(CStockInternalConsumptionEditDialog)
 
+    def addResidualQuantityWriteDown(self):
+        from Stock.StockResidualQuantityWriteDownEditDialog import CStockResidualQuantityWriteDownEditDialog
+        QtGui.qApp.setCounterController(CCounterController(self))
+        res = False
+        dialog = CStockResidualQuantityWriteDownEditDialog(self)
+        try:
+            dialog.setDefaults()
+            countRecords = dialog.fill()
+            if countRecords:
+                res = dialog.exec_()
+            else:
+                res = False
+                messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                  u'Внимание',
+                                  u'Отсутствуют остаточные количества. Создание документа невозможно.',
+                                  QtGui.QMessageBox.Ok,
+                                  self)
+                messageBox.exec_()
+            if res:
+                self.updateMotionsList()
+                QtGui.qApp.delAllCounterValueIdReservation()
+            else:
+                QtGui.qApp.resetAllCounterValueIdReservation()
+        finally:
+            dialog.deleteLater()
 
     def addAddClientRefundInvoice(self, clientInvoiceId):
         dialog = CClientRefundInvoiceEditDialog(self)
@@ -1502,13 +1626,13 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
                 motionType    = forceInt(record.value('type'))
                 supplierOrgId = forceRef(record.value('supplierOrg_id'))
                 mdlpStage     = forceInt(record.value('mdlpStage'))
-                enableSupplierRefund = (motionType == CStockMotionType.invoice) and bool(supplierOrgId)
+                enableSupplierRefund = (motionType in (CStockMotionType.invoice, CStockMotionType.incomingInvoice)) and bool(supplierOrgId)
 
         self.actAddSupplierRefund.setEnabled(enableSupplierRefund)
 
         self.actEditMotion.setEnabled(id is not None)
         self.actDeleteMotion.setEnabled(    id is not None
-                                        and mdlpStage == CMdlpStage.unnecessary
+                                        and mdlpStage in [CMdlpStage.unnecessary, CMdlpStage.ready]
                                         and QtGui.qApp.userHasAnyRight([urDeleteMotions])
                                        )
         self.actMdlpExchange.setEnabled(    id is not None
@@ -1518,7 +1642,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
                                                          )
                                        )
         self.actMdlpExchangeReport.setEnabled(    id is not None
-                                              and mdlpStage != CMdlpStage.unnecessary
+                                              and mdlpStage >= CMdlpStage.inProgress
                                              )
 
 
@@ -1532,6 +1656,9 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
     def on_actAddIncomingInvoice_triggered(self):
         self.addIncomingInvoice()
 
+    @pyqtSignature('')
+    def on_actAddPurchaseInvoice_triggered(self):
+        self.addPurchaseInvoice()
 
     @pyqtSignature('')
     def on_actAddInternalInvoice_triggered(self):
@@ -1561,11 +1688,19 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
     @pyqtSignature('')
     def on_actAddUtilization_triggered(self):
         self.addUtilization()
+    
+    @pyqtSignature('')
+    def on_actAddTransUtilization_triggered(self):
+        self.addTransUtilization()
 
 
     @pyqtSignature('')
     def on_actAddInternalConsumption_triggered(self):
         self.addInternalConsumption()
+    
+    @pyqtSignature('')
+    def on_actAddResidualQuantityWriteDown_triggered(self):
+        self.addResidualQuantityWriteDown()
 
 
     @pyqtSignature('')
@@ -1575,7 +1710,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
             record = self.tblMotions.model().getRecordById(id)
             mdlpStage = forceInt(record.value('mdlpStage'))
             personId = forceInt(QtGui.qApp.db.translate('StockMotion', 'id', id, 'createPerson_id'))
-            if (    mdlpStage == CMdlpStage.unnecessary
+            if (    mdlpStage == CMdlpStage.unnecessary or mdlpStage == CMdlpStage.ready
                  and (
                          (QtGui.qApp.userHasRight(urEditOwnMotions) and QtGui.qApp.userId == personId)
                       or (QtGui.qApp.userHasRight(urEditOtherMotions) and  QtGui.qApp.userId != personId)
@@ -1620,7 +1755,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         id = self.tblMotions.currentItemId()
         if id:
             motionType = forceInt(QtGui.qApp.db.translate('StockMotion', 'id', id, 'type'))
-            if motionType == CStockMotionType.invoice:
+            if motionType in (CStockMotionType.invoice, CStockMotionType.incomingInvoice):
                 self.addAddSupplierRefund(id)
 
 
@@ -1765,6 +1900,40 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         if id:
             self.editRequisition(id)
             self.updateMRContent(id)
+    
+    @pyqtSignature('QModelIndex')
+    def on_tblMRs_doubleClicked(self, index):
+        self.on_actEditRequisition_triggered()
+
+    @pyqtSignature('QModelIndex')
+    def on_tblRTMs_doubleClicked(self, index):
+        self.on_actEditRTMsRequisition_triggered()
+
+    def getIsEditRTMsRequisitionEnabled(self):
+        isEditRTMsRequisitionEnabled = False
+        currentIndex = self.tblRTMs.currentIndex()
+        if currentIndex and currentIndex.isValid():
+            row = currentIndex.row()
+            if 0 <= row < len(self.modelRTMs._idList):
+                RTMsId = forceRef(self.modelRTMs._idList[row])
+                if RTMsId:
+                    db = QtGui.qApp.db
+                    tableSR = db.table('StockRequisition')
+                    tableSRMotions = db.table('StockRequisition_Motions')
+                    tableStockMotion = db.table('StockMotion')
+                    queryTable = tableSR.innerJoin(tableSRMotions, tableSRMotions['master_id'].eq(tableSR['id']))
+                    queryTable = queryTable.innerJoin(tableStockMotion, tableStockMotion['id'].eq(tableSRMotions['motion_id']))
+                    record = db.getRecordEx(queryTable, [tableStockMotion['id']], [tableSR['id'].eq(RTMsId),tableStockMotion['deleted'].eq(0), tableSR['deleted'].eq(0)])
+                    stockMotionId = forceRef(record.value('id')) if record else None
+                    isEditRTMsRequisitionEnabled = False if stockMotionId else True
+        return isEditRTMsRequisitionEnabled
+
+    @pyqtSignature('')
+    def on_actEditRTMsRequisition_triggered(self):
+        id = self.tblRTMs.currentItemId()
+        if id:
+            self.editRTMsRequisition(id, isEditRTMsRequisitionEnabled=QtGui.qApp.userHasRight(urEditStockRequirementsToMe) and self.getIsEditRTMsRequisitionEnabled())
+            self.updateRTMContent([id])
 
 
     @pyqtSignature('QAbstractButton*')
@@ -1775,6 +1944,10 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         elif buttonCode == QtGui.QDialogButtonBox.Reset:
             self.resetPurchaseContractFilter()
             self.applyPurchaseContractFilter()
+    
+    @pyqtSignature('QModelIndex')
+    def on_tblPurchaseContract_doubleClicked(self, index):
+        self.on_actEditPurchaseContract_triggered()
 
 
     @pyqtSignature('')
@@ -1786,17 +1959,23 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
 
 
     def editPurchaseContract(self, id):
-        dialog = CPurchaseContractEditDialog(self)
-        try:
-            dialog.load(id)
-            id = dialog.exec_()
-            if id:
-                self.applyPurchaseContractFilter()
-                QtGui.qApp.delAllCounterValueIdReservation()
-            else:
-                QtGui.qApp.resetAllCounterValueIdReservation()
-        finally:
-            dialog.deleteLater()
+        if id:
+            db = QtGui.qApp.db
+            tableSPC = db.table('StockPurchaseContract')
+            record = db.getRecordEx(tableSPC, [tableSPC['type']], [tableSPC['id'].eq(id), tableSPC['deleted'].eq(0)])
+            type = forceInt(record.value('type')) if record else -1
+            if type >= 0:
+                dialog = CPurchaseInvoiceEditDialog(self) if type == 1 else CPurchaseContractEditDialog(self)
+                try:
+                    dialog.load(id)
+                    id = dialog.exec_()
+                    if id:
+                        self.applyPurchaseContractFilter()
+                        QtGui.qApp.delAllCounterValueIdReservation()
+                    else:
+                        QtGui.qApp.resetAllCounterValueIdReservation()
+                finally:
+                    dialog.deleteLater()
 
 
     def updatePurchaseContractItems(self, purchaseContractId):
@@ -1843,6 +2022,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
 
 
     def resetPurchaseContractFilter(self):
+        self.cmbPurchasesFilterType.setCurrentIndex(0)
         self.edtPurchaseContractFilterNumber.setText(u'')
         self.edtPurchaseContractFilterName.setText(u'')
         self.edtPurchaseContractFilterDate.setDate(QDate.currentDate())
@@ -1852,6 +2032,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
 
 
     def applyPurchaseContractFilter(self):
+        self.purchaseContractFilter.type = self.cmbPurchasesFilterType.currentIndex()
         self.purchaseContractFilter.number = self.edtPurchaseContractFilterNumber.text()
         self.purchaseContractFilter.date = self.edtPurchaseContractFilterDate.date()
         self.purchaseContractFilter.begDate = self.edtPurchaseContractFilterBegDate.date()
@@ -1866,20 +2047,24 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
         db = QtGui.qApp.db
         tablePurchaseContract = db.table('StockPurchaseContract')
         cond = [tablePurchaseContract['deleted'].eq(0)]
+        if filter.type:
+            cond.append(tablePurchaseContract['type'].eq(filter.type-1))
         if filter.supplierOrgId:
             cond.append(tablePurchaseContract['supplierOrg_id'].eq(filter.supplierOrgId))
         if filter.number:
             cond.append(tablePurchaseContract['number'].eq(filter.number))
         if filter.date:
-            cond.append(tablePurchaseContract['begDate'].dateLe(filter.date))
-            cond.append(tablePurchaseContract['endDate'].dateGe(filter.date))
+            cond.append(db.joinOr([db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseContract), tablePurchaseContract['begDate'].dateLe(filter.date), tablePurchaseContract['endDate'].dateGe(filter.date)]),
+            db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseInvoice), tablePurchaseContract['date'].dateGe(filter.date)])]))
         if filter.begDate:
-            cond.append(tablePurchaseContract['begDate'].ge(filter.begDate))
+            cond.append(db.joinOr([db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseContract), tablePurchaseContract['endDate'].ge(filter.begDate)]),
+            db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseInvoice), tablePurchaseContract['date'].ge(filter.begDate)])]))
         if filter.endDate:
-            cond.append(tablePurchaseContract['endDate'].le(filter.endDate))
+            cond.append(db.joinOr([db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseContract), tablePurchaseContract['begDate'].le(filter.endDate)]),
+            db.joinAnd([tablePurchaseContract['type'].eq(CStockPurchaseType.purchaseInvoice), tablePurchaseContract['date'].le(filter.endDate)])]))
         if filter.name:
             cond.append(tablePurchaseContract['name'].eq(filter.name))
-        idList = db.getIdList(tablePurchaseContract, idCol=tablePurchaseContract['id'], where=cond, order='date, begDate, endDate')
+        idList = db.getIdList(tablePurchaseContract, idCol=tablePurchaseContract['id'], where=cond, order='date DESC')
         self.tblPurchaseContract.setIdList(idList, currentId)
         self.lblPurchaseContract.setText(formatRecordsCount(len(idList)))
 
@@ -1942,7 +2127,7 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
     def on_actCreateMotionByRequisition_triggered(self):
         RTMsIdList = self.tblRTMs.selectedItemIdList()
         if RTMsIdList:
-            self.addInternalInvoice(RTMsIdList, isStockRequsition=True)
+            self.addInternalInvoice(RTMsIdList, isStockRequsition=True, id=self.tblRTMs.currentItemId())
             self.updateRTMContent(RTMsIdList)
 
 
@@ -1966,6 +2151,24 @@ class CStockDialog(CDialogBase, CInMemoryStorageMixin, Ui_StockDialog):
             records = getMotionRecordsByRequisition(id)
             showRequisitionMotionsHistoryReport(records, self)
 
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == Qt.Key_F5:
+            if hasattr(self, 'tabWidget'):
+                tabIndex = self.tabWidget.currentIndex()
+                if tabIndex == 1:
+                    self.updateRemainingsList()
+                elif tabIndex == 2:
+                    self.updateMRsList()
+                elif tabIndex == 3:
+                    self.updateRTMsList()
+                elif tabIndex == 4:
+                    self.updatePurchaseContractList()
+                else:
+                    self.updateMotionsList()
+            event.accept()
+        else:
+            CDialogBase.keyPressEvent(self, event)
 #
 # ##############################################################################
 #
@@ -2005,20 +2208,21 @@ class CMdlpStageCol(CCol):
         return toVariant(CMdlpStage.text(stage))
 
 
+
+class CTypeCol(CCol):
+    def __init__(self,  name, fields, defaultWidth=15, alignment='l'):
+        CCol.__init__(self, name, fields, defaultWidth, alignment)
+
+
+    def format(self, values):
+        type = forceInt(values[0])
+        if type in stockMotionType:
+            return toVariant(stockMotionType[type][0])
+        else:
+            return toVariant('{%d}' % type)
+
+
 class CMyMotionsModel(CTableModel):
-    class CTypeCol(CCol):
-        def __init__(self,  name, fields, defaultWidth=15, alignment='l'):
-            CCol.__init__(self, name, fields, defaultWidth, alignment)
-
-
-        def format(self, values):
-            type = forceInt(values[0])
-            if type in stockMotionType:
-                return toVariant(stockMotionType[type][0])
-            else:
-                return toVariant('{%d}' % type)
-
-
     class CSupplierCol(CCol):
         def __init__(self):
             CCol.__init__(self, u'Поставщик', ['supplierOrg_id', 'supplier_id'], defaultWidth=15, alignment='l')
@@ -2048,7 +2252,7 @@ class CMyMotionsModel(CTableModel):
 
     def __init__(self, parent):
         CTableModel.__init__(self, parent, [
-            CMyMotionsModel.CTypeCol(     u'Тип',           ['type'],   20),
+            CTypeCol(     u'Тип',           ['type'],   20),
             CTextCol(      u'Номер',         ['number'], 20),
             CDateTimeCol(  u'Дата и время',  ['date'],   20),
             CTextCol(      u'Основание',     ['reason'], 20),
@@ -2078,7 +2282,7 @@ class CMyMotionsModel(CTableModel):
             self._prevData   = col.extractValuesFromRecord(record)
             self._prevColumn = column
             self._prevRow    = row
-        return (col, self._prevData)
+        return col, self._prevData
 
 
     def data(self, index, role=Qt.DisplayRole):
@@ -2238,8 +2442,10 @@ class CRemainingsModel(CRecordListModel):
         row = index.row()
         if role == Qt.TextColorRole:
             if self.warnAboutExpirationDateDrugDate is not None:
-                record = self._items[row]
                 if row >= 0 and row < len(self._items):
+                    record = self._items[row]
+                    if forceDouble(record.value('qnt')) < 0:
+                        return toVariant(QtGui.QColor(Qt.black))
                     shelfTime = forceDate(record.value('shelfTime'))
                     if shelfTime <= self.warnAboutExpirationDateDrugDate:
                         return toVariant(QtGui.QColor(Qt.red))
@@ -2488,12 +2694,14 @@ ORDER BY OrgStructure.code, rbNomenclature.code, rbNomenclature.name, %(groupByB
         'unitCol':unitCol,
         'unitParams':unitParams,
       }
+        precision = QtGui.qApp.numberDecimalPlacesQnt()
         query = db.query(stmt)
         if available:
             while query.next():
                 record = query.record()
                 # Отображаем теперь только те которые в наличии, то есть положительное количество.
-                if round(forceDouble(record.value('qnt')), 2) > 0:
+                qntRes = round(forceDouble(record.value('qnt')), precision)  # #0014352:0058274
+                if qntRes > 0:
                     if unit:
                         if forceDouble(record.value('ratio')):
                             itemQnt = forceDouble(record.value('qnt'))*forceDouble(record.value('ratio'))
@@ -2504,7 +2712,8 @@ ORDER BY OrgStructure.code, rbNomenclature.code, rbNomenclature.name, %(groupByB
         else:
             while query.next():
                 record = query.record()
-                if abs(round(forceDouble(record.value('qnt')), 2)) > 0:
+                qntRes = abs(round(forceDouble(record.value('qnt')), precision))  # #0014352:0058274
+                if qntRes > 0:
                     if unit:
                         if forceDouble(record.value('ratio')):
                             itemQnt = forceDouble(record.value('qnt'))*forceDouble(record.value('ratio'))
@@ -2525,11 +2734,40 @@ class CMyRequisitionsModel(CTableModel):
             CDateTimeCol( u'Срок',          ['deadline'], 20),
             CRefBookCol(  u'Поставщик',     ['supplier_id'], 'OrgStructure', 15),
             CDateCol(     u'Дата согласования', ['agreementDate'],  20),
+            CEnumCol(   u'Статус согласования',['agreementStatus'],  (u'Не согласовано', u'Согласовано', u'Отклонено'), 20),
             CRefBookCol(  u'Согласовал',     ['agreementPerson_id'], 'vrbPersonWithSpeciality', 15),
+            CTextCol(    u'Статус',            ['realtimeStatus'], 20),
             CTextCol(     u'Примечание',    ['note'],  20),
-            ], '' )
+            ], '')
         self.loadField('revoked')
         self.setTable('StockRequisition')
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        else:
+            statusText, statusColor = None, None
+            row = index.row()
+            column = index.column()
+            record = self.getRecordByRow(row)
+            realtimeStatus = forceInt(record.value('realtimeStatus'))
+            if realtimeStatus in CStockDialog.realtimeStatusDict.keys():
+                statusText, statusColor = CStockDialog.realtimeStatusDict[realtimeStatus]
+            if role == Qt.DisplayRole:
+                if column == 7:
+                    return toVariant(statusText)
+            elif role == Qt.BackgroundColorRole:
+                if column == 5:
+                    agreementStatus = forceInt(record.value('agreementStatus'))
+                    if agreementStatus == 0:
+                        return toVariant(QtGui.QBrush(QtGui.QColor(Qt.red).light(150)))
+                    elif agreementStatus == 1:
+                        return toVariant(QtGui.QBrush(QtGui.QColor(Qt.green).light(150)))
+                    elif agreementStatus == 2:
+                        return toVariant(QtGui.QBrush(QtGui.QColor(Qt.yellow).light(150)))
+                elif column == 7 and statusColor:
+                    return toVariant(QtGui.QBrush(QtGui.QColor(statusColor)))
+        return CTableModel.data(self, index, role)
 
 #
 # ##############################################################################|
@@ -2544,8 +2782,28 @@ class CRequisitionsToMeModel(CTableModel):
             CRefBookCol(  u'Заказчик',      ['recipient_id'], 'OrgStructure', 15),
             CDateCol(     u'Дата согласования', ['agreementDate'],  20),
             CRefBookCol(  u'Согласовал',     ['agreementPerson_id'], 'vrbPersonWithSpeciality', 15),
+            CTextCol(     u'Статус',            ['realtimeStatus'], 20),
             CTextCol(     u'Примечание',    ['note'],  20),
             ], 'StockRequisition' )
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        else:
+            statusText, statusColor = None, None
+            row = index.row()
+            column = index.column()
+            record = self.getRecordByRow(row)
+            realtimeStatus = forceInt(record.value('realtimeStatus'))
+            if realtimeStatus in CStockDialog.realtimeStatusDict.keys():
+                statusText, statusColor = CStockDialog.realtimeStatusDict[realtimeStatus]
+            if role == Qt.DisplayRole:
+                if column == 6:
+                    return QVariant(statusText)
+            elif role == Qt.BackgroundColorRole:
+                if column == 6 and statusColor:
+                    return QVariant(QtGui.QBrush(QtGui.QColor(statusColor)))
+        return CTableModel.data(self, index, role)
 
 #
 # ##############################################################################
@@ -2590,6 +2848,7 @@ class CPurchaseContractModel(CTableModel):
 
     def __init__(self, parent):
         CTableModel.__init__(self, parent, [
+            CEnumCol(     u'Тип',                     ['type'],  (u'Контракт на закупку', u'Заявка на поставку'), 20),
             CTextCol(     u'Номер',                   ['number'], 20),
             CDateTimeCol( u'Дата и время',            ['date'],   20),
             CTextCol(     u'Наименование',            ['name'], 20),
@@ -2608,6 +2867,30 @@ class CPurchaseContractModel(CTableModel):
         return CTableModel.data(self, index, role)
 
 
+class CSmnnTableCol(CTextCol):
+    def __init__(self, title, fields, defaultWidth, alignment='l'):
+        CTextCol.__init__(self, title, fields, defaultWidth, alignment)
+        self.smnnCaches = {}
+
+
+    def format(self, values):
+        name = u''
+        smnnUUID = forceStringEx(values[0])
+        if smnnUUID:
+            name = self.smnnCaches.get(smnnUUID, u'')
+            if not name:
+                db = QtGui.qApp.db
+                table = db.table('esklp.Smnn')
+                record = db.getRecordEx(table, [table['code'], table['mnn'], table['form']], [table['UUID'].eq(smnnUUID)])
+                if record:
+                    name = forceStringEx(record.value('mnn'))
+                    self.smnnCaches[smnnUUID] = name
+        return toVariant(name)
+
+
+    def invalidateRecordsCache(self):
+        self.smnnCaches = {}
+
 class CPurchaseContractItemsModel(CTableModel):
     class CDateCol(CCol):
         def __init__(self, title, fields, defaultWidth, alignment='l'):
@@ -2615,13 +2898,10 @@ class CPurchaseContractItemsModel(CTableModel):
             self.date = None
 
         def format(self, values):
-            recordId = forceRef(values[1].value('master_id'))
-            if recordId:
-                if self.date:
-                    return self.date
-                else:
-                    self.data = QtGui.qApp.db.translate('StockPurchaseContract',  'id', recordId, 'date')
-                    return self.data
+            record = values[1]
+            comparisonDate = forceDateTime(record.value('comparisonDate'))
+            if comparisonDate:
+                return QVariant(comparisonDate)
             else:
                 return CCol.invalid
 
@@ -2630,15 +2910,18 @@ class CPurchaseContractItemsModel(CTableModel):
 
 
     def __init__(self, parent):
-        CTableModel.__init__(self, parent, [
-            CPurchaseContractItemsModel.CDateCol( u'Дата и время',  ['master_id'],   20),
-            CRefBookCol(u'ЛСиИМН',                 ['nomenclature_id'],  'rbNomenclature',  20),
-            CTextCol(   u'Серия',                  ['batch'], 20),
-            CDateCol(   u'Годен до',               ['shelfTime'],   20),
-            CTextCol(   u'Кол-во',                 ['qnt'], 20),
-            CRefBookCol(u'Ед.Учета',               ['unit_id'], 'rbUnit', 20),
-            CSumCol(    u'Сумма',                  ['sum'], 20),
-            ], 'StockPurchaseContract_Item' )
+        CTableModel.__init__(self, parent)
+        self.addColumn(CPurchaseContractItemsModel.CDateCol( u'Дата и время сопоставления',  ['master_id'],   20))
+        self.addColumn(CSmnnTableCol(u'МНН',         ['smnnUUID'], 20))
+        self.addColumn(CRefBookCol(u'Форма выпуска', ['lfForm_id'], 'rbLfForm', 20))
+        self.addColumn(CRefBookCol(u'ЛСиИМН',        ['nomenclature_id'],  'rbNomenclature',  20))
+        #self.addColumn(CTextCol(   u'Серия',         ['batch'], 20))
+        self.addColumn(CDateCol(   u'Годен до',      ['shelfTime'],   20))
+        self.addColumn(CTextCol(   u'Кол-во',        ['qnt'], 20))
+        self.addColumn(CRefBookCol(u'Ед.Учета',      ['unit_id'], 'rbUnit', 20))
+        self.addColumn(CSumCol(    u'Сумма',         ['sum'], 20))
+        self.loadField('comparisonDate')
+        self.setTable('StockPurchaseContract_Item')
 
 
 #

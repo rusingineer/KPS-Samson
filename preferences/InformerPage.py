@@ -33,6 +33,7 @@ class CInformerPage(Ui_InformerPage, QtGui.QWidget):
         self.chkInformerShowNoSNILS.setChecked(forceBool(props.get('informerShowNoSNILS', False)))
         self.chkInformerShowByUserArea.setChecked(forceBool(props.get('informerShowByUserArea', False)))
         self.chkInformerShowByUserNotArea.setChecked(forceBool(props.get('informerShowByUserNotArea', False)))
+        self.chkDisableCheckDB.setChecked(forceBool(props.get('disableCheckDB', False)))
 
 
     def getProps(self, props):
@@ -40,4 +41,5 @@ class CInformerPage(Ui_InformerPage, QtGui.QWidget):
         props['informerShowNoSNILS'] = toVariant(self.chkInformerShowNoSNILS.isChecked())
         props['informerShowByUserArea'] = toVariant(self.chkInformerShowByUserArea.isChecked())
         props['informerShowByUserNotArea'] = toVariant(self.chkInformerShowByUserNotArea.isChecked())
+        props['disableCheckDB'] = toVariant(self.chkDisableCheckDB.isChecked())
 

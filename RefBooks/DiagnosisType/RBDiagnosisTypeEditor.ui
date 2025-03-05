@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>320</width>
-    <height>119</height>
+    <width>538</width>
+    <height>220</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,90 +23,128 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblName">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Наименование</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtName</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1">
-    <widget class="QLineEdit" name="edtReplaceCode"/>
-   </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="edtCode"/>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblCode">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Код</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>103</width>
-       <height>16</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="1" column="1">
-    <widget class="QLineEdit" name="edtName"/>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblFinance">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>В &amp;диагнозе заменять на </string>
-     </property>
-     <property name="buddy">
-      <cstring>edtReplaceCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0" colspan="2">
+   <item row="1" column="0" colspan="2">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
+   <item row="0" column="0">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabMain">
+      <attribute name="title">
+       <string>&amp;Основная информация</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <property name="margin">
+        <number>4</number>
+       </property>
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Код</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="edtCode"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Наименование</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtName</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="edtName"/>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblFinance">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>В &amp;диагнозе заменять на </string>
+         </property>
+         <property name="buddy">
+          <cstring>edtReplaceCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="edtReplaceCode"/>
+       </item>
+       <item row="3" column="0">
+        <spacer name="spacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>103</width>
+           <height>76</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabIdentification">
+      <attribute name="title">
+       <string>&amp;Идентификация</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <property name="margin">
+        <number>4</number>
+       </property>
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <item row="0" column="0">
+        <widget class="CInDocTableView" name="tblIdentification"/>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
   </layout>
  </widget>
- <tabstops>
-  <tabstop>edtCode</tabstop>
-  <tabstop>edtName</tabstop>
-  <tabstop>edtReplaceCode</tabstop>
- </tabstops>
+ <customwidgets>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>library/InDocTable.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

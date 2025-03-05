@@ -62,10 +62,10 @@ class CBaseApp(QtGui.QApplication):
 
     title       = u'САМСОН'
     titleLat    =  'SAMSON'
-    version     =  '2.5'
+    version     =  '2.7'
 
-    iniFileName = 'samon.ini'
-    logFileName = 'samon.log'
+    iniFileName = 'samson.ini'
+    logFileName = 'samson.log'
 
     @classmethod
     def getLatVersion(cls):
@@ -78,15 +78,23 @@ class CBaseApp(QtGui.QApplication):
         if QtGui.qApp.db:
             record = QtGui.qApp.db.getRecordEx('VersionControl', 'version, dateUpdate', 'name="baseVersion"')
             if record:
-                ver23 = u'Версия БД %s (от %s)\nВерсия сборки: %s\n' % (forceString(record.value('version')), forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"), cls.socRev)
+                ver23 = (u'АИС «Конфигурация МИС КПС «САМСОН» (Краснодарский край)»\n'
+                        u'Версия БД %s (от %s)\n'
+                        u'Версия сборки: %s\n'
+                        u'Copyright © 2015-2024 ООО "СОЦ-Информ"\n'
+                        u'Создано при участии: ООО «КОРТИС Технологии», ООО «Виста», ГБУ "КМИАЦ".\n' % (forceString(record.value('version')),
+                                                                         forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"),
+                                                                         cls.socRev))
 
-        return u'Комплекс Программных Средств \n' \
+        return u'%s\n' \
+               u'Комплекс Программных Средств \n' \
                u'"Система Автоматизации Медико-Страхового Обслуживания Населения"\n' \
-               u'«%s»\n'   \
-               u'Версия %s (ревизия %s от %s)\n%s' \
-               u'Copyright © 2012-2020 ООО "САМСОН Групп"\n' \
-               u'распространяется под лицензией GNU GPL v.3 или выше\n' \
-               u'телефон тех.поддержки: (812) 418-39-70' % (cls.title, cls.version, cls.lastChangedRev, cls.lastChangedDate, ver23)
+               u'«%s»\n' \
+               u'%s' \
+               u'Версия %s (ревизия %s от %s)\n' \
+               u'Copyright © 2012-2024 ООО "САМСОН Групп"\n' \
+               u'распространяется под лицензией GNU GPL v.3 или выше\n' % (ver23, cls.title,
+                   ((u'Версия сборки: '+ cls.socRev + u'\n') if ver23 == '' else u''), cls.version, cls.lastChangedRev, cls.lastChangedDate)
 
 
     def __init__(self, args, iniFileName):
@@ -129,6 +137,12 @@ class CBaseApp(QtGui.QApplication):
             os.makedirs(self.logDir)
         return os.path.join(self.logDir, self.logFileName)
 
+    
+    def getFaultHandlerLogFilePath(self):
+        if not os.path.exists(self.logDir):
+            os.makedirs(self.logDir)
+        return os.path.join(self.logDir, 'faulthandler.log')
+    
 
     def initLogger(self):
         formatter = logging.Formatter(fmt     = '%(asctime)s %(message)s',

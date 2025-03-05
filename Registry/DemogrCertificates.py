@@ -343,6 +343,7 @@ class CCertificatesModel(CTableModel):
         self.addColumn(CDateFixedCol(u'Сертификат', ['certDate'], 12, highlightRedDate=False))
         self.addColumn(CCertificatesModel.CFoundCol(u'Найден в МИС', ['client_id'], 15))
         self.addColumn(CTextCol(u'Участок', ['numberSector'], 15))
+        self.addColumn(CTextCol(u'Полис', ['numberDoccofirm'], 15))
         self.setTable('demogr_Certificate')
 
 class CDemogrCertificatesReport(CReportBase):
@@ -373,6 +374,7 @@ class CDemogrCertificatesReport(CReportBase):
             ('10%', [u'Сертификат'   ], CReportBase.AlignLeft),
             ('5%',  [u'Найден в МИС' ], CReportBase.AlignLeft),
             ('5%',  [u'Участок'      ], CReportBase.AlignLeft),
+            ('10%', [u'Полис'],         CReportBase.AlignLeft),
         ]
         table = createTable(cursor, tableColumns)
         n = 0

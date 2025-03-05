@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,10 +14,12 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, pyqtSignature
 
-from Reports.Utils import dateRangeAsStr
+from Orgs.Utils import getOrgStructureDescendants, getOrgStructureFullName
 from library.Utils import forceString, getPref, getPrefInt, forceDate, formatDate, getPrefDate, formatSex, getPrefString
+
 from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
+from Reports.Utils import dateRangeAsStr
 
 from Ui_DiagnosisDispansPlanedList import Ui_DiagnosisDispansPlanedListDialog
 
@@ -25,8 +27,12 @@ from Ui_DiagnosisDispansPlanedList import Ui_DiagnosisDispansPlanedListDialog
 def getQuery(params):
     db = QtGui.qApp.db
     table = db.table('ProphylaxisPlanning').alias('pp')
+    tablePPT = db.table('rbProphylaxisPlanningType').alias('ppt')
     tableDiagnosis = db.table('Diagnosis')
     tableClient = db.table('Client')
+    tablePerson = db.table('vrbPersonWithSpeciality')
+    tableClientAttach = db.table('ClientAttach').alias('ca')
+
     begDate = params['begDate']
     endDate = params['endDate']
     personId = params['personId']
@@ -35,23 +41,17 @@ def getQuery(params):
     MKBTo = params.get('MKBTo', 'Z99.9')
     noVisit = params.get('noVisit')
 
-    cond = ["rbDispanser.observed = 1",
-            tableDiagnosis['deleted'].eq(0),
-            u"ppt.code = 'ДН'",
-            'pp.parent_id IS NOT NULL',
-            tableClient['deathDate'].isNull(),
-            tableDiagnosis['mod_id'].isNull()]
+    socStatusClassId = params.get('socStatusClassId', None)
+    socStatusTypeId = params.get('socStatusTypeId', None)
+    orgStructureId = params.get('orgStructureId', None)
+    specialityId = params.get('specialityId', None)
+    attachOrgStructureId = params.get('attachOrgStructureId', None)
 
-    cond.append(u'''NOT EXISTS(SELECT DC.id
-                                          FROM Diagnostic AS DC
-                                          INNER JOIN Diagnosis AS DS ON DS.id = DC.diagnosis_id
-                                          INNER JOIN rbDispanser AS rbDP ON rbDP.id = DC.dispanser_id
-                                          WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= %s AND DC.deleted = 0 AND rbDP.name LIKE '%s')
-                                   OR EXISTS(SELECT DC.id
-                                          FROM Diagnostic AS DC
-                                          INNER JOIN Diagnosis AS DS ON DS.id = DC.diagnosis_id
-                                          INNER JOIN rbDispanser AS rbDP ON rbDP.id = DC.dispanser_id
-                                          WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= %s AND DC.deleted = 0 AND rbDP.name LIKE '%s')''' % (db.formatDate(endDate), u'%снят%', db.formatDate(endDate), u'%взят повторно%'))
+    cond = [table['deleted'].eq(0),
+            table['parent_id'].isNotNull(),
+            tablePPT['code'].eq(u'ДН'),
+            tableClient['deathDate'].isNull(),
+            ]
 
     if begDate and endDate:
         cond.append(db.joinOr([table['begDate'].between(begDate, endDate),
@@ -59,6 +59,12 @@ def getQuery(params):
 
     if personId:
         cond.append(tableDiagnosis['dispanserPerson_id'].eq(personId))
+    elif orgStructureId:
+        cond.append(tablePerson['orgStructure_id'].inlist(getOrgStructureDescendants(orgStructureId)))
+    else:
+        cond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
+    if specialityId:
+        cond.append(tablePerson['speciality_id'].eq(specialityId))
 
     if noVisit:
         cond.append(table['visit_id'].isNull())
@@ -66,6 +72,22 @@ def getQuery(params):
     if MKBFilter == 1:
         cond.append(tableDiagnosis['MKB'].ge(MKBFrom))
         cond.append(tableDiagnosis['MKB'].le(MKBTo))
+
+    if socStatusTypeId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusType_id=%d' % socStatusTypeId)
+        cond.append('EXISTS('+subStmt+')')
+    elif socStatusClassId:
+        subStmt = ('SELECT ClientSocStatus.id FROM ClientSocStatus WHERE '
+                  +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
+                  +'ClientSocStatus.socStatusClass_id=%d' % socStatusClassId)
+        cond.append('EXISTS('+subStmt+')')
+
+    if attachOrgStructureId:
+        orgStructureList = getOrgStructureDescendants(attachOrgStructureId)
+        cond.append(tableClientAttach['orgStructure_id'].inlist(orgStructureList))
+
 
     stmt = u"""
 SELECT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) AS clientName,
@@ -88,12 +110,26 @@ SELECT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) AS cli
         FROM ProphylaxisPlanning pp3
         WHERE pp3.parent_id = pp.parent_id AND pp3.deleted = 0 AND pp3.begDate >= CURDATE()
         ORDER BY pp3.begDate ASC LIMIT 1) AS nextVisitDate
-FROM Diagnosis
-LEFT JOIN Client on Client.id = Diagnosis.client_id
-LEFT JOIN rbDispanser ON rbDispanser.ID = Diagnosis.dispanser_id
-LEFT JOIN ProphylaxisPlanning pp ON Diagnosis.MKB = pp.MKB AND pp.deleted = 0 AND pp.client_id = Diagnosis.client_id
+FROM ProphylaxisPlanning pp
 LEFT JOIN rbProphylaxisPlanningType ppt ON ppt.id = pp.prophylaxisPlanningType_id
+LEFT JOIN Client on Client.id = pp.client_id
+left JOIN ClientAttach ca ON ca.id = (
+              SELECT MAX(ClientAttach.id)
+                    FROM ClientAttach
+                    INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
+                    WHERE client_id = Client.id
+                      AND ClientAttach.deleted = 0
+                      AND NOT rbAttachType.TEMPORARY)
+INNER JOIN Diagnosis ON Diagnosis.id = (SELECT d.id FROM Diagnosis d 
+                                       LEFT JOIN rbDispanser ON rbDispanser.id = d.dispanser_id
+                                       WHERE d.MKB = pp.MKB
+                                       AND d.`deleted`=0
+                                       AND pp.client_id = d.client_id
+                                       AND d.`mod_id` IS NULL
+                                       AND rbDispanser.observed = 1
+                                       ORDER BY d.id DESC LIMIT 1)
 LEFT JOIN Visit ON Visit.id = pp.visit_id
+LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = Diagnosis.dispanserPerson_id
 WHERE {cond}
 ORDER BY clientName""".format(cond=db.joinAnd(cond))
     return db.query(stmt)
@@ -103,6 +139,11 @@ class CDiagnosisDispansPlanedListDialog(QtGui.QDialog, Ui_DiagnosisDispansPlaned
     def __init__(self, parent=None):
         QtGui.QDialog.__init__(self, parent)
         self.setupUi(self)
+        self.cmbSocStatusType.setTable('vrbSocStatusType', True)
+        self.cmbOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
+        self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
+        self.cmbSpeciality.setTable('rbSpeciality', True)
+        # self.cmbPerson.addNotSetValue()
 
     @pyqtSignature('QAbstractButton*')
     def on_buttonBox_clicked(self, button):
@@ -121,26 +162,52 @@ class CDiagnosisDispansPlanedListDialog(QtGui.QDialog, Ui_DiagnosisDispansPlaned
     def setParams(self, params):
         self.edtBegDate.setDate(params.get('begDate', QDate().currentDate()))
         self.edtEndDate.setDate(params.get('endDate', QDate().currentDate()))
+        self.cmbOrgStructure.setValue(params.get('orgStructureId', None))
+        self.cmbSpeciality.setValue(params.get('specialityId', None))
         self.cmbPerson.setValue(params.get('personId', None))
         MKBFilter = params.get('MKBFilter', 0)
         self.cmbMKBFilter.setCurrentIndex(MKBFilter if MKBFilter else 0)
         self.edtMKBFrom.setText(params.get('MKBFrom', 'A00'))
         self.edtMKBTo.setText(params.get('MKBTo', 'Z99.9'))
+        self.cmbSocStatusClass.setValue(params.get('socStatusClassId', None))
+        self.cmbSocStatusType.setValue(params.get('socStatusTypeId', None))
+        self.cmbOrgStructureAttach.setValue(params.get('attachOrgStructureId', None))
 
     def params(self):
-        result = {}
-        result['begDate'] = self.edtBegDate.date()
-        result['endDate'] = self.edtEndDate.date()
-        result['personId'] = self.cmbPerson.value()
-        result['MKBFilter'] = self.cmbMKBFilter.currentIndex()
-        result['MKBFrom']   = unicode(self.edtMKBFrom.text())
-        result['MKBTo']     = unicode(self.edtMKBTo.text())
+        result = {'begDate': self.edtBegDate.date(),
+                  'endDate': self.edtEndDate.date(),
+                  'orgStructureId': self.cmbOrgStructure.value(),
+                  'specialityId': self.cmbSpeciality.value(),
+                  'personId': self.cmbPerson.value(),
+                  'MKBFilter': self.cmbMKBFilter.currentIndex(),
+                  'MKBFrom': unicode(self.edtMKBFrom.text()),
+                  'MKBTo': unicode(self.edtMKBTo.text()),
+                  'socStatusClassId': self.cmbSocStatusClass.value(),
+                  'socStatusTypeId': self.cmbSocStatusType.value(),
+                  'attachOrgStructureId': self.cmbOrgStructureAttach.value()}
         return result
 
     @pyqtSignature('int')
     def on_cmbMKBFilter_currentIndexChanged(self, index):
         self.edtMKBFrom.setEnabled(index == 1)
         self.edtMKBTo.setEnabled(index == 1)
+
+    @pyqtSignature('int')
+    def on_cmbSocStatusClass_currentIndexChanged(self, index):
+        socStatusClassId = self.cmbSocStatusClass.value()
+        filter = ('class_id=%d' % socStatusClassId) if socStatusClassId else ''
+        self.cmbSocStatusType.setFilter(filter)
+
+    @pyqtSignature('int')
+    def on_cmbOrgStructure_currentIndexChanged(self, index):
+        orgStructureId = self.cmbOrgStructure.value()
+        self.cmbPerson.setOrgStructureId(orgStructureId)
+
+    @pyqtSignature('int')
+    def on_cmbSpeciality_currentIndexChanged(self, index):
+        specialityId = self.cmbSpeciality.value()
+        self.cmbPerson.setSpecialityId(specialityId)
+
 
 
 class CDiagnosisDispansPlanedListReport(CReport):
@@ -156,15 +223,13 @@ class CDiagnosisDispansPlanedListReport(CReport):
         return result
     
     def getDefaultParams(self):
-        result = {}
         prefs = getPref(QtGui.qApp.preferences.reportPrefs, self.title(), {})
-        result['begDate'] = getPrefDate(prefs, 'begDate', QDate().currentDate())
-        result['endDate'] = getPrefDate(prefs, 'endDate', QDate().currentDate())
-        result['personId'] = getPrefInt(prefs, 'personId', None)
-        result['MKBFilter'] = getPrefInt(prefs, 'MKBFilter', 0)  # 0-нет фильтра, 1-интервал, 2-нет кода
-        result['MKBFrom'] = getPrefString(prefs, 'MKBFrom', 'A00')
-        result['MKBTo'] = getPrefString(prefs, 'MKBTo', 'Z99.9')
-
+        result = {'begDate': getPrefDate(prefs, 'begDate', QDate().currentDate()),
+                  'endDate': getPrefDate(prefs, 'endDate', QDate().currentDate()),
+                  'personId': getPrefInt(prefs, 'personId', None),
+                  'MKBFilter': getPrefInt(prefs, 'MKBFilter', 0),
+                  'MKBFrom': getPrefString(prefs, 'MKBFrom', 'A00'),
+                  'MKBTo': getPrefString(prefs, 'MKBTo', 'Z99.9')}
         return result
 
     def dumpParams(self, cursor, params, align=CReportBase.AlignLeft):
@@ -175,7 +240,19 @@ class CDiagnosisDispansPlanedListReport(CReport):
         MKBFilter = params.get('MKBFilter', 0)
         MKBFrom = params.get('MKBFrom', '')
         MKBTo = params.get('MKBTo', '')
+        socStatusClassId = params.get('socStatusClassId', None)
+        socStatusTypeId = params.get('socStatusTypeId', None)
+        orgStructureId = params.get('orgStructureId', None)
+        specialityId = params.get('specialityId', None)
+        attachOrgStructureId = params.get('attachOrgStructureId', None)
+
         description = [dateRangeAsStr(u'за период', begDate, endDate)]
+        if orgStructureId:
+            description.append(u'Подразделение: ' + getOrgStructureFullName(orgStructureId))
+        else:
+            description.append(u'Подразделение: ЛПУ')
+        if specialityId:
+            description.append(u'Специальность: ' + forceString(db.translate('rbSpeciality', 'id', specialityId, 'name')))
         if personId:
             personName = forceString(db.translate('vrbPersonWithSpeciality', 'id', personId, 'name'))
             description.append(u'врач: %s' % personName)
@@ -183,6 +260,12 @@ class CDiagnosisDispansPlanedListReport(CReport):
             description.append(u'код МКБ с "%s" по "%s"' % (MKBFrom, MKBTo))
         elif MKBFilter == 2:
             description.append(u'код МКБ пуст')
+        if socStatusTypeId:
+            description.append(u'Тип соц.статуса: ' + forceString(db.translate('vrbSocStatusType', 'id', socStatusTypeId, 'name')))
+        if socStatusClassId:
+            description.append(u'Класс соц.статуса: ' + forceString(db.translate('rbSocStatusClass', 'id', socStatusClassId, 'name')))
+        if attachOrgStructureId:
+            description.append(u'Прикрепление к участку: ' + getOrgStructureFullName(attachOrgStructureId))
         columns = [('100%', [], CReportBase.AlignLeft)]
         table = createTable(cursor, columns, headerRowCount=len(description), border=0, cellPadding=2, cellSpacing=0)
         for i, row in enumerate(description):
@@ -244,22 +327,18 @@ class CDiagnosisDispansPlanedListReport(CReport):
 class CDiagnosisDispansNoVisitReport(CDiagnosisDispansPlanedListReport):
     def __init__(self, parent):
         CDiagnosisDispansPlanedListReport.__init__(self, parent)
-        self.setTitle(u'Отчет по неявившимся на диспансерный осмотр')
-
+        self.setTitle(u'Отчет по не явившимся на диспансерный осмотр')
 
     def build(self, params):
         params['noVisit'] = True
         query = getQuery(params)
-
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
-
         cursor.setCharFormat(CReportBase.ReportTitle)
         cursor.insertText(self.title())
         cursor.insertBlock()
         self.dumpParams(cursor, params)
         cursor.insertBlock()
-
         tableColumns = [
             ('3%', [u'№ п/п'], CReportBase.AlignLeft),
             ('12%', [u'ФИО пациента'], CReportBase.AlignLeft),
@@ -274,7 +353,6 @@ class CDiagnosisDispansNoVisitReport(CDiagnosisDispansPlanedListReport):
             ('10%', [u'Запланированный период'], CReportBase.AlignLeft),
             ('10%', [u'Период следующей явки'], CReportBase.AlignLeft)
         ]
-
         table = createTable(cursor, tableColumns)
         rowNumber = 0
         while query.next():
@@ -293,5 +371,4 @@ class CDiagnosisDispansNoVisitReport(CDiagnosisDispansPlanedListReport):
             table.setText(row, 9, formatDate(forceDate(record.value('lastVisitDate'))))
             table.setText(row, 10, forceString(record.value('curPeriod')))
             table.setText(row, 11, forceString(record.value('nextVisitDate')))
-
         return doc

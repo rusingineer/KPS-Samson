@@ -56,7 +56,11 @@ class CHospitalBedFindComboBoxPopup(QtGui.QFrame, Ui_HospitalBedFindComboBoxPopu
         self.cmbTypeBed.setTable('rbHospitalBedType', addNone=True)
         self.cmbIsPermanentBed.setCurrentIndex(0)
         self.parent = parent #wtf? скрывать Qt-шный parent - это плохая затея
+        self.tblHospitalBedFind.blockSignals(True) # Каждое открытие в expandAll() вызывает несколько сигналов
+        self.tblHospitalBedFind.setUpdatesEnabled(False)
         self.tblHospitalBedFind.expandAll()
+        self.tblHospitalBedFind.blockSignals(False)
+        self.tblHospitalBedFind.setUpdatesEnabled(True)
 
 
     def mousePressEvent(self, event):

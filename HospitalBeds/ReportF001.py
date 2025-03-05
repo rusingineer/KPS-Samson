@@ -689,7 +689,7 @@ class CStationaryReportF001(CReportBase):
             ('', [u'Фамилия, имя, отчество (при наличии) медицинского работника, зафиксировавшего причину отказа в госпитализации', u'', u'22'], CReportBase.AlignLeft),
             ('', [u'Дополнительные сведения', u'', u'23'], CReportBase.AlignLeft),
         ]
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
         for i, col in enumerate(tableColumns):
             if i == 1:  # поступление
                 table.mergeCells(0,i, 1,2)

@@ -23,7 +23,12 @@
 def verifyAttributeValue(node, namespaceURI, localName, expectedValue):
     value = getAttributeValue(node, namespaceURI, localName)
     if value != expectedValue:
-        raise Exception(u'В элементе %s атрибут {%s}:%s имеет неожиданное значение' % (getElementPath(node), namespaceURI, localName))
+        raise Exception(u'В элементе %s атрибут {%s}:%s имеет неожиданное значение «%s», ожидалось %r' % (getElementPath(node), namespaceURI, localName, value, expectedValue))
+
+def verifyAttributeValueSet(node, namespaceURI, localName, expectedValues):
+    value = getAttributeValue(node, namespaceURI, localName)
+    if value not in expectedValues:
+        raise Exception(u'В элементе %s атрибут {%s}:%s имеет неожиданное значение «%s», ожидалось одно из %r' % (getElementPath(node), namespaceURI, localName, value, expectedValues))
 
 
 def getAttributeValue(node, namespaceURI, localName):

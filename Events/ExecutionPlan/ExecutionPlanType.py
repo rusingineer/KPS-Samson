@@ -96,10 +96,10 @@ class CActionExecutionPlanType(CExecutionPlanType):
         return item
 
 
-    def createItems(self, begDate, duration, periodicity, aliquoticity, quantity, isNomenclatureExecution=False, daysExecutionPlan=[]):
+    def createItems(self, begDate, begTime, duration, periodicity, aliquoticity, quantity, isNomenclatureExecution=False, daysExecutionPlan=[]):
         from .ExecutionPlan import CActionExecutionPlanItem
         if isNomenclatureExecution:
-            return self.createItemsNE(begDate, duration, periodicity, aliquoticity, quantity, daysExecutionPlan)
+            return self.createItemsNE(begDate, begTime, duration, periodicity, aliquoticity, quantity, daysExecutionPlan)
         result = []
         execDate = begDate
         idx = 0
@@ -114,7 +114,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                         item.idx = idx
                         item.aliquoticityIdx = aliquoticityIdx
                         item.date = day
-                        item.time = None
+                        item.time = begTime if (idx == 0 and begTime) else None
                         item.executionPlan = self._executionPlan
                         result.append(item)
                         idx += 1
@@ -131,7 +131,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                         item.idx = idx
                         item.aliquoticityIdx = aliquoticityIdx
                         item.date = execDate
-                        item.time = None
+                        item.time = begTime if (idx == 0 and begTime) else None
                         item.executionPlan = self._executionPlan
                         result.append(item)
                         idx += 1
@@ -147,7 +147,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                     item.idx = idx
                     item.aliquoticityIdx = aliquoticityIdx
                     item.date = execDate
-                    item.time = None
+                    item.time = begTime if (idx == 0 and begTime) else None
                     item.executionPlan = self._executionPlan
                     result.append(item)
                     idx += 1
@@ -167,6 +167,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
         quantity = self._executionPlan.quantity
         newQuantity = quantity + quantityAdd
         begDate = self._executionPlan.begDate
+        begTime = self._executionPlan.begTime
 #        daysExecutionPlan = self._executionPlan.daysExecutionPlan
         if skipAfterLastDayCourse > 0:
             newDuration = currentDuration + daysCount + skipAfterLastDayCourse
@@ -197,7 +198,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                         item.idx = idx
                         item.aliquoticityIdx = aliquoticityIdx
                         item.date = execDate
-                        item.time = None
+                        item.time = begTime if (idx == 0 and begTime) else None
                         item.executionPlan = self._executionPlan
                         idx += 1
                         dates2items.setdefault(execDate, []).append(item)
@@ -226,7 +227,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
         return newItems
 
 
-    def createItemsNE(self, begDate, duration, periodicity, aliquoticity, quantity, daysExecutionPlan=[]):
+    def createItemsNE(self, begDate, begTime, duration, periodicity, aliquoticity, quantity, daysExecutionPlan=[]):
         from .ExecutionPlan import CActionExecutionPlanItem
         result = []
         plannedEndDate = begDate.addDays(duration - 1)
@@ -243,7 +244,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                         item.idx = idx
                         item.aliquoticityIdx = aliquoticityIdx
                         item.date = day
-                        item.time = None
+                        item.time = begTime if (idx == 0 and begTime) else None
                         item.executionPlan = self._executionPlan
                         result.append(item)
                         idx += 1
@@ -257,7 +258,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                     item = CActionExecutionPlanItem()
                     item.idx = idx
                     item.date = execDate
-                    item.time = None
+                    item.time = begTime if (idx == 0 and begTime) else None
                     item.executionPlan = self._executionPlan
                     result.append(item)
                     idx += 1
@@ -273,6 +274,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
         periodicity = self._executionPlan.periodicity
         aliquoticity = self._executionPlan.aliquoticity
         begDate = self._executionPlan.begDate
+        begTime = self._executionPlan.begTime
         if skipAfterLastDayCourse > 0:
             newDuration = currentDuration + daysCount + skipAfterLastDayCourse
         else:
@@ -300,7 +302,7 @@ class CActionExecutionPlanType(CExecutionPlanType):
                     item = CActionExecutionPlanItem()
                     item.idx = idx
                     item.date = execDate
-                    item.time = None
+                    item.time = begTime if (idx == 0 and begTime) else None
                     item.executionPlan = self._executionPlan
                     idx += 1
                     dates2items.setdefault(execDate, []).append(item)
@@ -401,13 +403,14 @@ class CNomenclatureExecutionPlanType(CActionExecutionPlanType):
         return items
 
 
-    def createItems(self, begDate, duration, periodicity, aliquoticity, quantity, daysExecutionPlan=[]):
+    def createItems(self, begDate, begTime, duration, periodicity, aliquoticity, quantity, daysExecutionPlan=[]):
         from .ExecutionPlan import CActionExecutionPlanItemNomenclature
 
         result = []
         for actionItem in CActionExecutionPlanType.createItems(
                 self,
                 begDate,
+                begTime,
                 duration,
                 periodicity,
                 aliquoticity,

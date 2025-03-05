@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -24,24 +24,43 @@ except:
 
 
 class CSpellCheckTextEdit(QtGui.QTextEdit):
+    # слово начинается с букв, потом может продолжиться тире (на самом деле - минусом), за которым должны быть буквы
+    # таким образом «привет-привет» - это слово,
+    # но «-привет» и «привет-» - слова только «привет»
+    # и в «привет--привет» два слова «привет»
+    # буквы мы можем перечислить, но это тошно.
+    # будем использовать \w - это любые буквы, цифры и подчерк.
+    # слова типа «101-й» будем считать словами целиком,
+    # аббревиатуры игнорируем: «м.н.с.» - три слова, «ФСТЭК» - одно.
+    # «во=первых» - это два слова, обшибочно введённый «=» разделяет слова.
+    # wordRegex = re.compile(ur'(?iu)\w+([-\u2012\u2013\u2014]\w+)*') # минус и богатые тире
+    wordRegex = re.compile(ur'(?iu)\w+([-]\w+)*')  # только минус
 
-    def __init__(self,  parent):
-        QtGui.QTextEdit.__init__(self,  parent)
+    def __init__(self, parent=None):
+        QtGui.QTextEdit.__init__(self, parent)
 
+        self._contextMenuActions = []
         self.format = self.getFormatForSpellCheck()
         self.baseDictIsAvailable = False
         pathToDictionary = QtGui.qApp.getPathToDictionary()
         if gSpellCheckAvailable and QtGui.qApp.showingSpellCheckHighlight():
             try:
-                self.dict = hunspell.DictWithPWL(u'ru_RU', pathToDictionary)
+                self.dict_ = hunspell.DictWithPWL(u'ru_RU', pathToDictionary)
                 self.baseDictIsAvailable = True
-                self.highlighter = CSpellCheckHighlighter(self.document(),  self.format)
-                self.highlighter.setDict(self.dict)
+                self.highlighter = CSpellCheckHighlighter(self.document(), self.wordRegex, self.format)
+                self.highlighter.setDict(self.dict_)
             except hunspell.ENoDictionaryFound:
                 #QtGui.qApp.logCurrentException()
                 self.baseDictIsAvailable = False
                 pass
 
+
+    def addContextMenuAction(self, action):
+        self._contextMenuActions.append(action)
+
+
+    def clearContextMenuActions(self):
+        self._contextMenuActions = []
 
 
     def getFormatForSpellCheck(self):
@@ -51,168 +70,143 @@ class CSpellCheckTextEdit(QtGui.QTextEdit):
         return format
 
 
-#    def mousePressEvent(self, event):
-#        if event.button() == QtCore.Qt.RightButton:
-#            # По нажатию правой кнопки мыши курсор перемещается в позицию, где находится укзатель мыши
-#            event = QtGui.QMouseEvent(QtCore.QEvent.MouseButtonPress, event.pos(),
-#                QtCore.Qt.LeftButton, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
-#        QtGui.QTextEdit.mousePressEvent(self, event)
-
-
     def contextMenuEvent(self,  event):
-        # По нажатию правой кнопки мыши курсор перемещается в позицию, где находится укзатель мыши
-        event = QtGui.QMouseEvent(QtCore.QEvent.MouseButtonPress, event.pos(),
-               QtCore.Qt.LeftButton, QtCore.Qt.LeftButton, QtCore.Qt.NoModifier)
-        QtGui.QTextEdit.mousePressEvent(self, event)
+        popupMenu = self.createStandardContextMenu()
+        clearSelection = False
+        if len(self._contextMenuActions):
+            popupMenu.addSeparator()
+            for act in self._contextMenuActions:
+                popupMenu.addAction(act)
 
-        popup_menu = self.createStandardContextMenu()
         if gSpellCheckAvailable and self.baseDictIsAvailable and QtGui.qApp.showingSpellCheckHighlight():
             cursor = self.textCursor()
-            startPos = cursor.position()
-            #cursor.select(QtGui.QTextCursor.WordUnderCursor)
             if not cursor.hasSelection():
                 # Выделить слово под курсором для последующего поиска его в словаре
-                newCursor = self.selectWord(cursor)
-                self.setTextCursor(newCursor)
-                text = unicode(self.textCursor().selectedText())
-                
-                check_text = text
-                if len(check_text.split()) == 1:
-                    text = text.replace(" ", "")
+                cursor = self.cursorForPosition(event.pos())
+                self.selectWordAtCursor(cursor)
+                self.setTextCursor(cursor)
+                clearSelection = True
 
-                # Снять выделение слова, т.к. изначально слово не было выделено
-                clearCursor = self.textCursor()
-                clearCursor.clearSelection()
-                clearCursor.setPosition(startPos)
-                self.setTextCursor(clearCursor)
-            else:
-                text = unicode(self.textCursor().selectedText())
-                check_text = text
+            word = unicode(cursor.selectedText())
+            wordStartPos = cursor.selectionStart()
+            wordEndPos = cursor.selectionEnd()
 
-                if len(check_text.split()) == 1:
-                    text = text.replace(" ", "")
-
-            #if gSpellCheckAvailable and QtGui.qApp.showingSpellCheckHighlight():
             # Проверяем, правильно ли написано слово, и, если нет, предлагаем варианты исправления
-            try:
-                if not self.dict.check(text) and ' ' not in text:
-                    spellMenu = QtGui.QMenu(u'Варианты исправления слова')
-                    for word in self.dict.suggest(text):
-                        action = CSpellAction(word, spellMenu)
-                        action.correct.connect(self.correctWord)
-                        spellMenu.addAction(action)
-                    recordWord = CRecordCorrectWord(text, u'Внести в словарь', spellMenu)
-                    if QtGui.qApp.getPathToDictionary() is None:
-                        recordWord.setDisabled(True)
-                    else:
-                        recordWord.setCorrect.connect(self.wrapperForAddWord)
-                    spellMenu.addAction(recordWord)
-                    spellMenu.insertSeparator(spellMenu.actions()[-1])
-                    #  Предлагаем варианты исправления слова в том случае, если они есть
-                    if len(spellMenu.actions()) != 0:
-                        popup_menu.insertSeparator(popup_menu.actions()[0])
-                        popup_menu.insertMenu(popup_menu.actions()[0], spellMenu)
-            except UnicodeEncodeError:
-                QtGui.qApp.logCurrentException()
+            if (word  # слово есть
+                    and not any(c.isspace() for c in word)  # в выделении нет пробельных символов
+                    and not self.dict_.check(word)  # слова нет в словаре
+            ):
+                spellMenu = QtGui.QMenu(u'Варианты исправления слова')
+                for variant in self.dict_.suggest(word):
+                    action = CSpellAction(variant, wordStartPos, wordEndPos, spellMenu)
+                    action.correct.connect(self.correctWord)
+                    spellMenu.addAction(action)
+                recordWord = CRecordCorrectWord(word, u'Внести «%s» в словарь' % word, spellMenu)
+                if QtGui.qApp.getPathToDictionary() is None:
+                    recordWord.setDisabled(True)
+                else:
+                    recordWord.setCorrect.connect(self.wrapperForAddWord)
+                spellMenu.addAction(recordWord)
+                spellMenu.insertSeparator(spellMenu.actions()[-1])
+                #  Предлагаем варианты исправления слова в том случае, если они есть
+                if len(spellMenu.actions()) != 0:
+                    popupMenu.insertSeparator(popupMenu.actions()[0])
+                    popupMenu.insertMenu(popupMenu.actions()[0], spellMenu)
 
-        #popup_menu.exec_(self.text.mousePressEvent(Qt.RightButton).globalPos())
-        popup_menu.exec_(event.globalPos())
+        popupMenu.exec_(event.globalPos())
+        if clearSelection:
+            cursor = self.textCursor()
+            cursor.clearSelection()  # этого недостаточно
+            self.setTextCursor(cursor)  # для очистки нужно setTextCursor
+        event.accept()
 
 
     def wrapperForAddWord(self, word):
         if gSpellCheckAvailable:
-            self.dict.add(unicode(word))
+            self.dict_.add(unicode(word))
             self.highlighter.rehighlight()
 
 
-    def selectWord(self,  cursor):
-        #pattern = re.compile(ur'[a-zA-Zа-яА-Я0-9\-\']')
-        pattern = re.compile(r'(?iu)[\w\-\']+')
+    def selectWordAtCursor(self, cursor):
+        # в обычном тексте блок - это строка (параграф)
+        block = cursor.block()
+        text  = unicode(block.text())
+        # позиция в блоке
+        posInBlock = cursor.position()-block.position()
 
-        # Находим начало слова
-        cursor.movePosition(QtGui.QTextCursor.Left, QtGui.QTextCursor.KeepAnchor)
-        while pattern.search(unicode(cursor.selectedText())):
-            cursor.clearSelection()
-            cursor.movePosition(QtGui.QTextCursor.NoMove, QtGui.QTextCursor.MoveAnchor)
-            cursor.movePosition(QtGui.QTextCursor.Left, QtGui.QTextCursor.KeepAnchor)
-        cursor.clearSelection()
-        if not cursor.atStart():
-            cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.MoveAnchor)
-        cursorPositionStart = cursor.position()
-
-        # Находим конец слова
-        cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor)
-        while pattern.search(unicode(cursor.selectedText())):
-            cursor.clearSelection()
-            cursor.movePosition(QtGui.QTextCursor.NoMove, QtGui.QTextCursor.MoveAnchor)
-            cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor)
-        cursor.clearSelection()
-        if not cursor.atEnd():
-            cursor.movePosition(QtGui.QTextCursor.Left, QtGui.QTextCursor.MoveAnchor)
-        cursorPositionEnd = cursor.position()
-
-        # Выделяем слово от начала и до конца слова
-        cursor.setPosition(cursorPositionStart,  QtGui.QTextCursor.MoveAnchor)
-        cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor)
-        while cursor.position() != cursorPositionEnd:
-            if cursorPositionStart >= cursorPositionEnd:
-                break
-            cursor.movePosition(QtGui.QTextCursor.Right, QtGui.QTextCursor.KeepAnchor)
-        return cursor
+        # поищем в строке слово содержащее курсор
+        nearestDist = len(text)
+        nearestWord = None
+        for word in re.finditer(self.wordRegex, text):
+            # -1 и +1 - как мне кажется немного облегчит прицеливание
+            dist = max(word.start() - posInBlock, posInBlock-word.end(), 0)
+            if dist<nearestDist:
+               nearestDist, nearestWord = dist, word
+            if dist == 0:
+               break
+        if nearestWord and nearestDist<2: # разрешаем немного промахиваться
+            # Выделяем слово от начала и до конца слова
+            cursor.setPosition(block.position()+nearestWord.start(), QtGui.QTextCursor.MoveAnchor)
+            cursor.setPosition(block.position()+nearestWord.end(), QtGui.QTextCursor.KeepAnchor)
+        return
 
 
-    def correctWord(self, word):
+    def correctWord(self, word, wordStartPos, wordEndPos):
         cursor = self.textCursor()
-        newCursor = self.selectWord(cursor) if not cursor.hasSelection() else cursor
-        self.setTextCursor(newCursor)
-        self.textCursor().beginEditBlock()
+        if not cursor.hasSelection():
+            cursor = QtGui.QTextCursor(cursor)
+            cursor.setPosition(wordStartPos, QtGui.QTextCursor.MoveAnchor)
+            cursor.setPosition(wordEndPos, QtGui.QTextCursor.KeepAnchor)
 
-        self.textCursor().removeSelectedText()
-        self.textCursor().insertText(word)
-
-        self.textCursor().endEditBlock()
+        cursor.beginEditBlock()
+        cursor.removeSelectedText()
+        cursor.insertText(word)
+        cursor.endEditBlock()
 
 
 class CSpellCheckHighlighter(QtGui.QSyntaxHighlighter):
-    #words = r'(?iu)w\+'
-    #words = r'(?iu)[\w\-\']+'
-    words = r'(?iu)[\w\-\']+[^\s\-\.,!?:;()]+'
 
-    def __init__(self, text,  format):
-        super(CSpellCheckHighlighter, self).__init__(text)
+    def __init__(self, parent, wordRegex, format):
+        super(CSpellCheckHighlighter, self).__init__(parent)
+        self.wordRegex = wordRegex
         self.format = format
-        self.text = text
 
 
-    def setDict(self, dict):
-        self.dict = dict
+    def setDict(self, dict_):
+        self.dict_ = dict_
 
 
     def highlightBlock(self, text):
         if gSpellCheckAvailable:
             text = unicode(text)
 
-            for word in re.finditer(self.words, text):
-                if not self.dict.check(word.group()):
+            for word in re.finditer(self.wordRegex, text):
+                if not self.dict_.check(word.group()):
                     self.setFormat(word.start(), word.end() - word.start(), self.format)
 
 
 class CSpellAction(QtGui.QAction):
+    correct = QtCore.pyqtSignal(unicode, int, int)
 
-    correct = QtCore.pyqtSignal(unicode)
+    def __init__(self, word, wordStartPos, wordEndPos, parent):
+        QtGui.QAction.__init__(self, word, parent)
+        self.wordStartPos = wordStartPos
+        self.wordEndPos   = wordEndPos
+        self.triggered.connect(self.on_triggered)
 
-    def __init__(self, *args):
-        QtGui.QAction.__init__(self, *args)
 
-        self.triggered.connect(lambda x: self.correct.emit(
-            unicode(self.text())))
+    def on_triggered(self):
+        self.correct.emit(unicode(self.text()), self.wordStartPos, self.wordEndPos)
 
 
 class CRecordCorrectWord(QtGui.QAction):
-
     setCorrect = QtCore.pyqtSignal(unicode)
 
-    def __init__(self, word, *args):
-        QtGui.QAction.__init__(self, *args)
+    def __init__(self, word, title, parent):
+        QtGui.QAction.__init__(self, title, parent)
         self.word = word
-        self.triggered.connect(lambda x: self.setCorrect.emit(self.word))
+        self.triggered.connect(self.on_triggered)
+
+
+    def on_triggered(self):
+        self.setCorrect.emit(self.word)

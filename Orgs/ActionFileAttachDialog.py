@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -20,6 +20,7 @@ from PyQt4.QtCore import QDate, pyqtSignature, SIGNAL, Qt, QDateTime, QUrl, QByt
 from PyQt4.QtSql import QSqlField
 from PyQt4.QtGui import QColor, QBrush
 
+from Events.EditDispatcher import getEventFormClass
 from Exchange.PyServices import getPyServices, getCdaCode
 from Reports.ReportView import CPageFormat, CReportViewDialog
 from Users.Rights import urAdmin, urCanSingOrgSertNoAdmin, urCanOpenAnyAttachedFile, urCanOpenOwnAttachedFile, \
@@ -33,7 +34,9 @@ from library.MSCAPI.certErrors import ECertNotFound
 from library.SimpleProgressDialog import CSimpleProgressDialog
 from library.Utils import forceString, toVariant, forceBool, anyToUnicode, forceInt, forceRef, forceDate, \
     exceptionToUnicode, formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, getPrefInt
-
+from F088.F088EditDialog import CF088EditDialog
+from F088.F0882022EditDialog import CF0882022EditDialog
+from Surveillance.SurveillanceDialog import CSurveillanceDialog
 
 class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
     def __init__(self, parent):
@@ -51,6 +54,11 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         self.tblProphylaxisPlanningFileAttach.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tblProphylaxisPlanningFileAttach.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblProphylaxisPlanningFileAttach.horizontalHeader().setStretchLastSection(True)
+        self.addModels('EventFileAttach', CEventFileAttach(self))
+        self.setModels(self.tblEventFileAttach, self.modelEventFileAttach, self.selectionModelEventFileAttach)
+        self.tblEventFileAttach.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tblEventFileAttach.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.tblEventFileAttach.horizontalHeader().setStretchLastSection(True)
         self.setupValidationResultColors()
         self.edtFilterLastName.setDisabled(True)
         self.edtFilterFirstName.setDisabled(True)
@@ -70,8 +78,8 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         self.edtFilterDocumentEndDate.setDate(QDate().currentDate())
         self.btnFilterReset.clicked.connect(self.resetFilters)
         self.btnFilterApply.clicked.connect(self.applyFilters)
-        self.selectionModelActionFileAttach.currentRowChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
-        self.selectionModelProphylaxisPlanningFileAttach.currentRowChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
+        self.selectionModelActionFileAttach.selectionChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
+        self.selectionModelProphylaxisPlanningFileAttach.selectionChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
         self.cmbUserCert.currentIndexChanged.connect(self.on_selectionCertForm_currentIndexChanged)
         self.btnOpenFile.setVisible(False)
         self.btnPrint.setShortcut('F6')
@@ -212,13 +220,24 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         if index == 0:
             self.groupBoxFilters.setTitle(u'Фильтры по действиям')
             self.chkFilterActionType.setEnabled(True)
+            self.chkFilterIdentify.setEnabled(True)
             self.chkUserCert.setEnabled(True)
             self.signs.setEnabled(True)
-        else:
+            self.chkNotSignaturePerson.setEnabled(True)
+        elif index == 1:
             self.groupBoxFilters.setTitle(u'Фильтры по ККДН')
             self.chkFilterActionType.setEnabled(False)
+            self.chkFilterIdentify.setEnabled(True)
             self.chkUserCert.setEnabled(False)
             self.signs.setEnabled(False)
+            self.chkNotSignaturePerson.setEnabled(False)
+        else:
+            self.groupBoxFilters.setTitle(u'Фильтры по событиям')
+            self.chkFilterActionType.setEnabled(False)
+            self.chkFilterIdentify.setEnabled(False)
+            self.chkUserCert.setEnabled(False)
+            self.signs.setEnabled(False)
+            self.chkNotSignaturePerson.setEnabled(False)
         self.rowCount()
 
     def getModelAndTable(self):
@@ -226,9 +245,12 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         if tabIdx == 0:
             tbl = self.tblActionFileAttach
             model = self.modelActionFileAttach
-        else:
+        elif tabIdx == 1:
             tbl = self.tblProphylaxisPlanningFileAttach
             model = self.modelProphylaxisPlanningFileAttach
+        else:
+            tbl = self.tblEventFileAttach
+            model = self.modelEventFileAttach
         return tbl, model
 
     def getPreferences(self):
@@ -405,9 +427,10 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             cond = db.joinAnd([tableFA['id'].inlist(attachFilesIdList),
                                tableFA['deleted'].eq(0),
                                tableFA['respSigner_id'].isNotNull()])
-            records = db.getRecordList(query, '*', cond)
+            records = db.getRecordList(query, ['*', tableFAS['modifyPerson_id'].alias('infoSigner')], cond)
 
             Signs_ = ''
+            Signs_sub = ''
             infoRespSigner = None
             infoRespSign = None
             infoSign = None
@@ -418,26 +441,37 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                     Signs_ += '\n'
                     indexSign = 1
                 infoRespSigner = forceString(record.value('respSigner_name'))
-                infoSigner = getPersonInfo(forceString(record.value('modifyPerson_id')))
+                infoSigner = getPersonInfo(forceString(record.value('infoSigner')))
                 if infoSigner:
                     if forceString(record.value('signerTitle')):
-                        infoSign = forceString(record.value('signerTitle')).split(',')[0].split(" ")[0] + ' ' + \
-                                   forceString(record.value('signerTitle')).split(',')[0].split(" ")[1][:1] + '. ' + \
-                                   forceString(record.value('signerTitle')).split(',')[0].split(" ")[2][:1] + '.'
+                        subSign = forceString(record.value('signerTitle')).split(',')[0].split(" ") 
+                        infoSign = subSign[0] + ' '
+                        if len(subSign) >= 2: 
+                            infoSign += subSign[1][:1] + '. '
+                        if len(subSign) >= 3: # Может отсутствовать отчество
+                            infoSign += subSign[2][:1] + '.'
                     else:
                         infoSign = u''
                     # Signs_ = Signs_ + forceDate(record.value('signingDatetime')).toString('dd.MM.yyyy') + ' ' + \
                     #          infoSigner['shortName'] + " " + infoSigner['postName'] + u" <b>ЭЦП</b> " + infoSign + '<br>'
-                    Signs_ = u' '.join([unicode(Signs_ + forceDate(record.value('signingDatetime')).toString('dd.MM.yyyy')),
+                    Signs_sub = u' '.join([Signs_sub + unicode(forceDate(record.value('signingDatetime')).toString('dd.MM.yyyy')),
                                         infoSigner['shortName'], infoSigner['postName'],
                                         u'<b>ЭЦП</b>', infoSign, u'<br>'])
                 if infoRespSigner:
-                    if len(infoRespSigner.split(',')) == 2:
-                        respFIO = infoRespSigner.split(',')[0]
-                        if len(respFIO.split(" ")) == 3:
-                            infoRespSign = respFIO.split(" ")[0] + ' ' + respFIO.split(" ")[1][:1] + '. ' + respFIO.split(" ")[2][:1] + '.'
-                            Signs_ = u'<b>ЭЦП исполнителя</b> - ' + forceDate(record.value('respSigningDatetime')).toString('dd.MM.yyyy') + ' ' + infoRespSign + u'<br> <b>Подписал:</b> <br>' + Signs_
+                    #if len(infoRespSigner.split(',')) == 2: Зачем?
+                    respFIO = infoRespSigner.split(',')[0]
+                    subSign = respFIO.split(" ")
+                    infoRespSign = subSign[0] + ' '
+                    if len(subSign) >= 2: 
+                        infoRespSign += subSign[1][:1] + '. '
+                    if len(subSign) >= 3: # Может отсутствовать отчество
+                        infoRespSign += subSign[2][:1] + '.'
+                    if respFIO:
+                        Signs_ = u'<b>ЭЦП исполнителя</b> - ' + forceDate(record.value('respSigningDatetime')).toString('dd.MM.yyyy') + ' ' + infoRespSign
+                        if Signs_sub:
+                            Signs_ += u'<br> <b>Подписал:</b> <br>' + Signs_sub
             if len(Signs_) > 1:
+                self.signs.setVisible(True)
                 self.signs.setHtml(Signs_)
             else:
                 self.signs.setVisible(False)
@@ -459,17 +493,25 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         if len(selectedRows) == 1:
             openFile = QtGui.QAction(u'Открыть файл', self)
             currentRow = forceInt(tbl.currentRow())
-            openFile.triggered.connect(lambda: self.openAttachFile())
+            openFile.triggered.connect(self.openAttachFile)
+            tabIdx = self.tabWidget.currentIndex()
+            if tabIdx == 0 or tabIdx == 2:
+                actOpenEvent = QtGui.QAction(u'Открыть обращение', self)
+                actOpenEvent.triggered.connect(self.on_actOpenEvent_triggered)
+            else:
+                actOpenEvent = QtGui.QAction(u'Открыть контрольную карту диспансерного наблюдения', self)
+                actOpenEvent.triggered.connect(self.on_actOpenSurveillance_triggered)
             if model.getRespSignerId(currentRow) and self.chkUserCert.isChecked():
                 signFileCurrentFormCert = QtGui.QAction(u'Подписать документ выбранным сертификатом', self)
                 signFileCurrentFormCert.setEnabled(True)
-                signFileCurrentFormCert.triggered.connect(lambda: self.signFileCurrentFormCert(event))
+                signFileCurrentFormCert.triggered.connect(self.signFileCurrentFormCert)
                 self.menu.addAction(signFileCurrentFormCert)
             if enableValidation:
                 validateFile = QtGui.QAction(u'Проверить выбранный документ по схематрону', self)
-                validateFile.triggered.connect(lambda: self.validateFile(event))
+                validateFile.triggered.connect(self.validateFile)
                 self.menu.addAction(validateFile)
             self.menu.addAction(openFile)
+            self.menu.addAction(actOpenEvent)
         elif len(selectedRows) > 1:
             signFileUserCert = QtGui.QAction(u'Подписать выбранные документы сертификатом врача', self)
             signFileOrgCert = QtGui.QAction(u'Подписать выбранные документы сертификатом МО', self)
@@ -477,15 +519,15 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             if self.chkUserCert.isChecked():
                 signFileCurrentFormCert = QtGui.QAction(u'Подписать документы выбранным сертификатом', self)
                 signFileCurrentFormCert.setEnabled(True)
-                signFileCurrentFormCert.triggered.connect(lambda: self.signFileCurrentFormCert(event))
+                signFileCurrentFormCert.triggered.connect(self.signFileCurrentFormCert)
                 self.menu.addAction(signFileCurrentFormCert)
             if enableValidation:
                 validateFile = QtGui.QAction(u'Проверить выбранные документы по схематрону', self)
-                validateFile.triggered.connect(lambda: self.validateFile(event))
+                validateFile.triggered.connect(self.validateFile)
                 self.menu.addAction(validateFile)
 
-        signFileOrgCert.triggered.connect(lambda: self.signFileOrgCert(event))
-        signFileUserCert.triggered.connect(lambda: self.signFileUserCert(event))
+        signFileOrgCert.triggered.connect(self.signFileOrgCert)
+        signFileUserCert.triggered.connect(self.signFileUserCert)
         self.menu.addAction(signFileUserCert)
         self.menu.addAction(signFileOrgCert)
 
@@ -522,7 +564,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             return True
         return False
 
-    def signFileOrgCert(self, event):
+    def signFileOrgCert(self):
         tabIdx = self.tabWidget.currentIndex()
         tbl, model = self.getModelAndTable()
         currentRows = tbl.selectedRowList()
@@ -539,8 +581,10 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             return
         if tabIdx == 0:
             tableFA = db.table('Action_FileAttach')
-        else:
+        elif tabIdx == 1:
             tableFA = db.table('ProphylaxisPlanning_FileAttach')
+        else:
+            tableFA = db.table('Event_FileAttach')
         cols = [tableFA.tableName + '.%s' % col for col in self.cols]
         cond = db.joinAnd([tableFA['id'].inlist(attachFilesIdList),
                            tableFA['deleted'].eq(0),
@@ -618,7 +662,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             u'Успешно подписано {0} из {1}'. format(self.cnt, all))
 
 
-    def signFileCurrentFormCert(self, event):
+    def signFileCurrentFormCert(self):
         tbl, model = self.getModelAndTable()
 
         currentRows = tbl.selectedRowList()
@@ -631,9 +675,12 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         if tabIdx == 0:
             tableFA = db.table('Action_FileAttach')
             tableMaster = db.table('Action')
-        else:
+        elif tabIdx == 1:
             tableFA = db.table('ProphylaxisPlanning_FileAttach')
             tableMaster = db.table('ProphylaxisPlanning')
+        else:
+            tableFA = db.table('Event_FileAttach')
+            tableMaster = db.table('Event')
 
         sign = None
         self.personSign = None
@@ -683,19 +730,36 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                     db.table('Person')['id'].alias('sig')
                     ]
 
-        records = db.getRecordList(query, cols, cond)
+        records = db.getDistinctRecordList(query, cols, cond)
 
-        _all = len(records)
+        _all = len(records) if records else 0
         self.cnt = 0
         tempPath = QtGui.qApp.getTmpDir()
 
         def stepIterator(progressDialog):
+            tabIdx = self.tabWidget.currentIndex()
             for record in records:
+                if tabIdx != 2:
+                    personIdColName = 'person_id'
+                else:
+                    personIdColName = 'execPerson_id'
                 cert = None
                 tableAction = db.table('Action')
                 masterId = forceString(record.value('master_id'))
-                personId = db.getRecordEx(tableAction, tableAction['person_id'], tableAction['id'].eq(masterId))
-                personId = forceString(personId.value('person_id'))
+                if tabIdx == 0:
+                    tableAFAPT = db.table('Action_FileAttach_PrintTemplate')
+                    tableAFA = db.table('Action_FileAttach')
+                    tablePT = db.table('rbPrintTemplate')
+                    table = tableAFAPT.leftJoin(tablePT, tablePT['id'].eq(tableAFAPT['template_id']))
+                    table = table.leftJoin(tableAFA, tableAFA['id'].eq(tableAFAPT['id']))
+                    recordSigner = db.getRecordEx(table, tablePT['requireSignerPerson'],
+                                                  [tableAFA['master_id'].eq(masterId),
+                                                   tablePT['deleted'].eq(0)])
+                    if recordSigner:
+                        if forceInt(recordSigner.value('requireSignerPerson')) == 1:
+                            personIdColName = 'setPerson_id'
+                personId = db.getRecordEx(tableAction, tableAction[personIdColName], tableAction['id'].eq(masterId))
+                personId = forceString(personId.value(personIdColName))
 
                 if self.personSign is None:
                     self.personSign = forceString(record.value('sig'))
@@ -795,10 +859,10 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         QtGui.QMessageBox.information(
             self,
             u'Подписание документов МО!',
-            u'Успешно подписано {0} из {1}'.format(self.cnt, all))
+            u'Успешно подписано {0} из {1}'.format(self.cnt, _all))
 
 
-    def signFileUserCert(self, event):
+    def signFileUserCert(self):
         tabIdx = self.tabWidget.currentIndex()
         tbl, model = self.getModelAndTable()
         currentRows = tbl.selectedRowList()
@@ -810,9 +874,12 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         if tabIdx == 0:
             tableFA = db.table('Action_FileAttach')
             tableMaster = db.table('Action')
-        else:
+        elif tabIdx == 1:
             tableFA = db.table('ProphylaxisPlanning_FileAttach')
             tableMaster = db.table('ProphylaxisPlanning')
+        else:
+            tableFA = db.table('Event_FileAttach')
+            tableMaster = db.table('Event')
 
         if QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin, urCanSignForOrganisation]):
             errorList = []
@@ -832,11 +899,28 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             tempPath = QtGui.qApp.getTmpDir()
 
             def stepIterator(progressDialog):
+                tabIdx = self.tabWidget.currentIndex()
                 for record in records:
+                    if tabIdx != 2:
+                        personIdColName = 'person_id'
+                    else:
+                        personIdColName = 'execPerson_id'
                     cert = None
                     masterId = forceString(record.value('master_id'))
-                    personId = db.getRecordEx(tableMaster, tableMaster['person_id'], tableMaster['id'].eq(masterId))
-                    personId = forceString(personId.value('person_id'))
+                    if tabIdx == 0:
+                        tableAFAPT = db.table('Action_FileAttach_PrintTemplate')
+                        tableAFA = db.table('Action_FileAttach')
+                        tablePT = db.table('rbPrintTemplate')
+                        table = tableAFAPT.leftJoin(tablePT, tablePT['id'].eq(tableAFAPT['template_id']))
+                        table = table.leftJoin(tableAFA, tableAFA['id'].eq(tableAFAPT['id']))
+                        recordSigner = db.getRecordEx(table, tablePT['requireSignerPerson'],
+                                                      [tableAFA['master_id'].eq(masterId),
+                                                       tablePT['deleted'].eq(0)])
+                        if recordSigner:
+                            if forceInt(recordSigner.value('requireSignerPerson')) == 1:
+                                personIdColName = 'setPerson_id'
+                    personId = db.getRecordEx(tableMaster, tableMaster[personIdColName], tableMaster['id'].eq(masterId))
+                    personId = forceString(personId.value(personIdColName))
 
                     try:
                         if QtGui.qApp.getAllowUnsignedAttachments():
@@ -1012,9 +1096,12 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             if tabIdx == 0:
                 tableFA = db.table('Action_FileAttach')
                 tableMaster = db.table('Action')
-            else:
+            elif tabIdx == 1:
                 tableFA = db.table('ProphylaxisPlanning_FileAttach')
                 tableMaster = db.table('ProphylaxisPlanning')
+            else:
+                tableFA = db.table('Event_FileAttach')
+                tableMaster = db.table('Event')
             cols = [tableFA.tableName + '.%s' % col for col in self.cols]
             if index == 0:
                 cond = db.joinAnd([tableFA['id'].inlist(attachFilesIdList), tableFA['deleted'].eq(0),
@@ -1029,10 +1116,27 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             tempPath = QtGui.qApp.getTmpDir()
 
             def stepIterator(progressDialog):
+                tabIdx = self.tabWidget.currentIndex()
                 for record in records:
+                    if tabIdx != 2:
+                        personIdColName = 'person_id'
+                    else:
+                        personIdColName = 'execPerson_id'
                     masterId = forceString(record.value('master_id'))
-                    personId = db.getRecordEx(tableMaster, tableMaster['person_id'], tableMaster['id'].eq(masterId))
-                    personId = forceString(personId.value('person_id'))
+                    if tabIdx == 0:
+                        tableAFAPT = db.table('Action_FileAttach_PrintTemplate')
+                        tableAFA = db.table('Action_FileAttach')
+                        tablePT = db.table('rbPrintTemplate')
+                        table = tableAFAPT.leftJoin(tablePT, tablePT['id'].eq(tableAFAPT['template_id']))
+                        table = table.leftJoin(tableAFA, tableAFA['id'].eq(tableAFAPT['id']))
+                        recordSigner = db.getRecordEx(table, tablePT['requireSignerPerson'],
+                                                      [tableAFA['master_id'].eq(masterId),
+                                                       tablePT['deleted'].eq(0)])
+                        if recordSigner:
+                            if forceInt(recordSigner.value('requireSignerPerson')) == 1:
+                                personIdColName = 'setPerson_id'
+                    personId = db.getRecordEx(tableMaster, tableMaster[personIdColName], tableMaster['id'].eq(masterId))
+                    personId = forceString(personId.value(personIdColName))
                     certUser = None
 
                     if QtGui.qApp.getAllowUnsignedAttachments():
@@ -1282,8 +1386,8 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         self.cmbFilterIdentify.clearItemChecked()
         self.cmbFilterIdentify.setToolTip("")
         self.chkUserCert.setChecked(False)
-        self.cmbUserCert.value(None)
-        self.cmbPersonCert.value(None)
+        self.cmbUserCert.setValue(None)
+        self.cmbPersonCert.setValue(None)
 
     def saveDefaultParams(self, params):
         prefs = {}
@@ -1418,7 +1522,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         listIdentify = []
         if self.chkFilterIdentify.isChecked():
             identify = self.cmbFilterIdentify.value()
-            for i in identify.split('|'):
+            for i in re.split(' |\|', identify):
                 if i.isdigit():
                     listIdentify.append(i)
         return listIdentify
@@ -1446,7 +1550,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             self.edtFilterEventId.setFocus()
         else:
             self.edtFilterEventId.setDisabled(True)
-
+            
     @pyqtSignature('bool')
     def on_chkFilterActionType_toggled(self, check):
         if self.chkFilterActionType.isChecked():
@@ -1540,6 +1644,56 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             view.setPageFormat(pageFormat)
         view.setText(html)
         view.exec_()
+    
+    @pyqtSignature('')
+    def on_actOpenEvent_triggered(self):
+        QtGui.qApp.callWithWaitCursor(self, self.openEvent)
+    
+    
+    @pyqtSignature('')
+    def on_actOpenSurveillance_triggered(self):
+        tbl, model = self.getModelAndTable()
+        selectedRow = self.getSelectedRows(tbl)
+        record = model.getRecordByRow(selectedRow[0])
+        clientId = forceRef(record.value('client_id')) if record else None
+        if clientId:
+            try:
+                surPlanningShow = CSurveillanceDialog(self, isFake=True)
+                if surPlanningShow.surveillancePlanningShow(clientId):
+                    tbl.setCurrentRow(selectedRow)
+            finally:
+                surPlanningShow.deleteLater()
+     
+    
+    def openEvent(self):
+        tbl, model = self.getModelAndTable()
+        selectedRow = self.getSelectedRows(tbl)
+        record = model.getRecordByRow(selectedRow[0])
+        eventId = forceRef(record.value('eventId')) if record else None
+        if eventId:
+            try:
+                formClass = getEventFormClass(eventId)
+                if formClass == CF088EditDialog:
+                    db = QtGui.qApp.db
+                    tableAction = db.table('Action')
+                    recordAction = db.getRecordEx(tableAction, [tableAction['createDatetime'], tableAction['id']],
+                                                [tableAction['event_id'].eq(eventId), tableAction['deleted'].eq(0)])
+                    createDate = forceDate(recordAction.value('createDatetime')) if recordAction else None
+                    actionId = forceRef(recordAction.value('id')) if recordAction else None
+                    if createDate and createDate >= QDate(2022, 1, 1):
+                        formClass = CF0882022EditDialog
+                    dialog = formClass(self)
+                    dialog.load(actionId)
+                else:
+                    dialog = formClass(self)
+                    dialog.load(eventId)
+                QtGui.qApp.restoreOverrideCursor()
+                dialog.setReadOnly(True)
+                if dialog.exec_():
+                    tbl.setCurrentRow(selectedRow)
+            finally:
+                dialog.deleteLater()
+        
 
     def contentToHTML(self):
         reportHeader = u'Подписание документов'
@@ -1552,7 +1706,13 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
         tbl, model = self.getModelAndTable()
         currentRow = forceInt(tbl.currentRow())
         attachedFileId = forceInt(tbl.model().records[currentRow].value('id'))
-        tableName = 'Action_FileAttach' if self.tabWidget.currentIndex() == 0 else 'ProphylaxisPlanning_FileAttach'
+        tabIdx = self.tabWidget.currentIndex()
+        if tabIdx == 0:
+            tableName = 'Action_FileAttach'
+        elif tabIdx == 1:
+            tableName = 'ProphylaxisPlanning_FileAttach'
+        else:
+            tableName = 'Event_FileAttach'
         attachedFile = self.loadItem(interface, tableName, attachedFileId)
 
         fileOk = bool(attachedFile) and not attachedFile.isLost
@@ -1583,7 +1743,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             result = item
         return result
 
-    def validateFile(self, event):
+    def validateFile(self):
         tbl, model = self.getModelAndTable()
         currentRows = tbl.selectedRowList()
         attachFilesIdList = self.modelActionFileAttach.getAttachFilesId(currentRows)
@@ -1729,12 +1889,16 @@ class CActionFileAttachModel(CFileAttachModel):
         tablePerson = db.table('Person')
         tableActionType = db.table('ActionType')
         tableActionTypeIdentification = db.table('ActionType_Identification').alias('ati')
+        tableActionFLPrintTemplate = db.table('Action_FileAttach_PrintTemplate')
+        tablePrintTemplate = db.table('rbPrintTemplate')
         tableQuery = tableActionFileAttach
         tableQuery = tableQuery.leftJoin(tableAction, tableAction['id'].eq(tableActionFileAttach['master_id']))
         tableQuery = tableQuery.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
         tableQuery = tableQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
         tableQuery = tableQuery.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
-        tableQuery = tableQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableAction['person_id']))
+        tableQuery = tableQuery.leftJoin(tableActionFLPrintTemplate, tableActionFLPrintTemplate['id'].eq(tableActionFileAttach['id']))
+        tableQuery = tableQuery.leftJoin(tablePrintTemplate, tablePrintTemplate['id'].eq(tableActionFLPrintTemplate['template_id']))
+        tableQuery = tableQuery.leftJoin(tablePerson, 'CASE WHEN rbPrintTemplate.requireSignerPerson = 1 THEN Person.`id`=Action.`setPerson_id` ELSE Person.`id`=Action.`person_id` END')
         if identify:
             tableQuery = tableQuery.leftJoin(tableActionTypeIdentification,
                                              tableActionTypeIdentification['master_id'].eq(tableActionType['id']))
@@ -1829,10 +1993,10 @@ NOT EXISTS (SELECT
             cond.append("Client.firstName like '%s%%'" % firstName)
         if patrName:
             cond.append("Client.patrName like '%s%%'" % patrName)
-
+            
         if eventId:
             cond.append(tableEvent['id'].eq(eventId))
-
+             
         if signedIndex == 1:
             cond.append(tableActionFileAttach['respSignatureBytes'].isNull())
         elif signedIndex == 2:
@@ -1854,7 +2018,7 @@ NOT EXISTS (SELECT
         if forceBool(personSNILS):
             cond.append(tablePerson['SNILS'].eq(personSNILS))
         elif personId:
-            cond.append(tableAction['person_id'].eq(personId))
+            cond.append(tablePerson['id'].eq(personId))
 
         if begDate and endDate:
             cond.append(tableActionFileAttach['modifyDatetime'].ge(begDate))
@@ -1876,12 +2040,12 @@ NOT EXISTS (SELECT
             cond.append(tableActionFileAttach['createDatetime'].lt(documentEndDate.addDays(1)))
 
         if actionTypeId:
-            cond.append(tableActionType['id'].eq(actionTypeId))
+            actionTypeId = db.getDescendants('ActionType', 'group_id', actionTypeId)
+            cond.append(tableActionType['id'].inlist(actionTypeId))
         if typeDoc:
             cond.append("Action_FileAttach.path LIKE '%.{0}'".format(typeDoc))
         else:
             cond.append("Action_FileAttach.path LIKE '%.pdf' OR Action_FileAttach.path LIKE '%.xml'")
-
         if identify:
             cond.append("ati.note != ''")
             cond.append("ati.note IS not NULL")
@@ -1929,7 +2093,7 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
 
     def loadData(self, lastName=None, firstName=None, patrName=None, eventId=None, signedIndex=5, orgStructureList=None,
                  personId=None, begDate=None, endDate=None, actionTypeId=None, typeDoc=None, identify=None, documentBegDate=None,
-                 documentEndDate=None, sign=None, personSign=None, personSNILS=None):
+                 documentEndDate=None, sign=None, notSignaturePerson=None, personSign=None, personSNILS=None, validationResultCodes=None):
         db = QtGui.qApp.db
 
         tablePPFA = db.table('ProphylaxisPlanning_FileAttach')
@@ -1948,6 +2112,7 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
                 tablePPFA['master_id'],
                 tablePPFA['path'],
                 tablePP['id'].alias('kkdnId'),
+                tablePP['client_id'],
                 tableClient['lastName'],
                 tableClient['firstName'],
                 tableClient['patrName'],
@@ -1968,10 +2133,10 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
             cond.append("Client.firstName like '%s%%'" % firstName)
         if patrName:
             cond.append("Client.patrName like '%s%%'" % patrName)
-
+        
         if eventId:
             cond.append(tablePP['id'].eq(eventId))
-
+        
         if signedIndex == 1:
             cond.append(tablePPFA['respSignatureBytes'].isNull())
         elif signedIndex == 2:
@@ -2049,6 +2214,154 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
         self.setItems(records)
 
 
+class CEventFileAttach(CFileAttachModel):
+    def __init__(self, parent):
+        CRecordListModel.__init__(self, parent)
+        self.addCol(CInDocTableCol(u'Фамилия', 'lastName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Имя', 'firstName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Отчество', 'patrName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата рождения', 'birthDate', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Врач', 'personLastName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата изменения', 'modifyDatetime', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Подписан врачом', 'respSignatureBytes', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Подписан МО', 'orgSignatureBytes', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Код карточки', 'eventId', 12)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата документа', 'documentDate', 30)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Имя файла', 'fileName', 40)).setReadOnly()
+        self.headerSortingCol = {0: True}
+        self.records = None
+        endDate = QDate().currentDate()
+        begDate = QDate().currentDate().addDays(-2)
+        self.loadData(begDate=begDate, endDate=endDate)
+
+    def loadData(self, lastName=None, firstName=None, patrName=None, eventId=None, signedIndex=5, orgStructureList=None,
+                 personId=None, begDate=None, endDate=None, actionTypeId=None, typeDoc=None, identify=None, documentBegDate=None,
+                 documentEndDate=None, sign=None, notSignaturePerson=None, personSign=None, personSNILS=None, validationResultCodes=None):
+        db = QtGui.qApp.db
+
+        tableEventFileAttach = db.table('Event_FileAttach')
+        tableEvent = db.table('Event')
+        tableClient = db.table('Client')
+        tablePerson = db.table('Person')
+        query = tableEventFileAttach.leftJoin(tableEvent, tableEvent['id'].eq(tableEventFileAttach['master_id']))
+        query = query.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        query = query.leftJoin(tablePerson, tablePerson['id'].eq(tableEvent['execPerson_id']))
+
+        if personSNILS and personId:
+            rec = db.getRecordEx(tablePerson, [tablePerson['SNILS']], [tablePerson['id'].eq(personId)])
+            personSNILS = forceString(rec.value('SNILS')) if rec else None
+
+        cols = ['DISTINCT(Event_FileAttach.`id`) as id',
+            tableEventFileAttach['master_id'],
+            tableEventFileAttach['path'],
+            tableEvent['id'].alias('eventId'),
+            tableEvent['client_id'],
+            tableClient['lastName'],
+            tableClient['firstName'],
+            tableClient['patrName'],
+            tableClient['birthDate'],
+            tablePerson['lastName'].alias('personLastName'),
+            tablePerson['firstName'].alias('personFirstName'),
+            tablePerson['patrName'].alias('personPatrName'),
+            tableEventFileAttach['modifyDatetime'],
+            tableEventFileAttach['respSignatureBytes'],
+            tableEventFileAttach['orgSignatureBytes']]
+        cond = [tableEventFileAttach['deleted'].eq(0),
+                tableEvent['deleted'].eq(0),
+                ]
+
+        if lastName:
+            cond.append("Client.lastName like '%s%%'" % lastName)
+        if firstName:
+            cond.append("Client.firstName like '%s%%'" % firstName)
+        if patrName:
+            cond.append("Client.patrName like '%s%%'" % patrName)
+
+        if eventId:
+            cond.append(tableEvent['id'].eq(eventId))
+
+        if signedIndex == 1:
+            cond.append(tableEventFileAttach['respSignatureBytes'].isNull())
+        elif signedIndex == 2:
+            cond.append(tableEventFileAttach['orgSignatureBytes'].isNull())
+        elif signedIndex == 3:
+            cond.append(tableEventFileAttach['orgSignatureBytes'].isNotNull())
+        elif signedIndex == 4:
+            cond.append(tableEventFileAttach['respSignatureBytes'].isNotNull())
+            cond.append(tableEventFileAttach['orgSignatureBytes'].isNull())
+        elif signedIndex == 5:
+            cond.append(db.joinOr([tableEventFileAttach['respSignatureBytes'].isNull(),
+                                   tableEventFileAttach['orgSignatureBytes'].isNull()]))
+        elif signedIndex == 6:
+            cond.append(tableEventFileAttach['respSignatureBytes'].isNotNull())
+        if orgStructureList:
+            cond.append(tablePerson['orgStructure_id'].inlist(orgStructureList))
+        if QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin, urCanSignForOrganisation]) and not sign:
+            if forceBool(personSNILS):
+                cond.append(tablePerson['SNILS'].eq(personSNILS))
+            elif personId:
+                cond.append(tableEvent['execPerson_id'].eq(personId))
+        else:
+            if not sign:
+                cond.append(tableEvent['execPerson_id'].eq(QtGui.qApp.userId))
+
+        if begDate and endDate:
+            cond.append(tableEventFileAttach['modifyDatetime'].ge(begDate))
+            cond.append(tableEventFileAttach['modifyDatetime'].lt(endDate.addDays(1)))
+        elif begDate:
+            cond.append(tableEventFileAttach['modifyDatetime'].ge(begDate))
+        elif endDate:
+            cond.append(tableEventFileAttach['modifyDatetime'].lt(endDate.addDays(1)))
+        else:
+            if not documentBegDate and not documentEndDate:
+                cond.append(tableEventFileAttach['modifyDatetime'].ge(QDate().currentDate().addDays(-2)))
+        if documentBegDate and documentEndDate:
+            cond.append(tableEventFileAttach['createDatetime'].ge(documentBegDate))
+            cond.append(tableEventFileAttach['createDatetime'].lt(documentEndDate.addDays(1)))
+        elif documentBegDate:
+            cond.append(tableEventFileAttach['createDatetime'].ge(documentBegDate))
+        elif documentEndDate:
+            cond.append(tableEventFileAttach['createDatetime'].lt(documentEndDate.addDays(1)))
+
+        if typeDoc:
+            cond.append("Event_FileAttach.path LIKE '%.{0}'".format(typeDoc))
+        else:
+            cond.append("Event_FileAttach.path LIKE '%.pdf' OR Event_FileAttach.path LIKE '%.xml'")
+
+        orderBy = 'Person.lastName'
+        records = db.getRecordList(query, cols, cond, orderBy)
+        for record in records:
+            if forceBool(record.value('respSignatureBytes')):
+                record.setValue('respSignatureBytes', toVariant(u'Подписан'))
+            else:
+                record.setValue('respSignatureBytes', toVariant(u'Не подписан'))
+            if forceBool(record.value('orgSignatureBytes')):
+                record.setValue('orgSignatureBytes', toVariant(u'Подписан'))
+            else:
+                record.setValue('orgSignatureBytes', toVariant(u'Не подписан'))
+            personLastName = forceString(record.value('personLastName'))
+            personFirstName = forceString(record.value('personFirstName'))
+            personPatrName = forceString(record.value('personPatrName'))
+            personFullName = personLastName + u' ' + personFirstName + u' ' + personPatrName
+            record.setValue('personLastName', toVariant(personFullName))
+            filePath = forceString(record.value('path'))
+            if forceBool(filePath):
+                fileData = filePath.split('/')
+                fileYear = forceInt(fileData[0])
+                fileMonth = forceInt(fileData[1])
+                fileDay = forceInt(fileData[2])
+                fileName = forceString(fileData[4])
+                date = QDate(fileYear, fileMonth, fileDay)
+                record.append(QSqlField('documentDate'))
+                record.setValue('documentDate', date)
+                record.append(QSqlField('fileName'))
+                record.setValue('fileName', fileName)
+        self.records = records
+        self.setItems(records)
+
+
+
+
 class CValidationResultCol(CInDocTableCol):
     def __init__(self, model):
         CInDocTableCol.__init__(self, u'Валидация', 'id', 40)
@@ -2064,7 +2377,7 @@ class CValidationResultCol(CInDocTableCol):
         if resultCode == CValidationResult.SUCCESS:
             return QVariant(u'Пройдена успешно')
         elif resultCode == CValidationResult.UNAVAILABLE:
-            return QVariant(u'Не подлежит валидации')
+            return QVariant(u'Отсутствует схематрон, документ не подлежит валидации')
         elif resultCode == CValidationResult.ERROR:
             return QVariant(u'\n'.join(result.errors))
         else:

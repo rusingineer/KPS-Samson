@@ -90,6 +90,17 @@ class COrgStructureList(CHierarchicalItemsListDialog):
         #self.connect(self.modelTree, SIGNAL('modelReset()'),  self.treeModelReset)
         self.connect(self.modelTree, SIGNAL('saveExpandedState()'),  self.saveExpandedState)
         self.connect(self.modelTree, SIGNAL('restoreExpandedState()'),  self.restoreExpandedState)
+        prefes = QtGui.qApp.preferences
+        properts = prefes.appPrefs
+        expand_1 = forceInt(properts.get('treeOrgStructureExpand', QVariant()))
+        if not expand_1:
+            self.treeItems.expandToDepth(0)
+        elif expand_1 == 1:
+            self.treeItems.expandAll()
+        else:
+            expandLevel = forceInt(properts.get('treeOrgStructureExpandLevel', QVariant(1)))
+            self.treeItems.expandToDepth(expandLevel)
+        
 
 
     def popupMenuAboutToShow(self):

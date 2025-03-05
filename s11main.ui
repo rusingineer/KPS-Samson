@@ -14,8 +14,8 @@
    <string>Картотека</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/new/prefix1/icons/Icon2.png</normaloff>:/new/prefix1/icons/Icon2.png</iconset>
+   <iconset resource="s11main.qrc">
+    <normaloff>:/new/prefix1/icons/znak_32x32.png</normaloff>:/new/prefix1/icons/znak_32x32.png</iconset>
   </property>
   <property name="animated">
    <bool>false</bool>
@@ -104,6 +104,7 @@
     <addaction name="actProphylaxisPlanning"/>
     <addaction name="actSurgeryJournal"/>
     <addaction name="actHealthResort"/>
+    <addaction name="actCentralizedAccounting"/>
     <addaction name="separator"/>
     <addaction name="actTreatmentScheme"/>
     <addaction name="actTreatmentSchedule"/>
@@ -201,6 +202,7 @@
      <addaction name="actImpotrFromSail"/>
      <addaction name="actImportFromSailXML"/>
      <addaction name="actImportPrimaryDocFromXml"/>
+     <addaction name="actImportCSVClient"/>
      <addaction name="separator"/>
      <addaction name="menu_7"/>
      <addaction name="actImportRbPrintTemplate"/>
@@ -232,7 +234,7 @@
    </widget>
    <widget class="QMenu" name="mnuService">
     <property name="windowIcon">
-     <iconset>
+     <iconset resource="s11main.qrc">
       <normaloff>:/new/prefix1/icons/Icon2.png</normaloff>:/new/prefix1/icons/Icon2.png</iconset>
     </property>
     <property name="title">
@@ -289,16 +291,20 @@
     <addaction name="actTestCSG"/>
     <addaction name="separator"/>
     <addaction name="menu_27"/>
+    <addaction name="actOdliServ"/>
     <addaction name="separator"/>
     <addaction name="mnuNotifications"/>
     <addaction name="actPlanningOrgStructureHospitalBedProfile"/>
     <addaction name="actExportLocalLabResultsToUSISH"/>
+    <addaction name="actAttach_SEMD_IEMK"/>
     <addaction name="actExportAttachDoctorSectionInfo"/>
     <addaction name="actExportSanAviacInfo"/>
     <addaction name="action_WSAttach"/>
     <addaction name="actSignOrgSert"/>
     <addaction name="actIdentityPatientService"/>
     <addaction name="actAttachOnlineService"/>
+    <addaction name="actUO"/>
+    <addaction name="actPersonSubstitutionService"/>
     <addaction name="separator"/>
     <addaction name="mnuUnlockDialog"/>
    </widget>
@@ -326,6 +332,7 @@
      <addaction name="actRBLogin"/>
      <addaction name="actPlanningHospitalActivity"/>
      <addaction name="actPlanningHealthResortActivity"/>
+     <addaction name="actPostOnAppointment"/>
     </widget>
     <widget class="QMenu" name="menu_3">
      <property name="title">
@@ -349,6 +356,8 @@
      <addaction name="actRBResult"/>
      <addaction name="actRBDiagnosticResult"/>
      <addaction name="actSurveillanceRemoveReason"/>
+     <addaction name="actRBObservationGroup"/>
+     <addaction name="actRBObservationSubgroup"/>
      <addaction name="separator"/>
      <addaction name="actRBTempInvalidReason"/>
      <addaction name="actRBTempInvalidExtraReason"/>
@@ -566,6 +575,7 @@
      <addaction name="actRBStatusObservationClientType"/>
      <addaction name="actRBClientConsentType"/>
      <addaction name="actRBContingentKind"/>
+     <addaction name="actRBContingentKindRemoval"/>
      <addaction name="actRBContingentType"/>
      <addaction name="actRBResearchKind"/>
      <addaction name="actRBDeathReason"/>
@@ -689,6 +699,9 @@
      <addaction name="actDiagnosisDispansNoVisit"/>
      <addaction name="actDispansList"/>
      <addaction name="actDispObservationPriorityListReport"/>
+     <addaction name="actDispReport"/>
+     <addaction name="actPeopleOfCancer"/>
+     <addaction name="actPeopleWithDiseasesCirculatorySystem"/>
     </widget>
     <widget class="QMenu" name="mnuReportImunoprophylaxis">
      <property name="title">
@@ -746,6 +759,7 @@
      <addaction name="actFrmOS6"/>
      <addaction name="actECO"/>
      <addaction name="actForeignCitizens"/>
+     <addaction name="actOperationalMonitoring"/>
     </widget>
     <widget class="QMenu" name="mnuEmergencyCall">
      <property name="title">
@@ -1338,6 +1352,13 @@
       <addaction name="actStatReportF9_2005"/>
       <addaction name="actStatReportF9_2006"/>
      </widget>
+     <widget class="QMenu" name="actStatReportF65">
+      <property name="title">
+       <string>Ф.65</string>
+      </property>
+      <addaction name="actStatReportF65_1000"/>
+      <addaction name="actStatReportF65_2000"/>
+     </widget>
      <addaction name="actReportAcuteInfections"/>
      <addaction name="actReportDailyAcuteInfections"/>
      <addaction name="actReportDailyAcuteInfectionsHospital"/>
@@ -1348,6 +1369,7 @@
      <addaction name="mnuReportsF12"/>
      <addaction name="menu_58"/>
      <addaction name="actStatReportF63"/>
+     <addaction name="actStatReportF65"/>
      <addaction name="actStatReportF71"/>
      <addaction name="menu_21"/>
      <addaction name="mnuStatReportF9"/>
@@ -1372,6 +1394,7 @@
       <addaction name="actReportF30_OLD"/>
       <addaction name="actReportF30_SMP"/>
       <addaction name="actReportF30_2100"/>
+      <addaction name="actReportF30KK_2100"/>
       <addaction name="actReportF30_2110"/>
       <addaction name="actReportStomatF30_2700"/>
       <addaction name="actReportStomatF30_2710"/>
@@ -1391,6 +1414,7 @@
      <addaction name="actPrimaryClientList"/>
      <addaction name="actRepPos"/>
      <addaction name="actRepPlatUsl"/>
+     <addaction name="actReportSummaryClientNotApply"/>
     </widget>
     <widget class="QMenu" name="mnuTimelineReports">
      <property name="title">
@@ -5347,6 +5371,11 @@
     <string>Выполненные объемы услуг иностранным гражданам</string>
    </property>
   </action>
+  <action name="actOperationalMonitoring">
+   <property name="text">
+    <string>Оперативный мониторинг оказания медицинской помощи</string>
+   </property>
+  </action>
   <action name="actSvodService">
    <property name="text">
     <string>Сервис мед. статистики</string>
@@ -6176,6 +6205,16 @@
     <string>Причины снятия с Диспансерного наблюдения</string>
    </property>
   </action>
+  <action name="actRBObservationGroup">
+   <property name="text">
+    <string>Группы наблюдения</string>
+   </property>
+  </action>
+  <action name="actRBObservationSubgroup">
+   <property name="text">
+    <string>Подгруппы наблюдения</string>
+   </property>
+  </action>
   <action name="actAddressFound">
    <property name="text">
     <string>Адресный справочник для ФОНДА</string>
@@ -6353,7 +6392,7 @@
   </action>
   <action name="actDiagnosisDispansNoVisit">
    <property name="text">
-    <string>Отчет по неявившимся на диспансерный осмотр</string>
+    <string>Отчет по не явившимся на диспансерный осмотр</string>
    </property>
   </action>
   <action name="actReportPassportT1100">
@@ -6374,6 +6413,92 @@
   <action name="actUnlockProphylaxisPlanning">
    <property name="text">
     <string>Разблокировать ККДН</string>
+   </property>
+  </action>
+  <action name="actStatReportF65_1000">
+   <property name="text">
+    <string>1000</string>
+   </property>
+  </action>
+  <action name="actStatReportF65_2000">
+   <property name="text">
+    <string>2000</string>
+   </property>
+  </action>
+  <action name="actTMKReports">
+   <property name="text">
+    <string>ТМК-Отчет</string>
+   </property>
+  </action>
+  <action name="actPostOnAppointment">
+   <property name="text">
+    <string>Должности при записи на прием</string>
+   </property>
+  </action>
+  <action name="actImportCSVClient">
+   <property name="text">
+    <string>Импорт данных из санаторной программы</string>
+   </property>
+  </action>
+  <action name="actRBContingentKindRemoval">
+   <property name="text">
+    <string>Причины снятия контингента</string>
+   </property>
+  </action>
+  <action name="actPersonSubstitutionService">
+   <property name="text">
+    <string>Замещение сотрудников</string>
+   </property>
+  </action>
+  <action name="actCentralizedAccounting">
+   <property name="text">
+    <string>Централизованный учет</string>
+   </property>
+  </action>
+  <action name="actDispReport">
+   <property name="text">
+    <string>Экспорт реестра пациентов с диагнозами ДН</string>
+   </property>
+  </action>
+  <action name="actUO">
+   <property name="text">
+    <string>Открытие профиля УО</string>
+   </property>
+  </action>
+  <action name="actAttach_SEMD_IEMK">
+   <property name="text">
+    <string>Мониторинг СЭМД для РЭМД</string>
+   </property>
+  </action>
+  <action name="actReportSummaryClientNotApply">
+   <property name="text">
+    <string>Сводка по пациентам (не обращавшиеся в МО)</string>
+   </property>
+  </action>
+  <action name="actOdliServ">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Лабораторные исследования (внутренняя лаборатория)</string>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actPeopleOfCancer">
+   <property name="text">
+    <string>Пациенты с онкологическими заболеваниями (отчет для ТФОМС)</string>
+   </property>
+  </action>
+  <action name="actPeopleWithDiseasesCirculatorySystem">
+   <property name="text">
+    <string>Пациенты с болезнями системы кровообращения (отчет для ТФОМС)</string>
+   </property>
+  </action>
+  <action name="actReportF30KK_2100">
+   <property name="text">
+    <string>Ф.30 (2100) КК</string>
    </property>
   </action>
  </widget>

@@ -13,9 +13,9 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QEvent, QModelIndex, QVariant
+from PyQt4.QtCore import Qt, QEvent, QModelIndex, QVariant, QString
 
-from library.Utils import forceString
+from library.Utils import forceString, trim
 
 
 class CStandardItemModel(QtGui.QStandardItemModel):
@@ -173,7 +173,30 @@ class CROEditableComboBox(CROComboBox):
                 self.setValue(None)
                 event.accept()
             elif key == Qt.Key_Backspace: # BS
-                self.setValue(forceString(self.text())[:-1])
+                text = QString(self.text())
+                if trim(text):
+                    newText = text
+                    selectedText = self.lineEdit().selectedText()
+                    selectedTextCount = len(selectedText)
+                    cursorPositionEdit = self.lineEdit().cursorPosition()
+                    cursorPosition = cursorPositionEdit-(1 if (cursorPositionEdit > 0 or not selectedTextCount) else 0)
+                    cursorPositionNew = cursorPosition
+                    if cursorPosition >= 0:
+                        if selectedTextCount >= len(text):
+                            newText = u''
+                            cursorPositionNew = 0
+                        elif selectedTextCount > 0:
+                            if text.mid(cursorPosition+1, selectedTextCount) == selectedText:
+                                newText = text.remove(cursorPosition+1, selectedTextCount)
+                                cursorPositionNew = cursorPosition+1
+                            else:
+                                newText = text.remove(cursorPosition+1-selectedTextCount, selectedTextCount)
+                                cursorPositionNew = cursorPosition+1-selectedTextCount
+                        else:
+                            newText = text.remove(cursorPosition if cursorPosition < len(text) else (len(text)-1), 1)
+                            cursorPositionNew = cursorPosition
+                    self.setValue(newText)
+                    self.lineEdit().setCursorPosition(cursorPositionNew)
                 event.accept()
             else:
                 CROComboBox.keyPressEvent(self, event)

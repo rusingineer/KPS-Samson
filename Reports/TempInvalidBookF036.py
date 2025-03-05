@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,16 +15,22 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import pyqtSignature, QDate
 
-from library.database          import addDateInRange
-from library.Utils             import calcAgeInYears, forceBool, forceDate, forceInt, forceRef, forceString, trim
-from library.DialogBase        import CDialogBase
+from library.database import addDateInRange
+from library.Utils import (calcAgeInYears,
+                            forceBool,
+                            forceDate,
+                            forceInt,
+                            forceRef,
+                            forceString,
+                            trim)
+from library.DialogBase import CDialogBase
 
-from Orgs.Utils                import getOrgStructureDescendants
+from Orgs.Utils import getOrgStructureDescendants
 
 from RefBooks.TempInvalidState import CTempInvalidState
-from Reports.Report            import CReport
-from Reports.ReportBase        import CReportBase, createTable
-from Reports.ReportView        import CPageFormat
+from Reports.Report import CReport
+from Reports.ReportBase import CReportBase, createTable
+from Reports.ReportView import CPageFormat
 
 
 def selectData(params):
@@ -57,18 +63,24 @@ SELECT
    TempInvalidDocument.busyness,
    TempInvalidDocument.duplicate,
    TempInvalidDocument.electronic,
+   TempInvalidDocument.issueDate,
    TempInvalid.diagnosis_id,
+   TempInvalid.receiver_id,
    TempInvalidDocument.person_id AS begPersonId,
    TempInvalidDocument.execPerson_id AS endPersonId,
    vrbPersonWithSpeciality.name AS personName,
    TempInvalidDocument.isExternal,
+
    (SELECT TID.isExternal
    FROM TempInvalidDocument TID
    WHERE TempInvalidDocument.prevNumber = TID.number LIMIT 1) AS isExternalPrev,
+
    IF((SELECT TD.prev_id
    FROM TempInvalidDocument AS TD
    WHERE TD.id = TempInvalidDocument.prev_id AND TD.deleted = 0) IS NOT NULL, 1, 0) AS isPreviousPrevId,
+
    TempInvalidDocument.idx,
+
    (SELECT CONCAT_WS(\' - \', D.MKB, D_MKB.DiagName)
    FROM TempInvalid_Period
    INNER JOIN Diagnosis AS D ON D.id = TempInvalid_Period.diagnosis_id
@@ -77,6 +89,7 @@ SELECT
    AND D.deleted = 0
    ORDER BY TempInvalid_Period.begDate ASC
    LIMIT 1) AS MKBFirstPeriod,
+
    IF(TempInvalid.state = 3, 1, 0) AS closedExternal,
    TempInvalid.caseBegDate,
    TempInvalid.begDate,
@@ -85,15 +98,20 @@ SELECT
    TempInvalid.state,
    TempInvalid.id AS tempInvalidId,
    DATEDIFF(TempInvalid.endDate, TempInvalid.begDate)+1 AS duration,
-   Diagnosis.MKB,
+   MKB.DiagID AS MKB,
    MKB.DiagName,
    IF(rbTempInvalidReason.grouping = 1 AND TempInvalid.type != 1, 1, 0) AS requiredOtherPerson,
    formatClientAddress(ClientAddress.id) AS address
+
    FROM TempInvalid
    INNER JOIN TempInvalidDocument ON TempInvalidDocument.master_id = TempInvalid.id
    LEFT JOIN TempInvalid AS NextTempInvalid ON (TempInvalid.id = NextTempInvalid.prev_id AND NextTempInvalid.deleted = 0)
    LEFT JOIN Diagnosis ON (Diagnosis.id = TempInvalid.diagnosis_id AND Diagnosis.deleted = 0)
-   LEFT JOIN MKB AS MKB ON MKB.DiagID = Diagnosis.MKB
+   LEFT JOIN MKB ON MKB.DiagID = IFNULL(
+        (SELECT TID_C.MKB
+        FROM TempInvalidDocument_Care TID_C
+        WHERE TID_C.master_id = TempInvalidDocument.id
+        LIMIT 1), Diagnosis.MKB)
    LEFT JOIN rbTempInvalidReason ON rbTempInvalidReason.id = TempInvalid.tempInvalidReason_id
    LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = TempInvalid.person_id
    LEFT JOIN Client ON Client.id = TempInvalid.client_id
@@ -145,36 +163,39 @@ ORDER BY %s
         cond.append(table['insuranceOfficeMark'].eq(insuranceOfficeMark-1))
     order = []
     if isDateSort:
-        order.append(u'TempInvalid.begDate ASC' if dateSort else u'TempInvalid.caseBegDate ASC')
+        if dateSort == 0: # по дате начала случая
+            order.append(u'TempInvalid.begDate')
+        elif dateSort == 1: # по дате начала лн
+            order.append(u'TempInvalid.caseBegDate')
+        elif dateSort == 2: # по дате выдачи
+            order.append(u'TempInvalidDocument.issueDate')
     if isClientNameSort:
-        order.append(u'Client.lastName, Client.firstName, Client.patrName ASC')
+        order.append(u'Client.lastName, Client.firstName, Client.patrName')
     if isNumberSort:
-        order.append(u'TempInvalidDocument.number ASC')
+        order.append(u'TempInvalidDocument.number')
     order.append(u'TempInvalidDocument.busyness, TempInvalidDocument.duplicate')
     return db.query(stmt % (colsIsExternalPrev,
                             0 if hasRegAddress else (1 if hasLocAddress else 0),
                             db.joinAnd(cond),
-                            u','.join(i for i in order)))
+                            u','.join(order)))
 
 
 def getClientRelation(tempInvalidId, hasRegAddress, hasLocAddress):
     stmt = u'''SELECT DISTINCT CONCAT_WS(_utf8' ', Client.lastName, Client.firstName, Client.patrName, CAST(Client.id AS CHAR)) AS clientReceiverName,
        Client.birthDate AS birthDateReceiver,
-       IF(ClientAddress.id != ClientAddress.id, formatClientAddress(ClientAddress.id), '') AS receiveraddress,
+       getClientLocAddress(Client.id) AS receiveraddress,
        CONCAT_WS(_utf8' - ', rbRelationType.leftName, rbRelationType.rightName) AS relation
 FROM TempInvalid
     INNER JOIN TempInvalidDocument ON TempInvalidDocument.master_id = TempInvalid.id
     INNER JOIN TempInvalidDocument_Care ON TempInvalidDocument.id = TempInvalidDocument_Care.master_id
     INNER JOIN Client ON TempInvalidDocument_Care.client_id = Client.id
-    LEFT JOIN ClientAddress ON (ClientAddress.client_id = Client.id AND ClientAddress.deleted = 0
-    AND ClientAddress.id = (SELECT MAX(id) FROM ClientAddress AS CA WHERE CA.Type = %d AND CA.client_id = Client.id))
     JOIN ClientRelation
     INNER JOIN rbRelationType AS rbRelationType ON rbRelationType.id = ClientRelation.relativeType_id
 WHERE TempInvalid.id = %d AND TempInvalidDocument.deleted = 0 AND Client.deleted = 0 AND TempInvalid.deleted = 0
     AND ClientRelation.deleted = 0
     AND ((ClientRelation.relative_id = TempInvalid.client_id AND ClientRelation.client_id = Client.id)
     OR (ClientRelation.client_id = TempInvalid.client_id AND ClientRelation.relative_id = Client.id))
-                '''%(0 if hasRegAddress else (1 if hasLocAddress else 0), tempInvalidId)
+                '''%(tempInvalidId)
     return QtGui.qApp.db.query(stmt)
 
 
@@ -200,7 +221,6 @@ class CTempInvalidBookF036(CReport):
         result = CTempInvalidF036SetupDialog(parent)
         result.setTitle(self.title())
         result.setCntUserVisible(True)
-        result.setTempInvalidReceiverVisible(True)
         result.setTempInvalidDuplicateVisible(True)
         result.setTempInvalidDuplicateWorkVisible(True)
         result.setClientNameSortVisible(True)
@@ -215,34 +235,37 @@ class CTempInvalidBookF036(CReport):
         cursor.insertText(self.name)
         cursor.insertBlock()
         self.dumpParams(cursor, params)
-        isTempInvalidReceiver = params.get('isTempInvalidReceiver', False)
-        isTempInvalidDuplicate = params.get('isTempInvalidDuplicate', False)
+        showTempInvalidReceiver    = params.get('showTempInvalidReceiver', 0)
+        isTempInvalidDuplicate     = params.get('isTempInvalidDuplicate', False)
         isTempInvalidDuplicateWork = params.get('isTempInvalidDuplicateWork', False)
         hasRegAddress              = params.get('hasRegAddress', True)
         hasLocAddress              = params.get('hasLocAddress', True)
         showMKBDescription         = params.get('showMKBDescription', True)
         showPersonSpeciality       = params.get('showPersonSpeciality', True)
         isNoExternal               = params.get('isNoExternal', True)
+        showTempInvalidStatus      = params.get('showTempInvalidStatus', False)
         cursor.insertBlock()
         tableColumns = [
-            ('2%', [u'N N п/п', u'', u'1' ], CReportBase.AlignLeft),
-            ('8%', [u'N листка нетрудоспособности, выданного данным леч. учреждением', u'первый', u'2' ], CReportBase.AlignLeft),
-            ('8%', [u'', u'продолжение', u'3' ], CReportBase.AlignLeft),
-            ('8%', [u'N листка нетрудоспособности, выданного другим учреждением', u'первый', u'4' ], CReportBase.AlignLeft),
-            ('8%', [u'', u'продолжение', u'5' ], CReportBase.AlignCenter),
-            ('9%', [u'Фамилия, имя, отчество получателя/больного', u'', u'6' ], CReportBase.AlignLeft),
-            ('3%', [u'Возраст', u'', u'7' ], CReportBase.AlignRight),
-            ('9%', [u'Адрес получателя/больного', u'', u'8' ], CReportBase.AlignLeft),
-            ('5%', [u'Место работы и выполняемая работа', u'', u'9' ], CReportBase.AlignLeft),
-            ('5%', [u'Диагноз', u'первичный', u'10' ], CReportBase.AlignLeft),
-            ('5%', [u'', u'заключительный', u'11' ], CReportBase.AlignLeft),
-            ('5%', [u'Фамилия врача', u'выдавшего листок нетрудоспособности', u'12'], CReportBase.AlignLeft),
-            ('5%', [u'', u'закончившего листок нетрудоспособности', u'13'], CReportBase.AlignLeft),
-            ('5%', [u'Освобожден от работы', u'с какого числа', u'14'], CReportBase.AlignLeft),
-            ('5%', [u'', u'по какое число', u'15'], CReportBase.AlignLeft),
-            ('5%', [u'Всего календарных дней освобождения от работы', u'', u'16'], CReportBase.AlignRight),
-            ('5%', [u'Отметка о направлении больного в другие лечебные учреждения', u'', u'17'], CReportBase.AlignLeft)
-            ]
+            ('2%', [u'N N п/п', u'', u''], CReportBase.AlignCenter),
+            ('5%', [u'N листка нетрудоспособности, выданного данным леч. учреждением', u'первый', u''], CReportBase.AlignCenter),
+            ('5%', [u'', u'продолжение', u''], CReportBase.AlignCenter),
+            ('5%', [u'N листка нетрудоспособности, выданного другим учреждением', u'первый', u''], CReportBase.AlignCenter),
+            ('5%', [u'', u'продолжение', u''], CReportBase.AlignCenter),
+            ('5%', [u'Дата выдачи', u'', u''], CReportBase.AlignLeft),
+            ('9%', [u'Фамилия, имя, отчество получателя/больного', u'', u''], CReportBase.AlignLeft),
+            ('3%', [u'Возраст', u'', u''], CReportBase.AlignCenter),
+            ('9%', [u'Адрес получателя/больного', u'', u''], CReportBase.AlignLeft),
+            ('5%', [u'Место работы и выполняемая работа', u'', u''], CReportBase.AlignLeft),
+            ('8%', [u'Диагноз', u'первичный', u''], CReportBase.AlignLeft),
+            ('8%', [u'', u'заключительный', u''], CReportBase.AlignLeft),
+            ('5%', [u'Фамилия врача', u'выдавшего листок нетрудоспособности', u''], CReportBase.AlignLeft),
+            ('5%', [u'', u'закончившего листок нетрудоспособности', u''], CReportBase.AlignLeft),
+            ('8%', [u'Освобожден от работы', u'с какого числа', u''], CReportBase.AlignCenter),
+            ('8%', [u'', u'по какое число', u''], CReportBase.AlignCenter),
+            ('5%', [u'Всего календарных дней освобождения от работы', u'', u''], CReportBase.AlignCenter),
+            ('5%', [u'Отметка о направлении больного в другие лечебные учреждения', u'', u''], CReportBase.AlignLeft),
+            ('5%', [u'Результат', u'', u''], CReportBase.AlignLeft),
+        ]
 
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 2, 1)
@@ -252,18 +275,22 @@ class CTempInvalidBookF036(CReport):
         table.mergeCells(0, 6, 2, 1)
         table.mergeCells(0, 7, 2, 1)
         table.mergeCells(0, 8, 2, 1)
-        table.mergeCells(0, 9, 1, 2)
-        table.mergeCells(0, 11, 1, 2)
-        table.mergeCells(0, 13, 1, 2)
-        table.mergeCells(0, 15, 2, 1)
+        table.mergeCells(0, 9, 2, 1)
+        table.mergeCells(0, 10, 1, 2)
+        table.mergeCells(0, 12, 1, 2)
+        table.mergeCells(0, 14, 1, 2)
         table.mergeCells(0, 16, 2, 1)
+        table.mergeCells(0, 17, 2, 1)
+        if showTempInvalidStatus:
+            table.mergeCells(0, 18, 2, 1)
+
         cnt = params.get('cntUser', 1)
         db = QtGui.qApp.db
         query = selectData(params)
         tempInvalidDocumentIdList = []
         tempInvalidDuplicateIdList = []
         clientMergeData = {}
-        busynessData = {}
+        # busynessData = {}
         i = 0
         while query.next():
             record   = query.record()
@@ -287,25 +314,12 @@ class CTempInvalidBookF036(CReport):
             clientId = forceRef(record.value('clientId'))
             prevNumber = forceString(record.value('prevNumber'))
             isPreviousPrevId = forceBool(record.value('isPreviousPrevId'))
-            if isTempInvalidReceiver:
-                ageReceiver = u''
-                clientReceiverName = u''
-                receiveraddress = u''
-                if forceBool(record.value('requiredOtherPerson')) and tempInvalidId:
-                    records = getClientRelation(tempInvalidId, hasRegAddress, hasLocAddress)
-                    while records.next():
-                        recordRL = records.record()
-                        birthDateReceiver = forceDate(recordRL.value('birthDateReceiver'))
-                        ageReceiver += (u' / ' + forceString(calcAgeInYears(birthDateReceiver, caseBegDate))) if birthDateReceiver else ''
-                        relation = forceString(recordRL.value('relation'))
-                        nameCR = forceString(recordRL.value('clientReceiverName'))
-                        clientReceiverName += (u' / ' + nameCR if nameCR else u'') + ((', ' + relation) if relation else u'')
-                        addressCR = forceString(recordRL.value('receiveraddress'))
-                        receiveraddress += (u' / ' + addressCR) if addressCR else u''
+            issueDate = forceString(record.value('issueDate'))
             age = calcAgeInYears(forceDate(record.value('birthDate')), caseBegDate)
             address = forceString(record.value('address'))
-            prevBusynessRow = busynessData.get(clientId, 2)
-            if tempInvalidDocumentId and tempInvalidDocumentId not in tempInvalidDocumentIdList and (busyness in (1, 3) or (busyness == 2 and prevBusynessRow != i)) and not duplicate:
+            # prevBusynessRow = busynessData.get(clientId, 2)
+
+            if tempInvalidDocumentId and tempInvalidDocumentId not in tempInvalidDocumentIdList and not duplicate:
                 tempInvalidDocumentIdList.append(tempInvalidDocumentId)
                 if busyness == 2 and tempInvalidDocumentId not in tempInvalidDuplicateIdList:
                     tempInvalidDuplicateIdList.append(tempInvalidDocumentId)
@@ -317,6 +331,7 @@ class CTempInvalidBookF036(CReport):
                 duration = abs(endDateTempInvalid.toJulianDay() - (begDateAfterExternal if (isExternal and not isNoExternal) else begDate).toJulianDay()) + 1
                 begPersonId = forceRef(record.value('begPersonId'))
                 endPersonId = forceRef(record.value('endPersonId'))
+
                 if showPersonSpeciality:
                     begPersonName = forceString(db.translate('vrbPersonWithSpeciality', 'id', begPersonId, 'name')) if begPersonId else u''
                     endPersonName = forceString(db.translate('vrbPersonWithSpeciality', 'id', endPersonId, 'name')) if endPersonId else u''
@@ -339,28 +354,59 @@ class CTempInvalidBookF036(CReport):
                 elif not isNoExternal:
                     table.setText(i, 3, number)
                     table.setText(i, 4, prevNumber)
-                table.setText(i, 5, (clientName + clientReceiverName) if (isTempInvalidReceiver and clientReceiverName) else clientName)
-                table.setText(i, 6, (forceString(age) + ageReceiver) if (isTempInvalidReceiver and ageReceiver) else forceString(age))
-                table.setText(i, 7, (address + receiveraddress) if (isTempInvalidReceiver and receiveraddress) else address)
-                table.setText(i, 8, placeWork)
+                table.setText(i, 5, issueDate)
+
+                if showTempInvalidReceiver == 0:
+                    table.setText(i, 6, clientName)
+                    table.setText(i, 7, forceString(age))
+                    table.setText(i, 8, address)
+                elif showTempInvalidReceiver == 1:
+                    ageReceiver = u''
+                    clientReceiverName = u''
+                    receiveraddress = u''
+                    if forceBool(record.value('requiredOtherPerson')) and tempInvalidId:
+                        records = getClientRelation(tempInvalidId, hasRegAddress, hasLocAddress)
+                        while records.next():
+                            recordRL = records.record()
+                            birthDateReceiver = forceDate(recordRL.value('birthDateReceiver'))
+                            ageReceiver += (u' / ' + forceString(calcAgeInYears(birthDateReceiver, caseBegDate))) if birthDateReceiver else ''
+                            relation = forceString(recordRL.value('relation'))
+                            nameCR = forceString(recordRL.value('clientReceiverName'))
+                            clientReceiverName += (u' / ' + nameCR if nameCR else u'') + ((', ' + relation) if relation else u'')
+                            addressCR = forceString(recordRL.value('receiveraddress'))
+                            receiveraddress += (u' / ' + addressCR) if addressCR else u''
+                    table.setText(i, 6, clientName + clientReceiverName)
+                    table.setText(i, 7, forceString(age) + ageReceiver)
+                    table.setText(i, 8, address + receiveraddress)
+                elif showTempInvalidReceiver == 2:
+                    table.setText(i, 6, clientName)
+                    table.setText(i, 7, forceString(age))
+                    receiverId = forceRef(record.value('receiver_id'))
+                    if receiverId:
+                        query = QtGui.qApp.db.query('SELECT getClientLocAddress(%d)' % receiverId)
+                        if query.next():
+                            table.setText(i, 8, forceString(query.value(0)))
+
+                table.setText(i, 9, placeWork)
                 if showMKBDescription:
-                    table.setText(i, 9, MKBFirstPeriod if MKBFirstPeriod else ((MKB + u' - ' + DiagName) if (MKB and DiagName) else u''))
+                    table.setText(i, 10, MKBFirstPeriod if MKBFirstPeriod else ((MKB + u' - ' + DiagName) if (MKB and DiagName) else u''))
                 else:
-                    table.setText(i, 9, MKBFirstPeriod if MKBFirstPeriod else ((MKB) if (MKB) else u''))
+                    table.setText(i, 10, MKBFirstPeriod if MKBFirstPeriod else ((MKB) if (MKB) else u''))
                 if showMKBDescription:
-                    table.setText(i, 10, (MKB + u' - ' + DiagName) if (MKB and DiagName) else u'')
+                    table.setText(i, 11, (MKB + u' - ' + DiagName) if (MKB and DiagName) else u'')
                 else:
-                    table.setText(i, 10, (MKB) if (MKB) else u'')
-                table.setText(i, 11, begPersonName)
-                table.setText(i, 12, endPersonName if state !=CTempInvalidState.opened  else u'')
-                table.setText(i, 13, begDateAfterExternal.toString('dd.MM.yyyy') if begDateAfterExternal else u'')
-                table.setText(i, 14, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
-                table.setText(i, 15, duration)
-                table.setText(i, 16, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
+                    table.setText(i, 11, (MKB) if (MKB) else u'')
+                table.setText(i, 12, begPersonName)
+                table.setText(i, 13, endPersonName if state !=CTempInvalidState.opened  else u'')
+                table.setText(i, 14, begDateAfterExternal.toString('dd.MM.yyyy') if begDateAfterExternal else u'')
+                table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
+                table.setText(i, 16, duration)
+                table.setText(i, 17, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
+                table.setText(i, 18, CTempInvalidState.names[state])
                 cnt += 1 if not isExternal else 0
                 row, countRow = clientMergeData.get(clientId, (i, 0))
                 clientMergeData[clientId] = (i, countRow + 1)
-                busynessData[clientId] = i
+                # busynessData[clientId] = i
             if (isTempInvalidDuplicate or isTempInvalidDuplicateWork) and tempInvalidDocumentId and tempInvalidDocumentId not in tempInvalidDuplicateIdList:
                 if isTempInvalidDuplicateWork and isTempInvalidDuplicate:
                     isDuplicate = bool(duplicate or busyness == 2)
@@ -388,12 +434,12 @@ class CTempInvalidBookF036(CReport):
                     elif not isNoExternal:
                         table.setText(i, 3, number)
                         table.setText(i, 4, prevNumber)
-                    table.setText(i, 8, placeWork)
+                    table.setText(i, 9, placeWork)
                     cnt += 1 if not isExternal else 0
                     row, countRow = clientMergeData.get(clientId, (i, 0))
                     if countRow > 0 and (row + countRow) == i:
-                        for col in range(5, 17):
-                            if col != 8:
+                        for col in range(6, 19 if showTempInvalidStatus else 18):
+                            if col != 9:
                                 table.mergeCells(row, col, countRow + 1, 1)
                     else:
                         duration = forceInt(record.value('duration'))
@@ -408,24 +454,35 @@ class CTempInvalidBookF036(CReport):
                         endPersonName = forceString(db.translate('vrbPersonWithSpeciality', 'id', endPersonId, 'name')) if endPersonId else u''
                         state = forceBool(record.value('state'))
                         MKBFirstPeriod = forceString(record.value('MKBFirstPeriod'))
-                        table.setText(i, 5, (clientName + clientReceiverName) if (isTempInvalidReceiver and clientReceiverName) else clientName)
-                        table.setText(i, 6, (forceString(age) + ageReceiver) if (isTempInvalidReceiver and ageReceiver) else forceString(age))
-                        table.setText(i, 7, (address + receiveraddress) if (isTempInvalidReceiver and receiveraddress) else address)
+                        table.setText(i, 5, issueDate)
+                        table.setText(i, 6, (clientName + clientReceiverName) if (showTempInvalidReceiver == 1 and clientReceiverName) else clientName)
+                        table.setText(i, 7, (forceString(age) + ageReceiver) if (showTempInvalidReceiver == 1 and ageReceiver) else forceString(age))
+                        table.setText(i, 8, (address + receiveraddress) if (showTempInvalidReceiver == 1 and receiveraddress) else address)
                         if showMKBDescription:
-                            table.setText(i, 9, MKBFirstPeriod if MKBFirstPeriod else ((MKB + u' - ' + DiagName) if (MKB and DiagName) else u''))
+                            table.setText(i, 10, MKBFirstPeriod if MKBFirstPeriod else ((MKB + u' - ' + DiagName) if (MKB and DiagName) else u''))
                         else:
-                            table.setText(i, 9, MKBFirstPeriod if MKBFirstPeriod else ((MKB) if (MKB) else u''))
+                            table.setText(i, 10, MKBFirstPeriod if MKBFirstPeriod else ((MKB) if (MKB) else u''))
                         if showMKBDescription:
-                            table.setText(i, 10, (MKB + u' - ' + DiagName) if (MKB and DiagName) else u'')
+                            table.setText(i, 11, (MKB + u' - ' + DiagName) if (MKB and DiagName) else u'')
                         else:
-                            table.setText(i, 10, (MKB) if (MKB) else u'')
-                        table.setText(i, 11, begPersonName)
-                        table.setText(i, 12, endPersonName if state else u'')
-                        table.setText(i, 13, begDate.toString('dd.MM.yyyy') if begDate else u'')
-                        table.setText(i, 14, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
-                        table.setText(i, 15, duration)
-                        table.setText(i, 16, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
+                            table.setText(i, 11, (MKB) if (MKB) else u'')
+                        table.setText(i, 12, begPersonName)
+                        table.setText(i, 13, endPersonName if state else u'')
+                        table.setText(i, 14, begDate.toString('dd.MM.yyyy') if begDate else u'')
+                        table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
+                        table.setText(i, 16, duration)
+                        table.setText(i, 17, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
+                        table.setText(i, 18, CTempInvalidState.names[state])
                     clientMergeData[clientId] = (row, countRow + 1)
+
+        if not showTempInvalidStatus:
+            table.table.removeColumns(18, 1)
+        if params.get('dateSort') != 2:
+            table.table.removeColumns(5, 1)
+        # нумерация столбцов в заголовке
+        for i in xrange(table.colCount()):
+            table.setText(2, i, str(i+1), charFormat=CReportBase.TableHeader, blockFormat=CReportBase.AlignCenter)
+
         return doc
 
 
@@ -443,7 +500,6 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
         self.cmbReason.setTable('rbTempInvalidReason', True, filter)
         self.cmbSocStatusType.setTable('vrbSocStatusType', True)
         self.setCntUserVisible(False)
-        self.setTempInvalidReceiverVisible(False)
         self.setTempInvalidDuplicateVisible(False)
         self.setTempInvalidDuplicateWorkVisible(False)
         self.setClientNameSortVisible(False)
@@ -454,11 +510,6 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
         self.isCntUserVisible = value
         self.lblCntUser.setVisible(value)
         self.edtCntUser.setVisible(value)
-
-
-    def setTempInvalidReceiverVisible(self, value):
-        self.isTempInvalidReceiverVisible = value
-        self.chkTempInvalidReceiver.setVisible(value)
 
 
     def setTempInvalidDuplicateVisible(self, value):
@@ -528,10 +579,9 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
         self.chkBeginPerson.setChecked(params.get('hasBeginPerson', True))
         self.chkEndPerson.setChecked(params.get('hasEndPerson', True))
         self.chkPlaceWork.setChecked(params.get('placeWork', True))
+        self.cmbShowTempInvalidReceiver.setCurrentIndex(params.get('showTempInvalidReceiver', 0))
         if self.isCntUserVisible:
             self.edtCntUser.setValue(params.get('cntUser', 1))
-        if self.isTempInvalidReceiverVisible:
-            self.chkTempInvalidReceiver.setChecked(params.get('isTempInvalidReceiver', False))
         if self.isTempInvalidDuplicateVisible:
             self.chkTempInvalidDuplicate.setChecked(params.get('isTempInvalidDuplicate', False))
         if self.isTempInvalidDuplicateWorkVisible:
@@ -544,6 +594,7 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
                 self.cmbDateSort.setCurrentIndex(params.get('dateSort', 0))
         self.chkNumberSort.setChecked(params.get('isNumberSort', False))
         self.chkTempInvalidNoExternal.setChecked(params.get('isNoExternal', True))
+        self.chkShowTempInvalidStatus.setChecked(params.get('showTempInvalidStatus', False))
 
 
     def params(self):
@@ -577,10 +628,9 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
         result['hasBeginPerson'] = self.chkBeginPerson.isChecked()
         result['hasEndPerson'] = self.chkEndPerson.isChecked()
         result['placeWork'] = self.chkPlaceWork.isChecked()
+        result['showTempInvalidReceiver'] = self.cmbShowTempInvalidReceiver.currentIndex()
         if self.isCntUserVisible:
             result['cntUser'] = self.edtCntUser.value()
-        if self.isTempInvalidReceiverVisible:
-            result['isTempInvalidReceiver'] = self.chkTempInvalidReceiver.isChecked()
         if self.isTempInvalidDuplicateVisible:
             result['isTempInvalidDuplicate'] = self.chkTempInvalidDuplicate.isChecked()
         if self.isTempInvalidDuplicateWorkVisible:
@@ -592,6 +642,7 @@ class CTempInvalidF036SetupDialog(CDialogBase, Ui_TempInvalidF036SetupDialog):
             result['dateSort'] = self.cmbDateSort.currentIndex()
         result['isNumberSort'] = self.chkNumberSort.isChecked()
         result['isNoExternal'] = self.chkTempInvalidNoExternal.isChecked()
+        result['showTempInvalidStatus'] = self.chkShowTempInvalidStatus.isChecked()
         return result
 
 

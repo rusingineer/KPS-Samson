@@ -26,7 +26,14 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="3" column="1" colspan="5">
+   <item row="7" column="1" colspan="5">
+    <widget class="QCheckBox" name="chkOvertime">
+     <property name="text">
+      <string>Отдельно поставленные в очередь сверх времени</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="5">
     <widget class="CRBComboBox" name="cmbSpeciality">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -42,7 +49,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="4" column="0">
+   <item row="5" column="0">
     <widget class="QLabel" name="lblPerson">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -58,36 +65,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="1" column="2">
-    <widget class="QLabel" name="lblEndScheduleDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>по</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtEndScheduleDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="1" colspan="5">
-    <widget class="QCheckBox" name="chkGroupByOrgStructure">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Группировать по подразделениям</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1" colspan="5">
+   <item row="3" column="1" colspan="5">
     <widget class="COrgStructureComboBox" name="cmbOrgStructure">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -97,7 +75,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="4" column="1" colspan="5">
+   <item row="5" column="1" colspan="5">
     <widget class="CPersonComboBoxEx" name="cmbPerson">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -123,6 +101,35 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
+   <item row="8" column="1" colspan="5">
+    <widget class="QCheckBox" name="chkGroupByOrgStructure">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Группировать по подразделениям</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QLabel" name="lblEndScheduleDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>по</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtEndScheduleDate</cstring>
+     </property>
+    </widget>
+   </item>
    <item row="1" column="0">
     <widget class="QCheckBox" name="chkSchedulePeriod">
      <property name="sizePolicy">
@@ -138,19 +145,6 @@ p, li { white-space: pre-wrap; }
       <bool>false</bool>
      </property>
     </widget>
-   </item>
-   <item row="9" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>0</height>
-      </size>
-     </property>
-    </spacer>
    </item>
    <item row="0" column="1">
     <widget class="CDateEdit" name="edtBegRecordDate">
@@ -171,6 +165,19 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
+   <item row="10" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="0" column="0">
     <widget class="QCheckBox" name="chkRecordPeriod">
      <property name="sizePolicy">
@@ -187,10 +194,17 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="CDateEdit" name="edtBegScheduleDate">
+   <item row="9" column="1" colspan="5">
+    <widget class="QCheckBox" name="chkHidePersons">
+     <property name="text">
+      <string>Скрывать детализацию по врачам</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="3" colspan="2">
+    <widget class="CDateEdit" name="edtEndRecordDate">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -206,10 +220,10 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="0" column="3" colspan="2">
-    <widget class="CDateEdit" name="edtEndRecordDate">
+   <item row="1" column="1">
+    <widget class="CDateEdit" name="edtBegScheduleDate">
      <property name="enabled">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -238,7 +252,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </spacer>
    </item>
-   <item row="3" column="0">
+   <item row="4" column="0">
     <widget class="QLabel" name="lblSpeciality">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -251,13 +265,6 @@ p, li { white-space: pre-wrap; }
      </property>
      <property name="buddy">
       <cstring>cmbSpeciality</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="8" column="1" colspan="5">
-    <widget class="QCheckBox" name="chkHidePersons">
-     <property name="text">
-      <string>Скрывать детализацию по врачам</string>
      </property>
     </widget>
    </item>
@@ -280,17 +287,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="11" column="0" colspan="6">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
+   <item row="3" column="0">
     <widget class="QLabel" name="lblOrgStructure">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -306,21 +303,75 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
+   <item row="6" column="0">
     <widget class="QLabel" name="lblAppointmentType">
      <property name="text">
       <string>Тип приема</string>
      </property>
     </widget>
    </item>
-   <item row="5" column="1" colspan="5">
+   <item row="6" column="1" colspan="5">
     <widget class="QComboBox" name="cmbAppointmentType"/>
    </item>
-   <item row="6" column="1" colspan="5">
-    <widget class="QCheckBox" name="chkOvertime">
-     <property name="text">
-      <string>Отдельно поставленные в очередь сверх времени</string>
+   <item row="12" column="0" colspan="6">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblOrgStructureType">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Тип подразделения</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbOrgStructureType</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="5">
+    <widget class="QComboBox" name="cmbOrgStructureType">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <item>
+      <property name="text">
+       <string>Амбулатория</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Стационар</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Скорая помощь</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Мобильная станция</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Приемное отделение стационара</string>
+      </property>
+     </item>
     </widget>
    </item>
   </layout>

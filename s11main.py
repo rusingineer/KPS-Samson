@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,16 +12,8 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+from ctypes.util import find_library
 import library.patches
-from Events.PreCreateEventDialog import CPreCreateEventDialog
-from RefBooks.DiagnosticService.List import CRBDiagnosticServiceList
-from Reports.Analitic_referralMSE import CAnalitic_referralMSE
-from Reports.Attach_IEMK_EGISZ import CAttach_IEMK_EGISZ
-from Reports.DispObservationPriorityListReport import CDispObservationPriorityListReport
-from Reports.DispansList import CDispansListReport
-from Reports.ReportScheduleRegisteredCount import CReportScheduleRegisteredCount
-from Reports.ReportAddressFound import CAddressFound
-from library.DialogBase import CConstructHelperMixin
 
 assert library.patches  # затыкаем pyflakes
 
@@ -38,27 +30,28 @@ import time
 from optparse import OptionParser
 
 from PyQt4 import QtGui
-from PyQt4.QtCore                                       import (
-                                                                Qt,
-                                                                pyqtSignature,
-                                                                SIGNAL,
-                                                                QByteArray,
-                                                                QDateTime,
-                                                                QEvent,
-                                                                QEventLoop,
-                                                                QObject,
-                                                                QProcess,
-                                                                QThread,
-                                                                QTime,
-                                                                QTimer,
-                                                                QTranslator,
-                                                                QVariant,
-                                                               )
+from PyQt4.QtCore import (
+    Qt,
+    pyqtSignature,
+    SIGNAL,
+    QByteArray,
+    QDateTime,
+    QEvent,
+    QEventLoop,
+    QObject,
+    QProcess,
+    QThread,
+    QTime,
+    QTimer,
+    QTranslator,
+    QVariant, QDate,
+)
 
 from library                                            import database
 from library.Attach.WebDAVInterface                     import CWebDAVInterface
 from library.BaseApp                                    import CBaseApp
 from library.DbfViewDialog                              import viewDbf
+from library.DialogBase                                 import CConstructHelperMixin
 from library.downloadProgress                           import DownloadProgress, LoadSizeFormat
 from library.GS1CodeParser                              import CGS1CodeParser
 from library.MSCAPI.certErrors                          import ECertNotFound
@@ -86,9 +79,11 @@ from library.Utils import (
     anyToUnicode,
     exceptionToUnicode,
     forceBool,
+    forceDouble,
     forceTime,
     forceInt,
     forceRef,
+    forceDate,
     forceString,
     forceStringEx,
     formatSNILS,
@@ -113,6 +108,8 @@ from Accounting.CashBookDialog                          import CCashBookDialog
 
 from Blank.BlanksDialog                                 import CBlanksDialog
 
+from CentralizedAccounting.CentralizedAccountingDialog import CCentralizedAccountingDialog
+
 from DataCheck.CheckClients                             import ClientsCheck
 from DataCheck.CheckEvents                              import CEventsCheck
 from DataCheck.CheckTempInvalidEditDialog               import CCheckTempInvalidEditDialog
@@ -121,6 +118,9 @@ from DataCheck.LogicalControlDiagnosis                  import CControlDiagnosis
 from DataCheck.LogicalControlDoubles                    import CControlDoubles
 from DataCheck.LogicalControlMes                        import CLogicalControlMes
 
+from Events.PreCreateEventDialog                        import CPreCreateEventDialog
+
+from Exchange.AriadnaDialog.DialogOdli                  import DialogOdli
 from Exchange.Export131                                 import Export131
 from Exchange.ExportActionResult                        import ExportActionResult
 from Exchange.ExportActions                             import ExportActionType
@@ -141,6 +141,7 @@ from Exchange.ExportSanAviacInfoDialog                  import CExportSanAviacIn
 from Exchange.ExportXmlEmc                              import ExportXmlEmc
 from Exchange.ImportRbPrintTemplate                     import ImportRbPrintTemplate
 from Exchange.Import131Errors                           import Import131Errors
+from Exchange.ImportCSVClient                           import  ImportCSVClient
 from Exchange.Import131                                 import Import131
 from Exchange.Import131XML                              import Import131XML
 from Exchange.ImportActions                             import ImportActionType
@@ -186,6 +187,7 @@ from Orgs.Contracts                                     import CContractsList
 from Orgs.CreateAttachClientsForArea                    import CCreateAttachClientsForAreaDialog
 from Orgs.Orgs                                          import COrgsList
 from Orgs.OrgstructurePlanningHospitalBedsProfile       import CPlanningHospitalBedProfileDialog
+from Orgs.PersonSubstitution                            import CPersonSubstitutionDialog
 from Orgs.Utils                                         import getOrganisationInfo
 
 from Quoting.QuotingDialog                              import CQuotingDialog
@@ -213,6 +215,7 @@ from RefBooks.Complain.List                             import CRBComplainList
 from RefBooks.ContactType.List                          import CRBContactTypeList
 from RefBooks.ContainerType.List                        import CRBContainerTypeList
 from RefBooks.ContingentKind.List                       import CRBContingentKindList
+from RefBooks.ContingentKindRemoval.List                import CRBContingentKindRemovalList
 from RefBooks.ContingentType.List                       import CRBContingentTypeList
 from RefBooks.ContractAttributeType.List                import CRBContractAttributeTypeList
 from RefBooks.ContractCoefficientType.List              import CRBContractCoefficientTypeList
@@ -222,6 +225,7 @@ from RefBooks.CureType.List                             import CRBCureType
 from RefBooks.DeathReason.List                          import CRBDeathReasonList
 from RefBooks.DiagnosisType.List                        import CRBDiagnosisTypeList
 from RefBooks.DiagnosticResult.List                     import CRBDiagnosticResultList
+from RefBooks.DiagnosticService.List                    import CRBDiagnosticServiceList
 from RefBooks.Diet.List                                 import CRBDiet
 from RefBooks.DiseaseCharacter.List                     import CRBDiseaseCharacterList
 from RefBooks.DiseasePhase.List                         import CRBDiseasePhaseList
@@ -308,6 +312,7 @@ from RefBooks.PlanningHospitalActivity.List             import CRBPlanningHospit
 from RefBooks.PolicyKind.List                           import CRBPolicyKindList
 from RefBooks.PolicyType.List                           import CRBPolicyTypeList
 from RefBooks.Post.List                                 import CRBPostList
+from RefBooks.PostOnAppointment.List                    import CPostOnAppointmentList
 from RefBooks.PrikCoefType.List                         import CRBPrikCoefTypeList
 from RefBooks.PrintTemplate.List                        import CRBPrintTemplate
 from RefBooks.ProphylaxisPlanningType.List              import CRBProphylaxisPlanningType
@@ -336,6 +341,8 @@ from RefBooks.StockMotionNumber.List                    import CRBStockMotionNum
 from RefBooks.StockRecipe.List                          import CRBStockRecipeList
 from RefBooks.SuiteReagent.List                         import CRBSuiteReagentList
 from RefBooks.SurveillanceRemoveReason.List             import CRBSurveillanceRemoveReasonList
+from RefBooks.ObservationGroup.List                     import CRBObservationGroupList
+from RefBooks.ObservationSubgroup.List                  import CRBObservationSubgroupList
 from RefBooks.TariffCategory.List                       import CRBTariffCategoryList
 from RefBooks.TempInvalidAnnulmentReason.List           import CRBTempInvalidAnnulmentReasonList
 from RefBooks.TempInvalidBreak.List                     import CRBTempInvalidBreakList
@@ -386,6 +393,7 @@ from Registry.AttachOnlineService                       import CAttachOnlineServ
 from Reports.ActDeattachCheckReport                     import CActDeattachCheckReport
 from Reports.ActionPropertiesTestsReport                import CActionPropertiesTestsReport
 from Reports.ActReconciliationMutualSettlements         import CActReconciliationMutualSettlements
+from Reports.Analitic_referralMSE                       import CAnalitic_referralMSE
 from Reports.AnaliticReportsAdditionalSurgery           import CAnaliticReportsAdditionalSurgery
 from Reports.AnaliticReportsChildrenLeaved              import CAnaliticReportsChildrenLeaved
 from Reports.AnaliticReportsDeathStationary             import CAnaliticReportsDeathStationary
@@ -396,6 +404,8 @@ from Reports.AnaliticReportsSurgeryStationary           import CAnaliticReportsS
 from Reports.AnalyticsExecutionMes                      import showCheckMesDescription
 from Reports.AnalyticsReportHospitalizedClients         import CAnalyticsReportHospitalizedClients
 from Reports.AnalyticsReportIncomeAndLeavedClients      import CAnalyticsReportIncomeAndLeavedClients
+from Reports.Attach_IEMK_EGISZ                          import CAttach_IEMK_EGISZ
+from Reports.Attach_SEMD_IEMK                           import CAttach_SEMD_IEMK
 from Reports.AttachedContingent                         import CAttachedContingent
 from Reports.AttachmentList                             import CAttachmentListReport
 from Reports.AttachmentBySmo                            import CAttachmentBySmoReport
@@ -412,8 +422,11 @@ from Reports.DeathSurvey                                import CDeathSurvey
 from Reports.DeAttachmentList                           import CDeAttachmentListReport
 from Reports.DiagnosisDispansPlanedList                 import CDiagnosisDispansPlanedListReport, CDiagnosisDispansNoVisitReport
 from Reports.DiagnosticYearReport                       import CDiagnosticYearReport
+from Reports.DispansList import CDispansListReport
 from Reports.DispObservationList                        import CDispObservationList
+from Reports.DispObservationPriorityListReport import CDispObservationPriorityListReport
 from Reports.DispObservationSurvey                      import CDispObservationSurvey
+from Reports.DispReport                                 import CDispReport
 from Reports.EconomicAnalisysE1                         import CEconomicAnalisysE1Ex
 from Reports.EconomicAnalisysE2                         import CEconomicAnalisysE2Ex
 from Reports.EconomicAnalisysE3                         import CEconomicAnalisysE3Ex
@@ -506,6 +519,7 @@ from Reports.ReportActionsByServiceType                 import CReportActionsByS
 from Reports.ReportActions                              import CReportActions
 from Reports.ReportActionsServiceCutaway                import CReportActionsServiceCutaway
 from Reports.ReportAcuteInfections                      import CReportAcuteInfections
+from Reports.ReportAddressFound                         import CAddressFound
 from Reports.ReportAstheniaResults                      import CReportAstheniaResults
 from Reports.ReportAttachingMotion                      import CReportAttachingMotion
 from Reports.ReportBIRADS                               import CReportBIRADS
@@ -541,6 +555,7 @@ from Reports.ReportF30_2110                             import CReportF30_2110
 from Reports.ReportF30_2510                             import CReportF30_2510
 from Reports.ReportF30                                  import CReportF30
 from Reports.ReportF30_SMP                              import CReportF30_SMP
+from Reports.ReportF30KK_2100                           import CReportF30KK_2100
 from Reports.ReportF39                                  import CReportF39
 from Reports.ReportF62_4000                             import CReportF62_4000
 #from Reports.ReportF62_7000                             import CReportF62_7000
@@ -596,9 +611,12 @@ from Reports.ReportNumberInsuredPersonsSMO              import CReportNumberInsu
 from Reports.ReportNumberResidentsAddress               import CReportNumberResidentsAddress
 from Reports.ReportOnPerson                             import CReportOnPerson
 from Reports.ReportOnServiceType                        import CReportOnServiceType
+from Reports.ReportOperationalMonitoring                import CReportOperationalMonitoring
 from Reports.ReportOrgStructureSummary                  import CReportOrgStructureSummary
 from Reports.ReportPayers                               import CReportPayers
 from Reports.ReportPayersWithFinance                    import CReportPayersWithFinance
+from Reports.ReportPeopleOfCancer import CPeopleOfCancer
+from Reports.ReportPeopleWithDiseasesCirculatorySystem import CPeopleWithDiseasesCirculatorySystem
 from Reports.ReportPersonSickList                       import CReportPersonSickList
 from Reports.ReportPersonSickListStationary             import CReportPersonSickListStationary
 from Reports.ReportPGG                                  import CReportPGG
@@ -611,6 +629,7 @@ from Reports.ReportRoadMap                              import CReportRoadMap
 from Reports.ReportSanatoriumArrivalDiary               import CReportSanatoriumArrivalDiary
 from Reports.ReportSanatoriumArrived                    import CReportSanatoriumArrived
 from Reports.ReportSanatoriumResidents                  import CReportSanatoriumResidents
+from Reports.ReportScheduleRegisteredCount              import CReportScheduleRegisteredCount
 from Reports.ReportsBeingInStationary                   import CReportsBeingInStationary
 from Reports.ReportServicesMonitoredContingent          import CReportServicesMonitoredContingent
 from Reports.ReportSMOClients                           import CReportSMOClients
@@ -619,6 +638,7 @@ from Reports.ReportStomatF30_2700_2015                  import CReportStomatF30_
 from Reports.ReportStomatF30_2700                       import CReportStomatF30_2700, CReportStomatF30_2710
 from Reports.ReportStomatF39_3                          import CReportStomatF39_3
 from Reports.ReportStomatSummary                        import CReportStomatSummary
+from Reports.ReportSummaryClientNotApply import CReportSummaryClientNotApply
 from Reports.ReportSummaryOnAccounts                    import CReportSummaryOnAccounts
 from Reports.ReportSummaryOnServices                    import CReportSummaryOnServices
 from Reports.ReportSummaryPos                           import CReportSummaryPosEx
@@ -735,6 +755,7 @@ from Reports.StatReportF4_D_For_Teenager                import CStatReportF4_D_F
 from Reports.StatReportF57                              import CStatReportF57, CStatReportF57_1000, CStatReportF57_2000, CStatReportF57_3000, CStatReportF57_3500
 from Reports.StatReportF5_D_For_Teenager                import CStatReportF5_D_For_Teenager
 from Reports.StatReportF63                              import CStatReportF63
+from Reports.StatReportF065                             import CStatReportF065_1000, CStatReportF065_2000
 from Reports.StatReportF71                              import CStatReportF71
 from Reports.StatReportF9_2000                          import CStatReportF9_2000
 from Reports.StatReportF9_2001                          import CStatReportF9_2001
@@ -801,6 +822,7 @@ from Users.Rights import (urAccessAccountInfo,
                           urAccessBlanks,
                           urAccessCalendar,
                           urAccessCashBook,
+                          urAccessCentralizedAccounting,
                           urAccessContract,
                           urAccessEditTimeLine,
                           urAccessEquipment,
@@ -955,14 +977,17 @@ from Users.Rights import (urAccessAccountInfo,
                           urSetupInformer,
                           urAccessRefPersnftnContingentKind,
                           urPlanningHospitalBedProfile, urAdminServiceTMK, urServiceTMKdirectionList,
-                          urEditLoginPasswordProfileUser, urAccessLethality, urAccessClientAttachFederalService
+                          urEditLoginPasswordProfileUser, urAccessLethality, urAccessClientAttachFederalService,
+                          urPersonSubstitution, urAccessEconomicAnalysis
                           )
-from Users.Tables                                       import demoUserName, tblUser, usrLogin, usrRetired
+from Users.Tables import demoUserName, tblUser, usrLogin, usrRetired, tblLogin
 from Users.tryKerberosAuth                              import tryKerberosAuth
 from Users.UserInfo                                     import CUserInfo, CDemoUserInfo
 from library.PrintDebug.Utils                           import DebugPrintData
 
 from Ui_s11main                                         import Ui_MainWindow
+from library.TimeoutLogout               import CTimeoutLogout
+from Exchange.UO.MedServiceProfilesDialog import CMedServiceProfilesDialog
 
 
 class CS11mainApp(CBaseApp):
@@ -1004,7 +1029,6 @@ class CS11mainApp(CBaseApp):
         self._currentClientId = None
         self.userInfo = None
         self.maxLifeDuration = 130
-        self.jobTicketReserveHolder = CJobTicketReserveHolder(self)
         self._counterController = None
         self._globalPreferences = {}
         self._oldClipboardSlot = None
@@ -1026,6 +1050,7 @@ class CS11mainApp(CBaseApp):
         self.webDAVInterface = CWebDAVInterface()
         self.__checkCertExpiration = {}
         self._session = {}
+        self._timeoutLogout = CTimeoutLogout(self)
 
 
     def writeAppLog(self, log, mark=u''):
@@ -1106,7 +1131,7 @@ class CS11mainApp(CBaseApp):
         database.registerDocumentTable('InformerMessage')
         database.registerDocumentTable('Job')
         database.registerDocumentTable('Licence')
-        database.registerDocumentTable('Login')
+        database.registerDocumentTable(tblLogin)
         database.registerDocumentTable('Notification_Rule')
         database.registerDocumentTable('Organisation')
         database.registerDocumentTable('OrgStructure')
@@ -1127,6 +1152,7 @@ class CS11mainApp(CBaseApp):
         database.registerDocumentTable('Schedule')
         database.registerDocumentTable('Schedule_Item')
         database.registerDocumentTable('StockMotion')
+        database.registerDocumentTable('StockPurchaseContract')
         database.registerDocumentTable('SuspendedAppointment')
         database.registerDocumentTable('TakenTissueJournal')
         database.registerDocumentTable('TempInvalid')
@@ -1375,7 +1401,7 @@ class CS11mainApp(CBaseApp):
 
         def processEkp(data):
             if self.getIdentCardServiceUrl() and self.ekpBarCodeEnabled():
-                identCard = tryCardIdAsEkpIdentCard(simpleBarCodeData)
+                identCard = tryCardIdAsEkpIdentCard(data)
                 if identCard:
                     self.emit(SIGNAL('identCardReceived(PyQt_PyObject)'), identCard)
                     return True
@@ -1384,16 +1410,16 @@ class CS11mainApp(CBaseApp):
 
         def processGS1(data):
             try:
-                gs1 = dict(CGS1CodeParser.parseCode(data, getSymbologyIdLen(data)))
+                data = stripSymbologyId(data)
+                assocList = CGS1CodeParser.parseCode(data)
+                gs1 = dict(assocList)
                 if '00' in gs1:
-                    # self.emulateKeyboardInput('sscc:'+gs1['00'])
                     self.emit(SIGNAL('ssccReceived(QString)'), gs1['00'])
                 elif '01' in gs1 and '21' in gs1:
-                    # self.emulateKeyboardInput('sgtin:'+gs1['01'] + gs1['21'])
                     self.emit(SIGNAL('sgtinReceived(QString)'), gs1['01'] + gs1['21'])
                 elif '01' in gs1:
-                    # self.emulateKeyboardInput('gtin:'+gs1['01'])
                     self.emit(SIGNAL('gtinReceived(QString)'), gs1['01'])
+                self.emit(SIGNAL('Gs1BarcodeReceived(QByteArray, PyQt_PyObject)'),  data, assocList)
             except:
                 self.logCurrentException()
                 self.beep()
@@ -1409,11 +1435,11 @@ class CS11mainApp(CBaseApp):
                 if self.scanner.inWaiting():
                     data = self.scanner.readall()
 #            except IOError, e:
-            except UnicodeError, e:
+            except UnicodeError as e:
                 if self.scannerConnectionReport():
                     QtGui.QMessageBox.information(self.mainWindow, u'Ошибка считывания со сканера',  anyToUnicode(e.object), QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
                     self.scannerTimer.stop()
-            except Exception, e:
+            except Exception as e:
                 if self.scannerConnectionReport():
                     QtGui.QMessageBox.information(self.mainWindow, u'Ошибка считывания со сканера',  exceptionToUnicode(e), QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
                     self.scannerTimer.stop()
@@ -1431,8 +1457,8 @@ class CS11mainApp(CBaseApp):
                         processEkp(stripSymbologyId(data))
                     else:
                         data = stripSymbologyId(data)
-                simpleBarCode = re.match('^\x02?([ 0-9]+)[\n\r\t\x00]*$', data)
-                if simpleBarCode:
+                        simpleBarCode = re.match('^\x02?([ 0-9]+)[\n\r\t\x00]*$', data)
+                        if simpleBarCode:
                             simpleBarCodeData = simpleBarCode.group(1)
                             self.emulateKeyboardInput('\x02'+simpleBarCodeData+'\n')
                 else:
@@ -1664,6 +1690,22 @@ class CS11mainApp(CBaseApp):
             return forceBool(prefs.get('mdlpEnabled', True))
         mdlpUrl, clientId, secret, useStunnel, stunnelUrl, notificationMode = self.getMdlpPrefs()
         return mdlpUrl and clientId and secret and(not useStunnel or stunnelUrl)
+
+    
+    def getMdlpRetRegPres(self):
+        prefs = self.preferences.appPrefs
+        if 'mdlpEnabled' not in prefs or forceBool(prefs.get('mdlpEnabled', True)):
+            url      = forceString(prefs.get('mdlpRetRegUrl', ''))
+            user     = forceString(prefs.get('mdlpRetRegUser', ''))
+            password = forceString(prefs.get('mdlpRetRegPassword', ''))
+        else:
+            url = user = password = ''
+        return url, user, password
+        
+
+    def isMdlpRetRegEnabled(self):
+        url, user, password = self.getMdlpRetRegPres()
+        return bool(url and user and password)
 
 
     def recordEvent(self, receiver, event):
@@ -2161,6 +2203,10 @@ class CS11mainApp(CBaseApp):
     def getCertExpirationWarnPeriod(self):
         return forceInt(self.preferences.appPrefs.get('certExpirationWarnPeriod', 7))
 
+    
+    def getAllowUnsignedAttachments(self):
+        # разрешить прикрепление документов без ЭЦП
+        return forceBool(self.preferences.appPrefs.get('allowUnsignedAttachments', False))
 
     def getAllowUnsignedAttachments(self):
         # разрешить прикрепление документов без ЭЦП
@@ -2545,6 +2591,61 @@ class CS11mainApp(CBaseApp):
         # отображение в Регистрационная карта пациента вкладки ЭпидНаблюдение:
         return forceBool(self.preferences.appPrefs.get('showingClientCardTabEpidCase', True))
 
+    
+    def showingHospitalBedsTabDeath(self):
+        # отображение в Стационарный монитор вкладки Умерло:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabDeath', True))
+    
+    
+    def showingHospitalBedsTabEmergency(self):
+        # отображение в Стационарный монитор пациента вкладки СМП:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabEmergency', True))
+    
+    
+    def showingHospitalBedsTabFund(self):
+        # отображение в Стационарный монитор пациента вкладки Коечный фонд:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabFund', True))
+    
+    
+    def showingHospitalBedsTabLeaved(self):
+        # отображение в Стационарный монитор пациента вкладки Выбыли:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabLeaved', True))
+    
+    
+    def showingHospitalBedsTabPresence(self):
+        # отображение в Стационарный монитор пациента вкладки Присутствуют:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabPresence', True))
+    
+    
+    def showingHospitalBedsTabQueue(self):
+        # отображение в Стационарный монитор пациента вкладки В очереди:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabQueue', True))
+    
+    
+    def showingHospitalBedsTabReadyToLeave(self):
+        # отображение в Стационарный монитор пациента вкладки Готовы к выбытию:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabReadyToLeave', True))
+    
+    
+    def showingHospitalBedsTabReanimation(self):
+        # отображение в Стационарный монитор пациента вкладки Реанимация:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabReanimation', False))
+    
+    
+    def showingHospitalBedsTabReceived(self):
+        # отображение в Стационарный монитор пациента вкладки Поступили:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabReceived', True))
+    
+    
+    def showingHospitalBedsTabRenunciation(self):
+        # отображение в Стационарный монитор пациента вкладки Отказ от госпитализации:
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabRenunciation', True))
+    
+    
+    def showingHospitalBedsTabTransfer(self):
+        # отображение в Стационарный монитор пациента вкладки Переведены (в отделение):
+        return forceBool(self.preferences.appPrefs.get('showingHospitalBedsTabTransfer', True))
+
 
     def showingSpellCheckHighlight(self):
         # отображение Проверки правописания:
@@ -2604,6 +2705,10 @@ class CS11mainApp(CBaseApp):
     def informerShowByUserNotArea(self):
         # Информатор: фильтровать уведомления по пациентам без участка:
         return forceBool(self.preferences.appPrefs.get('informerShowByUserNotArea', False))
+
+
+    def disableCheckDB(self):
+        return forceBool(self.preferences.appPrefs.get('disableCheckDB', False))
 
 
     def showingInInfoBlockSocStatus(self):
@@ -2735,6 +2840,10 @@ class CS11mainApp(CBaseApp):
         return self.morphologyMKBIsVisible
 
 
+    def gis_oms_enable(self):
+        return self.checkGlobalPreference('useServiceGISOMS', u'да')
+
+
     def defaultHospitalBedProfileByMoving(self):
         # ЭТА ГЛОБАЛЬНАЯ НАСТРОЙКА ВРЕМЕННО ЗАМОРОЖЕНА.
 #        # Учитывать профиль койки по движению:
@@ -2828,8 +2937,15 @@ class CS11mainApp(CBaseApp):
         value = forceInt(self._globalPreferences.get('23:EventTimeout', 0))
         if value>120 or value<2: value=0
         return value
-    
-    
+
+
+    def getConnectionTimeout(self):
+        value = forceInt(self._globalPreferences.get('23:ConnectionTimeout', 0))
+        if value > 120 or value < 2:
+            value = 0
+        return value
+
+
     def getScheduleFIOAppointment(self):
         return self.checkGlobalPreference('23:ScheduleFIOAppointment', u'да')
     
@@ -3139,6 +3255,22 @@ class CS11mainApp(CBaseApp):
         return 0
 
 
+    def minQntConsumableUnitsStock(self):
+        #Минимальное количество ЛСиИМН в расходных единицах
+        value = self._globalPreferences.get(u'minQntConsumableUnitsStock', None)
+        if value:
+            return forceDouble(value)
+        return 0
+
+
+    def createStockResidualQuantityAuto(self):
+        #Создание документа в автоматическом режиме "Списание остаточных количеств ЛСиИМН"
+        value = self._globalPreferences.get(u'createStockResidualQuantityAuto', '')
+        if value:
+            return forceStringEx(value)
+        return ''
+
+
     def isDurationTakingIntoMedicalDays(self):
         # Использовать "Расчет длительности с учётом медицинских суток", по умолчанию - нет
         return self.checkGlobalPreference('takingIntoMedicalDays', u'да')
@@ -3310,7 +3442,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.menuPreferences.addAction(dock.toggleViewAction())
         if QtGui.qApp.defaultKLADR()[:2] == u'23':
             self.menuPreferences.addAction(self.dockSMP.toggleViewAction())
-#            dock.loadDialogPreferences()
         if bgParams:
             self.centralWidget.setBackground(bgParams)
 
@@ -3344,7 +3475,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actProfileYearReport.setVisible(False)
         # self.actProphylaxisPlanning.setVisible(False)
         # self.actSurgeryJournal.setVisible(False)
-        self.actHealthResort.setVisible(False)
+        # self.actHealthResort.setVisible(False)
         self.actTreatmentScheme.setVisible(False)
         self.actTreatmentSchedule.setVisible(False)
         self.actTreatmentControl.setVisible(False)
@@ -3439,6 +3570,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         app = QtGui.qApp
         loggedIn = bool(app.db) and (app.demoMode or app.userId is not None)
         orgIdSet = loggedIn and bool(app.currentOrgId())
+        isMedical = loggedIn and bool(app.currentOrgId()) and forceInt(app.db.translate('Organisation', 'id', app.currentOrgId(), 'isMedical'))
 #        orgStructureIdSet = loggedIn and bool(app.currentOrgStructureId())
         isAdmin      = loggedIn and app.userHasRight(urAdmin)
         isAccountant = orgIdSet and (app.userHasRight(urAccessAccountInfo) or isAdmin)
@@ -3483,6 +3615,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actFormRegistration.setEnabled(isBlankskeeper)
         self.actHospitalBeds.setEnabled(orgIdSet and (app.userHasRight(urAccessHospitalBeds) or isAdmin))
         self.actHealthResort.setEnabled(orgIdSet and (app.userHasRight(urAccessHealthResort) or isAdmin))
+        self.actHealthResort.setVisible(isMedical == 5)
         self.actTreatmentScheme.setEnabled(app.userHasRight(urAccessTreatmentScheme))
         self.actTreatmentSchedule.setEnabled(app.userHasRight(urAccessTreatmentSchedule))
         self.actTreatmentControl.setEnabled(app.userHasRight(urAccessTreatmentControl))
@@ -3589,7 +3722,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.mnuDD2007.setEnabled(fullAnalysisEnabled)
         self.mnuAnalysisService.setEnabled(app.userHasRight(urAccessAnalysisService) or fullAnalysisEnabled)
         self.actWorkload.setEnabled(app.userHasRight(urAccessWorkload) or fullAnalysisEnabled)
-        self.mnuReportEconomicAnalisys.setEnabled(loggedIn)
+        self.mnuReportEconomicAnalisys.setEnabled(loggedIn and (app.userHasRight(urAccessEconomicAnalysis) or isAdmin))
         self.mnuAccountingAnalysis.setEnabled(app.userHasRight(urAccessAccountingAnalysis) or fullAnalysisEnabled)
         self.mnuEmergencyCall.setEnabled(app.userHasRight(urAccessEmergencyCall) or fullAnalysisEnabled)
         self.mnuReportImunoprophylaxis.setEnabled(app.userHasRight(urAccessReportImunoprophylaxis) or fullAnalysisEnabled)
@@ -3897,6 +4030,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.action_WSAttach.setEnabled(app.userHasRight(urAccessClientAttachExport))
         self.mnuUnlockDialog.setEnabled(app.userHasRight(urAdmin) or app.userHasRight(urUnlockData))
         self.actPlanningOrgStructureHospitalBedProfile.setEnabled(app.userHasRight(urPlanningHospitalBedProfile))
+        self.actPersonSubstitutionService.setEnabled(app.userHasRight(urAdmin) or app.userHasRight(urPersonSubstitution))
         # Подменю Логический контроль
         self.mnuCheck.setEnabled(isAdmin or app.userHasRight(urAccessLogicalControl))
         self.actControlDiagnosis.setEnabled(isAdmin or app.userHasRight(urAccessLogicalControlDiagnosis))
@@ -3941,18 +4075,57 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
             if loggedIn and app.userHasRight(right):
                 action.setEnabled(True)
-                dock.loadDialogPreferences() # ради загрузки видимости и пр.
+                dock.loadDialogPreferences()  # ради загрузки видимости и пр.
             else:
                 dock.setVisible(False)
                 action.setEnabled(False)
-        if hasattr(self, 'dockSMP'):
-            self.dockSMP.toggleViewAction().setEnabled(loggedIn)
+        if QtGui.qApp.defaultKLADR()[:2] == u'23' and hasattr(self, 'dockSMP'):
+            if loggedIn:
+                self.dockSMP.toggleViewAction().setEnabled(True)
+                self.dockSMP.loadDialogPreferences()
+            else:
+                self.dockSMP.setVisible(False)
+                self.dockSMP.toggleViewAction().setEnabled(False)
 
         self.actMyArea.setEnabled(loggedIn)
 
         # Меню помощь
         self.actAbout.setEnabled(True)
         self.actAboutQt.setEnabled(True)
+
+        # Скрываем неиспользуемые пункты меню Обмен
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.actImportEisOmsClients.setVisible(False)
+            self.actImportDD.setVisible(False)
+            self.actImport131DBF.setVisible(False)
+            self.actImport131XML.setVisible(False)
+            self.actImport131Errors.setVisible(False)
+            self.menu_132.menuAction().setVisible(False)
+            self.menuImportProfiles.menuAction().setVisible(False)
+            self.actImportLgot.setVisible(False)
+            self.actImportQuotaFromVTMP.setVisible(False)
+            self.actImpotrFromSail.setVisible(False)
+            self.actImportFromSailXML.setVisible(False)
+            self.actImportPrimaryDocFromXml.setVisible(False)
+            self.actExport131.setVisible(False)
+            self.actExportRD2.setVisible(False)
+            self.actExportHL7v2_5.setVisible(False)
+            self.actExportPrimaryDocInXml.setVisible(False)
+            self.actExportXmlEmc.setVisible(False)
+            self.menu_8.menuAction().setVisible(False)
+            self.actExportActionResult.setVisible(False)
+            self.actExportFeedDataCsv.setVisible(False)
+
+            self.actImportEisOmsLpu.setVisible(False)
+            self.actImportOrgsINFIS.setVisible(False)
+            self.actImportEisOmsSmo.setVisible(False)
+
+        self.actImportCSVClient.setVisible(False)
+        if bool(app.db):
+            orgId = app.getCurrentOrgId()
+            if orgId:
+                if forceString(app.db.translate('Organisation', 'id', orgId, 'OGRN')) == u"1022302832078":
+                    self.actImportCSVClient.setVisible(True)
 
 
     def setAdmittingEnabled(self, admitting, isAdmitting=False, isDuty=False):
@@ -4286,6 +4459,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 QtGui.qApp.loadCalendarInfo()
                 self.setUserName(QtGui.qApp.userName())
                 self.updateActionsState()
+                QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=self.logoutAndLogin)
                 try:
                     showInformer(QtGui.qApp.mainWindow, True)
                 except:
@@ -4306,6 +4480,16 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         personList = getLoginPersonList(loginId)
         dialogSelectPerson = CPersonSelectDialog(self, personList=personList)
         if dialogSelectPerson.exec_():
+            self.dockResources.saveDialogPreferences()
+            self.dockFreeQueue.saveDialogPreferences()
+            self.dockDiagnosis.saveDialogPreferences()
+            if QtGui.qApp.defaultKLADR()[:2] == u'23':
+                self.dockSMP.saveDialogPreferences()
+            self.closeRegistryWindow()
+            self.closeSuspendedAppointmentWindow()
+            self.closeDispExchangeWindow()
+            self.closeHomeCallRequestsWindow()
+            self.closeProphylaxisPlanningWindow()
             personId = dialogSelectPerson.getPersonId()
             QtGui.qApp.clearUserId(True)
             QtGui.qApp.setUserId(personId, False, loginId)
@@ -4318,9 +4502,12 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     @pyqtSignature('')
     def on_actLogout_triggered(self):
+        QtGui.qApp._timeoutLogout.stop()
         self.dockResources.saveDialogPreferences()
         self.dockFreeQueue.saveDialogPreferences()
         self.dockDiagnosis.saveDialogPreferences()
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.dockSMP.saveDialogPreferences()
         self.closeRegistryWindow()
         self.closeSuspendedAppointmentWindow()
         self.closeDispExchangeWindow()
@@ -4333,6 +4520,12 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.setUserName('')
         self.mruEventListChanged = True
         self.mruEventList = []
+
+
+    # при отключении по таймеру
+    def logoutAndLogin(self):
+        self.on_actLogout_triggered()
+        self.on_actLogin_triggered()
 
 
     @pyqtSignature('')
@@ -4528,6 +4721,17 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         if healthResortDialog:
             healthResortDialog.exec_()
 
+    
+    @pyqtSignature('')
+    def on_actCentralizedAccounting_triggered(self):
+        QtGui.qApp.setWaitCursor()
+        try:
+            centralizedAccountingDialog = CCentralizedAccountingDialog(self)
+        finally:
+            QtGui.qApp.restoreOverrideCursor()
+        if centralizedAccountingDialog:
+            centralizedAccountingDialog.exec_()
+    
 
     @pyqtSignature('')
     def on_actSurgeryJournal_triggered(self):
@@ -4727,6 +4931,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actImportPrimaryDocFromXml_triggered(self):
         ImportPrimaryDocFromXml(self)
+
+
+    @pyqtSignature('')
+    def on_actImportCSVClient_triggered(self):
+        ImportCSVClient(self).exec_()
 
 
     @pyqtSignature('')
@@ -5328,6 +5537,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CAttach_IEMK_EGISZ(self).exec_()
 
     @pyqtSignature('')
+    def on_actAttach_SEMD_IEMK_triggered(self):
+        CAttach_SEMD_IEMK(self).exec_()
+
+    @pyqtSignature('')
     def on_actRepServiceAttach_triggered(self):
         CRepServiceAttach(self).exec_()
 
@@ -5798,6 +6011,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     @pyqtSignature('')
+    def on_actReportF30KK_2100_triggered(self):
+        CReportF30KK_2100(self).exec_()
+
+
+    @pyqtSignature('')
     def on_actReportF30_2110_triggered(self):
         CReportF30_2110(self).exec_()
     
@@ -6134,6 +6352,15 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 #    def on_actReportF62_7000_triggered(self):
 #        CReportF62_7000(self).exec_()
 
+    @pyqtSignature('')
+    def on_actStatReportF65_1000_triggered(self):
+        CStatReportF065_1000(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStatReportF65_2000_triggered(self):
+        CStatReportF065_2000(self).exec_()
+
 
     @pyqtSignature('')
     def on_actReportActions_triggered(self):
@@ -6224,6 +6451,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actForeignCitizens_triggered(self):
         CEconomicAnalisysForeignCitizensEx(self).exec_()
+
+    @pyqtSignature('')
+    def on_actOperationalMonitoring_triggered(self):
+        CReportOperationalMonitoring(self).exec_()
 
     @pyqtSignature('')
     def on_actE19_triggered(self):
@@ -6584,6 +6815,28 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actDispObservationPriorityListReport_triggered(self):
         CDispObservationPriorityListReport(self).exec_()
 
+
+    @pyqtSignature('')
+    def on_actDispReport_triggered(self):
+        CDispReport(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportSummaryClientNotApply_triggered(self):
+        CReportSummaryClientNotApply(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actOdliServ_triggered(self):
+        DialogOdli(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actPeopleOfCancer_triggered(self):
+        CPeopleOfCancer(self).exec_()
+
+    @pyqtSignature('')
+    def on_actPeopleWithDiseasesCirculatorySystem_triggered(self):
+        CPeopleWithDiseasesCirculatorySystem(self).exec_()
 
     @pyqtSignature('')
     def on_actTempInvalidList_triggered(self):
@@ -7355,6 +7608,15 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actAttachOnlineService_triggered(self):
         CAttachOnlineServiceDialog(self).exec_()
 
+    @pyqtSignature('')
+    def on_actUO_triggered(self):
+        dlg = CMedServiceProfilesDialog(self)
+        dlg.exec_()
+    
+    @pyqtSignature('')
+    def on_actPersonSubstitutionService_triggered(self):
+        CPersonSubstitutionDialog(self).exec_()
+
 
     @pyqtSignature('')
     def on_actPlanningHospitalActivity_triggered(self):
@@ -7369,6 +7631,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actPlanningHealthResortActivity_triggered(self):
         CRBPlanningHealthResortActivity(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actPostOnAppointment_triggered(self):
+        CPostOnAppointmentList(self).exec_()
 
 
     @pyqtSignature('')
@@ -7747,6 +8014,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         clientInfo = getClientInfo2(clientId)
         templateId = getFirstPrintTemplate('admin')
         data = {'client': clientInfo}
+        data['clientId'] = clientId
         QtGui.qApp.call(self, applyTemplate, (self, templateId[1], data, None))
 
     @pyqtSignature('')
@@ -7757,6 +8025,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         clientInfo = getClientInfo2(clientId)
         templateId = getFirstPrintTemplate('admin_years')
         data = {'client': clientInfo}
+        data['clientId'] = clientId
         QtGui.qApp.call(self, applyTemplate, (self, templateId[1], data, None))
 
     @pyqtSignature('')
@@ -8027,6 +8296,16 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     @pyqtSignature('')
+    def on_actRBObservationGroup_triggered(self):
+        CRBObservationGroupList(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actRBObservationSubgroup_triggered(self):
+        CRBObservationSubgroupList(self).exec_()
+
+
+    @pyqtSignature('')
     def on_actRBSpecimenType_triggered(self):
         CRBSpecimenTypeList(self).exec_()
 
@@ -8266,6 +8545,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actRBContingentKind_triggered(self):
         CRBContingentKindList(self).exec_()
+        
+    @pyqtSignature('')
+    def on_actRBContingentKindRemoval_triggered(self):
+        CRBContingentKindRemovalList(self).exec_()
 
     @pyqtSignature('')
     def on_actExportLocalLabResultsToUSISH_triggered(self):
@@ -8280,35 +8563,36 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     @pyqtSignature('')
     def on_actAppPreferences_triggered(self):
-        qApp = QtGui.qApp
+        application = QtGui.qApp
         try:
-            qApp.closeScanner()
-            qApp.closeSmartCardReader()
+            application.closeScanner()
+            application.closeSmartCardReader()
             dialog = CPreferencesDialog(self)
-            dialog.setProps(qApp.preferences.appPrefs)
+            dialog.setProps(application.preferences.appPrefs)
             if dialog.exec_():
-                prevOrgId = qApp.currentOrgId()
-                prevOrgStructureId = qApp.currentOrgStructureId()
-                qApp.preferences.appPrefs.update(dialog.getProps())
-                qApp.preferences.save()
-                orgId = qApp.currentOrgId()
+                prevOrgId = application.currentOrgId()
+                prevOrgStructureId = application.currentOrgStructureId()
+                application.preferences.appPrefs.update(dialog.getProps())
+                application.preferences.save()
+                orgId = application.currentOrgId()
                 if not orgId:
                     self.closeRegistryWindow()
                     self.closeSuspendedAppointmentWindow()
                     self.closeProphylaxisPlanningWindow()
                     self.closeDispExchangeWindow()
                     self.closeHomeCallRequestsWindow()
-                self.setUserName(qApp.userName())
+                self.setUserName(application.userName())
                 if orgId != prevOrgId:
-                    qApp.emit(SIGNAL('currentOrgIdChanged()'))
+                    application.emit(SIGNAL('currentOrgIdChanged()'))
                 if QtGui.qApp.currentOrgStructureId() != prevOrgStructureId:
-                    qApp.emit(SIGNAL('currentOrgStructureIdChanged()'))
-                qApp.clearPreferencesCache()
+                    application.emit(SIGNAL('currentOrgStructureIdChanged()'))
+                application.clearPreferencesCache()
                 self.updateActionsState()
-                qApp.webDAVInterface.setWebDAVUrl(qApp.getWebDAVUrl())
+                application.webDAVInterface.setWebDAVUrl(application.getWebDAVUrl())
         finally:
-            qApp.tryOpenScanner()
-            qApp.tryOpenSmartCardReader()
+            QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=self.logoutAndLogin)
+            application.tryOpenScanner()
+            application.tryOpenSmartCardReader()
 
 
     @pyqtSignature('')
@@ -8393,7 +8677,28 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     @pyqtSignature('')
     def on_actAbout_triggered(self):
-        QtGui.QMessageBox.about(self, u'О программе', QtGui.qApp.getAbout())
+        dlg = QtGui.QDialog()
+        dlg.setWindowTitle(u'О программе')
+        dlg.setWindowIcon(QtGui.QIcon(':/new/prefix1/icons/znak_32x32.png'))
+        dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        layout = QtGui.QVBoxLayout()
+        layout.setAlignment(Qt.AlignHCenter)
+        logo = QtGui.QLabel()
+        logo.setPixmap(QtGui.QPixmap(':/new/prefix1/icons/logo_130x42.png'))
+        layout.addWidget(logo)
+        label = QtGui.QLabel()
+        label.setText(QtGui.qApp.getAbout())
+        layout.addWidget(label)
+        hbox = QtGui.QHBoxLayout()
+        hbox.setAlignment(Qt.AlignCenter)
+        button = QtGui.QPushButton("OK")
+        button.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+        button.setMaximumWidth(75)
+        button.clicked.connect(dlg.close)
+        hbox.addWidget(button)
+        layout.addLayout(hbox)
+        dlg.setLayout(layout)
+        dlg.exec_()
 
 
     @pyqtSignature('')
@@ -8455,7 +8760,7 @@ def parseBgParams(image, size, position):
             bgParams['position'] = position
     return bgParams
 
-
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def main():
     os.chdir(os.path.dirname(os.path.realpath('__file__')))
@@ -8552,6 +8857,12 @@ def main():
                       action='store_true',
                       default=False
                      )
+    parser.add_option('--faulthandler',
+                      dest='enableFaulthandler',
+                      help='display the Python backtrace on SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals',
+                      action='store_true',
+                      default=True
+                      )
 #    parser.add_option("-q", "--quiet",   action="store_false", dest="verbose", default=True,  help="don't print status messages to stdout")
     (options, args) = parser.parse_args()
     parser.destroy()
@@ -8590,18 +8901,36 @@ def main():
     app.isPrintDebugEnabled = options.isPrintDebugEnabled
     app.debugPrintData = DebugPrintData()
 
+    if options.enableFaulthandler:
+        try:
+            import faulthandler
+            fileName = app.getFaultHandlerLogFilePath()
+            f = open(fileName, 'a')
+            f.write(u'\nstart logging: ' + QDateTime.currentDateTime().toString(Qt.ISODate) + '\n')
+            faulthandler.enable(file=f)
+        except ImportError as e:
+            pass
+            # app.logCurrentException()
+        except IOError as e:
+            pass
+            # app.logCurrentException()
+
     QtGui.qApp = app
     try:
-        app.openDatabase()
         import platform
-        if platform.system() == 'Windows' and app.db and not options.restart and app.checkGlobalPreference(u'23:winAutoUpd', u'да'):
-            if winAutoUpdate(app):
+        if platform.system() == 'Windows' and not options.restart:
+            if winAutoUpdate(app, platform.system()):
                 res = 0
                 sys.exit(0)
-    except:
+        else:
+            if winAutoUpdate(app, platform.system()):
+                res = 0
+                sys.exit(0)
+    except Exception as e:
         pass
     res = 0
     if QtGui.qApp:
+        QtGui.qApp.jobTicketReserveHolder = CJobTicketReserveHolder(app)
         app.applyDecorPreferences() # надеюсь, что это поможет немного сэкономить при создании гл.окна
         MainWindow = CS11MainWindow(bgParams)
         app.mainWindow = MainWindow
@@ -8617,6 +8946,7 @@ def main():
         app.tryOpenSmartCardReader()
         if app.preferences.dbAutoLogin:
             MainWindow.actLogin.activate(QtGui.QAction.Trigger)
+        app._timeoutLogout.setup(app.getConnectionTimeout() * 60000, u'подключение', MainWindow.logoutAndLogin)
         res = app.exec_()
         app.preferences.save()
         if app.db:
@@ -8626,65 +8956,135 @@ def main():
         QtGui.qApp = None
     return res
     
-    
-def winAutoUpdate(app):
+def errorUpdateMis():
+    QtGui.QMessageBox().critical(None, u'Ошибка', u'Версия МИС устарела, запуск невозможен.', QtGui.QMessageBox.Ok)
+
+def winAutoUpdate(app, platformName):
     res = False
-    record = app.db.getRecordEx('VersionControl', 'version, dateUpdate', "name='ClientVersion'")
+    dontStart = False
+    app.openDatabase()
+    # if not app.db or not app.checkGlobalPreference(u'23:winAutoUpd', u'да'):
+    #     if app.db:
+    #         app.closeDatabase()
+    #     return res
+    record = app.db.getRecordEx('VersionControl', 'version, dateUpdate, DATEDIFF(CURDATE(), dateUpdate) AS day', "name='ClientVersion'")
     dbVersion = [forceInt(item) for item in forceString(record.value('version')).split('.')]
     clientVer = [forceInt(item) for item in app.socRev.split('.')[:-1]]
-    ftpURL = forceString(app.preferences.appPrefs.get('FTPUrl', ''))
-    if not ftpURL:
-        ftpURL = app.getGlobalPreference(u'23:ftpURL')
-    if ftpURL and clientVer < dbVersion:
-        fileName = 'Samson_Install_Win_{0}.exe'.format(dbVersion[-2])
-        from ftplib import FTP
-        import tempfile
-        batFileName = 'Samson_update.bat'
-        try:
-            appFileName = os.path.abspath(__file__)
-        except NameError:  # We are the main py2exe script, not a module
-            import sys as s1
-            appFileName = os.path.abspath(s1.argv[0])
-        if appFileName.endswith('s11main.py'):
-            appFileName = appFileName[:-10] + 'samson.exe'
-        tmpdir = tempfile.gettempdir()
-        newpathfile = os.path.join(tmpdir, fileName)
-        batPathFile = os.path.join(tmpdir, batFileName)
-        try:
-            if ftpURL.startswith('ftp://'):
-                ftpURL = ftpURL.replace('ftp://', '')
-            ftpURL = ftpURL.split('/')
-            ftp = FTP(ftpURL[0])
-            ftp.login()
-            for pth in ftpURL[1:]:
-                if pth:
-                    ftp.cwd(pth)
-            lsFtp = ftp.nlst(fileName)
-            if lsFtp.count(fileName) == 1:
+    dbVersionDate = forceDate(record.value('dateUpdate'))
+    recordNew = app.db.getRecordEx('VersionControl', 'version, dateUpdate', "name='NewVersion'")
+    day = forceInt(record.value('day'))
+    check = False
+    if recordNew:
+        dbNewVersion = [forceInt(item) for item in forceString(recordNew.value('version')).split('.')]
+        dbNewVersionDate = forceDate(recordNew.value('dateUpdate'))
+        if dbNewVersion and dbNewVersionDate and dbVersion < dbNewVersion:
+            check = True
+            if day > 3:
+                errorUpdateMis()
+                dontStart = True
+            else:
+                if day == 0:
+                    message = u'Обнаружена новая версия, обновите МИС в течение 3х дней'
+                elif day == 1:
+                    message = u'Обнаружена новая версия, обновите МИС в течение 2х дней'
+                elif day == 2:
+                    message = u'Обнаружена новая версия, обновите МИС в течение суток'
+                else:
+                    message = u'Обнаружена новая версия, обновите МИС, иначе завтра запуск станет невозможен'
+                QtGui.QMessageBox().information(None,
+                                            u'Внимание!',
+                                            message,
+                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+    if not check and clientVer < dbVersion:
+        if dbVersion and dbVersionDate and clientVer < dbVersion:
+            check = True
+            if day > 3:
+                errorUpdateMis()
+                dontStart = True
+            else:
+                if day == 0:
+                    message = u'Обнаружена новая версия, обновите МИС в течение 3х дней'
+                elif day == 1:
+                    message = u'Обнаружена новая версия, обновите МИС в течение 2х дней'
+                elif day == 2:
+                    message = u'Обнаружена новая версия, обновите МИС в течение суток'
+                else:
+                    message = u'Обнаружена новая версия, обновите МИС, иначе завтра запуск станет невозможен'
                 QtGui.QMessageBox().information(None,
                                                 u'Внимание!',
-                                                u'Версия клиента отличается от версии БД.\nБудет произведено автообновление!\nНажмите "ОК" и дождитесь запуска программы после автоматического обновления',
+                                                message,
                                                 QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-                ftp.voidcmd('TYPE I')
-                fileSize = ftp.size(fileName)
-                downloadProgress = DownloadProgress()
-                downloadProgress.labelFile.setText(fileName)
-                downloadProgress.labelFileSize.setText(LoadSizeFormat(0, fileSize))
 
-                downloadProgress.progressBarFile.setValue(0)
-                downloadProgress.progressBarFile.setMaximum(fileSize)
-                with open(newpathfile, 'wb') as fileUpdate:
-                    def callback(data):
-                        fileUpdate.write(data)
-                        downloadProgress.progressBarFile.setValue(downloadProgress.progressBarFile.value() + len(data))
-                        downloadProgress.labelFileSize.setText(
-                            LoadSizeFormat(downloadProgress.progressBarFile.value(), fileSize))
-                        QtGui.qApp.processEvents()
+    if platformName == 'Windows':
+        ftpURL = forceString(app.preferences.appPrefs.get('FTPUrl', ''))
+        if not ftpURL:
+            ftpURL = app.getGlobalPreference(u'23:ftpURL')
+        if clientVer > dbVersion:
+            QtGui.QMessageBox().information(None,
+                                    u'Внимание!',
+                                    u'Вы используете тестовую сборку клиента',
+                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        if clientVer < dbVersion:
+            app.closeDatabase()
+            if not ftpURL:
+                if not check:
+                    errorUpdateMis()
+                    return True
+                QtGui.QMessageBox().information(None,
+                                                u'Внимание!',
+                                                u'Не укзан адрес Адрес FTP-сервера автообновления win-клиента',
+                                                QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                return dontStart
+            fileName = 'Samson_Install_Win_{0}.exe'.format(dbVersion[-2])
+            from ftplib import FTP
+            import tempfile
+            batFileName = 'Samson_update.bat'
+            try:
+                appFileName = os.path.abspath(__file__)
+            except NameError:  # We are the main py2exe script, not a module
+                import sys as s1
+                appFileName = os.path.abspath(s1.argv[0])
+            if appFileName.endswith('s11main.py'):
+                appFileName = appFileName[:-10] + 'samson.exe'
+            tmpdir = tempfile.gettempdir()
+            newpathfile = os.path.join(tmpdir, fileName)
+            batPathFile = os.path.join(tmpdir, batFileName)
+            try:
+                if ftpURL.startswith('ftp://'):
+                    ftpURL = ftpURL.replace('ftp://', '')
+                ftpURL = ftpURL.split('/')
+                ftp = FTP(ftpURL[0], timeout=30)
+                ftp.login()
+                for pth in ftpURL[1:]:
+                    if pth:
+                        ftp.cwd(pth)
+                lsFtp = ftp.nlst(fileName)
+                if lsFtp.count(fileName) != 0:
+                    QtGui.QMessageBox().information(None,
+                                                    u'Внимание!',
+                                                    u'Версия клиента отличается от версии БД.\nБудет произведено автообновление!\nНажмите "ОК" и дождитесь запуска программы после автоматического обновления',
+                                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                    ftp.voidcmd('TYPE I')
+                    fileSize = ftp.size(fileName)
+                    downloadProgress = DownloadProgress()
+                    downloadProgress.labelFile.setText(fileName)
+                    downloadProgress.labelFileSize.setText(LoadSizeFormat(0, fileSize))
 
-                    ftp.retrbinary('RETR {0:s}'.format(fileName), callback)
-                    ftp.quit()
-                batFile = open(batPathFile, 'wb')
-                batFile.writelines(u"""
+                    downloadProgress.progressBarFile.setValue(0)
+                    downloadProgress.progressBarFile.setMaximum(fileSize)
+                    with open(newpathfile, 'wb') as fileUpdate:
+                        def callback(data):
+                            fileUpdate.write(data)
+                            downloadProgress.progressBarFile.setValue(downloadProgress.progressBarFile.value() + len(data))
+                            downloadProgress.labelFileSize.setText(
+                                LoadSizeFormat(downloadProgress.progressBarFile.value(), fileSize))
+                            QtGui.qApp.processEvents()
+
+                        ftp.retrbinary('RETR {0:s}'.format(fileName), callback)
+                        ftp.quit()
+                    batFile = open(batPathFile, 'wb')
+                    batFile.writelines(u"""
 ::@echo off
 ::Команды DOS
 ::http://detc.usu.ru/Assets/aCOMP0041/lectures/DOS-commands/DOS.html
@@ -8706,26 +9106,37 @@ start "" "{appFileName:s}" --restart
 del "{batPathFile:s}"
 del "{newpathfile:s}"
             """.format(newpathfile=newpathfile, batPathFile=batPathFile, appFileName=appFileName).encode('cp866'))
-                batFile.close()
-                if app.db:
-                    app.clearUserId(False)
-                    app.closeDatabase()
-                app.doneTrace()
-                QtGui.qApp = None
-                import subprocess
-                SW_HIDE = 0
-                info = subprocess.STARTUPINFO()
-                try:
-                    info.dwFlags = subprocess.STARTF_USESHOWWINDOW
-                    info.wShowWindow = SW_HIDE
-                except:
-                    info.dwFlags = subprocess._subprocess.STARTF_USESHOWWINDOW
-                    info.wShowWindow = subprocess._subprocess.SW_HIDE
-                subprocess.Popen(batPathFile, startupinfo=info)
-                res = True
-        except:
-            app.logCurrentException()
-        return res
+                    batFile.close()
+                    if app.db:
+                        app.clearUserId(False)
+                        app.closeDatabase()
+                    app.doneTrace()
+                    QtGui.qApp = None
+                    import subprocess
+                    SW_HIDE = 0
+                    info = subprocess.STARTUPINFO()
+                    try:
+                        info.dwFlags = subprocess.STARTF_USESHOWWINDOW
+                        info.wShowWindow = SW_HIDE
+                    except:
+                        info.dwFlags = subprocess._subprocess.STARTF_USESHOWWINDOW
+                        info.wShowWindow = subprocess._subprocess.SW_HIDE
+                    subprocess.Popen(batPathFile, startupinfo=info)
+                    res = True
+                else:
+                    if not check:
+                        errorUpdateMis()
+                        return True
+                    else:
+                        return dontStart
+            except:
+                app.logCurrentException()
+                QtGui.QMessageBox().critical(None, u'Ошибка', u'Проблема с доступом к серверу обновлений', QtGui.QMessageBox.Ok)
+                return dontStart
+            return res
+    else:
+        return dontStart
+
 
 if __name__ == '__main__':
     locale.setlocale(locale.LC_ALL, '')

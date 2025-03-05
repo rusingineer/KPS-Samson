@@ -200,6 +200,25 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
         return True
 
 
+    def checkValueMessageCritical(self, message, skipable, widget, row=None, column=None, detailWdiget=None,
+                                  setFocus=True):
+        buttons = QtGui.QMessageBox.Ok
+        if skipable:
+            buttons = buttons | QtGui.QMessageBox.Ignore
+        res = QtGui.QMessageBox.critical(self if self.isVisible() else None,
+                                         u'Внимание!',
+                                         message,
+                                         buttons,
+                                         QtGui.QMessageBox.Ok)
+        if res == QtGui.QMessageBox.Ok:
+            if setFocus:
+                self.setFocusToWidget(widget, row, column)
+                if isinstance(detailWdiget, QtGui.QWidget):
+                    self.setFocusToWidget(detailWdiget, row, column)
+            return False
+        return True
+
+
     def checkInputMessage(self, message, skipable, widget, row=None, column=None):
         return self.checkValueMessage(u'Необходимо указать %s' % message, skipable, widget, row, column)
 

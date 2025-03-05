@@ -1,0 +1,343 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"> 
+<html>
+
+<!-- Данный вариант выравнивает категории(описание) и содержимое -->
+
+<head></head>
+<body style="font-family: 'Times New Roman'; font-size: 11pt; font-weight: 400; font-style: normal;">
+
+
+<!-- Настройки страницы -->
+{setPageSize('A4')}
+{setOrientation('P')}
+{setLeftMargin(20)} {setTopMargin(10)} {setBottomMargin(10)} {setRightMargin(10)}
+<!-- - - - - - -->
+<div style="font-size: 10pt;" align=right>
+Приложение к Приказу Министерства здравоохранения<br>
+и социального развития Российской Федерации <br>
+от 31 января 2007 года №77<br><br>
+Медицинская документация<br>
+Форма №088/у-06<br>
+</div>
+
+<div style="font-size: 11pt;" align=center>
+Министерство здравоохранения и социального развития Российской Федерации<br>
+{if: action.organization.fullName}{action.organization.fullName}{else: ''} {end:} {if: action.organization.address}, {action.organization.address} {else: ''}{end:}
+</div>
+<br>
+<hr>
+<font style="font-size: 12pt;"><center> <b>НАПРАВЛЕНИЕ НА МЕДИКО-СОЦИАЛЬНУЮ ЭКСПЕРТИЗУ ОРГАНИЗАЦИЕЙ. ОКАЗЫВАЮЩЕЙ ЛЕЧЕБНО-ПРОФИЛАКТИЧЕСКУЮ ПОМОЩЬ</b></center></font><br/>
+Дата выдачи: {:a=unicode(action.endDate).split(' ')}{a[0]}<br><br>
+1. Фамилия, имя, отчество гражданина, направляемого на медико-социальную экспертизу (далее - гражданина): {event.client.lastName} {event.client.firstName} {client.patrName}.<br>
+<table width=100% border=0>
+<tr>
+	<td>2. Дата рождения: {client.birthDate}.
+	</td>
+	<td>3. Пол: {client.sex}
+	</td>
+</tr>
+</table>
+<br><br>
+
+
+
+4. Фамилия, имя, отчество представителя гражданина (заполняется при наличии законного представителя): 
+{if: action[u'ФИО законного представителя пациента'].value}{action[u'ФИО законного представителя пациента'].value}
+{else:}
+
+{: dialogType = dialogs.dialMultiList(u"Выберите представителя", [rel.otherRole +': '+rel.other.fullName for rel in client.relations],1)}
+{: sv = dialogType.getListValues()}
+{for: pred in sv}
+{pred.split(':',1)[1]}
+{end:}
+{end:}
+<br><br>
+5. Адрес места жительства гражданина (при отсутствии места жительства указывается адрес пребывания, фактического проживания на территории Российской Федерации): {if: client.regAddress}{client.regAddress} {else:} {client.locAddress}{end:}<br><br>
+6. {if: action[u'Инвалидность (при направлении)'].value}{action[u'Инвалидность (при направлении)'].value}.{else: ''}{end:}<br><br>
+7. Степень ограничения способности к трудовой деятельности: {if: action[u'Степень ограничения способности к трудовой деятельности (заполняется при повторном направлении)'].value}{action[u'Степень ограничения способности к трудовой деятельности (заполняется при повторном направлении)'].value}.{else: ''}{end:}<br><br>
+8. Степень утраты профессиональной трудоспособности в процентах: {if: action[u'Степень утраты профессиональной трудоспособности в процентах (заполняется при повторном направлении)'].value}{action[u'Степень утраты профессиональной трудоспособности в процентах (заполняется при повторном направлении)'].value}.{else: ''}{end:}<br><br>
+9. Направляется: {if: action[u'Направляется'].value}{action[u'Направляется'].value}.{else: ''}{end:}<br><br>
+10. Кем работает на момент направления на медико-социальную экспертизу: {if: action[u'Кем работает на момент направления на МСЭ'].value}{action[u'Кем работает на момент направления на МСЭ'].value}.{else: ''}{end:}<br><br>
+11. Наименование и адрес организации, в которой работает гражданин: {if: action[u'Наименование и адрес организации, в которой работает гражданин'].value}{action[u'Наименование и адрес организации, в которой работает гражданин'].value}.{else: ''}{end:}<br><br>
+12. Условия и характер выполняемого труда: {if: action[u'Условия и характер выполняемого труда'].value}{action[u'Условия и характер выполняемого труда'].value}.{else: ''}{end:}<br><br>
+13. Основная профессия (специальность):{if: action[u'Основная профессия (специальность)'].value}{action[u'Основная профессия (специальность)'].value}.{else: ''}{end:}<br><br>
+14. Квалификация по основной профессии: {if: action[u'Квалификация по основной профессии (класс, разряд, категория, звание)'].value}{action[u'Квалификация по основной профессии (класс, разряд, категория, звание)'].value}.{else: ''}{end:}<br><br>
+15. Наименование и адрес образовательного учреждения: {if: action[u'Наименование и адрес образовательного учреждения'].value}{action[u'Наименование и адрес образовательного учреждения'].value}.{else: ''}{end:}<br><br>
+16. Группа, класс, курс: {if: action[u'Группа, класс, курс'].value}{action[u'Группа, класс, курс'].value}.{else: ''}{end:}<br><br>
+17. Профессия (специальность), для получения которой проводится обучение: {if: action[u'Профессия (специальность), для получения которой проводится обучение'].value}{action[u'Профессия (специальность), для получения которой проводится обучение'].value}.{else: ''}{end:}<br><br>
+18. Наблюдается в организациях, оказывающих лечебно-профилактическую помощь {if: action[u'Наблюдается в организациях, оказывающих лечебно-профилактическую помощь'].value}{action[u'Наблюдается в организациях, оказывающих лечебно-профилактическую помощь'].value}.{else: ''}{end:}<br><br>
+19. История заболевания (начало, развитие, течение, частота и длительность обострений, проведенные лечебно-оздоровительные и реабилитационные мероприятия и их эффективность): 
+{:pr = action[u'История заболевания']} <br>
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+20. Анамнез жизни (перечисляются перенесенные в прошлом заболевания, травмы, отравления, операции, заболевания, по которым отягощена наследственность, дополнительно в отношении ребенка указывается, как протекала беременность и роды у матери, сроки формирования психомоторных навыков, самообслуживания, познавательно-игровой деятельности, навыков опрятности и ухода за собой, как протекало раннее развитие): <br>
+{:pr = action[u'Анамнез жизни']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+21. Частота и длительность временной нетрудоспособности (сведения за последние 12 месяцев): <br>
+{:pr = action[u'Частота и длительность временной нетрудоспособности (сведения за последние 12 месяцев)']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+22. Результаты проведенных мероприятий по медицинской реабилитации в соответствии с индивидуальной программой реабилитации инвалида (заполняется при повторном направлении, указываются конкретные виды восстановительной терапии, реконструктивной хирургии, санаторно-курортного лечения, технических средств медицинской реабилитации, в том числе протезирования и ортезирования, а также сроки, в которые они были предоставлены; перечисляются функции организма, которые удалось компенсировать или восстановить полностью или частично, либо делается отметка, что положительные результаты отсутствуют): <br>
+{:pr = action[u'Результаты проведенных мероприятий по медицинской реабилитации в соответствии с индивидуальной программой реабилитации инвалида']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+23. Состояние гражданина при направлении на медико-социальную экспертизу (указываются жалобы, данные осмотра лечащим врачом и врачами других специальностей):<br>
+{:pr = action[u'Состояние гражданина при направлении на МСЭ (жалобы, данные осмотра лечащим врачом и врачами других специальностей)']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+24. Результаты дополнительных методов исследования (указываются результаты проведенных лабораторных, рентгенологических, эндоскопических, ультразвуковых, психологических, функциональных и других видов исследований):<br>
+{:pr = action[u'Результаты дополнительных методов исследования']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+25. Масса тела (кг): {if: action[u'Масса тела (кг)'].value}{action[u'Масса тела (кг)'].value}, {else:} _____ {end:}
+рост (м): {if: action[u'Рост (м)'].value}{action[u'Рост (м)'].value}, {else:}_____{end:}
+индекс массы тела: {if: action[u'Индекс массы тела'].value}{action[u'Индекс массы тела'].value}. {else:}_____{end:}
+<br><br>
+26. Оценка физического развития: {if: action[u'Оценка физического развития'].value}{action[u'Оценка физического развития'].value}. {else: ''}{end:}
+<br><br>
+27. Оценка психофизиологической выносливости: {if: action[u'Оценка психофизиологической выносливости'].value}{action[u'Оценка психофизиологической выносливости'].value}. {else: ''}{end:}
+<br><br>
+28. Оценка эмоциональной устойчивости: {if: action[u'Оценка эмоциональной устойчивости'].value}{action[u'Оценка эмоциональной устойчивости'].value}. {else: ''}{end:}
+<br><br>
+29. Диагноз при направлении на медико-социальную экспертизу: <br>
+а) код основного заболевания по МКБ: {if: action[u'Диагноз при направлении на МСЭ (МКБ)'].value}{action[u'Диагноз при направлении на МСЭ (МКБ)'].value}. {else: ''}{end:}<br>
+б) основное заболевание: 
+{:pr = action[u'Диагноз при направлении на МСЭ (основное заболевание)']} 
+{if: pr.value}
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br>
+
+{:pr = action[u'Диагноз при направлении на МСЭ (сопутствующие заболевания)']} 
+{if: pr.value} 
+в) сопутствующие заболевания: 
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br>
+
+
+{:pr = action[u'Диагноз при направлении на МСЭ (осложнения)']} 
+{if: pr.value} 
+в**) осложнения: 
+{:x=(unicode(pr.value)).split('\n')}
+{if:not pr.descr}
+{if:tdOpen}
+
+{:tdOpen=False}
+{end:}
+{for:i in range(len(x))}{x[i]}{if:i<(len(x)-1)}<br/>{end:}{end:}{pr.unit.code}. <br>
+{else:}
+{if:pr.descr==action[i-1].descr and pr.descr==prDescr}
+{pr.value}{pr.unit.code}.
+{else:}
+{if:tdOpen}
+<br>
+{:tdOpen=False}
+{end:}
+{pr.value}. 
+{:prDescr=pr.descr}
+{:tdOpen=True}
+{end:}
+{end:}
+{end:}
+<br><br>
+30. Клинический прогноз: {if: action[u'Клинический прогноз'].value}{action[u'Клинический прогноз'].value}. {else: ''}{end:}
+<br><br>
+31. Реабилитационный потенциал: {if: action[u'Реабилитационный потенциал'].value}{action[u'Реабилитационный потенциал'].value}. {else: ''}{end:}
+<br><br>
+32. Реабилитационный прогноз: {if: action[u'Реабилитационный прогноз'].value}{action[u'Реабилитационный прогноз'].value}. {else: ''}{end:}
+<br><br>
+33. Цель направления на медико-социальную экспертизу: {if: action[u'Цель направления на МСЭ'].value}{action[u'Цель направления на МСЭ'].value}. {else: ''}{end:}
+<br><br>
+34. Рекомендуемые мероприятия по медицинской реабилитации для формирования или коррекции индивидуальной программы реабилитации инвалида, программы реабилитации постадавшего в результате несчастного случая на производстве и профессионального заболевания: <br>
+{if: action[u'Рекомендуемые мероприятия по медицинской реабилитации для формирования или корректной индивидуальной программы реабилитации инва'].value}{action[u'Рекомендуемые мероприятия по медицинской реабилитации для формирования или корректной индивидуальной программы реабилитации инва'].value}. {else: ''}{end:}
+<br><br>
+<div align=justify>
+
+</div>
+<br>
+<table width=100% border=0>
+<tr>
+	<td width=50%>Председатель врачебной комиссии:
+	</td>
+	<td width=100%>/___________________/{action.person.shortName}<br>
+	</td>
+</tr>
+<tr>
+	<td>Члены врачебной комиссии:
+	</td>
+	<td>{if: action[u'Член врачебной комиссии 1'].value}/____________________/ {action[u'Член врачебной комиссии 1'].value} <br><br>{else: ''}{end:}
+{if: action[u'Член врачебной комиссии 2'].value}/____________________/ {action[u'Член врачебной комиссии 2'].value} <br><br>{else: ''}{end:}
+{if: action[u'Член врачебной комиссии 3'].value}/____________________/ {action[u'Член врачебной комиссии 3'].value} <br><br>{else: ''}{end:}
+	</td>
+</tr>
+</table>
+
+</div>
+</body>
+</html>

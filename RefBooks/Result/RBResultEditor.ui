@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>320</width>
-    <height>293</height>
+    <width>483</width>
+    <height>309</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,200 +23,236 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="10" column="1">
-    <widget class="CDateEdit" name="edtEndDate">
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="1">
-    <widget class="CDateEdit" name="edtBegDate">
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0">
-    <widget class="QLabel" name="lblBegDate">
-     <property name="text">
-      <string>Дата начала</string>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Назначение</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbEventPurpose</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="lblUsishCode">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Код &amp;ЕГИСЗ</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtUsishCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblCode">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Код</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblFederalCode">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Федеральный код</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtFederalCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>103</width>
-       <height>16</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblName">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Наименование</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtName</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="0">
-    <widget class="QLabel" name="lblRegionalCode">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Региональный код</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtRegionalCode</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="10" column="0">
-    <widget class="QLabel" name="lblEndDate">
-     <property name="text">
-      <string>Дата окончания</string>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="2">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="6" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtRegionalCode">
-     <property name="maxLength">
-      <number>8</number>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtUsishCode"/>
-   </item>
-   <item row="12" column="0" colspan="3">
+   <item row="3" column="0" colspan="2">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
-   <item row="4" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtFederalCode"/>
-   </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtName"/>
-   </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="QLineEdit" name="edtCode">
-     <property name="maxLength">
-      <number>8</number>
+   <item row="1" column="0">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
      </property>
-    </widget>
-   </item>
-   <item row="0" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbEventPurpose"/>
-   </item>
-   <item row="8" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkContinued">
-     <property name="text">
-      <string>&amp;Не закончен</string>
-     </property>
+     <widget class="QWidget" name="tabMain">
+      <attribute name="title">
+       <string>&amp;Основная информация</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <property name="margin">
+        <number>4</number>
+       </property>
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <item row="0" column="0" colspan="2">
+        <widget class="QLabel" name="label">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Назначение</string>
+         </property>
+         <property name="buddy">
+          <cstring>cmbEventPurpose</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="2" colspan="2">
+        <widget class="CRBComboBox" name="cmbEventPurpose"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Код</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2" colspan="2">
+        <widget class="QLineEdit" name="edtCode">
+         <property name="maxLength">
+          <number>8</number>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="2">
+        <widget class="QLabel" name="lblName">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Наименование</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtName</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2" colspan="2">
+        <widget class="QLineEdit" name="edtName"/>
+       </item>
+       <item row="3" column="0" colspan="2">
+        <widget class="QLabel" name="lblFederalCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Федеральный код</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtFederalCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2" colspan="2">
+        <widget class="QLineEdit" name="edtFederalCode"/>
+       </item>
+       <item row="4" column="0" colspan="2">
+        <widget class="QLabel" name="lblUsishCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Код &amp;ЕГИСЗ</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtUsishCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="2" colspan="2">
+        <widget class="QLineEdit" name="edtUsishCode"/>
+       </item>
+       <item row="5" column="0" colspan="2">
+        <widget class="QLabel" name="lblRegionalCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>&amp;Региональный код</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtRegionalCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="2" colspan="2">
+        <widget class="QLineEdit" name="edtRegionalCode">
+         <property name="maxLength">
+          <number>8</number>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="2" colspan="2">
+        <widget class="QCheckBox" name="chkContinued">
+         <property name="text">
+          <string>&amp;Не закончен</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="2">
+        <widget class="QLabel" name="lblBegDate">
+         <property name="text">
+          <string>Дата начала</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2">
+        <widget class="CDateEdit" name="edtBegDate">
+         <property name="displayFormat">
+          <string>dd.MM.yyyy</string>
+         </property>
+         <property name="calendarPopup">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="3">
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>233</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="8" column="0" colspan="2">
+        <widget class="QLabel" name="lblEndDate">
+         <property name="text">
+          <string>Дата окончания</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="2">
+        <widget class="CDateEdit" name="edtEndDate">
+         <property name="displayFormat">
+          <string>dd.MM.yyyy</string>
+         </property>
+         <property name="calendarPopup">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="9" column="1">
+        <spacer name="spacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>103</width>
+           <height>21</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabIdentification">
+      <attribute name="title">
+       <string>&amp;Идентификация</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_2">
+       <property name="margin">
+        <number>4</number>
+       </property>
+       <property name="spacing">
+        <number>4</number>
+       </property>
+       <item row="0" column="0">
+        <widget class="CInDocTableView" name="tblIdentification"/>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
@@ -232,17 +268,13 @@
    <extends>QDateEdit</extends>
    <header>library/DateEdit.h</header>
   </customwidget>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>library/InDocTable.h</header>
+  </customwidget>
  </customwidgets>
  <tabstops>
-  <tabstop>cmbEventPurpose</tabstop>
-  <tabstop>edtCode</tabstop>
-  <tabstop>edtName</tabstop>
-  <tabstop>edtFederalCode</tabstop>
-  <tabstop>edtUsishCode</tabstop>
-  <tabstop>edtRegionalCode</tabstop>
-  <tabstop>chkContinued</tabstop>
-  <tabstop>edtBegDate</tabstop>
-  <tabstop>edtEndDate</tabstop>
   <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources/>

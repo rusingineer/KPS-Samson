@@ -285,8 +285,9 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.tblDocumentLocationHistory.addPopupDelRow()
         self.connect(self.tblDocumentLocationHistory.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.on_sortByColumn)
         self.cmbDocumentType.currentIndexChanged.connect(self.cmbDocumentTypeChange)
-        self.edtDocumentNumber.setReadOnly(True)
+        # self.edtDocumentNumber.setReadOnly(True)
         self.record = None
+        self.cmbDocumentTypeChange()
 
 
     def saveDefaultParams(self, params):
@@ -307,11 +308,11 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
                                      tableRbDocumentTypeForTracking['id'].eq(docType))
                 counterId = forceRef(rec.value('counter_id'))
                 if counterId:
+                    date = self.edtDocumentDate.date()
+                    counterController = QtGui.qApp.counterController()
+                    if not counterController:
+                        QtGui.qApp.setCounterController(CCounterController(self))
                     try:
-                        date = self.edtDocumentDate.date()
-                        counterController = QtGui.qApp.counterController()
-                        if not counterController:
-                            QtGui.qApp.setCounterController(CCounterController(self))
                         number = QtGui.qApp.getDocumentNumber(self.clientId, counterId, date)
                         self.edtDocumentNumber.setText(number)
                     except Exception, e:
@@ -319,6 +320,9 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
                                                    u'Внимание!',
                                                    u'Произошла ошибка при получении значения счетчика\n%s' % e,
                                                    QtGui.QMessageBox.Ok)
+                    finally:
+                        if not counterController:
+                            QtGui.qApp.setCounterController(None)
                 else:
                     self.edtDocumentNumber.clear()
                     self.edtDocumentNumber.setReadOnly(False)
@@ -385,6 +389,28 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
             result = result and (documentLocation or self.checkInputMessage(u'Место нахождения документа', False, self.tblDocumentLocationHistory, row, 0))
         result = result and (documentType or self.checkInputMessage(u'Вид документа', False, self.cmbDocumentType))
         return result
+
+
+    def setEdtDocumentNumber(self, counterId):
+        if counterId:
+            date = self.edtDocumentDate.date()
+            counterController = QtGui.qApp.counterController()
+            if not counterController:
+                QtGui.qApp.setCounterController(CCounterController(self))
+            try:
+                number = QtGui.qApp.getDocumentNumber(self.clientId, counterId, date)
+                self.edtDocumentNumber.setText(number)
+            except Exception, e:
+                QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                           u'Внимание!',
+                                           u'Произошла ошибка при получении значения счетчика\n%s' % e,
+                                           QtGui.QMessageBox.Ok)
+            finally:
+                if not counterController:
+                    QtGui.qApp.setCounterController(None)
+        else:
+            self.edtDocumentNumber.clear()
+            self.edtDocumentNumber.setReadOnly(False)
 
 
 class CDocumentLocationHistoryModel(CInDocTableModel):

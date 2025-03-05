@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -63,13 +63,17 @@ from Events.EventEditDialog         import (CEventEditDialog,
                                             getToxicSubstancesIdListByMKB)
 from Events.EventInfo               import CDiagnosticInfoProxyList, CEmergencyEventInfo
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
-from Events.Utils                   import (checkDiagnosis,
-                                            checkIsHandleDiagnosisIsChecked,
-                                            getAvailableCharacterIdByMKB,
-                                            getDiagnosisId2,
-                                            getEventShowTime,
-                                            recordAcceptable,
-                                            setAskedClassValueForDiagnosisManualSwitch)
+from Events.Utils import (checkDiagnosis,
+                          checkIsHandleDiagnosisIsChecked,
+                          getAvailableCharacterIdByMKB,
+                          getDiagnosisId2,
+                          getEventShowTime,
+                          recordAcceptable,
+                          setAskedClassValueForDiagnosisManualSwitch,
+                          mkbIsOnko,
+                          CFinanceType,
+                          checkAttachOnDate,
+                          getEventAidTypeRegionalCode)
 
 from F106.F106DiagnosisSelectionDialog  import CDiagnosisSelectionDialog
 
@@ -223,14 +227,15 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
 
 
     def destroy(self):
+        CEventEditDialog.deleteLater(self)
         self.tblPreliminaryDiagnostics.setModel(None)
         self.tblFinalDiagnostics.setModel(None)
         del self.modelPreliminaryDiagnostics
         del self.modelFinalDiagnostics
 
-        self.tabStatus.destroy()
-        self.tabMisc.destroy()
-        self.tabCash.destroy()
+        self.tabStatus.deleteLater()
+        self.tabMisc.deleteLater()
+        self.tabCash.deleteLater()
 
 
     def eventFilter(self, obj, event):
@@ -359,8 +364,7 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
         def addActionType(actionTypeId, amount, idListActionType, idListActionTypeIPH, actionFinance, idListActionTypeMoving, plannedEndDate):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
-            for model in (self.tabStatus.modelAPActions,
-                          self.tabMisc.modelAPActions):
+            for model in (self.tabStatus.modelAPActions, self.tabMisc.modelAPActions):
                 if actionTypeId in model.actionTypeIdList:
                     if actionTypeId in idListActionType and not actionByNewEvent:
                         model.addRow(actionTypeId, amount)
@@ -478,10 +482,12 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
         self.loadActions()
         self.tabCash.load(self.itemId())
         self.loadDeathInfo()
+        self.on_cmbResult_currentIndexChanged()
         self.initFocus()
         self.setIsDirty(False)
         self.blankMovingIdList = []
         self.protectClosedEvent()
+        self.btnRelatedEventHighlight()
 
 
     def loadDiagnostics(self, modelDiagnostics):
@@ -521,7 +527,7 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
     def loadActions(self):
         items = self.loadActionsInternal()
         self.tabStatus.loadActions(items.get(0, []))
-        self.tabMisc.loadActions(items.get(1, []))
+        self.tabMisc.loadActions(items.get(3, []))
         self.tabCash.modelAccActions.regenerate()
 
 
@@ -820,6 +826,9 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
         result = result and self.checkTabNotesEventExternalId()
         if self.edtEndDate.date():
             result = result and self.checkAndUpdateExpertise(self.edtEndDate.date(), self.cmbPerson.value())
+            if CFinanceType.getCode(self.eventFinanceId) == CFinanceType.CMI and QtGui.qApp.defaultKLADR()[:2] == u'23':
+                checkEpic, ConsFlatCodeList, needsListNazOnko = self.checkConsultationOrEpicris(tabList)
+                result = result and self.needOnkoDocs(ConsFlatCodeList)
         result = result and self.selectNomenclatureAddedActions(tabList)
         result = result and self.checkAddress()
         return result
@@ -953,6 +962,34 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
             result = result and self.checkPeriodResultHealthGroup(record, row, tbl)
         return result
 
+    def getDiagnosisForOnko(self):
+        diagnostics = self.modelFinalDiagnostics.items()
+        mkb1, mkb2, mkb3 = '', '', ''
+        if diagnostics:
+            for record in diagnostics:
+                diagnosis = forceRef(record.value('diagnosisType_id'))
+                if diagnosis == 1:
+                    mkb1 = forceString(record.value('MKB'))
+                elif diagnosis == 5:
+                    mkb3 = forceString(record.value('MKB'))
+                elif diagnosis == 2 and mkb1 == '':
+                    mkb1 = forceString(record.value('MKB'))
+                else:
+                    mkb2 = forceString(record.value('MKB'))
+            return mkb1, mkb2, mkb3
+        else:
+            return '', '', ''
+
+    def needOnkoDocs(self, ConsFlatCodeList):
+        mkb = self.getDiagnosisForOnko()
+        if mkbIsOnko(mkb[0], mkb[2]):
+            regionalCode = getEventAidTypeRegionalCode(self.eventTypeId)
+            if regionalCode not in ['301', '302', '511', '522'] and u'ControlListOnko' not in ConsFlatCodeList:
+                self.setActionCons([u'ControlListOnko'])
+                self.checkValueMessage(
+                    u"Необходимо заполнить Контрольный лист учета при новообразовании", False, self.tabStatus)
+                return False
+        return True
 
     def checkRowEndDate(self, begDate, endDate, row, record, widget):
         result = True
@@ -1065,6 +1102,43 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
             self.edtEndTime.setTime(time)
 
 
+    def btnRelatedEventHighlight(self):
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tablePWS = db.table('vrbPersonWithSpeciality')
+        tableCreatePWS = db.table('vrbPersonWithSpeciality').alias('CPWS')
+        tableActionType = db.table('ActionType')
+        tableAction = db.table('Action')
+        cols = [tableEvent['id'].alias('eventId')]
+
+        cond = [tableEvent['deleted'].eq(0),
+                tableEventType['context'].like(u'relatedAction%'),
+                tableAction['deleted'].eq(0),
+                tableEvent['client_id'].eq(self.clientId)
+                ]
+        
+        table = tableEvent.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
+        table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+        table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
+        table = table.leftJoin(tableCreatePWS, tableCreatePWS['id'].eq(tableAction['createPerson_id']))
+        record = db.getRecordEx(table, cols, cond)
+
+        if record:
+            self.btnRelatedEvent.setStyleSheet("""
+                QPushButton {
+                    background-color: #F28a64;
+                }
+                QPushButton:hover {
+                    background-color: #F6b096;
+                }
+            """)
+        else:
+            self.btnRelatedEvent.setGraphicsEffect(None)
+            self.btnRelatedEvent.setStyleSheet("")
+
+
     @pyqtSignature('')
     def on_btnRelatedEvent_clicked(self):
         currentEventId = self.itemId()
@@ -1109,13 +1183,14 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
 
     @pyqtSignature('int')
     def on_btnPrint_printByTemplate(self, templateId):
-        context = CInfoContext()
-        eventInfo = self.getEventInfo(context)
+        if self.checkPrintByTemplateAllowed(templateId):
+            context = CInfoContext()
+            eventInfo = self.getEventInfo(context)
 
-        data = { 'event' : eventInfo,
-                 'client': eventInfo.client
-               }
-        applyTemplate(self, templateId, data, signAndAttachHandler=None)
+            data = {'event': eventInfo,
+                    'client': eventInfo.client
+                    }
+            applyTemplate(self, templateId, data, signAndAttachHandler=None)
 
 
     @pyqtSignature('bool')
@@ -1343,7 +1418,7 @@ class CF106DiagnosticsModel(CMKBListInDocTableModel):
                 # if result:
                 #     self.updateCharacterByMKB(row, specifiedMKB)
                 return result
-            if QtGui.qApp.isTNMSVisible() and 0 <= row < len(self.items()) and self.getColIndex('TNMS'):
+            if QtGui.qApp.isTNMSVisible() and 0 <= row < len(self.items()) and column == self.getColIndex('TNMS'):
                 record = self.items()[row]
                 self.updateMKBTNMS(record, forceString(record.value('MKB')))
                 if value:

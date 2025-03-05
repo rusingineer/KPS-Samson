@@ -93,6 +93,16 @@ class CNomenclatureExpenseDayDialog(CDialogBase, Ui_NomenclatureExpenseDayDialog
                                            QtGui.QMessageBox.Close)
 
 
+    def protectWidgetFromEdit(self, isReadOnly):
+        isEditable = not isReadOnly
+        if hasattr(self, 'modelNomenclatureExpense'):
+            self.modelNomenclatureExpense.setReadOnly(isReadOnly)
+        if hasattr(self, 'chkApplyChangesCourseNextDays'):
+            self.chkApplyChangesCourseNextDays.setEnabled(isEditable)
+        if hasattr(self, 'buttonBox'):
+            self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(isEditable)
+
+
     def load(self, readOnly=False):
         self.modelNomenclatureExpense.load([i.makeCopy() for i in self._items], readOnly=readOnly)
 

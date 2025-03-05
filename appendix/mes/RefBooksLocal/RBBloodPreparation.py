@@ -11,18 +11,15 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+from PyQt4.QtCore import Qt
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-
-from library.Utils import *
-from library.interchange import *
-from library.ItemsListDialog import *
-
-from ItemsListDialogEx import *
-
-from Tables import *
 from Ui_RBBloodPreparation import Ui_Dialog
+from appendix.mes.RefBooksLocal.ItemsListDialogEx import CItemEditorDialogEx
+from appendix.mes.RefBooksLocal.Tables import rbCode, rbName, rbBloodPreparationType, rbBloodPreparation
+from library.ItemsListDialog import CItemsListDialogEx, CItemEditorBaseDialog
+from library.TableModel import CTextCol, CRefBookCol, CNumCol
+from library.interchange import setLineEditValue, setRBComboBoxValue, setSpinBoxValue, getLineEditValue, \
+    getRBComboBoxValue, getSpinBoxValue
 
 
 class CRBBloodPreparationList(CItemsListDialogEx):

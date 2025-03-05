@@ -314,6 +314,7 @@ def main():
     app.userHasRight = lambda x: True
     app.font = lambda: None
     app.userSpecialityId = None
+    app.showingAttach = lambda: False
     QtGui.qApp = app
     preferences = CPreferences(options.iniFile)
     iniFileName = preferences.getSettings().fileName()
@@ -725,7 +726,7 @@ def exportReferralsToODLI(numberOrder):
                            db.joinAnd([tableActionType['code'].like('NNC'),
                                        db.existsStmt(tableActionFileAttach, [tableActionFileAttach['master_id'].eq(tableAction['id']),
                                                                              tableActionFileAttach['deleted'].eq(0),
-                                                                             tableActionFileAttach['path'].like('%.xml')])])]),
+                                                                             tableActionFileAttach['path'].like('%.sms')])])]),
                 tableActionType['serviceType'].eq(10),  # лаб.исследование
                 tableAction['deleted'].eq(0),
                 'LENGTH(ActionProperty_String.value) > 0'  # номер направления обязателен!
@@ -762,7 +763,7 @@ def exportReferralsToODLI(numberOrder):
     address['tests_version'] = "1"
     address['target'] = None
     address['terminology_url'] = 'http://10.0.1.179/nsi/fhir/term' #'http://r23-rc.zdrav.netrika.ru/nsi/fhir/term' #
-    address['mis_oid'] = "1.2.643.2.69.1.2.5"
+    address['mis_oid'] = forceString(db.translate('GlobalPreferences', 'code', 'Netrika.MIS_OID', 'value'))
 
     equipmentInterface = smartDict(id=999,
                                    eachTestDetached=False,
@@ -854,7 +855,7 @@ def importResultsFromODLI(numberOrder):
     address['tests_version'] = "1"
     address['target'] = None
     address['terminology_url'] = 'http://10.0.1.179/nsi/fhir/term '  # "http://r23-rc.zdrav.netrika.ru/nsi/fhir/term/"
-    address['mis_oid'] = "1.2.643.2.69.1.2.5"
+    address['mis_oid'] = forceString(db.translate('GlobalPreferences', 'code', 'Netrika.MIS_OID', 'value'))
 
     equipmentInterface = smartDict(id=999,
                                    eachTestDetached=False,

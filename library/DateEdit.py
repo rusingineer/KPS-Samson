@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -20,15 +20,18 @@ from library.ROComboBox     import CStandardItemModel
 from library.adjustPopup    import adjustPopupToWidget
 from library.Utils          import forceDate
 
-__all__ = [ 'CDateEdit',
-          ]
+__all__ = ['CDateEdit',
+           ]
+
 
 class CDateValidator(QtGui.QValidator):
     def __init__(self, parent, format, canBeEmpty):
         QtGui.QValidator.__init__(self, parent)
-        self.min=QDate(1900, 1, 1)
-        self.max=QDate(2099,12,31)
-        self.format=format
+        self.min = QDate(1900, 1, 1)
+        self.max = QDate(2099, 12, 31)
+        self.defaultMin = QDate(1900, 1, 1)
+        self.defaultMax = QDate(2099, 12, 31)
+        self.format = format
         self.canBeEmpty = canBeEmpty
 
 
@@ -512,3 +515,47 @@ class CCurrentDateEditEx(CCurrentDateEdit):
                             self.emit(SIGNAL('dateChanged(const QDate &)'), currentDate)
                             dateAsText = date
             self.oldText = dateAsText
+class CCurrentDateEditEF(CCurrentDateEditEx):
+    __pyqtSignals__ = ('editingFinished()',
+                      )
+
+    def __init__(self, parent=None):
+        CCurrentDateEdit.__init__(self, parent)
+        self.connect(self.lineEdit, SIGNAL('textEdited(QString)'), self.onTextChange)
+
+
+    def showPopup(self):
+        if not self.isReadOnly():
+            if not self.calendarPopup:
+                self.calendarPopup = CCalendarPopup(self)
+
+                self.connect(self.calendarPopup, SIGNAL('newDateSelected(QDate)'), self.setDate)
+                #            self.connect(self.calendarPopup, SIGNAL('hidingCalendar(QDate)'), self.setDate)
+                self.connect(self.calendarPopup, SIGNAL('activated(QDate)'), self.setDate)
+                self.connect(self.calendarPopup, SIGNAL('activated(QDate)'), self.calendarPopup.close)
+            #            self.connect(self.calendarPopup, SIGNAL('resetButton()'), self._q_resetButton)
+            self.calendarPopup.installEventFilter(self)
+            self.calendarPopup.calendar.setMinimumDate(self.minimumDate())
+            self.calendarPopup.calendar.setMaximumDate(self.maximumDate())
+            date = self.date()
+            if not date:
+                date = QDate.currentDate()
+            self.calendarPopup.setInitialDate(date)
+            self.calendarPopup.show()
+            adjustPopupToWidget(self, self.calendarPopup, False)
+
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Close:
+            self.hidePopup()
+            return True
+        return QtGui.QComboBox.eventFilter(self, obj, event)
+
+
+    def hidePopup(self):
+        if self.calendarPopup:
+            self.calendarPopup.hide()
+        QtGui.QComboBox.hidePopup(self)
+        self.setFocus()
+        self.emit(SIGNAL('editingFinished()'))
+

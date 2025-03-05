@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,7 +21,7 @@ from PyQt4.QtGui import QCheckBox, QTextEdit
 from PyQt4.QtCore import Qt, QDate, QDateTime, QVariant, pyqtSignature, SIGNAL, QString, QChar, QObject, QEvent, QModelIndex
 
 from Events.ExportMIS import iniExportEvent
-from Events.TimeoutLogout import CTimeoutLogout
+from library.TimeoutLogout import CTimeoutLogout
 from library.Attach.AttachAction     import getAttachAction
 from library.Attach.AttachButton     import CAttachButton
 from library.Calendar                import wpFiveDays, wpSixDays, wpSevenDays
@@ -57,20 +57,20 @@ from library.MapCode                 import createMapCodeToRowIdx
 from library.PrintInfo               import CInfoContext
 from library.PrintTemplates          import applyTemplate, customizePrintButton, getPrintButton
 from library.TableModel              import CTableModel, CDateCol, CTextCol, CBoolCol, CEnumCol, CRefBookCol, CDateTimeCol, CCol, CIntCol
-from library.Utils                   import (
-                                              calcAgeTuple,
-                                              forceDate,
-                                              forceDateTime,
-                                              forceInt,
-                                              forceRef,
-                                              forceDouble,
-                                              forceString,
-                                              forceStringEx,
-                                              formatName,
-                                              toDateTimeWithoutSeconds,
-                                              trim,
-                                              toVariant
-                                            )
+from library.Utils import (
+    calcAgeTuple,
+    forceDate,
+    forceDateTime,
+    forceInt,
+    forceRef,
+    forceDouble,
+    forceString,
+    forceStringEx,
+    formatName,
+    toDateTimeWithoutSeconds,
+    trim,
+    toVariant, exceptionToUnicode
+)
 
 from Events.Action                   import CAction, CActionType
 from Events.ActionEditDialog         import CActionEditDialog
@@ -80,18 +80,14 @@ from Events.ActionTypeCol            import CActionTypeCol
 from Events.ActionTypeComboBox       import CActionTypeTableCol
 from Events.ActionPropertiesTable    import CActionPropertiesTableModel
 from Events.ActionTemplateChoose     import (
-                                              CActionTemplateCache,
-                                              CActionTemplateSelectButton,
+                                              CActionTemplateCache
                                             )
-from Events.ActionTemplateSaveDialog import CActionTemplateSaveDialog
-from Events.ActionTemplateSelectDialog import CActionTemplateSelectDialog
 from Events.ActionsModel import CActionRecordItem
 from Events.ActionsSummaryModel      import CActionPerson
 from Events.EventInfo                import CEventInfo, CCookedEventInfo, CDiagnosticInfo
 from Events.MKBInfo                  import CMKBInfo
 from Events.EventEditDialog          import CEventEditDialog
 from Events.EventVisitsModel import CEventVisitsModel
-from Events.GetPrevActionIdHelper    import CGetPrevActionIdHelper
 from Events.Utils import (checkAttachOnDate, checkPolicyOnDate, checkTissueJournalStatusByActions,
                           getEventEnableActionsBeyondEvent, getEventDuration, getEventShowTime,
                           getDeathDate, getEventPurposeId,
@@ -116,11 +112,8 @@ from Orgs.Utils                      import getOrgStructurePersonIdList
 from Users.Rights                    import (
                                               urAdmin,
                                               urCopyPrevAction,
-                                              urLoadActionTemplate,
-                                              urEditOtherpeopleAction,
                                               urRegTabWriteRegistry,
-                                              urRegTabReadRegistry,
-                                              urSaveActionTemplate
+                                              urRegTabReadRegistry
                                             )
 from F088.F088ActionPropertiesCheckTable import CF088ActionPropertiesCheckTableModel
 
@@ -183,7 +176,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.domainIPRAResult27_4 = []
         self.domainIPRAResult27_5 = []
         self.isRelationRepresentativeSetClientId = False
-        self.getPrevActionIdHelper = CGetPrevActionIdHelper()
         self.addModels('Visits', CEventVisitsModel(self))
         self.addModels('MembersMSIPerson', CMembersMSIPersonTableModel(self))
         self.addModels('TempInvalidYear', CTempInvalidYearTableModel(self))
@@ -212,15 +204,9 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.addObject('actDeleteAction', QtGui.QAction(u'Удалить Действие', self))
         self.addObject('actShowAttachedToClientFiles', getAttachAction('Client_FileAttach',  self))
         self.addObject('btnPrint', getPrintButton(self, ''))
-        self.addObject('btnLoadTemplate', CActionTemplateSelectButton(self))
         self.addObject('btnAttachedFiles', CAttachButton(self, u'Прикреплённые файлы'))
-        self.btnLoadTemplate.setText(u'Загрузить шаблон')
-        self.addObject('btnSaveAsTemplate', QtGui.QPushButton(u'Сохранить шаблон', self))
         self.addObject('btnLoadPrevAction', QtGui.QPushButton(u'Копировать из предыдущего', self))
         self.addObject('mnuLoadPrevAction',  QtGui.QMenu(self))
-        self.addObject('actLoadSameSpecialityPrevAction', QtGui.QAction(u'Той же самой специальности', self))
-        self.addObject('actLoadOwnPrevAction',            QtGui.QAction(u'Только свои', self))
-        self.addObject('actLoadAnyPrevAction',            QtGui.QAction(u'Любое', self))
         self.addObject('actAmbCardPrintStatusActionsAnamnesisDisease', QtGui.QAction(u'Преобразовать в текст и вставить в блок Анамнез заболевания', self))
         self.addObject('actAmbCardPrintStatusActionsAnamnesisLife',    QtGui.QAction(u'Преобразовать в текст и вставить в блок Анамнез жизни', self))
         self.addObject('actAmbCardPrintStatusActions',    QtGui.QAction(u'Преобразовать в текст и вставить в блок', self))
@@ -233,10 +219,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.addObject('actStatusShowPropertyHistory',    QtGui.QAction(u'Показать журнал значения свойства', self))
         self.addObject('actStatusShowPropertiesHistory',  QtGui.QAction(u'Показать журнал значения свойств...', self))
         self.addObject('actRequestDocumentDataFromCdaGen',QtGui.QAction(u'Показать документ', self))
-        self.mnuLoadPrevAction.addAction(self.actLoadSameSpecialityPrevAction)
-        self.mnuLoadPrevAction.addAction(self.actLoadOwnPrevAction)
-        self.mnuLoadPrevAction.addAction(self.actLoadAnyPrevAction)
-        self.btnLoadPrevAction.setMenu(self.mnuLoadPrevAction)
         self.setupUi(self)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setWindowTitleEx(u'Мероприятие МСЭ')
@@ -245,9 +227,8 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.edtDirectionDate.canBeEmpty(True)
         self.edtEndDate.canBeEmpty(True)
         self.edtBegDate.canBeEmpty(True)
+        self.isActionSave = False
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnLoadTemplate, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnSaveAsTemplate, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnLoadPrevAction, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnAttachedFiles, QtGui.QDialogButtonBox.ActionRole)
         self.setModels(self.tblTempInvalidYear, self.modelTempInvalidYear, self.selectionModelTempInvalidYear)
@@ -343,11 +324,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         splInspectionIndex2 = self.splInspection.indexOf(self.tabAmbCardInspection_30)
         self.splInspection.setCollapsible(splInspectionIndex2, True)
         self.createApplyButton()
-        if QtGui.qApp.getEventTimeout() != 0:
-            self.timeoutFilter = CTimeoutLogout(QtGui.qApp.getEventTimeout() * 60000 - 60000, self)
-            QtGui.qApp.installEventFilter(self.timeoutFilter)
-            self.timeoutFilter.deleteLater()
-            self.timeoutFilter.timerActivate(self.timeoutAlert)
         self.servicesURL = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
         self.tabWidget.setTabEnabled(self.tabWidget.indexOf(self.tabExtendedMSE), forceBool(self.servicesURL))
         self.connect(self.edtBegDate, SIGNAL('dateChanged(const QDate &)'), self.on_edtBegDate_dateChanged)
@@ -360,6 +336,9 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.cmbAmbCardStatusGroupAnamnesis.setClassesVisible(True)
         self.tblAssignedMedicament.enableColsHide()
         self.tblMedicament.enableColsHide()
+        self._timeoutLogout = CTimeoutLogout(self)
+        if QtGui.qApp.getEventTimeout() != 0 and bool(self.itemId()):
+            self._timeoutLogout.setup(QtGui.qApp.getEventTimeout() * 60000, u'обращение')
 
 
     def createApplyButton(self):
@@ -757,6 +736,10 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
 
 
     def deletedAmbCardPrintDiagnosticActions_30Table(self):
+        self.resetAmbCardPrintDiagnosticActions_30Table()
+
+
+    def resetAmbCardPrintDiagnosticActions_30Table(self):
         self.updateAmbCardPrintDiagnosticActions_30Table()
         self.modelAmbCardDiagnosticActionProperties_30.includeRows = {}
         self.modelAmbCardDiagnosticActions_30.includeItems = {}
@@ -996,6 +979,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         QtGui.qApp.setJTR(self)
         try:
             result = CItemEditorBaseDialog.exec_(self)
+            self.isActionSave = False
         finally:
             QtGui.qApp.unsetJTR(self)
         if result:
@@ -1018,10 +1002,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
             return currentTime.addSecs(60)
         else:
             return currentDateTime.time()
-
-
-    def destroy(self):
-        pass
 
 
     def getClientId(self, eventId):
@@ -1610,6 +1590,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         propertiesView.setColumnHidden(3, not actionType.propertyUnitVisible)
         propertiesView.setColumnHidden(4, not actionType.propertyNormVisible)
         propertiesView.setColumnHidden(5, not actionType.propertyEvaluationVisible)
+        propertiesView.setColumnHidden(6, not actionType.propertyCommentVisible)
 
 
     def getAboutMERPropertyIdList(self):
@@ -1775,7 +1756,8 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.action = CAction(record=record)
         actionType = self.action.getType()
         self.actionTypeId = actionType.id
-        self.setComboBoxes()
+        if not self.isActionSave:
+            self.setComboBoxes()
         self.action.executionPlanManager.load()
         self.action.executionPlanManager.setCurrentItemIndex()
         showTime = actionType.showTime
@@ -1817,12 +1799,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
-        if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)):
-            actionTemplateTreeModel = self.actionTemplateCache.getModel(actionType.id)
-            self.btnLoadTemplate.setModel(actionTemplateTreeModel)
-        else:
-            self.btnLoadTemplate.setEnabled(False)
-        self.btnSaveAsTemplate.setEnabled(QtGui.qApp.userHasRight(urSaveActionTemplate))
         canEdit = not self.action.isLocked() if self.action else True
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,
                        self.cmbStatus, self.edtBegDate, self.edtBegTime,
@@ -1834,10 +1810,8 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
                        self.buttonBox.button(QtGui.QDialogButtonBox.Ok)
                       ):
                 widget.setEnabled(canEdit)
-        self.btnLoadPrevAction.setEnabled(QtGui.qApp.userHasRight(urCopyPrevAction) and canEdit)
+        self.btnLoadPrevAction.setEnabled(QtGui.qApp.userHasRight(urCopyPrevAction) and canEdit and bool(self.action and self.getPrevActionId()))
         self.edtAmount.setEnabled(actionType.amountEvaluation == 0 and canEdit)
-        if not QtGui.qApp.userHasRight(urLoadActionTemplate) and not (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)) and not canEdit:
-            self.btnLoadTemplate.setEnabled(False)
         canEditPlannedEndDate = canEdit and actionType.defaultPlannedEndDate not in (CActionType.dpedBegDatePlusAmount,
                                                                                      CActionType.dpedBegDatePlusDuration)
         canEditIsExecutionPlan = not bool(self.action.getExecutionPlan() and self.action.executionPlanManager.hasItemsToDo())
@@ -1885,6 +1859,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.tblDiagnosisDisease_31_4.resizeRowsToContents()
         self.tblDiagnosisDisease_31_6.resizeColumnsToContents()
         self.tblDiagnosisDisease_31_6.resizeRowsToContents()
+        self.isActionSave = False
 
 
     def getShortNameTextEdit(self): # *
@@ -2164,8 +2139,109 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
     def getEventRecord(self):
         return self.recordEvent
 
+    
+    def afterSave(self):
+        if self._id:
+            db = QtGui.qApp.db
+            record = db.getRecord(db.table(self._tableName), '*', self._id)
+            self.isActionSave = True
+            self.setRecord(record)
+        self.setIsDirty(False)
+        
+        
+    def getActionMKB(self):
+        MKB = forceStringEx(self.action.getRecord().value('MKB'))
+        items = self.modelDiagnosisDisease_31_1.items()
+        for item in items:
+            MKB = forceStringEx(item.value('MKB'))
+            if MKB:
+                self.action.getRecord().setValue('MKB', toVariant(MKB))
+                self.action.setChanged(True)
+                break
+        return MKB
+    
+    
+    def saveAction(self):
+        newActionId = None
+        if self.action:
+            self.getActionMKB()
+            self.action._record = self.getRecord()
+            self.setTextEdits()
+            eventRecordMSI = self.getEventRecord()
+            idxMSI = self.idx
+            db = QtGui.qApp.db
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
+            recordAction = self.action.getRecord()
+            eventRecordMSIId = forceRef(eventRecordMSI.value('id')) if eventRecordMSI else None
+            eventId = forceRef(recordAction.value('event_id')) if recordAction else (eventRecordMSIId if eventRecordMSIId else None)
+            if eventId and eventRecordMSI:
+                newActionId = self.saveMedicalCommissionAction(self.action, eventRecordMSI, eventId, idx = idxMSI)
+            else:
+                eventTypeId = forceRef(eventRecordMSI.value('eventType_id')) if eventRecordMSI else None
+                if not eventTypeId:
+                    recordEventType = db.getRecordEx(tableEventType, [tableEventType['id']], [tableEventType['context'].like(u'inspection%'), tableEventType['deleted'].eq(0)], u'EventType.id')
+                    eventTypeId = forceRef(recordEventType.value('id')) if recordEventType else None
+                if eventTypeId:
+                    tableEvent = db.table('Event')
+                    recordEvent = tableEvent.newRecord()
+                    if eventRecordMSI:
+                        for i in xrange(recordEvent.count()):
+                            fieldName = recordEvent.fieldName(i)
+                            if fieldName in tabNotesFieldNames:
+                                recordEvent.setValue(i, eventRecordMSI.value(fieldName))
+                        recordEvent.setValue('eventType_id',   toVariant(eventTypeId))
+                        if self.clientId and not forceRef(recordEvent.value('client_id')):
+                            recordEvent.setValue('client_id', toVariant(self.clientId))
+                    else:
+                        currentOrgId = None
+                        if QtGui.qApp.userId:
+                            recordPerson = db.getRecord('Person', ['org_id'], QtGui.qApp.userId)
+                            if recordPerson:
+                                currentOrgId = forceRef(recordPerson.value('org_id'))
+                        if not currentOrgId:
+                            currentOrgId = QtGui.qApp.currentOrgId()
+                        recordEvent.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+                        recordEvent.setValue('createPerson_id',toVariant(QtGui.qApp.userId))
+                        recordEvent.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                        recordEvent.setValue('modifyPerson_id',toVariant(QtGui.qApp.userId))
+                        recordEvent.setValue('setDate',        toVariant(QDateTime.currentDateTime()))
+                        recordEvent.setValue('eventType_id',   toVariant(eventTypeId))
+                        recordEvent.setValue('client_id', toVariant(self.clientId))
+                        recordEvent.setValue('relegatePerson_id', toVariant(QtGui.qApp.userId))
+                        recordEvent.setValue('relegateOrg_id', toVariant(QtGui.qApp.currentOrgId()))
+                        recordEvent.setValue('org_id',         toVariant(currentOrgId))
+                    eventId = db.insertRecord(tableEvent, recordEvent)
+                    if eventId:
+                        recordEvent.setValue('id', toVariant(eventId))
+                        self.setEventRecord(recordEvent)
+                        self.tabNotes.setNotes(self.recordEvent)
+                        newActionId = self.saveMedicalCommissionAction(self.action, recordEvent, eventId, idx = idxMSI)
+            if eventId and newActionId:
+                if hasattr(self, 'tabNotes') and hasattr(self.tabNotes, 'saveAttachedFiles'):
+                    self.tabNotes.saveAttachedFiles(eventId)
+                if hasattr(self, 'modelDiagnosisDisease_31_1'):
+                    self.saveDiagnostics(self.modelDiagnosisDisease_31_1, eventId)
+                if hasattr(self, 'modelDiagnosisDisease_31_3'):
+                    self.saveDiagnostics(self.modelDiagnosisDisease_31_3, eventId)
+                if hasattr(self, 'modelDiagnosisDisease_31_4'):
+                    self.saveDiagnostics(self.modelDiagnosisDisease_31_4, eventId)
+                if hasattr(self, 'modelDiagnosisDisease_31_6'):
+                    self.saveDiagnostics(self.modelDiagnosisDisease_31_6, eventId)
+                if hasattr(self, 'modelAddActions_30'):
+                    self.modelAddActions_30.saveItems(eventId)
+                    self.modelAddActions_30.clearItems()
+                if hasattr(self, 'modelElectronicMedicalDocument'):
+                    self.modelElectronicMedicalDocument.saveItems(newActionId)
+                if hasattr(self, 'modelAboutMedicalExaminationsRequiredAction'):
+                    self.modelAboutMedicalExaminationsRequiredAction.saveItems(newActionId)
+                if hasattr(self, 'modelMedicament'):
+                    self.modelMedicament.saveItems(newActionId)
+        return newActionId
+
 
     def saveInternals(self, id):
+        self.getActionMKB()
         if self.checkDataEntered(secondTry=True):
             self.setTextEdits()
             db = QtGui.qApp.db
@@ -3363,10 +3439,6 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
     @pyqtSignature('int')
     def on_cmbPerson_currentIndexChanged(self, value):
         self.setPersonId(self.cmbPerson.value())
-        actionTemplateTreeModel = self.actionTemplateCache.getModel(self.action.getType().id)
-        self.btnLoadTemplate.setModel(actionTemplateTreeModel)
-        if not(QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction))):
-            self.btnLoadTemplate.setEnabled(False)
 
 
     @pyqtSignature('QDate')
@@ -3495,112 +3567,135 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
                 }
         applyTemplate(self, templateId, data, signAndAttachHandler=self.btnAttachedFiles.getSignAndAttachHandler())
 
+    
+    def getPersonIdAndDate(self, action):
+        actionPersonId = forceRef(action.getRecord().value('person_id'))
+        if actionPersonId:
+            personId = actionPersonId
+        elif QtGui.qApp.userSpecialityId:
+            personId = QtGui.qApp.userId
+        else:
+            personId = forceRef(action.getRecord().value('setPerson_id'))
+
+        actionEndDate = forceDate(action.getRecord().value('endDate'))
+        if actionEndDate:
+            date = actionEndDate
+        else:
+            date = forceDate(action.getRecord().value('directionDate'))
+        return personId, date
+    
+
+    def getPrevActionId(self, isPersonId=True):
+        actionTypeId = self.action.getType().id
+        actionId = forceRef(self.action.getRecord().value('id')) if self.action.getRecord() else None
+        personId, date = self.getPersonIdAndDate(self.action)
+        return self.findPrevActionId(actionTypeId, actionId, personId, date, isPersonId=isPersonId)
+
+
+    def findPrevActionId(self, actionTypeId, actionId, personId, date, isPersonId=True):
+        if not self.clientId:
+            return None
+        db = QtGui.qApp.db
+        tableEvent  = db.table('Event')
+        tableAction = db.table('Action')
+        tableActionTypeTestator = db.table('ActionType_Testator')
+        table = tableAction.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
+        table = table.leftJoin(tableActionTypeTestator,
+                               tableActionTypeTestator['testator_id'].eq(tableAction['actionType_id']))
+        cond = [tableAction['deleted'].eq(0),
+                tableEvent['deleted'].eq(0),
+                db.joinOr([tableAction['actionType_id'].eq(actionTypeId),
+                           tableActionTypeTestator['master_id'].eq(actionTypeId)
+                          ]
+                         ),
+                tableEvent['client_id'].eq(self.clientId)
+               ]
+        cond.append(tableAction['endDate'].lt(date.addDays(1)))
+        if isPersonId:
+            cond.append(tableAction['person_id'].eq(personId))
+        if actionId:
+            cond.append(tableAction['id'].ne(actionId))
+        return db.getRecordEx(table, u'*', cond, u'Action.endDate DESC, Action.id DESC')
+    
+
+    def setRecordPrevAction(self, templateAction):
+        if not templateAction:
+            return
+        self.setProperties()
+        record = templateAction.getRecord()
+        prevActionEventId = forceRef(record.value('event_id'))
+        prevActionId = forceRef(record.value('id'))
+        recordEvent = None
+        db = QtGui.qApp.db
+        if prevActionEventId:
+            tableEvent = db.table('Event')
+            recordEvent = db.getRecordEx(tableEvent, '*', [tableEvent['id'].eq(prevActionEventId), tableEvent['deleted'].eq(0)])
+        prevActionEventId = forceRef(recordEvent.value('id')) if recordEvent else None
+        self.isRelationRepresentativeSetClientId = True
+        self.cmbClientRelationRepresentative.clear()
+        self.cmbClientRelationRepresentative.setClientId(self.clientId)
+        self.cmbClientRelationRepresentative.setValue(forceRef(recordEvent.value('relative_id')) if recordEvent else None)
+        self.tabNotes.cmbClientRelationConsents.clear()
+        self.tabNotes.cmbClientRelationConsents.setClientId(self.clientId)
+        self.tabNotes.cmbClientRelationConsents.setValue(forceRef(recordEvent.value('relative_id')) if recordEvent else None)
+        self.isRelationRepresentativeSetClientId = False
+        self.modelTempInvalidYear.setAction(self.action)
+        self.modelTempInvalidYear.loadPrevActionItems(self.clientId)
+        self.modelMembersMSIPerson.setAction(self.action)
+        self.modelMembersMSIPerson.loadItems()
+        self.modelDiagnosisDisease_31_1.setAction(self.action)
+        self.modelDiagnosisDisease_31_1.loadPrevActionItems(prevActionEventId, self.eventId)
+        self.modelDiagnosisDisease_31_3.setAction(self.action)
+        self.modelDiagnosisDisease_31_3.loadPrevActionItems(prevActionEventId, self.eventId)
+        self.modelDiagnosisDisease_31_4.setAction(self.action)
+        self.modelDiagnosisDisease_31_4.loadPrevActionItems(prevActionEventId, self.eventId)
+        self.modelDiagnosisDisease_31_6.setAction(self.action)
+        self.modelDiagnosisDisease_31_6.loadPrevActionItems(prevActionEventId, self.eventId)
+        actionId = self.itemId()
+        self.modelMedicament.loadPrevActionItems(prevActionId, actionId)
+        self.updateAssignedMedicament(actionId)
+        #self.modelElectronicMedicalDocument.reset()
+        self.modelAboutMedicalExaminationsRequiredAction.loadPrevActionItems(prevActionId, actionId)
+        self.modelAboutMedicalExaminationsRequiredProperties.setMasterId(actionId)
+        self.tblAboutMedicalExaminationsRequiredAction.setCurrentRow(0)
+        self.tblDiagnosisDisease_31_1.setRowHidden(1, True)
+        self.tblDiagnosisDisease_31_1.resizeColumnToContents(self.tblDiagnosisDisease_31_1.columnHint)
+        self.tblDiagnosisDisease_31_3.resizeColumnsToContents()
+        self.tblDiagnosisDisease_31_3.resizeRowsToContents()
+        self.tblDiagnosisDisease_31_4.resizeColumnsToContents()
+        self.tblDiagnosisDisease_31_4.resizeRowsToContents()
+        self.tblDiagnosisDisease_31_6.resizeColumnsToContents()
+        self.tblDiagnosisDisease_31_6.resizeRowsToContents()
+
 
     @pyqtSignature('')
-    def on_btnLoadTemplate_clicked(self):
-        if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)):
-            record = self.getRecord()
-            templateAction = None
-            isMethodRecording = CAction.actionNoMethodRecording
-            db = QtGui.qApp.db
-            personId = QtGui.qApp.userId if QtGui.qApp.userSpecialityId else self.personId
-            specialityId = QtGui.qApp.userSpecialityId if QtGui.qApp.userSpecialityId else self.personSpecialityId
-            personSNILS  = forceString(db.translate(db.table('Person'), 'id', personId, 'SNILS')) if QtGui.qApp.userSpecialityId else self.personSNILS
-            dlg = CActionTemplateSelectDialog(parent=self,
-                                              actionRecord=record,
-                                              action=self.action,
-                                              clientSex=self.clientSex,
-                                              clientAge=self.clientAge,
-                                              personId=personId,
-                                              specialityId=specialityId,
-                                              orgStructureId=QtGui.qApp.currentOrgStructureId(),
-                                              SNILS=personSNILS,
-                                              showTypeTemplate=self.showTypeTemplate,
-                                              model=self.actionTemplateCache.getModel(self.action.getType().id)
-                                              )
+    def on_btnLoadPrevAction_clicked(self):
+        try:
             try:
-                if dlg.exec_():
-                    templateAction = dlg.getSelectAction()
-                    isMethodRecording = dlg.getMethodRecording()
-            finally:
-                dlg.deleteLater()
-            if templateAction:
-                self.action.updateByAction(templateAction, checkPropsOnOwner=True, clientSex=self.clientSex, clientAge=self.clientAge, isMethodRecording=isMethodRecording)
-                self.setProperties()
-                self.modelMembersMSIPerson.loadItems()
-                self.updateAmount()
-
-
-    def getPrevActionId(self, action, type):
-        self.getPrevActionIdHelper._clientId = self.clientId
-        return self.getPrevActionIdHelper.getPrevActionId(action, type)
-
-
-    def loadPrevAction(self, type):
-        if QtGui.qApp.userHasRight(urCopyPrevAction):
-                prevActionId = self.getPrevActionId(self.action, type)
-                if prevActionId:
-                    clientSex, clientAge = getClientSexAge(self.clientId)
-                    self.action.updateByActionId(prevActionId, clientSex=clientSex, clientAge=clientAge)
-                    self.setProperties()
-
-
-    @pyqtSignature('')
-    def on_mnuLoadPrevAction_aboutToShow(self):
-        self.actLoadSameSpecialityPrevAction.setEnabled(bool(
-                self.action and self.getPrevActionId(self.action, CGetPrevActionIdHelper.sameSpecialityPrevAction))
-                                                         )
-        self.actLoadOwnPrevAction.setEnabled(bool(
-                self.action and self.getPrevActionId(self.action, CGetPrevActionIdHelper.ownPrevAction))
-                                              )
-
-        self.actLoadAnyPrevAction.setEnabled(bool(
-                self.action and self.getPrevActionId(self.action, CGetPrevActionIdHelper.anyPrevAction))
-                                              )
-
-
-    @pyqtSignature('')
-    def on_actLoadSameSpecialityPrevAction_triggered(self):
-        self.loadPrevAction(CGetPrevActionIdHelper.sameSpecialityPrevAction)
-
-
-    @pyqtSignature('')
-    def on_actLoadOwnPrevAction_triggered(self):
-        self.loadPrevAction(CGetPrevActionIdHelper.ownPrevAction)
-
-
-    @pyqtSignature('')
-    def on_actLoadAnyPrevAction_triggered(self):
-        self.loadPrevAction(CGetPrevActionIdHelper.anyPrevAction)
-
-
-    @pyqtSignature('')
-    def on_btnSaveAsTemplate_clicked(self):
-        if QtGui.qApp.userHasRight(urSaveActionTemplate):
-            record = self.getRecord()
-            db = QtGui.qApp.db
-            personId = QtGui.qApp.userId if QtGui.qApp.userSpecialityId else self.personId
-            specialityId = QtGui.qApp.userSpecialityId if QtGui.qApp.userSpecialityId else self.personSpecialityId
-            personSNILS  = forceString(db.translate(db.table('Person'), 'id', personId, 'SNILS')) if QtGui.qApp.userSpecialityId else self.personSNILS
-            dlg = CActionTemplateSaveDialog(parent=self,
-                                            actionRecord=record,
-                                            action=self.action,
-                                            clientSex=self.clientSex,
-                                            clientAge=self.clientAge,
-                                            personId=personId,
-                                            specialityId=specialityId,
-                                            orgStructureId=QtGui.qApp.currentOrgStructureId(),
-                                            SNILS=personSNILS,
-                                            showTypeTemplate=self.showTypeTemplate
-                                           )
-            dlg.exec_()
-            dlg.deleteLater()
-            actionType = self.action.getType()
-            self.actionTemplateCache.reset()
-            actionTemplateTreeModel = self.actionTemplateCache.getModel(actionType.id)
-            self.btnLoadTemplate.setModel(actionTemplateTreeModel)
-            if not(QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction))):
-                self.btnLoadTemplate.setEnabled(False)
+                if QtGui.qApp.userHasRight(urCopyPrevAction):
+                    templateRecord = self.getPrevActionId(False)
+                    if templateRecord:
+                        templateAction = CAction(record=templateRecord)
+                        self.action.updateByAction(templateAction)
+                        self.setRecordPrevAction(templateAction)
+            except:
+                QtGui.QMessageBox.critical( self,
+                                            u'Внимание!',
+                                            u'Информация не была скопирована.',
+                                            QtGui.QMessageBox.Ok)
+                raise
+            self.setIsDirty(True)
+            QtGui.QMessageBox.information( self,
+                           u'Внимание!',
+                           u'Информация была успешно скопирована.',
+                           QtGui.QMessageBox.Ok,
+                           QtGui.QMessageBox.Ok)
+        except Exception, e:
+            QtGui.qApp.logCurrentException()
+            QtGui.QMessageBox.critical( self,
+                                        u'',
+                                        exceptionToUnicode(e),
+                                        QtGui.QMessageBox.Close)
 
 
     def getDiagFilter(self):
@@ -4098,6 +4193,80 @@ class CTempInvalidYearTableModel(CInDocTableModel):
                             item.setValue('MKB', toVariant(MKB))
                             self._items.append(item)
         self.reset()
+    
+    
+    def loadPrevActionItems(self, masterId):
+        self._items = []
+        if self.eventEditor and self.action:
+            items = {}
+            for property in self.action._propertiesById.itervalues():
+                propertyType = property.type()
+                shortName = trim(propertyType.shortName)
+                value = property._value
+                propertyValue = propertyType.convertQVariantToPyValue(value) if type(value) == QVariant else value
+                if isinstance(propertyValue, basestring) or type(propertyValue) == QString:
+                    propertyValue = trim(propertyValue)
+                if propertyValue:
+                    item = items.get(shortName, [])
+                    if propertyValue and (isinstance(propertyValue, basestring) or type(propertyValue) == QString) and len(propertyValue) > 1:
+                        propertyValue = propertyValue.split(u',')
+                        item.extend(propertyValue)
+                    else:
+                        item.append(propertyValue)
+                    items[shortName] = item
+            if items:
+                self._items = []
+                for idx in xrange(20):
+                    begDate = self.eventEditor.getPropertyValue(items, u'26.%s.2'%(forceString(idx+1)), QDate)
+                    endDate = self.eventEditor.getPropertyValue(items, u'26.%s.3'%(forceString(idx+1)), QDate)
+                    if begDate or endDate:
+                        duration = self.eventEditor.getPropertyValue(items, u'26.%s.4'%(forceString(idx+1)), int)
+                        MKB = self.eventEditor.getPropertyValue(items, u'26.%s.5'%(forceString(idx+1)), QString)
+                        item = self.getEmptyRecord()
+                        item.setValue('begDate', toVariant(begDate))
+                        item.setValue('endDate', toVariant(endDate))
+                        item.setValue('duration', toVariant(duration))
+                        item.setValue('MKB', toVariant(MKB))
+                        self._items.append(item)
+        elif masterId and not self.action or not forceRef(self.action.getRecord().value('id')):
+            db = QtGui.qApp.db
+            cols = []
+            for col in self._cols:
+                if not col.external():
+                    cols.append(col.fieldName())
+            cols.append(self._idFieldName)
+            cols.append(self._masterIdFieldName)
+            if self._idxFieldName:
+                cols.append(self._idxFieldName)
+            for col in self._hiddenCols:
+                cols.append(col)
+            table = self._table
+            filter = [table[self._masterIdFieldName].eq(masterId)]
+            if self._filter:
+                filter.append(self._filter)
+            if table.hasField('deleted'):
+                filter.append(table['deleted'].eq(0))
+            currentDate = QDate.currentDate() #0013020
+            filter.append(db.joinOr([table['endDate'].isNull(), table['endDate'].dateGe(currentDate.addYears(-1))]))
+            if self._idxFieldName:
+                order = [self._idxFieldName, table['begDate'].name(), table['endDate'].name()]
+            else:
+                order = [table['begDate'].name(), table['endDate'].name()]
+            self._items = db.getRecordList(table, cols, filter, order)
+            if self._extColsPresent:
+                extSqlFields = []
+                for col in self._cols:
+                    if col.external():
+                        fieldName = col.fieldName()
+                        if fieldName not in cols:
+                            extSqlFields.append(QtSql.QSqlField(fieldName, col.valueType()))
+                if extSqlFields:
+                    for item in self._items:
+                        for field in extSqlFields:
+                            item.append(field)
+                            item.setValue(field.name(), toVariant(self.getMKBToDiagnosis(forceRef(item.value('diagnosis_id')))))
+            self.saveItems(masterId)
+        self.reset()
 
 
     def saveItems(self, masterId):
@@ -4476,6 +4645,55 @@ class CMedicamentActionsTableModel(CInDocTableModel):
     def setReadOnly(self, value=True):
         self.readOnly = value
 
+    
+    def loadPrevActionItems(self, prevMasterId, masterId):
+        self._items = []
+        if prevMasterId:
+            db = QtGui.qApp.db
+            cols = []
+            for col in self._cols:
+                if not col.external():
+                    cols.append(col.fieldName())
+            cols.append(self._idFieldName)
+            cols.append(self._masterIdFieldName)
+            if self._idxFieldName:
+                cols.append(self._idxFieldName)
+            for col in self._hiddenCols:
+                cols.append(col)
+            table = self._table
+            filter = [table[self._masterIdFieldName].eq(prevMasterId)]
+            if self._filter:
+                filter.append(self._filter)
+            if table.hasField('deleted'):
+                filter.append(table['deleted'].eq(0))
+            if self._idxFieldName:
+                order = [self._idxFieldName, self._idFieldName]
+            else:
+                order = [self._idFieldName]
+            prevRecords = db.getRecordList(table, cols, filter, order)
+            for record in prevRecords:
+                record.setValue('id', toVariant(None))
+                record.setValue(self._masterIdFieldName, toVariant(None))
+                newRecord = self.getEmptyRecord()
+                for i in xrange(record.count()):
+                    fieldName = forceStringEx(record.fieldName(i))
+                    if fieldName not in ('id', self._masterIdFieldName, 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'deleted'):
+                        newRecord.setValue(fieldName, record.value(fieldName))
+                    newRecord.setValue(self._masterIdFieldName, toVariant(masterId))
+                self._items.append(newRecord)
+            if self._extColsPresent:
+                extSqlFields = []
+                for col in self._cols:
+                    if col.external():
+                        fieldName = col.fieldName()
+                        if fieldName not in cols:
+                            extSqlFields.append(QtSql.QSqlField(fieldName, col.valueType()))
+                if extSqlFields:
+                    for item in self._items:
+                        for field in extSqlFields:
+                            item.append(field)
+        self.reset()
+
 
     def emitRowsChanged(self, begRow, endRow):
         CInDocTableModel.emitRowsChanged(self, begRow, endRow)
@@ -4831,7 +5049,7 @@ class CEventExportTableModel(CTableModel):
         self.firstExport = None
         self.addColumn(CDateTimeCol(u'Дата и время экспорта', ['dateTime'], 40))
         self.addColumn(CRefBookCol(u'Внешняя система', ['system_id'], 'rbExternalSystem', 50))
-        self.addColumn(CEnumCol(u'Состояние', ['success'], [u'ошибка', u'успех'], 15))
+        self.addColumn(CEnumCol(u'отправка в Региональный РЭМД', ['success'], [u'ошибка', u'успех'], 15))
         self.addColumn(CTextCol(u'Примечания',     ['note'], 6))
 
     def data(self, index, role=Qt.DisplayRole):
@@ -4865,7 +5083,7 @@ class CEventExportTableModel(CTableModel):
                     return QtCore.QVariant(QtGui.QColor('#FFFF66'))
         elif role == Qt.ToolTipRole:
             if column == 2 and forceInt(record.value('success')) == 1:
-                return QVariant(u'Случай обслуживания выгружен в региональную ИЭМК успешно')
+                return QVariant(u'Выгружено в ИЭМК')
             elif column == 2 and forceInt(record.value('success')) == 0:
                 return QVariant(u'Случай обслуживания не выгружен')
             elif column == 0 and self.firstExport == record:
@@ -4899,7 +5117,7 @@ class CAdvancedExportTableModel(CTableModel):
             (col, values) = self.getRecordValues(column, row)
             return col.getForegroundColor(values)
         elif role == Qt.DecorationRole:
-            if column == 5 and forceInt(record.value('success')) == 1:
+            if column == 5 and (forceInt(record.value('success')) == 1 or self.data(index) == u'успех'):
                 return QtCore.QVariant(QtGui.QColor('#9ACD32'))
             elif column == 5 and forceInt(record.value('success')) == 0:
                 return QtCore.QVariant(QtGui.QColor('#FF4500'))
@@ -4908,8 +5126,8 @@ class CAdvancedExportTableModel(CTableModel):
             elif column == 3 and u'успеш' not in forceString(record.value('Message')) and self.table().tableName == 'Information_Messages':
                 return QtCore.QVariant(QtGui.QColor('#FF4500'))
         elif role == Qt.ToolTipRole:
-            if column == 5 and forceInt(record.value('success')) == 1:
-                return QVariant(u'Документ выгружен в региональный РЭМД успешно')
+            if column == 5 and (forceInt(record.value('success')) == 1 or self.data(index) == u'успех'):
+                return QVariant(u'Выгружено в ИЭМК')
             elif column == 5 and forceInt(record.value('success')) == 0:
                 return QVariant(u'Документ не выгружен')
         return QVariant()
@@ -4968,6 +5186,21 @@ class CAboutMedicalExaminationsRequiredPropertiesRegistry:
         record = self.getEmptyRecordEx(masterId, actionId, actionProperyId)
         if record:
             self.items = [record]
+    
+    
+    def loadPrevAction(self, prevActionMasterId, masterId, actionId):
+        self.items = []
+        db = QtGui.qApp.db
+        table = db.table('Action_ActionProperty')
+        prevRecords = db.getRecordList(table, '*', [table['master_id'].eq(prevActionMasterId), table['action_id'].eq(actionId), table['deleted'].eq(0), table['actionProperty_id'].isNotNull()], order = u'Action_ActionProperty.idx, Action_ActionProperty.id')
+        for record in prevRecords:
+            actionId = forceRef(record.value('action_id'))
+            actionProperyId = forceRef(record.value('actionProperty_id'))
+            additional = forceInt(record.value('additional'))
+            newRecord = self.getEmptyRecordEx(masterId, actionId, actionProperyId)
+            newRecord.setValue('additional', toVariant(additional))
+            self.items.append(newRecord)
+        return self.items
 
 
     def load(self, masterId, actionId):
@@ -5395,6 +5628,61 @@ class CAboutMedicalExaminationsRequiredActionTableModel(CInDocTableModel):
                 item.aboutMERProperties = CAboutMedicalExaminationsRequiredPropertiesRegistry()
                 item.aboutMERProperties.load(forceRef(item.value('master_id')), forceRef(item.value('action_id')))
         self.reset()
+    
+    
+    def loadPrevActionItems(self, prevMasterId, masterId):
+        self._items = []
+        if prevMasterId:
+            db = QtGui.qApp.db
+            cols = []
+            for col in self._cols:
+                if not col.external():
+                    cols.append(col.fieldName())
+            cols.append(self._idFieldName)
+            cols.append(self._masterIdFieldName)
+            if self._idxFieldName:
+                cols.append(self._idxFieldName)
+            for col in self._hiddenCols:
+                cols.append(col)
+            table = self._table
+            filter = [table[self._masterIdFieldName].eq(prevMasterId),
+                      table['actionProperty_id'].isNull()
+                      ]
+            if self._filter:
+                filter.append(self._filter)
+            if table.hasField('deleted'):
+                filter.append(table['deleted'].eq(0))
+            if self._idxFieldName:
+                order = [self._idxFieldName, self._idFieldName]
+            else:
+                order = [self._idFieldName]
+            prevRecords = db.getRecordList(table, '*', filter, order)
+            for record in prevRecords:
+                record.setValue('id', toVariant(None))
+                record.setValue(self._masterIdFieldName, toVariant(None))
+                newRecord = self.getEmptyRecord()
+                for i in xrange(record.count()):
+                    fieldName = forceStringEx(record.fieldName(i))
+                    if fieldName not in ('id', self._masterIdFieldName, 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'deleted'):
+                        newRecord.setValue(fieldName, record.value(fieldName))
+                    newRecord.setValue(self._masterIdFieldName, toVariant(masterId))
+                self._items.append(newRecord)
+            if self._extColsPresent:
+                extSqlFields = []
+                for col in self._cols:
+                    if col.external():
+                        fieldName = col.fieldName()
+                        if fieldName not in cols:
+                            extSqlFields.append(QtSql.QSqlField(fieldName, col.valueType()))
+                if extSqlFields:
+                    for item in self._items:
+                        for field in extSqlFields:
+                            item.append(field)
+            for item in self._items:
+                item.aboutMERProperties = CAboutMedicalExaminationsRequiredPropertiesRegistry()
+                item.aboutMERProperties.loadPrevAction(prevMasterId, masterId, forceRef(item.value('action_id')))
+        QObject.parent(self).resetAmbCardPrintDiagnosticActions_30Table()
+        self.reset()
 
 
     def saveItems(self, masterId):
@@ -5791,6 +6079,52 @@ class CDiagnosisDisease_31_TableModel(CInDocTableModel):
         self.reset()
 
 
+    def loadPrevActionItems(self, prevActionMasterId, masterId):
+        self._items = []
+        if prevActionMasterId:
+            db = QtGui.qApp.db
+            cols = '*'
+            table = self._table
+            filter = [table[self._masterIdFieldName].eq(prevActionMasterId),
+                      table['diagnosisType_id'].eq(self.diagnosisTypeId)]
+            if self._filter:
+                filter.append(self._filter)
+            if table.hasField('deleted'):
+                filter.append(table['deleted'].eq(0))
+            if self._idxFieldName:
+                order = [self._idxFieldName, self._idFieldName]
+            else:
+                order = [self._idFieldName]
+            prevRecords = db.getRecordList(table, cols, filter, order)
+            for record in prevRecords:
+                record.setValue('id', toVariant(None))
+                record.setValue(self._masterIdFieldName, toVariant(None))
+                newRecord = self.getEmptyRecord()
+                for i in xrange(record.count()):
+                    fieldName = forceStringEx(record.fieldName(i))
+                    if fieldName not in (
+                    'id', self._masterIdFieldName, 'createDatetime', 'createPerson_id', 'modifyDatetime',
+                    'modifyPerson_id', 'deleted'):
+                        newRecord.setValue(fieldName, record.value(fieldName))
+                    newRecord.setValue(self._masterIdFieldName, toVariant(masterId))
+                self._items.append(newRecord)
+            if self._extColsPresent:
+                extSqlFields = []
+                for col in self._cols:
+                    if col.external():
+                        fieldName = col.fieldName()
+                        if fieldName not in cols:
+                            extSqlFields.append(QtSql.QSqlField(fieldName, col.valueType()))
+                if extSqlFields:
+                    for item in self._items:
+                        for field in extSqlFields:
+                            item.append(field)
+                            item.setValue(field.name(),
+                                          toVariant(self.getMKBToDiagnosis(forceRef(item.value('diagnosis_id')))))
+                            item.setValue('diagnosis_id', toVariant(None))
+        self.reset()
+
+
     def saveItems(self, masterId):
         if self._items is not None:
             db = QtGui.qApp.db
@@ -6004,6 +6338,51 @@ class CDiagnosisDisease_31_1_TableModel(CDiagnosisDisease_31_TableModel):
                 return serviceId
         else:
             return None
+
+    
+    def loadPrevActionItems(self, prevActionMasterId, masterId):
+        self._items = []
+        if prevActionMasterId:
+            db = QtGui.qApp.db
+            cols = '*'
+            table = self._table
+            filter = [table[self._masterIdFieldName].eq(prevActionMasterId),
+                      table['diagnosisType_id'].eq(self.diagnosisTypeId)]
+            if self._filter:
+                filter.append(self._filter)
+            if table.hasField('deleted'):
+                filter.append(table['deleted'].eq(0))
+            if self._idxFieldName:
+                order = [self._idxFieldName, self._idFieldName]
+            else:
+                order = [self._idFieldName]
+            prevRecords = db.getRecordList(table, cols, filter, order)
+            for record in prevRecords:
+                record.setValue('id', toVariant(None))
+                record.setValue(self._masterIdFieldName, toVariant(None))
+                newRecord = self.getEmptyRecord()
+                for i in xrange(record.count()):
+                    fieldName = forceStringEx(record.fieldName(i))
+                    if fieldName not in ('id', self._masterIdFieldName, 'createDatetime', 'createPerson_id', 'modifyDatetime', 'modifyPerson_id', 'deleted'):
+                        newRecord.setValue(fieldName, record.value(fieldName))
+                    newRecord.setValue(self._masterIdFieldName, toVariant(masterId))
+                self._items.append(newRecord)
+            if self._extColsPresent:
+                extSqlFields = []
+                for col in self._cols:
+                    if col.external():
+                        fieldName = col.fieldName()
+                        if fieldName not in cols:
+                            extSqlFields.append(QtSql.QSqlField(fieldName, col.valueType()))
+                if extSqlFields:
+                    for item in self._items:
+                        for field in extSqlFields:
+                            item.append(field)
+                        item.setValue('MKB', toVariant(self.getMKBToDiagnosis(forceRef(item.value('diagnosis_id')))))
+                        if self.isMKBMorphology:
+                            item.setValue('morphologyMKB', toVariant(self.getMorphologyMKBToDiagnosis(forceRef(item.value('diagnosis_id')))))
+                        item.setValue('diagnosis_id', toVariant(None))
+        self.reset()
 
 
 

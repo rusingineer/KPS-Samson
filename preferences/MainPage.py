@@ -56,7 +56,6 @@ class CMainPage(Ui_mainPage, QtGui.QWidget):
 
         self.chkPersonFilterInCmb.setChecked(forceBool(props.get('personFilterInCmb', False)))
         self.chkOnlyDoctors.setChecked(forceBool(props.get('onlyDoctorsInPopup', False)))
-        self.chkPersonnelByDblClick.setChecked(forceBool(props.get('openPersonnelByDblClick', False)))
 
         self.edtTemplateDir.setText(forceString(props.get('templateDir', QtGui.qApp.getTemplateDir())))
         self.edtBrowserDir.setText(forceString(props.get('browserDir', QtGui.qApp.getBrowserDir())))
@@ -75,7 +74,6 @@ class CMainPage(Ui_mainPage, QtGui.QWidget):
 
         props['personFilterInCmb']       = toVariant(self.chkPersonFilterInCmb.isChecked())
         props['onlyDoctorsInPopup']      = toVariant(self.chkOnlyDoctors.isChecked())
-        props['openPersonnelByDblClick'] = toVariant(self.chkPersonnelByDblClick.isChecked())
 
         props['templateDir']             = toVariant(self.edtTemplateDir.text())
         props['browserDir']             = toVariant(self.edtBrowserDir.text())

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1277</width>
-    <height>950</height>
+    <width>1373</width>
+    <height>1073</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -271,8 +271,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>1259</width>
-            <height>718</height>
+            <width>1359</width>
+            <height>798</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_12">
@@ -1361,6 +1361,40 @@
              </property>
             </widget>
            </item>
+           <item row="40" column="0">
+            <widget class="QLabel" name="lblRelegateOrg">
+             <property name="text">
+              <string>Направитель</string>
+             </property>
+            </widget>
+           </item>
+           <item row="40" column="4">
+            <widget class="QLabel" name="lblRelegateNum">
+             <property name="text">
+              <string>№ направления</string>
+             </property>
+            </widget>
+           </item>
+           <item row="40" column="5">
+            <widget class="CRBComboBox" name="cmbRelegateNum"/>
+           </item>
+           <item row="40" column="1" colspan="2">
+            <widget class="CPolyclinicComboBox" name="cmbRelegateOrg"/>
+           </item>
+           <item row="40" column="3">
+            <widget class="QToolButton" name="btnSelectRelegateOrg">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="17" column="5">
+            <widget class="QCheckBox" name="chkNextEventDateRequired">
+             <property name="text">
+              <string>Планирование профмероприятия (Соц.статус)</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
         </widget>
@@ -2344,6 +2378,60 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabActionType">
+      <attribute name="title">
+       <string>Обязательные мероприятия</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_15">
+       <item row="0" column="0">
+        <widget class="QTabWidget" name="tabWidget_ActionType">
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="tabActionType_status">
+          <attribute name="title">
+           <string>Статус</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_16">
+           <item row="0" column="0">
+            <widget class="CInDocTableView" name="tblActionType_status"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tabActionType_diagnostic">
+          <attribute name="title">
+           <string>Диагностика</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_17">
+           <item row="0" column="0">
+            <widget class="CInDocTableView" name="tblActionType_diagnostic"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tabActionType_cure">
+          <attribute name="title">
+           <string>Лечение</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_18">
+           <item row="0" column="0">
+            <widget class="CInDocTableView" name="tblActionType_cure"/>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tabActionType_other">
+          <attribute name="title">
+           <string>Прочие мероприятия</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_19">
+           <item row="0" column="0">
+            <widget class="CInDocTableView" name="tblActionType_other"/>
+           </item>
+          </layout>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
@@ -2358,6 +2446,11 @@
    <class>CInDocTableView</class>
    <extends>QTableView</extends>
    <header>library/InDocTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPolyclinicComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

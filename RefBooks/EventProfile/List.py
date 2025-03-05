@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,9 +11,9 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
 from library.interchange     import getLineEditValue, setLineEditValue
-from library.ItemsListDialog import CItemsListDialog, CItemEditorBaseDialog
+from library.ItemsListDialog import CItemsListDialog
 from library.TableModel      import CTextCol
 
 from RefBooks.Tables         import rbCode, rbName
@@ -34,21 +34,20 @@ class CRBEventProfileList(CItemsListDialog):
         return CRBEventProfileEditor(self)
 
 
-class CRBEventProfileEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
+class CRBEventProfileEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentification):
     def __init__(self,  parent):
-        CItemEditorBaseDialog.__init__(self, parent, 'rbEventProfile')
-        self.setupUi(self)
+        CItemEditorDialogWithIdentification.__init__(self, parent, 'rbEventProfile')
         self.setWindowTitleEx(u'Профиль события')
         self.setupDirtyCather()
 
     def setRecord(self, record):
-        CItemEditorBaseDialog.setRecord(self, record)
+        CItemEditorDialogWithIdentification.setRecord(self, record)
         setLineEditValue(   self.edtCode,         record, 'code')
         setLineEditValue(   self.edtName,         record, 'name')
         setLineEditValue(   self.edtRegionalCode, record, 'regionalCode')
 
     def getRecord(self):
-        record = CItemEditorBaseDialog.getRecord(self)
+        record = CItemEditorDialogWithIdentification.getRecord(self)
         getLineEditValue(   self.edtCode,         record, 'code')
         getLineEditValue(   self.edtName,         record, 'name')
         getLineEditValue(   self.edtRegionalCode, record, 'regionalCode')

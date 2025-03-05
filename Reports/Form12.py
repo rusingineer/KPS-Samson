@@ -147,7 +147,7 @@ class CForm12(CReport):
     AND ck.code IN ('Д-наблюдение', 'ПДЛР')
     AND (cck.endDate BETWEEN {begDate} AND {endDate} OR cck.endDate IS NULL)
     -- пока закомментировал это условие
-   /* AND IFNULL(cck.reason, 0) <> 3
+   /* AND IFNULL(cck.contingentKindRemoval_id, 0) <> 3
     AND NOT EXISTS (SELECT NULL FROM ClientContingentKind cck
               left JOIN rbContingentKind ck ON cck.contingentKind_id = ck.id
               WHERE cck.client_id = c.id AND ck.code = 'А' AND cck.deleted = 0

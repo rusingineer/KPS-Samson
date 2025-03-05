@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rself.patientModelIdights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -57,6 +57,17 @@ class CPatientModelComboBoxPopup(QtGui.QFrame, Ui_PatientModelComboBoxPopup):
     def getPreliminaryDiagnostics(self):
         if hasattr(self.eventEditor, 'modelPreliminaryDiagnostics'):
             for row, record in enumerate(self.eventEditor.modelPreliminaryDiagnostics.items()):
+                return forceString(record.value('MKB'))
+        else:
+            return None
+
+
+    def getFinalDiagnostics(self):
+        if hasattr(self.eventEditor, 'modelFinalDiagnostics'):
+            for row, record in enumerate(self.eventEditor.modelFinalDiagnostics.items()):
+                return forceString(record.value('MKB'))
+        elif hasattr(self.eventEditor, 'getModelFinalDiagnostics'):
+            for row, record in enumerate(self.eventEditor.getModelFinalDiagnostics().items()):
                 return forceString(record.value('MKB'))
         else:
             return None
@@ -128,13 +139,17 @@ class CPatientModelComboBoxPopup(QtGui.QFrame, Ui_PatientModelComboBoxPopup):
         tableRBPatientModel = db.table('rbPatientModel')
         cond = []
         quotaTypeId = self.cmbQuoting.value()
+        name = forceString(self.edtName.text()).strip()
         if quotaTypeId:
             cond.append(tableRBPatientModel['quotaType_id'].eq(quotaTypeId))
         if self.chkPreviousMKB.isChecked():
             MKB = self.getPreliminaryDiagnostics()
             if MKB:
-                MKB = MKB[:3]
-                cond.append(tableRBPatientModel['MKB'].like(MKB + '%'))
+                cond.append(tableRBPatientModel['MKB'].like(MKB[:3] + '%'))
+        if self.chkFinalMKB.isChecked():
+            MKB = self.getFinalDiagnostics()
+            if MKB:
+                cond.append(tableRBPatientModel['MKB'].like(MKB[:3] + '%'))
         if self.chkQuotingEvent.isChecked():
             quotaTypeId = self.getQuotaTypeId()
             if quotaTypeId:
@@ -142,6 +157,8 @@ class CPatientModelComboBoxPopup(QtGui.QFrame, Ui_PatientModelComboBoxPopup):
         if self._endDate:
             cond.append(db.joinOr([tableRBPatientModel['endDate'].ge(self._endDate),
                                     tableRBPatientModel['endDate'].isNull()]))
+        if name:
+            cond.append(tableRBPatientModel['name'].like('%' + name + '%'))
         idList = db.getDistinctIdList(tableRBPatientModel, [tableRBPatientModel['id'].name()], cond)
         return idList
 

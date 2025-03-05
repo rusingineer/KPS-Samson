@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Rabota\s11\Stock\FinTransfer.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\FinTransfer.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -169,13 +169,3 @@ from Orgs.OrgStructComboBoxes import CStorageComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
 from library.InDocTable import CInDocTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    FinTransferDialog = QtGui.QDialog()
-    ui = Ui_FinTransferDialog()
-    ui.setupUi(FinTransferDialog)
-    FinTransferDialog.show()
-    sys.exit(app.exec_())
-

@@ -30,7 +30,7 @@ from Stock.StockMotionBaseDialog import CStockMotionBaseDialog, CNomenclatureIte
 from Stock.StockModel          import CStockMotionType
 from Stock.StockBatchEditor import CStockBatchEditor
 from Users.Rights                  import urAccessStockEditSupplier, urAccessStockEditSupplierPerson
-from Stock.Utils                     import CPriceItemDelegate, getStockMotionItemQuantityColumn, getExistsNomenclatureAmount, getStockMotionItemQntEx, CStockCache, CSummaryInfoModelMixin
+from Stock.Utils                     import CPriceItemDelegate, getStockMotionItemQuantityColumn, getExistsNomenclatureAmountEx, getStockMotionItemQntEx, CStockCache, CSummaryInfoModelMixin
 
 from Stock.Ui_ClientInvoice              import Ui_ClientInvoiceDialog
 from Stock.Ui_ClientRefundInvoice   import Ui_ClientRefundInvoiceDialog
@@ -84,6 +84,7 @@ class CClientInvoiceEditDialog(CStockMotionBaseDialog, Ui_ClientInvoiceDialog):
         self._supplierId = None
         self.getRightEditSupplier()
         self.tblItems.setItemDelegateForColumn(CItemsModel.priceColumnIndex, CPriceItemDelegate(self.tblItems))
+        self.tblItems.enableColsMove()
 
 
     def done(self, result):
@@ -121,14 +122,14 @@ class CClientInvoiceEditDialog(CStockMotionBaseDialog, Ui_ClientInvoiceDialog):
                 currentRow = index.row()
                 if 0 <= currentRow < len(items):
                     item = items[currentRow]
+                    params = {}
+                    params['nomenclatureId'] = forceRef(item.value('nomenclature_id'))
+                    params['batch'] = forceString(item.value('batch'))
+                    params['financeId'] = forceRef(item.value('finance_id'))
+                    params['shelfTime'] = forceDate(item.value('shelfTime'))
+                    params['medicalAidKindId'] = forceRef(item.value('medicalAidKind_id'))
+                    dialog = CStockBatchEditor(self, params)
                     try:
-                        params = {}
-                        params['nomenclatureId'] = forceRef(item.value('nomenclature_id'))
-                        params['batch'] = forceString(item.value('batch'))
-                        params['financeId'] = forceRef(item.value('finance_id'))
-                        params['shelfTime'] = forceDate(item.value('shelfTime'))
-                        params['medicalAidKindId'] = forceRef(item.value('medicalAidKind_id'))
-                        dialog = CStockBatchEditor(self, params)
                         dialog.loadData()
                         if dialog.exec_():
                             outBatch, outFinanceId, outShelfTime, outMedicalAidKindId, outPrice = dialog.getValue()
@@ -375,13 +376,13 @@ class CClientInvoiceEditDialog(CStockMotionBaseDialog, Ui_ClientInvoiceDialog):
         medicalAidKindName = item[2]
         rows = item[3]
         row = rows[0] if len(rows) > 0 else -1
-        existsQnt = getExistsNomenclatureAmount(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
+        existsQnt = getExistsNomenclatureAmountEx(nomenclatureId, financeId, batch, supplierId, stockUnitId, medicalAidKindId, shelfTime, exact=True, price=price)
         prevQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=self._id, batch=batch, financeId=financeId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt()) if self._id else 0
         if self.stockDocumentType != CStockMotionType.clientReservation:
             reservationQnt = round(getStockMotionItemQntEx(nomenclatureId, stockMotionId=None, batch=batch, financeId=financeId, clientId=self._clientId, medicalAidKindId=medicalAidKindId, price=None, oldPrice=price, oldUnitId=stockUnitId), QtGui.qApp.numberDecimalPlacesQnt())
-            resQnt = (round(existsQnt, 2) + round(reservationQnt, 2) + prevQnt) - qnt
+            resQnt = (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + reservationQnt + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
         else:
-            resQnt = (round(existsQnt, 2) + prevQnt) - qnt
+            resQnt = (round(existsQnt, QtGui.qApp.numberDecimalPlacesQnt()) + prevQnt) - round(qnt, QtGui.qApp.numberDecimalPlacesQnt())
         if resQnt < 0:
             nomenclatureName = self.modelItems.getNomenclatureNameById(nomenclatureId)
             if existsQnt > 0:

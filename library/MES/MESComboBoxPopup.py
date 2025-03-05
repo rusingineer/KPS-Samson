@@ -367,8 +367,9 @@ class CMESComboBoxPopup(QtGui.QFrame, Ui_MESComboBoxPopup):
             condET = 'and (ct.eventType_id = %d or ct.eventType_id is null)' % self.eventTypeId if self.eventTypeId else ''
             contractCond = u'''MES.code in (
             select s.infis from rbService s
+            left join Contract c on c.id = %d
             left join Contract_Tariff ct on ct.service_id = s.id
-            where ct.master_id = %d and
+            where ct.master_id in (c.id, c.priceListExternal_id) and
             ct.deleted = 0 and
             (ct.endDate is not null and %s between ct.begDate and ct.endDate
              or %s >= ct.begDate and ct.endDate is null) and

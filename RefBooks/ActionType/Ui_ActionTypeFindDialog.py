@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_ekslp\RefBooks\ActionType\ActionTypeFindDialog.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\RefBooks\ActionType\ActionTypeFindDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Tue Dec 12 12:36:03 2023
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -149,5 +150,5 @@ class Ui_ActionTypeFindDialog(object):
         self.lblContext.setText(_translate("ActionTypeFindDialog", "Контекст печати", None))
         self.lblCodeReports.setText(_translate("ActionTypeFindDialog", "Код для отчетов", None))
 
-from library.TableView import CTableView
 from library.crbcombobox import CRBComboBox
+from library.TableView import CTableView

@@ -9,6 +9,7 @@ class CollectInfo(AbstractObject):
         self.collectDate = None  # String Необязательно Дата взятия материала
         self.collectorID = ''  # String Обязательно Взявший материал, табельный номер
         self.collector = ''  # String Обязательно Взявший материал
+        self.deliveryDate = None  # String Необязательно Дата доставки
         super(CollectInfo, self).__init__(jsondict)
 
     def elementProperties(self):
@@ -18,5 +19,6 @@ class CollectInfo(AbstractObject):
         js = super(CollectInfo, self).elementProperties()
         js.extend([("collectDate", "collectDate", str, False, None, False),
                    ("collectorID", "collectorID", str, False, None, True),
-                   ("collector", "collector", str, False, None, True), ])
+                   ("collector", "collector", str, False, None, True),
+                   ("deliveryDate", "deliveryDate", str, False, None, False)])
         return js

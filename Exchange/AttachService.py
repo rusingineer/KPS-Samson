@@ -6,6 +6,7 @@ from library.Utils       import *
 
 def callService(method, request, url=None, timeout=600):
     if url:
+        url = url.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
         clent = CJsonRpcClent(url)
     else:
         clent = CJsonRpcClent("http://%s/ident/handler.php" % QtGui.qApp.preferences.dbServerName)

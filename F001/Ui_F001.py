@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\F001\F001.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\F001\F001.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -661,7 +661,7 @@ class Ui_F001Dialog(object):
         self.tab.setObjectName(_fromUtf8("tab"))
         self.horizontalLayout_8 = QtGui.QHBoxLayout(self.tab)
         self.horizontalLayout_8.setObjectName(_fromUtf8("horizontalLayout_8"))
-        self.tblExport_FileAttach = CInDocTableView(self.tab)
+        self.tblExport_FileAttach = CInDocExportTableView(self.tab)
         self.tblExport_FileAttach.setObjectName(_fromUtf8("tblExport_FileAttach"))
         self.horizontalLayout_8.addWidget(self.tblExport_FileAttach)
         self.tabWidget_2.addTab(self.tab, _fromUtf8(""))
@@ -669,7 +669,7 @@ class Ui_F001Dialog(object):
         self.tab_2.setObjectName(_fromUtf8("tab_2"))
         self.horizontalLayout_71 = QtGui.QHBoxLayout(self.tab_2)
         self.horizontalLayout_71.setObjectName(_fromUtf8("horizontalLayout_71"))
-        self.tblExport_VIMIS = CInDocTableView(self.tab_2)
+        self.tblExport_VIMIS = CInDocExportTableView(self.tab_2)
         self.tblExport_VIMIS.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.tblExport_VIMIS.setSizeIncrement(QtCore.QSize(0, -1))
         self.tblExport_VIMIS.setBaseSize(QtCore.QSize(0, -1))
@@ -837,13 +837,13 @@ class Ui_F001Dialog(object):
         self.btnClearSelection.setText(_translate("F001Dialog", "Очистить выбор", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("F001Dialog", "Стат.&учёт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabActions), _translate("F001Dialog", "У&слуги", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAmbCard), _translate("F001Dialog", "Мед.карта", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAmbCard), _translate("F001Dialog", "Мед.&карта", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabSummaryActionTable), _translate("F001Dialog", "&Таблица услуг", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("F001Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("F001Dialog", "&Оплата", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_3), _translate("F001Dialog", "Событие", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab), _translate("F001Dialog", "Документы", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_2), _translate("F001Dialog", "ВИМИС", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("F001Dialog", "Экспорт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("F001Dialog", "&Экспорт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("F001Dialog", "Приме&чания", None))
         self.statusBar.setToolTip(_translate("F001Dialog", "A status bar", None))
         self.statusBar.setWhatsThis(_translate("F001Dialog", "A status bar.", None))
@@ -857,7 +857,7 @@ from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
 from library.ICDCodeEdit import CICDCodeEditEx
 from library.ICDMorphologyCodeEdit import CICDMorphologyCodeEditEx
-from library.InDocTable import CInDocTableView
+from library.InDocTable import CInDocExportTableView, CInDocTableView
 from library.ROComboBox import CROComboBox
 from library.TNMS.TNMSComboBox import CTNMSComboBox
 from library.TableView import CTableView

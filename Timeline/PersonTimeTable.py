@@ -17,8 +17,10 @@ import pickle
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QByteArray, QLocale, QMimeData, QModelIndex, QObject, QTime, QVariant, SIGNAL
 
+from Timeline.TimeTable import checkDurationAndCapacity
 from library.crbcombobox import CRBComboBox
 from library.InDocTable  import CRecordListModel, CInDocTableView, CInDocTableCol, CIntInDocTableCol, CRBLikeEnumInDocTableCol, CRBInDocTableCol, CNotCleanTimeInDocTableCol
+from library.Utils import forceInt, forceTime, toVariant
 
 from Timeline.Schedule import CSchedule, CScheduleTemplate, getPeriodLength
 
@@ -37,6 +39,7 @@ class CPersonTimeTableModel(CRecordListModel):
         self.setEnableAppendLine(True)
         self.period = None
         self.customLength = 0
+        self._parent = parent
 
 
     def getDayName(self, day):
@@ -273,6 +276,35 @@ class CPersonTimeTableModel(CRecordListModel):
 
         self.setItems(newItems)
 
+
+    def setData(self, index, value, role=Qt.EditRole):
+        column = index.column()
+        if column in (3, 4, 5, 6): # время, период и план
+            row = index.row()
+            schedule = self._items[row]
+            if column == 3:
+                begTime = forceTime(value)
+                if begTime != schedule.begTime:
+                    if schedule.capacity != 0:
+                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, begTime, schedule.endTime)
+                        if checkCapacity:
+                            schedule.capacity = checkCapacity
+            if column == 4:
+                endTime = forceTime(value)
+                if endTime != schedule.endTime:
+                    if schedule.capacity != 0:
+                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, schedule.begTime, endTime)
+                        if checkCapacity:
+                            schedule.capacity = checkCapacity
+            if column == 5:
+                checkValue = checkDurationAndCapacity(value, self._parent)
+                if checkValue:
+                    value = checkValue
+            if column == 6:
+                checkValue = checkDurationAndCapacity(value, self._parent, True, schedule.begTime, schedule.endTime)
+                if checkValue:
+                    value = checkValue
+        return CRecordListModel.setData(self, index, value, role)
 
 
 class CPersonTimeTableView(CInDocTableView):

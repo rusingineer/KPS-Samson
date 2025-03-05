@@ -200,6 +200,13 @@
       </spacer>
      </item>
      <item>
+      <widget class="QPushButton" name="btnPrint">
+       <property name="text">
+        <string>Печать</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="btnSelectAll">
        <property name="text">
         <string>Выбрать всех</string>

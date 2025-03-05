@@ -49,7 +49,9 @@ class CMKBActionPropertyValueType(CActionPropertyValueType):
                     message = u'Кода %s не существует, замените его.' % (unicode(MKB))
                     QtGui.QMessageBox.critical(None, u'Внимание!', message)
 
-            return unicode(MKB)
+                    return unicode('')
+                else:
+                    return unicode(MKB)
 
     @staticmethod
     def convertDBValueToPyValue(value):

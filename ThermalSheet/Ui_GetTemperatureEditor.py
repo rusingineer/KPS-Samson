@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/natkuch/s11/library/GetTemperatureEditor.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\ThermalSheet\GetTemperatureEditor.ui'
 #
-# Created: Wed Feb  4 14:44:06 2015
-#      by: PyQt4 UI code generator 4.10.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -58,14 +57,4 @@ class Ui_GetTemperatureEditor(object):
     def retranslateUi(self, GetTemperatureEditor):
         GetTemperatureEditor.setWindowTitle(_translate("GetTemperatureEditor", "Выбор температуры", None))
         self.lblNewTemperature.setText(_translate("GetTemperatureEditor", "Температура", None))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    GetTemperatureEditor = QtGui.QDialog()
-    ui = Ui_GetTemperatureEditor()
-    ui.setupUi(GetTemperatureEditor)
-    GetTemperatureEditor.show()
-    sys.exit(app.exec_())
 

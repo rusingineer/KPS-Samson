@@ -73,10 +73,10 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
 
 
     def prepare(self, clientId, eventTypeId, eventDate, tissueTypeId=None, typeQueue = -1, docNum=None, relegateInfo=[],
-                plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}):
+                plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, presentActionTypes = []):
         self.tissueTypeId = tissueTypeId
         self.setClientInfo(clientId, eventDate)
-        self.setEventTypeId(eventTypeId)
+        self.setEventTypeId(eventTypeId, presentActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -141,13 +141,13 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
             self._clientWorkHurtFactorCodeList.append(forceString(record.value('code')))
 
 
-    def setEventTypeId(self, eventTypeId):
+    def setEventTypeId(self, eventTypeId, presentActionTypes = []):
         eventTypeRecord = QtGui.qApp.db.getRecord('EventType', ['name'], eventTypeId)
         eventTypeName  = forceString(eventTypeRecord.value('name'))
         title = u'Планирование: %s, Пациент: %s, Пол: %s, ДР.: %s '% (eventTypeName, self.__clientName, formatSex(self.__clientSex), forceString(self.__clientBirthDate))
         QtGui.QDialog.setWindowTitle(self, title)
         self.prepareDiagnostics(eventTypeId)
-        self.prepareActions(eventTypeId)
+        self.prepareActions(eventTypeId, presentActionTypes)
 
 
     def prepareDiagnostics(self, eventTypeId):
@@ -193,7 +193,7 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
         model.reset()
 
 
-    def prepareActions(self, eventTypeId):
+    def prepareActions(self, eventTypeId, presentActionTypes = []):
         includedGroups = []
 
         db = QtGui.qApp.db
@@ -202,7 +202,8 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
         tableActionType = db.table('ActionType')
         join = table.leftJoin(tableActionType, tableActionType['id'].eq(table['actionType_id']))
         cond = [table['eventType_id'].eq(eventTypeId), tableActionType['deleted'].eq(0)]
-
+        if presentActionTypes:
+            cond.append('''(IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes)))
         records = db.getRecordList(join, 'EventType_Action.*', cond, 'ActionType.class, idx, id')
 
         for record in records:

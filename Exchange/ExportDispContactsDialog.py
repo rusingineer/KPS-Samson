@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 
-from PyQt4 import QtCore, QtGui
-from PyQt4.QtCore import *
-
 import re
-import Exchange.AttachService as AttachService
+
+from PyQt4 import QtGui
+from PyQt4.QtCore import QTimer, pyqtSignature, QModelIndex, Qt
+from PyQt4.QtGui import QDialog
 
 from library.DialogBase import CConstructHelperMixin
 from library.InDocTable import CRecordListModel, CInDocTableCol, CBoolInDocTableCol, CDateTimeInDocTableCol
-from library.TableModel import CTableModel, CCol, CIntCol, CDesignationCol
-from library.Utils import *
+from library.TableModel import CTableModel,  CIntCol, CDesignationCol
+from library.Utils import exceptionToUnicode, forceString, toVariant, forceRef
+
+import Exchange.AttachService as AttachService
 
 from Ui_ExportDispContactsDialog import Ui_ExportDispContactsDialog
 
-class CExportDispContactsDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ExportDispContactsDialog):
+
+class CExportDispContactsDialog(QDialog, CConstructHelperMixin, Ui_ExportDispContactsDialog):
     def __init__(self, parent):
-        QtGui.QDialog.__init__(self, parent)
+        QDialog.__init__(self, parent)
         self.addModels('Contacts', CContactsModel(self))
         self.addModels('ContactErrors', CContactErrorsModel(self))
         self.setupUi(self)
@@ -53,7 +56,7 @@ class CExportDispContactsDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ExportD
     def showEvent(self, event):
         QTimer.singleShot(0, self.updateList)
         
-    def disableControls(self, disabled = True):
+    def disableControls(self, disabled=True):
         if disabled:
             self.controlDisableLevel += 1
         else:
@@ -204,7 +207,7 @@ class CContactsModel(CRecordListModel):
         self.codeMo = None
         self.itemsByCodeMo = {}
 
-    def removeRows(self, row, count, parentIndex = QModelIndex()):
+    def removeRows(self, row, count, parentIndex=QModelIndex()):
         deletedIdList = []
         if 0<=row and row+count<=self.realRowCount():
             records = self.items()[row:row+count]
@@ -284,6 +287,7 @@ class CContactsModel(CRecordListModel):
         items = self.itemsByCodeMo.setdefault(self.codeMo, [])
         self.setItems(items)
         self.reset()
+
 
 class CContactErrorsModel(CTableModel):
     def __init__(self, parent):

@@ -21,6 +21,7 @@ class CActionProperty(object):
         self._cachedText = None
         self._unitId = None
         self._norm = ''
+        self._comment = ''
         self._templateId = None
         self._record = None
         self._changed = False
@@ -61,6 +62,7 @@ class CActionProperty(object):
             self._unitId = type.unitId
             self._norm = type.norm
             self._templateId = type.templateId
+            self._comment = type.comment
 
 
     def type(self):
@@ -71,7 +73,7 @@ class CActionProperty(object):
         if self.type().isNomenclatureValueType():
             nomenclatureId = self.getValue()
             if nomenclatureId:
-                action.addNomenclature(nomenclatureId)
+                action.addNomenclatureEx(nomenclatureId)
 
 
     def preApplyDependents(self, action):
@@ -95,6 +97,7 @@ class CActionProperty(object):
         self._id = forceRef(record.value('id'))
         evaluation = record.value('evaluation')
         self._evaluation = None if evaluation.isNull() else forceInt(evaluation)
+        self._comment = forceString(record.value('comment'))
 
 
     def setNorm(self, norm):
@@ -123,6 +126,7 @@ class CActionProperty(object):
             self._record.setValue('isAssigned', toVariant(self._isAssigned))
             self._record.setValue('evaluation', toVariant(self._evaluation))
             self._record.setValue('unit_id', toVariant(self._unitId))
+            self._record.setValue('comment', toVariant(self._comment))
             result = self._type.storeRecord(self._record, self._value)
 
 #            if self.type().isJobTicketValueType():
@@ -231,10 +235,28 @@ class CActionProperty(object):
         self._evaluation = evaluation
 
 
+    def getCommentType(self):
+        if self._type:
+            return self._type.comment
+        else:
+            return u''
+
+
+    def getComment(self):
+        return self._comment
+
+
+    def setComment(self, comment):
+        if self._comment != comment:
+            self._changed = True
+        self._comment = comment
+
+
     def copy(self, src):
         self.setAssigned(src.isAssigned())
         self.setValue(src.getValue())
         self.setEvaluation(src.getEvaluation())
+        self.setComment(src.getComment())
 
 
     def copyIfNotEmpty(self, src):
@@ -243,6 +265,7 @@ class CActionProperty(object):
             self.setAssigned(src.isAssigned())
             self.setValue(src.getValue())
             self.setEvaluation(src.getEvaluation())
+            self.setComment(src.getComment())
 
 
     def copyIfNotIsspace(self, src):
@@ -251,6 +274,7 @@ class CActionProperty(object):
             self.setAssigned(src.isAssigned())
             self.setValue(src.getValue())
             self.setEvaluation(src.getEvaluation())
+            self.setComment(src.getComment())
 
 
     def copyIfString(self, src):
@@ -267,6 +291,7 @@ class CActionProperty(object):
                 self.setAssigned(src.isAssigned())
                 self.setValue(src.getValue())
                 self.setEvaluation(src.getEvaluation())
+                self.setComment(src.getComment())
 
 
     def getPreferredHeight(self):

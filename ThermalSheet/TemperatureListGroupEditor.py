@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -365,7 +365,15 @@ class CThermalSheetModel(QAbstractTableModel):
                 tableAPT['actionType_id'].inlist(actionTypeIdList),
                 tableAPT['name'].notlike(u'День болезни')
                 ]
-        records = db.getRecordList(tableAPT, cols, cond)
+        records = db.getRecordList(tableAPT, cols, cond, order=tableAPT['idx'].name())
+        for record in records:
+            nameAPT = forceString(record.value('name'))
+            typeName = forceString(record.value('typeName'))
+            id = forceString(record.value('id'))
+            if u'temperature' in typeName.lower():
+                nameAPTList.append(CDoubleInDocTableCol(nameAPT, [id], 20, precision=2))
+                self.column.append(nameAPT)
+                break
         for record in records:
             nameAPT = forceString(record.value('name'))
             typeName = forceString(record.value('typeName'))
@@ -374,9 +382,6 @@ class CThermalSheetModel(QAbstractTableModel):
             if nameAPT and nameAPT not in nameAPTList:
                 if u'integer' in typeName.lower():
                     nameAPTList.append(CIntInDocTableCol(nameAPT, [id], 20, low=0, high=99999))
-                    addColumnBoolean = True
-                elif u'temperature' in typeName.lower():
-                    nameAPTList.append(CDoubleInDocTableCol(nameAPT, [id], 20, precision=2))
                     addColumnBoolean = True
                 elif u'arterialpressure' in typeName.lower():
                     nameAPTList.append(CIntInDocTableCol(nameAPT, [id], 20, low=0, high=999))
@@ -433,10 +438,6 @@ class CThermalSheetModel(QAbstractTableModel):
                     record.setValue('begDate', toVariant(dialogDateTime))
                     record.setValue('endDate', toVariant(dialogDateTime))
                     record.setValue('person_id', toVariant(self.execPersonId))
-                    eventInfo = self.eventInfoLast.get(eventId, [u'', u'', u'', u''])
-                    setDate = eventInfo[3]
-                    if setDate:
-                        action[u'День болезни'] = setDate.daysTo(self.dialogDate) + 1
                     for i in range(7, len(self._cols)):
                         name = forceString(self._cols[i]._title)
                         action[name] = toVariant(item[i])
@@ -513,7 +514,7 @@ class CThermalSheetModel(QAbstractTableModel):
                     diseaseDay = setDate.daysTo(endDate.date()) + 1
                 else:
                     diseaseDay = 0
-                self.eventInfoLast[eventId] = [endDate, forceString(record.value('temperatureLast')), diseaseDay, setDate]
+                self.eventInfoLast[eventId] = [endDate, forceString(record.value('temperatureLast')), diseaseDay]
 
 
 class CDoubleInDocTableCol(CFloatInDocTableCol):

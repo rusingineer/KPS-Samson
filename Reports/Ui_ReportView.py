@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client\Reports\ReportView.ui'
+# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_pre_release\Reports\ReportView.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -85,6 +85,7 @@ class Ui_ReportViewDialog(object):
         self.gridLayout.addLayout(self.horizontalLayout, 2, 0, 1, 1)
 
         self.retranslateUi(ReportViewDialog)
+        QtCore.QObject.connect(self.checkBoxInterval, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.lineEditInterval.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(ReportViewDialog)
 
     def retranslateUi(self, ReportViewDialog):

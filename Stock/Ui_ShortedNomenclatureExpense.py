@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/Stock/ShortedNomenclatureExpense.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\ShortedNomenclatureExpense.ui'
 #
-# Created: Thu Mar 14 18:18:12 2013
-#      by: PyQt4 UI code generator 4.8.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -12,7 +11,16 @@ from PyQt4 import QtCore, QtGui
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
 except AttributeError:
-    _fromUtf8 = lambda s: s
+    def _fromUtf8(s):
+        return s
+
+try:
+    _encoding = QtGui.QApplication.UnicodeUTF8
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+except AttributeError:
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig)
 
 class Ui_NonenclatureExpenseDialog(object):
     def setupUi(self, NonenclatureExpenseDialog):
@@ -51,17 +59,7 @@ class Ui_NonenclatureExpenseDialog(object):
         NonenclatureExpenseDialog.setTabOrder(self.tblItems, self.buttonBox)
 
     def retranslateUi(self, NonenclatureExpenseDialog):
-        NonenclatureExpenseDialog.setWindowTitle(QtGui.QApplication.translate("NonenclatureExpenseDialog", "Списание ЛСиИМН", None, QtGui.QApplication.UnicodeUTF8))
-        self.lblNote.setText(QtGui.QApplication.translate("NonenclatureExpenseDialog", "Примечания", None, QtGui.QApplication.UnicodeUTF8))
+        NonenclatureExpenseDialog.setWindowTitle(_translate("NonenclatureExpenseDialog", "Списание ЛСиИМН", None))
+        self.lblNote.setText(_translate("NonenclatureExpenseDialog", "Примечания", None))
 
 from library.InDocTable import CInDocTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    NonenclatureExpenseDialog = QtGui.QDialog()
-    ui = Ui_NonenclatureExpenseDialog()
-    ui.setupUi(NonenclatureExpenseDialog)
-    NonenclatureExpenseDialog.show()
-    sys.exit(app.exec_())
-

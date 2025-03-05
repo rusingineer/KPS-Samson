@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import SIGNAL, QDate, QModelIndex
+from PyQt4.QtCore import Qt,SIGNAL, QDate, QModelIndex
 
 from library.Utils import forceString
 from HospitalBedComboBox          import CHospitalBedModel
@@ -98,6 +98,12 @@ class CHospitalBedFindComboBox(QtGui.QComboBox):
             self.setEditText(forceString(QtGui.qApp.db.translate('OrgStructure_HospitalBed', 'id', self.code, 'CONCAT(code,\' | \',name)')))
         else:
             self.setEditText('')
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Space:
+            self.showPopup()
+        else:
+            QtGui.QComboBox.keyPressEvent(self, event)
 
 
 class CHospitalBedFindComboBoxEditor(QtGui.QComboBox):

@@ -20,7 +20,7 @@
      <x>0</x>
      <y>0</y>
      <width>551</width>
-     <height>25</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuPreferences">
@@ -48,6 +48,7 @@
     <addaction name="actReportOfdTest"/>
     <addaction name="actReportCashRegisterInfo"/>
     <addaction name="actReportRegistration"/>
+    <addaction name="actReportCashier"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -196,6 +197,11 @@
   <action name="actReportFnTotalCounters">
    <property name="text">
     <string>Счетчики итогов ФН</string>
+   </property>
+  </action>
+  <action name="actReportCashier">
+   <property name="text">
+    <string>Отчет по кассирам</string>
    </property>
   </action>
  </widget>

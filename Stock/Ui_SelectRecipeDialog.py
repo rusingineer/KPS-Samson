@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/Stock/SelectRecipeDialog.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\SelectRecipeDialog.ui'
 #
-# Created: Wed May  7 18:15:58 2014
-#      by: PyQt4 UI code generator 4.10.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -85,13 +84,3 @@ class Ui_Dialog(object):
 
 from library.RBTreeComboBox import CRBTreeComboBox
 from library.crbcombobox import CRBComboBox
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    Dialog = QtGui.QDialog()
-    ui = Ui_Dialog()
-    ui.setupUi(Dialog)
-    Dialog.show()
-    sys.exit(app.exec_())
-

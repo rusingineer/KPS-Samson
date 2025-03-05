@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@
 ## (отчётов и документов)
 ##
 #############################################################################
-
+import base64
 import codecs
 import os.path
 import re
@@ -24,6 +24,7 @@ import time
 from cStringIO import StringIO
 
 import requests
+
 from Exchange.PyServices import getPyServices, getCdaCode
 from PyQt4 import QtGui
 from PyQt4.QtCore import (
@@ -37,13 +38,13 @@ from PyQt4.QtCore import (
     QUrl,
     pyqtSlot, QObject, SIGNAL, QFileSystemWatcher)
 from PyQt4.QtGui import QPrintPreviewDialog
-
+import array
 from library.Utils import forceBool, forceString, forceInt
 from library.PDF.fixPdf import fixPdf
+from library.SignaturePad import CSignaturePad
 
 from Users.Rights import urAdmin, urEditReportForm
 from Reports.Ui_ReportView import Ui_ReportViewDialog
-
 from library.PrintDebug.PrintTemplateDebugWindow import PrintTemplateDebugWindow
 
 
@@ -101,16 +102,21 @@ class CPageFormat(object):
 
 
     def setupPrinter(self, printer):
-        printerInfo = QtGui.QPrinterInfo(printer)
-        if self.pageSize == QtGui.QPrinter.Custom:
-            printer.setPaperSize(self.pageRect, QtGui.QPrinter.Millimeter)
-        elif self.pageSize in printerInfo.supportedPaperSizes():
-            printer.setPaperSize(self.pageSize)
-        else:
-            paperRect = self.getPaperRect(self.pageSize)
-            printer.setPaperSize(paperRect, QtGui.QPrinter.Millimeter)
-        printer.setOrientation(self.orientation)
-        # printer.setPageMargins(self.leftMargin, self.topMargin, self.rightMargin, self.bottomMargin, QtGui.QPrinter.Millimeter)
+        if printer:
+            printerInfo = QtGui.QPrinterInfo(printer)
+            try:
+                supportedSizes = printerInfo.supportedPaperSizes()
+            except Exception as e:
+                supportedSizes = []
+            if self.pageSize == QtGui.QPrinter.Custom:
+                printer.setPaperSize(self.pageRect, QtGui.QPrinter.Millimeter)
+            elif self.pageSize in supportedSizes:
+                printer.setPaperSize(self.pageSize)
+            else:
+                paperRect = self.getPaperRect(self.pageSize)
+                printer.setPaperSize(paperRect, QtGui.QPrinter.Millimeter)
+            printer.setOrientation(self.orientation)
+            # printer.setPageMargins(self.leftMargin, self.topMargin, self.rightMargin, self.bottomMargin, QtGui.QPrinter.Millimeter)
 
 
     def updateFromPrinter(self, printer):
@@ -208,6 +214,11 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
     def __init__(self, parent=None):
         QtGui.QDialog.__init__(self, parent)
 
+        self.btnRedo = QtGui.QPushButton(u'Повторить', self)
+        self.btnRedo.setObjectName('btnRedo')
+        self.btnRedo.setDefault(True)
+        self.btnRedo.setVisible(False)
+        
         self.btnPrint = QtGui.QPushButton(u'Печатать', self)
         self.btnPrint.setObjectName('btnPrint')
         self.btnPrint.setDefault(True)
@@ -215,27 +226,63 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.btnSignAndAttach = QtGui.QPushButton(u'Прикрепить и подписать', self)
         self.btnSignAndAttach.setObjectName('btnSignAndAttach')
         self.btnSignAndAttach.setEnabled(False)
+        self.btnSignAndAttach.setVisible(False)
 
         self.btnSchematronValidate = QtGui.QPushButton(u'Проверить по схематрону', self)
         self.btnSchematronValidate.setObjectName('btnSchematronValidate')
         self.btnSchematronValidate.setVisible(False)
         self.btnSchematronValidate.setEnabled(False)
 
-        self.btnEdit = QtGui.QPushButton(u'Редактировать', self)
-        self.btnEdit.setObjectName('btnEdit')
-        self.btnEdit.setEnabled((QtGui.qApp.userHasRight(urEditReportForm) or QtGui.qApp.userHasRight(urAdmin)) and bool(QtGui.qApp.documentEditor()))
-
         self.btnSaveAction = QtGui.QPushButton(u'Сохранить в мероприятие', self)
         self.btnSaveAction.setObjectName('btnSaveAction')
+        self.btnSaveAction.setEnabled(False)
+        self.btnSaveAction.setVisible(False)
+
+        self.tablet = None
+        try:
+            import hid
+            import_hid = True
+        except:
+            import_hid = False
+        if forceBool(QtGui.qApp.preferences.appPrefs.get('TabletSignEnable')) and import_hid:
+            try:
+                self.tablet = CSignaturePad(self)
+                self.tablet.imageReceived.connect(self.setReportSignature)
+            except Exception as e:
+                self.tablet = None
+                QtGui.QMessageBox.critical(self, u'Ошибка подключения планшета', unicode(e))
+    
+        if self.tablet:
+            self.btnTablet = QtGui.QToolButton()
+            self.btnTablet.setObjectName('btnTablet')
+            self.btnTablet.setText(u'Планшет')
+            self.btnTablet.setPopupMode(QtGui.QToolButton.InstantPopup)
+            self.menuTablet = QtGui.QMenu(self.btnTablet)
+            self.actGetSignature = QtGui.QAction(u"Получить подпись", self)
+            self.actGetSignature.triggered.connect(self.getSignature)
+            self.menuTablet.addAction(self.actGetSignature)
+            self.actClearTablet = QtGui.QAction(u"Очистить", self)
+            self.actClearTablet.triggered.connect(self.clearTabletScreen)
+            self.menuTablet.addAction(self.actClearTablet)
+            self.btnTablet.setMenu(self.menuTablet)
 
         self.setupUi(self)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnSignAndAttach, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnSchematronValidate, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnEdit, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.addButton(self.btnSaveAction, QtGui.QDialogButtonBox.ActionRole)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close|QtGui.QDialogButtonBox.Save)
+
+        if (QtGui.qApp.userHasRight(urEditReportForm) or QtGui.qApp.userHasRight(urAdmin)) and bool(QtGui.qApp.documentEditor()):
+            self.btnEdit = QtGui.QPushButton(u'Редактировать', self)
+            self.buttonBox.addButton(self.btnEdit, QtGui.QDialogButtonBox.ActionRole)
+            self.btnEdit.clicked.connect(self.on_btnEdit_clicked)
+
+        # self.buttonBox.addButton(self.btnSignAndAttach, QtGui.QDialogButtonBox.ActionRole)
+        # self.buttonBox.addButton(self.btnSchematronValidate, QtGui.QDialogButtonBox.ActionRole)
+        # self.buttonBox.addButton(self.btnEdit, QtGui.QDialogButtonBox.ActionRole)
+        # self.buttonBox.addButton(self.btnSaveAction, QtGui.QDialogButtonBox.ActionRole)
+        if self.tablet:
+            self.buttonBox.addButton(self.btnTablet, QtGui.QDialogButtonBox.ActionRole)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close | QtGui.QDialogButtonBox.Save)
+
         self.fileName = ''
         self.pageFormat = CPageFormat()
         self.actionButtons = []
@@ -243,23 +290,44 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.currentAction = None
         self.currentCdaCode = None
         self.supplements = {}
+        self.isSignAndAttachResult = False
         self.textToPrinter = None
         self.textReport = None
         self.lineEditInterval.setEnabled(False)
         self.checkBoxInterval.setChecked(False)
-        self.checkBoxInterval.stateChanged.connect(lambda x: self.lineEditInterval.setEnabled(True) if x else self.lineEditInterval.setEnabled(False))
-        self.lineEditInterval.textChanged.connect(lambda x: self.setText(self.textReport))
+        self.lineEditInterval.textChanged.connect(self.on_lineEditInterval_textChanged)
         self.txtReport.setOpenLinks(False)
         handler = self.handler
         QObject.connect(self.txtReport, SIGNAL("anchorClicked(const QUrl&)"), handler)
         self.btnPreview.clicked.connect(self.btnPreviewClicked)
         self.btnPrint.setFocus(Qt.OtherFocusReason)
-        self.btnSaveAction.setEnabled(False)
-        self.btnSaveAction.setVisible(False)
         self._setFindVisible(False)
         self.pyServices = getPyServices()
         self.txtReport.actFind.triggered.connect(self.on_actFind_triggered)
+        self.templateId = None
+        self.templateData = None
 
+    def on_lineEditInterval_textChanged(self):
+        self.setText(self.textReport)
+
+    def closeEvent(self, event):
+        try:
+            if self.tablet:
+                self.tablet.close()
+            event.accept()
+        except Exception as e:
+            print(str(e))
+
+    def clearTabletScreen(self):
+        self.tablet.clearScreen()
+    
+    def getSignature(self):
+        self.tablet.getImage()
+
+    def setReportSignature(self, imageData):
+        content = self.templateContent.replace('<!-- signature_from_tablet -->', base64.encodestring(bytes(imageData))+'" />')
+        content = content.replace('<!-- <img', ' <img')
+        self.txtReport.setHtml(content)
 
     def enableDebugButton(self):
         self.fsWatcher = None
@@ -429,6 +497,17 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                         content1, canvases = compileAndExecTemplate(template, self.data, pageFormat)
 
                         self.txtReport.setHtml(self.content + content1)
+                    elif u'showContent' in url.toString():
+                        replace = url.toString().split('_')
+                        # первым делом смотрим то что подходит под наш параметр и скрыто и добавляем приставку "_replace_" для того чтобы скрыть то что надо сейчас и потом отобразить то что было скрыто
+
+                        if '<!--'+replace[1]+']'+replace[1]+'-->' in self.templateContent:
+                            self.templateContent = self.templateContent.replace('<!--' + replace[1] + '|','<!--' + replace[1] + '_replace_]' + replace[1] + '-->').replace('|' + replace[1] + '-->', '<!--' + replace[1] + '_replace_[' + replace[1] + '-->')
+                            self.templateContent = self.templateContent.replace('<!--'+replace[1]+']'+replace[1]+'-->','<!--' + replace[1] + '|').replace('<!--'+replace[1]+'['+replace[1]+'-->', '|'+replace[1]+'-->')
+                            self.templateContent = self.templateContent.replace('<!--' + replace[1] + '_replace_]' + replace[1] + '-->', '<!--' + replace[1] + ']' + replace[1] + '-->').replace('<!--' + replace[1] + '_replace_[' + replace[1] + '-->', '<!--' + replace[1] + '[' + replace[1] + '-->')
+                        else:
+                            self.templateContent = self.templateContent.replace('<!--'+replace[1]+'|','<!--'+replace[1]+']'+replace[1]+'-->').replace('|'+replace[1]+'-->','<!--'+replace[1]+'['+replace[1]+'-->')
+                        self.txtReport.setHtml(self.templateContent)
                     elif u'portalMPI_' in url.toString():
                         karta = url.toString().split('_')
                         QtGui.qApp.mainWindow.registry.findClient(karta[1])
@@ -546,6 +625,18 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
     def setSignAndAttachHandler(self, signAndAttachHandler):
         self.signAndAttachHandler = signAndAttachHandler
         self.btnSignAndAttach.setEnabled(bool(self.signAndAttachHandler))
+        if self.btnSignAndAttach.isEnabled():
+            self.buttonBox.addButton(self.btnSignAndAttach, QtGui.QDialogButtonBox.ActionRole)
+    
+    
+    def setRedoInfo(self, redoInfo):
+        if redoInfo:
+            self.btnRedo.setEnabled(True)
+            if self.btnRedo.isEnabled():
+                self.buttonBox.addButton(self.btnRedo, QtGui.QDialogButtonBox.ActionRole)
+            self.templateId = redoInfo[0]
+            self.templateData = redoInfo[1]
+            self.signAndAttachHandler = redoInfo[2]
 
 
     def setCurrentAction(self, currentAction, propertiesData):
@@ -553,6 +644,8 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.propertiesData = propertiesData
         self.btnSaveAction.setEnabled(bool(self.propertiesData))
         self.btnSaveAction.setVisible(bool(self.propertiesData))
+        if self.btnSaveAction.isVisible():
+            self.buttonBox.addButton(self.btnSaveAction, QtGui.QDialogButtonBox.ActionRole)
 
 
     def setOrientation(self, orientation):
@@ -648,12 +741,8 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                 if self.cdaCode:
                     self.btnSchematronValidate.setVisible(True)
                     self.btnSchematronValidate.setEnabled(True)
-        #         listCdaCodes = self.pyServices.listCdaCodes()
-        #         if cdaCode and listCdaCodes:
-        #             if cdaCode in listCdaCodes:
-        #                 self.supplementsToValidate.append(name)
-        # if self.supplementsToValidate:
-        #     self.btnSchematronValidate.setEnabled(True)
+                    self.buttonBox.addButton(self.btnSchematronValidate, QtGui.QDialogButtonBox.ActionRole)
+                    return
 
 
     def setPageFormat(self, format):
@@ -827,6 +916,12 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             printer.setPageSize(self.pageFormat.pageSize)
         previewDialog.exec_()
 
+    @pyqtSignature('')
+    def on_btnRedo_clicked(self):
+        from library.PrintTemplates import applyTemplate
+        self.reject()
+        parent = self.parentWidget()
+        applyTemplate(parent, self.templateId, self.templateData, signAndAttachHandler = self.signAndAttachHandler)
 
     @pyqtSignature('')
     def on_btnPrint_clicked(self):
@@ -866,8 +961,8 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                 if dialog.exec_() != QtGui.QDialog.Accepted:
                     return
             self.printReport(printer, self.fileName)
-            if self.textReport:
-                self.setText(self.textReport)
+            # if self.textReport:
+            #     self.setText(self.textReport)
 
 
 #    @pyqtSignature('')
@@ -882,15 +977,53 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
 
     @pyqtSignature('')
     def on_btnSignAndAttach_clicked(self):
-        snils = None
+        self.isSignAndAttachResult = False
+        if not QtGui.qApp.getAllowUnsignedAttachments() and not QtGui.qApp.isCspDefined():
+            QtGui.QMessageBox.critical(
+                self,
+                u'Подписать и прикрепить',
+                u'Запрещено прикреплять документ без подписи',
+                QtGui.QMessageBox.Ok,
+                QtGui.QMessageBox.Ok
+            )
+            return
+        mainFileName = self.fileName
+        ok, trail = self.signAndAttach()
+        if ok:
+            if trail:
+                QtGui.QMessageBox.information(
+                    self,
+                    u'Подпиcать и прикрепить',
+                    u'Документ «%s» успешно сформирован, подписан и прикреплён' % mainFileName,
+                    QtGui.QMessageBox.Ok,
+                    QtGui.QMessageBox.Ok,
+                )
+            else:
+                QtGui.QMessageBox.information(
+                    self,
+                    u'Подпиcать и прикрепить',
+                    u'Внимание!\nДокумент «%s» успешно сформирован, прикреплён без подписи!' % mainFileName,
+                    QtGui.QMessageBox.Ok,
+                    QtGui.QMessageBox.Ok,
+                )
+            self.isSignAndAttachResult = True
+    
+    
+    def signAndAttach(self, templateId = None, snils=None, requireSignerPerson=0):
         if self.currentAction:
+            templateId = self.templateId
+            db = QtGui.qApp.db
             actionRecord = self.currentAction.record
-            execPersonId = forceInt(actionRecord.value('person_id'))
-            if execPersonId:
-                db = QtGui.qApp.db
-                snils = forceString(db.translate('Person', 'id', execPersonId, 'SNILS'))
+            personIdColName = 'person_id'
+            requireSignerPerson = forceInt(db.translate('rbPrintTemplate', 'id', templateId, 'requireSignerPerson'))
+            if requireSignerPerson == 1:
+                personIdColName = 'setPerson_id'
+            personId = forceInt(actionRecord.value(personIdColName))
+            if personId:
+                snils = forceString(db.translate('Person', 'id', personId, 'SNILS'))
             else:
                 snils = 'empty'
+
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
         printer.setOutputFormat(printer.PdfFormat)
 
@@ -919,29 +1052,18 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         pdfDoc = self.templateContent
         html = forceString(pdfDoc)
         mainFileName = self.fileName + '.pdf'
-        items = [(mainFileName, pdfBytes, html)]
+        items = [(mainFileName, pdfBytes, templateId, html)]
         for name, supplement in self.supplements.iteritems():
             supplementFileName = self.getSupplementFileName(self.fileName, name)
             if isinstance(supplement, unicode):
                 supplement = supplement.encode('utf-8')
-            items.append((supplementFileName, supplement))
-        ok, trail = QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils))
-        if ok:
-            if trail:
-                QtGui.QMessageBox.information(self,
-                                              u'Прикрепить и подписать',
-                                              u'Документ «%s» успешно сформирован, прикреплён и подписан' % mainFileName,
-                                              QtGui.QMessageBox.Ok,
-                                              QtGui.QMessageBox.Ok
-                                              )
-            else:
-                QtGui.QMessageBox.information(self,
-                                              u'Прикрепить и подписать',
-                                              u'Внимание!\nДокумент «%s» успешно сформирован, прикреплён без подписи!' % mainFileName,
-                                              QtGui.QMessageBox.Ok,
-                                              QtGui.QMessageBox.Ok
-                                              )
+            items.append((supplementFileName, supplement, templateId))
+        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson))
 
+    
+    def getSignAndAttachResult(self):
+        return self.isSignAndAttachResult
+    
 
     @pyqtSignature('')
     def on_btnSchematronValidate_clicked(self):
@@ -979,7 +1101,6 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             else:
                 QtGui.QMessageBox.critical(self, u'Ошибка', u"На данном рабочем месте нет доступа к серверу сервисов по адресу: {0}".format(self.pyServices.url))
 
-
     @pyqtSignature('')
     def on_btnEdit_clicked(self):
         editor = QtGui.qApp.documentEditor()
@@ -1012,13 +1133,14 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
     def on_buttonBox_clicked(self, button):
         buttonCode = self.buttonBox.standardButton(button)
         if buttonCode == QtGui.QDialogButtonBox.Close:
+            self.closeEvent(self)
             self.reject()
         elif buttonCode == QtGui.QDialogButtonBox.Retry:
             self.accept()
         elif buttonCode == QtGui.QDialogButtonBox.Save:
             QtGui.qApp.call(self, self.saveAsFile)
-            if self.textReport:
-                self.setText(self.textReport)
+            # if self.textReport:
+            #     self.setText(self.textReport)
         else:
             if button in self.actionButtons:
                 i = self.actionButtons.index(button)

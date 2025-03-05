@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CentralizedAccountingDialog</class>
+ <widget class="QWidget" name="CentralizedAccountingDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1043</width>
+    <height>749</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Централизованный учет</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_3">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <item row="1" column="0">
+    <widget class="QPushButton" name="btnInvoices">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Списать</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3">
+    <widget class="CPrintButton" name="btnPrint">
+     <property name="text">
+      <string>Печать (F6)</string>
+     </property>
+     <property name="shortcut">
+      <string>F6</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>216</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="4">
+    <widget class="QPushButton" name="btnClose">
+     <property name="text">
+      <string>Закрыть</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="6">
+    <widget class="QSplitter" name="splitter_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QGroupBox" name="grpFilter">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>100</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Фильтр</string>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <property name="margin">
+        <number>2</number>
+       </property>
+       <property name="spacing">
+        <number>2</number>
+       </property>
+       <item row="1" column="0">
+        <widget class="CApplyResetDialogButtonBox" name="buttonBoxFilter">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="standardButtons">
+          <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QTabWidget" name="tabFilter">
+         <property name="tabPosition">
+          <enum>QTabWidget::North</enum>
+         </property>
+         <property name="tabShape">
+          <enum>QTabWidget::Rounded</enum>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="tabAccounting">
+          <attribute name="title">
+           <string>Учёт</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_5">
+           <property name="margin">
+            <number>1</number>
+           </property>
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item row="6" column="0">
+            <widget class="CRBComboBox" name="cmbFilterSchema">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="0">
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>423</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="1" column="0">
+            <widget class="QCheckBox" name="chkFilterActionType">
+             <property name="text">
+              <string>Тип действия</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="CCurrentDateEditEF" name="edtFilterDate">
+             <property name="calendarPopup">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="CActionTypeComboBox" name="cmbFilterActionType">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="CActionStatusMultivalueComboBox" name="cmbFilterStatus">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QCheckBox" name="chkFilterSchema">
+             <property name="text">
+              <string>Схема</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <widget class="QCheckBox" name="chkFilterOrgStructure">
+             <property name="text">
+              <string>Подразделение пребывания</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="chkFilterStatus">
+             <property name="text">
+              <string>Статус</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="COrgStructureHospitalBedsComboBoxEx" name="cmbFilterOrgStructure">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tabClient">
+          <attribute name="title">
+           <string>Пациент</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_2">
+           <property name="margin">
+            <number>1</number>
+           </property>
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <item row="5" column="0" colspan="2">
+            <widget class="QLineEdit" name="edtFilterFirstName">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0" colspan="2">
+            <widget class="QLineEdit" name="edtFilterPatrName">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkFilterFirstName">
+             <property name="text">
+              <string>Имя</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="2">
+            <widget class="QLineEdit" name="edtFilterLastName">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkFilterPatrName">
+             <property name="text">
+              <string>Отчество</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkFilterLastName">
+             <property name="text">
+              <string>Фамилия</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkClientId">
+             <property name="text">
+              <string>Код пациента</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0" colspan="2">
+            <widget class="QLineEdit" name="edtClientId">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="maxLength">
+              <number>16</number>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="0">
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="8" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkFilterEventId">
+             <property name="text">
+              <string>Код карточки</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="0">
+            <widget class="QLineEdit" name="edtFilterEventId">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="maxLength">
+              <number>9</number>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkFilterExternalId">
+             <property name="text">
+              <string>Карта</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="0">
+            <widget class="QLineEdit" name="edtFilterExternalId">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+          <zorder>edtFilterLastName</zorder>
+          <zorder>chkFilterPatrName</zorder>
+          <zorder>edtFilterPatrName</zorder>
+          <zorder>chkFilterFirstName</zorder>
+          <zorder>edtFilterFirstName</zorder>
+          <zorder>chkFilterLastName</zorder>
+          <zorder>verticalSpacer</zorder>
+          <zorder>chkClientId</zorder>
+          <zorder>edtClientId</zorder>
+          <zorder>chkFilterEventId</zorder>
+          <zorder>chkFilterExternalId</zorder>
+          <zorder>edtFilterEventId</zorder>
+          <zorder>edtFilterExternalId</zorder>
+         </widget>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="grpTables" native="true">
+      <layout class="QGridLayout" name="gridLayout_4">
+       <property name="margin">
+        <number>2</number>
+       </property>
+       <property name="spacing">
+        <number>2</number>
+       </property>
+       <item row="1" column="0">
+        <widget class="QSplitter" name="splitter">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <widget class="CCentralizedAccountingTableView" name="tblCentralizedAccounting">
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+         </widget>
+         <widget class="CCentralizedAccountingActionsInDocTableView" name="tblActions"/>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblRecordCount">
+         <property name="text">
+          <string>Список пуст</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CCurrentDateEditEF</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgStructureHospitalBedsComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgStructComboBoxes.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CApplyResetDialogButtonBox</class>
+   <extends>QDialogButtonBox</extends>
+   <header>library/DialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPrintButton</class>
+   <extends>QPushButton</extends>
+   <header>library/PrintTemplates.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionStatusMultivalueComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Events/ActionStatus.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CActionTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Events/ActionTypeComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CCentralizedAccountingTableView</class>
+   <extends>QTableView</extends>
+   <header>CentralizedAccounting/CentralizedAccountingTableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CCentralizedAccountingActionsInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>CentralizedAccounting/CentralizedAccountingActionsInDocTableView.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>tabFilter</tabstop>
+  <tabstop>edtFilterDate</tabstop>
+  <tabstop>chkFilterActionType</tabstop>
+  <tabstop>cmbFilterActionType</tabstop>
+  <tabstop>chkFilterStatus</tabstop>
+  <tabstop>cmbFilterStatus</tabstop>
+  <tabstop>chkFilterSchema</tabstop>
+  <tabstop>cmbFilterSchema</tabstop>
+  <tabstop>chkFilterOrgStructure</tabstop>
+  <tabstop>cmbFilterOrgStructure</tabstop>
+  <tabstop>chkClientId</tabstop>
+  <tabstop>edtClientId</tabstop>
+  <tabstop>chkFilterLastName</tabstop>
+  <tabstop>edtFilterLastName</tabstop>
+  <tabstop>chkFilterFirstName</tabstop>
+  <tabstop>edtFilterFirstName</tabstop>
+  <tabstop>chkFilterPatrName</tabstop>
+  <tabstop>edtFilterPatrName</tabstop>
+  <tabstop>chkFilterEventId</tabstop>
+  <tabstop>edtFilterEventId</tabstop>
+  <tabstop>chkFilterExternalId</tabstop>
+  <tabstop>edtFilterExternalId</tabstop>
+  <tabstop>buttonBoxFilter</tabstop>
+  <tabstop>tblCentralizedAccounting</tabstop>
+  <tabstop>tblActions</tabstop>
+  <tabstop>btnInvoices</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkFilterLastName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFilterLastName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>107</x>
+     <y>93</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>107</x>
+     <y>115</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterPatrName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFilterPatrName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>107</x>
+     <y>182</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>107</x>
+     <y>202</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterFirstName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFilterFirstName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>107</x>
+     <y>137</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>107</x>
+     <y>158</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkClientId</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtClientId</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>107</x>
+     <y>50</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>107</x>
+     <y>70</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterEventId</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFilterEventId</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>72</x>
+     <y>225</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>99</x>
+     <y>247</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterExternalId</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFilterExternalId</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>50</x>
+     <y>269</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>66</x>
+     <y>290</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterActionType</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbFilterActionType</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>26</x>
+     <y>102</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>33</x>
+     <y>120</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterStatus</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbFilterStatus</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>18</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>24</x>
+     <y>161</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterSchema</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbFilterSchema</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>53</x>
+     <y>183</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>63</x>
+     <y>208</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFilterOrgStructure</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbFilterOrgStructure</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>119</x>
+     <y>235</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>123</x>
+     <y>247</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

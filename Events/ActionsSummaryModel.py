@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -146,7 +146,7 @@ class CActionsSummaryModel(CInDocTableModel):
         self.editable = editable
         self.setEnableAppendLine(self.editable)
         self.eventEditor = parent
-        self.connect(self.eventEditor, SIGNAL('updateActionsPriceAndUet()'), self.updateActionsPriceAndUet)
+        self.connect(self.eventEditor, SIGNAL('updateActionsPriceAndUet()'), self.on_updateActionsPriceAndUet)
 
         self.visitList = {}
         self.readOnly = False
@@ -297,7 +297,7 @@ class CActionsSummaryModel(CInDocTableModel):
         return True
 
 
-    def setData(self, index, value, role=Qt.EditRole, presetAction=None):
+    def setData(self, index, value, role=Qt.EditRole, presetAction=None, related=False):
         column = index.column()
         row = index.row()
         payStatus = forceRef(self.items()[row].value('payStatus')) if 0 <= row < len(self.items()) else 0
@@ -317,7 +317,7 @@ class CActionsSummaryModel(CInDocTableModel):
                 actionTypeClass = CActionTypeCache.getById(actionTypeId).class_ if actionTypeId else None
                 for iModel, model in enumerate(self.models):
                     if model.actionTypeClass == actionTypeClass:
-                        model.addRow(forceRef(value), presetAction=presetAction, related=False)
+                        model.addRow(forceRef(value), presetAction=presetAction, related=related)
                         self.regenerate()
                         i = self.itemIndex.index((iModel, model.rowCount()-2))
                         self.emit(SIGNAL('currentRowMovedTo(int)'), i)
@@ -418,7 +418,7 @@ class CActionsSummaryModel(CInDocTableModel):
         return result
 
 
-    def updateActionsPriceAndUet(self):
+    def on_updateActionsPriceAndUet(self):
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.index(0, 9), self.index(len(self.items()), 9))
 
 
@@ -1064,8 +1064,8 @@ class CAccActionsSummary(CActionsSummaryModel):
 
 
 class CFxxxActionsSummaryModel(CActionsSummaryModel):
-    def setData(self, index, value, role=Qt.EditRole, presetAction=None):
-        result = CActionsSummaryModel.setData(self, index, value, role, presetAction)
+    def setData(self, index, value, role=Qt.EditRole, presetAction=None, related=False):
+        result = CActionsSummaryModel.setData(self, index, value, role, presetAction, related=related)
         if result:
             column = index.column()
             if column == self.getColIndex('endDate'):  # end date
@@ -1103,6 +1103,47 @@ class CFxxxActionsSummaryModel(CActionsSummaryModel):
     
     def flags(self, index=QModelIndex()):
         row = index.row()
+        column = index.column()
+        items = self.items()
         if row >= len(self.items()):
             return Qt.NoItemFlags
+        record = items[row] if 0 <= row < len(items) else None
+        actionTypeId = forceRef(record.value('actionType_id')) if record else None
+        actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
+        if actionType:
+            if column == self.getColIndex('begDate'):
+                if actionType.editBegDate:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('endDate'):
+                if actionType.editEndDate:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('status'):
+                if actionType.editStatus:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('setPerson_id'):
+                if actionType.editSetPerson:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('person_id'):
+                if actionType.editExecPers:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('org_id'):
+                if actionType.editOrg:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('note'):
+                if actionType.editNote:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
         return CActionsSummaryModel.flags(self, index)

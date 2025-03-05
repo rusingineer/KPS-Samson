@@ -617,7 +617,7 @@ p, li { white-space: pre-wrap; }
          <x>0</x>
          <y>0</y>
          <width>1252</width>
-         <height>828</height>
+         <height>852</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_7">
@@ -1015,19 +1015,6 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="25" column="3" colspan="8">
-             <spacer name="horizontalSpacer_11">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>410</width>
-                <height>17</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
             <item row="7" column="0" colspan="2">
              <widget class="QLabel" name="lblExposeIfContinuedEventFinished">
               <property name="sizePolicy">
@@ -1044,6 +1031,19 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
+            <item row="25" column="3" colspan="8">
+             <spacer name="horizontalSpacer_11">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>410</width>
+                <height>17</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
             <item row="0" column="10">
              <spacer name="horizontalSpacer_2">
               <property name="orientation">
@@ -1056,45 +1056,6 @@ p, li { white-space: pre-wrap; }
                </size>
               </property>
              </spacer>
-            </item>
-            <item row="33" column="1">
-             <spacer>
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>20</width>
-                <height>131</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item row="21" column="2">
-             <widget class="QDoubleSpinBox" name="edtCoefficient">
-              <property name="decimals">
-               <number>4</number>
-              </property>
-              <property name="maximum">
-               <double>99.999899999999997</double>
-              </property>
-              <property name="singleStep">
-               <double>0.010000000000000</double>
-              </property>
-             </widget>
-            </item>
-            <item row="25" column="2">
-             <widget class="QDoubleSpinBox" name="edtRegionalTariffRegulationFactor">
-              <property name="decimals">
-               <number>4</number>
-              </property>
-              <property name="maximum">
-               <double>9999.999900000000707</double>
-              </property>
-              <property name="singleStep">
-               <double>0.010000000000000</double>
-              </property>
-             </widget>
             </item>
             <item row="0" column="0" colspan="2">
              <widget class="QLabel" name="lblDefaultExportFormat">
@@ -1111,19 +1072,6 @@ p, li { white-space: pre-wrap; }
                <cstring>cmbDefaultExportFormat</cstring>
               </property>
              </widget>
-            </item>
-            <item row="1" column="10">
-             <spacer name="horizontalSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
             </item>
             <item row="30" column="3" colspan="2">
              <widget class="QToolButton" name="btnCalculation">
@@ -1144,6 +1092,45 @@ p, li { white-space: pre-wrap; }
                </size>
               </property>
              </spacer>
+            </item>
+            <item row="1" column="10">
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="25" column="2">
+             <widget class="QDoubleSpinBox" name="edtRegionalTariffRegulationFactor">
+              <property name="decimals">
+               <number>4</number>
+              </property>
+              <property name="maximum">
+               <double>9999.999900000000707</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="21" column="2">
+             <widget class="QDoubleSpinBox" name="edtCoefficient">
+              <property name="decimals">
+               <number>4</number>
+              </property>
+              <property name="maximum">
+               <double>99.999899999999997</double>
+              </property>
+              <property name="singleStep">
+               <double>0.010000000000000</double>
+              </property>
+             </widget>
             </item>
             <item row="22" column="2">
              <widget class="QDoubleSpinBox" name="edtCoefficientEx">
@@ -1203,16 +1190,6 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="7" column="2">
-             <widget class="QCheckBox" name="chkExposeIfContinuedEventFinished">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
             <item row="25" column="0" colspan="2">
              <widget class="QLabel" name="lblRegionalTariffRegulationFactor">
               <property name="sizePolicy">
@@ -1246,15 +1223,31 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="30" column="2">
-             <widget class="QDoubleSpinBox" name="edtActualAmount">
-              <property name="maximum">
-               <double>999999999.990000009536743</double>
+            <item row="7" column="2">
+             <widget class="QCheckBox" name="chkExposeIfContinuedEventFinished">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="text">
+               <string/>
               </property>
              </widget>
             </item>
-            <item row="2" column="10">
-             <spacer name="horizontalSpacer_3">
+            <item row="28" column="3" colspan="8">
+             <spacer name="horizontalSpacer_14">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="29" column="3" colspan="8">
+             <spacer name="horizontalSpacer_15">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -1275,6 +1268,39 @@ p, li { white-space: pre-wrap; }
                <size>
                 <width>40</width>
                 <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="2" column="10">
+             <spacer name="horizontalSpacer_3">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="30" column="2">
+             <widget class="QDoubleSpinBox" name="edtActualAmount">
+              <property name="maximum">
+               <double>999999999.990000009536743</double>
+              </property>
+             </widget>
+            </item>
+            <item row="19" column="9" colspan="2">
+             <spacer name="horizontalSpacer_17">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>261</width>
+                <height>19</height>
                </size>
               </property>
              </spacer>
@@ -1318,8 +1344,8 @@ p, li { white-space: pre-wrap; }
               </property>
              </spacer>
             </item>
-            <item row="28" column="3" colspan="8">
-             <spacer name="horizontalSpacer_14">
+            <item row="26" column="7" colspan="4">
+             <spacer name="horizontalSpacer_12">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -1327,32 +1353,6 @@ p, li { white-space: pre-wrap; }
                <size>
                 <width>40</width>
                 <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item row="29" column="3" colspan="8">
-             <spacer name="horizontalSpacer_15">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item row="19" column="9" colspan="2">
-             <spacer name="horizontalSpacer_17">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>261</width>
-                <height>19</height>
                </size>
               </property>
              </spacer>
@@ -1418,35 +1418,6 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="26" column="7" colspan="4">
-             <spacer name="horizontalSpacer_12">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item row="19" column="0" colspan="2">
-             <widget class="QLabel" name="lblPriceList">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Прайс-лист</string>
-              </property>
-              <property name="buddy">
-               <cstring>cmbPriceList</cstring>
-              </property>
-             </widget>
-            </item>
             <item row="20" column="0" colspan="2">
              <widget class="QLabel" name="lblPriceListExternal">
               <property name="sizePolicy">
@@ -1479,8 +1450,8 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="2" column="0" colspan="2">
-             <widget class="QLabel" name="lblActionExposition">
+            <item row="19" column="0" colspan="2">
+             <widget class="QLabel" name="lblPriceList">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                 <horstretch>0</horstretch>
@@ -1488,10 +1459,26 @@ p, li { white-space: pre-wrap; }
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Выставлять мероприятия</string>
+               <string>Прайс-лист</string>
               </property>
               <property name="buddy">
-               <cstring>cmbDateOfActionExposition</cstring>
+               <cstring>cmbPriceList</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="24" column="0" colspan="2">
+             <widget class="QLabel" name="lblOrgCategory">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Категория ЛПУ</string>
+              </property>
+              <property name="buddy">
+               <cstring>edtOrgCategory</cstring>
               </property>
              </widget>
             </item>
@@ -1527,8 +1514,8 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="24" column="0" colspan="2">
-             <widget class="QLabel" name="lblOrgCategory">
+            <item row="2" column="0" colspan="2">
+             <widget class="QLabel" name="lblActionExposition">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                 <horstretch>0</horstretch>
@@ -1536,23 +1523,17 @@ p, li { white-space: pre-wrap; }
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Категория ЛПУ</string>
+               <string>Выставлять мероприятия</string>
               </property>
               <property name="buddy">
-               <cstring>edtOrgCategory</cstring>
+               <cstring>cmbDateOfActionExposition</cstring>
               </property>
              </widget>
             </item>
-            <item row="28" column="0" colspan="2">
-             <widget class="QLabel" name="lblLimitExceeding">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
+            <item row="15" column="2" colspan="9">
+             <widget class="QCheckBox" name="chkExposeDisciplineByEvent">
               <property name="text">
-               <string>Предел превышения</string>
+               <string>На каждое событие отдельно</string>
               </property>
              </widget>
             </item>
@@ -1569,6 +1550,26 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
+            <item row="14" column="2" colspan="9">
+             <widget class="QCheckBox" name="chkExposeDisciplineByClient">
+              <property name="text">
+               <string>На каждого пациента отдельно</string>
+              </property>
+             </widget>
+            </item>
+            <item row="28" column="0" colspan="2">
+             <widget class="QLabel" name="lblLimitExceeding">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Предел превышения</string>
+              </property>
+             </widget>
+            </item>
             <item row="30" column="0" colspan="2">
              <widget class="QLabel" name="lblActualAmount">
               <property name="sizePolicy">
@@ -1582,17 +1583,16 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="14" column="2" colspan="9">
-             <widget class="QCheckBox" name="chkExposeDisciplineByClient">
-              <property name="text">
-               <string>На каждого пациента отдельно</string>
+            <item row="7" column="3">
+             <widget class="QLabel" name="lblExposeByLastEventContract">
+              <property name="enabled">
+               <bool>false</bool>
               </property>
-             </widget>
-            </item>
-            <item row="15" column="2" colspan="9">
-             <widget class="QCheckBox" name="chkExposeDisciplineByEvent">
               <property name="text">
-               <string>На каждое событие отдельно</string>
+               <string>Продлеваемые события выставлять по договору продолжения</string>
+              </property>
+              <property name="buddy">
+               <cstring>chkExposeByLastEventContract</cstring>
               </property>
              </widget>
             </item>
@@ -1626,26 +1626,26 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="7" column="3">
-             <widget class="QLabel" name="lblExposeByLastEventContract">
-              <property name="enabled">
-               <bool>false</bool>
+            <item row="4" column="0" colspan="2">
+             <widget class="QLabel" name="lblCsgExposition">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
               </property>
               <property name="text">
-               <string>Продлеваемые события выставлять по договору продолжения</string>
+               <string>Выставлять КСГ</string>
               </property>
               <property name="buddy">
-               <cstring>chkExposeByLastEventContract</cstring>
+               <cstring>cmbDateOfCsgExposition</cstring>
               </property>
              </widget>
             </item>
-            <item row="7" column="4">
-             <widget class="QCheckBox" name="chkExposeByLastEventContract">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
+            <item row="32" column="2" colspan="3">
+             <widget class="QCheckBox" name="chkDisableInAccounts">
               <property name="text">
-               <string/>
+               <string>Не отображать в разделе Счета</string>
               </property>
              </widget>
             </item>
@@ -1671,22 +1671,6 @@ p, li { white-space: pre-wrap; }
               </item>
              </widget>
             </item>
-            <item row="4" column="0" colspan="2">
-             <widget class="QLabel" name="lblCsgExposition">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Выставлять КСГ</string>
-              </property>
-              <property name="buddy">
-               <cstring>cmbDateOfCsgExposition</cstring>
-              </property>
-             </widget>
-            </item>
             <item row="31" column="9" colspan="2">
              <spacer name="horizontalSpacer_18">
               <property name="orientation">
@@ -1700,15 +1684,18 @@ p, li { white-space: pre-wrap; }
               </property>
              </spacer>
             </item>
-            <item row="32" column="2" colspan="3">
-             <widget class="QCheckBox" name="chkDisableInAccounts">
+            <item row="7" column="4">
+             <widget class="QCheckBox" name="chkExposeByLastEventContract">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
               <property name="text">
-               <string>Не отображать в разделе Счета</string>
+               <string/>
               </property>
              </widget>
             </item>
-            <item row="26" column="12">
-             <spacer name="horizontalSpacer_23">
+            <item row="32" column="7" colspan="4">
+             <spacer name="horizontalSpacer_24">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -1720,8 +1707,8 @@ p, li { white-space: pre-wrap; }
               </property>
              </spacer>
             </item>
-            <item row="32" column="7" colspan="4">
-             <spacer name="horizontalSpacer_24">
+            <item row="27" column="8" colspan="3">
+             <spacer name="horizontalSpacer_25">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -1740,15 +1727,8 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
-            <item row="26" column="5">
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>Точность представления значения коэфф.тарифа</string>
-              </property>
-             </widget>
-            </item>
-            <item row="27" column="8" colspan="3">
-             <spacer name="horizontalSpacer_25">
+            <item row="26" column="12">
+             <spacer name="horizontalSpacer_23">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -1760,32 +1740,10 @@ p, li { white-space: pre-wrap; }
               </property>
              </spacer>
             </item>
-            <item row="26" column="6">
-             <widget class="QSpinBox" name="edtTariffCoeffValuePrecision">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="maximum">
-               <number>9</number>
-              </property>
-              <property name="value">
-               <number>2</number>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="2" colspan="3">
-             <widget class="CRBComboBox" name="cmbDefaultExportFormat">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="sizeAdjustPolicy">
-               <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+            <item row="26" column="5">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Точность представления значения коэфф.тарифа</string>
               </property>
              </widget>
             </item>
@@ -1811,6 +1769,19 @@ p, li { white-space: pre-wrap; }
               </item>
              </widget>
             </item>
+            <item row="0" column="2" colspan="3">
+             <widget class="CRBComboBox" name="cmbDefaultExportFormat">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="sizeAdjustPolicy">
+               <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+              </property>
+             </widget>
+            </item>
             <item row="2" column="2" colspan="3">
              <widget class="QComboBox" name="cmbDateOfActionExposition">
               <property name="currentIndex">
@@ -1833,6 +1804,22 @@ p, li { white-space: pre-wrap; }
               </item>
              </widget>
             </item>
+            <item row="26" column="6">
+             <widget class="QSpinBox" name="edtTariffCoeffValuePrecision">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximum">
+               <number>9</number>
+              </property>
+              <property name="value">
+               <number>2</number>
+              </property>
+             </widget>
+            </item>
             <item row="11" column="2" colspan="3">
              <widget class="QComboBox" name="cmbExposeDisciplineByInsurer">
               <item>
@@ -1851,9 +1838,6 @@ p, li { white-space: pre-wrap; }
                </property>
               </item>
              </widget>
-            </item>
-            <item row="19" column="2" colspan="3">
-             <widget class="CPriceListComboBoxEx" name="cmbPriceList"/>
             </item>
             <item row="20" column="2" colspan="3">
              <widget class="CPriceListComboBox" name="cmbPriceListExternal"/>
@@ -1879,18 +1863,14 @@ p, li { white-space: pre-wrap; }
               </item>
              </widget>
             </item>
-            <item row="1" column="5" colspan="2">
-             <widget class="QComboBox" name="cmbVisitExposition">
-              <item>
-               <property name="text">
-                <string>по врачу визита</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>по врачу события</string>
-               </property>
-              </item>
+            <item row="19" column="2" colspan="3">
+             <widget class="CPriceListComboBoxEx" name="cmbPriceList"/>
+            </item>
+            <item row="18" column="2">
+             <widget class="QCheckBox" name="chkExposeDisciplineByOncology">
+              <property name="text">
+               <string>Онкологические случаи отдельно</string>
+              </property>
              </widget>
             </item>
             <item row="31" column="2" colspan="3">
@@ -1917,18 +1897,18 @@ p, li { white-space: pre-wrap; }
               </item>
              </widget>
             </item>
-            <item row="5" column="2">
-             <widget class="QCheckBox" name="chkOnlyEventsPassedExpertise">
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-            <item row="18" column="2">
-             <widget class="QCheckBox" name="chkExposeDisciplineByOncology">
-              <property name="text">
-               <string>Онкологические случаи отдельно</string>
-              </property>
+            <item row="1" column="5" colspan="2">
+             <widget class="QComboBox" name="cmbVisitExposition">
+              <item>
+               <property name="text">
+                <string>по врачу визита</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>по врачу события</string>
+               </property>
+              </item>
              </widget>
             </item>
             <item row="5" column="0">
@@ -1947,10 +1927,70 @@ p, li { white-space: pre-wrap; }
               </property>
              </widget>
             </item>
+            <item row="5" column="2">
+             <widget class="QCheckBox" name="chkOnlyEventsPassedExpertise">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
             <item row="12" column="2">
              <widget class="QCheckBox" name="chkExposeDisciplineBySourceOrg">
               <property name="text">
                <string>На каждого направителя отдельно</string>
+              </property>
+             </widget>
+            </item>
+            <item row="34" column="0">
+             <spacer>
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>131</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item row="33" column="2" colspan="3">
+             <widget class="CRBComboBox" name="cmbCounter">
+              <item>
+               <property name="text">
+                <string>не задано</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>наличный</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>безналичный</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>комбинированный</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="33" column="0" colspan="2">
+             <widget class="QLabel" name="lblCounter">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Счетчик номеров реестров</string>
+              </property>
+              <property name="buddy">
+               <cstring>cmbCounter</cstring>
               </property>
              </widget>
             </item>

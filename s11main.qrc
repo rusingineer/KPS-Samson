@@ -6,8 +6,17 @@
     <file>icons/redBullet.svg</file>
     <file>icons/greenBullet.svg</file>
     <file>icons/redAndGreenBullet.svg</file>
-	<file>icons/blueBullet.svg</file>
+	  <file>icons/blueBullet.svg</file>
     <file>icons/lightblueBullet.svg</file>
     <file>s11main_ru.qm</file>
+    <file>icons/znak_16x16.png</file>
+    <file>icons/znak_32x32.png</file>
+    <file>icons/znak_48x48.png</file>
+    <file>icons/znak_256x256.png</file>
+    <file>icons/logo.png</file>
+    <file>icons/logo_130x42.png</file>
+    <file>icons/bell_1.png</file>
+    <file>icons/bell_2.png</file>
+    <file>icons/bell_3.png</file>
   </qresource>
 </RCC>

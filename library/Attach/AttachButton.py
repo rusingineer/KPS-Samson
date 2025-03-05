@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, SIGNAL, QSize
+from PyQt4.QtCore import Qt, SIGNAL, QSize, pyqtSignal
 
 from .AttachedFile         import CAttachedFilesModel
 from .AttachFilesPopup     import CAttachFilesPopup
@@ -32,28 +32,32 @@ from library.Utils import forceInt
 
 class CAttachButton(QtGui.QPushButton):
     """Кнопка, скрывающая под собой список прикреплённых файлов"""
+    changed = pyqtSignal()
 
     def __init__(self, parent, text=None):
         QtGui.QPushButton.__init__(self, parent)
         if text:
             self.setText(text)
         self.modelFiles = CAttachedFilesModel(self)
-        self.connect(self, SIGNAL('pressed()'), self.onPress)
-        self._isEnabled = True     # разрешён с точки зрения Qt
-        self._isAccessible = True  # разрешён (есть право добавлять или список файлов не пуст)
-        self._forceShowDown= False # показан popup (кнопку нужно рисовать нажатой)
-        self._isSaveModel = False  # модель была сохранена
-        self._isReadOnly = False  # нельзя изменять прикрепленные файлы
+        self.modelFiles.changed.connect(self.modelFiles_changed)
+        self.pressed.connect(self.onPress)
+
+        self._isEnabled = True       # разрешён с точки зрения Qt
+        self._isAccessible = True    # разрешён (есть право добавлять или список файлов не пуст)
+        self._forceShowDown = False  # показан popup (кнопку нужно рисовать нажатой)
+        self._isSaveModel = False    # модель была сохранена
+        self._isReadOnly = False     # нельзя изменять прикрепленные файлы
 
         self.modelFiles.setInterface(QtGui.qApp.webDAVInterface)
+
+    def modelFiles_changed(self):
+        self.changed.emit()
 
     def getIsSaveModel(self):
         return self._isSaveModel
 
-
     def setTable(self, tableName):
         self.modelFiles.setTable(tableName)
-
 
     def loadItems(self, masterId):
         self.modelFiles.loadItems(masterId)
@@ -63,21 +67,17 @@ class CAttachButton(QtGui.QPushButton):
             self._isAccessible = True
         self.__setEnabled()
 
-
     def saveItems(self, masterId):
-        self.modelFiles.saveItems(masterId)
+        self.modelFiles.saveItems(masterId, saveOnlyChanged = True)
         self._isSaveModel = True
-
 
     def setEnabled(self, val):
         self._isEnabled = val
         self.__setEnabled()
 
-
     def __setEnabled(self):
         interface = QtGui.qApp.webDAVInterface
         QtGui.QPushButton.setEnabled(self, self._isEnabled and self._isAccessible and bool(interface) )
-
 
     def sizeHint(self):
         self.ensurePolished()
@@ -106,7 +106,6 @@ class CAttachButton(QtGui.QPushButton):
                                          )
         return sizeHint.expandedTo(QtGui.qApp.globalStrut())
 
-
     def paintEvent(self, event):
         style = self.style()
         styleOptions = QtGui.QStyleOptionButton()
@@ -126,12 +125,10 @@ class CAttachButton(QtGui.QPushButton):
                           styleOptions,               # const QStyleOption * option
                           painter,                    # QPainter * painter
                           self                        # const QWidget * widget = 0
-                         )
-
+                          )
 
     def setAttachedFileItemList(self, attachedFileItemList):
         self.modelFiles.setAttachedFileItemList(attachedFileItemList)
-
 
     def showPopup(self):
         popup = CAttachFilesPopup(self)
@@ -147,7 +144,6 @@ class CAttachButton(QtGui.QPushButton):
             self.setDown(False)
             self.repaint()
 
-
     def onPress(self):
         if self.modelFiles.isNotEmpty():
             self.showPopup()
@@ -155,15 +151,13 @@ class CAttachButton(QtGui.QPushButton):
             if QtGui.qApp.userHasRight(urCanAttachFile):
                 self.selectAndUploadFiles()
 
-
     def selectAndUploadFiles(self):
         ofr = CAttachFilesTable.selectFiles(self)
         if ofr:
             self.modelFiles.uploadFiles([unicode(fn) for fn in ofr])
 
-
     def getSignAndAttachHandler(self):
-        def handler(items, execSnils=None):
+        def handler(items, execSnils=None, requireSignerPerson = 0):
             userSignatures = []
             orgSignatures = []
             api = None
@@ -187,10 +181,15 @@ class CAttachButton(QtGui.QPushButton):
                         userSignatures = [None] * len(items)
                 else:
                     userSignatures = [None] * len(items)
+                    if requireSignerPerson == 1:
+                        informationText = (u'Внимание!\nПодпись в настройках не соответствует подписи назначившего!'
+                                           u'\nДокумент не подписан!')
+                    else:
+                        informationText = (u'Внимание!\nПодпись в настройках не соответствует подписи исполнителя!'
+                                           u'\nДокумент не подписан!')
                     QtGui.QMessageBox.information(self,
                                                   u'Прикрепить и подписать',
-                                                  u'Внимание!\nПодпись в настройках не соответствует подписи исполнителя!'
-                                                  u'\nДокумент не подписан!',
+                                                  informationText,
                                                   QtGui.QMessageBox.Ok,
                                                   QtGui.QMessageBox.Ok
                                                   )
@@ -214,7 +213,7 @@ class CAttachButton(QtGui.QPushButton):
                     pass
             if orgCert is None:
                 orgSignatures = [None]*len(items)
-            elif orgCert.sha1() == userCert.sha1():
+            elif userCert is not None and orgCert.sha1() == userCert.sha1():
                 orgSignatures = userSignatures
             else:
                 try:
@@ -227,20 +226,23 @@ class CAttachButton(QtGui.QPushButton):
                         #     orgSignatures.append(orgCert.createDetachedSignature(fileBytes))
                 except:
                     orgSignatures = [None] * len(items)
-            # for i, (fileName, fileBytes, html) in enumerate(items):
+            # for i, (fileName, fileBytes, templateId, html) in enumerate(items):
             for i, item in enumerate(items):
                 fileName = item[0]
                 fileBytes = item[1]
                 html = ''
-                if len(item) == 3:
-                #     snils = item[2]
-                # if len(item) == 4:
-                    html = item[2]
+                templateId = None
+                if len(item) >= 3:
+                    templateId = item[2]
+                    if len(item) == 4:
+                        html = item[3]
+
                 self.modelFiles.uploadBytes(fileName,
                                             fileBytes,
                                             userSignatures[i],
                                             orgSignatures[i],
-                                            html
+                                            templateId,
+                                            html,
                                             )
             self.update()
             return bool(userSignatures[0])

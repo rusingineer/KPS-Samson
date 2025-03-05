@@ -18,6 +18,13 @@ from PyQt4.QtCore import Qt
 
 from library.DialogBase         import CDialogBase
 from library.ItemsListDialog    import CItemEditorBaseDialog
+from library.database           import CTableRecordCache
+from Utils                      import (
+                                         forceString,
+                                         forceRef,
+                                         forceInt,
+                                        )
+from Registry.Utils             import getClientSexAge
 from Registry.ClientEditDialog  import (
 #                                         CClientRelationInDocTableCol,
                                          CDirectRelationsModel,
@@ -72,6 +79,40 @@ class CClientRelationsEditDialog(CItemEditorBaseDialog, Ui_ClientRelationsEditDi
 
 
     def checkDataEntered(self):
+        db = QtGui.qApp.db
+        cache = CTableRecordCache(db, 'rbRelationType', ['regionalCode', 'leftSex', 'rightSex'])
+        resultDirectRelations = self.checkRelations(self.tblDirectRelations, True, 'relative_id', cache, 'leftSex', 'rightSex')
+        resultClientRelations = self.checkRelations(self.tblBackwardRelations, False, 'client_id', cache, 'rightSex', 'leftSex')
+        return (resultDirectRelations and resultClientRelations)
+
+
+    def checkRelations(self, table, isDirect, otherFieldName, relationTypeCache, sexFieldName, otherSexFieldName):
+        db = QtGui.qApp.db
+        model = table.model()
+        clientSex = getClientSexAge(model.clientId)[0]
+        for row, record in enumerate(model.items()):
+            relationTypeId = forceRef(record.value('relativeType_id'))
+            otherId        = forceRef(record.value(otherFieldName))
+            if relationTypeId:
+                relationTypeRecord = relationTypeCache.get(relationTypeId)
+                relationTypeCode = forceString(relationTypeRecord.value('regionalCode')) if relationTypeRecord else None
+                if otherId:
+                    otherSex = forceInt(db.translate('Client', 'id', otherId, 'sex'))
+                    if relationTypeRecord:
+                        requiredSex = forceInt(relationTypeRecord.value(sexFieldName))
+                        requiredOtherSex = forceInt(relationTypeRecord.value(otherSexFieldName))
+                        if (   (requiredSex and requiredSex != clientSex)
+                            or (requiredOtherSex and requiredOtherSex != otherSex)
+                           ):
+                            return self.checkValueMessage(u'Несоответствие полов в связи', False, table, row, 0)
+                elif not isDirect and relationTypeCode in ['4', '5']:
+                    orgId = forceRef(record.value('org_id'))
+                    if not orgId:
+                        return self.checkValueMessage(u'Не выбрана связь', False, table, row, 1)
+                else:
+                    return self.checkValueMessage(u'Не выбрана связь', False, table, row, 1)
+            else:
+                return self.checkValueMessage(u'Не выбрана связь', False, table, row, 0)
         return True
 
 

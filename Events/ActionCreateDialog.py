@@ -186,9 +186,12 @@ class CActionCreateDialog(CActionEditDialog):
         self.edtPlannedEndDate.setEnabled(canEditPlannedEndDate)
         self.edtPlannedEndTime.setEnabled(canEditPlannedEndDate and bool(self.edtPlannedEndDate.date()))
 
-        btnNextActionEnabled = (self.edtDuration.value() > 1 or self.edtAliquoticity.value() > 1) and not self.edtEndDate.date()
+        #btnNextActionEnabled = (self.edtDuration.value() > 1 or self.edtAliquoticity.value() > 1) and not self.edtEndDate.date()
 
-        self.btnNextAction.setEnabled(btnNextActionEnabled)
+        isEnable = self.btnNextActionMustBeEnabled()
+        if self.action.getType().isNomenclatureExpense:
+            isEnable = isEnable and self.isEnabledNomenclatureExpense(self.action)
+        self.btnNextAction.setEnabled(isEnable)
 
         if self.edtDuration.value() > 0:
             self.btnPlanNextAction.setEnabled(True)
@@ -198,7 +201,7 @@ class CActionCreateDialog(CActionEditDialog):
         self.edtBegTime.setEnabled(bool(self.edtBegDate.date()) and canEdit)
         self.edtEndTime.setEnabled(bool(self.edtEndDate.date()) and canEdit)
         self.edtPlannedEndTime.setEnabled(bool(self.edtPlannedEndDate.date()) and canEdit)
-        if not self.action.nomenclatureExpense:
+        if not self.getNomenclatureExpenseEnabled(self.action, actionType):
             self.btnAPNomenclatureExpense.setVisible(False)
         elif not QtGui.qApp.userHasAnyRight([urCanUseNomenclatureButton]):
             self.btnAPNomenclatureExpense.setEnabled(False)
@@ -252,7 +255,11 @@ class CActionCreateDialog(CActionEditDialog):
         else:
             self.edtEndDate.setDate(QDate())
             self.edtEndTime.setTime(QTime())
-        self.btnNextAction.setEnabled(self.btnNextActionMustBeEnabled())
+        
+        isEnable = self.btnNextActionMustBeEnabled()
+        if self.action.getType().isNomenclatureExpense:
+            isEnable = isEnable and self.isEnabledNomenclatureExpense(self.action)
+        self.btnNextAction.setEnabled(isEnable)
 
 
 class CTempInvalidActionCreateDialog(CActionCreateDialog):

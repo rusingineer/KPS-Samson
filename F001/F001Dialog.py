@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -37,14 +37,15 @@ from Events.ActionsSelector     import CActionsModel, CActionTypesSelectionManag
 from Events.ActionsSummaryModel import CFxxxActionsSummaryModel
 from Events.ActionTypeComboBox  import CActionTypeModel
 from Events.EventEditDialog     import CEventEditDialog
-from Events.EventInfo import CDiagnosticInfo, CCharacterInfo, CTraumaTypeInfo, CPersonInfo, CDiagnosticResultInfo, CToxicSubstancesInfo
+from Events.EventInfo import CDiagnosticInfo, CCharacterInfo, CTraumaTypeInfo, CPersonInfo, CDiagnosticResultInfo, \
+    CToxicSubstancesInfo, CDagnosisTypeInfo
 from Events.MKBInfo             import CMKBInfo, CMorphologyMKBInfo
-from Events.Utils                import CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventFinanceId, getEventIncludeTooth, getEventIsTakenTissue, getEventLimitActionTypes, getEventSetPerson, getEventShowTime, getExternalIdDateCond, getEventIsPrimary, getEventCode, checkDiagnosis
+from Events.Utils                import CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventFinanceId, getEventIncludeTooth, getEventIsTakenTissue, getEventLimitActionTypes, getEventSetPerson, getEventShowTime, getExternalIdDateCond, getEventIsPrimary, getEventCode, checkDiagnosis, getEventTypeForm
 from F001.PreF001Dialog         import CPreF001Dialog, CPreF001DagnosticAndActionPresets
 from Orgs.Utils                 import getOrgStructureActionTypeIdSet
 from Registry.Utils             import CClientInfo
 from TissueJournal.TissueInfo   import CTissueTypeInfo, CTakenTissueJournalInfo
-from Users.Rights                import urAccessF001planner, urAdmin, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
+from Users.Rights                import urAccessF001planner, urAccessF090planner, urAdmin, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
 
 from F001.Ui_F001               import Ui_F001Dialog
 
@@ -62,6 +63,9 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
     def __init__(self, parent):
         CEventEditDialog.__init__(self, parent)
         self._dialogIsExecuted = False
+        self.preDiagnostics = []
+        self.preSpecialityIdList = []
+        self.isSelectionGroupOne = False
         self.addBarcodeScanAction('actScanBarcode')
         self.addModels('ActionTypeGroups', CActionTypeModel(self))
         self.addModels('ActionTypes', CActionLeavesModel(self))
@@ -624,14 +628,24 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             eventDate = eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime
         else:
             eventDate = QDate.currentDate()
-        if QtGui.qApp.userHasAnyRight([urAccessF001planner, urAdmin]):
+        presentActionTypes = []
+        for item in self.modelActionsSummary.items():
+            actionTypeId = forceString(item.value('actionType_id'))
+            if actionTypeId not in presentActionTypes:
+                presentActionTypes.append(actionTypeId)
+        form = getEventTypeForm(eventTypeId)
+        if (form != u'090' and QtGui.qApp.userHasAnyRight([urAccessF001planner, urAdmin])) or (form == u'090' and QtGui.qApp.userHasAnyRight([urAccessF090planner,])):
             dlg = CPreF001Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
-                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, flagHospitalization, movingActionTypeId, tissueTypeId)
+                dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
+                            flagHospitalization, movingActionTypeId, tissueTypeId, presentActionTypes = presentActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
+                self.preDiagnostics = dlg.modelDiagnostics.items()
+                self.preSpecialityIdList = dlg.preSpecialityIdList
+                self.isSelectionGroupOne = dlg.isSelectionGroupOne
                 self.prepareSettings = {'contractId':dlg.contractId, 'clientId':clientId, 'eventTypeId':eventTypeId, 'orgId':orgId, 'personId':personId, 'eventSetDatetime':eventSetDatetime, 'eventDatetime':eventDatetime, 'weekProfile':weekProfile, 'numDays':numDays, 'presetDiagnostics':None, 'presetActions':None, 'disabledActions':None, 'externalId':externalId, 'assistantId':assistantId, 'curatorId':curatorId, 'movingActionTypeId':movingActionTypeId, 'valueProperties':valueProperties}
 
                 result = self._prepare(dlg.contractId, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime,
@@ -653,7 +667,7 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF001DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, movingActionTypeId)
+            presets = CPreF001DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, movingActionTypeId, presentActionTypes = presentActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             result = self._prepare(None, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                    presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -734,11 +748,13 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         def addActionType(actionTypeId, amount, financeId, contractId, idListActionType, idListActionTypeIPH, actionFinance, idListActionTypeMoving, plannedEndDate):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
-            for tab in self.getActionsTabsList():
+            for iModel, tab in enumerate(self.getActionsTabsList()):
                 model = tab.modelAPActions
                 if actionTypeId in model.actionTypeIdList:
                     if actionTypeId in idListActionType and not actionByNewEvent:
                         model.addRow(actionTypeId, amount, financeId, contractId)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         # if plannedEndDate:
                         #     record.setValue('directionDate', QVariant(plannedEndDate))
@@ -761,6 +777,8 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
                             record.setValue('finance_id', toVariant(financeId))
                     elif actionTypeId in idListActionTypeIPH:
                         model.addRow(actionTypeId, amount, financeId, contractId)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         if diagnos:
                             record, action = model.items()[-1]
@@ -768,6 +786,8 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
                     #[self.eventActionFinance, self.receivedFinanceId, orgStructureTransfer, orgStructurePresence, oldBegDate, movingQuoting, personId]
                     elif actionByNewEvent and actionTypeId in idListActionTypeMoving:
                         model.addRow(actionTypeId, amount, financeId, contractId)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
                         if actionByNewEvent[0] == 0:
                             record.setValue('finance_id', toVariant(actionByNewEvent[1]))
@@ -784,6 +804,8 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
                             record.setValue('person_id', toVariant(actionByNewEvent[6]))
                     elif (actionByNewEvent and actionTypeId not in idListActionType) or not actionByNewEvent:
                         model.addRow(actionTypeId, amount, financeId, contractId)
+                        i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
+                        self.onActionChanged(i)
                         record, action = model.items()[-1]
 
         def disableActionType(actionTypeId):
@@ -848,9 +870,11 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         setRBComboBoxValue(self.cmbResult,      record, 'result_id')
         self.tabCash.load(self.itemId())
         self.initFocus()
+        self.on_cmbResult_currentIndexChanged()
         self.setIsDirty(False)
         self.protectClosedEvent()
         iniExportEvent(self)
+        self.btnRelatedEventHighlight()
 
 
     def checkSpecialityExists(self, cmbPersonFind, personId):
@@ -997,12 +1021,18 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
 
     def getEventInfo(self, context):
         result = CEventEditDialog.getEventInfo(self, context)
+        db = QtGui.qApp.db
         # инициализация свойств
         result._isPrimary = self.chkPrimary.isChecked()+1
         result._diagnosises = [CDiagnosticInfo(context, None)]
         for item in result._diagnosises:
             item._loaded = True
             item._ok = True
+            if self.chkDiagnosisType.isChecked():
+                diagnosisTypeId = forceRef(db.translate('rbDiagnosisType', 'code', '7', 'id'))
+            else:
+                diagnosisTypeId = forceRef(db.translate('rbDiagnosisType', 'code', '1', 'id'))
+            item._type = context.getInstance(CDagnosisTypeInfo, diagnosisTypeId)
             item._MKB = context.getInstance(CMKBInfo, unicode(self.cmbMKB.text()))
             item._MKBEx = context.getInstance(CMKBInfo, unicode(self.cmbMKBEx.text()))
             item._morphologyMKB = context.getInstance(CMorphologyMKBInfo, unicode(self.cmbMorphology.text()))
@@ -1987,6 +2017,44 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         self.recountActualByTissueType()
         self.modelActionsSummary.regenerate()
         self.tabCash.modelAccActions.regenerate()
+        
+    
+    def btnRelatedEventHighlight(self):       
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tablePWS = db.table('vrbPersonWithSpeciality')
+        tableCreatePWS = db.table('vrbPersonWithSpeciality').alias('CPWS')
+        tableActionType = db.table('ActionType')
+        tableAction = db.table('Action')
+        cols = [tableEvent['id'].alias('eventId')]
+
+        cond = [tableEvent['deleted'].eq(0),
+                tableEventType['context'].like(u'relatedAction%'),
+                tableAction['deleted'].eq(0),
+                tableEvent['client_id'].eq(self.clientId)
+                ]
+
+        table = tableEvent.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
+        table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+        table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.leftJoin(tablePWS, tablePWS['id'].eq(tableAction['person_id']))
+        table = table.leftJoin(tableCreatePWS, tableCreatePWS['id'].eq(tableAction['createPerson_id']))
+        record = db.getRecordEx(table, cols, cond)
+
+        if record:
+            self.btnRelatedEvent.setStyleSheet("""
+                QPushButton {
+                    background-color: #F28a64;
+                }
+                QPushButton:hover {
+                    background-color: #F6b096;
+                }
+            """)
+        else:
+            self.btnRelatedEvent.setGraphicsEffect(None)
+            self.btnRelatedEvent.setStyleSheet("")
+
 
 
     @pyqtSignature('')

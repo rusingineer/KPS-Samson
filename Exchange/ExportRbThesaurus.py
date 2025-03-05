@@ -124,3 +124,4 @@ class CExportRbThesaurus(CExportAbstractRbWizard):
         self.page2 = CExportAbstractRbPage2WithTree(CMyXmlStreamWriter, self)
         self.addPage(self.page1)
         self.addPage(self.page2)
+        # self.setSizePolicy(QtGui.QSizePolicy(QtGui.QSizePolicy))

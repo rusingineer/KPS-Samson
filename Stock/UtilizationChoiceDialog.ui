@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UtilizationChoiceDialog</class>
+ <widget class="QDialog" name="UtilizationChoiceDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>537</width>
+    <height>120</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <item row="1" column="1">
+    <widget class="CDestructionTypeComboBox" name="cmbDestructionType"/>
+   </item>
+   <item row="3" column="1">
+    <widget class="CReasonDestructionTypeComboBox" name="cmbReasonDestructionType"/>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtDecisionWithDrawFromCirculation"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblDestructionType">
+     <property name="text">
+      <string>Основание передачи на уничтожение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblDecisionWithDrawFromCirculation">
+     <property name="text">
+      <string>Решение Росздравнадзора о выводе из оборота</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblReasonDestructionType">
+     <property name="text">
+      <string>Причина передачи на уничтожение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDestructionTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Stock/Utils.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CReasonDestructionTypeComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Stock/Utils.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>UtilizationChoiceDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>UtilizationChoiceDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

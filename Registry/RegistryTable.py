@@ -15,23 +15,25 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, SIGNAL, QEventLoop, QModelIndex, QVariant, QDateTime
 
+from library.InDocTable import CRecordListModel, CRBInDocTableCol, CDateTimeInDocTableCol, CInDocTableCol, \
+    CEnumInDocTableCol
 from library.crbcombobox  import CRBComboBox
 from library.database     import CRecordCache
 from library.Attach.AttachedFile import CAttachedFilesLoader, CAttachedFilesModel
 from library.ClientRecordProperties import CRecordProperties
-from library.TableModel          import (
-                                            CTableModel,
-                                            CBoolCol,
-                                            CCol,
-                                            CDateCol,
-                                            CDesignationCol,
-                                            CDoubleCol,
-                                            CEnumCol,
-                                            CIntCol,
-                                            CNameCol,
-                                            CNumCol,
-                                            CRefBookCol,
-                                            CTextCol,
+from library.TableModel import (
+    CTableModel,
+    CBoolCol,
+    CCol,
+    CDateCol,
+    CDesignationCol,
+    CDoubleCol,
+    CEnumCol,
+    CIntCol,
+    CNameCol,
+    CNumCol,
+    CRefBookCol,
+    CTextCol,
                                         )
 from library.TableView           import CTableView, CExtendedSelectionTableView
 from library.Utils import (forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString, forceStringEx,
@@ -1007,6 +1009,145 @@ class CEventVisitsTableModel(CTableModel):
         self.setTable('Visit')
         self.headerSortingCol = {}
 
+
+class CEventExportFileTableModel(CRecordListModel):
+    def __init__(self, parent):
+        CRecordListModel.__init__(self, parent)
+        self.addCol(CInDocTableCol(u'Наименование действия',      'title', 6)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Наименование документа',         'path',      6)).setReadOnly()
+        self.addCol(CRBInDocTableCol(u'Подписавший',    'respSigner_id', 6, 'vrbPersonWithSpeciality')).setReadOnly()
+        self.addCol(CDateTimeInDocTableCol(u'Дата подписания врачом', 'respSigningDatetime', 6)).setReadOnly()
+        self.addCol(CDateTimeInDocTableCol(u'Дата подписания организацией', 'orgSigningDatetime', 6)).setReadOnly()
+        self.addCol(CDateTimeInDocTableCol(u'Дата и время экспорта', 'dateTime', 6)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Состояние',   'success', 6)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Примечания',   'note', 6)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Информация о приеме документа федеральным РЭМД', 'StatusREMD', 6)).setReadOnly()
+        self.order = u'a.id DESC'
+        self.headerSortingCol = {}
+
+    def data(self, index, role):
+        if role == Qt.BackgroundColorRole:
+            record = self.getRecordByRow(index.row())
+            if record:
+                successValue = self.getSuccessValueById(forceRef(record.value('afaId')))
+                if successValue == u'успех':
+                    return QVariant(QtGui.QColor(Qt.green))  # зеленый
+                elif successValue == u'ошибка':
+                    return QVariant(QtGui.QColor(Qt.red))  # красный
+        else:
+            return CRecordListModel.data(self, index, role)
+
+    def getSuccessValueById(self, AFAId):
+        if AFAId:
+            stmt = u"""SELECT case when IM.`status` = 'Success' then 'успех'
+        when IM.`status` = 'Failed' then 'ошибка' end AS success
+        FROM Action a
+  LEFT JOIN Action_FileAttach afa ON a.id = afa.master_id  AND afa.deleted=0
+  Left JOIN Action_FileAttach_Export afe  ON afe.id = (SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id=afae.master_id)
+   LEFT JOIN Information_Messages IM on IM.id = (SELECT MAX(Information_Messages.id) FROM Information_Messages
+	   WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id=afe.master_id
+  AND (((`status` = 'Success' AND IdFedRequest IS NOT NULL ) OR (`status` = 'Failed')) 
+  		OR (`status` = 'Success' AND IdFedRequest IS NOT NULL  AND RemdRegNumber !='')))
+  WHERE afa.id = %s limit 1""" % (AFAId)
+            query = QtGui.qApp.db.query(stmt)
+            while query.next():
+                record = query.record()
+                return forceString(record.value('success'))
+        return ''
+
+    def loadData(self, eventId):
+        if eventId:
+            db = QtGui.qApp.db
+            cols = []
+            tableQuery = []
+            stmt = u'''
+            (SELECT DISTINCT 
+                     a.id ,
+                     afa.id as afaId,  
+                     concat_ws(' ', AT.name, 'от', DATE_FORMAT(a.endDate,'%d.%m.%Y')) as title,
+                     SUBSTRING_INDEX(afa.path, '/', -1 ) as path,
+                     afa.respSigner_id,
+                     afa.respSigningDatetime,
+                     afa.orgSigningDatetime,
+                     afe.dateTime,
+                     case when IM.status = 'Success' then 'успех' 
+                        when IM.status = 'Failed' then 'ошибка' end as success,
+                     afe.note 
+              ,                     case when IM.status = 'Success' and IM.Message <> '' AND IM.RemdRegNumber
+  then CONCAT('Успех - ', IM.Message)
+when IM.status = 'Success' and IM.Message <> '' AND IM.RemdRegNumber =''
+  then 'Ожидается валидация документа на федеральном уровне'
+when IM.status = 'Failed' and IM.Message <> ''
+  then CONCAT('Ошибка - ', IM.Message)
+ELSE 'Информация еще не получена' END AS StatusREMD
+
+   FROM Action a
+  inner JOIN ActionType AT ON AT.id=a.actionType_id
+  INNER JOIN ActionType_Identification ai ON ai.master_id=AT.id
+  inner JOIN rbAccountingSystem rbAS ON rbAS.id=ai.system_id
+  inner JOIN Action_FileAttach afa ON afa.id=(SELECT MAX(id) FROM Action_FileAttach afa WHERE afa.master_id=a.id AND afa.deleted=0
+    AND (( right(SUBSTRING_INDEX(afa.path, '/', -1 ),3) = "xml" AND   RIGHT(rbAS.urn,3)="cda")
+  OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ),3) = "pdf" AND   RIGHT(rbAS.urn,3)="pdf")
+  OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ),3) = "sms" AND   RIGHT(rbAS.urn,5)="Vimis"))
+  )  
+  left JOIN Action_FileAttach_Export afe  ON afe.id = (SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id=afae.master_id)
+  LEFT JOIN Information_Messages IM on IM.id = (SELECT MAX(Information_Messages.id) FROM Information_Messages
+     WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id=afe.master_id
+  AND (((status = 'Success' AND IdFedRequest IS NOT NULL ) OR (status = 'Failed')) 
+      OR (status = 'Success' AND IdFedRequest IS NOT NULL  AND RemdRegNumber !='')))
+      
+  WHERE a.event_id = {eventId} and a.deleted=0  AND ai.deleted = 0 -- and  AT.flatCode <> ''  AND ((afa.id IS NOT NULL AND afa.path IS NOT null) OR afa.id IS NULL)
+  and AT.flatCode not LIKE '%temperatureSheet%' and rbAS.code LIKE '%n3.medDocumentType.%'
+                    ORDER BY {order})
+UNION ALL
+            (SELECT DISTINCT 
+                     a.id ,
+                     0 as afaId,  
+                     concat_ws(' ', AT.name, 'от', DATE_FORMAT(a.endDate,'%d.%m.%Y')) as title,
+                  	 '' as path,
+                     NULL AS respSigner_id, 
+                     NULL AS respSigningDatetime, 
+                     NULL as orgSigningDatetime, 
+                     NULL AS `dateTime`,  
+                     '' as success,
+                     NULL AS note, 
+                    'Информация еще не получена' AS StatusREMD 
+
+   FROM Action a
+  inner JOIN ActionType AT ON AT.id=a.actionType_id
+  INNER JOIN ActionType_Identification ai ON ai.master_id=AT.id
+  inner  JOIN rbAccountingSystem rbAS ON rbAS.id=ai.system_id
+  		
+  WHERE a.event_id = {eventId} and a.deleted=0  AND ai.deleted = 0 -- and AT.flatCode <> '' 
+        and AT.flatCode not LIKE '%temperatureSheet%' and rbAS.code LIKE '%n3.medDocumentType.%' 
+        AND (  SELECT MAX(afa.id) FROM Action_FileAttach afa 
+		    left JOIN Action_FileAttach_Export afe  ON afe.id = (SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id=afae.master_id)
+		  WHERE afa.master_id=a.id AND afa.deleted=0
+  ) IS null
+        ORDER BY {order})                                        '''
+            query = db.query(stmt.format(cols=(', %s' % (','.join(col for col in cols if col))) if cols else '',
+                                         queryTable=(''.join(tq for tq in tableQuery if tq)) if tableQuery else '',
+                                         eventId=eventId,
+                                         order=self.order
+                                         )
+                             )
+            items = []
+            while query.next():
+                items.append(query.record())
+            self.setItems(items)
+        else:
+            self.clearItems()
+
+    def sort(self, col, order=Qt.AscendingOrder):
+        self.headerSortingCol = {col: order}
+        reverse = order == Qt.DescendingOrder
+        if col in [3, 4, 5]:
+            self.items().sort(key=lambda x: forceDateTime(x.value(self.cols()[col].fieldName())) if x else None,
+                              reverse=reverse)
+        else:
+            self.items().sort(key=lambda x: forceString(
+                self.cols()[col].toString(x.value(self.cols()[col].fieldName()), x)) if x else None, reverse=reverse)
+        self.reset()
 
 class CAmbCardDiagnosticsTableModel(CTableModel):
     def __init__(self, parent):

@@ -13,9 +13,10 @@
 #############################################################################
 
 import json
+import re
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QByteArray, QMimeData, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QByteArray, QMimeData, pyqtSignature, QString, SIGNAL
 
 from library.HierarchicalItemsListDialog import CHierarchicalItemsListDialog
 from library.interchange                 import getLineEditValue, setLineEditValue
@@ -23,9 +24,9 @@ from library.SortFilterProxyTreeModel    import CSortFilterProxyTreeModel
 from library.DialogBase                  import CDialogBase
 
 from library.ItemsListDialog             import CItemEditorBaseDialog
-from library.TableModel                  import CTextCol, CTableModel
+from library.TableModel                  import CTextCol, CTableModel, sortDataModel
 from library.TreeModel                   import CDragDropDBTreeModel, CDBTreeItem
-from library.Utils                       import forceRef, forceString, toVariant
+from library.Utils                       import forceInt, forceRef, forceString, toVariant
 
 from Ui_RBThesaurusItemEditor            import Ui_ThesaurusItemEditorDialog
 from Ui_RBThesaurusFilter                import Ui_RBThesaurusFilterDialog
@@ -82,6 +83,7 @@ class CPreloadDragDropDBTreeModel(CDragDropDBTreeModel):
 
     def loadChildrenItems(self, group):
         recordList = self._records[group._id] if self._records.has_key(group._id) else []
+        alfNumKey_sort(recordList, lambda s: forceString(s.value('code')))
         return self.getItemListByRecords(recordList, group)
 
 
@@ -132,6 +134,10 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
         self.connect(self.modelTree, SIGNAL('saveExpandedState()'),  self.saveExpandedState)
         self.connect(self.modelTree, SIGNAL('restoreExpandedState()'),  self.restoreExpandedState)
         self.tblItems.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.tblItems.setSortingEnabled(True)
+        self.tblItems.horizontalHeader().sectionClicked.connect(self.setSort)
+        self.headerSortIndicator = None
+        self.setSort(0)
 
 
     def preSetupUi(self):
@@ -146,6 +152,7 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
         self.addObject('actDelete',         QtGui.QAction(u'Удалить выделенные строки', self))
         self.addObject('actDuplicate',      QtGui.QAction(u'Дублировать', self))
         self.addObject('actCopy',           QtGui.QAction(u'Копировать', self))
+        self.addObject('actCut',           QtGui.QAction(u'Вырезать', self))
         self.addObject('actPaste',          QtGui.QAction(u'Вставить', self))
         self.actSelectAll.setShortcut(QtGui.QKeySequence.SelectAll)
 
@@ -158,6 +165,7 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
                                        self.actDuplicate,
                                        '-',
                                        self.actCopy,
+                                       self.actCut,
                                        self.actPaste,
                                        ]
                                      )
@@ -180,6 +188,9 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
                                   and not any(self.itemIsUsed(itemId) for itemId in selectedIdList)
                                  )
         self.actCopy.setEnabled(bool(selectedIdList))
+        self.actCut.setEnabled(bool(selectedIdList)
+                                  and not any(self.itemIsUsed(itemId) for itemId in selectedIdList)
+                                 )
         self.actPaste.setEnabled(mimeData.hasFormat(self.mimeTypeThesaurusItems))
 
 
@@ -234,7 +245,7 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
         return newItemId
 
 
-    def select(self, props):
+    def select(self, props, withValues = False):
         table = self.modelTable.table()
         groupId = self.currentGroupId()
         code = props.get('code')
@@ -254,7 +265,36 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
             self.modelTree.filterName = ''
 
         self.modelTree.invalidateFilter()
-        return QtGui.qApp.db.getIdList(table.name(), 'id', cond, self.order)
+        recordList = QtGui.qApp.db.getRecordList(table.name(), 'id, code, name', cond, self.order)
+        if withValues:
+            return recordList
+        else:
+            alfNumKey_sort(recordList, lambda s: forceString(s.value('code')), False)
+            idList = []
+            for record in recordList:
+                idList.append(forceInt(record.value('id')))
+        return idList
+    
+    
+    def setSort(self, col):
+        model = self.tblItems.model()
+        header = self.tblItems.horizontalHeader()
+        header.setSortIndicatorShown(True)
+        if self.headerSortIndicator == Qt.DescendingOrder:
+            self.headerSortIndicator = Qt.AscendingOrder
+        else:
+            self.headerSortIndicator = Qt.DescendingOrder
+        header.setSortIndicator(col, self.headerSortIndicator)
+        items = self.select(self.props, True)
+        if col == 0:
+            alfNumKey_sort(items, lambda s: forceString(s.value('code')), reverse = self.headerSortIndicator == Qt.AscendingOrder)
+        else:
+            items.sort(key = lambda s: forceString(s.value('name')).lower(), reverse = self.headerSortIndicator == Qt.DescendingOrder)
+        idList = []
+        for record in items:
+            idList.append(forceInt(record.value('id')))
+        model.setIdList(idList)
+        model.reset()
 
 
     @pyqtSignature('')
@@ -308,6 +348,29 @@ class CRBThesaurus(CHierarchicalItemsListDialog):
             mimeData = QMimeData()
             mimeData.setData(self.mimeTypeThesaurusItems, bytes)
             QtGui.qApp.clipboard().setMimeData(mimeData)
+        finally:
+            QtGui.qApp.restoreOverrideCursor()
+    
+    
+    @pyqtSignature('')
+    def on_actCut_triggered(self):
+        QtGui.qApp.setWaitCursor()
+        try:
+            itemIdList = self.tblItems.selectedItemIdList()
+            items = self.__getItemsForClipboard(itemIdList)
+            bytes = QByteArray(json.dumps(items))
+            mimeData = QMimeData()
+            mimeData.setData(self.mimeTypeThesaurusItems, bytes)
+            QtGui.qApp.clipboard().setMimeData(mimeData)
+            
+            rows = self.tblItems.selectedRowList()
+            currentRow = self.tblItems.currentIndex().row()
+            currentRow -= sum( row<currentRow for row in rows)
+            db = QtGui.qApp.db
+            table = db.table('rbThesaurus')
+            db.deleteRecord(table, table['id'].inlist(itemIdList))
+            self.renewListAndSetTo()
+            self.tblItems.setCurrentRow(currentRow)
         finally:
             QtGui.qApp.restoreOverrideCursor()
 
@@ -423,3 +486,11 @@ class CThesaurusItemEditor(CItemEditorBaseDialog, Ui_ThesaurusItemEditorDialog):
         if self.autoTemplate(self.prevName) == self.edtTemplate.text():
             self.edtTemplate.setText(self.autoTemplate(text))
             self.prevName = self.edtName.text()
+
+
+def alfNumKey_sort(result, key=lambda s:s, reverse=False):
+    def getNumKeyFunc(key):
+        convert = lambda text: int(text) if text.isdigit() else text
+        return lambda s: [convert(c) for c in re.split('([0-9]+)', unicode(key(s)) if isinstance(key(s), (QString, str)) else key(s))] if isinstance(key(s), (QString, str, unicode)) else key(s)
+    sort_key = getNumKeyFunc(key)
+    result.sort(key=sort_key, reverse=reverse)

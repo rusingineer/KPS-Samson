@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Exchange\ExportRbPage1WithTree.ui'
+# Form implementation generated from reading ui file 'C:/proj/client_test/Exchange/ExportRbPage1WithTree.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Jun  6 18:55:42 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,10 +29,15 @@ class Ui_ExportRbPage1WithTree(object):
         ExportRbPage1WithTree.setWindowModality(QtCore.Qt.NonModal)
         ExportRbPage1WithTree.resize(593, 450)
         self.gridlayout = QtGui.QGridLayout(ExportRbPage1WithTree)
-        self.gridlayout.setMargin(4)
         self.gridlayout.setSpacing(4)
+        self.gridlayout.setMargin(4)
         self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
         self.splitterTree = QtGui.QSplitter(ExportRbPage1WithTree)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.splitterTree.sizePolicy().hasHeightForWidth())
+        self.splitterTree.setSizePolicy(sizePolicy)
         self.splitterTree.setOrientation(QtCore.Qt.Horizontal)
         self.splitterTree.setObjectName(_fromUtf8("splitterTree"))
         self.treeItems = CTreeView(self.splitterTree)
@@ -42,8 +48,8 @@ class Ui_ExportRbPage1WithTree(object):
         self.tblItems.setObjectName(_fromUtf8("tblItems"))
         self.gridlayout.addWidget(self.splitterTree, 2, 0, 1, 1)
         self.hboxlayout = QtGui.QHBoxLayout()
-        self.hboxlayout.setMargin(0)
         self.hboxlayout.setSpacing(6)
+        self.hboxlayout.setMargin(0)
         self.hboxlayout.setObjectName(_fromUtf8("hboxlayout"))
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.hboxlayout.addItem(spacerItem)
@@ -89,5 +95,15 @@ class Ui_ExportRbPage1WithTree(object):
         self.chkExportAll.setText(_translate("ExportRbPage1WithTree", "Выгружать всё", None))
         self.chkRecursiveSelection.setText(_translate("ExportRbPage1WithTree", "Выделять все дочерние элементы", None))
 
-from library.TableView import CTableView
 from library.TreeView import CTreeView
+from library.TableView import CTableView
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    ExportRbPage1WithTree = QtGui.QDialog()
+    ui = Ui_ExportRbPage1WithTree()
+    ui.setupUi(ExportRbPage1WithTree)
+    ExportRbPage1WithTree.show()
+    sys.exit(app.exec_())
+

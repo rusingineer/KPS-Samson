@@ -1,5 +1,7 @@
 # coding=utf-8
 from Exchange.AriadnaModels.AbstractObject import AbstractObject
+from Exchange.AriadnaModels.AdditionalForm import AdditionalForm
+from Exchange.AriadnaModels.Born import Born
 from Exchange.AriadnaModels.Condition import Condition
 from Exchange.AriadnaModels.ContactPoint import ContactPoint
 from Exchange.AriadnaModels.ExternalIdentification import ExternalIdentification
@@ -25,8 +27,10 @@ class Patient(AbstractObject):
         self.phoneNumber = ''  # String Необязательно Номер телефона пациента
         # Array Object Необязательно Массив содержащий в себе контактные данные (EMAIL, PHONE, CELLULAR)
         self.telecom = []
+        self.additionalForm = None  # Array Objects Необязательно Карта пациента
         self.gender = ''  # String Обязательно Пол Допустимые значения: M-"Male" F-"Female" O-"Other" U-"Unknown"
         self.birthDate = ''  # String Обязательно Дата рождения
+        self.born = None  # Object Необязательно Контейнер, в котором содержится информация о рождении
         self.workPlace = ''  # String Обязательно Место работы
         self.externalID = ''  # String Обязательно Внешний идентификатор пациента
         self.markID = ''  # String Обязательно Специальная отметка, ID
@@ -56,8 +60,10 @@ class Patient(AbstractObject):
                    ("email", "email", str, False, None, True),
                    ("phoneNumber", "phoneNumber", str, False, None, False),
                    ("telecom", "telecom", ContactPoint, True, None, False),
+                   ("additionalForm", "additionalForm", AdditionalForm, True, None, False),
                    ("gender", "gender", str, False, None, True),
                    ("birthDate", "birthDate", str, False, None, True),
+                   ("born", "born", Born, False, None, False),
                    ("workPlace", "workPlace", str, False, None, True),
                    ("externalID", "externalID", str, False, None, True),
                    ("markID", "markID", str, False, None, True),

@@ -831,7 +831,8 @@ ClientE.patrName) FROM Client AS ClientE WHERE ClientE.deleted = 0 AND ClientE.i
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [ statusObservationName,
+                            #statusObservationCode,
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventClientFeedId,
@@ -1158,7 +1159,8 @@ ClientE.patrName, CAST( ClientE.id AS CHAR)) FROM Client AS ClientE WHERE Client
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [statusObservationName,
+                            #statusObservationCode,
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventClientFeedId,
@@ -1724,7 +1726,8 @@ class CReceivedModel(CMonitoringModel):
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [statusObservationName,
+                            # statusObservationCode
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventFeedId,
@@ -1973,7 +1976,8 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [statusObservationName,
+                            #statusObservationCode,
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventFeedId,
@@ -2211,7 +2215,8 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [statusObservationName,
+                            # statusObservationCode,
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventFeedId,
@@ -2438,7 +2443,8 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                     relegateOrgName = forceStringEx(record.value('relegateOrg'))
                     directionCity = getCityName(forceStringEx(record.value('directionCity')))
                     directionRegion = forceStringEx(record.value('directionRegion'))
-                    item = [statusObservationCode,
+                    item = [statusObservationName,
+                            # statusObservationCode,
                             forceString(record.value('nameFinance')),
                             nameContract,
                             countEventFeedId,
@@ -2917,7 +2923,8 @@ class CTransferModel(CMonitoringModel):
                 relegateOrgName = forceStringEx(record.value('relegateOrg'))
                 directionCity = getCityName(forceStringEx(record.value('directionCity')))
                 directionRegion = forceStringEx(record.value('directionRegion'))
-                item = [statusObservationCode,
+                item = [statusObservationName,
+                            # statusObservationCode,
                         forceString(record.value('nameFinance')),
                         nameContract,
                         countEventFeedId,
@@ -3396,7 +3403,8 @@ class CLeavedModel(CMonitoringModel):
                 relegateOrgName = forceStringEx(record.value('relegateOrg'))
                 directionCity = getCityName(forceStringEx(record.value('directionCity')))
                 directionRegion = forceStringEx(record.value('directionRegion'))
-                item = [statusObservationCode,
+                item = [statusObservationName,
+                            # statusObservationCode,
                         forceString(record.value('nameFinance')),
                         nameContract,
                         forceRef(record.value('client_id')),
@@ -3648,7 +3656,8 @@ class CLeavedModel(CMonitoringModel):
                 relegateOrgName = forceStringEx(record.value('relegateOrg'))
                 directionCity = getCityName(forceStringEx(record.value('directionCity')))
                 directionRegion = forceStringEx(record.value('directionRegion'))
-                item = [statusObservationCode,
+                item = [statusObservationName,
+                            # statusObservationCode,
                         forceString(record.value('nameFinance')),
                         nameContract,
                         forceRef(record.value('client_id')),

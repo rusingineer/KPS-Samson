@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Exchange\ExportRbResult_Wizard_1.ui'
+# Form implementation generated from reading ui file 'C:/proj/client_test/Exchange/ExportRbResult_Wizard_1.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Jun  6 19:15:59 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,10 +29,15 @@ class Ui_ExportRbResult_Wizard_1(object):
         ExportRbResult_Wizard_1.setWindowModality(QtCore.Qt.NonModal)
         ExportRbResult_Wizard_1.resize(593, 450)
         self.gridlayout = QtGui.QGridLayout(ExportRbResult_Wizard_1)
-        self.gridlayout.setMargin(4)
         self.gridlayout.setSpacing(4)
+        self.gridlayout.setMargin(4)
         self.gridlayout.setObjectName(_fromUtf8("gridlayout"))
         self.splitterTree = QtGui.QSplitter(ExportRbResult_Wizard_1)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.splitterTree.sizePolicy().hasHeightForWidth())
+        self.splitterTree.setSizePolicy(sizePolicy)
         self.splitterTree.setOrientation(QtCore.Qt.Horizontal)
         self.splitterTree.setObjectName(_fromUtf8("splitterTree"))
         self.tblItems = CTableView(self.splitterTree)
@@ -40,8 +46,8 @@ class Ui_ExportRbResult_Wizard_1(object):
         self.tblItems.setObjectName(_fromUtf8("tblItems"))
         self.gridlayout.addWidget(self.splitterTree, 2, 0, 1, 1)
         self.hboxlayout = QtGui.QHBoxLayout()
-        self.hboxlayout.setMargin(0)
         self.hboxlayout.setSpacing(6)
+        self.hboxlayout.setMargin(0)
         self.hboxlayout.setObjectName(_fromUtf8("hboxlayout"))
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.hboxlayout.addItem(spacerItem)
@@ -79,3 +85,13 @@ class Ui_ExportRbResult_Wizard_1(object):
         self.chkExportAll.setText(_translate("ExportRbResult_Wizard_1", "Выгружать всё", None))
 
 from library.TableView import CTableView
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    ExportRbResult_Wizard_1 = QtGui.QDialog()
+    ui = Ui_ExportRbResult_Wizard_1()
+    ui.setupUi(ExportRbResult_Wizard_1)
+    ExportRbResult_Wizard_1.show()
+    sys.exit(app.exec_())
+

@@ -48,10 +48,20 @@ class COrgStructureActionPropertyValueType(CActionPropertyValueType):
             #     cond = [tableHB['master_id'].eq(tableOS['id']),
             #                 tableBS['code'].ne('1')]
             #     finalCond.append(db.existsStmt(table, cond))
+            self.action = action
+            if self.action.getType().flatCode == 'moving':
+                self.oldValueOtdPreb = self.action[u'Отделение пребывания']
             COrgStructureComboBox.__init__(self, parent, None, None, domain)
 
         def setValue(self, value):
             COrgStructureComboBox.setValue(self, forceRef(value))
+            if self.action.getType().flatCode == 'moving':
+                if self.oldValueOtdPreb != self.action[u'Отделение пребывания']:
+                    try:
+                        self.action[u'койка'] = None
+                    except Exception:
+                        pass
+                self.oldValueOtdPreb = self.action[u'Отделение пребывания']
 
 
         def emitValueChanged(self):

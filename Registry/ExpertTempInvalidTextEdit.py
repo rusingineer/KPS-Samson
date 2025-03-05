@@ -53,7 +53,7 @@ class CExpertTempInvalidTextEdit(QtGui.QTextEdit):
         return u''
 
 
-    def loadData(self, tempInvalidId):
+    def loadData(self, tempInvalidId, documentId = None):
         expertTempInvalidInfoList = []
         self.tempInvalidId = tempInvalidId
         if self.tempInvalidId:
@@ -94,5 +94,21 @@ class CExpertTempInvalidTextEdit(QtGui.QTextEdit):
                 expertTempInvalidInfoList.append(u' Дата начала путевки: ' + forceString(forceDate(tempInvalidRecord.value('begDatePermit'))))
                 expertTempInvalidInfoList.append(u' Дата окончания путевки: ' + forceString(forceDate(tempInvalidRecord.value('endDatePermit'))))
                 expertTempInvalidInfoList.append(u'\nИнвалидность: ' + self.formatRBRecord(self.tempInvalidRegimeCache, forceRef(tempInvalidRecord.value('disability_id'))))
+        if documentId:
+            db = QtGui.qApp.db
+            table = db.table('TempInvalidDocument_Care')
+            tableClient = db.table('Client')
+            cols = ['Client.lastName, Client.firstName, Client.patrName, TempInvalidDocument_Care.begDate, TempInvalidDocument_Care.endDate, TempInvalidDocument_Care.MKB']
+            queryTable = table.leftJoin(tableClient, db.joinAnd([tableClient['id'].eq(table['client_id']), tableClient['deleted'].eq(0)]))
+            tempCareRecords = db.getRecordList(queryTable, cols, [table['master_id'].eq(documentId)])
+            if tempCareRecords:
+                expertTempInvalidInfoList.append(u'\nПатронаж: ')
+            for tempCareRecord in tempCareRecords:
+                expertTempInvalidInfoList.append(u'\nФ.И.О.: ' + formatShortNameInt(forceString(tempCareRecord.value('lastName')),
+                                                    forceString(tempCareRecord.value('firstName')),
+                                                    forceString(tempCareRecord.value('patrName'))))
+                expertTempInvalidInfoList.append(u'\nДата начала периода: ' + forceString(forceDate(tempCareRecord.value('begDate'))))
+                expertTempInvalidInfoList.append(u' Дата окончания периода: ' + forceString(forceDate(tempCareRecord.value('endDate'))))
+                expertTempInvalidInfoList.append(u'\nМКБ: ' + forceString(tempCareRecord.value('MKB')))
         self.setPlainText(u', '.join(expertTempInvalidInfo for expertTempInvalidInfo in expertTempInvalidInfoList if expertTempInvalidInfo))
 

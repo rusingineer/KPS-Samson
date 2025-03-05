@@ -39,7 +39,7 @@ from Timeline.ScheduleItemsDialog        import CScheduleItemsDialog
 from Timeline.ScheduleItemsHistoryDialog import CScheduleItemsHistoryDialog
 from Timeline.TemplateDialog             import CTemplateDialog
 from Timeline.TimeTable                  import CTimeTableModel
-from Users.Rights                        import urAccessRefPerson, urAccessRefPersonPersonal, urAdmin, urAccessEditTimeLine
+from Users.Rights                        import urAccessRefPerson, urAccessRefPersonPersonal, urAdmin, urAccessEditTimeLine, urCanChangePersonSubstitution
 
 from .Ui_TimelineDialog                  import Ui_TimelineDialog
 from .Ui_CalcDialog                      import Ui_CalcDialog
@@ -55,7 +55,17 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
         CRecordLockMixin.__init__(self)
-        self.addModels('OrgStructure', COrgStructureModel(self, QtGui.qApp.currentOrgId()))
+        self.lastAttachResult = True
+        self.lastPerson = None
+        preferenceFilter = None
+        if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
+            preferenceFilter = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
+        if preferenceFilter:
+            orgStructureFilter = 'OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
+        else:
+            orgStructureFilter = None
+        self.getPersonsWithoutAttach()
+        self.addModels('OrgStructure', COrgStructureModel(self, QtGui.qApp.currentOrgId(), filter=orgStructureFilter))
         self.addModels('Activity',     CActivityModel(self))
         self.modelActivity.setRootItem(CActivityRootTreeItem())
         self.addModels('Personnel',    CPersonnelModel(self))
@@ -346,13 +356,19 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
 
 
     def updateTimeTable(self, scrollToDate):
-        prevPersonId = self.modelTimeTable.personId
-        prevYear     = self.modelTimeTable.year
-        prevMonth    = self.modelTimeTable.month
-        personId     = self.getCurrentPersonId()
-        date         = self.calendar.selectedDate()
+        prevPersonId   = self.modelTimeTable.personId
+        prevYear       = self.modelTimeTable.year
+        prevMonth      = self.modelTimeTable.month
+        personId       = self.getCurrentPersonId()
+        date           = self.calendar.selectedDate()
 
-        QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.setPersonAndMonth, personId, date.year(), date.month())
+        if prevPersonId and self.isPersonAttach(prevPersonId):
+            QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.setPersonAndMonth, personId, date.year(),
+                                          date.month())
+        else:
+            QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.setPersonAndMonth, personId, date.year(),
+                                          date.month(), isCanSaveData=False)
+
         row = self.modelTimeTable.getRowForDate(date)
         currentIndex = self.tblTimeTable.currentIndex()
         currentColumn = currentIndex.column() if currentIndex.isValid() else 0
@@ -360,8 +376,14 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         self.tblTimeTable.setCurrentIndex(newIndex)
         if scrollToDate:
             self.tblTimeTable.scrollTo(newIndex, QtGui.QAbstractItemView.EnsureVisible)
-        self.tblTimeTable.setEnabled( bool(personId) )
-#        self.btnFill.setEnabled( bool(personId) )
+        if bool(personId) and self.isPersonAttach(personId):
+            self.tblTimeTable.setEnabled(True)
+            self.btnFill.setEnabled(True)
+            self.btnFillTime.setEnabled(True)
+        else:
+            self.tblTimeTable.setEnabled(False)
+            self.btnFill.setEnabled(False)
+            self.btnFillTime.setEnabled(False)
         if prevPersonId != self.modelTimeTable.personId or prevYear != self.modelTimeTable.year or prevMonth != self.modelTimeTable.month:
             self.updateStatisctics()
 
@@ -1021,6 +1043,7 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
                 dialog = CPersonEditor(self)
                 dialog.load(personId)
                 dialog.exec_()
+                self.getPersonsWithoutAttach()
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -1215,6 +1238,7 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
                 begDate, endDate = dialog.getDateRange()
                 fillRedDays = dialog.getFillRedDays()
                 reasonOfAbsenceId = dialog.getReasonOfAbsenceId()
+                dialog.saveSubstitute(currentPersonId)
 
                 if len(personIdList)>1 or currentPersonId not in personIdList:
                     self.fillAbsence(personIdList, begDate, endDate, fillRedDays, reasonOfAbsenceId)
@@ -1222,6 +1246,43 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
                     self.setAbsence(begDate, endDate, fillRedDays, reasonOfAbsenceId)
         finally:
             dialog.deleteLater()
+
+    def getPersonsWithoutAttach(self):
+        db = QtGui.qApp.db
+        stmt = u'''
+        SELECT DISTINCT Person.id AS result
+        FROM Person
+        LEFT JOIN (select id, master_id, validToDate, type, deleted, orgStructure_id from Person_Order 
+        where  ((validToDate IS NULL) OR (LENGTH(validToDate) = 0) OR validToDate >= now()) and type = 6 AND deleted=0  ) po_max on po_max.master_id=Person.id 
+        left join Person_Order po on po.id=po_max.id LEFT JOIN rbPost rp ON Person.post_id = rp.id left join rbPost_Identification as PostIdent on rp.id = PostIdent.master_id
+        LEFT JOIN rbAccountingSystem as1 ON PostIdent.system_id = as1.id
+        WHERE (`Person`.`speciality_id` IS NOT NULL)
+        AND (`Person`.`orgStructure_id` IS NOT NULL) 
+        AND (`PostIdent`.`id` IS NOT NULL) AND (`Person`.deleted=0) AND (((po.type = 6) AND (po.documentType_id IS NULL) AND (po.deleted = 0)
+        AND ((po.validToDate IS NOT NULL) OR (LENGTH(po.validToDate) != 0) OR (po.validToDate <= now()))) OR (po.id IS null)) AND (`Person`.`retired` = 0)
+        AND ((`Person`.`retireDate` IS NULL) OR (`Person`.`retireDate` > ADDDATE(CURRENT_DATE(), INTERVAL 3 DAY))) 
+        AND PostIdent.value IN (110,59,49) 
+        AND as1.urn = 'urn:oid:1.2.643.5.1.13.13.11.1002'
+        '''
+        query = db.query(stmt)
+        self.personsWithoutAttach = []
+        while query.next():
+            record = query.record()
+            self.personsWithoutAttach.append(forceInt(record.value('result')))
+
+
+    def isPersonAttach(self, personId=None):
+        if personId != self.lastPerson:
+            if not personId:
+                personId = self.getCurrentPersonId()
+            if personId not in self.personsWithoutAttach:
+                self.lastAttachResult = True
+                return True
+            else:
+                self.lastAttachResult = False
+                return False
+        else:
+            return self.lastAttachResult
 
 
 ############################################################################################
@@ -1248,6 +1309,8 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
     @pyqtSignature('')
     def on_actPrintPersons_triggered(self):
         sorry()
+
+
 
 #        db = QtGui.qApp.db
 #        personIdList=self.modelPersonnel.idList()
@@ -1391,31 +1454,34 @@ def divIfPosible(nom, denom):
 
 class CPersonnelModel(CTableModel):
     def __init__(self, parent):
-        CTableModel.__init__(self, parent,  [
-            CTextCol(u'Код',      ['code'], 6),
-            CBoolCol(u'Доступ для ВС',     ['availableForExternal'], 15),
-            CBoolCol(u'Доступ для стенда', ['availableForStand'],    15),
-            CDateCol(u'Расписание видимо до', ['lastAccessibleTimelineDate'], 10),
-            CTextCol(u'Расписание видимо дней', ['timelineAccessibleDays'], 6),
-            CTextCol(u'Фамилия',  ['lastName'], 20),
-            CNameCol(u'Имя',      ['firstName'], 20),
-            CNameCol(u'Отчество', ['patrName'], 20),
-            CDesignationCol(u'Подразделение', ['orgStructure_id'], ('OrgStructure', 'name'), 5),
-            CRefBookCol(u'Должность',      ['post_id'], 'rbPost', 10),
-            CRefBookCol(u'Специальность',  ['speciality_id'], 'rbSpeciality', 10),
-            ], 'Person' )
+        self.parent = parent
+        cols = [CTextCol(u'Код', ['code'], 6),
+                CBoolCol(u'Доступ для ВС', ['availableForExternal'], 15),
+                CBoolCol(u'Доступ для стенда', ['availableForStand'], 15),
+                CDateCol(u'Расписание видимо до', ['lastAccessibleTimelineDate'], 10),
+                CTextCol(u'Расписание видимо дней', ['timelineAccessibleDays'], 6),
+                CTextCol(u'Фамилия', ['lastName'], 20),
+                CNameCol(u'Имя', ['firstName'], 20),
+                CNameCol(u'Отчество', ['patrName'], 20),
+                CDesignationCol(u'Подразделение', ['orgStructure_id'], ('OrgStructure', 'name'), 5),
+                CRefBookCol(u'Должность', ['post_id'], 'rbPost', 10),
+                CRefBookCol(u'Специальность', ['speciality_id'], 'rbSpeciality', 10)
+                ]
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            cols.pop(2)  # Доступ для стенда
+        CTableModel.__init__(self, parent, cols, 'Person')
         self.parentWidget = parent
-        self._mapColumnToOrder = {u'code'                       :u'Person.code',
-                                 u'availableForExternal'       :u'Person.availableForExternal',
-                                 u'lastAccessibleTimelineDate' :u'Person.lastAccessibleTimelineDate',
-                                 u'timelineAccessibleDays'     :u'Person.timelineAccessibleDays',
-                                 u'lastName'                   :u'Person.lastName',
-                                 u'firstName'                  :u'Person.firstName',
-                                 u'patrName'                   :u'Person.patrName',
-                                 u'orgStructure_id'            :u'OrgStructure.name',
-                                 u'post_id'                    :u'rbPost.name',
-                                 u'speciality_id'              :u'rbSpeciality.name'
-                                 }
+        self._mapColumnToOrder = {u'code': u'Person.code',
+                                  u'availableForExternal': u'Person.availableForExternal',
+                                  u'lastAccessibleTimelineDate': u'Person.lastAccessibleTimelineDate',
+                                  u'timelineAccessibleDays': u'Person.timelineAccessibleDays',
+                                  u'lastName': u'Person.lastName',
+                                  u'firstName': u'Person.firstName',
+                                  u'patrName': u'Person.patrName',
+                                  u'orgStructure_id': u'OrgStructure.name',
+                                  u'post_id': u'rbPost.name',
+                                  u'speciality_id': u'rbSpeciality.name'
+                                  }
 
 
     def getOrder(self, fieldName, column):
@@ -1423,6 +1489,29 @@ class CPersonnelModel(CTableModel):
             if len(self._cols[column].extraFields) > 0:
                 fieldName = self._cols[column].extraFields[0]
         return self._mapColumnToOrder[fieldName]
+
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        row = index.row()
+        personId = self.getIdByRow(row)
+        isAttach = self.parent.isPersonAttach(personId)
+        if role == Qt.ToolTipRole:
+            if isAttach:
+                self.parent.tblPersonnel.setToolTip(u'')
+            else:
+                self.parent.tblPersonnel.setToolTip(u'Отсутствует прикрепление к участку в кадровых перемещениях')
+        if role == Qt.BackgroundRole:
+            if not isAttach:
+                return QtGui.QColor(Qt.yellow)
+        return CTableModel.data(self, index, role)
+
+
+    def getIdByRow(self, row):
+        if 0 <= row < self.parent.modelPersonnel.rowCount():
+            return self.parent.modelPersonnel.idList()[row]
+        return None
 
 
 class CActivityAllTreeItem(CActivityTreeItem):
@@ -1506,6 +1595,10 @@ class CAbsenceDialog(CDialogBase, Ui_AbsenceDialog):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
         self.cmbReasonOfAbsence.setTable('rbReasonOfAbsence')
+        QObject.connect(self.buttonBox, SIGNAL("accepted()"), self.apply)
+        if not (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)):
+            self.lblSubstitutePerson.setEnabled(False)
+            self.cmbSubstitutePerson.setEnabled(False)
 
 
     def setDateRange(self, begDate, endDate):
@@ -1525,6 +1618,47 @@ class CAbsenceDialog(CDialogBase, Ui_AbsenceDialog):
 
     def getReasonOfAbsenceId(self):
         return self.cmbReasonOfAbsence.value()
+    
+    
+    def saveSubstitute(self, absencesPerson_id):
+        if self.cmbSubstitutePerson.value() and (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)):
+            db = QtGui.qApp.db
+            table = db.table(u'soc_PersonSubstitution')
+            self.record = table.newRecord()
+            self.record.setValue('createDatetime', QDate.currentDate())
+            self.record.setValue('createPerson_id',  QtGui.qApp.userId)
+            self.record.setValue('modifyDatetime', QDate.currentDate())
+            self.record.setValue('modifyPerson_id', QtGui.qApp.userId)
+            self.record.setValue('absencesPerson_id', forceString(absencesPerson_id))
+            self.record.setValue('begDate', forceDate(self.edtBegDate.date()))
+            self.record.setValue('endDate', forceDate(self.edtEndDate.date()))
+            self.record.setValue('substitutionPerson_Id', forceString(self.cmbSubstitutePerson.value()))
+            db.insertOrUpdate(table, self.record)
+
+    
+    def checkDates(self):
+        if self.edtBegDate.date() > self.edtEndDate.date():
+            QtGui.QMessageBox.warning(self, u'Ошибка при сохранении',
+                        u'Дата начала периода замещения не может быть больше даты окончания периода')
+            return False
+        db = QtGui.qApp.db
+        table = db.table(u'soc_PersonSubstitution')
+        cond = """absencesPerson_id = {2} AND
+            deleted = 0 AND
+            (({0} <= begDate and {1} <= begDate) 
+            or ({0} >= endDate and {1} >= endDate))""".format(db.formatDate(self.edtBegDate.date()), 
+                                                               db.formatDate(self.edtBegDate.date()), 
+                                                               self.tblPersonnel.currentItemId())
+        record = db.getRecordEx(table, cols="*", where=cond)
+        if record:
+            QtGui.QMessageBox.warning(self, u'Ошибка при сохранении',
+                        u'Новый период замещения пересекается с существующим периодом с {} по {}'.format(forceString(record.value('begDate')), forceString(record.value('endDate'))))
+            return False
+        return True
+    
+    def apply(self):
+        if self.checkDates() and self.cmbSubstitutePerson.value():
+            self.accept()
 
 
 

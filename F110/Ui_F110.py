@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'F110.ui'
+# Form implementation generated from reading ui file 'C:\proj\Samson\UP_s11\client_test\F110\F110.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu May 23 16:59:15 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +29,8 @@ class Ui_Dialog(object):
         Dialog.resize(1065, 980)
         Dialog.setSizeGripEnabled(True)
         self.gridLayout_6 = QtGui.QGridLayout(Dialog)
-        self.gridLayout_6.setMargin(4)
         self.gridLayout_6.setSpacing(4)
+        self.gridLayout_6.setMargin(4)
         self.gridLayout_6.setObjectName(_fromUtf8("gridLayout_6"))
         self.buttonBox = QtGui.QDialogButtonBox(Dialog)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -93,16 +94,16 @@ class Ui_Dialog(object):
         self.tabToken = QtGui.QWidget()
         self.tabToken.setObjectName(_fromUtf8("tabToken"))
         self.verticalLayout = QtGui.QVBoxLayout(self.tabToken)
-        self.verticalLayout.setMargin(4)
         self.verticalLayout.setSpacing(4)
+        self.verticalLayout.setMargin(4)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.frameBaseAndDiagnosises = QtGui.QFrame(self.tabToken)
         self.frameBaseAndDiagnosises.setFrameShape(QtGui.QFrame.NoFrame)
         self.frameBaseAndDiagnosises.setFrameShadow(QtGui.QFrame.Raised)
         self.frameBaseAndDiagnosises.setObjectName(_fromUtf8("frameBaseAndDiagnosises"))
         self.gridLayout_10 = QtGui.QGridLayout(self.frameBaseAndDiagnosises)
-        self.gridLayout_10.setMargin(2)
         self.gridLayout_10.setSpacing(2)
+        self.gridLayout_10.setMargin(2)
         self.gridLayout_10.setObjectName(_fromUtf8("gridLayout_10"))
         self.splitter = QtGui.QSplitter(self.frameBaseAndDiagnosises)
         self.splitter.setOrientation(QtCore.Qt.Vertical)
@@ -111,8 +112,8 @@ class Ui_Dialog(object):
         self.grplFinalDiagnostics = QtGui.QGroupBox(self.splitter)
         self.grplFinalDiagnostics.setObjectName(_fromUtf8("grplFinalDiagnostics"))
         self.gridLayout_3 = QtGui.QGridLayout(self.grplFinalDiagnostics)
-        self.gridLayout_3.setMargin(1)
         self.gridLayout_3.setSpacing(1)
+        self.gridLayout_3.setMargin(1)
         self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
         self.tblFinalDiagnostics = CInDocTableView(self.grplFinalDiagnostics)
         self.tblFinalDiagnostics.setObjectName(_fromUtf8("tblFinalDiagnostics"))
@@ -120,8 +121,8 @@ class Ui_Dialog(object):
         self.groupBox = QtGui.QGroupBox(self.splitter)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
         self.gridLayout_5 = QtGui.QGridLayout(self.groupBox)
-        self.gridLayout_5.setMargin(1)
         self.gridLayout_5.setSpacing(1)
+        self.gridLayout_5.setMargin(1)
         self.gridLayout_5.setObjectName(_fromUtf8("gridLayout_5"))
         self.tblPersonnel = CInDocTableView(self.groupBox)
         self.tblPersonnel.setObjectName(_fromUtf8("tblPersonnel"))
@@ -136,8 +137,8 @@ class Ui_Dialog(object):
         self.grpRenunOfHospital.setChecked(False)
         self.grpRenunOfHospital.setObjectName(_fromUtf8("grpRenunOfHospital"))
         self.gridLayout_4 = QtGui.QGridLayout(self.grpRenunOfHospital)
-        self.gridLayout_4.setMargin(1)
         self.gridLayout_4.setSpacing(1)
+        self.gridLayout_4.setMargin(1)
         self.gridLayout_4.setObjectName(_fromUtf8("gridLayout_4"))
         self.lblFaceRenunOfHospital = QtGui.QLabel(self.grpRenunOfHospital)
         self.lblFaceRenunOfHospital.setEnabled(False)
@@ -156,8 +157,8 @@ class Ui_Dialog(object):
         self.grpBase.setSizePolicy(sizePolicy)
         self.grpBase.setObjectName(_fromUtf8("grpBase"))
         self.gridLayout_2 = QtGui.QGridLayout(self.grpBase)
-        self.gridLayout_2.setMargin(1)
         self.gridLayout_2.setSpacing(1)
+        self.gridLayout_2.setMargin(1)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.cmbOrderEvent = CROComboBox(self.grpBase)
         self.cmbOrderEvent.setObjectName(_fromUtf8("cmbOrderEvent"))
@@ -236,8 +237,8 @@ class Ui_Dialog(object):
         self.frmBegDateTime.setLineWidth(0)
         self.frmBegDateTime.setObjectName(_fromUtf8("frmBegDateTime"))
         self.horizontalLayout_8 = QtGui.QHBoxLayout(self.frmBegDateTime)
-        self.horizontalLayout_8.setMargin(0)
         self.horizontalLayout_8.setSpacing(4)
+        self.horizontalLayout_8.setMargin(0)
         self.horizontalLayout_8.setObjectName(_fromUtf8("horizontalLayout_8"))
         self.edtBegDate = CDateEdit(self.frmBegDateTime)
         self.edtBegDate.setCalendarPopup(True)
@@ -264,8 +265,8 @@ class Ui_Dialog(object):
         self.frmPassDateTime.setLineWidth(0)
         self.frmPassDateTime.setObjectName(_fromUtf8("frmPassDateTime"))
         self.horizontalLayout_7 = QtGui.QHBoxLayout(self.frmPassDateTime)
-        self.horizontalLayout_7.setMargin(0)
         self.horizontalLayout_7.setSpacing(4)
+        self.horizontalLayout_7.setMargin(0)
         self.horizontalLayout_7.setObjectName(_fromUtf8("horizontalLayout_7"))
         self.edtPassDate = CDateEdit(self.frmPassDateTime)
         self.edtPassDate.setCalendarPopup(True)
@@ -312,8 +313,8 @@ class Ui_Dialog(object):
         self.frmDepartureDateTime.setLineWidth(0)
         self.frmDepartureDateTime.setObjectName(_fromUtf8("frmDepartureDateTime"))
         self.horizontalLayout_9 = QtGui.QHBoxLayout(self.frmDepartureDateTime)
-        self.horizontalLayout_9.setMargin(0)
         self.horizontalLayout_9.setSpacing(4)
+        self.horizontalLayout_9.setMargin(0)
         self.horizontalLayout_9.setObjectName(_fromUtf8("horizontalLayout_9"))
         self.edtDepartureDate = CDateEdit(self.frmDepartureDateTime)
         self.edtDepartureDate.setCalendarPopup(True)
@@ -349,8 +350,8 @@ class Ui_Dialog(object):
         self.frmArrivalDateTime.setLineWidth(0)
         self.frmArrivalDateTime.setObjectName(_fromUtf8("frmArrivalDateTime"))
         self.horizontalLayout_6 = QtGui.QHBoxLayout(self.frmArrivalDateTime)
-        self.horizontalLayout_6.setMargin(0)
         self.horizontalLayout_6.setSpacing(4)
+        self.horizontalLayout_6.setMargin(0)
         self.horizontalLayout_6.setObjectName(_fromUtf8("horizontalLayout_6"))
         self.edtArrivalDate = CDateEdit(self.frmArrivalDateTime)
         self.edtArrivalDate.setCalendarPopup(True)
@@ -381,8 +382,8 @@ class Ui_Dialog(object):
         self.frmFinishServiceDateTime.setLineWidth(0)
         self.frmFinishServiceDateTime.setObjectName(_fromUtf8("frmFinishServiceDateTime"))
         self.horizontalLayout_4 = QtGui.QHBoxLayout(self.frmFinishServiceDateTime)
-        self.horizontalLayout_4.setMargin(0)
         self.horizontalLayout_4.setSpacing(4)
+        self.horizontalLayout_4.setMargin(0)
         self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
         self.edtFinishServiceDate = CDateEdit(self.frmFinishServiceDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
@@ -417,8 +418,8 @@ class Ui_Dialog(object):
         self.frmEndDateTime.setLineWidth(0)
         self.frmEndDateTime.setObjectName(_fromUtf8("frmEndDateTime"))
         self.horizontalLayout_5 = QtGui.QHBoxLayout(self.frmEndDateTime)
-        self.horizontalLayout_5.setMargin(0)
         self.horizontalLayout_5.setSpacing(4)
+        self.horizontalLayout_5.setMargin(0)
         self.horizontalLayout_5.setObjectName(_fromUtf8("horizontalLayout_5"))
         self.edtEndDate = CDateEdit(self.frmEndDateTime)
         self.edtEndDate.setCalendarPopup(True)
@@ -536,8 +537,8 @@ class Ui_Dialog(object):
         self.grpActions = QtGui.QGroupBox(self.tabToken)
         self.grpActions.setObjectName(_fromUtf8("grpActions"))
         self.gridLayout_7 = QtGui.QGridLayout(self.grpActions)
-        self.gridLayout_7.setMargin(1)
         self.gridLayout_7.setSpacing(6)
+        self.gridLayout_7.setMargin(1)
         self.gridLayout_7.setObjectName(_fromUtf8("gridLayout_7"))
         self.lblPlaceReceptionCall = QtGui.QLabel(self.grpActions)
         self.lblPlaceReceptionCall.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
@@ -686,7 +687,6 @@ class Ui_Dialog(object):
         sizePolicy.setHeightForWidth(self.cmbOrgId.sizePolicy().hasHeightForWidth())
         self.cmbOrgId.setSizePolicy(sizePolicy)
         self.cmbOrgId.setObjectName(_fromUtf8("cmbOrgId"))
-        self.cmbOrgId.addItem(_fromUtf8(""))
         self.gridLayout_7.addWidget(self.cmbOrgId, 4, 7, 1, 1)
         self.cmbTransferredTransportation = CRBComboBox(self.grpActions)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
@@ -818,16 +818,16 @@ class Ui_Dialog(object):
         self.tabTempInvalidEtc = QtGui.QWidget()
         self.tabTempInvalidEtc.setObjectName(_fromUtf8("tabTempInvalidEtc"))
         self.gridLayout = QtGui.QGridLayout(self.tabTempInvalidEtc)
-        self.gridLayout.setMargin(4)
         self.gridLayout.setSpacing(4)
+        self.gridLayout.setMargin(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.tabTempInvalidAndAegrotat = QtGui.QTabWidget(self.tabTempInvalidEtc)
         self.tabTempInvalidAndAegrotat.setObjectName(_fromUtf8("tabTempInvalidAndAegrotat"))
         self.tabTempInvalid = QtGui.QWidget()
         self.tabTempInvalid.setObjectName(_fromUtf8("tabTempInvalid"))
         self.verticalLayout_5 = QtGui.QVBoxLayout(self.tabTempInvalid)
-        self.verticalLayout_5.setMargin(4)
         self.verticalLayout_5.setSpacing(4)
+        self.verticalLayout_5.setMargin(4)
         self.verticalLayout_5.setObjectName(_fromUtf8("verticalLayout_5"))
         self.grpTempInvalid = CTempInvalid(self.tabTempInvalid)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -842,8 +842,8 @@ class Ui_Dialog(object):
         self.tabAegrotat = QtGui.QWidget()
         self.tabAegrotat.setObjectName(_fromUtf8("tabAegrotat"))
         self.verticalLayout_4 = QtGui.QVBoxLayout(self.tabAegrotat)
-        self.verticalLayout_4.setMargin(4)
         self.verticalLayout_4.setSpacing(4)
+        self.verticalLayout_4.setMargin(4)
         self.verticalLayout_4.setObjectName(_fromUtf8("verticalLayout_4"))
         self.grpAegrotat = CTempInvalid(self.tabAegrotat)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -858,8 +858,8 @@ class Ui_Dialog(object):
         self.tabDisability = QtGui.QWidget()
         self.tabDisability.setObjectName(_fromUtf8("tabDisability"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.tabDisability)
-        self.verticalLayout_2.setMargin(4)
         self.verticalLayout_2.setSpacing(4)
+        self.verticalLayout_2.setMargin(4)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.grpDisability = CTempInvalid(self.tabDisability)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -874,8 +874,8 @@ class Ui_Dialog(object):
         self.tabVitalRestriction = QtGui.QWidget()
         self.tabVitalRestriction.setObjectName(_fromUtf8("tabVitalRestriction"))
         self.verticalLayout_6 = QtGui.QVBoxLayout(self.tabVitalRestriction)
-        self.verticalLayout_6.setMargin(4)
         self.verticalLayout_6.setSpacing(4)
+        self.verticalLayout_6.setMargin(4)
         self.verticalLayout_6.setObjectName(_fromUtf8("verticalLayout_6"))
         self.grpVitalRestriction = CTempInvalid(self.tabVitalRestriction)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
@@ -1101,7 +1101,6 @@ class Ui_Dialog(object):
         self.btnLocHouseList.setText(_translate("Dialog", "...", None))
         self.lblPregnancyFailure.setText(_translate("Dialog", "Патология берем.", None))
         self.lblPregnancy.setText(_translate("Dialog", "Беременность", None))
-        self.cmbOrgId.setItemText(0, _translate("Dialog", "Больница", None))
         self.cmbTransferredTransportation.setItemText(0, _translate("Dialog", "Транспортировку перенес", None))
         self.lblOrgId.setText(_translate("Dialog", "Больница", None))
         self.lblTransferredTransportation.setText(_translate("Dialog", "Транспортировку перенес", None))
@@ -1119,8 +1118,8 @@ class Ui_Dialog(object):
         self.lblAccident.setText(_translate("Dialog", "Несчастный случай", None))
         self.cmbLocCity.setItemText(0, _translate("Dialog", "Город", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("Dialog", "Стат.&учёт", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагноз", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Стандарт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("Dialog", "Диагно&з", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("Dialog", "Ст&андарт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("Dialog", "&Статус", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabDiagnostic), _translate("Dialog", "&Диагностика", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCure), _translate("Dialog", "&Лечение", None))
@@ -1129,24 +1128,34 @@ class Ui_Dialog(object):
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabTempInvalid), _translate("Dialog", "Листок &нетрудоспособности", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabAegrotat), _translate("Dialog", "С&правка", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabDisability), _translate("Dialog", "Инвалидность", None))
-        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "&Ограничения жизнедеятельности", None))
+        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("Dialog", "О&граничения жизнедеятельности", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabTempInvalidEtc), _translate("Dialog", "Т&рудоспособность", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("Dialog", "&Оплата", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("Dialog", "Приме&чания", None))
 
-from Events.ActionsPage import CActionsPage
-from Events.AmbCardPage import CAmbCardPage
-from Events.EventCashPage import CEventCashPage
-from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
-from Events.EventMesPage import CEventMesPage
-from Events.EventNotesPage import CEventNotesPage
+from Orgs.OrgComboBox import COrgComboBox, CContractComboBox
 from Events.TempInvalid import CTempInvalid
-from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
-from Orgs.OrgComboBox import CContractComboBox, COrgComboBox
-from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from library.DateEdit import CDateEdit
-from library.InDocTable import CInDocTableView
-from library.ROComboBox import CROComboBox
-from library.TextBrowser import CTextBrowser
 from library.crbcombobox import CRBComboBox
+from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
+from library.InDocTable import CInDocTableView
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from library.ROComboBox import CROComboBox
+from Events.ActionsPage import CActionsPage
+from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
+from library.TextBrowser import CTextBrowser
+from Events.EventCashPage import CEventCashPage
+from Events.EventNotesPage import CEventNotesPage
+from Events.AmbCardPage import CAmbCardPage
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Events.EventMesPage import CEventMesPage
+from library.DateEdit import CDateEdit
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    Dialog = QtGui.QDialog()
+    ui = Ui_Dialog()
+    ui.setupUi(Dialog)
+    Dialog.show()
+    sys.exit(app.exec_())
+

@@ -41,7 +41,11 @@
     </widget>
    </item>
    <item>
-    <widget class="QLineEdit" name="edtNote"/>
+    <widget class="QLineEdit" name="edtNote">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
    <item>
     <spacer name="verticalSpacer">
@@ -81,7 +85,7 @@
      <item>
       <widget class="QPushButton" name="btnCancel">
        <property name="text">
-        <string>Отменить</string>
+        <string>Закрыть</string>
        </property>
       </widget>
      </item>
@@ -91,22 +95,6 @@
  </widget>
  <resources/>
  <connections>
-  <connection>
-   <sender>btnOK</sender>
-   <signal>clicked()</signal>
-   <receiver>Dialog</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>40</x>
-     <y>110</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>115</x>
-     <y>117</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>btnCancel</sender>
    <signal>clicked()</signal>

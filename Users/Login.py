@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,12 +15,12 @@
 import hashlib
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import pyqtSignature
+from PyQt4.QtCore import pyqtSignature, QVariant, QObject, SIGNAL
 
 from library.DialogBase import CDialogBase
 from library.database import CTableRecordCache
 from library.TableModel import CTableModel, CTextCol, CRefBookCol
-from library.Utils import exceptionToUnicode, forceString, forceStringEx, forceRef
+from library.Utils import exceptionToUnicode, forceString, forceStringEx, forceRef, setPref, getPrefBool, toVariant, getPrefInt
 
 from Users.Tables import demoUserName, usrId, usrLogin, usrPassword, tblLogin
 
@@ -150,6 +150,42 @@ class CPersonSelectDialog(CDialogBase, Ui_SelectPersonDialog):
         self.tblPerson.installEventFilter(self)
         self._parent = parent
         self.tblPerson.model().setIdList(personList)
+        self.headerTblPerson = self.tblPerson.horizontalHeader()
+        self.headerTblPerson.setClickable(True)
+        self.headerTblPerson.setSortIndicatorShown(True)
+        QObject.connect(self.headerTblPerson, SIGNAL('sectionClicked(int)'), self.onHeaderTblPersonClicked)
+
+        self.Preferences = QtGui.qApp.preferences.appPrefs
+        self.chkOrgStructurePerson.setChecked(getPrefBool(self.Preferences, 'chkOrgStructurePerson', False))
+
+        personId = getPrefInt(self.Preferences, 'personId', 0)
+        setPersonId = personId if personId and personId in personList else personList[0]
+        self.tblPerson.setCurrentItemId(setPersonId)
+
+
+    def onHeaderTblPersonClicked(self, col):
+        currentId = self.tblPerson.selectedItemIdList()[-1]
+        headerSortingCol = self.tableModel.headerSortingCol.get(col, False)
+        self.tableModel.headerSortingCol = {}
+        self.tableModel.headerSortingCol[col] = not headerSortingCol
+        self.tableModel.sortDataModel()
+        self.tblPerson.setCurrentItemId(currentId)
+
+
+    def setParams(self):
+        setPref(self.Preferences, 'chkOrgStructurePerson', QVariant(self.chkOrgStructurePerson.isChecked()))
+        setPref(self.Preferences, 'personId', QVariant(self.personId))
+        if self.chkOrgStructurePerson.isChecked():
+            orgStructureId = self.getPersonOrgStructure(self.personId)
+            self.Preferences['orgStructureId'] = toVariant(orgStructureId)
+
+
+    def getPersonOrgStructure(self, personId):
+        db = QtGui.qApp.db
+        query = db.query("select vp.orgStructure_id from vrbPerson vp where vp.id = {0}".format(personId))
+        if query.next():
+            return forceString(query.value(0))
+        return str()
 
 
     @pyqtSignature('QAbstractButton*')
@@ -158,6 +194,7 @@ class CPersonSelectDialog(CDialogBase, Ui_SelectPersonDialog):
         if buttonCode == QtGui.QDialogButtonBox.Ok:
             self.personId = self.tblPerson.selectedItemIdList()[-1]
             QtGui.QDialog.accept(self)
+            self.setParams()
             self.close()
         elif buttonCode == QtGui.QDialogButtonBox.Cancel:
             self.close()
@@ -167,6 +204,7 @@ class CPersonSelectDialog(CDialogBase, Ui_SelectPersonDialog):
     def on_tblPerson_doubleClicked(self, index):
         self.personId = self.tblPerson.selectedItemIdList()[-1]
         QtGui.QDialog.accept(self)
+        self.setParams()
         self.close()
 
 
@@ -190,7 +228,7 @@ class CPersonTableModel(CTableModel):
             'Person.post_id',
             'vrbPerson.speciality_id',
             'vrbPerson.orgStructure_id',
-            'rbUserProfile.name as userProfileName',
+            'rbUserProfile.name as userProfileName'
         ]
         self._tableName = u''
         self.setTable('vrbPerson')

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,8 +12,9 @@
 ##
 #############################################################################
 
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt, SIGNAL, QAbstractTableModel, QString, QVariant, QObject
+from PyQt4.QtGui import QSortFilterProxyModel
 
 from library.Utils import forceBool, forceInt, forceString, forceStringEx, trim
 
@@ -201,6 +202,10 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
 
     def setCheckedColumnIsHiden(self, value):
         self._checkedColumnIsHidden = value
+        if hasattr(self, '_proxyModel'):
+            #костыль для обновления видимых столбцов в прокси. Должны быть варианты лучше
+            self._proxyModel.setSourceModel(self)
+            self._proxyModel.enableFilter(forceInt(not value))
 
 
     def isCheckedColumnIsHiden(self):
@@ -213,7 +218,8 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
         self.reset()
 
     def addList(self, value):
-        self._items.append(CMultivalueComboBoxModel.CMultivalueItem(value[0], value[1], value[2], value[3]))
+        import re
+        self._items.append(CMultivalueComboBoxModel.CMultivalueItem(re.sub(r"\s+", " ", value[0]), value[1], re.sub(r"\s+", " ", value[2]), value[3]))
         self._columns = [self._checkedColumn, self._dataColumnCode, self._dataColumnName]
         self.reset()
 
@@ -341,9 +347,19 @@ class CMultivalueComboBoxPopup(QtGui.QFrame):
         self._parent = parent
         self.vLayout = QtGui.QVBoxLayout(self)
         self._view   = CMultivalueComboBoxView(self)
+        self._proxyModel = CMultivalueComboBoxProxyModel()
         self._model  = CMultivalueComboBoxModel(self)
-        self._view.setModel(self._model)
+        self._model._proxyModel = self.proxyModel()
+        self.proxyModel().setSourceModel(self._model)
+        self.proxyModel().enableFilter(1)
+
+        self._view.setModel(self._proxyModel)
         self.vLayout.addWidget(self._view)
+        self.edtFilter = QtGui.QLineEdit(self)
+        self.edtFilter.setContentsMargins(1, 4, 1, 4)
+        self.vLayout.addWidget(self.edtFilter)
+        QtCore.QObject.connect(self.edtFilter, QtCore.SIGNAL("textChanged(QString)"),
+                               self.proxyModel().setFilterFixedString)
         self.vLayout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.vLayout)
 
@@ -361,13 +377,15 @@ class CMultivalueComboBoxPopup(QtGui.QFrame):
     def model(self):
         return self._model
 
+    def proxyModel(self):
+        return self._proxyModel
 
     def view(self):
         return self._view
 
-
-    def on_viewClicked(self, index):
-        if index.isValid():
+    def on_viewClicked(self, proxyIndex):
+        if proxyIndex.isValid():
+            index = self.proxyModel().mapToSource(proxyIndex)
             row = index.row()
             if self._model.isColumnIndexCheckable(index) and self.getValueByRow(row):
                 pass
@@ -503,6 +521,7 @@ class CBaseMultivalue():
             newTextValue = u''
             self.setEditText(newTextValue)
 
+
 #        data = trim(data)
 #        if data:
 #            currentTextValue = forceStringEx(self.currentText())
@@ -522,7 +541,8 @@ class CBaseMultivalue():
 
     def showPopup(self):
         if not self.isReadOnly():
-            if self.itemCount():
+            totalItems = self.itemCount()
+            if totalItems:
                 view = self._popupView.view()
                 view.clearSelection()
                 selectionModel = view.selectionModel()
@@ -535,7 +555,12 @@ class CBaseMultivalue():
                         selectionModel.setCurrentIndex(self._model.index(row, 0), command)
                     if not selectionModel.hasSelection():
                         selectionModel.setCurrentIndex(self._model.index(0, 0), command)
-                adjustPopupToWidget(self, self._popupView, True, max(self.preferredWidth, view.width()+2), view.height()+2)
+                tblHeaderHeight = view.horizontalHeader().height()
+                maxVisibleItems = self.maxVisibleItems()
+                visibleItems = min(maxVisibleItems, totalItems)
+                if visibleItems > 0:
+                    view.setFixedHeight(view.rowHeight(0) * visibleItems + tblHeaderHeight + 5)
+                adjustPopupToWidget(self, self._popupView, True, max(self.preferredWidth, view.width()+2), view.height() + 2)
                 self._popupView.show()
                 view.setFocus()
                 view.horizontalScrollBar().setValue(0)
@@ -660,6 +685,7 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
 
 
     def _initRB(self):
+        import re
         self._data = CRBModelDataCache.getData(self._tableName,
                                                self._addNone,
                                                self._filter,
@@ -683,8 +709,8 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
             items.append(name)
             items.append(chBox)
 
-            self._mapId2Shown[str(id)] = shown
-            self._mapShown2Id[shown] = unicode(id)
+            self._mapId2Shown[str(id)] = re.sub(r"\s+", " ", shown) #избавляемся от лишних пробелов...
+            self._mapShown2Id[re.sub(r"\s+", " ", shown)] = unicode(id)
 
             shownItems.append(items)
 
@@ -709,7 +735,7 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
         self._popupView.view().setColumnWidth(1, 80 + (prefWidthCode * 2)) # Изменим ширину столбца code
         self._popupView.view().setColumnWidth(2, prefWidthName * 2) # Изменим ширину столбца name
 
-        self._popupView.view().setMinimumWidth(int((20 + prefWidthName) * 2)*2)
+        self._popupView.view().setMinimumWidth(int((20 + prefWidthName) * 2) * 2)
 
         self.preferredWidth = (prefWidthCode + prefWidthName) * 2 # Изменяем ширину второго столбца
 
@@ -740,6 +766,14 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
     def value(self):
         return self._translateShownValue2Value(CMultivalueComboBox.value(self))
 
+
+class CMultivalueComboBoxProxyModel(QSortFilterProxyModel):
+    def __init__(self,parent=None):
+        QtGui.QProxyModel.__init__(self, parent)
+
+    def enableFilter(self, column):
+        self.setFilterKeyColumn(column)
+        self.setFilterCaseSensitivity(Qt.CaseInsensitive)
 
 
 if __name__ == '__main__':

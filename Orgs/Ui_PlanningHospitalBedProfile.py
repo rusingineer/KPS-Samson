@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client\Orgs\PlanningHospitalBedProfile.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Orgs\PlanningHospitalBedProfile.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Jan 25 13:15:23 2024
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -75,7 +76,6 @@ class Ui_PlanningHospitalBedProfileDialog(object):
         self.retranslateUi(PlanningHospitalBedProfileDialog)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), PlanningHospitalBedProfileDialog.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), PlanningHospitalBedProfileDialog.reject)
-        QtCore.QObject.connect(self.chkDate, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.btnFill.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(PlanningHospitalBedProfileDialog)
         PlanningHospitalBedProfileDialog.setTabOrder(self.chkDate, self.chkOrgStructure)
         PlanningHospitalBedProfileDialog.setTabOrder(self.chkOrgStructure, self.cmbOrgStructure)
@@ -91,7 +91,7 @@ class Ui_PlanningHospitalBedProfileDialog(object):
         self.chkProfileBed.setText(_translate("PlanningHospitalBedProfileDialog", "Профиль койки", None))
         self.btnFill.setText(_translate("PlanningHospitalBedProfileDialog", "Сгенерировать список подразделений", None))
 
-from OrgStructComboBoxes import COrgStructureHospitalBedsComboBox
-from library.DateEdit import CDateEdit
 from library.InDocTable import CInDocTableView
 from library.crbcombobox import CRBComboBox
+from OrgStructComboBoxes import COrgStructureHospitalBedsComboBox
+from library.DateEdit import CDateEdit

@@ -154,7 +154,7 @@ AND Action_FileAttach.deleted=0
   %(detail)s
 AND afae.id IS NOT NULL
 %(condpersonId)s  %(orgStructureList)s  %(details_event)s
-AND afae.success=1
+-- AND afae.success=1
  GROUP BY os.name,Action_FileAttach.id, messages_id
 ORDER BY os.name,ee.dateTime;
            ''' % {'dates': dates,

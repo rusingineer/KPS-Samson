@@ -153,9 +153,9 @@
                <property name="geometry">
                 <rect>
                  <x>0</x>
-                 <y>-110</y>
+                 <y>0</y>
                  <width>789</width>
-                 <height>766</height>
+                 <height>789</height>
                 </rect>
                </property>
                <property name="sizePolicy">
@@ -177,13 +177,169 @@
                 </size>
                </property>
                <property name="currentIndex">
-                <number>4</number>
+                <number>0</number>
                </property>
                <widget class="QWidget" name="tabFilterAllParams">
                 <attribute name="title">
                  <string>Общие параметры</string>
                 </attribute>
                 <layout class="QGridLayout" name="gridLayout_20">
+                 <item row="19" column="2" colspan="7">
+                  <widget class="CQuotaComboBox" name="cmbQuotingType"/>
+                 </item>
+                 <item row="18" column="0" colspan="2">
+                  <widget class="QPushButton" name="btnContract">
+                   <property name="text">
+                    <string>Договор</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="22" column="2" colspan="7">
+                  <widget class="CRBComboBox" name="cmbFilterDiet"/>
+                 </item>
+                 <item row="19" column="0" colspan="2">
+                  <widget class="QLabel" name="label_3">
+                   <property name="text">
+                    <string>Квотирование</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="20" column="2" colspan="7">
+                  <widget class="QComboBox" name="cmbLocationClient">
+                   <item>
+                    <property name="text">
+                     <string>Не учитывать</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Да</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Нет</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="10" column="0" colspan="9">
+                  <widget class="Line" name="line">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="33" column="2" colspan="7">
+                  <widget class="QCheckBox" name="chkStayOrgStructure">
+                   <property name="text">
+                    <string>Отделение пребывания</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="8" column="2" colspan="7">
+                  <widget class="QComboBox" name="cmbFilterRegionTypeSMO">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>Относится к</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Все, кроме</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="6" column="0" colspan="2">
+                  <widget class="QCheckBox" name="chkAttachType">
+                   <property name="text">
+                    <string>Прикрепление</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="15" column="2">
+                  <widget class="CDateEdit" name="edtFilterBegDate">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="displayFormat">
+                    <string>dd.MM.yyyy</string>
+                   </property>
+                   <property name="calendarPopup">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="12" column="2" colspan="7">
+                  <widget class="CPersonComboBoxEx" name="cmbPersonExec"/>
+                 </item>
+                 <item row="16" column="2">
+                  <widget class="CDateEdit" name="edtFilterEndDate">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="displayFormat">
+                    <string>dd.MM.yyyy</string>
+                   </property>
+                   <property name="calendarPopup">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="11" column="0" colspan="2">
+                  <widget class="QLabel" name="lblPerson">
+                   <property name="text">
+                    <string>Врач</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="34" column="2" colspan="7">
+                  <widget class="CPersonComboBoxEx" name="cmbAssistant">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="13" column="0" colspan="2">
+                  <widget class="QLabel" name="lblRelegateOrg">
+                   <property name="text">
+                    <string>Направитель</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="12" column="0" colspan="2">
+                  <widget class="QLabel" name="lblPersonExec">
+                   <property name="text">
+                    <string>Исполнитель</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="18" column="2" colspan="7">
+                  <widget class="CARMSContractTreeFindComboBox" name="cmbContract"/>
+                 </item>
+                 <item row="11" column="2" colspan="7">
+                  <widget class="CPersonComboBoxEx" name="cmbPerson">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="3" column="2" colspan="5">
                   <widget class="QLineEdit" name="edtFilterEventId"/>
                  </item>
@@ -213,20 +369,10 @@
                    </item>
                   </widget>
                  </item>
-                 <item row="1" column="2" colspan="6">
-                  <widget class="QLineEdit" name="edtFilterClientId"/>
-                 </item>
                  <item row="4" column="3">
                   <widget class="QLabel" name="lblAgePresence">
                    <property name="text">
                     <string>Возраст с</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="4" column="6">
-                  <widget class="QLabel" name="label_2">
-                   <property name="text">
-                    <string>по</string>
                    </property>
                   </widget>
                  </item>
@@ -256,6 +402,16 @@
                    </property>
                   </spacer>
                  </item>
+                 <item row="1" column="2" colspan="6">
+                  <widget class="QLineEdit" name="edtFilterClientId"/>
+                 </item>
+                 <item row="4" column="6">
+                  <widget class="QLabel" name="label_2">
+                   <property name="text">
+                    <string>по</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="0" column="0" colspan="9">
                   <widget class="QLabel" name="lblClient">
                    <property name="text">
@@ -266,346 +422,14 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="11" column="2" colspan="7">
-                  <widget class="CPersonComboBoxEx" name="cmbPerson">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="16" column="4" colspan="5">
-                  <spacer name="horizontalSpacer_4">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>100</width>
-                     <height>21</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                 <item row="16" column="3">
-                  <widget class="QTimeEdit" name="edtFilterEndTime">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="time">
-                    <time>
-                     <hour>9</hour>
-                     <minute>0</minute>
-                     <second>0</second>
-                    </time>
-                   </property>
-                   <property name="displayFormat">
-                    <string>HH:mm</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="35" column="8">
-                  <spacer name="verticalSpacer_3">
-                   <property name="orientation">
-                    <enum>Qt::Vertical</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>20</width>
-                     <height>40</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                 <item row="15" column="0" colspan="2">
-                  <widget class="QLabel" name="lblFilterBegDate">
-                   <property name="text">
-                    <string>Начало</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="17" column="2" colspan="7">
-                  <widget class="CRBComboBox" name="cmbFinance"/>
-                 </item>
-                 <item row="9" column="2" colspan="7">
-                  <widget class="CKLADRComboBox" name="cmbFilterRegionSMO">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="14" column="0" colspan="9">
-                  <widget class="Line" name="line_2">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="15" column="4" colspan="5">
-                  <widget class="QCheckBox" name="chkPresenceActionActiviti">
-                   <property name="toolTip">
-                    <string>При выборе данного параметра отображаются только открытые Действия Движения</string>
-                   </property>
-                   <property name="text">
-                    <string>Активные</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="6" column="2" colspan="7">
-                  <widget class="CRBComboBox" name="cmbAttachType">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="16" column="0" colspan="2">
-                  <widget class="QLabel" name="lblFilterEndDate">
-                   <property name="text">
-                    <string>Окончание</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="7" column="2" colspan="7">
-                  <widget class="CInsurerComboBox" name="cmbOrg"/>
-                 </item>
-                 <item row="3" column="7">
-                  <widget class="QComboBox" name="cmbEventClosedType">
-                   <item>
-                    <property name="text">
-                     <string>Все</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>Только закрытые</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>Только открытые</string>
-                    </property>
-                   </item>
-                  </widget>
-                 </item>
-                 <item row="17" column="0" colspan="2">
-                  <widget class="QPushButton" name="btnFinance">
-                   <property name="text">
-                    <string>Финансирование</string>
-                   </property>
-                   <property name="checked">
-                    <bool>false</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="33" column="0" colspan="2">
-                  <widget class="QCheckBox" name="chkAssistant">
-                   <property name="text">
-                    <string>Ассистент</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="15" column="3">
-                  <widget class="QTimeEdit" name="edtFilterBegTime">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="time">
-                    <time>
-                     <hour>9</hour>
-                     <minute>0</minute>
-                     <second>0</second>
-                    </time>
-                   </property>
-                   <property name="displayFormat">
-                    <string>HH:mm</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="2" colspan="7">
-                  <widget class="CRBComboBox" name="cmbStatusObservation"/>
-                 </item>
-                 <item row="13" column="8">
-                  <widget class="QToolButton" name="btnSelectRelegateOrg">
-                   <property name="text">
-                    <string>...</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="13" column="2" colspan="6">
-                  <widget class="CPolyclinicComboBox" name="cmbRelegateOrg"/>
-                 </item>
-                 <item row="12" column="2" colspan="7">
-                  <widget class="CPersonComboBoxEx" name="cmbPersonExec"/>
-                 </item>
-                 <item row="10" column="0" colspan="9">
-                  <widget class="Line" name="line">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="8" column="2" colspan="7">
-                  <widget class="QComboBox" name="cmbFilterRegionTypeSMO">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                   <item>
-                    <property name="text">
-                     <string>Относится к</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>Все, кроме</string>
-                    </property>
-                   </item>
-                  </widget>
-                 </item>
-                 <item row="32" column="2" colspan="7">
-                  <widget class="QCheckBox" name="chkStayOrgStructure">
-                   <property name="text">
-                    <string>Отделение пребывания</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="6" column="0" colspan="2">
-                  <widget class="QCheckBox" name="chkAttachType">
-                   <property name="text">
-                    <string>Прикрепление</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="15" column="2">
-                  <widget class="CDateEdit" name="edtFilterBegDate">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="displayFormat">
-                    <string>dd.MM.yyyy</string>
-                   </property>
-                   <property name="calendarPopup">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="33" column="2" colspan="7">
-                  <widget class="CPersonComboBoxEx" name="cmbAssistant">
-                   <property name="enabled">
-                    <bool>false</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="16" column="2">
-                  <widget class="CDateEdit" name="edtFilterEndDate">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="displayFormat">
-                    <string>dd.MM.yyyy</string>
-                   </property>
-                   <property name="calendarPopup">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="12" column="0" colspan="2">
-                  <widget class="QLabel" name="lblPersonExec">
-                   <property name="text">
-                    <string>Исполнитель</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="11" column="0" colspan="2">
-                  <widget class="QLabel" name="lblPerson">
-                   <property name="text">
-                    <string>Врач</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="13" column="0" colspan="2">
-                  <widget class="QLabel" name="lblRelegateOrg">
-                   <property name="text">
-                    <string>Направитель</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="18" column="2" colspan="7">
-                  <widget class="CARMSContractTreeFindComboBox" name="cmbContract"/>
-                 </item>
-                 <item row="18" column="0" colspan="2">
-                  <widget class="QPushButton" name="btnContract">
-                   <property name="text">
-                    <string>Договор</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="19" column="2" colspan="7">
-                  <widget class="CQuotaComboBox" name="cmbQuotingType"/>
-                 </item>
-                 <item row="19" column="0" colspan="2">
-                  <widget class="QLabel" name="label_3">
-                   <property name="text">
-                    <string>Квотирование</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="21" column="2" colspan="7">
-                  <widget class="CRBComboBox" name="cmbFilterDiet"/>
-                 </item>
-                 <item row="20" column="2" colspan="7">
-                  <widget class="QComboBox" name="cmbLocationClient">
-                   <item>
-                    <property name="text">
-                     <string>Не учитывать</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>Да</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>Нет</string>
-                    </property>
-                   </item>
-                  </widget>
-                 </item>
-                 <item row="20" column="0" colspan="2">
-                  <widget class="QLabel" name="lblLocationClient">
-                   <property name="text">
-                    <string>Размещение</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="21" column="0" colspan="2">
+                 <item row="22" column="0" colspan="2">
                   <widget class="QLabel" name="lblDiet">
                    <property name="text">
                     <string>Стол</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="22" column="2" colspan="7">
+                 <item row="23" column="2" colspan="7">
                   <widget class="QComboBox" name="cmbFeed">
                    <item>
                     <property name="text">
@@ -634,14 +458,28 @@
                    </item>
                   </widget>
                  </item>
-                 <item row="22" column="0" colspan="2">
+                 <item row="20" column="0" colspan="2">
+                  <widget class="QLabel" name="lblLocationClient">
+                   <property name="text">
+                    <string>Размещение</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="23" column="0" colspan="2">
                   <widget class="QLabel" name="lblFeed">
                    <property name="text">
                     <string>Учет питания</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="23" column="2" colspan="7">
+                 <item row="24" column="0" colspan="2">
+                  <widget class="QLabel" name="lblDateFeed">
+                   <property name="text">
+                    <string>Питание на дату</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="24" column="2" colspan="7">
                   <layout class="QHBoxLayout" name="horizontalLayout_4">
                    <item>
                     <widget class="CDateEdit" name="edtDateFeed">
@@ -671,14 +509,70 @@
                    </item>
                   </layout>
                  </item>
-                 <item row="23" column="0" colspan="2">
-                  <widget class="QLabel" name="lblDateFeed">
-                   <property name="text">
-                    <string>Питание на дату</string>
-                   </property>
+                 <item row="30" column="2" colspan="7">
+                  <widget class="QComboBox" name="cmbReceived">
+                   <item>
+                    <property name="text">
+                     <string>в ЛПУ</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>в отделение</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>в приемное отделение</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>без движения</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>в амбулаторию</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>без уточнения</string>
+                    </property>
+                   </item>
                   </widget>
                  </item>
-                 <item row="26" column="2" colspan="7">
+                 <item row="31" column="2" colspan="7">
+                  <widget class="QComboBox" name="cmbLeaved">
+                   <item>
+                    <property name="text">
+                     <string>из ЛПУ</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>без выписки</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>из отделений</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>после госпитализации</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>без госпитализации</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="27" column="2" colspan="7">
                   <layout class="QHBoxLayout" name="horizontalLayout_7">
                    <item>
                     <widget class="QSpinBox" name="edtPresenceDayValue">
@@ -716,77 +610,28 @@
                    </item>
                   </layout>
                  </item>
-                 <item row="26" column="0" colspan="2">
+                 <item row="27" column="0" colspan="2">
                   <widget class="QLabel" name="lblPresenceDay">
                    <property name="text">
                     <string>Присутствуют</string>
                    </property>
                   </widget>
                  </item>
-                 <item row="29" column="2" colspan="7">
-                  <widget class="QComboBox" name="cmbReceived">
-                   <item>
-                    <property name="text">
-                     <string>в ЛПУ</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>в отделение</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>в приемное отделение</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>без движения</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>в амбулаторию</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>без уточнения</string>
-                    </property>
-                   </item>
+                 <item row="31" column="0" colspan="2">
+                  <widget class="QLabel" name="lblLeaved">
+                   <property name="text">
+                    <string>Выбыли</string>
+                   </property>
                   </widget>
                  </item>
-                 <item row="30" column="2" colspan="7">
-                  <widget class="QComboBox" name="cmbLeaved">
-                   <item>
-                    <property name="text">
-                     <string>из ЛПУ</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>без выписки</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>из отделений</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>после госпитализации</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>без госпитализации</string>
-                    </property>
-                   </item>
+                 <item row="32" column="0" colspan="2">
+                  <widget class="QLabel" name="lblTransfer">
+                   <property name="text">
+                    <string>Переведены</string>
+                   </property>
                   </widget>
                  </item>
-                 <item row="31" column="2" colspan="7">
+                 <item row="32" column="2" colspan="7">
                   <widget class="QComboBox" name="cmbTransfer">
                    <item>
                     <property name="text">
@@ -798,27 +643,6 @@
                      <string>в отделение</string>
                     </property>
                    </item>
-                  </widget>
-                 </item>
-                 <item row="31" column="0" colspan="2">
-                  <widget class="QLabel" name="lblTransfer">
-                   <property name="text">
-                    <string>Переведены</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="30" column="0" colspan="2">
-                  <widget class="QLabel" name="lblLeaved">
-                   <property name="text">
-                    <string>Выбыли</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="29" column="0" colspan="2">
-                  <widget class="QLabel" name="lblReceived">
-                   <property name="text">
-                    <string>Поступили</string>
-                   </property>
                   </widget>
                  </item>
                  <item row="4" column="7">
@@ -837,17 +661,24 @@
                    </property>
                   </widget>
                  </item>
+                 <item row="30" column="0" colspan="2">
+                  <widget class="QLabel" name="lblReceived">
+                   <property name="text">
+                    <string>Поступили</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="4" column="0" colspan="2">
+                  <widget class="QLabel" name="lblSexPresence">
+                   <property name="text">
+                    <string>Пол</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="1" column="8">
                   <widget class="QToolButton" name="btnFindClientInfo">
                    <property name="text">
                     <string>...</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="8" column="0" colspan="2">
-                  <widget class="QCheckBox" name="chkFilterRegionSMO">
-                   <property name="text">
-                    <string>Регион СМО</string>
                    </property>
                   </widget>
                  </item>
@@ -865,12 +696,15 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="4" column="0" colspan="2">
-                  <widget class="QLabel" name="lblSexPresence">
+                 <item row="8" column="0" colspan="2">
+                  <widget class="QCheckBox" name="chkFilterRegionSMO">
                    <property name="text">
-                    <string>Пол</string>
+                    <string>Регион СМО</string>
                    </property>
                   </widget>
+                 </item>
+                 <item row="1" column="0" colspan="2">
+                  <widget class="CRBComboBox" name="cmbFilterAccountingSystem"/>
                  </item>
                  <item row="3" column="0" colspan="2">
                   <widget class="QLabel" name="lblFilterEventId">
@@ -879,8 +713,184 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="1" column="0" colspan="2">
-                  <widget class="CRBComboBox" name="cmbFilterAccountingSystem"/>
+                 <item row="16" column="4" colspan="5">
+                  <spacer name="horizontalSpacer_4">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>100</width>
+                     <height>21</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item row="16" column="3">
+                  <widget class="QTimeEdit" name="edtFilterEndTime">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="displayFormat">
+                    <string>HH:mm</string>
+                   </property>
+                   <property name="time">
+                    <time>
+                     <hour>9</hour>
+                     <minute>0</minute>
+                     <second>0</second>
+                    </time>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="17" column="2" colspan="7">
+                  <widget class="CRBComboBox" name="cmbFinance"/>
+                 </item>
+                 <item row="9" column="2" colspan="7">
+                  <widget class="CKLADRComboBox" name="cmbFilterRegionSMO">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="36" column="8">
+                  <spacer name="verticalSpacer_3">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item row="15" column="0" colspan="2">
+                  <widget class="QLabel" name="lblFilterBegDate">
+                   <property name="text">
+                    <string>Начало</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="3" column="7">
+                  <widget class="QComboBox" name="cmbEventClosedType">
+                   <item>
+                    <property name="text">
+                     <string>Все</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Только закрытые</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Только открытые</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="14" column="0" colspan="9">
+                  <widget class="Line" name="line_2">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="16" column="0" colspan="2">
+                  <widget class="QLabel" name="lblFilterEndDate">
+                   <property name="text">
+                    <string>Окончание</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="15" column="4" colspan="5">
+                  <widget class="QCheckBox" name="chkPresenceActionActiviti">
+                   <property name="toolTip">
+                    <string>При выборе данного параметра отображаются только открытые Действия Движения</string>
+                   </property>
+                   <property name="text">
+                    <string>Активные</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="6" column="2" colspan="7">
+                  <widget class="CRBComboBox" name="cmbAttachType">
+                   <property name="enabled">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="7" column="2" colspan="7">
+                  <widget class="CInsurerComboBox" name="cmbOrg"/>
+                 </item>
+                 <item row="15" column="3">
+                  <widget class="QTimeEdit" name="edtFilterBegTime">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="displayFormat">
+                    <string>HH:mm</string>
+                   </property>
+                   <property name="time">
+                    <time>
+                     <hour>9</hour>
+                     <minute>0</minute>
+                     <second>0</second>
+                    </time>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="34" column="0" colspan="2">
+                  <widget class="QCheckBox" name="chkAssistant">
+                   <property name="text">
+                    <string>Ассистент</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="13" column="8">
+                  <widget class="QToolButton" name="btnSelectRelegateOrg">
+                   <property name="text">
+                    <string>...</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="2" colspan="7">
+                  <widget class="CRBComboBox" name="cmbStatusObservation"/>
+                 </item>
+                 <item row="17" column="0" colspan="2">
+                  <widget class="QPushButton" name="btnFinance">
+                   <property name="text">
+                    <string>Финансирование</string>
+                   </property>
+                   <property name="checked">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="13" column="2" colspan="6">
+                  <widget class="CPolyclinicComboBox" name="cmbRelegateOrg"/>
+                 </item>
+                 <item row="21" column="2">
+                  <widget class="QCheckBox" name="chkShowLocatedInReanimation">
+                   <property name="text">
+                    <string>Отображать присутствующих в реанимации</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
                  </item>
                 </layout>
                </widget>
@@ -892,11 +902,11 @@
                  <property name="sizeConstraint">
                   <enum>QLayout::SetDefaultConstraint</enum>
                  </property>
-                 <property name="horizontalSpacing">
-                  <number>3</number>
-                 </property>
                  <property name="leftMargin">
                   <number>9</number>
+                 </property>
+                 <property name="horizontalSpacing">
+                  <number>3</number>
                  </property>
                  <item row="6" column="0">
                   <widget class="QLabel" name="lblStatusObservationPlaning">
@@ -3001,15 +3011,15 @@
                    </item>
                    <item row="3" column="3">
                     <widget class="QTimeEdit" name="edtFilterBegTimePlan">
+                     <property name="displayFormat">
+                      <string>HH:mm</string>
+                     </property>
                      <property name="time">
                       <time>
                        <hour>9</hour>
                        <minute>0</minute>
                        <second>0</second>
                       </time>
-                     </property>
-                     <property name="displayFormat">
-                      <string>HH:mm</string>
                      </property>
                     </widget>
                    </item>
@@ -3028,15 +3038,15 @@
                    </item>
                    <item row="3" column="6">
                     <widget class="QTimeEdit" name="edtFilterEndTimePlan">
+                     <property name="displayFormat">
+                      <string>HH:mm</string>
+                     </property>
                      <property name="time">
                       <time>
                        <hour>9</hour>
                        <minute>0</minute>
                        <second>0</second>
                       </time>
-                     </property>
-                     <property name="displayFormat">
-                      <string>HH:mm</string>
                      </property>
                     </widget>
                    </item>
@@ -3397,16 +3407,16 @@
                </item>
               </layout>
              </widget>
-			 <widget class="QWidget" name="tabReanimation">
-			   <attribute name="title">
-				<string>Реанимация</string>
-			   </attribute>
-			   <layout class="QGridLayout" name="gridLayout_4">
-				<item row="0" column="0">
-				 <widget class="CTableView" name="tblReanimation"/>
-				</item>
-			   </layout>
-			  </widget>
+             <widget class="QWidget" name="tabReanimation">
+              <attribute name="title">
+               <string>Реанимация</string>
+              </attribute>
+              <layout class="QGridLayout" name="gridLayout_4">
+               <item row="0" column="0">
+                <widget class="CTableView" name="tblReanimation"/>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
            <item row="1" column="0">

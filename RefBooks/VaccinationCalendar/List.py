@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -39,6 +39,7 @@ class CRBVaccinationCalendarList(Ui_RBVaccinationCalendarItemList, CItemsListDia
             CDateCol(u'Дата введения', ['date'], 20)
             ], 'rbVaccinationCalendar', [rbCode, rbName])
         self.tblItems.addPopupDelRow()
+        self.tblItems.model().rowsRemoved.connect(self.renewListAndSetTo)
         self.setWindowTitleEx(u'Календари прививок')
 
 
@@ -198,7 +199,7 @@ class CVaccinationCalendarInfectionsModel(CInDocTableModel):
         result = CInDocTableModel.setData(self, index, value, role)
         if addingNewRercord:
             self._tmpItems.append(self._items[-1])
-            self._mapFakeRow2RealRow[len(self.items()-1)] = len(self._tmpItems)-1
+            self._mapFakeRow2RealRow[len(self.items())-1] = len(self._tmpItems)-1
         return result
 
 

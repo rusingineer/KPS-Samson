@@ -17,7 +17,7 @@ u"""
 """
 
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import QDateTime, QVariant
+from PyQt4.QtCore import QDateTime, QVariant, QTime
 
 from ActionProperty import CActionProperty, CActionPropertyType
 from Events.ActionServiceType import CActionServiceType
@@ -25,7 +25,8 @@ from Events.ActionStatus import CActionStatus
 from Events.BLModels.Event import CEvent
 from Events.NomenclatureAddedActionsSelectDialog import CNomenclatureAddedActionsSelectDialog
 from Events.Utils import (getActionTypeIdListByFlatCode, getExistsNomenclature, getEventTypeForm, getEventDuration,
-                          getEventActionContract, syncNomenclature, getEventMedicalAidKindId, calcQuantity)
+                          getEventActionContract, syncNomenclature, getEventMedicalAidKindId, calcQuantity, checkFileAttachListChanged,
+                                      updateNomenclatureDosageValue,)
 from ExecutionPlan.ActionExecutionPlanManager import CActionExecutionPlanManager
 from Orgs.OrgComboBox import CContractDbModel
 from Orgs.Utils import getPersonOrgStructureChiefs, getOrgStructureDescendants
@@ -34,9 +35,10 @@ from Stock.Service import CStockService
 from Stock.Utils import (getNomenclatureUnitRatio, applyNomenclatureUnitRatio, findFinanceBatchShelfTime,
                          getStockMotionNumberCounterId, getExistsNomenclatureAmount,
                          #getBatchShelfTimeFinance,
+                         getBatchShelfTimeFinanceQnt,
                          getRatio)
 from Users.Rights import urEditAfterInvoicingEvent, urEditOtherpeopleAction, urEditSubservientPeopleAction, \
-    urEditOtherPeopleActionSpecialityOnly, urDeleteNotOwnActions, urDeleteActionsWithJobTicket
+    urEditOtherPeopleActionSpecialityOnly, urDeleteNotOwnActions, urDeleteActionsWithJobTicket, urAdmin
 from library.Attach.AttachedFile import CAttachedFilesLoader
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays, addWorkDays
 from library.DbEntityCache import CDbEntityCache
@@ -197,6 +199,7 @@ class CActionType(object):
         self.isExecPersonRequired  = forceInt(record.value('isExecPersonRequired'))
         self.duplication           = forceInt(record.value('duplication'))
         self.office = forceString(record.value('office'))
+        self.showInForm = forceInt(record.value('showInForm'))
         self.showTime = forceBool(record.value('showTime'))
         self.maxOccursInEvent = forceInt(record.value('maxOccursInEvent'))
         self.isMes = forceBool(record.value('isMES'))
@@ -215,6 +218,7 @@ class CActionType(object):
         self.propertyUnitVisible = forceBool(record.value('propertyUnitVisible'))
         self.propertyNormVisible = forceBool(record.value('propertyNormVisible'))
         self.propertyEvaluationVisible = forceBool(record.value('propertyEvaluationVisible'))
+        self.propertyCommentVisible = forceBool(record.value('propertyCommentVisible'))
         self.serviceType = forceInt(record.value('serviceType'))
         self.actualAppointmentDuration = forceInt(record.value('actualAppointmentDuration'))
         self.ticketDuration = forceInt(record.value('ticketDuration'))
@@ -223,12 +227,15 @@ class CActionType(object):
         self.addVisitSceneId = forceRef(record.value('addVisitScene_id'))
         self.addVisitTypeId = forceRef(record.value('addVisitType_id'))
         self.generateAfterEventExecDate = forceBool(record.value('generateAfterEventExecDate'))
+        self.nomenclatureOrgStructureId = forceRef(record.value('nomenclatureOrgStructure_id'))
         self.showBegDate = forceBool(record.value('showBegDate'))
         self.editStatus = forceBool(record.value('editStatus'))
         self.editBegDate = forceBool(record.value('editBegDate'))
         self.editEndDate = forceBool(record.value('editEndDate'))
         self.editNote = forceBool(record.value('editNote'))
         self.editExecPers = forceBool(record.value('editExecPers'))
+        self.editSetPerson = forceBool(record.value('editSetPerson'))
+        self.editOrg = forceBool(record.value('editOrg'))
 
         self._nomenclatureRecordList = None
         self._hasJobTicketPropertyType = False
@@ -317,6 +324,10 @@ class CActionType(object):
         actionTypeList = QtGui.qApp.db.getRecordList('ActionType_Relations', 'related_id, isRequired', 'master_id=%d' % self.id)
         for record in actionTypeList:
             self._relatedActionTypes[forceRef(record.value('related_id'))] = forceBool(record.value('isRequired'))
+
+
+    def getNomenclatureOrgStructureId(self):
+        return self.nomenclatureOrgStructureId
 
 
     def getNomenclatureRecordList(self):
@@ -603,7 +614,7 @@ class CAction(object):
     actionAddProperties     = 2
 
     def __init__(self, actionType=None, record=None, propertyRecords=None, valueRecords=None, reservationId=None,
-                 executionPlanRecord=None, fileAttachRecords=None, specialityId=None):
+                 executionPlanRecord=None, fileAttachRecords=None, specialityId=None, isShort=False):
         self._actionType = actionType
         self._record = None
         self._masterId = None
@@ -618,6 +629,7 @@ class CAction(object):
         self._presetValuesConditions = {}
         self._properties = []
         self._locked = False
+        self._isShort = isShort
         self.nomenclatureExpense = None
         self.nomenclatureClientReservation = None
         self._specifiedName = ''
@@ -632,11 +644,54 @@ class CAction(object):
         self._actionTemplateId = None
         self.trailerIdx = -1
         self.deleteMark = False
+        self.isNomenclatureExpenseChange = False
+        self.isNomenclatureClientReservationChange = False
         self.isJobTicketChange = False
-        self.freeJobTicketCourseId = None
+        self.valuePropertyToTemplateItems = {}
+        self.groupedNomenclature = False
         if record:
             self.setRecord(record, propertyRecords, valueRecords, reservationId, executionPlanRecord, fileAttachRecords, specialityId)
 
+    def setValuePropertyToTemplateItems(self, items):
+        self.valuePropertyToTemplateItems = items
+
+
+    def getValuePropertyToTemplateItems(self):
+        return self.valuePropertyToTemplateItems
+
+
+    def getValuePropertyToTemplate(self, templateId):
+        valueProperty = []
+        if templateId:
+            items = self.getValuePropertyToTemplateItems()
+            valueProperty = items.get(templateId, [])
+        return valueProperty
+
+
+    def setNomenclatureExpenseChange(self, value):
+        self.isNomenclatureExpenseChange = value
+
+
+    def getNomenclatureExpenseChange(self):
+        return self.isNomenclatureExpenseChange
+
+
+    def setNomenclatureClientReservationChange(self, value):
+        self.isNomenclatureClientReservationChange = value
+
+
+    def getNomenclatureClientReservationChange(self):
+        return self.isNomenclatureClientReservationChange
+
+
+    def setNomenclatureClientReservationPrimarySource(self, value):
+        self.isNomenclatureClientReservationPrimarySource = value
+
+
+    def getNomenclatureClientReservationPrimarySource(self):
+        return self.isNomenclatureClientReservationPrimarySource
+
+    
     def setNomenclatureExpensePreliminarySave(self, value):
         self.nomenclatureExpensePreliminarySave = value
 
@@ -691,10 +746,10 @@ class CAction(object):
 
 
     @classmethod
-    def getActionById(cls, actionId):
+    def getActionById(cls, actionId, isShort=False):
         db = QtGui.qApp.db
         actionRecord = db.getRecord('Action', '*', actionId)
-        return cls(record=actionRecord) if actionRecord else None
+        return cls(record=actionRecord, isShort=isShort) if actionRecord else None
 
 
     @classmethod
@@ -767,9 +822,11 @@ class CAction(object):
                             self._propertiesBydataInheritance[prop._type.dataInheritance] = prop
             self._properties = self._propertiesById.values()
             self._properties.sort(key=lambda prop:prop._type.idx)
-            if reservationId != -1:
-                self.nomenclatureClientReservation = CNomenclatureClientReservation(self).load(reservationId)
+            if not self._isShort:
+                if reservationId != -1:
+                    self.nomenclatureClientReservation = CNomenclatureClientReservation(self).load(reservationId)
 
+            self.setNomenclatureClientReservationPrimarySource(self.nomenclatureClientReservation is not None)
         # Добавили инициализацию пустых свойств для шаблонов печати заполнение свойств дефолтными значениями при добавлении через планировщик
         propertyTypeList = self._actionType.getPropertiesById().items()
         for propertyTypeId, propertyType in propertyTypeList:
@@ -780,7 +837,7 @@ class CAction(object):
         personId = forceRef(record.value('person_id'))
         if specialityId is None:
             specialityId = self.getSpecialityId(personId)
-        if not record.isNull('id') and status == CActionStatus.finished and personId:
+        if not record.isNull('id') and status == CActionStatus.finished and personId and not QtGui.qApp.userHasRight(urAdmin):
             self._locked = not ( QtGui.qApp.userId == personId
                              or (QtGui.qApp.userHasRight(urEditOtherPeopleActionSpecialityOnly) and QtGui.qApp.userSpecialityId == specialityId)
                              or QtGui.qApp.userHasRight(urEditOtherpeopleAction)
@@ -788,29 +845,30 @@ class CAction(object):
                            )
         else:
             self._locked = False
-        # списание ЛСиИМН
-        if actionId and self._actionType.isNomenclatureExpense:
-            self.nomenclatureExpense = CNomenclatureExpense(self, actionId, self._actionType,
-                                                            financeId=forceRef(record.value('finance_id')),
-                                                            medicalAidKindId=self._medicalAidKindId,
-                                                            actionAmount=forceInt(record.value('amount')) if forceInt(
-                                                                record.value('amount')) else None,
-                                                            supplierId=self._orgStructureId)
+        if not self._isShort:
+            # списание ЛСиИМН
+            if actionId and self._actionType.isNomenclatureExpense:
+                self.nomenclatureExpense = CNomenclatureExpense(self, actionId, self._actionType,
+                                                                financeId=forceRef(record.value('finance_id')),
+                                                                medicalAidKindId=self._medicalAidKindId,
+                                                                actionAmount=forceInt(record.value('amount')) if forceInt(
+                                                                    record.value('amount')) else None,
+                                                                supplierId=self._orgStructureId)
 
-        if actionId:
-            self._executionPlanManager.load(executionPlanRecord)
+            if actionId:
+                self._executionPlanManager.load(executionPlanRecord)
 
-        self._specifiedName = forceString(record.value('specifiedName'))
-        self.updateSpecifiedName()
-        # прикреплённые файлы
-        self._attachedFileItemList = []
-        # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
-        if hasattr(QtGui.qApp, 'webDAVInterface'):
-            storageInterface = QtGui.qApp.webDAVInterface
-            if fileAttachRecords is None:
-                self._attachedFileItemList = CAttachedFilesLoader.loadItems(storageInterface, 'Action_FileAttach', actionId)
-            else:
-                self._attachedFileItemList = CAttachedFilesLoader.loadItemsFromRecords(storageInterface, fileAttachRecords)
+            self._specifiedName = forceString(record.value('specifiedName'))
+            self.updateSpecifiedName()
+            # прикреплённые файлы
+            self._attachedFileItemList = []
+            # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
+            if hasattr(QtGui.qApp, 'webDAVInterface'):
+                storageInterface = QtGui.qApp.webDAVInterface
+                if fileAttachRecords is None:
+                    self._attachedFileItemList = CAttachedFilesLoader.loadItems(storageInterface, 'Action_FileAttach', actionId)
+                else:
+                    self._attachedFileItemList = CAttachedFilesLoader.loadItemsFromRecords(storageInterface, fileAttachRecords)
 
 
     def getSpecialityId(self, personId):
@@ -831,6 +889,15 @@ class CAction(object):
                 self._medicalAidKindId = self.getMedicalAidKindId()
             self.nomenclatureExpense.addNomenclature(nomenclatureId, financeId=self._financeId, medicalAidKindId=self._medicalAidKindId)
 
+
+    def addNomenclatureEx(self, nomenclatureId):
+        if self.nomenclatureExpense:
+            self._financeId = self.getFinanceId()
+            if not self._medicalAidKindId:
+                self._medicalAidKindId = self.getMedicalAidKindId()
+            self.nomenclatureExpense.addNomenclatureEx(nomenclatureId, financeId=self._financeId, medicalAidKindId=self._medicalAidKindId)
+
+
     def updateNomenclatureDosageValue(self, nomenclatureId, dosageValue, force=False):
         if self.nomenclatureExpense:
             self.nomenclatureExpense.updateNomenclatureDosageValue(nomenclatureId, dosageValue, force)
@@ -839,12 +906,132 @@ class CAction(object):
     def removeNomenclature(self, nomenclatureId):
         if self.nomenclatureExpense:
             self.nomenclatureExpense.removeNomenclature(nomenclatureId)
+    
+    
+    def findReactionPropertyValue(self):
+        return self._findActionSelectionTableProeprtyValue(5)
+
+
+    def getReactionPropertyText(self):
+        return self._findActionSelectionTableProeprtyText(5)
+
+
+    def setReactionPropertyValue(self, value):
+        return self.setActionSelectionTablePropertyValue(5, value)
+
+
+    def setCancelDatePropertyValue(self, value):
+        return self.setActionSelectionTablePropertyValue(6, value)
+    
+
+    def findSignaPropertyValue(self):
+        return self._findActionSelectionTableProeprtyValue(3)
+    
+    
+    def findSignaPropertyText(self):
+        return self._findActionSelectionTableProeprtyText(3)
+    
+    
+    def findSignaCommentPropertyText(self):
+        return self._findActionSelectionTablePropertyComment(3)
+
+
+    def findSignaCommentTypePropertyText(self):
+        return self._findActionSelectionTablePropertyCommentType(3)
+
+
+    def setSignaPropertyValue(self, value):
+        return self.setActionSelectionTablePropertyValue(3, value)
+
+    
+    def setSignaCommentPropertyValue(self, value):
+        return self.setActionSelectionTablePropertyComment(3, value)
+
 
     def findDosagePropertyValue(self):
         return self._findActionSelectionTableProeprtyValue(2)
+    
+    
+    def setDosagePropertyValue(self, value):
+        return self.setActionSelectionTablePropertyValue(2, value)
+
 
     def findNomenclaturePropertyValue(self):
         return self._findActionSelectionTableProeprtyValue(1)
+
+    
+    def getNomenclaturePropertyText(self):
+        return self._findActionSelectionTableProeprtyText(1)
+    
+    
+    def setNomenclaturePropertyValue(self, value):
+        return self.setActionSelectionTablePropertyValue(1, value)
+
+    
+    def getGroupDosesTextEx(self):
+        doses = self.findDosagePropertyValue()
+        name = self.getNomenclatureDosageUnitName(self.findNomenclaturePropertyValue())
+        if name:
+            return ' '.join([str(doses), name])
+        return str(doses)
+
+
+    def getNomenclatureDosageUnitName(self, nomenclatureId):
+        values = self._getNomenclatureValues(nomenclatureId)
+        if not values:
+            return ''
+        return values['dosageUnitName']
+
+
+    def _getNomenclatureValues(self, nomenclatureId):
+        nomenclatureData = {}
+        if not nomenclatureId:
+            return {
+                'dosageUnitName': u'',
+                'usingTypes': [],
+                'dosageValue': 0.0,
+                'dosageUnitId': None
+                }
+        if nomenclatureId not in nomenclatureData:
+            db = QtGui.qApp.db
+            nomenclatureRecord = db.getRecord(
+                'rbNomenclature',
+                'unit_id, '
+                'dosageValue',
+                nomenclatureId
+            )
+            if not nomenclatureRecord:
+                nomenclatureData[nomenclatureId] = {
+                    'dosageUnitName': u'',
+                    'usingTypes': [],
+                    'dosageValue': 0.0,
+                    'dosageUnitId': None
+                }
+                return nomenclatureData[nomenclatureId]
+            dosageUnitId = forceRef(nomenclatureRecord.value('unit_id'))
+            result = {
+                'dosageValue': forceDouble(nomenclatureRecord.value('dosageValue')),
+                'dosageUnitId': dosageUnitId
+            }
+            if dosageUnitId:
+                unitRecord = db.getRecord('rbUnit', 'code, name', dosageUnitId)
+                name = forceString(unitRecord.value('code')) if unitRecord else u''
+            else:
+                name = ''
+            result['dosageUnitName'] = name
+            unitTypesTable = db.table('rbNomenclature_UsingType')
+            tableUsingType = db.table('rbNomenclatureUsingType')
+            queryUsingType = unitTypesTable.innerJoin(tableUsingType, tableUsingType['id'].eq(unitTypesTable['usingType_id']))
+            unitTypesRecordList = db.getRecordList(
+                queryUsingType,
+                [tableUsingType['name'].alias('usingType')],
+                where=unitTypesTable['master_id'].eq(nomenclatureId),
+                order=unitTypesTable['idx'].name()
+            )
+            result['usingTypes'] = [forceStringEx(r.value('usingType')) for r in unitTypesRecordList]
+            nomenclatureData[nomenclatureId] = result
+        return nomenclatureData[nomenclatureId]
+    
 
     def _findActionSelectionTableProeprtyValue(self, inActionsSelectionTable):
         actionType = self.getType()
@@ -852,7 +1039,138 @@ class CAction(object):
             if propertyType.inActionsSelectionTable != inActionsSelectionTable:
                 continue
             return self.getPropertyById(propertyType.id).getValue()
+        return None
 
+
+    def _findActionSelectionTablePropertyComment(self, inActionsSelectionTable):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.inActionsSelectionTable != inActionsSelectionTable:
+                continue
+            return self.getPropertyById(propertyType.id).getComment()
+        return u''
+
+
+    def _findActionSelectionTablePropertyCommentType(self, inActionsSelectionTable):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.inActionsSelectionTable != inActionsSelectionTable:
+                continue
+            return self.getPropertyById(propertyType.id).getCommentType()
+        return u''
+
+
+    def setActionSelectionTablePropertyComment(self, inActionsSelectionTable, value):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.inActionsSelectionTable == inActionsSelectionTable:
+                self.getPropertyById(propertyType.id).setComment(value)
+                return self.getPropertyById(propertyType.id).getComment()
+
+
+    def getSmnnUUIDPropertyValue(self):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnActionPropertyValueType():
+                property = self.getPropertyById(propertyType.id)
+                return property.getValue()
+        return None
+
+
+    def getSmnnUUIDPropertyText(self):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnActionPropertyValueType():
+                property = self.getPropertyById(propertyType.id)
+                return property.getText()
+        return ''
+
+
+    def setSmnnUUIDPropertyValue(self, value):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnActionPropertyValueType():
+                self.getPropertyById(propertyType.id).setValue(value)
+                return self.getPropertyById(propertyType.id).getValue()
+        return None
+
+    def getSmnnGrlsLfPropertyValue(self):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                property = self.getPropertyById(propertyType.id)
+                return property.getValue()
+        return None
+    
+
+    def getSmnnGrlsLfPropertyText(self):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                property = self.getPropertyById(propertyType.id)
+                return property.getText()
+        return ''
+
+
+    def setSmnnGrlsLfPropertyValue(self, value):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureSmnnGrlsLfActionPropertyValueType():
+                self.getPropertyById(propertyType.id).setValue(value)
+                return self.getPropertyById(propertyType.id).getValue()
+        return None
+
+
+    def _findActionSelectionTableProeprtyText(self, inActionsSelectionTable):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.inActionsSelectionTable != inActionsSelectionTable:
+                continue
+            return self.getPropertyById(propertyType.id).getText()
+        return ''
+    
+    def setActionSelectionTablePropertyValue(self, inActionsSelectionTable, value):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.inActionsSelectionTable == inActionsSelectionTable:
+                self.getPropertyById(propertyType.id).setValue(value)
+                return self.getPropertyById(propertyType.id).getValue()
+            
+    
+    def getCalculationParamPropertyValue(self):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureCalculationParamActionPropertyValueType():
+                property = self.getPropertyById(propertyType.id)
+                return property.getValue()
+        return None
+    
+    
+    def setCalculationParamPropertyValue(self, value):
+        propertyList = self.getProperties()
+        for actionProperty in propertyList:
+            propertyType = actionProperty.type()
+            if propertyType.isNomenclatureCalculationParamActionPropertyValueType():
+                self.getPropertyById(propertyType.id).setValue(value)
+                return self.getPropertyById(propertyType.id).getValue()
+        return None
+
+
+    def isNomenclatureUsingTypeActionPropertyValueType(self):
+        actionType = self.getType()
+        for propertyType in actionType.getPropertiesById().values():
+            if propertyType.isNomenclatureUsingTypeActionPropertyValueType():
+                return True
+        return False
+    
+    
     def getStockMotionRecord(self):
         return self.nomenclatureExpense.stockMotionRecord() if self.nomenclatureExpense else None
 
@@ -877,6 +1195,18 @@ class CAction(object):
 
     def cancel(self):
         # Вот в случае разных отмен, не сохранения действия, тут нужно зависимости подчищать.
+        if self.nomenclatureExpense:
+            self.nomenclatureExpense.cancel()
+            self.nomenclatureExpense = None
+        if self.nomenclatureClientReservation:
+            self.nomenclatureClientReservation.cancel()
+            self.nomenclatureClientReservation = None
+    
+    def setChanged(self, value):
+        self._changed = value
+    
+    
+    def nomenclatureClientReservationCancel(self):
         if self.nomenclatureClientReservation:
             self.nomenclatureClientReservation.cancel()
             self.nomenclatureClientReservation = None
@@ -1027,8 +1357,11 @@ class CAction(object):
                             if execOrgStructureId:
                                 recordJT.setValue('orgStructure_id', toVariant(execOrgStructureId))
                                 db.updateRecord('Job_Ticket', recordJT)
-
-            self._executionPlanManager.save()
+            if not self._isShort or self.groupedNomenclature:
+                if self.actionType().isDoesNotInvolveExecutionCourse:
+                    self._executionPlanManager.saveFromCurrentItems()
+                else:
+                    self._executionPlanManager.save()
 
             # удалить записи свойств кроме сохранённых
             tableActionProperty = db.table('ActionProperty')
@@ -1040,15 +1373,21 @@ class CAction(object):
                 db.deleteRecord(tableActionProperty,
                                  [tableActionProperty['action_id'].eq(id)])
 
-            # списание ЛСиИМН
-            if self._record and self.saveNomenclatureExpense(self.nomenclatureExpensePreliminarySave):
-                db.updateRecord(tableAction, self._record)
+            if not self._isShort:
+                # списание ЛСиИМН
+                if self._record and self.saveNomenclatureExpense(self.nomenclatureExpensePreliminarySave):
+                    db.updateRecord(tableAction, self._record)
+                    
+            if not self._isShort or self.groupedNomenclature:
+                self.updateNomenclatureClientReservation()
+                if self.groupedNomenclature:
+                    self.nomenclatureExpense._releaseReservation()
 
-            self.updateNomenclatureClientReservation()
-
-            if hasattr(QtGui.qApp, 'webDAVInterface'): # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
-                storageInterface = QtGui.qApp.webDAVInterface
-                CAttachedFilesLoader.saveItems(storageInterface, 'Action_FileAttach', id, self._attachedFileItemList)
+            if not self._isShort:
+                # проверка прикреплённых файлов
+                if hasattr(QtGui.qApp, 'webDAVInterface'): # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
+                    storageInterface = QtGui.qApp.webDAVInterface
+                    CAttachedFilesLoader.saveItems(storageInterface, 'Action_FileAttach', id, self._attachedFileItemList)
             return id
 
     def updateNomenclatureClientReservation(self):
@@ -1057,7 +1396,7 @@ class CAction(object):
 
         self.nomenclatureClientReservation.linkAction(self)
 
-    def saveNomenclatureExpense(self, nomenclatureExpensePreliminarySave = False):
+    def saveNomenclatureExpense(self, nomenclatureExpensePreliminarySave = False, isActionNoSave = False):
         status = forceInt(self.getRecord().value('status'))
         if self.nomenclatureExpense:
             if not self._actionType.generateAfterEventExecDate or bool(self._actionType.generateAfterEventExecDate and self.event.execDate):
@@ -1067,10 +1406,12 @@ class CAction(object):
                     if QtGui.qApp.controlSMFinance() in (1, 2):
                         self._financeId = self.getFinanceId()
                     self._medicalAidKindId = self.getMedicalAidKindId()
-                    stockMotionId = self.nomenclatureExpense.save(nomenclatureExpensePreliminarySave)
+                    stockMotionId = self.nomenclatureExpense.save(nomenclatureExpensePreliminarySave, isActionNoSave = isActionNoSave)
                     if stockMotionId:
                         if not self._record:
                             self._record = self._getNewRecord()
+                        prevStockMotionId = forceRef(self._record.value('stockMotion_id'))
+                        self._record.setValue('prevStockMotion_id', toVariant(prevStockMotionId))
                         self._record.setValue('stockMotion_id', toVariant(stockMotionId))
                         return True
                 elif status == CActionStatus.canceled:
@@ -1123,8 +1464,24 @@ class CAction(object):
         return forceDate(self._record.value('endDate')) if self._record else None
 
 
+    def getEndDatetime(self):
+        return forceDateTime(self._record.value('endDate')) if self._record else None
+
+
     def getPersonId(self):
         return forceRef(self._record.value('person_id')) if self._record else None
+
+
+    def getSetPersonId(self):
+        return forceRef(self._record.value('setPerson_id')) if self._record else None
+
+
+    def getCreatePersonId(self):
+        return forceRef(self._record.value('createPerson_id')) if self._record else None
+
+
+    def getModifyPersonId(self):
+        return forceRef(self._record.value('modifyPerson_id')) if self._record else None
 
 
     def getOwnerPersonId(self):
@@ -1153,6 +1510,10 @@ class CAction(object):
 
     def getDirectionDate(self):
         return forceDateTime(self._record.value('directionDate')) if self._record else None
+
+    def getActionTypeGroupId(self):
+        return forceRef(self._record.value('actionTypeGroup_id')) if self._record else None
+
 
     def setDirectionDate(self, directionDate):
         assert self._record
@@ -1225,6 +1586,14 @@ class CAction(object):
 
     def getPeriodicity(self):
         return forceInt(self._record.value('periodicity'))
+
+
+    def setNote(self, value):
+        self._record.setValue('note', toVariant(value))
+
+
+    def getNote(self):
+        return forceInt(self._record.value('note'))
 
 
     def isLocked(self):
@@ -1488,7 +1857,7 @@ class CAction(object):
         if templateRecord:
             if not clientSex and not clientAge:
                 from Registry.Utils        import getClientSexAge
-                clientId = self.event.client_id if self.event else self._presetValuesConditions['clientId']
+                clientId = self.event.client_id if self.event else self._presetValuesConditions.get('clientId', None)
                 clientSex, clientAge = getClientSexAge(clientId)
             templateAction = CAction(record=templateRecord)
             self.updateByAction(templateAction, checkPropsOnOwner, clientSex, clientAge)
@@ -1595,16 +1964,17 @@ class CAction(object):
                 buttons = QtGui.QMessageBox.Yes|QtGui.QMessageBox.No | QtGui.QMessageBox.Cancel
                 widget = QtGui.qApp.activeModalWidget() or QtGui.qApp.mainWindow or None
                 nomenclatureId = self.findNomenclaturePropertyValue()
-                nomenclatureName = forceString(QtGui.qApp.db.translate('rbNomenclature', 'id', nomenclatureId, 'name'))
-                result = QtGui.QMessageBox.question(widget,
-                                           u'Внимание!',
-                                           u'Выполнить резервирование %s?'%nomenclatureName,
-                                           buttons,
-                                           QtGui.QMessageBox.Cancel)
-                if result == QtGui.QMessageBox.Cancel:
-                    self.deleteMark = True
-                elif result == QtGui.QMessageBox.Yes:
-                    self.nomenclatureClientReservation = CNomenclatureClientReservation(self, clientId=clientId, financeId=financeId, medicalAidKindId=medicalAidKindId, supplierId=supplierId, markToUpdate=markToUpdate).init(dosage)
+                if nomenclatureId:
+                    nomenclatureName = forceString(QtGui.qApp.db.translate('rbNomenclature', 'id', nomenclatureId, 'name'))
+                    result = QtGui.QMessageBox.question(widget,
+                                                u'Внимание!',
+                                                u'Выполнить резервирование %s?'%nomenclatureName,
+                                                buttons,
+                                                QtGui.QMessageBox.Cancel)
+                    if result == QtGui.QMessageBox.Cancel:
+                        self.deleteMark = True
+                    elif result == QtGui.QMessageBox.Yes:
+                        self.nomenclatureClientReservation = CNomenclatureClientReservation(self, clientId=clientId, financeId=financeId, medicalAidKindId=medicalAidKindId, supplierId=supplierId, markToUpdate=markToUpdate).init(dosage)
 
 
     def releaseNomenclatureReservation(self, nomenclatureId):
@@ -1755,7 +2125,13 @@ class CAction(object):
             QtGui.qApp.userId if (QtGui.qApp.userId and QtGui.qApp.userSpecialityId) else execPersonId))
         newRecord.setValue('org_id', toVariant(record.value('org_id')))
         newRecord.setValue('amount', toVariant(record.value('amount')))
+        actionFinanceId = self.getFinanceId()
+        newRecord.setValue('finance_id', toVariant(actionFinanceId))
+        actionMedicalAidKindId = self.getMedicalAidKindId()
+        newRecord.setValue('medicalAidKind_id', toVariant(actionMedicalAidKindId))
         newAction = CAction(record=newRecord)
+        newAction.setFinanceId(forceRef(newRecord.value('finance_id')))
+        newAction.setMedicalAidKindId(forceRef(newRecord.value('medicalAidKind_id')))
         newAction.updateByAction(self)
         executionPlan = self.getExecutionPlan()
         if nextExecutionPlanItem:
@@ -1783,17 +2159,26 @@ class CAction(object):
         newRecord.setValue('aliquoticity', toVariant(aliquoticity))
         newRecord.setValue('quantity', toVariant(quantity - (1 if quantity > 0 else 0)))
         newAction.initPropertiesBySameAction(self)
-        if QtGui.qApp.controlSMFinance() == 0:
-            newAction.initNomenclature(clientId, medicalAidKindId=self._medicalAidKindId)
-            newAction.nomenclatureReservationFromAction(self, medicalAidKindId=self._medicalAidKindId, supplierId=orgStructureId)
-        else:
-            newAction.initNomenclature(clientId, financeId=forceRef(record.value('finance_id')), medicalAidKindId=self._medicalAidKindId)
-            newAction.nomenclatureReservationFromAction(self, financeId=forceRef(record.value('finance_id')), medicalAidKindId=self._medicalAidKindId, supplierId=orgStructureId)
+        financeId = newAction.getFinanceId()
+        medicalAidKindId = newAction.getMedicalAidKindId()
+        #if QtGui.qApp.controlSMFinance() == 0:
+        #    newAction.initNomenclature(clientId, medicalAidKindId=self._medicalAidKindId)
+        #    newAction.nomenclatureReservationFromAction(self, medicalAidKindId=self._medicalAidKindId, supplierId=orgStructureId)
+        #else:
+        newAction.initNomenclature(clientId, financeId=financeId, medicalAidKindId=medicalAidKindId)
+        newAction.nomenclatureReservationFromAction(self, financeId=financeId, medicalAidKindId=medicalAidKindId, supplierId=orgStructureId)
         if newAction.getType().isNomenclatureExpense:
             newAction.updateDosageFromExecutionPlan()
             newAction.updateSpecifiedName()
+            noteAction = forceStringEx(record.value('note'))
+            note = noteAction if noteAction else (forceStringEx(executionPlan.getNote()) if executionPlan else u'')
+            newAction.setNote(note)
+            newRecord.setValue('note', toVariant(note))
+            if executionPlan:
+                executionPlan.setNote(note)
         else:
             newRecord.setValue('specifiedName', toVariant(specifiedName))
+            newAction.setSpecifiedName(specifiedName)
         newAction.finalFillingPlannedEndDate()
         return newAction
 
@@ -1837,9 +2222,9 @@ class CAction(object):
 
     @classmethod
     def getFilledAction(cls, eventEditor, record, actionTypeId,
-                        amount=None, financeId=None, contractId=None, initPresetValues=True):
+                        amount=None, financeId=None, contractId=None, initPresetValues=True, orgStructureId=None):
 
-        cls.preFillingActionRecord(eventEditor, record, actionTypeId, amount, financeId, contractId)
+        cls.preFillingActionRecord(eventEditor, record, actionTypeId, amount, financeId, contractId, orgStructureId=orgStructureId)
         if actionTypeId is None:
             return None
 
@@ -1849,8 +2234,9 @@ class CAction(object):
 
 
     @staticmethod
-    def preFillingActionRecord(eventEditor, record, actionTypeId, amount, financeId, contractId):
+    def preFillingActionRecord(eventEditor, record, actionTypeId, amount, financeId, contractId, orgStructureId=None):
         # сюда - инициализация, которая никак не зависит от свойств действия
+        orgStructureId = orgStructureId
         if actionTypeId:
             actionType = CActionTypeCache.getById(actionTypeId)
             defaultStatus = actionType.defaultStatus
@@ -1864,6 +2250,8 @@ class CAction(object):
             defaultOrgId = actionType.defaultOrgId
             office = actionType.office
             record.setValue('actionType_id', toVariant(actionTypeId))
+            if actionType.isNomenclatureExpense:
+                orgStructureId = actionType.getNomenclatureOrgStructureId()
         else:
             defaultStatus = CActionStatus.finished  # Закончено
             defaultDirectionDate = CActionType.dddUndefined
@@ -1875,6 +2263,8 @@ class CAction(object):
             defaultMKB = None
             defaultOrgId = None
             office = ''
+        if not orgStructureId:
+            orgStructureId = QtGui.qApp.currentOrgStructureId()
 
         if defaultEndDate == CActionType.dedEventExecDate:
             endDate = forceDateTime(eventEditor.eventDate)
@@ -1948,6 +2338,8 @@ class CAction(object):
         
         if defaultSetPerson == CActionType.dspExecPerson:
             setPersonId = personId
+        elif defaultSetPerson == CActionType.dspUndefined:
+            setPersonId = QtGui.qApp.userId
 
         if defaultBegDate == CActionType.dbdActionEndDate:
             begDate = max(endDate, directionDate)
@@ -1979,7 +2371,7 @@ class CAction(object):
                     (orgStructIdList and forceInt(personRecord.value('orgStructure_id')) not in orgStructIdList):
                         personId = None
                 
-        record.setValue('orgStructure_id', toVariant(QtGui.qApp.currentOrgStructureId()))
+        record.setValue('orgStructure_id', toVariant(orgStructureId))
         record.setValue('directionDate', toVariant(directionDate))
         record.setValue('setPerson_id', toVariant(setPersonId))
         record.setValue('begDate', toVariant(max(begDate, directionDate)))
@@ -2020,10 +2412,10 @@ class CAction(object):
             self.initPresetValues()
         self._medicalAidKindId = self.getMedicalAidKindId(eventEditor.eventTypeId)
         self.finalFillingActionRecord()
-        if QtGui.qApp.controlSMFinance() == 0:
-            self.initNomenclature(eventEditor.clientId, medicalAidKindId=self.getMedicalAidKindId())
-        else:
-            self.initNomenclature(eventEditor.clientId, financeId=self.getFinanceId(), medicalAidKindId=self.getMedicalAidKindId())
+        #if QtGui.qApp.controlSMFinance() == 0:
+        #    self.initNomenclature(eventEditor.clientId, medicalAidKindId=self.getMedicalAidKindId())
+        #else:
+        self.initNomenclature(eventEditor.clientId, financeId=self.getFinanceId(), medicalAidKindId=self.getMedicalAidKindId())
 
 
     def finalFillingActionRecord(self):
@@ -2100,6 +2492,21 @@ class CAction(object):
     def setBegDate(self, begDate):
         record = self.getRecord()
         record.setValue('begDate', toVariant(begDate))
+
+
+    def setBegTime(self, begTime):
+        showTime = self._actionType.showTime if self._actionType else False
+        if not showTime:
+           begTime = QTime()
+        record = self.getRecord()
+        begDate = forceDate(record.value('begDate'))
+        record.setValue('begDate', toVariant(QDateTime(begDate, begTime)))
+
+
+    def setEndDate(self, endDate):
+        record = self.getRecord()
+        record.setValue('endDate', toVariant(endDate))
+
 
     def setPlannedEndDate(self, plannedEndDate):
         record = self.getRecord()
@@ -2220,6 +2627,25 @@ class CNomenclatureClientReservation(object):
         self.markToDelete = False
         self.markToUpdate = markToUpdate
 
+
+    def cancelEx(self, clientReservationToAction):
+        if not self._record:
+            return False
+        reservationId = forceRef(self._record.value('id'))
+        if not reservationId:
+            return False
+        reservationToActionLine = clientReservationToAction.get(reservationId, [])
+        for reservationActionId in reservationToActionLine:
+            if self._actionId != reservationActionId:
+                return False
+        QtGui.qApp.db.deleteRecord(self._tableStockMotionItem, [self._tableStockMotionItem['master_id'].eq(reservationId), self._tableStockMotionItem['deleted'].eq(0)])
+        QtGui.qApp.db.deleteRecord(self._tableStockMotion, [self._tableStockMotion['id'].eq(reservationId), self._tableStockMotion['deleted'].eq(0)])
+        if self._actionId:
+            QtGui.qApp.db.deleteRecord(self._linkTable, [self._linkTable['action_id'].eq(self._actionId), self._linkTable['reservation_id'].eq(reservationId)])
+        self._record = None
+        self._items = []
+        return True
+
     def cancel(self):
         if not self._record:
             return
@@ -2235,6 +2661,30 @@ class CNomenclatureClientReservation(object):
         self._items = []
 
 
+    def reverseNomenclature(self, clientStockMotionItem):
+        nomenclatureId = forceRef(clientStockMotionItem.value('nomenclature_id'))
+        csmQnt = forceDouble(clientStockMotionItem.value('qnt'))
+        if csmQnt > 0 and forceRef(clientStockMotionItem.value('id')):
+            csmPrice = forceDouble(clientStockMotionItem.value('price'))
+            unitId = forceRef(clientStockMotionItem.value('unit_id'))
+            batch = forceString(clientStockMotionItem.value('batch'))
+            shelfTime = forceDate(clientStockMotionItem.value('shelfTime'))
+            financeId = forceRef(clientStockMotionItem.value('finance_id'))
+            medicalAidKindId = forceRef(clientStockMotionItem.value('medicalAidKind_id'))
+            for item in self._items:
+                if nomenclatureId != forceRef(item.value('nomenclature_id')):
+                    continue
+                if csmQnt > 0 and batch == forceString(item.value('batch')) and shelfTime == forceDate(item.value('shelfTime')) and csmPrice == forceDouble(item.value('price')) and financeId == forceRef(item.value('finance_id')) and  medicalAidKindId == forceRef(item.value('medicalAidKind_id')):
+                    ratio = getNomenclatureUnitRatio(nomenclatureId, unitId, forceRef(item.value('unit_id')))
+                    csmQnt *= ratio
+                    reservedQnt = forceDouble(item.value('qnt'))
+                    item.setValue('qnt', toVariant(reservedQnt+csmQnt))
+                    sum = forceDouble(item.value('price')) * forceDouble(item.value('qnt'))
+                    item.setValue('sum', toVariant(sum))
+                    csmQnt = 0
+                    QtGui.qApp.db.updateRecord(self._tableStockMotionItem, item)
+
+
     def releaseNomenclature(self, clientStockMotionItem):
         nomenclatureId = forceRef(clientStockMotionItem.value('nomenclature_id'))
         csmQnt = forceDouble(clientStockMotionItem.value('qnt'))
@@ -2242,12 +2692,15 @@ class CNomenclatureClientReservation(object):
         unitId = forceRef(clientStockMotionItem.value('unit_id'))
         batch = forceString(clientStockMotionItem.value('batch'))
         shelfTime = forceDate(clientStockMotionItem.value('shelfTime'))
+        csmPrice = forceDouble(clientStockMotionItem.value('price'))
+        financeId = forceRef(clientStockMotionItem.value('finance_id'))
+        medicalAidKindId = forceRef(clientStockMotionItem.value('medicalAidKind_id'))
 
         for item in self._items:
             if nomenclatureId != forceRef(item.value('nomenclature_id')):
                 continue
 
-            if batch == forceString(item.value('batch')) and shelfTime == forceDate(item.value('shelfTime')):
+            if batch == forceString(item.value('batch')) and shelfTime == forceDate(item.value('shelfTime')) and csmPrice == forceDouble(item.value('price')) and financeId == forceRef(item.value('finance_id')) and  medicalAidKindId == forceRef(item.value('medicalAidKind_id')):
                 ratio = getNomenclatureUnitRatio(nomenclatureId, unitId, forceRef(item.value('unit_id')))
 
                 csmQnt *= ratio
@@ -2302,8 +2755,9 @@ class CNomenclatureClientReservation(object):
         return qnt * coeff
 
     def init(self, dosage=None):
+        actionType = self._action.getType()
         executionPlan = self._action.getExecutionPlan()
-        if not executionPlan or not self._clientId:
+        if (not executionPlan and not actionType.isDoesNotInvolveExecutionCourse) or not self._clientId:
             return None
 
         db = QtGui.qApp.db
@@ -2317,7 +2771,6 @@ class CNomenclatureClientReservation(object):
         try:
             actionRecord = self._action.getRecord()
             self._supplierId = forceRef(actionRecord.value('orgStructure_id'))
-            actionType = self._action.getType()
             propertyTypeList = actionType.getPropertiesById().values() if actionType else []
             for propertyType in propertyTypeList:
                 if propertyType.isNomenclatureValueType() and propertyType.inActionsSelectionTable == self._RECIPE_PROPERTY:
@@ -2334,9 +2787,10 @@ class CNomenclatureClientReservation(object):
 #                    stockUnitId = forceRef(nomenclatureRecord.value('defaultStockUnit_id'))
 
                     executionPlanQnt = 0
-                    for item in executionPlan.items:
-                        if item.nomenclature and not item.executedDatetime:
-                            executionPlanQnt += item.nomenclature.dosage
+                    if executionPlan:
+                        for item in executionPlan.items:
+                            if item.nomenclature and not item.executedDatetime:
+                                executionPlanQnt += item.nomenclature.dosage
 
                     if not stockMotionId:
                         # TODO Это все через сервис
@@ -2379,27 +2833,31 @@ class CNomenclatureClientReservation(object):
                         stockMotionItem.setFinanceId(self._financeId)
                         stockMotionItem.setMedicalAidKindId(self._medicalAidKindId)
                         stockMotionItem.note = u''
-                        existQnt = getExistsNomenclatureAmount(nomenclatureId, financeId=stockMotionItem.finance_id, medicalAidKindId=stockMotionItem.medicalAidKind_id, batch=stockMotionItem.batch, orgStructureId=orgStructureId, unitId=clientUnitId)
+                        existQnt = getExistsNomenclatureAmount(nomenclatureId, financeId=stockMotionItem.finance_id, medicalAidKindId=stockMotionItem.medicalAidKind_id, batch=stockMotionItem.batch, orgStructureId=orgStructureId, unitId=clientUnitId, precision=QtGui.qApp.numberDecimalPlacesQnt())
                         if existQnt:
-                            stockMotionItem.qnt = existQnt if existQnt <= qnt else qnt
+                            #stockMotionItem.qnt = existQnt if existQnt <= qnt else qnt
+                            remainsQnt = existQnt if existQnt <= qnt else qnt
 #                            stockMotionItem.sum = calcNomenclatureSumFromRecord(itemRecord)
                             ratioQnt = getRatio(nomenclatureId, stockMotionItem.unit_id, None)
-                            findQnt = (stockMotionItem.qnt * ratioQnt) if ratioQnt else stockMotionItem.qnt
-                            financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=findQnt, financeId=self._financeId, medicalAidKind=self._medicalAidKindId)
-                            #batch, shelfTime, financeId, medicalAidKindId, price = getBatchShelfTimeFinance(nomenclatureId, financeId=self._financeId, medicalAidKind=self._medicalAidKindId, condHaving=u'''qnt >= %s'''%(str(findQnt)), orgStructureId=orgStructureId)
-                            stockMotionItem.finance_id = financeId
-                            stockMotionItem.batch = batch
-                            stockMotionItem.shelfTime = shelfTime
-                            if ratioQnt is not None:
-                                price = price*ratioQnt
-                            stockMotionItem.price = price
-                            stockMotionItem.sum = stockMotionItem.price * stockMotionItem.qnt
-                            stockMotionItem.medicalAidKind_id = medicalAidKindId
-                            if not medicalAidKindId:
-                                itemRecord.setNull('medicalAidKind_id')
-                            db.insertRecord(self._tableStockMotionItem, itemRecord)
-                            self._items.append(itemRecord)
-                            qnt = qnt - (existQnt if existQnt <= qnt else qnt)
+                            findQnt = (remainsQnt * ratioQnt) if ratioQnt else remainsQnt
+                            #financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt=findQnt, financeId=self._financeId, medicalAidKind=self._medicalAidKindId)
+                            findMinimumQnt = 1.0/pow(10, QtGui.qApp.numberDecimalPlacesQnt()) #0011442:0065687 и 0011442:0065689: иначе остаются крошки от таблеток, партия как бы есть, а в результате округления по numberDecimalPlacesQnt batchQnt = 0, из-за чего подбор партий зацикливается.
+                            batch, shelfTime, financeId, medicalAidKindId, price, batchQnt = getBatchShelfTimeFinanceQnt(nomenclatureId, financeId=self._financeId, medicalAidKind=self._medicalAidKindId, condHaving=u'''(qnt >= %s or qnt > %s)'''%(str(findQnt), str(findMinimumQnt)), orgStructureId=orgStructureId, unitId=clientUnitId, precision=QtGui.qApp.numberDecimalPlacesQnt())
+                            if batchQnt > 0:
+                                stockMotionItem.qnt = remainsQnt if remainsQnt <= batchQnt else batchQnt
+                                stockMotionItem.finance_id = financeId
+                                stockMotionItem.batch = batch
+                                stockMotionItem.shelfTime = shelfTime
+                                if ratioQnt is not None:
+                                    price = price*ratioQnt
+                                stockMotionItem.price = price
+                                stockMotionItem.sum = stockMotionItem.price * stockMotionItem.qnt
+                                stockMotionItem.medicalAidKind_id = medicalAidKindId
+                                if not medicalAidKindId:
+                                    itemRecord.setNull('medicalAidKind_id')
+                                db.insertRecord(self._tableStockMotionItem, itemRecord)
+                                self._items.append(itemRecord)
+                                qnt = qnt - (stockMotionItem.qnt if stockMotionItem.qnt <= qnt else qnt)
                         else:
                             qnt = 0
         except:
@@ -2553,6 +3011,47 @@ class CNomenclatureExpense:
             self._actionType = action.getType()
 
 
+    def cancel(self):
+        stockMotionId = self.getStockMotionId()
+        if not stockMotionId:
+            return
+        QtGui.qApp.db.deleteRecord(self._tableStockMotionItem, [self._tableStockMotionItem['master_id'].eq(stockMotionId), self._tableStockMotionItem['deleted'].eq(0)])
+        QtGui.qApp.db.deleteRecord(self._tableStockMotion, [self._tableStockMotion['id'].eq(stockMotionId), self._tableStockMotion['deleted'].eq(0)])
+        db = QtGui.qApp.db
+        tableAction = db.table('Action')
+        record = db.getRecordEx(tableAction, [tableAction['prevStockMotion_id']], [tableAction['id'].eq(self._actionId), tableAction['deleted'].eq(0)])
+        self._stockMotionId = forceRef(record.value('prevStockMotion_id')) if record else None
+        self._action.getRecord().setValue('stockMotion_id', toVariant(self._stockMotionId))
+        self._reverseNomenclature()
+        self._items = []
+        self._exists = {}
+        self._noAvialableQnt = {}
+        self._stockMotionRecord = None
+        self._avialableQnt = 0
+        self._reservationUsed = False
+        self._isApplyBatch = False
+        self._necessaryQnt = None
+
+
+    def cancelEx(self):
+        stockMotionId = self.getStockMotionId()
+        if not stockMotionId:
+            db = QtGui.qApp.db
+            tableAction = db.table('Action')
+            record = db.getRecordEx(tableAction, [tableAction['prevStockMotion_id']], [tableAction['id'].eq(self._actionId), tableAction['deleted'].eq(0)])
+            self._stockMotionId = forceRef(record.value('prevStockMotion_id')) if record else None
+            self._action.getRecord().setValue('stockMotion_id', toVariant(self._stockMotionId))
+            self._reverseNomenclature()
+            self._items = []
+            self._exists = {}
+            self._noAvialableQnt = {}
+            self._stockMotionRecord = None
+            self._avialableQnt = 0
+            self._reservationUsed = False
+            self._isApplyBatch = False
+            self._necessaryQnt = None
+
+
     def getNomenclatureIdItem(self, nomenclatureId):
         if nomenclatureId:
             for item in self._items:
@@ -2679,7 +3178,7 @@ class CNomenclatureExpense:
         orgStructureId = self._supplierId if self._supplierId else QtGui.qApp.currentOrgStructureId()
         nomenclatureRecordList = actionType.getNomenclatureRecordList()
         self.selectNomenclatureIdList = self._getNomenclatureIdList(nomenclatureRecordList)
-        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId})
+        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId, 'begDateAction':forceDate(self._action.getRecord().value('begDate')) if self._action else None})
         for idx, nomenclativeRecord in enumerate(nomenclatureRecordList):
             stockMotionItem = QtGui.qApp.db.table('StockMotion_Item').newRecord()
             nomenclatureId = forceRef(nomenclativeRecord.value('nomenclature_id'))
@@ -2691,8 +3190,9 @@ class CNomenclatureExpense:
             else:
                 stockMotionItem.setValue('qnt', toVariant(amount*(self._actionAmount if self._actionAmount else 1)))
             stockMotionItem.setValue('unit_id', toVariant(_getDefaultUnitId(nomenclatureId)))
-            avialableQntDict = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
-            self._items.append(stockMotionItem)
+            avialableQntDict, stockMotionItems = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
+            self._items.extend(stockMotionItems)
+            self._isApplyBatch = True
         for nomenclatureId, avialableQntLine in avialableQntDict.items():
             for avialableQnt in avialableQntLine.values():
                 if avialableQnt <= 0 and avialableQnt is not None:
@@ -2729,7 +3229,7 @@ class CNomenclatureExpense:
         avialableQntDict = {}
         actionType = self._action.getType()
         self.selectNomenclatureIdList = nomenclatureIdDict.keys()
-        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId})
+        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId, 'begDateAction':forceDate(self._action.getRecord().value('begDate')) if self._action else None})
         for idx, (nomenclatureId, (nomenclativeRecord, dosage)) in enumerate(nomenclatureIdDict.items()):
             stockMotionItem = QtGui.qApp.db.table('StockMotion_Item').newRecord()
             amount = forceDouble(nomenclativeRecord.value('amount'))
@@ -2744,8 +3244,9 @@ class CNomenclatureExpense:
             else:
                 stockMotionItem.setValue('qnt', toVariant(amount*(self._actionAmount if self._actionAmount else 1)))
             stockMotionItem.setValue('unit_id', toVariant(_getDefaultUnitId(nomenclatureId)))
-            avialableQntDict = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
-            self._items.append(stockMotionItem)
+            avialableQntDict, stockMotionItems = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
+            self._items.extend(stockMotionItems)
+            self._isApplyBatch = True
         for nomenclatureId, avialableQntLine in avialableQntDict.items():
             for avialableQnt in avialableQntLine.values():
                 if avialableQnt <= 0 and avialableQnt is not None:
@@ -2782,7 +3283,7 @@ class CNomenclatureExpense:
         avialableQntDict = {}
         actionType = self._action.getType()
         self.selectNomenclatureIdList = self._getNomenclatureIdList(nomenclatureRecordList)
-        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId})
+        exists = self._getExists(self.selectNomenclatureIdList, filter={'financeId': self._financeId, 'clientId':self._clientId, 'medicalAidKindId':self._medicalAidKindId, 'orgStructureId':self._supplierId, 'begDateAction':forceDate(self._action.getRecord().value('begDate')) if self._action else None})
         for idx, nomenclativeRecord in enumerate(nomenclatureRecordList):
             stockMotionItem = QtGui.qApp.db.table('StockMotion_Item').newRecord()
             nomenclatureId = forceRef(nomenclativeRecord.value('nomenclature_id'))
@@ -2794,8 +3295,9 @@ class CNomenclatureExpense:
             else:
                 stockMotionItem.setValue('qnt', toVariant(amount*(self._actionAmount if self._actionAmount else 1)))
             stockMotionItem.setValue('unit_id', toVariant(_getDefaultUnitId(nomenclatureId)))
-            avialableQntDict = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
-            self._items.append(stockMotionItem)
+            avialableQntDict, stockMotionItems = self._sync(exists, stockMotionItem, translateExistsQnt=True, financeId=self._financeId, clientId=self._clientId, medicalAidKindId=self._medicalAidKindId, isNoAvialableQnt=True, avialableQntDict=avialableQntDict, orgStructureId=orgStructureId)
+            self._items.extend(stockMotionItems)
+            self._isApplyBatch = True
         for nomenclatureId, avialableQntLine in avialableQntDict.items():
             for avialableQnt in avialableQntLine.values():
                 if avialableQnt <= 0 and avialableQnt is not None:
@@ -2814,6 +3316,24 @@ class CNomenclatureExpense:
         self._exists = exists
 
 
+    def getNomenclatureDosageToQntValue(self, nomenclatureId, dosageValue):
+        qnt = 0
+        if nomenclatureId:
+            nomenclatureRecord = QtGui.qApp.db.getRecord('rbNomenclature', 'defaultClientUnit_id, dosageValue', nomenclatureId)
+            if nomenclatureRecord:
+                actionType = self._action.getType()
+                defaultValue = forceDouble(nomenclatureRecord.value('dosageValue'))
+                if defaultValue:
+                    if actionType.isDoesNotInvolveExecutionCourse:
+                        qnt = calcQuantity(self._action.getRecord(), durationIsValid = True)
+                        qnt = qnt*(dosageValue / defaultValue)
+                    else:
+                        qnt = dosageValue / defaultValue
+                elif not actionType.isDoesNotInvolveExecutionCourse:
+                    qnt = 1
+        return qnt
+
+
     def updateNomenclatureDosageToQntValue(self, nomenclatureId, dosageValue):
         qnt = 0
         if nomenclatureId:
@@ -2824,6 +3344,8 @@ class CNomenclatureExpense:
                 if actionType.isDoesNotInvolveExecutionCourse:
                     qnt = calcQuantity(self._action.getRecord(), durationIsValid=True)
                     self._action.getRecord().setValue('quantity', toVariant(qnt))
+                else:
+                    qnt = 1
                 defaultValue = forceDouble(nomenclatureRecord.value('dosageValue'))
                 if defaultValue:
                     if actionType.isDoesNotInvolveExecutionCourse:
@@ -2887,6 +3409,33 @@ class CNomenclatureExpense:
         return qnt
 
 
+    def addNomenclatureEx(self, nomenclatureId, financeId=None, medicalAidKindId=None):
+        if not nomenclatureId:
+            return
+
+        if financeId:
+            self._financeId = financeId
+
+        if medicalAidKindId:
+            self._medicalAidKindId = medicalAidKindId
+
+        for item in self._items:
+            if nomenclatureId == forceRef(item.value('nomenclature_id')):
+                return
+
+        nomenclatureIdDict = {}
+        dosage = self._action.findDosagePropertyValue()
+        if self._action.nomenclatureExpense:
+            self._action = updateNomenclatureDosageValue(self._action)
+            executionPlanItem = self._action.executionPlanManager.currentItem
+            if executionPlanItem and executionPlanItem.nomenclature and executionPlanItem.nomenclature.nomenclatureId:
+                if executionPlanItem.nomenclature.nomenclatureId:
+                    dosage = executionPlanItem.nomenclature.dosage
+        if dosage:
+            nomenclatureIdDict[nomenclatureId] = (self._action.getRecord(), dosage)
+            self.updateNomenclatureIdListToAction(nomenclatureIdDict)
+
+
     def addNomenclature(self, nomenclatureId, financeId=None, medicalAidKindId=None):
         if not nomenclatureId:
             return
@@ -2938,8 +3487,8 @@ class CNomenclatureExpense:
             self._applyBatchFinanceIdShelfTime(stockMotionItem)
             if self._avialableQnt != -1:
                 stockMotionItem.setValue('qnt', toVariant(self._avialableQnt))
-            elif QtGui.qApp.controlSMFinance() == 0:
-                stockMotionItem.setValue('qnt', toVariant(0))
+            #elif QtGui.qApp.controlSMFinance() == 0:
+            #    stockMotionItem.setValue('qnt', toVariant(0))
             if forceDouble(stockMotionItem.value('qnt')) > 0:
                 stockMotionItem.setValue('sum', toVariant(forceDouble(stockMotionItem.value('price')) * forceDouble(stockMotionItem.value('qnt'))))
                 self._items.insert(0, stockMotionItem)
@@ -2957,9 +3506,9 @@ class CNomenclatureExpense:
         self._financeId = self._action.getFinanceId()
         self._medicalAidKindId = self._action.getMedicalAidKindId()
         if self._reservationUsed:
-            financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt, financeId=self._financeId, medicalAidKind=self._medicalAidKindId)
+            financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt, financeId=self._financeId, medicalAidKind=self._medicalAidKindId, oldUnitId=stockUnitId)
         else:
-            financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt, clientId=self._clientId, financeId=self._financeId, medicalAidKind=self._medicalAidKindId)
+            financeId, batch, shelfTime, medicalAidKindId, price, reservationClient = findFinanceBatchShelfTime(orgStructureId, nomenclatureId, qnt, clientId=self._clientId, financeId=self._financeId, medicalAidKind=self._medicalAidKindId, oldUnitId=stockUnitId)
         if financeId or batch or shelfTime or price:
             priceFind = price
             if stockUnitId and stockUnitId != unitId:
@@ -3005,11 +3554,16 @@ class CNomenclatureExpense:
 
 
     def removeNomenclature(self, nomenclatureId):
+        rows  = []
         if nomenclatureId:
-            for item in self._items:
+            for row, item in enumerate(self._items):
                 if forceRef(item.value('nomenclature_id')) == nomenclatureId:
-                    self._items.remove(item)
-                    break
+                    rows.append(row)
+        for row in reversed(rows): 
+            if 0<=row and row+1<=len(self._items):
+                del self._items[row:row+1]     
+                    #self._items.remove(item)
+                    #break
 
 
     def _load(self, actionId):
@@ -3021,14 +3575,14 @@ class CNomenclatureExpense:
             return bool(self._stockMotionRecord)
         else:
             self._setActionType(self._actionType)
-            for properties in self._action._properties:
-                type = properties._type
-                name = type.name
-                if type.isNomenclatureValueType():
-                    property = self._action.getProperty(name)
-                    nomencalureId = property.getValue()
-                    if nomencalureId:
-                        self.addNomenclature(nomencalureId)
+            #for properties in self._action._properties:
+            #    type = properties._type
+            #    name = type.name
+            #    if type.isNomenclatureValueType():
+            #        property = self._action.getProperty(name)
+            #        nomencalureId = property.getValue()
+            #        if nomencalureId:
+            #            self.addNomenclatureEx(nomencalureId)
         return False
 
 
@@ -3057,7 +3611,7 @@ class CNomenclatureExpense:
         self._stockMotionRecord.setValue('number', number)
 
 
-    def save(self, nomenclatureExpensePreliminarySave = False):
+    def save(self, nomenclatureExpensePreliminarySave = False, isActionNoSave = False):
         if self._stockMotionRecord:
             self._generateStockMotionNumber()
             db = QtGui.qApp.db
@@ -3066,7 +3620,7 @@ class CNomenclatureExpense:
                 if reason:
                     self._stockMotionRecord.setValue('reason', toVariant(reason))
             self._stockMotionId = db.insertOrUpdate(self._tableStockMotion, self._stockMotionRecord)
-            self._releaseReservation()
+            self._releaseReservation(isActionNoSave = isActionNoSave)
             stockMotionItemIdList = []
             for stockMotionItem in self._items:
                 stockMotionItem.setValue('master_id', toVariant(self._stockMotionId))
@@ -3090,13 +3644,26 @@ class CNomenclatureExpense:
         return False
 
 
-    def _releaseReservation(self):
+    def _reverseNomenclature(self):
         if not self._action.nomenclatureClientReservation:
             return
 
-        actionId = self._action.getId()
-        if not actionId:
+        #actionId = self._action.getId()
+        #if not actionId:
+        #    return
+
+        for item in self._items:
+            self._action.nomenclatureClientReservation.reverseNomenclature(item)
+
+
+    def _releaseReservation(self, isActionNoSave = False):
+        if not self._action.nomenclatureClientReservation:
             return
+
+        if not isActionNoSave:
+            actionId = self._action.getId()
+            if not actionId:
+                return
 
         for item in self._items:
             if forceRef(item.value('id')):

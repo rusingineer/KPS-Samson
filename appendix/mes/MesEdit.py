@@ -12,18 +12,17 @@
 ##
 #############################################################################
 
-import sys
-from sys import *
 
-from PyQt4 import QtCore, QtGui, QtSql
+from PyQt4 import QtCore, QtGui
 
-from library.Utils import *
-from library.InDocTable import *
-from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
-from library.ItemsListDialog import *
-
-from MesInfo import CMesInfo
 from MKBTree import checkMKBTable, getMKBName, CMKBInDocTableCol
+
+from library.InDocTable import CInDocTableModel, CIntInDocTableCol, CEnumInDocTableCol, CCodeNameInDocTableCol, \
+    CFloatInDocTableCol, CBoolInDocTableCol, CAgeInDocTableCol, CInDocTableCol, CDateInDocTableCol, CRBInDocTableCol, \
+    CCodeRefInDocTableCol
+from library.ItemsListDialog import CItemEditorBaseDialog
+from library.Utils import forceString, forceDate, forceRef
+
 from Ui_Editor import Ui_MESEditor
 
 

@@ -15,149 +15,179 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
-          <widget class="QPushButton" name="btnApplyStatement">
-           <property name="text">
-            <string>Выполнить заявку</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btnCancelStatement">
-           <property name="text">
-            <string>Отклонить заявку</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btnNeedUpload">
-           <property name="text">
-            <string>Выгрузить ожидающие</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="CTableView" name="tblStatements"/>
-       </item>
-       <item>
-        <widget class="QLabel" name="lblStatementsCount">
-         <property name="text">
-          <string>Список пуст</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox_StatementInfo">
-         <property name="title">
-          <string>Данные заявки</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_2">
-          <item row="0" column="0">
-           <widget class="QTextEdit" name="edtStatementInfo"/>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QGroupBox" name="groupBox_MISData">
-         <property name="title">
-          <string>Данные МИС</string>
-         </property>
-         <layout class="QGridLayout" name="gridLayout_3">
-          <item row="0" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <property name="bottomMargin">
-             <number>6</number>
-            </property>
+    <widget class="QWidget" name="horizontalLayout_9" native="true">
+     <layout class="QGridLayout" name="gridLayout_5">
+      <property name="margin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QSplitter" name="splitter">
+        <property name="lineWidth">
+         <number>1</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="handleWidth">
+         <number>10</number>
+        </property>
+        <property name="childrenCollapsible">
+         <bool>false</bool>
+        </property>
+        <widget class="QWidget" name="verticalLayout_4" native="true">
+         <layout class="QVBoxLayout" name="verticalLayout_5">
+          <property name="margin">
+           <number>0</number>
+          </property>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
             <item>
-             <widget class="QLabel" name="lblClientFIO">
+             <widget class="QPushButton" name="btnApplyStatement">
               <property name="text">
-               <string>ФИО пациента</string>
+               <string>Выполнить заявку</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="edtClientFIO">
-              <property name="readOnly">
-               <bool>true</bool>
+             <widget class="QPushButton" name="btnCancelStatement">
+              <property name="text">
+               <string>Отклонить заявку</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="btnOpenData">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
+             <widget class="QPushButton" name="btnNeedUpload">
               <property name="text">
-               <string>Просмотр/Изменение данных</string>
+               <string>Выгрузить ожидающие</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="btnDetachClient">
-              <property name="text">
-               <string>Отвязать пациента</string>
+             <spacer name="horizontalSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btnPrint">
-              <property name="enabled">
-               <bool>true</bool>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
               </property>
-              <property name="text">
-               <string>Печать</string>
-              </property>
-             </widget>
+             </spacer>
             </item>
            </layout>
           </item>
+          <item>
+           <widget class="QSplitter" name="splitter_2">
+            <property name="lineWidth">
+             <number>1</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="handleWidth">
+             <number>10</number>
+            </property>
+            <property name="childrenCollapsible">
+             <bool>false</bool>
+            </property>
+            <widget class="QWidget" name="widget" native="true">
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <property name="margin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="CTableView" name="tblStatements"/>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblStatementsCount">
+                <property name="text">
+                 <string>Список пуст</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QGroupBox" name="groupBox_StatementInfo">
+             <property name="title">
+              <string>Данные заявки</string>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_2">
+              <item row="0" column="0">
+               <widget class="QTextEdit" name="edtStatementInfo"/>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_MISData">
+            <property name="title">
+             <string>Данные МИС</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_3">
+             <item row="0" column="0">
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
+               <item>
+                <widget class="QLabel" name="lblClientFIO">
+                 <property name="text">
+                  <string>ФИО пациента</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLineEdit" name="edtClientFIO">
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnOpenData">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="text">
+                  <string>Просмотр/Изменение данных</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnDetachClient">
+                 <property name="text">
+                  <string>Отвязать пациента</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="btnPrint">
+                 <property name="enabled">
+                  <bool>true</bool>
+                 </property>
+                 <property name="text">
+                  <string>Печать</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
+          </item>
          </layout>
         </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <widget class="QGroupBox" name="groupBox_Filters">
-       <property name="title">
-        <string>Фильтры</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_4">
-        <property name="leftMargin">
-         <number>6</number>
-        </property>
-        <property name="topMargin">
-         <number>6</number>
-        </property>
-        <property name="rightMargin">
-         <number>6</number>
-        </property>
-        <property name="bottomMargin">
-         <number>6</number>
-        </property>
-        <item row="0" column="0">
+        <widget class="QWidget" name="widget_Filters" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>195</width>
+           <height>0</height>
+          </size>
+         </property>
          <layout class="QVBoxLayout" name="verticalLayout_2">
-          <property name="rightMargin">
+          <property name="margin">
            <number>0</number>
           </property>
           <item>
@@ -264,6 +294,54 @@
              </property>
             </item>
            </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblFilterSurname">
+            <property name="text">
+             <string>Фамилия</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="leFilterSurname"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblFilterName">
+            <property name="text">
+             <string>Имя</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="leFilterName"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblFilterPatronymic">
+            <property name="text">
+             <string>Отчество</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="leFilterPatronymic"/>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_10">
+            <item>
+             <widget class="QLabel" name="lblFilterBirthDate">
+              <property name="text">
+               <string>Дата рождения</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="CDateEdit" name="edtFilterBirthDate">
+              <property name="calendarPopup">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
            <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -1666,17 +1744,17 @@
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>40</height>
+              <height>196</height>
              </size>
             </property>
            </spacer>
           </item>
          </layout>
-        </item>
-       </layout>
-      </widget>
-     </item>
-    </layout>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+    </widget>
    </item>
   </layout>
  </widget>

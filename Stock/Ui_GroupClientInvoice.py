@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Stock\GroupClientInvoice.ui'
+# Form implementation generated from reading ui file 'D:\samson\Stock\GroupClientInvoice.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -87,7 +87,7 @@ class Ui_GroupClientInvoice(object):
         sizePolicy.setHeightForWidth(self.buttonBox.sizePolicy().hasHeightForWidth())
         self.buttonBox.setSizePolicy(sizePolicy)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
         self.gridLayout.addWidget(self.buttonBox, 2, 1, 1, 1)
 

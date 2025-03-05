@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\SVN\Samson\UP_s11\client\F043\F043.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\F043\F043.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -549,7 +549,7 @@ class Ui_F043Dialog(object):
         self.tab.setObjectName(_fromUtf8("tab"))
         self.horizontalLayout_8 = QtGui.QHBoxLayout(self.tab)
         self.horizontalLayout_8.setObjectName(_fromUtf8("horizontalLayout_8"))
-        self.tblExport_FileAttach = CInDocTableView(self.tab)
+        self.tblExport_FileAttach = CInDocExportTableView(self.tab)
         self.tblExport_FileAttach.setObjectName(_fromUtf8("tblExport_FileAttach"))
         self.horizontalLayout_8.addWidget(self.tblExport_FileAttach)
         self.tabWidget_2.addTab(self.tab, _fromUtf8(""))
@@ -557,7 +557,7 @@ class Ui_F043Dialog(object):
         self.tab_2.setObjectName(_fromUtf8("tab_2"))
         self.horizontalLayout_7 = QtGui.QHBoxLayout(self.tab_2)
         self.horizontalLayout_7.setObjectName(_fromUtf8("horizontalLayout_7"))
-        self.tblExport_VIMIS = CInDocTableView(self.tab_2)
+        self.tblExport_VIMIS = CInDocExportTableView(self.tab_2)
         self.tblExport_VIMIS.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.tblExport_VIMIS.setSizeIncrement(QtCore.QSize(0, -1))
         self.tblExport_VIMIS.setBaseSize(QtCore.QSize(0, -1))
@@ -702,9 +702,9 @@ class Ui_F043Dialog(object):
         self.dentitionTabWidget.setTabText(self.dentitionTabWidget.indexOf(self.tabActions), _translate("F043Dialog", "Мероприятия", None))
         self.grpDentitionHistory.setTitle(_translate("F043Dialog", "История", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabToken), _translate("F043Dialog", "Стат.&талон", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("F043Dialog", "Диагноз", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("F043Dialog", "Стандарт", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("F043Dialog", "Статус", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMedicalDiagnosis), _translate("F043Dialog", "Диагно&з", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMes), _translate("F043Dialog", "Ст&андарт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabStatus), _translate("F043Dialog", "&Статус", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabDiagnostic), _translate("F043Dialog", "&Диагностика", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCure), _translate("F043Dialog", "&Лечение", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabMisc), _translate("F043Dialog", "&Мероприятия", None))
@@ -712,13 +712,13 @@ class Ui_F043Dialog(object):
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabTempInvalid), _translate("F043Dialog", "Листок &нетрудоспособности", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabAegrotat), _translate("F043Dialog", "С&правка", None))
         self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabDisability), _translate("F043Dialog", "Инвалидность", None))
-        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("F043Dialog", "&Ограничения жизнедеятельности", None))
+        self.tabTempInvalidAndAegrotat.setTabText(self.tabTempInvalidAndAegrotat.indexOf(self.tabVitalRestriction), _translate("F043Dialog", "О&граничения жизнедеятельности", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabTempInvalidEtc), _translate("F043Dialog", "Т&рудоспособность", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("F043Dialog", "Оплата", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCash), _translate("F043Dialog", "&Оплата", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_3), _translate("F043Dialog", "Событие", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab), _translate("F043Dialog", "Документы", None))
         self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_2), _translate("F043Dialog", "ВИМИС", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("F043Dialog", "Экспорт", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("F043Dialog", "&Экспорт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("F043Dialog", "Приме&чания", None))
         self.statusBar.setToolTip(_translate("F043Dialog", "A status bar", None))
         self.statusBar.setWhatsThis(_translate("F043Dialog", "A status bar.", None))
@@ -734,7 +734,7 @@ from F043.DentitionTable import CClientDentitionHistoryTableView, CDentitionTabl
 from Orgs.OrgComboBox import CContractComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
-from library.InDocTable import CDentitionInDocTableView, CInDocTableView
+from library.InDocTable import CDentitionInDocTableView, CInDocExportTableView, CInDocTableView
 from library.ROComboBox import CROComboBox
 from library.StrComboBox import CStrComboBox
 from library.TextBrowser import CTextBrowser

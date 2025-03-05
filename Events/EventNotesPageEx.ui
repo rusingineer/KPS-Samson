@@ -1,0 +1,638 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EventNotesPageExWidget</class>
+ <widget class="QWidget" name="EventNotesPageExWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>655</width>
+    <height>580</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <item row="10" column="0">
+    <widget class="QLabel" name="lblEventModifyDateTime">
+     <property name="text">
+      <string>Дата и время последнего изменения</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="CDateEdit" name="edtEventSrcDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="6">
+    <widget class="QLineEdit" name="edtEventExternalIdValue">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="0">
+    <widget class="QLabel" name="lblPatientModel">
+     <property name="text">
+      <string>Модель пациента</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbPatientModel</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="21" column="1" colspan="2">
+    <widget class="CAttachButton" name="btnAttachedFiles">
+     <property name="text">
+      <string>Прикреплённые файлы</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="2">
+    <widget class="QLabel" name="lblN">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>№</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
+    <widget class="QLabel" name="lblEventCreateDateTimeValue">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="1" colspan="6">
+    <widget class="QLabel" name="lblEventCreatePersonValue">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="6">
+    <widget class="QToolButton" name="btnSelectRelegateOrg">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblEventId">
+     <property name="text">
+      <string>Код карточки</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2" colspan="3">
+    <widget class="QLabel" name="lblPrevEvent">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Ignored" vsizetype="Preferred">
+       <horstretch>1</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>предыдущее событие</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblEventExternalId">
+     <property name="toolTip">
+      <string>Внешний идентификатор записи</string>
+     </property>
+     <property name="text">
+      <string>Номер документа</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtEventExternalIdValue</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblEventCuratorIdValue">
+     <property name="text">
+      <string>Куратор</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbEventCurator</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="5" colspan="2">
+    <widget class="QLineEdit" name="edtPrevEventInfo">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblRelegateOrg">
+     <property name="text">
+      <string>Направитель</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbRelegateOrg</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="2" colspan="2">
+    <spacer name="horizontalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>175</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="11" column="0">
+    <widget class="QLabel" name="lblEventModifyPerson">
+     <property name="text">
+      <string>Автор последнего изменения</string>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="1" colspan="6">
+    <widget class="QLabel" name="lblEventModifyPersonValue">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="19" column="1" rowspan="2" colspan="6">
+    <widget class="QTextEdit" name="edtEventNote"/>
+   </item>
+   <item row="3" column="1" colspan="6">
+    <widget class="CClientRelationComboBoxPatron" name="cmbClientRelationConsents"/>
+   </item>
+   <item row="14" column="1" colspan="6">
+    <widget class="CRBComboBox" name="cmbCureMethod"/>
+   </item>
+   <item row="7" column="1" colspan="6">
+    <widget class="CPersonComboBoxEx" name="cmbEventCurator">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="5" colspan="2">
+    <widget class="CPersonComboBoxEx" name="cmbRelegatePerson">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="2" colspan="2">
+    <spacer name="horizontalSpacer_3">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>175</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="20" column="0" rowspan="2">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>152</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="6" column="1" colspan="6">
+    <widget class="CPersonComboBoxEx" name="cmbEventAssistant">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLabel" name="lblEventIdValue">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblRelegate">
+     <property name="text">
+      <string>Направление</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="5">
+    <widget class="CPolyclinicComboBox" name="cmbRelegateOrg">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="lblEventAssistantIdValue">
+     <property name="text">
+      <string>Ассистент</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbEventAssistant</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="lblEventCreateDateTime">
+     <property name="text">
+      <string>Дата и время создания</string>
+     </property>
+    </widget>
+   </item>
+   <item row="15" column="0">
+    <widget class="QLabel" name="lblIsClosed">
+     <property name="text">
+      <string>Событие закрыто</string>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="0">
+    <widget class="QLabel" name="lblExpertPerson">
+     <property name="text">
+      <string>Эксперт</string>
+     </property>
+    </widget>
+   </item>
+   <item row="19" column="0">
+    <widget class="QLabel" name="lblEventNote">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Примечания</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+     </property>
+     <property name="buddy">
+      <cstring>edtEventNote</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="0">
+    <widget class="QLabel" name="lblExpertiseDate">
+     <property name="text">
+      <string>Дата экспертизы случая</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="1">
+    <widget class="QLabel" name="lblEventModifyDateTimeValue">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QLabel" name="lblEventCreatePerson">
+     <property name="text">
+      <string>Автор</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="4">
+    <widget class="QLabel" name="lblRelegatePerson">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>1</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Направил</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="13" column="0">
+    <widget class="QLabel" name="lblCureType">
+     <property name="text">
+      <string>Вид лечения</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbCureType</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblClientRelationConsents">
+     <property name="text">
+      <string>Лицо по уходу</string>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="1">
+    <widget class="CDateEdit" name="edtExpertiseDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="2" colspan="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>175</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="13" column="1" colspan="6">
+    <widget class="CRBComboBox" name="cmbCureType"/>
+   </item>
+   <item row="17" column="1" colspan="6">
+    <widget class="CPersonComboBoxEx" name="cmbExpertPerson"/>
+   </item>
+   <item row="15" column="1" colspan="4">
+    <widget class="CROCheckBox" name="chkIsClosed">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="3">
+    <widget class="QLineEdit" name="edtEventSrcNumber">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="14" column="0">
+    <widget class="QLabel" name="lblCureMethod">
+     <property name="text">
+      <string>Метод лечения</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbCureMethod</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="6">
+    <widget class="CContractComboBox" name="cmbContract"/>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblContract">
+     <property name="text">
+      <string>Договор</string>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="1" colspan="6">
+    <widget class="CPatientModelComboBox" name="cmbPatientModel"/>
+   </item>
+   <item row="18" column="0">
+    <widget class="QLabel" name="lblExpose">
+     <property name="text">
+      <string>Выставлять в счёт</string>
+     </property>
+    </widget>
+   </item>
+   <item row="18" column="1">
+    <widget class="CROCheckBox" name="chkExpose">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPolyclinicComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CAttachButton</class>
+   <extends>QPushButton</extends>
+   <header>library/Attach/AttachButton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPatientModelComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Events/widgets/PatientModelComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CClientRelationComboBoxPatron</class>
+   <extends>QComboBox</extends>
+   <header>Registry/Utils.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CContractComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CROCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>library/ROCheckBox.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>cmbContract</tabstop>
+  <tabstop>edtPrevEventInfo</tabstop>
+  <tabstop>edtEventExternalIdValue</tabstop>
+  <tabstop>cmbClientRelationConsents</tabstop>
+  <tabstop>cmbRelegateOrg</tabstop>
+  <tabstop>btnSelectRelegateOrg</tabstop>
+  <tabstop>edtEventSrcDate</tabstop>
+  <tabstop>edtEventSrcNumber</tabstop>
+  <tabstop>cmbRelegatePerson</tabstop>
+  <tabstop>cmbEventAssistant</tabstop>
+  <tabstop>cmbEventCurator</tabstop>
+  <tabstop>cmbPatientModel</tabstop>
+  <tabstop>cmbCureType</tabstop>
+  <tabstop>cmbCureMethod</tabstop>
+  <tabstop>chkIsClosed</tabstop>
+  <tabstop>edtExpertiseDate</tabstop>
+  <tabstop>cmbExpertPerson</tabstop>
+  <tabstop>edtEventNote</tabstop>
+  <tabstop>btnAttachedFiles</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

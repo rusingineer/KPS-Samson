@@ -130,6 +130,7 @@ class CActionTypeModel(CTreeModel):
         CTreeModel.__init__(self, parent, CActionTypeRootTreeItem(self))
         self._enabledActionTypeIdList=enabledActionTypeIdList
         self._classes = range(4)
+        self.parnt = parent
         self._classesVisible = False
         self._allSelectable = False
         self._leavesVisible = True
@@ -208,7 +209,7 @@ class CActionTypeModel(CTreeModel):
     def loadMaxWord(self):
         db = QtGui.qApp.db
         maxWord = u''
-        query = db.query("SELECT name FROM ActionType WHERE (ActionType.`deleted` = 0) AND (ActionType.`showInForm` != 0) AND (ActionType.`class` = 0) ORDER BY LENGTH(name) DESC LIMIT 1")
+        query = db.query("SELECT name FROM ActionType WHERE (ActionType.`deleted` = 0) AND (ActionType.`class` = 0) ORDER BY LENGTH(name) DESC LIMIT 1")
         while query.next():
             record = query.record()
             maxWord = forceStringEx(record.value('name'))
@@ -218,7 +219,18 @@ class CActionTypeModel(CTreeModel):
     def loadChildrenItems(self, group):
         db = QtGui.qApp.db
         tableActionType = db.table('ActionType')
-        cond = [tableActionType['deleted'].eq(0), tableActionType['showInForm'].ne(0)]
+        if hasattr(self.parnt, 'showInForm') or hasattr(self.parnt, '_popup') and hasattr(self.parnt._popup, 'showInForm'):
+            cond = [tableActionType['deleted'].eq(0)]
+            if hasattr(self.parnt, 'showInForm'):
+                if self.parnt.showInForm:
+                    cond.append(tableActionType['showInForm'].eq(1))
+
+            if hasattr(self.parnt, '_popup') and hasattr(self.parnt._popup, 'showInForm'):
+                if self.parnt._popup.showInForm:
+                    cond.append(tableActionType['showInForm'].eq(1))
+        else:
+            cond = [tableActionType['deleted'].eq(0), tableActionType['showInForm'].eq(1)]
+
         if isinstance(group, CActionTypeClassTreeItem):
             cond.append(tableActionType['class'].eq(group._class))
         elif group.id() is None:
@@ -362,6 +374,7 @@ class CActionTypeComboBox(CTreeComboBoxGetIdSetIdMixin, CTreeComboBox):
         QtGui.QComboBox.showPopup(self)
         scrollBar = self._view.horizontalScrollBar()
         scrollBar.setValue(0)
+
 
 class CActionTypeTableCol(CInDocTableCol):
     tableName = 'ActionType'

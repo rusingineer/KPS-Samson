@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>RBLfFormEditor</class>
+ <widget class="QDialog" name="RBLfFormEditor">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>534</width>
+    <height>142</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>ChangeMe!</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>false</bool>
+  </property>
+  <layout class="QGridLayout">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblName">
+     <property name="text">
+      <string>&amp;Наименование</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QLineEdit" name="edtName"/>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblCode">
+     <property name="text">
+      <string>&amp;Код</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtCode</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QLineEdit" name="edtDosage"/>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtCode"/>
+   </item>
+   <item row="4" column="0">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>103</width>
+       <height>16</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="lblDosage">
+     <property name="text">
+      <string>Дозировка</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblIsESKLP">
+     <property name="text">
+      <string>Относится к ЕСКЛП</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QCheckBox" name="chkIsESKLP">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>edtCode</tabstop>
+  <tabstop>edtName</tabstop>
+  <tabstop>edtDosage</tabstop>
+  <tabstop>chkIsESKLP</tabstop>
+  <tabstop>buttonBox</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>RBLfFormEditor</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>144</x>
+     <y>89</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>144</x>
+     <y>52</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>RBLfFormEditor</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>144</x>
+     <y>89</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>144</x>
+     <y>52</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

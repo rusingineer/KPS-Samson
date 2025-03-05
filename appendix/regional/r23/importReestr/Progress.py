@@ -181,7 +181,7 @@ class CProgressDialog(QtGui.QDialog, Ui_ProgressDialog):
     def work(self):
         self.orgCache = {}
         rbDir = forceString(self.parent.edtRBDirName.text())
-        spr01path = os.path.join(rbDir, 'spr01.dbf')
+        spr01path = os.path.join(rbDir,'spr01.dbf')
         spr02path = os.path.join(rbDir, 'spr02.dbf')
         # spr17path = os.path.join(rbDir, 'spr17.dbf')
         spr81path = os.path.join(rbDir, 'spr81.dbf')
@@ -411,9 +411,14 @@ class CProgressDialog(QtGui.QDialog, Ui_ProgressDialog):
 
     def processService(self, row):
         code = forceString(row['CODE'].strip())
+        if code and not (code[:1] in ['A', 'B', 'G', 'V'] or code[:2] in ['st', 'ds']):
+            return
+        endDate = QDate(row['DATO']) if row['DATO'] else QDate(2200, 1, 1)
+        if endDate < QDate(QDate.currentDate().year()-3, 1, 1):
+            return
         name = forceString(row['NAME_LONG'].strip())
         begDate = QDate(row['DATN']) if row['DATN'] else None
-        endDate = QDate(row['DATO']) if row['DATO'] else QDate(2200, 1, 1)
+
         uet = forceDouble(row['UET'])
 
         serviceId = self.findServiceByCodeAndNameEx(code, name)

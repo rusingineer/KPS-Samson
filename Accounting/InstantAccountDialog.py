@@ -21,7 +21,7 @@ from library.PrintInfo               import CInfoContext
 from library.PrintTemplates          import ( getPrintAction,
                                               getPrintButton,
                                               applyTemplate,
-                                              additionalCustomizePrintButton,
+                                              customizePrintButton,
                                             )
 from library.Utils                   import forceRef, formatNum1, forceString, forceDate, forceDouble, toVariant, forceBool
 
@@ -177,8 +177,7 @@ class CInstantAccountDialog(CDialogBase, Ui_InstantAccountDialog):
         self.addObject('btnPrint', getPrintButton(self, 'account', u'Печать'))
         eventTypeId = QtGui.qApp.db.getRecord('Event', 'eventType_id', self.eventId).value(0)
         context = getEventContext(eventTypeId)
-        additionalCustomizePrintButton(self, self.btnPrint, context)
-        self.btnPrint.setShortcut('F6')
+        customizePrintButton(self.btnPrint, context)
 
 
     def setAccountIdList(self, accountIdList):

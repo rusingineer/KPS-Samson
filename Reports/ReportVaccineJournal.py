@@ -19,7 +19,7 @@ from library.Utils       import forceString, forceDouble, formatName, formatDate
 from library.DialogBase  import CDialogBase
 from Reports.Report      import CReport
 from Reports.ReportBase  import CReportBase, createTable
-from Orgs.Utils          import getOrgStructureDescendants
+from Orgs.Utils import getOrgStructureDescendants, getOrgStructureFullName
 from Reports.Ui_ReportVaccineJournalSetup import Ui_ReportVaccineJournalSetup
 
 
@@ -50,12 +50,15 @@ def selectData(params):
     infectionId = params.get('infectionId')
     vaccineType = params.get('vaccineType')
     orgStructureId = params.get('orgStructureId')
+    orgStructureIdPacient = params.get('orgStructureIdPacient')
 
     tableClient = db.table('Client')
     tableCV = db.table('ClientVaccination')
+    tableCA = db.table('ClientAttach')
     tablePerson = db.table('Person')
     tableOrgStr = db.table('OrgStructure')
     tableVaccine = db.table('rbVaccine')
+    tableOrgStrPac = db.table('OrgStructure').alias('OrgStrPac')
 
     table = tableClient
     table = table.innerJoin(tableCV, tableCV['client_id'].eq(tableClient['id']))
@@ -88,9 +91,9 @@ def selectData(params):
     ]
 
     if begDate:
-        cond.append(tableCV['datetime'].dateGe(begDate))
+        cond.append(tableCV['datetime'].ge(begDate))
     if endDate:
-        cond.append(tableCV['datetime'].dateLe(endDate))
+        cond.append(tableCV['datetime'].lt(endDate.addDays(1)))
     if sex:
         cond.append(tableClient['sex'].eq(sex))
     if orgStructureId:
@@ -103,8 +106,14 @@ def selectData(params):
         tableIV = db.table('rbInfection_rbVaccine')
         table = table.innerJoin(tableIV, tableIV['vaccine_id'].eq(tableVaccine['id']))
         cond.append(tableIV['infection_id'].eq(infectionId))
+    if orgStructureIdPacient:
+        table = table.leftJoin(tableCA, " ClientAttach.id =(SELECT MAX(ClientAttach.id) FROM ClientAttach INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id \
+                WHERE client_id = Client.id AND ClientAttach.deleted = 0 AND (ClientAttach.endDate is NULL OR ClientAttach.endDate>= '{date}') AND NOT rbAttachType.TEMPORARY)")
+        table = table.leftJoin(tableOrgStrPac, tableCA['orgStructure_id'].eq(tableOrgStrPac['id']))
+        cond.append(tableOrgStrPac['id'].inlist(getOrgStructureDescendants(orgStructureIdPacient)))
 
     stmt = db.selectStmt(table, cols, cond, order='1,2,3')
+    stmt = stmt.format(date=db.formatDate(endDate)[1:11], cond=db.joinAnd(cond))
     return db.query(stmt)
 
 
@@ -126,6 +135,7 @@ class CReportVaccineJournal(CReport):
         vaccineType = params.get('vaccineType')
         vaccineId = params.get('vaccineId')
         infectionId = params.get('infectionId')
+        orgStructureIdPacient = params.get('orgStructureIdPacient')
 
         if vaccineId:
             rows.insert(-1, u'вакцина: ' + forceString(
@@ -135,6 +145,8 @@ class CReportVaccineJournal(CReport):
         if infectionId:
             rows.insert(-1, u'инфекция: ' + forceString(
                 QtGui.qApp.db.translate('rbInfection', 'id', infectionId, 'name')))
+        if orgStructureIdPacient:
+            rows.insert(-1, u'Прикрепление к участку: ' +  getOrgStructureFullName(orgStructureIdPacient))
 
         return rows
 
@@ -183,6 +195,7 @@ class CReportVaccineJournal(CReport):
 
 
 class CReportVaccineJournalSetup(CDialogBase, Ui_ReportVaccineJournalSetup):
+    __params = None
     def __init__(self, parent=None):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
@@ -191,6 +204,8 @@ class CReportVaccineJournalSetup(CDialogBase, Ui_ReportVaccineJournalSetup):
         self.cmbVaccineType.addItems([u''] + getVaccineTypes())
         self.cmbVaccine.setTable('rbVaccine')
         self.cmbInfection.setTable('rbInfection')
+        self.cmbOrgStructurePacient.setOrgId(QtGui.qApp.currentOrgId())
+        self.cmbOrgStructurePacient.setValue(QtGui.qApp.currentOrgStructureId())
 
 
     def params(self):
@@ -203,11 +218,15 @@ class CReportVaccineJournalSetup(CDialogBase, Ui_ReportVaccineJournalSetup):
         result['ageFrom'] = self.edtAgeFrom.value()
         result['ageTo'] = self.edtAgeTo.value()
         result['orgStructureId'] = self.cmbOrgStructure.value()
+        result['orgStructureIdPacient'] = self.cmbOrgStructurePacient.value()
         result['sex'] = self.cmbSex.currentIndex()
+        CReportVaccineJournalSetup.__params = result
         return result
 
 
     def setParams(self, params):
+        if CReportVaccineJournalSetup.__params:
+            params = CReportVaccineJournalSetup.__params
         self.edtBegDate.setDate(params.get('begDate', QDate.currentDate()))
         self.edtEndDate.setDate(params.get('endDate', QDate.currentDate()))
         self.cmbOrgStructure.setValue(params.get('orgStructureId'))
@@ -221,6 +240,7 @@ class CReportVaccineJournalSetup(CDialogBase, Ui_ReportVaccineJournalSetup):
         if vaccineType and vaccineType != u'не задано':
             index = self.cmbVaccineType.findText(vaccineType)
             self.cmbVaccineType.setCurrentIndex(index)
+        self.cmbOrgStructurePacient.setValue(params.get('orgStructureIdPacient'))
 
 
     @pyqtSignature('int')

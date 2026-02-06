@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,7 +18,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QMetaObject, QVariant, pyqtSignature, SIGNAL
 
-from Surveillance.SurveillanceDialog import CSurveillanceDialog, CConsistsDiagnosisModel, CRemoveDiagnosisModel
+from Surveillance.SurveillanceDialog import CSurveillanceDialog, CConsistsDiagnosisModel, isSurveillanceActive
 from library.database                   import CTableRecordCache
 from library.DialogBase                 import CDialogBase, CConstructHelperMixin
 from library.interchange                import setTextEditValue, getComboBoxValue, getTextEditValue, getCheckBoxValue
@@ -485,13 +485,9 @@ class CProphylaxisPlanningWindow(QtGui.QScrollArea, Ui_ProphylaxisPlanningWindow
         record = self.tblProphylaxisPlannings.currentItem()
         if record:
             clientId = forceRef(record.value('client_id'))
-            diagList = CConsistsDiagnosisModel(self)
-            diagnosisIdList = diagList.getDiagnosisIdList(clientId, {'begDate': QDate.currentDate()})
-            if not diagnosisIdList:
-                diagList = CRemoveDiagnosisModel(self)
-                diagnosisIdList = diagList.getDiagnosisIdList(clientId, {})
-            self.actPlanningClientList.setEnabled(bool(diagnosisIdList))
-            self.actPlanningClientInfo.setEnabled(bool(diagnosisIdList))
+            isActive = isSurveillanceActive(clientId, {}, {'begDate': QDate.currentDate()})
+            self.actPlanningClientList.setEnabled(bool(isActive))
+            self.actPlanningClientInfo.setEnabled(bool(isActive))
             return clientId
         self.actPlanningClientList.setEnabled(False)
         self.actPlanningClientInfo.setEnabled(False)

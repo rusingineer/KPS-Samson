@@ -465,6 +465,7 @@ class CNomenclatureExpenseModel(QtCore.QAbstractTableModel):
         newGroup.setAliquoticity(newGroup.aliquoticity(), updateExecutionPlan=False)
         newGroup.setPeriodicity(newGroup.periodicity(), updateExecutionPlan=False)
         actionType = action.getType() if action else None
+        action.setFinanceId(self._eventEditor.eventFinanceId)
         duration = newGroup.duration()
         if duration != 0:
             newGroup.setDuration(duration, updateExecutionPlan=False)
@@ -519,6 +520,9 @@ class CNomenclatureExpenseModel(QtCore.QAbstractTableModel):
         newRecord = newAction.getRecord()
         item = CActionRecordItem(newRecord, newAction)
         newGroup.addItem(None, item)
+        if not newAction.getType().isNomenclatureExpense:
+            newAction.updateExecutionPlanByRecord(forceDuration=True)
+            self.calcQuantity(newGroup)
         UUID = self._cellsSettings.getGroupSmnn(newGroup)
         lfFormId = self._cellsSettings.getGroupSmnnGrlsLf(newGroup)
         calculationParamId = self._cellsSettings.getGroupCalculationParam(newGroup)

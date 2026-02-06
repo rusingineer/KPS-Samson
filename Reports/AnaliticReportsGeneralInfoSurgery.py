@@ -511,9 +511,9 @@ class CAnaliticReportsGeneralInfoSurgery(CReport):
             cond.append(tableEvent['order'].eq(order))
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
         if bool(begDate):
-            cond.append(tableAction['endDate'].dateGe(begDate))
+            cond.append(tableAction['endDate'].ge(begDate))
         if bool(endDate):
-            cond.append(tableAction['endDate'].dateLe(endDate))
+            cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         recordsOS = db.getRecordList('OrgStructure', 'id, name', '', 'name')
         orgStructureNameList = {}
         for recordOS in recordsOS:
@@ -775,9 +775,9 @@ AND DC.event_id = Event.id))))''')
             cond.append(tableEvent['order'].eq(order))
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
         if bool(begDate):
-            cond.append(tableAction['endDate'].dateGe(begDate))
+            cond.append(tableAction['endDate'].ge(begDate))
         if bool(endDate):
-            cond.append(tableAction['endDate'].dateLe(endDate))
+            cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         recordsOS = db.getRecordList('OrgStructure', 'id, name', '', 'name')
         orgStructureNameList = {}
         for recordOS in recordsOS:

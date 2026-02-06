@@ -27,7 +27,6 @@ from Users.Tables import demoUserName, usrId, usrLogin, usrPassword, tblLogin
 from Users.Ui_Login import Ui_LoginDialog
 from Users.Ui_SelectPersonDialog import Ui_SelectPersonDialog
 
-
 class CLoginDialog(QtGui.QDialog, Ui_LoginDialog):
     def __init__(self, parent):
         QtGui.QDialog.__init__(self, parent)
@@ -223,6 +222,7 @@ class CPersonTableModel(CTableModel):
         self.addColumn(CRefBookCol(u'Подразделение', ['orgStructure_id'], 'OrgStructure', 10))
         self.addColumn(CTextCol(u'Профиль прав', ['userProfileName'], 20))
         self._fieldNames = [
+            'vrbPerson.id',
             'vrbPerson.code',
             'vrbPerson.name',
             'Person.post_id',

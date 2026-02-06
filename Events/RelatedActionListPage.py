@@ -110,9 +110,12 @@ class CRelatedActionListPage(CDialogBase, CAmbCardMixin, Ui_RelatedActionListPag
                 for row in selectedRows:
                     actionId = model.items[row][5]
                     action = CAction(record=db.getRecord('Action', '*', actionId))
+                    action.setChanged(True)
                     actionTypeId = model.items[row][7]
                     class_ = model.items[row][8]
 
+                    if class_ >= len(actionsTabsList): # У формы 001 только один класс 
+                        class_ = 0
                     actionsTab = actionsTabsList[class_]
                     actionModel = actionsTab.tblAPActions.model()
                     index = actionModel.index(actionModel.rowCount() - 1, 0)

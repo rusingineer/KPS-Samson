@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,7 +17,10 @@ import requests
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QMimeData, QString, QTime, QVariant, pyqtSignature, SIGNAL
 from Events.ExecutionPlan.Groups import CExecutionPlanProxyModelGroup
-from Orgs.Utils import getOrgStructureDescendants, getParentOrgStructureId
+from Events.SyncCSGWidget import CSyncCSGDialog
+from Exchange.UO.Utils import checkDirectionOrg
+from Orgs.Utils import getOrgStructureDescendants, getParentOrgStructureId, getOrgstructureListByEventtypeId, \
+    getPersonListByEventtypeId
 
 from library.Calendar                import wpFiveDays, addWorkDays, getNextWorkDay, wpSixDays, wpSevenDays
 from library.DialogBase              import CConstructHelperMixin, CDialogBase
@@ -46,6 +49,7 @@ from Events.HospitalOrderSelectDialog import CHospitalOrderSelectDialog
 from Events.PropertiesDialog         import CPropertiesDialog
 from Events.PropertyEditorAmbCard import CPropertyEditorAmbCard
 from Events.ActionGroupSignDialog import CActionGroupSignDialog
+from Events.UserDictionaryEditDialog import CUserDictionaryEditDialog
 from Events.Utils                    import (CFinanceType,
                                              CInputCutFeedDialog,
                                              getIdListActionType,
@@ -62,10 +66,11 @@ from Events.Utils                    import (CFinanceType,
                                              setActionPropertiesColumnVisible,
                                              getEventCSGRequired,
                                              getEventTypeForm,
-                                             getEventMedicalAidKindId,)
+                                             getEventMedicalAidKindId,
+                                             getEventWeekProfileCode,)
 from Events.LLO78Login               import CLLO78LoginDialog
 from Events.PrintActionsListDialog    import CPrintActionsListDialog
-from Events.Utils import CFinanceType, getDiagnosisId2, getChiefId, getActionTypeIdListByFlatCode, checkAttachOnDate, \
+from Events.Utils import CFinanceType, getDiagnosisId2, getChiefId, getEventAvailableOrders, checkAttachOnDate, \
     checkPolicyOnDate, cutFeed, getEventContextData, getEventShowTime, setActionPropertiesColumnVisible, \
     getEventCSGRequired, getEventTypeForm, getEventAidTypeRegionalCode
 from Orgs.Orgs                       import selectOrganisation
@@ -75,7 +80,8 @@ from Resources.CourseStatus          import CCourseStatus
 from Resources.Utils                 import getNextDateExecutionPlan
 from Users.Rights import urCopyPrevAction, urEditClosedEvent, urLoadActionTemplate, urSaveActionTemplate, \
     urEditOtherpeopleAction, urCanSaveEventWithMKBNotOMS, urEditOtherPeopleActionSpecialityOnly, urHBLeaved, urNoRestrictRetrospectiveNEClient, \
-    urNomenclatureExpenseLaterDate, canChangeActionPerson, urCanAttachFile, urCanIgnoreAttachFile
+    urNomenclatureExpenseLaterDate, canChangeActionPerson, urCanAttachFile, urCanIgnoreAttachFile, urAdmin, urHBReadEvent, urHBEditEvent, \
+    urRegTabWriteEvents
 from Exchange.UO.UOAppointmentsTableDialog import CUOAppointmentsTableDialog
 from Exchange.UO.UOServiceClient import CUOServiceClient
 from Events.LLO78RegistryWindow      import CLLO78RecipeRegistryDialog
@@ -200,7 +206,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                      SIGNAL('actionAmountChanged(double)'), self.on_actionAmountChanged)
         self.connect(self.tblAPActions,
                      SIGNAL('delRows()'), self.modelAPActions.emitItemsCountChanged)
+        self.connect(self.modelAPActions,
+                     SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), self.onUpdateActionsAmount)
         self.cmbAPMKB.connect(self.cmbAPMKB._lineEdit, SIGNAL('editingFinished()'), self.on_cmbAPMKB_editingFinished)
+        self.connect(self.btnAPAttachedFiles, SIGNAL('changed()'), self.setDirty)
 
         if QtGui.qApp.isExSubclassMKBVisible():
             self.connect(self.cmbAPMKBExSubclass, SIGNAL('editingFinished()'), self.on_cmbAPMKBExSubclass_editingFinished)
@@ -208,6 +217,14 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.lblAPMKBText.contextMenuEvent = self.lblAPMKBTextContextMenuEvent
         self.connect(self.btnCloseWidgets, SIGNAL('arrowTypeChanged(bool)'), self.on_arrowTypeChanged)
         self.setVisibleBtnCloseWidgets(True)
+        self.enableUserDictionary = forceBool(QtGui.qApp.preferences.appPrefs.get('enableUserDictionary', QVariant()))
+        self.connect(self.tblAPProps.valueDelegate, SIGNAL('editorCreated(QWidget *)'), self.on_tblAPProps_valueEditorCreated)
+        self.connect(self.tblAPProps.valueDelegate, SIGNAL('closeEditor(QWidget *)'), self.on_tblAPProps_valueEditorClosed)
+        self.wgtUserDictionary.setVisible(False)
+
+
+    def setDirty(self):
+        self.eventEditor.setIsDirty(True)
 
 
     def setReadOnly(self, value=True):
@@ -240,8 +257,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             actionProperty = model.getProperty(row)
             dialog = CPropertyEditorAmbCard(self, self.eventEditor.clientId, self.eventEditor.clientSex, self.eventEditor.clientAge, self.eventEditor.eventTypeId, actionProperty)
             try:
-                if dialog.exec_():
-                    actionProperty = dialog.actionProperty
+                if dialog.exec_() and actionProperty._changed:
+                    self.setDirty()
             finally:
                 dialog.deleteLater()
 
@@ -333,6 +350,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.eventEditor.tabMes.csgRowRemoved.connect(self.onCsgRowRemoved)
         if hasattr(self.eventEditor, 'tabAmbCard'):
            self.connect(self.eventEditor.tabAmbCard, SIGNAL('actionSelected(int)'), self.createCopyAction)
+           self.connect(self.eventEditor.tabAmbCard, SIGNAL('actionCopyAsNew(QSqlRecord, int)'), self.copyRecordAsNewAction)
 
 
     def onCsgRowRemoved(self):
@@ -539,13 +557,15 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                        self.edtAPAmount, # self.edtAPUet,
                        self.btnAPLoadTemplate, self.btnAPLoadPrevAction,
                        self.btnAPAttachedFiles,
-                       self.cmbCSG, self.lblCSG]
+                       self.cmbCSG, self.lblCSG,
+                       self.edtAPCoordDate]
         protWidgets = [self.cmbAPStatus,
                        self.cmbAPPerson,
                        self.edtAPEndDate, self.edtAPEndTime,
                        self.edtAPNote]
         otherWidgets = [self.tblAPProps, self.btnAPPrint, self.btnAPSaveAsTemplate]
         mkbWidgets   = [self.cmbAPMKB, self.cmbAPMorphologyMKB]
+        self.wgtUserDictionary.setVisible(False)
         if 0<=row<len(items):
             record, action = items[row]
         else:
@@ -628,6 +648,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.cmbAPSetPerson.setEnabled(actionType.editSetPerson)
             self.cmbAPOrg.setEnabled(actionType.editOrg)
             self.btnAPSelectOrg.setEnabled(actionType.editOrg)
+            self.cmbAPOrgStructure.setEnabled(actionType.editOrgStructure)
 
             self.setCSGEditEnable(self.eventEditor.eventTypeId, canEdit)
             self.lblAPMKB.setVisible(visibleMKB)
@@ -644,6 +665,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             
             orgStructureList = actionType.getPFOrgStructureRecordList()
             specialityList = actionType.getPFSpecialityRecordList()
+            orgstructureListByEventtypeId = getOrgstructureListByEventtypeId(self.eventEditor.eventTypeId)
+            personListByEventtypeId = getPersonListByEventtypeId(self.eventEditor.eventTypeId)
             tablePerson = QtGui.qApp.db.table('vrbPersonWithSpecialityAndPost')
             orgStructureIdList = []
             for orgStructureRecord in orgStructureList:
@@ -667,6 +690,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.cmbAPPerson.setFilter(QtGui.qApp.db.joinAnd(pFilter) if pFilter else None)
             self.cmbAPPerson.blockSignals(False)
             self.cmbAPPerson.filterInSearch(orgStructureIdList, specialityIdList)
+            self.cmbAPPerson.orgStructureIdList = orgstructureListByEventtypeId
+            self.cmbAPPerson.personIdList = personListByEventtypeId
 
             try:
                 relegateOrgId = self.eventEditor.tabVoucher.cmbDirectionOrgs.value() if getEventTypeForm(self.eventEditor.eventTypeId) == u'072' else (self.eventEditor.tabNotes.cmbRelegateOrg.value() if hasattr(self.eventEditor.tabNotes, 'cmbRelegateOrg') else None)
@@ -723,10 +748,17 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         and u'Идентификатор направления' in actionType._propertiesByName
                         and u'Причина аннулирования' in actionType._propertiesByName
                         and u'Идентификатор талона' in actionType._propertiesByName)
-                    self.btnAPQueueManagement.setEnabled(enableQM and (action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
-                    self.actAPQMSetAppointment.setEnabled(enableQM and (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
-                    self.actAPQMCancelReferral.setEnabled(enableQM and action[u'Идентификатор направления'] is not None)
-                    self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and action[u'Идентификатор талона'] is not None)
+                    self.btnAPQueueManagement.setEnabled(enableQM and (
+                                action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
+                    self.actAPQMSetAppointment.setEnabled(enableQM and (
+                                (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == '') or
+                                action[
+                                    u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
+                    self.actAPQMCancelReferral.setEnabled(enableQM and (
+                                action[u'Идентификатор направления'] is not None and action[
+                            u'Идентификатор направления'] != ''))
+                    self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and (
+                                action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''))
                     self.actImportAvailableProfiles.setEnabled(True)
                     self.actAPQMCancelReferral.setVisible(True)
                     self.actAPQMCreateClaimForRefusal.setVisible(True)
@@ -942,6 +974,37 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
         if not QtGui.qApp.userHasRight(canChangeActionPerson):
             self.cmbAPPerson.setEnabled(False)
+    
+    
+    def onUpdateActionsAmount(self, updatedList = []):
+        model = self.tblAPActions.model()
+        items = model.items()
+        row = self.tblAPActions.currentIndex().row()
+        if 0<=row<len(items):
+            record, action = items[row]
+        else:
+            record = action = None
+        if record:
+            if 'directionDate' in updatedList:
+                setDatetimeEditValue(self.edtAPDirectionDate, self.edtAPDirectionTime, record, 'directionDate')
+            if 'begDate' in updatedList:
+                setDatetimeEditValue(self.edtAPBegDate, self.edtAPBegTime, record, 'begDate')
+            if 'endDate' in updatedList:
+                setDatetimeEditValue(self.edtAPEndDate, self.edtAPEndTime, record, 'endDate')
+            if 'status' in updatedList:
+                self.cmbAPStatus.setValue(forceInt(record.value('status')))
+            if 'amount' in updatedList:
+                amount = forceDouble(record.value('amount'))
+                self.edtAPAmount.setValue(amount)
+                actionTypeId = forceRef(record.value('actionType_id'))
+                personId = forceRef(record.value('person_id'))
+                financeId = forceRef(record.value('finance_id'))
+                contractId = forceRef(record.value('contract_id'))
+                uet = forceDouble(record.value('uet'))
+                if amount and uet == 0:
+                    uet = amount*self.eventEditor.getUet(actionTypeId, personId, financeId, contractId)
+                self.edtAPUet.setValue(uet)
+        
 
     def ActionTMK_BTN_Visible(self, action, actionType):
         self.btnAPQueueManagement.setText(u'ТМК')
@@ -1386,7 +1449,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 currentSNILS = forceRef(db.translate('Person', 'id', QtGui.qApp.userId, 'SNILS'))
                 personIdSNILS = forceRef(db.translate('Person', 'id', personId, 'SNILS'))
                 setPersonIdSNILS = forceRef(db.translate('Person', 'id', setPersonId, 'SNILS'))
-                if (statusNeedAttachFile == 1 and currentSNILS == personIdSNILS) or (statusNeedAttachFile == 2 and currentSNILS == setPersonIdSNILS):
+                eventId = self.eventEditor.itemId()
+                if eventId and actionId and ((statusNeedAttachFile == 1 and currentSNILS == personIdSNILS) or (statusNeedAttachFile == 2 and currentSNILS == setPersonIdSNILS)):
                     skippable = QtGui.qApp.userHasRight(urCanIgnoreAttachFile)
                     message = u'Действие \"%s\" не имеет прикреплённых документов!' % nameActionType
                     res = self.eventEditor.checkValueMessage(message, skippable, self.tblAPActions, row, 0)
@@ -2793,7 +2857,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if 0<=row<len(items):
             #record = items[row][0]
             record, action = items[row]
+            oldValue = record.value(name)
             record.setValue(name, toVariant(value))
+            if oldValue != toVariant(value):
+                action.setChanged(True)
             actionTypeId = forceRef(record.value('actionType_id')) if record else None
             actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
             if (u'moving' in actionType.flatCode.lower()
@@ -2875,19 +2942,65 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         items = model.items()
         row = self.tblAPActions.currentIndex().row()
         if QtGui.qApp.userHasRight(urCopyPrevAction) and 0<=row<len(items):
-                action = items[row][1]
-                prevActionId = self.eventEditor.getPrevActionId(action, type)
-                if prevActionId:
-                    action.updateByActionId(prevActionId)
-                    self.tblAPProps.model().reset()
-                    self.tblAPProps.resizeRowsToContents()
-                    model.updateActionAmount(row)
+            action = items[row][1]
+            prevActionId = self.eventEditor.getPrevActionId(action, type)
+            if prevActionId:
+                action.updateByActionId(prevActionId)
+                if action.isChanged():
+                    self.setDirty()
+                self.tblAPProps.model().reset()
+                self.tblAPProps.resizeRowsToContents()
+                model.updateActionAmount(row)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelAPActions_currentChanged(self, current, previous):
         self.onActionCurrentChanged(previous)
         # self.tblAPProps.updatePropertiesTable(current, previous)
+    
+
+    @pyqtSignature('QModelIndex, QModelIndex')
+    def on_selectionModelAPActionProperties_currentChanged(self, current, previous):
+        if self.enableUserDictionary:
+            row = current.row()
+            propertyType = self.modelAPActionProperties.getPropertyType(row)
+            if self.lvUserDictionary.supportsPropertyType(propertyType):
+                self.lvUserDictionary.load(propertyType)
+                self.wgtUserDictionary.setVisible(True)
+                self.tblAPProps.resizeLastColumn()
+            else:
+                self.lvUserDictionary.clear()
+                self.wgtUserDictionary.setVisible(False)
+    
+
+    @pyqtSignature('QWidget *')
+    def on_tblAPProps_valueEditorCreated(self, editor):
+        if self.enableUserDictionary:
+            row = self.tblAPProps.currentIndex().row()
+            propertyType = self.modelAPActionProperties.getPropertyType(row)
+            if self.lvUserDictionary.supportsPropertyType(propertyType):
+                self.lvUserDictionary.setPropertyEditor(editor)
+    
+
+    @pyqtSignature('QWidget *')
+    def on_tblAPProps_valueEditorClosed(self, editor):
+        if self.enableUserDictionary and self.lvUserDictionary.propertyEditor() == editor:
+            self.lvUserDictionary.setPropertyEditor(None)
+    
+    
+    @pyqtSignature('')
+    def on_btnEditUserDictionary_clicked(self):
+        row = self.tblAPProps.currentIndex().row()
+        propertyType = self.modelAPActionProperties.getPropertyType(row)
+        dialog = CUserDictionaryEditDialog(self, propertyType)
+        dialog.exec_()
+        if dialog.dataModified:
+            self.lvUserDictionary.load(propertyType)
+    
+
+    @pyqtSignature('QString')
+    def on_edtUserDictionarySearch_textChanged(self, text):
+        self.lvUserDictionary.setFilter(text)
 
 
     def popupMenuAboutToShow(self):
@@ -3211,6 +3324,18 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 self.tblAPActions.setCurrentIndex(index)
 
 
+    def copyRecordAsNewAction(self, record, actionTypeClass):
+        if self.isReadOnly():
+            return
+        model = self.tblAPActions.model()
+        if model.actionTypeClass == actionTypeClass:
+            action = CAction(record=record)
+            row = model.rowCount() - 1 if model.rowCount() > 0 else 0
+            index = model.index(row, 0)
+            if model.setData(index, toVariant(action.actionType().id), related=False):
+                newRecord, newAction = model._items[index.row()]
+                newAction.updateByAction(action.clone())
+
     @pyqtSignature('')
     def on_actRefreshAction_triggered(self):
         if self.isReadOnly():
@@ -3387,6 +3512,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             value = value[:-1]
         self.cmbAPMorphologyMKB.setMKBFilter(self.cmbAPMorphologyMKB.getMKBFilter(unicode(value)))
         self.cmbAPMKBExSubclass.setMKB(unicode(value))
+        row = self.tblAPActions.currentIndex().row()
+        record, _ = self.tblAPActions.model().items()[row]
+        if record.value('MKB') != toVariant(value):
+            self.setDirty()
         self.onActionDataChanged('MKB', value)
         self.updateLblAPMKBText()
 
@@ -3914,7 +4043,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
     @pyqtSignature('')
     def on_actImportAvailableProfiles_triggered(self):
-        url = 'http://'+QtGui.qApp.preferences.dbServerName+'/queueManagement/importAvailableProfiles.php'
+        urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+        if not urlService:
+            urlService = QtGui.qApp.preferences.dbServerName
+        url = 'http://' + urlService + '/queueManagement/importAvailableProfiles.php'
         response = requests.get(url)
         if response.status_code == 200:
             QtGui.QMessageBox.information(self, u'Внимание!', u'Данные загружены')
@@ -3929,6 +4061,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if 0 <= row < len(items):
             record, action = items[row]
             if action._actionType.flatCode in (u'consultationDirection', u'researchDirection'):
+                isClosed = self.eventEditor.tabNotes.isEventClosed()
+                isProtected = isClosed and not QtGui.qApp.userHasRight(urEditClosedEvent) and not QtGui.qApp.userHasRight(urAdmin) 
+                if self.eventEditor.isHBDialog:
+                    if not isProtected:
+                        isProtected = QtGui.qApp.userHasRight(urHBReadEvent) and not QtGui.qApp.userHasRight(urHBEditEvent)  # из стац.монитора
+                else:
+                    if not isProtected:
+                        isProtected = not QtGui.qApp.userHasRight(urRegTabWriteEvents)  # Работа -> Обслуживание
+                isProtected = bool(isProtected or self.eventEditor.isReadOnly())
+                if self.eventEditor.isDirty():
+                    if isProtected:
+                        QtGui.QMessageBox.warning(self,
+                                                    u'Внимание!',
+                                                    u'Данное событие выставлено в счёт, редактирование запрещено!',
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok
+                                                    )
+                        return
                 requiredProperties = [
                     u'Профиль',
                     u'Куда направляется',
@@ -3944,6 +4094,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         return
                 orgId = action[u'Куда направляется']
                 profileId = action[u'Профиль']
+                if checkDirectionOrg(self, orgId, action) is False:
+                    return
                 if self.eventEditor.isDirty():
                     if QtGui.QMessageBox.question(self,
                                                   u'Внимание!',
@@ -3964,6 +4116,12 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
     @pyqtSignature('')
     def on_actAPQMCancelReferral_triggered(self):
+        if QtGui.QMessageBox.question(self,
+                                      u'Внимание!',
+                                      u'Аннулировать направление?',
+                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.No:
+            return
         model = self.tblAPActions.model()
         items = model.items()
         row = self.tblAPActions.currentIndex().row()
@@ -3975,7 +4133,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 return
             if (action[u'Причина аннулирования'] is not None and len(action[u'Причина аннулирования']) > 0):
                 return
+            isClosed = self.eventEditor.tabNotes.isEventClosed()
+            isProtected = isClosed and not QtGui.qApp.userHasRight(urEditClosedEvent) and not QtGui.qApp.userHasRight(urAdmin) 
+            if self.eventEditor.isHBDialog:
+                if not isProtected:
+                    isProtected = QtGui.qApp.userHasRight(urHBReadEvent) and not QtGui.qApp.userHasRight(urHBEditEvent)  # из стац.монитора
+            else:
+                if not isProtected:
+                    isProtected = not QtGui.qApp.userHasRight(urRegTabWriteEvents)  # Работа -> Обслуживание
+            isProtected = bool(isProtected or self.eventEditor.isReadOnly())
             if self.eventEditor.isDirty():
+                if isProtected:
+                    QtGui.QMessageBox.warning(self,
+                                                u'Внимание!',
+                                                u'Данное событие выставлено в счёт, редактирование запрещено!',
+                                                QtGui.QMessageBox.Ok,
+                                                QtGui.QMessageBox.Ok
+                                                )
+                    return
                 if QtGui.QMessageBox.question(self,
                                               u'Внимание!',
                                               u'Необходимо применить изменения перед записью на прием. Сохранить событие?',
@@ -4029,7 +4204,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             record, action = items[row]
             if action[u'Идентификатор талона'] is None:
                 return
+            isClosed = self.eventEditor.tabNotes.isEventClosed()
+            isProtected = isClosed and not QtGui.qApp.userHasRight(urEditClosedEvent) and not QtGui.qApp.userHasRight(urAdmin) 
+            if self.eventEditor.isHBDialog:
+                if not isProtected:
+                    isProtected = QtGui.qApp.userHasRight(urHBReadEvent) and not QtGui.qApp.userHasRight(urHBEditEvent)  # из стац.монитора
+            else:
+                if not isProtected:
+                    isProtected = not QtGui.qApp.userHasRight(urRegTabWriteEvents)  # Работа -> Обслуживание
+            isProtected = bool(isProtected or self.eventEditor.isReadOnly())
             if self.eventEditor.isDirty():
+                if isProtected:
+                    QtGui.QMessageBox.warning(self,
+                                                u'Внимание!',
+                                                u'Данное событие выставлено в счёт, редактирование запрещено!',
+                                                QtGui.QMessageBox.Ok,
+                                                QtGui.QMessageBox.Ok
+                                                )
+                    return
                 if QtGui.QMessageBox.question(self,
                                               u'Внимание!',
                                               u'Необходимо применить изменения перед записью на прием. Сохранить событие?',
@@ -4063,7 +4255,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if 0 <= row < len(items):
             record, action = items[row]
             if not action._propertiesByShortName['direction_identifier']._value:
+                isClosed = self.eventEditor.tabNotes.isEventClosed()
+                isProtected = isClosed and not QtGui.qApp.userHasRight(urEditClosedEvent) and not QtGui.qApp.userHasRight(urAdmin) 
+                if self.eventEditor.isHBDialog:
+                    if not isProtected:
+                        isProtected = QtGui.qApp.userHasRight(urHBReadEvent) and not QtGui.qApp.userHasRight(urHBEditEvent)  # из стац.монитора
+                else:
+                    if not isProtected:
+                        isProtected = not QtGui.qApp.userHasRight(urRegTabWriteEvents)  # Работа -> Обслуживание
+                isProtected = bool(isProtected or self.eventEditor.isReadOnly())
                 if self.eventEditor.isDirty():
+                    if isProtected:
+                        QtGui.QMessageBox.warning(self,
+                                                    u'Внимание!',
+                                                    u'Данное событие выставлено в счёт, редактирование запрещено!',
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok
+                                                    )
+                        return
                     if QtGui.QMessageBox.question(self,
                                                   u'Внимание!',
                                                   u'Необходимо применить изменения. Сохранить событие?',
@@ -4267,9 +4476,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 isEnable = not self.isReadOnly() and ((QtGui.qApp.userHasRight(urHBLeaved) or QtGui.qApp.isAdmin()) if (self.eventEditor and self.eventEditor.isHBDialog) else True)
                 self.btnNextAction.setEnabled(self.edtAPEndDate.date().isNull() and isEnable)
             if u'Доставлен по' in action._actionType._propertiesByName and action[u'Доставлен по'] is not None and getEventAidTypeRegionalCode(self.eventEditor.eventTypeId) not in ['111', '112']:
-                if u'экстренным показаниям' in action[u'Доставлен по'].lower():
+                availableOrders = forceString(getEventAvailableOrders(self.eventEditor.getEventTypeId()))
+                if '2' in availableOrders and u'экстренным показаниям' in action[u'Доставлен по'].lower():
                     self.eventEditor.cmbOrder.setCurrentIndex(1)
-                elif u'плановым показаниям' in action[u'Доставлен по'].lower():
+                elif '1' in availableOrders and u'плановым показаниям' in action[u'Доставлен по'].lower():
                     self.eventEditor.cmbOrder.setCurrentIndex(0)
             # if hasattr(self.eventEditor, 'tabNotes'):
             #     form = getEventTypeForm(self.eventEditor.eventTypeId)
@@ -4340,15 +4550,24 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 eventInfo = data['event']
                 currentActionIndex = eventInfo.actions._rawItems.index(items[row])
                 action = eventInfo.actions[currentActionIndex]
-                action.setCurrentPropertyIndex(self.tblAPProps.currentIndex().row())
-                data['action'] = action
-                data['actions'] = eventInfo.actions
-                data['currentActionIndex'] = currentActionIndex
-                data['currentAction'] = items[self.tblAPActions.currentIndex().row()]
-                applyTemplate(self.eventEditor,
-                              templateId,
-                              data,
-                              signAndAttachHandler=self.btnAPAttachedFiles.getSignAndAttachHandler())
+                db = QtGui.qApp.db
+                printNotAllowed = forceBool(db.translate('rbPrintTemplate', 'id', templateId, 'needEventId'))
+                if action.id or (not action.id and not printNotAllowed):
+                    action.setCurrentPropertyIndex(self.tblAPProps.currentIndex().row())
+                    data['action'] = action
+                    data['actions'] = eventInfo.actions
+                    data['currentActionIndex'] = currentActionIndex
+                    data['currentAction'] = items[self.tblAPActions.currentIndex().row()]
+                    applyTemplate(self.eventEditor,
+                                  templateId,
+                                  data,
+                                  signAndAttachHandler=self.btnAPAttachedFiles.getSignAndAttachHandler())
+                else:
+                    messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                                   u'Требуется сохранить действие до формирования печатной формы документа! Для сохранения без закрытия редактора нажмите кнопку "Применить".',
+                                                   QtGui.QMessageBox.Ok)
+                    messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+                    messageBox.exec_()
 
 
     @pyqtSignature('')
@@ -4356,7 +4575,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         model = self.tblAPActions.model()
         items = model.items()
         row = self.tblAPActions.currentIndex().row()
-        if not self.eventEditor.applyChanges():
+        if self.eventEditor.isDirty() and not self.eventEditor.applyChanges():
             return
         data = getEventContextData(self.eventEditor)
         eventInfo = data['event']
@@ -4490,7 +4709,13 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                     current_action[current_name] = unicode(current_action[current_name]) + union_value + '\n' + value
                             else:
                                 current_action[current_name] = unicode(current_action[current_name]) + value
-        self.tblAPProps.model().reset()
+            for prop in current_action.getProperties():
+                if prop.isChanged():
+                    current_action.setChanged(True)
+                    self.setDirty()
+                    self.tblAPProps.model().reset()
+                    break
+
 
     @pyqtSignature('')
     def on_btnAPLoadTemplate_clicked(self):
@@ -4530,20 +4755,23 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                            )
             try:
                 if dlg.exec_():
-                   templateAction = dlg.getSelectAction()
-                   isMethodRecording = dlg.getMethodRecording()
+                    templateAction = dlg.getSelectAction()
+                    isMethodRecording = dlg.getMethodRecording()
+                    if templateAction:
+                        action.updateByAction(templateAction, checkPropsOnOwner=True, clientSex=self.eventEditor.clientSex,
+                                              clientAge=self.eventEditor.clientAge, isMethodRecording=isMethodRecording)
+                        if action.isChanged():
+                            self.setDirty()
+                        for prop in action._properties:
+                            if prop.isActionNameSpecifier():
+                                action.updateSpecifiedName()
+                                self.modelAPActionProperties.emit(SIGNAL('actionNameChanged()'))
+                                self.modelAPActionProperties.emitDataChanged()
+                        self.tblAPProps.model().reset()
+                        self.tblAPProps.resizeRowsToContents()
+                        model.updateActionAmount(row)
             finally:
                 dlg.deleteLater()
-            if templateAction:
-                action.updateByAction(templateAction, checkPropsOnOwner=True, clientSex=self.eventEditor.clientSex, clientAge=self.eventEditor.clientAge, isMethodRecording=isMethodRecording)
-                for prop in action._properties:
-                    if prop.isActionNameSpecifier():
-                        action.updateSpecifiedName()
-                        self.modelAPActionProperties.emit(SIGNAL('actionNameChanged()'))
-                        self.modelAPActionProperties.emitDataChanged()
-                self.tblAPProps.model().reset()
-                self.tblAPProps.resizeRowsToContents()
-                model.updateActionAmount(row)
 
 
     @pyqtSignature('')
@@ -4667,6 +4895,17 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.btnCloseWidgets.setVisible(value)
         if value:
             self.btnCloseWidgets.applayArrow()
+    
+    def syncCSG(self):
+        dialog = CSyncCSGDialog(self.eventEditor, self)
+        if dialog.exec_():
+            return True
+        else:
+            for row, (record, action) in enumerate(self.modelAPActions._items):
+                if action.getType().flatCode == 'moving'and forceDate(record.value('endDate')) and forceRef(record.value('status')) == CActionStatus.finished:
+                    self.eventEditor.setFocusToWidget(self.tblAPActions, row, 0)
+                    break
+            return False
 
 
 # ##################################################################
@@ -4711,8 +4950,10 @@ class CActionReplicateDialog(QtGui.QDialog):
         self.edtAmount.setMinimum(1)
 
         self.cmbWeekProfile.addItem(u'пятидневная рабочая неделя')
-        self.cmbWeekProfile.addItem(u'шестидневаня рабочая неделя')
+        self.cmbWeekProfile.addItem(u'шестидневная рабочая неделя')
         self.cmbWeekProfile.addItem(u'семидневная рабочая неделя')
+        weekProfileCode = getEventWeekProfileCode(self._eventEditor.eventTypeId)
+        self.cmbWeekProfile.setCurrentIndex(weekProfileCode if 0 <= weekProfileCode <= 2 else 0)
 
         endDate = self._eventEditor.edtEndDate.date()
         begDate = forceDate(self._sourceAction.getRecord().value('begDate'))
@@ -4729,7 +4970,7 @@ class CActionReplicateDialog(QtGui.QDialog):
 
 
     def _countResult(self):
-        from PyQt4.QtSql import QSqlRecord
+        from library.database import CSqlRecord
 
         def _initActionProperties(action):
             actionType = action.getType()
@@ -4764,7 +5005,7 @@ class CActionReplicateDialog(QtGui.QDialog):
         #actionType = self._sourceAction.getType()
         additional = 0
         for i in xrange(self.edtAmount.value()):
-            newActionRecord = QSqlRecord(sourceRecord)
+            newActionRecord = CSqlRecord(sourceRecord)
             newActionRecord.setValue('id', toVariant(None))
             newAction = CAction(record=newActionRecord)
             _initActionProperties(newAction)

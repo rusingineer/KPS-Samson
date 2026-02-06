@@ -33,6 +33,8 @@ class CClientPopup(QtGui.QFrame, Ui_ClientPopup):
         self.setFrameShape(QtGui.QFrame.StyledPanel)
         self.setAttribute(Qt.WA_WindowPropagation)
         self.setupUi(self)
+        self.sizeGrip = QtGui.QSizeGrip(self)
+        self.layout().addWidget(self.sizeGrip, 2, 0, 1, 3, Qt.AlignBottom | Qt.AlignRight)
         self.btnSearch.setShortcut(Qt.Key_Return)
         self.tableModel = CClientModel(self)
         self.tblClient.setModel(self.tableModel)
@@ -43,7 +45,7 @@ class CClientPopup(QtGui.QFrame, Ui_ClientPopup):
 
     def selectClientId(self, clientId):
         self.clientId = clientId
-        self.emit(SIGNAL('itemSelected(int)'), clientId)
+        self.emit(SIGNAL('itemSelected(int)'), clientId if clientId else 0)
         self.close()
 
     def getCurrentClientId(self):
@@ -64,6 +66,7 @@ class CClientModel(QAbstractTableModel):
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
         self._idList = []
+        self._noneText = u'все'
         self._items = [self.getEmptyRecord()]
         self._cols = [
             CCol(u'Код', ['id'], 10, 'l'),
@@ -86,7 +89,7 @@ class CClientModel(QAbstractTableModel):
         record = QtSql.QSqlRecord()
         record.append(QtSql.QSqlField('id', QVariant.String))
         record.append(QtSql.QSqlField('fio', QVariant.String))
-        record.setValue(1, u"все")
+        record.setValue(1, self._noneText)
         return record
 
     def loadData(self):
@@ -158,6 +161,11 @@ class CClientModel(QAbstractTableModel):
         else:
             return  None
 
+    def setNoneText(self, noneText):
+        self._noneText = noneText
+        self._items[0].setValue(1, noneText)
+
+
 class CClientComboBox(CRBComboBox):
     def __init__(self, parent):
         CRBComboBox.__init__(self, parent)
@@ -166,12 +174,18 @@ class CClientComboBox(CRBComboBox):
         self._popup = CClientPopup(self)
         self.setModel(self._popup.tblClient.model())
         self.setModelColumn(1)
-        self.connect(self._popup, SIGNAL('itemSelected(int)'), self.setValue)
-
-
+        self.connect(self._popup, SIGNAL('itemSelected(int)'), self.on_popup_itemSelected)
 
     def showPopup(self):
         adjustPopupToWidget(self, self._popup)
         self._popup.show()
+    
+    def hasTable(self):
+        return True
+    
+    def setNoneText(self, noneText):
+        self._popup.tblClient.model().setNoneText(noneText)
 
-
+    @pyqtSignature('int')
+    def on_popup_itemSelected(self, clientId):
+        self.setValue(clientId)

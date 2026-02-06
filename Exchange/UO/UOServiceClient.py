@@ -6,17 +6,19 @@ from PyQt4.QtCore import Qt, QDate, QDateTime
 from library.JsonRpc.client import CJsonRpcClent
 from library.Utils import forceString, toVariant
 
+
 class CUOServiceClient(object):
     def __init__(self):
         self.url = QtGui.qApp.getMqHelperUrl()
         self.client = CJsonRpcClent(self.url)
-    
-    def getAvailableAppointments(self, orgId, profileId):
+
+    def getAvailableAppointments(self, orgId, profileId, clientId):
         return self.client.call(
             'getAvailableAppointments',
             params={
                 'targetOrgId': orgId,
                 'medicalAidProfileId': profileId,
+                'clientId': clientId,
             }
         )
 
@@ -38,7 +40,7 @@ class CUOServiceClient(object):
         if not result.get('idMq', ''):
             raise Exception(u"Неизвестная ошибка (пустой номер направления)")
         return result['idMq']
-    
+
     def cancelReferral(self, action, sourceCode, reasonCode, reasonComment):
         self.client.call(
             'cancelReferral',
@@ -49,7 +51,7 @@ class CUOServiceClient(object):
                 'reasonComment': reasonComment
             }
         )
-    
+
     def setAppointment(self, action, specialityId, doctorId, appointmentId):
         self.client.call(
             'setAppointment',

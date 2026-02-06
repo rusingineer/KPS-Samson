@@ -86,7 +86,7 @@ from Orgs.Orgs                       import selectOrganisation
 from Orgs.PersonComboBoxEx           import CPersonFindInDocTableCol
 from Registry.AmbCardMixin           import getClientActions
 from Registry.ClientEditDialog       import CClientEditDialog
-from Registry.Utils import formatClientBanner, getClientInfo, getClientSexAge
+from Registry.Utils import getClientInfo, getClientSexAge, getClientBanner
 from Users.Rights                    import (
                                               urAdmin,
                                               urCopyPrevAction,
@@ -1220,7 +1220,7 @@ class CF088EditDialog(CItemEditorBaseDialog, Ui_F088Dialog):
     def updateClientInfo(self):
         db = QtGui.qApp.db
         self.clientInfo = getClientInfo(self.clientId, date=self.edtDirectionDate.date())
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDirectionDate.date()))
         table  = db.table('Client')
         record = db.getRecord(table, '*', self.clientId)
         if record:

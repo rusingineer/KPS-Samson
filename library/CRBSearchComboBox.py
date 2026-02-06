@@ -57,18 +57,38 @@ class CRBSearchPopupView(QtGui.QFrame):
         self._cmb.hidePopup()
 
 
-    def on_edtCode_textChanged(self, text):
-        if text:
-            self._cmb.setLocalFilter('code', text, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
-        else:
-            self._cmb.removeLocalFilter('code')
+    def on_edtCode_textChanged(self, code):
+        db = QtGui.qApp.db
+        table = db.table(self._cmb._tableName)
+        _filter = [] if not self.filter else [self.filter]
+        if code:
+            _filter.append(table['code'].like('%' + unicode(code) + '%'))
+        if self.edtName.text():
+            _filter.append(table['name'].like('%' + unicode(self.edtName.text()) + '%'))
+        _filter = db.joinAnd(_filter)
+        self._cmb.setFilter(_filter)
+
+        # if code:
+        #     self._cmb.setLocalFilter('code', code, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+        # else:
+        #     self._cmb.removeLocalFilter('code')
 
 
-    def on_edtName_textChanged(self, text):
-        if text:
-            self._cmb.setLocalFilter('name', text, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
-        else:
-            self._cmb.removeLocalFilter('name')
+    def on_edtName_textChanged(self, name):
+        db = QtGui.qApp.db
+        table = db.table(self._cmb._tableName)
+        _filter = [] if not self.filter else [self.filter]
+        if name:
+            _filter.append(table['name'].like('%' + unicode(name) + '%'))
+        if self.edtCode.text():
+            _filter.append(table['code'].like('%' + unicode(self.edtCode.text()) + '%'))
+        _filter = db.joinAnd(_filter)
+        self._cmb.setFilter(_filter)
+
+        # if name:
+        #     self._cmb.setLocalFilter('name', name, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+        # else:
+        #     self._cmb.removeLocalFilter('name')
 
 
     def eventFilter(self, obj, event):
@@ -106,7 +126,8 @@ class CRBSearchComboBox(CRBComboBox):
             self._searchString = ''
             view = self.popupView.table
             frame = self.popupView
-            frame.filter = ''
+            #для комбобоксов с предустановленными фильтрами
+            frame.filter = '' if not self._filier else self._filier
             sizeHint = view.sizeHint()
             selectionModel = view.selectionModel()
             selectionModel.setCurrentIndex(self._model.index(self.currentIndex(), 1),

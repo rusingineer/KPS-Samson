@@ -29,6 +29,7 @@ class CPersonComboBox(CRBComboBox):
         self._orgId = QtGui.qApp.currentOrgId()
         self._orgStructureId = None
         self._orgStructureIdList = None
+        self._personIdList = []
         self._specialityId = None
         self._specialityPresent = specialityPresent
         self._postId = None
@@ -84,6 +85,13 @@ class CPersonComboBox(CRBComboBox):
             else:
                 self.updateFilterOrgStructure(orgStructureId)
 
+    def setOrgStructureList(self, orgStructureIdList):
+        self._orgStructureIdList = orgStructureIdList
+        self.updateFilter()
+
+    def setPersonIdList(self, personIdList):
+        self._personIdList = personIdList
+        self.updateFilter()
 
     def updateFilterOrgStructure(self, orgStructureId):
         if self._orgStructureId != orgStructureId:
@@ -160,10 +168,10 @@ class CPersonComboBox(CRBComboBox):
             self._updateRetireDate()
 
 
-    def setFilter(self, filter):
+    def setFilter(self, filter, needCache=True):
         if self._customFilter != filter:
             self._customFilter = filter
-            self.updateFilter()
+            self.updateFilter(needCache=needCache)
 
 
     def compileFilter(self):
@@ -176,6 +184,8 @@ class CPersonComboBox(CRBComboBox):
             cond.append(table['org_id'].eq(self._orgId))
         if self._orgStructureIdList:
             cond.append(table['orgStructure_id'].inlist(self._orgStructureIdList))
+        if self._personIdList:
+            cond.append(table['id'].inlist(self._personIdList))
         if self._specialityId:
             if isinstance(self._specialityId, list):
                 cond.append(table['speciality_id'].inlist(self._specialityId))
@@ -195,9 +205,9 @@ class CPersonComboBox(CRBComboBox):
         return db.joinAnd(cond)
 
 
-    def updateFilter(self):
+    def updateFilter(self, needCache=True):
         v = self.value()
-        CRBComboBox.setTable(self, self._tableName, self._addNone, self.compileFilter(), self._order)
+        CRBComboBox.setTable(self, self._tableName, self._addNone, self.compileFilter(), self._order, needCache=needCache)
         self.setValue(v)
 
 
@@ -207,3 +217,7 @@ class CPersonComboBox(CRBComboBox):
 
     def setOrderByName(self):
         self._order = 'name, code'
+
+
+    def tableName(self):
+        return self._tableName

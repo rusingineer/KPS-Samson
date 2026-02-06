@@ -21,6 +21,7 @@ class CTabName(CTableModel):
         CTableModel.__init__(self, parent)
         self.addColumn(CTextCol(u'Номер направления', ['number'], 30))
         self.addColumn(CTextCol(u'Пациент', ['clientName'], 25))
+        self.addColumn(CTextCol(u'Подразделение', ['orgStructure'], 25))
         self.addColumn(CTextCol(u'Лечащий врач', ['EventPerson'], 30))
         self.addColumn(CTextCol(u'Дата отправки', ['CreateDate'], 25))
         self.addColumn(CTextCol(u'Дата получения результата', ['responseDataTime'], 25))
@@ -36,6 +37,7 @@ class CTabName(CTableModel):
         tablePerson = db.table('''Person''')
         tableClient = db.table('''Client''')
         tableAction = db.table('''Action''')
+        tableOrgStructure = db.table('''OrgStructure''')
         tableActionType = db.table('''ActionType''')
         tableActionPropertyType = db.table('''ActionPropertyType''').alias('apt')
         tableActionProperty = db.table('''ActionProperty''').alias('ap')
@@ -49,13 +51,13 @@ class CTabName(CTableModel):
                                     concat_ws(' ',Client.lastName, Client.firstName,  Client.patrName) as clientName, 
                                     case when Action.note <> '' then Action.note else 'Не выгружен' end as status,
 			 Event.client_id as clientId, 
-			aps.value as number, ActionType.name as analisis''')
+			aps.value as number, ActionType.name as analisis, OrgStructure.name as orgStructure''')
 
         queryTable = tableAction.leftJoin(tableAction_Export, ''' Action.id = ae.master_id and ae.system_id = 18''')
         queryTable = queryTable.leftJoin(tableEvent, ''' Action.event_id = Event.id''')
         queryTable = queryTable.leftJoin(tablePerson, ''' Person.id = Event.execPerson_id''')
         queryTable = queryTable.leftJoin(tableClient, ''' Client.id = Event.client_id''')
-
+        queryTable = queryTable.leftJoin(tableOrgStructure, ''' Person.orgStructure_id = OrgStructure.id''')
         queryTable = queryTable.leftJoin(tableActionType, ''' ActionType.id = Action.actionType_id and ActionType.serviceType = 10 and ActionType.flatCode LIKE '%ariadna%' ''')
         queryTable = queryTable.leftJoin(tableActionPropertyType, u''' ActionType.id = apt.actionType_id and apt.deleted=0 and apt.name = 'Номер направления' ''')
         queryTable = queryTable.leftJoin(tableActionProperty, ''' Action.id = ap.action_id and ap.deleted=0 and ap.type_id = apt.id''')
@@ -94,6 +96,11 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
                 status += u''' and a.note = '' '''
             else:
                 status += u' and a.note like "{0}%" '.format(val)
+        orgStructure = u''
+        if self.cmbOrgStructure.value():
+            orgStructureIdList = db.getDescendants('OrgStructure', 'parent_id', self.cmbOrgStructure.value())
+            orgStructure = u'and OrgStructure.id in (%s)' % (','.join(map(str, orgStructureIdList)))
+
         number = u''
         if forceString(self.Number.text()) != '':
             number = u' and aps.value = "{0}" '.format(forceString(self.Number.text()))
@@ -129,10 +136,12 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
                      left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0 and apt.name = 'Номер направления'
                      left join ActionProperty ap on ap.action_id = a.id and ap.type_id = apt.id and ap.deleted = 0
                     left join ActionProperty_String aps on aps.id = ap.id
+                    left join Person on Person.id = a.setPerson_id
+                    left join OrgStructure on OrgStructure.id = Person.orgStructure_id
                     where e.deleted = 0 and a.deleted = 0 AND aps.value
                     {status} {clientfio} {patr} 
-                    {firstName} {number} {cond} order by a.id'''.format(
-            status=status, clientfio=clientfio, patr=patr, firstName=firstName, number=number, cond=cond)
+                    {firstName} {number} {cond} {orgStructure} order by a.id'''.format(
+            status=status, clientfio=clientfio, patr=patr, firstName=firstName, number=number, cond=cond, orgStructure=orgStructure)
         query = db.query(smt)
         self.resultTblName = []
         while query.next():
@@ -150,14 +159,17 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
         self.cmbStatus.setCurrentIndex(0)
         self.Number.setText('')
         self.Client.setText('')
+        self.cmbOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
+        self.cmbOrgStructure.setValue(None)
         self.updateTblName()
 
     @pyqtSignature('')
     def on_btnOk_clicked(self):
         argv = [sys.argv[0]]
         AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        AriadnaExchangeClient.main()
-        #CAriadnaExchangeClient.main(CAriadnaExchangeClient(argv))
+        msg = AriadnaExchangeClient.main()
+        if len(msg):
+            warninWindow(msg)
         self.initLogger()
         self.updateTblName()
 
@@ -175,21 +187,11 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
         argv.append('-r')
         argv.append(result['number'])
         AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        AriadnaExchangeClient.main()
-        #CAriadnaExchangeClient.main(CAriadnaExchangeClient(argv))
+        msg = AriadnaExchangeClient.main()
+        if len(msg):
+            warninWindow(msg)
         self.initLogger()
         self.updateTblName()
-        # try:
-        #     for record in records:
-        #         statusCode = socLabResult.getResult(record)
-        #         if statusCode == 200 or statusCode == 201:
-        #             socLabResult.addResult()
-        # except Exception as e:
-        #     statusCode = 0
-        # if statusCode == 200 or statusCode == 201:
-        #     warninWindow(u'Данные успешно получены')
-        # else:
-        #     warninWindow(u'Сервис не вернул данных')
 
     @pyqtSignature('')
     def on_actOrder_triggered(self):
@@ -201,8 +203,9 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
 
         argv.append(result['number'])
         AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        AriadnaExchangeClient.main()
-        #CAriadnaExchangeClient.main(CAriadnaExchangeClient(argv))
+        msg = AriadnaExchangeClient.main()
+        if len(msg):
+            warninWindow(msg)
         self.initLogger()
         self.updateTblName()
 

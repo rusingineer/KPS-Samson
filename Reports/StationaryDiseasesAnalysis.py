@@ -41,8 +41,8 @@ class CDiseasesAnalysisReport(CReport):
         tableEvent = db.table('Event')
         tableDiagnosis = db.table('Diagnosis')
         cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate if endDate else QDate.currentDate())
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1) if endDate else QDate.currentDate())
         ]
         if MKBFilter == 1:
             cond.append(tableDiagnosis['MKB'].ge(MKBFrom))

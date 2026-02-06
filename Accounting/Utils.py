@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -790,7 +790,7 @@ class CAccountItemsModel(CTableModel):
             CRefBookCol(u'Причина отказа', ['refuseType_id', 'reexposeItem_id'], 'rbPayRefuseType', 20, showFields=CRBComboBox.showCodeAndName),
             CTextCol(u'Примечание',    ['note'], 20),
             CLocFKEYCol(u'FKEY', ['event_id'], 40),
-            CLocRKEYCol(u'RKEY', ['event_id', 'action_id', 'visit_id'], 40)
+            CLocRKEYCol(u'RKEY', ['event_id', 'action_id', 'visit_id', 'eventCSG_id'], 40)
             ], 'Account_Item' )
         self.eventCache  = eventCol.eventCache
         self.eventTypeCache = eventCol.eventTypeCache
@@ -1059,6 +1059,7 @@ class CLocRKEYCol(CCol):
         eventId = forceRef(values[0])
         actionId = forceRef(values[1])
         visitId = forceRef(values[2])
+        eventCSGId = forceRef(values[3])
         db = QtGui.qApp.db
         table = db.table('soc_Account_RowKeys')
         cond = [table['event_id'].eq(eventId),
@@ -1067,6 +1068,8 @@ class CLocRKEYCol(CCol):
             cond.append(table['row_id'].eq(actionId))
         elif visitId:
             cond.append(table['row_id'].eq(visitId))
+        elif eventCSGId:
+            cond.append(table['row_id'].eq(eventCSGId))
         else:
             cond.append(table['row_id'].eq(eventId))
         record = db.getRecordEx(table, table['key'], db.joinAnd(cond))
@@ -1804,7 +1807,7 @@ class CContractCoefficientsDescr(object):
                 series.maxLimit = maxLimit
             series.append(coefficientCode, begDate, value)
 
-def selectEvents(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID):
+def selectEvents(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
     if (not contractDescr.tariffByEventType
             and not contractDescr.tariffByCoupleVisitEventType
             and not contractDescr.tariffByHospitalBedDay
@@ -1850,7 +1853,41 @@ def selectEvents(contractDescr, personIdList, begDate, endDate, reexpose, onlyDi
             cond.append(tableETI['value'].eq('av'))
             cond.append(tableETI['deleted'].eq(0))
             cond.append(tableAS['code'].eq('AccTFOMS'))
-
+    if onlyTFOMS:
+        tableClient = db.table('Client')
+        tableClientPolicy = db.table('ClientPolicy')
+        tableInsurer = db.table('Organisation').alias("Insurer")
+        table = table.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        table = table.leftJoin(tableClientPolicy, u"""ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
+                                                        FROM ClientPolicy cp2
+                                                        WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+      (select MAX(cp.begDate) from ClientPolicy cp
+              WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
+     (SELECT MAX(cp2.id)
+              FROM ClientPolicy cp2
+              WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+              (select MAX(cp.begDate)
+                from ClientPolicy cp
+                WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate BETWEEN Event.execDate AND ADDDATE(DATE(Event.execDate), 30)
+                )),
+    (SELECT MAX(cp2.id)
+            FROM ClientPolicy cp2
+            WHERE cp2.client_id = Event.relative_id AND cp2.deleted = 0 AND cp2.begDate =
+            (select MAX(cp.begDate)
+            from ClientPolicy cp
+            WHERE cp.client_id = Event.relative_id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
+               )))""")
+        table = table.leftJoin(tableInsurer, tableInsurer['id'].eq(tableClientPolicy['insurer_id']))
+        cond.append("substr(Insurer.area, 1, 2) != '%s'" % QtGui.qApp.provinceKLADR()[:2])
     if contractDescr.exposeByLastEventContract:
         tableLastEvent = db.table('Event').alias('LastEvent')
         table = table.innerJoin(tableLastEvent, 'LastEvent.id=getLastEventId(Event.id)')
@@ -2008,7 +2045,7 @@ def selectVisitsByActionServices(contractDescr, personIdList, date,  reexpose, o
     return result
 
 
-def selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID):
+def selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
     if not contractDescr.tariffByVisitService:
         return []
     db = QtGui.qApp.db
@@ -2054,6 +2091,41 @@ def selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDi
             cond.append(tableETI['value'].eq('av'))
             cond.append(tableETI['deleted'].eq(0))
             cond.append(tableAS['code'].eq('AccTFOMS'))
+    if onlyTFOMS:
+        tableClient = db.table('Client')
+        tableClientPolicy = db.table('ClientPolicy')
+        tableInsurer = db.table('Organisation').alias("Insurer")
+        table = table.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        table = table.leftJoin(tableClientPolicy, u"""ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
+                                                        FROM ClientPolicy cp2
+                                                        WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+      (select MAX(cp.begDate) from ClientPolicy cp
+              WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
+     (SELECT MAX(cp2.id)
+              FROM ClientPolicy cp2
+              WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+              (select MAX(cp.begDate)
+                from ClientPolicy cp
+                WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate BETWEEN Event.execDate AND ADDDATE(DATE(Event.execDate), 30)
+                )),
+    (SELECT MAX(cp2.id)
+            FROM ClientPolicy cp2
+            WHERE cp2.client_id = Event.relative_id AND cp2.deleted = 0 AND cp2.begDate =
+            (select MAX(cp.begDate)
+            from ClientPolicy cp
+            WHERE cp.client_id = Event.relative_id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
+               )))""")
+        table = table.leftJoin(tableInsurer, tableInsurer['id'].eq(tableClientPolicy['insurer_id']))
+        cond.append("substr(Insurer.area, 1, 2) != '%s'" % QtGui.qApp.provinceKLADR()[:2])
     if contractDescr.specification:
         cond.append(tableEvent['eventType_id'].inlist(contractDescr.specification))
     if contractDescr.onlyInspectedEvents:
@@ -2102,7 +2174,7 @@ def selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDi
     return db.getIdList(table, idCol='Visit.id', where=cond, order='Visit.date, Event.client_id, Visit.id')
 
 
-def selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID):
+def selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
     if not contractDescr.tariffEventByMES and not contractDescr.tariffByCSG:
         return []
     financeId = contractDescr.financeId
@@ -2158,6 +2230,41 @@ def selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDisp
             cond.append(tableETI['value'].eq('av'))
             cond.append(tableETI['deleted'].eq(0))
             cond.append(tableAS['code'].eq('AccTFOMS'))
+    if onlyTFOMS:
+        tableClient = db.table('Client')
+        tableClientPolicy = db.table('ClientPolicy')
+        tableInsurer = db.table('Organisation').alias("Insurer")
+        table = table.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        table = table.leftJoin(tableClientPolicy, u"""ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
+                                                        FROM ClientPolicy cp2
+                                                        WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+      (select MAX(cp.begDate) from ClientPolicy cp
+              WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
+     (SELECT MAX(cp2.id)
+              FROM ClientPolicy cp2
+              WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+              (select MAX(cp.begDate)
+                from ClientPolicy cp
+                WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate BETWEEN Event.execDate AND ADDDATE(DATE(Event.execDate), 30)
+                )),
+    (SELECT MAX(cp2.id)
+            FROM ClientPolicy cp2
+            WHERE cp2.client_id = Event.relative_id AND cp2.deleted = 0 AND cp2.begDate =
+            (select MAX(cp.begDate)
+            from ClientPolicy cp
+            WHERE cp.client_id = Event.relative_id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
+               )))""")
+        table = table.leftJoin(tableInsurer, tableInsurer['id'].eq(tableClientPolicy['insurer_id']))
+        cond.append("substr(Insurer.area, 1, 2) != '%s'" % QtGui.qApp.provinceKLADR()[:2])
     if contractDescr.specification:
         cond.append(tableEvent['eventType_id'].inlist(contractDescr.specification))
     if contractDescr.onlyInspectedEvents:
@@ -2203,7 +2310,7 @@ def selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDisp
     return db.getDistinctIdList(table, idCol='Event_CSG.id', where=cond, order='Event_CSG.begDate, Event.client_id, Event_CSG.id')
 
 
-def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID):
+def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
     from Events.ActionStatus import CActionStatus
 
     if not contractDescr.tariffByActionService:
@@ -2240,6 +2347,41 @@ def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyD
             cond.append(tableETI['value'].eq('av'))
             cond.append(tableETI['deleted'].eq(0))
             cond.append(tableAS['code'].eq('AccTFOMS'))
+    if onlyTFOMS:
+        tableClient = db.table('Client')
+        tableClientPolicy = db.table('ClientPolicy')
+        tableInsurer = db.table('Organisation').alias("Insurer")
+        table = table.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        table = table.leftJoin(tableClientPolicy, u"""ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
+                                                      FROM ClientPolicy cp2
+                                                      WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+    (select MAX(cp.begDate) from ClientPolicy cp
+            WHERE cp.client_id = Client.id
+              AND cp.policyType_id IN (1,2)
+              AND cp.deleted = 0
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
+   (SELECT MAX(cp2.id)
+            FROM ClientPolicy cp2
+            WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+            (select MAX(cp.begDate)
+              from ClientPolicy cp
+              WHERE cp.client_id = Client.id
+              AND cp.policyType_id IN (1,2)
+              AND cp.deleted = 0
+              AND cp.begDate BETWEEN Event.execDate AND ADDDATE(DATE(Event.execDate), 30)
+              )),
+  (SELECT MAX(cp2.id)
+          FROM ClientPolicy cp2
+          WHERE cp2.client_id = Event.relative_id AND cp2.deleted = 0 AND cp2.begDate =
+          (select MAX(cp.begDate)
+          from ClientPolicy cp
+          WHERE cp.client_id = Event.relative_id
+              AND cp.policyType_id IN (1,2)
+              AND cp.deleted = 0
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
+             )))""")
+        table = table.leftJoin(tableInsurer, tableInsurer['id'].eq(tableClientPolicy['insurer_id']))
+        cond.append("substr(Insurer.area, 1, 2) != '%s'" % QtGui.qApp.provinceKLADR()[:2])
     # для КК отключаем это условие, чтобы услуги, оказанные ранее попадали в счет с нулевой ценой
     if QtGui.qApp.defaultKLADR()[:2] != u'23':
         cond.append('DATE(Action.exposeDate) >= DATE(Event.setDate)')
@@ -2508,7 +2650,7 @@ def sortTariffsInDict(tariffDict):
     return tariffDict
     
 
-def selectReexposableEvents(contractDescr, begDate, endDate, personIdList=None):
+def selectReexposableEvents(contractDescr, begDate, endDate, personIdList=None, onlyTFOMS=False):
     db = QtGui.qApp.db
     tableAccountItem = db.table('Account_Item')
     tableAccount = db.table('Account')
@@ -2528,6 +2670,41 @@ def selectReexposableEvents(contractDescr, begDate, endDate, personIdList=None):
         tablePayRefuseType, tablePayRefuseType['id'].eq(tableAccountItem['refuseType_id']))
     table = table.leftJoin(
         tableEvent, tableEvent['id'].eq(tableAccountItem['event_id']))
+    if onlyTFOMS:
+        tableClient = db.table('Client')
+        tableClientPolicy = db.table('ClientPolicy')
+        tableInsurer = db.table('Organisation').alias("Insurer")
+        table = table.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+        table = table.leftJoin(tableClientPolicy, u"""ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
+                                                        FROM ClientPolicy cp2
+                                                        WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+      (select MAX(cp.begDate) from ClientPolicy cp
+              WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
+     (SELECT MAX(cp2.id)
+              FROM ClientPolicy cp2
+              WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
+              (select MAX(cp.begDate)
+                from ClientPolicy cp
+                WHERE cp.client_id = Client.id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate BETWEEN Event.execDate AND ADDDATE(DATE(Event.execDate), 30)
+                )),
+    (SELECT MAX(cp2.id)
+            FROM ClientPolicy cp2
+            WHERE cp2.client_id = Event.relative_id AND cp2.deleted = 0 AND cp2.begDate =
+            (select MAX(cp.begDate)
+            from ClientPolicy cp
+            WHERE cp.client_id = Event.relative_id
+                AND cp.policyType_id IN (1,2)
+                AND cp.deleted = 0
+                AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
+               )))""")
+        table = table.leftJoin(tableInsurer, tableInsurer['id'].eq(tableClientPolicy['insurer_id']))
+        cond.append("substr(Insurer.area, 1, 2) != '%s'" % QtGui.qApp.provinceKLADR()[:2])
         
     if personIdList is not None:
         if contractDescr.visitExposition:
@@ -2770,7 +2947,7 @@ def isInterruptedCase(eventId):
             from Event e
             left join rbResult as EventResult on EventResult.id = e.result_id
             where e.id = {eventId}
-                  and EventResult.regionalCode in ('102', '103', '105', '107', '108', '110', '202', '203', '205', '207', '208')""".format(eventId=eventId)
+                  and EventResult.regionalCode in ('102', '103', '104', '105', '107', '108', '110', '202', '203', '205', '207', '208')""".format(eventId=eventId)
     result = None
     query = db.query(stmt)
     while query.next():

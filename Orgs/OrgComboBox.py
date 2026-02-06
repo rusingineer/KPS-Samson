@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import QDate, QModelIndex, QVariant, SIGNAL
+from PyQt4.QtCore import QDate, QModelIndex, QVariant, SIGNAL, QEvent
 
 from library.DbComboBox import CAbstractDbComboBox, CAbstractDbModel, CDbComboBox, CDbData
 from library.InDocTable import CInDocTableCol
@@ -31,9 +31,22 @@ class COrgComboBox(CDbComboBox):
     def __init__(self, parent):
         CDbComboBox.__init__(self, parent)
         self.setNameField('shortName')
+        self.isWheel = True
         self.setAddNone(True)
         self.setFilter('deleted = 0')
         self.setTable('Organisation')
+
+
+    def setWheel(self, value=False):
+        self.isWheel = value
+
+
+    def event(self, event):
+        if event.type() == QEvent.Wheel: # QWheelEvent
+            if not self.isWheel:
+                event.ignore()
+                return False
+        return CDbComboBox.event(self, event)
 
 
 class COrgComboBoxEx(CDbComboBox):
@@ -130,6 +143,69 @@ class COrgInDocTableColEx(COrgInDocTableCol):
         if info:
             return toVariant(info)
         return QVariant(u'не задано')
+
+
+class COrgIsMedicalBtnInDocTableCol(COrgInDocTableCol):
+    def createEditor(self, parent):
+        editor = COrgIsBtnSelectInDocTableEditor(parent, filter=u'isMedical != 0')
+        editor.cmbOrganisation.setAddNone(True, u'не задано')
+        return editor
+
+
+class COrgIsBtnSelectInDocTableEditor(QtGui.QWidget):
+    __pyqtSignals__ = ('editingFinished()',
+                       'commit()',
+                      )
+    def __init__(self, parent, filter=''):
+        QtGui.QWidget.__init__(self, parent)
+        self.boxlayout = QtGui.QHBoxLayout(self)
+        self.boxlayout.setMargin(0)
+        self.boxlayout.setSpacing(0)
+        self.boxlayout.setObjectName('boxlayout')
+        self.cmbOrganisation = COrgComboBox(self)
+        self.cmbOrganisation.setObjectName('cmbOrganisation')
+        self.boxlayout.addWidget(self.cmbOrganisation)
+        self.btnSelect = QtGui.QPushButton(self)
+        self.btnSelect.setObjectName('btnSelect')
+        self.btnSelect.setText(u'...')
+        self.btnSelect.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Ignored)
+        self.btnSelect.setFixedWidth(20)
+        self.boxlayout.addWidget(self.btnSelect)
+        self.setFocusProxy(self.cmbOrganisation)
+        self.connect(self.btnSelect, SIGNAL('clicked()'), self.on_btnSelect_clicked)
+        self.filter = filter
+        self.cmbOrganisation.installEventFilter(self)
+        self.btnSelect.installEventFilter(self)
+        self.cmbOrganisation.setFilter(self.filter)
+
+
+    def eventFilter(self, widget, event):
+        et = event.type()
+        if et == QEvent.FocusOut:
+            fw = QtGui.qApp.focusWidget()
+            while fw and fw != self:
+                fw = fw.parentWidget()
+            if not fw:
+                self.emit(SIGNAL('editingFinished()'))
+        elif et == QEvent.Hide and widget == self.cmbOrganisation:
+            self.emit(SIGNAL('commit()'))
+        return QtGui.QWidget.eventFilter(self, widget, event)
+
+
+    def on_btnSelect_clicked(self):
+        from Orgs import selectOrganisation
+        orgId = selectOrganisation(self, self.cmbOrganisation.value(), False, self.cmbOrganisation.filter())
+        self.cmbOrganisation.updateModel()
+        if orgId:
+            self.cmbOrganisation.setValue(orgId)
+
+
+    def setValue(self, value):
+        self.cmbOrganisation.setValue(forceRef(value))
+
+
+    def value(self):
+        return self.cmbOrganisation.value()
 
 
 class COrgIsMedicalComboBox(COrgComboBox):
@@ -257,10 +333,23 @@ class CPolyclinicComboBox(CDbComboBox):
     filter = 'isMedical != 0 and deleted = 0'
     def __init__(self, parent):
         CDbComboBox.__init__(self, parent)
+        self.isWheel = True
         self.setNameField(CPolyclinicComboBox.nameField)
         self.setAddNone(True)
         self.setFilter(CPolyclinicComboBox.filter)
         self.setTable('Organisation')
+
+
+    def setWheel(self, value=False):
+        self.isWheel = value
+
+
+    def event(self, event):
+        if event.type() == QEvent.Wheel: # QWheelEvent
+            if not self.isWheel:
+                event.ignore() 
+                return False
+        return CDbComboBox.event(self, event)
 
 
 class CPolyclinicComboBoxEx(COrgComboBoxEx):

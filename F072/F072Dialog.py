@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -25,7 +25,7 @@ from library.Attach.AttachAction import getAttachAction
 from library.crbcombobox        import CRBComboBox
 from library.ICDInDocTableCol   import CICDExInDocTableCol
 from library.ICDMorphologyInDocTableCol import CMKBMorphologyCol
-from library.InDocTable         import CMKBListInDocTableModel, CBoolInDocTableCol, CInDocTableCol, CRBInDocTableCol
+from library.InDocTable         import CMKBListInDocTableModel, CBoolInDocTableCol, CInDocTableCol, CRBInDocTableCol, CEnumInDocTableCol
 from library.ItemsListDialog    import CItemEditorBaseDialog
 from library.interchange        import getDatetimeEditValue, getRBComboBoxValue, setDatetimeEditValue, setRBComboBoxValue, getLineEditValue
 from library.PrintInfo          import CInfoContext
@@ -41,7 +41,7 @@ from Events.ActionsSummaryModel import CFxxxActionsSummaryModel
 from Events.DiagnosisType       import CDiagnosisTypeCol
 from Events.EventEditDialog     import CEventEditDialog, CDiseaseCharacter, CDiseaseStage, CDiseasePhases, CToxicSubstances, getToxicSubstancesIdListByMKB
 from Events.EventInfo           import CDiagnosticInfoProxyList
-from Events.Utils               import (getEventIsExternal,
+from Events.Utils               import (getEventAvailableOrders, getEventIsExternal,
                                         checkUniqueEventExternalId,
                                         getEventEnableActionsBeyondEvent,
                                         checkDiagnosis,
@@ -265,7 +265,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
         self.edtEndDate.setDate(self.eventDate)
         self.edtEndTime.setTime(eventDatetime.time() if isinstance(eventDatetime, QDateTime) else QTime())
         self.chkPrimary.setChecked(getEventIsPrimary(eventTypeId)==0)
-        self.cmbOrder.setCurrentIndex(order)
+        self.initOrder(forceString(getEventAvailableOrders(eventTypeId)), order+1)
         self.cmbContract.setCurrentIndex(0)
         self.initFocus()
 
@@ -316,17 +316,20 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
         else:
             eventDate = QDate.currentDate()
         presentActionTypes = []
+        maxOccursLimitActionTypes = []
         for item in self.modelActionsSummary.items():
             actionTypeId = forceString(item.value('actionType_id'))
             if actionTypeId not in presentActionTypes:
                 presentActionTypes.append(actionTypeId)
+                if not self.checkMaxOccursLimit(actionTypeId) and actionTypeId not in maxOccursLimitActionTypes:
+                    maxOccursLimitActionTypes.append(actionTypeId)
         form = getEventTypeForm(eventTypeId)
         if (form != u'090' and QtGui.qApp.userHasRight(urAccessF072planner)) or (form == u'090' and QtGui.qApp.userHasAnyRight([urAccessF090planner,])):
             dlg = CPreF072Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
                 dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
-                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes)
+                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -338,7 +341,9 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF072DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes)
+            presets = CPreF072DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, 
+                                                        flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes, 
+                                                        maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             return self._prepare(clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile,
                                  numDays, presets.unconditionalDiagnosticList, presets.unconditionalActionList,
@@ -509,7 +514,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
         setRBComboBoxValue(self.cmbPerson,      record, 'execPerson_id')
         self.chkPrimary.setChecked(forceInt(record.value('isPrimary'))==1)
         self.setExternalId(forceString(record.value('externalId')))
-        self.cmbOrder.setCurrentIndex(forceInt(record.value('order'))-1)
+        self.initOrder(forceString(getEventAvailableOrders(record.value('eventType_id'))), forceInt(record.value('order')))
         setRBComboBoxValue(self.cmbResult,      record, 'result_id')
         self.setPerson = forceRef(record.value('setPerson_id'))
         self.edtEventExternalIdValue.setText(unicode(forceString(record.value('externalId'))))
@@ -656,6 +661,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
                                                                                diagnosisId)
                     newRecord.setValue('handleDiagnosis', QVariant(isCheckedHandleDiagnosis))
 
+            newRecord._dirty = False
             items.append(newRecord)
         modelDiagnostics.setItems(items)
         modelDiagnostics.cols()[modelDiagnostics.getColIndex('healthGroup_id')].setFilter(getHealthGroupFilter(forceString(self.clientBirthDate.toString('yyyy-MM-dd')), forceString(self.eventSetDateTime.date().toString('yyyy-MM-dd'))))
@@ -1664,6 +1670,8 @@ class CF072BaseDiagnosticsModel(CMKBListInDocTableModel):
         self.addExtCol(CICDExInDocTableCol(u'Доп.МКБ',     'MKBEx', 7, switchOff=False), QVariant.String)
         if QtGui.qApp.isTNMSVisible():
             self.addCol(CTNMSCol(u'TNM-Ст', 'TNMS',  10, switchOff=False))
+        if QtGui.qApp.isClinicalGroupDiagnosticVisible():
+            self.addCol(CEnumInDocTableCol(u'КГ', 'clinicalGroup', 30, [u'', u'1а - подозрение', u'1б - предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению'])).setToolTip(u'Клиническая группа')
         if self.isMKBMorphology:
             self.addExtCol(CMKBMorphologyCol(u'Морф.', 'morphologyMKB', 10, 'MKB_Morphology', filter='`group` IS NOT NULL', switchOff=False), QVariant.String)
         self.addCol(CDiseaseCharacter(     u'Хар',         'character_id',   7, showFields=CRBComboBox.showCode, preferredWidth=150, switchOff=False)).setToolTip(u'Характер')
@@ -1818,6 +1826,7 @@ class CF072BaseDiagnosticsModel(CMKBListInDocTableModel):
                     acceptable, specifiedMKB, specifiedMKBEx, specifiedCharacterId, specifiedTraumaTypeId, specifiedDispanserId, specifiedRequiresFillingDispanser, specifiedProlongMKB = eventEditor.specifyDiagnosis(newMKB)
                     if not acceptable:
                         return False
+                oldMKB = forceString(self.items()[row].value('MKB')) if 0 <= row < len(self.items()) else None
                 value = toVariant(specifiedMKB)
                 result = CMKBListInDocTableModel.setData(self, index, value, role)
                 if result:
@@ -1825,6 +1834,7 @@ class CF072BaseDiagnosticsModel(CMKBListInDocTableModel):
                         self.updateDispanserByMKB(row, specifiedDispanserId, specifiedProlongMKB)
                     self.updateCharacterByMKB(row, specifiedMKB, specifiedCharacterId)
                     self.updateTraumaType(row, specifiedMKB, specifiedTraumaTypeId)
+                    self.updateClinicalGroup(row, oldMKB, specifiedMKB, eventEditor.itemId(), eventEditor.clientId, eventEditor.eventSetDateTime.date())
                     self.updateToxicSubstancesByMKB(row, specifiedMKB)
                     self.updateTNMS(index, self.items()[row], specifiedMKB)
                     self.updateMKBTNMS(self.items()[row], specifiedMKB)

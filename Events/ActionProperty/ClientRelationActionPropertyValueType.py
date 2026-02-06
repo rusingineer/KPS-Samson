@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -39,6 +39,14 @@ class CClientRelationActionPropertyValueType(CActionPropertyValueType):
         def setValue(self, value):
             v = forceRef(value)
             CClientRelationComboBoxPatronEx.setValue(self, v)
+
+        def getClientId(self, value):
+            v = forceRef(value)
+            return CClientRelationComboBoxPatronEx.getClientId(self, v)
+
+        def getRelativeId(self, value):
+            v = forceRef(value)
+            return CClientRelationComboBoxPatronEx.getRelativeId(self, v)
 
 
     def getEditorClass(self):

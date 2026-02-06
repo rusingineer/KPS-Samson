@@ -730,6 +730,8 @@ class CCheckedSelectedActionTypesModel(CCheckedActionsModel):
         record = self.getEmptyRecord(self.getPropertyTypeCellsSettings(actionTypeId, row))
         action = CAction.getFilledAction(self.parentWidget.eventEditor, record, actionTypeId, orgStructureId=self.orgStructureId, initPresetValues=True)
         action.setOrgStructureId(self.orgStructureId)
+        if not action.getType().isNomenclatureExpense and piRecords:
+            action.updateExecutionPlanByRecord(forceDuration=True)
         record.setValue('checked', QVariant(Qt.Checked))
         record.setValue('price', QVariant(self.getPrice(record)))
         if amount:
@@ -892,6 +894,8 @@ class CCheckedSelectedActionTypesModel(CCheckedActionsModel):
         self.prices.append(0.0)
         if not self.isRowPlanEndDateEdited(row):
             self.updatePlannedEndDate(row)
+        if not action.getType().isNomenclatureExpense:
+            action.updateExecutionPlanByRecord(forceDuration=True)
         self.emitPricesAndSumsUpdated()
         return row
 

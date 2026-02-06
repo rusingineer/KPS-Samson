@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -79,6 +79,7 @@ __all__ = ( 'CActionDispansPhaseInfo',
             'CCharacterInfo',
             'CContractInfo',
             'CContractInfoList',
+            'CTariffInfoList',
             'CCureMethodInfo',
             'CCureTypeInfo',
             'CDagnosisTypeInfo',
@@ -468,15 +469,17 @@ class CContractInfo(CInfo):
 
 
 class CTariffInfoList(CInfoList):
-    def __init__(self, context, masterId):
+    def __init__(self, context, masterId, tariffIdList=[]):
         CInfoList.__init__(self, context)
         self.masterId = masterId
+        self.idList = tariffIdList
 
 
     def _load(self):
         db = QtGui.qApp.db
         table = db.table('Contract_Tariff')
-        idList = db.getIdList(table, 'id', [table['master_id'].eq(self.masterId), table['deleted'].eq(0)], 'id')
+        idList = db.getIdList(table, 'id', [table['master_id'].eq(self.masterId), table['deleted'].eq(0),
+                                            table['id'].inlist(self.idList) if self.idList else '1'], 'id')
         self._items = [ self.getInstance(CTariffInfo, id) for id in idList ]
         return True
 
@@ -497,6 +500,8 @@ class CTariffInfo(CInfo):
             self._age = forceString(record.value('age'))
             self._sex = forceString(record.value('sex'))
             self._unit = self.getInstance(CMedicalAidUnitInfo, forceRef(record.value('unit_id')))
+            self._begDate = CDateInfo(forceDate(record.value('begDate')))
+            self._endDate = CDateInfo(forceDate(record.value('endDate')))
             return True
         else:
             self._value = None
@@ -506,6 +511,8 @@ class CTariffInfo(CInfo):
             self._age = None
             self._sex = None
             self._unit = self.getInstance(CMedicalAidUnitInfo, None)
+            self._begDate = CDateInfo()
+            self._endDate = CDateInfo()
             return False
 
     price          = property(lambda self: self.load()._price)
@@ -515,6 +522,8 @@ class CTariffInfo(CInfo):
     age            = property(lambda self: self.load()._age)
     sex            = property(lambda self: self.load()._sex)
     unit            = property(lambda self: self.load()._unit)
+    begDate = property(lambda self: self.load()._begDate)
+    endDate = property(lambda self: self.load()._endDate)
 
 class CContingentInfoList(CInfoList):
     def __init__(self, context, masterId):
@@ -1832,7 +1841,7 @@ class CEventPaymentInfo(CInfo):
         if record:
             from Accounting.CashDialog import CCashOperationInfo
             cashOperationId = forceRef(record.value('cashOperation_id'))
-            self._date = forceString(record.value('date'))
+            self._dateTime = forceString(record.value('dateTime'))
             self._cashOperation = self.getInstance(CCashOperationInfo, cashOperationId) if cashOperationId else None
             self._sum = forceDouble(record.value('sum'))
             self._typePayment = forceInt(record.value('typePayment'))
@@ -1844,7 +1853,7 @@ class CEventPaymentInfo(CInfo):
             return True
         return False
 
-    date = property(lambda self: self.load()._date)
+    dateTime = property(lambda self: self.load()._dateTime)
     cashOperation = property(lambda self: self.load()._cashOperation)
     sum = property(lambda self: self.load()._sum)
     typePayment = property(lambda self: self.load()._typePayment)
@@ -1908,6 +1917,20 @@ class CDispanserInfo(CRBInfo):
 
 class CHospitalInfo(CInfo):
     names = [u'не требуется', u'требуется', u'направлен', u'пролечен']
+
+    def __init__(self, context, code):
+        CInfo.__init__(self, context)
+        self.code = code
+        self.name = self.names[code] if 0<=code<len(self.names) else ('{%s}' % code)
+        self._ok = True
+        self._loaded = True
+
+    def __str__(self):
+        return self.name
+
+
+class CClinicalGroupInfo(CInfo): #Клиническая группа - Diagnostic.clinicalGroup
+    names = [u'', u'1а - Подозрение', u'1б - Предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению']
 
     def __init__(self, context, code):
         CInfo.__init__(self, context)
@@ -2009,6 +2032,7 @@ class CDiagnosticInfo(CInfo):
         self._cTNMphase = self.getInstance(CTNMphaseInfo, forceRef(record.value('cTNMphase_id')))
         self._pTNMphase = self.getInstance(CTNMphaseInfo, forceRef(record.value('pTNMphase_id')))
         self._dispanserBegDate = CDateInfo(forceDate(record.value('dispanserBegDate')))
+        self._clinicalGroup = self.getInstance(CClinicalGroupInfo, forceInt(record.value('clinicalGroup')))
 
     type          = property(lambda self: self.load()._type)
     MKB           = property(lambda self: self.load()._MKB)
@@ -2045,6 +2069,7 @@ class CDiagnosticInfo(CInfo):
     cTNMphase     = property(lambda self: self.load()._cTNMphase)
     pTNMphase     = property(lambda self: self.load()._pTNMphase)
     dispanserBegDate = property(lambda self: self.load()._dispanserBegDate)
+    clinicalGroup = property(lambda self: self.load()._clinicalGroup)
 
 
 class CDiagnosticInfoList(CInfoList):

@@ -10,6 +10,7 @@ from library.TableModel import CTableModel, CCol, CTextCol
 from library.Utils import *
 from RefBooks.Person.List import CPersonEditor
 from Users.Rights import urAdmin, urAccessRefPerson, urAccessRefPersonPersonal
+from Orgs.Utils import getOrgStructureDescendants
 import Exchange.AttachService as AttachService
 
 from Ui_ExportAttachDoctorSectionInfoDialog import Ui_ExportAttachDoctorSectionInfoDialog
@@ -54,9 +55,10 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
             self.modelPersonOrder.update()
             if personOrderId:
                 self.tblPersonOrder.setCurrentItemId(personOrderId)
-            allCount = len(self.modelPersonOrder.recordsById)
-            errorCount = len(self.modelPersonOrder.errorsById)
-            labelText = u'Всего записей: %d, из них %d с ошибками' % (allCount, errorCount)
+            allCount = len(self.modelPersonOrder._idList)
+            errorInList = [id for id in self.modelPersonOrder._idList if id in self.modelPersonOrder.errorsById]
+            errorInListCount = len(errorInList)
+            labelText = u'Всего записей: %d, из них %d с ошибками' % (allCount, errorInListCount)
             self.btnExport.setEnabled(allCount > 0)
         except Exception as e:
             labelText = unicode(e)
@@ -67,6 +69,8 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
     def getRequests(self):
         requests = {}
         for record in self.modelPersonOrder.recordsById.itervalues():
+            if self.modelPersonOrder.showOrgStruct and forceInt(record.value('orgStructure_id')) not in self.modelPersonOrder.showOrgStructIds:
+                continue
             moCode = forceString(record.value('moCode'))
             if moCode not in requests:
                 requests[moCode] = {}
@@ -102,13 +106,17 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
     def export(self):
         requests = self.getRequests()
         if not requests:
-            QtGui.QMessageBox.information(self, u'Сведения не отправлены', u'Нет данных для отправки', QtGui.QMessageBox.Close)
+            QtGui.QMessageBox.information(self, u'Сведения не отправлены', u'Нет данных для отправки',
+                                          QtGui.QMessageBox.Close)
             return
         results = []
         self.disableControls()
         successCount = 0
         errorCount = 0
         try:
+            self.clearLog()
+            self.showLog()
+
             self.lblExportStatus.setText(u"Отправка пакетов...")
             self.pbExportProgress.setMaximum(len(requests))
             self.pbExportProgress.setValue(0)
@@ -119,12 +127,21 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
             for moCode, doctors in requests.iteritems():
                 QtGui.qApp.processEvents()
                 try:
-                    AttachService.sendAttachDoctorSectionInformation(moCode, doctors)
-                    self.edExportResults.insertPlainText(u"%s: успешно\n" % moCode)
+                    response = AttachService.sendAttachDoctorSectionInformation(moCode, doctors)
+                    result = response[u'result']
+                    self.appendLog(u"Экспорт участка %s - запрос" % moCode, True)
+                    self.appendLog(response['req'], True)
+                    self.appendLog(u"Экспорт участка %s - ответ" % moCode, False)
+                    self.appendLog(
+                        response['result']['responcepack']['p10_packrespinf']['r11_rsinf']['responceMessage'], False
+                    )
+                    self.appendLog(u"%s: успешно" % moCode, False)
                     successCount += 1
                 except Exception as e:
-                    self.edExportResults.insertPlainText(u"%s: ошибка (%s)\n" % (moCode, exceptionToUnicode(e)))
+                    self.appendLog(u"%s: ошибка (%s)" % (moCode, exceptionToUnicode(e)))
                     errorCount += 1
+                finally:
+                    self.showLog()
                 self.pbExportProgress.setValue(self.pbExportProgress.value() + 1)
             totalCount = successCount + errorCount
             message = u"Сведения отправлены: учреждений %d, из них %d успешно, %d с ошибками" % (totalCount, successCount, errorCount)
@@ -154,6 +171,25 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
         else:
             return self.modelPersonOrder.recordsById[id]
 
+    def clearLog(self):
+        self.shortLog = u''
+        self.fullLog = u''
+
+    def appendLog(self, text, fullLogOnly):
+        self.fullLog += text
+        self.fullLog += u'\r\n'
+        if not fullLogOnly:
+            self.shortLog += text
+            self.shortLog += u'\r\n'
+
+    def showLog(self):
+        if self.chbFullLog.isChecked():
+            self.edExportResults.setPlainText(self.fullLog)
+        else:
+            self.edExportResults.setPlainText(self.shortLog)
+        self.edExportResults.verticalScrollBar().setValue(self.edExportResults.verticalScrollBar().maximum())
+        QtGui.qApp.processEvents()
+
     @pyqtSignature('')
     def on_btnClose_clicked(self):
         self.reject()
@@ -173,6 +209,12 @@ class CExportAttachDoctorSectionInfoDialog(QtGui.QDialog, CConstructHelperMixin,
     @pyqtSignature('')
     def on_rbShowErrors_clicked(self):
         self.modelPersonOrder.setShowErrorsOnly(True)
+
+    @pyqtSignature('int')
+    def on_cmbOrgStructure_currentIndexChanged(self, index):
+        orgStructureId = self.cmbOrgStructure.value()
+        self.modelPersonOrder.setShowOrgStructOnly(orgStructureId)
+        self.updateList()
 
     @pyqtSignature('')
     def on_actEditPerson_triggered(self):
@@ -244,6 +286,8 @@ class CPersonOrderModel(CTableModel):
             's.regionalCode',
         ]
         self.showErrorsOnly = False
+        self.showOrgStruct = None
+        self.showOrgStructIds = list()
         self.recordsById = {}
         self.errorsById = {}
         self.order = (0, True)
@@ -288,7 +332,8 @@ class CPersonOrderModel(CTableModel):
                 concat_ws('', p.lastName, ';', p.firstName, ';', p.patrName, ';', p.birthDate, ';', p.SNILS) as personKey,
                 s.regionalCode AS spec,
                 s.name AS specName,
-                o1.areaType
+                o1.areaType,
+                po.orgStructure_id
             from Person_Order po
                 left join Person p ON p.id = po.master_id
                 left join rbSpeciality s ON s.id = p.speciality_id
@@ -302,8 +347,8 @@ class CPersonOrderModel(CTableModel):
                 and po.documentType_id IS NOT NULL
                 and po.deleted = 0
                 and LENGTH(p.SNILS) > 0
-                and (po.validToDate IS NULL or LENGTH(po.validToDate) = 0 or po.validToDate > now())
-                and (po.validFromDate IS NULL or LENGTH(po.validFromDate) = 0 or po.validFromDate <= now())
+                and (po.validToDate IS NULL or LENGTH(po.validToDate) = 0 or po.validToDate >= current_date)
+                and (po.validFromDate IS NULL or LENGTH(po.validFromDate) = 0 or po.validFromDate <= current_date)
             """
 
         orderColumnIndex, isAscending = self.order
@@ -369,12 +414,25 @@ class CPersonOrderModel(CTableModel):
         self.updateIdList()
     
     def updateIdList(self):
-        if self.showErrorsOnly:
-            self.setIdList([id for id in self.fullIdList if (id in self.errorsById)])
-        else:
-            self.setIdList(self.fullIdList)
+        idList = []
+        for id in self.fullIdList:
+            record = self.recordsById[id]
+            if self.showOrgStruct and record.value('orgStructure_id') not in self.showOrgStructIds:
+                continue
+            if self.showErrorsOnly and id not in self.errorsById:
+                continue
+            idList.append(id)
+        self.setIdList(idList)
 
     def setShowErrorsOnly(self, showErrorsOnly):
         self.showErrorsOnly = showErrorsOnly
+        if len(self.recordsById) > 0:
+            self.updateIdList()
+
+    def setShowOrgStructOnly(self, showOrgStruct):
+        self.showOrgStruct = showOrgStruct
+        self.showOrgStructIds = list()
+        if showOrgStruct:
+            self.showOrgStructIds = getOrgStructureDescendants(showOrgStruct)
         if len(self.recordsById) > 0:
             self.updateIdList()

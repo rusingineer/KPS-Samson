@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'RefBooks/ServiceFilterDialog.ui'
+# Form implementation generated from reading ui file 'ServiceFilterDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Tue Sep 30 08:14:10 2025
+#      by: PyQt4 UI code generator 4.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -25,7 +26,7 @@ except AttributeError:
 class Ui_ServiceFilterDialog(object):
     def setupUi(self, ServiceFilterDialog):
         ServiceFilterDialog.setObjectName(_fromUtf8("ServiceFilterDialog"))
-        ServiceFilterDialog.resize(407, 310)
+        ServiceFilterDialog.resize(407, 326)
         ServiceFilterDialog.setSizeGripEnabled(True)
         self.gridLayout = QtGui.QGridLayout(ServiceFilterDialog)
         self.gridLayout.setMargin(4)
@@ -49,6 +50,9 @@ class Ui_ServiceFilterDialog(object):
         self.chkEIS.setTristate(True)
         self.chkEIS.setObjectName(_fromUtf8("chkEIS"))
         self.gridLayout.addWidget(self.chkEIS, 8, 1, 1, 1)
+        self.edtNote = QtGui.QLineEdit(ServiceFilterDialog)
+        self.edtNote.setObjectName(_fromUtf8("edtNote"))
+        self.gridLayout.addWidget(self.edtNote, 7, 1, 1, 1)
         self.lblClass = QtGui.QLabel(ServiceFilterDialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
@@ -57,9 +61,6 @@ class Ui_ServiceFilterDialog(object):
         self.lblClass.setSizePolicy(sizePolicy)
         self.lblClass.setObjectName(_fromUtf8("lblClass"))
         self.gridLayout.addWidget(self.lblClass, 3, 0, 1, 1)
-        self.edtNote = QtGui.QLineEdit(ServiceFilterDialog)
-        self.edtNote.setObjectName(_fromUtf8("edtNote"))
-        self.gridLayout.addWidget(self.edtNote, 7, 1, 1, 1)
         self.cmbType = CRBComboBox(ServiceFilterDialog)
         self.cmbType.setObjectName(_fromUtf8("cmbType"))
         self.gridLayout.addWidget(self.cmbType, 2, 1, 1, 1)
@@ -98,6 +99,9 @@ class Ui_ServiceFilterDialog(object):
         self.lblName.setSizePolicy(sizePolicy)
         self.lblName.setObjectName(_fromUtf8("lblName"))
         self.gridLayout.addWidget(self.lblName, 5, 0, 1, 1)
+        self.cmbClass = CRBComboBox(ServiceFilterDialog)
+        self.cmbClass.setObjectName(_fromUtf8("cmbClass"))
+        self.gridLayout.addWidget(self.cmbClass, 3, 1, 1, 1)
         self.chkNomenclature = QtGui.QCheckBox(ServiceFilterDialog)
         self.chkNomenclature.setTristate(True)
         self.chkNomenclature.setObjectName(_fromUtf8("chkNomenclature"))
@@ -105,17 +109,6 @@ class Ui_ServiceFilterDialog(object):
         self.edtCode = QtGui.QLineEdit(ServiceFilterDialog)
         self.edtCode.setObjectName(_fromUtf8("edtCode"))
         self.gridLayout.addWidget(self.edtCode, 4, 1, 1, 1)
-        self.cmbClass = CRBComboBox(ServiceFilterDialog)
-        self.cmbClass.setObjectName(_fromUtf8("cmbClass"))
-        self.gridLayout.addWidget(self.cmbClass, 3, 1, 1, 1)
-        self.lblCode = QtGui.QLabel(ServiceFilterDialog)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.lblCode.sizePolicy().hasHeightForWidth())
-        self.lblCode.setSizePolicy(sizePolicy)
-        self.lblCode.setObjectName(_fromUtf8("lblCode"))
-        self.gridLayout.addWidget(self.lblCode, 4, 0, 1, 1)
         self.lblSection = QtGui.QLabel(ServiceFilterDialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
@@ -130,6 +123,14 @@ class Ui_ServiceFilterDialog(object):
         self.cmbSection = CRBComboBox(ServiceFilterDialog)
         self.cmbSection.setObjectName(_fromUtf8("cmbSection"))
         self.gridLayout.addWidget(self.cmbSection, 1, 1, 1, 1)
+        self.lblCode = QtGui.QLabel(ServiceFilterDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lblCode.sizePolicy().hasHeightForWidth())
+        self.lblCode.setSizePolicy(sizePolicy)
+        self.lblCode.setObjectName(_fromUtf8("lblCode"))
+        self.gridLayout.addWidget(self.lblCode, 4, 0, 1, 1)
         spacerItem1 = QtGui.QSpacerItem(20, 0, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem1, 15, 0, 1, 1)
         self.lblPeriod = QtGui.QLabel(ServiceFilterDialog)
@@ -138,7 +139,7 @@ class Ui_ServiceFilterDialog(object):
         self.buttonBox = QtGui.QDialogButtonBox(ServiceFilterDialog)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridLayout.addWidget(self.buttonBox, 16, 0, 1, 2)
+        self.gridLayout.addWidget(self.buttonBox, 17, 0, 1, 2)
         self.horizontalLayoutCreatePeriod = QtGui.QHBoxLayout()
         self.horizontalLayoutCreatePeriod.setSpacing(4)
         self.horizontalLayoutCreatePeriod.setObjectName(_fromUtf8("horizontalLayoutCreatePeriod"))
@@ -155,6 +156,9 @@ class Ui_ServiceFilterDialog(object):
         spacerItem2 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayoutCreatePeriod.addItem(spacerItem2)
         self.gridLayout.addLayout(self.horizontalLayoutCreatePeriod, 14, 1, 1, 1)
+        self.chkCloseServices = QtGui.QCheckBox(ServiceFilterDialog)
+        self.chkCloseServices.setObjectName(_fromUtf8("chkCloseServices"))
+        self.gridLayout.addWidget(self.chkCloseServices, 16, 0, 1, 1)
         self.label.setBuddy(self.edtNote)
         self.lblServiceGroup.setBuddy(self.cmbServiceGroup)
         self.lblClass.setBuddy(self.cmbClass)
@@ -162,8 +166,8 @@ class Ui_ServiceFilterDialog(object):
         self.lblCreatePeriod.setBuddy(self.edtCreatePeriodBegDate)
         self.lblType.setBuddy(self.cmbType)
         self.lblName.setBuddy(self.edtName)
-        self.lblCode.setBuddy(self.edtCode)
         self.lblSection.setBuddy(self.cmbSection)
+        self.lblCode.setBuddy(self.edtCode)
         self.lblPeriod.setBuddy(self.edtBegDate)
         self.lblCreatePeriodTo.setBuddy(self.edtCreatePeriodEndDate)
 
@@ -196,10 +200,11 @@ class Ui_ServiceFilterDialog(object):
         self.lblType.setText(_translate("ServiceFilterDialog", "&Тип", None))
         self.lblName.setText(_translate("ServiceFilterDialog", "&Название содержит", None))
         self.chkNomenclature.setText(_translate("ServiceFilterDialog", "Унаследовано из номенклатуры", None))
-        self.lblCode.setText(_translate("ServiceFilterDialog", "Код начинается &с", None))
         self.lblSection.setText(_translate("ServiceFilterDialog", "&Раздел", None))
+        self.lblCode.setText(_translate("ServiceFilterDialog", "Код начинается &с", None))
         self.lblPeriod.setText(_translate("ServiceFilterDialog", "Период &c", None))
         self.lblCreatePeriodTo.setText(_translate("ServiceFilterDialog", "по", None))
+        self.chkCloseServices.setText(_translate("ServiceFilterDialog", "Только актуальные", None))
 
-from library.DateEdit import CDateEdit
 from library.crbcombobox import CRBComboBox
+from library.DateEdit import CDateEdit

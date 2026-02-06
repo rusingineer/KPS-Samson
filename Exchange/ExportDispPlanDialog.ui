@@ -223,7 +223,16 @@
       </widget>
      </item>
      <item>
-      <widget class="QComboBox" name="cmbKind">
+      <widget class="QComboBox" name="cmbKind"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="chkUseSocAttachments">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>Экспорт с персональными данными из ТФОМС</string>
+       </property>
       </widget>
      </item>
      <item>

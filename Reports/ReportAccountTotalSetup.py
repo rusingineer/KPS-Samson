@@ -2046,7 +2046,7 @@ where t.typeFile = 'D'""")
   Account_Item.id AS accountItemId,
   Account_Item.master_id AS accountId,
   Account_Item.event_id AS event_id,
-  COALESCE(Account_Item.action_id, Account_Item.visit_id, Account_Item.event_id) AS UID,
+  COALESCE(Account_Item.action_id, Account_Item.visit_id, Account_Item.eventCSG_id, Account_Item.event_id) AS UID,
   Account_Item.UET AS UET,
   rbAccountType.regionalCode as accTypeCode,
   Event.client_id AS client_id,
@@ -2873,7 +2873,8 @@ WHERE %s""" % self.db.joinAnd(cond)
 
             if serviceCode[:1] in ('G', 'V'):
                 dayCount = forceInt(record.value('dayCount'))
-                if serviceCode in ['st36.013', 'st36.014', 'st36.015']:
+                if (serviceCode in ['st36.013', 'st36.014', 'st36.015'] and endDate < QDate(2026, 1, 1)
+                        or serviceCode in ['st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054'] and endDate >= QDate(2026, 1, 1)):
                     dbfRecord['KD'] = 0
                 else:
                     dbfRecord['KD'] = dayCount if dayCount > 1 else 1

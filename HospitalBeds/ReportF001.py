@@ -745,8 +745,8 @@ class CStationaryReportF001(CReportBase):
                 whoDirecting += u'Доставлен: ' + forceString(rec.value('whoDelivered'))
 
             numberCardList = []
-            numberCardList.append(forceRef(record.value('externalId')))
-            numberCardStr = ', '.join(str(numberCard) for numberCard in numberCardList if numberCard)
+            numberCardList.append(forceString(record.value('externalId')))
+            numberCardStr = ', '.join(numberCard for numberCard in numberCardList if numberCard)
 
             nameRenunciate = u''
             queryClientId = queryProperty(clientId, record, u'received%', u'nameRenuncReason', u'Причина отказа%', actionIdLeaved=actionId, condOrgStructure=condOrgStructure)

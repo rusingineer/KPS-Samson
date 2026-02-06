@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,19 +21,11 @@ from Orgs.Utils         import getOrgStructureDescendants
 from Reports.Report     import CReport
 from Reports.ReportBase import CReportBase, createTable
 from Reports.ReportF30  import CReportF30Base
+from Reports.Utils import getRetireeAges
 
 
 def getAgeGroupCond(begDate, today='Visit.date'):
-    maleAge = 60
-    femaleAge = 55
-
-    if begDate:
-        if begDate.year() == 2021:
-            femaleAge, maleAge = 56, 61
-        elif begDate.year() == 2022 or begDate.year() == 2023:
-            femaleAge, maleAge = 57, 62
-        elif begDate.year() == 2024:
-            femaleAge, maleAge = 58, 63
+    maleAge, femaleAge = getRetireeAges(begDate)
 
     return ('CASE WHEN age(Client.birthDate, {0}) < 15 THEN 0'
                 ' WHEN age(Client.birthDate, {0}) BETWEEN 15 AND 17 THEN 1'

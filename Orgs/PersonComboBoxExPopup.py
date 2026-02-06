@@ -50,6 +50,8 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         self.retireDate = None
         self.userId = None
         self.onlyDoctorsIfUnknowPost = False
+        self.orgStructureIdList = []
+        self.personIdList = []
         self.tblPerson.installEventFilter(self)
         preferences = getPref(QtGui.qApp.preferences.windowPrefs, 'CPersonComboBoxExPopup', {})
         self.tblPerson.loadPreferences(preferences)
@@ -88,6 +90,8 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
     def setOnlyDoctors(self, value):
         self.chkOnlyDoctors.setChecked(value)
 
+    def setOrgStructureList(self, orgStructureIdList):
+        self.orgStructureIdList = orgStructureIdList
 
     def getActualEmptyRecord(self):
         return self.tableModel.getActualEmptyRecord()
@@ -223,16 +227,27 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
     def initModel(self, id=None):
         self.on_buttonBox_apply(id)
 
-
-    def setPersonIdList(self, idList, posToId):
+    def setPersonEventIdList(self, idList, posToId):
         if idList:
+            self.personIdList = idList
             self.tblPerson.setIdList(idList, posToId)
             self.tabWidget.setCurrentIndex(0)
             self.tabWidget.setTabEnabled(0, True)
         else:
+            self.personIdList = []
             self.tblPerson.setIdList(idList)
             self.tabWidget.setTabEnabled(0, True)
 
+    def setPersonIdList(self, idList, posToId):
+        if idList:
+            # self.personIdList = idList
+            self.tblPerson.setIdList(idList, posToId)
+            self.tabWidget.setCurrentIndex(0)
+            self.tabWidget.setTabEnabled(0, True)
+        else:
+            # self.personIdList = []
+            self.tblPerson.setIdList(idList)
+            self.tabWidget.setTabEnabled(0, True)
 
     def setSpecialityIndependents(self):
         self.chkSpeciality.setChecked(False)
@@ -252,16 +267,32 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         tableSpeciality = db.table('rbSpeciality')
         tableOrg = db.table('OrgStructure')
         queryTable = tableVRBPerson
-
+        background_cond = []
         cond = []
         if self.userId:
             cond.append(tableVRBPerson['id'].eq(self.userId))
         if organisationId:
             cond.append(tableVRBPerson['org_id'].eq(organisationId))
         if orgStructureId:
-            orgStructureIndex = self.cmbOrgStructure._model.index(self.cmbOrgStructure.currentIndex(), 0, self.cmbOrgStructure.rootModelIndex())
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureIndex)
-            cond.append(tableVRBPerson['orgStructure_id'].inlist(orgStructureIdList))
+            if not self.orgStructureIdList:
+                orgStructureIndex = self.cmbOrgStructure._model.index(self.cmbOrgStructure.currentIndex(), 0, self.cmbOrgStructure.rootModelIndex())
+                orgStructureIdList = self.getOrgStructureIdList(orgStructureIndex)
+                cond.append(tableVRBPerson['orgStructure_id'].inlist(orgStructureIdList))
+        if self.orgStructureIdList:
+            # orgStructureIdList = []
+            # for org_list in self.orgStructureIdList:
+            #     for org_id in org_list:
+            #         orgStructureIdList.append(org_id)
+            # orgStructureIdList = list(set(orgStructureIdList))
+            # background_cond.append(tableVRBPerson['orgStructure_id'].inlist(orgStructureIdList))
+            background_cond.append(tableVRBPerson['orgStructure_id'].inlist(self.orgStructureIdList))
+        if self.personIdList:
+            background_cond.append(tableVRBPerson['id'].inlist(self.personIdList))
+        if background_cond:
+            if len(background_cond) == 2:
+                cond.append(db.joinOr(background_cond))
+            else:
+                cond.append(background_cond[0])
         if postId:
             cond.append(tablePerson['post_id'].eq(postId))
         if name:
@@ -313,6 +344,8 @@ class CPersonComboBoxExPopup(QtGui.QFrame, Ui_PersonComboBoxExPopup):
         if orderByColumn == 4:
             order = u'OrgStructure.name '
         if orderByColumn == 5:
+            order = u'Person.SNILS '
+        if orderByColumn == 6:
             order = u'vrbPersonWithSpecialityAndPost.retireDate '
 
         if self.prevColumn == orderByColumn and self.asc:
@@ -388,8 +421,9 @@ class CPersonTableModel(CTableModel):
         self.addColumn(CRefBookCol(u'Должность', ['post_id'], 'rbPost', 15))
         self.addColumn(CRefBookCol(u'Специальность', ['speciality_id'], 'rbSpeciality', 10))
         self.addColumn(CRefBookCol(u'Подразделение', ['orgStructure_id'], 'OrgStructure', 10))
+        self.addColumn(CTextCol(u'СНИЛС', ['SNILS'], 15))
         self.addColumn(CDateCol(u'Дата запрещения', ['retireDate'], 10))
-        self._fieldNames = ['vrbPerson.code', 'vrbPerson.name', 'Person.post_id', 'vrbPerson.speciality_id', 'vrbPerson.orgStructure_id', 'vrbPerson.retireDate']
+        self._fieldNames = ['vrbPerson.id', 'vrbPerson.code', 'vrbPerson.name', 'Person.post_id', 'vrbPerson.speciality_id', 'vrbPerson.orgStructure_id', 'vrbPerson.SNILS', 'vrbPerson.retireDate']
         self.setTable('vrbPerson')
         self.date = QDate.currentDate()
 
@@ -407,11 +441,13 @@ class CPersonTableModel(CTableModel):
 
     def getActualEmptyRecord(self):
         record = QtSql.QSqlRecord()
+        record.append(QtSql.QSqlField('id', QVariant.String))
         record.append(QtSql.QSqlField('code', QVariant.String))
         record.append(QtSql.QSqlField('name', QVariant.String))
         record.append(QtSql.QSqlField('post_id', QVariant.Int))
         record.append(QtSql.QSqlField('speciality_id', QVariant.Int))
         record.append(QtSql.QSqlField('orgStructure_id', QVariant.Int))
+        record.append(QtSql.QSqlField('SNILS', QVariant.String))
         record.append(QtSql.QSqlField('retireDate', QVariant.Date))
         return record
 

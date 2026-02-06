@@ -34,6 +34,8 @@ class CPersonComboBoxEx(CPersonComboBox):
         self.personId = None
         self.date = QDate.currentDate()
         self.orgStructureId = None
+        self.orgStructureIdList = []
+        self.personIdList = []
         self.organisationId = None
         self.activityCode = None
         self.postCode = None
@@ -81,6 +83,8 @@ class CPersonComboBoxEx(CPersonComboBox):
                 self._popup.cmbOrgStructure.setValue(self.defaultOrgStructureId)
             self._popup.setOnlyDoctorsIfUnknowPost(self.onlyDoctorsIfUnknowPost)
             self._popup.setOnlyDoctors(self.isOnlyDoctors)
+            self._popup.setPersonIdList(self.personIdList, id)
+            self._popup.setOrgStructureList(self.orgStructureIdList)
             # self._popup.initModel(self.value())
 
 
@@ -97,6 +101,9 @@ class CPersonComboBoxEx(CPersonComboBox):
             pos.setY(max(min(pos.y(), screen.bottom()-size.height()), screen.top()))
             self._popup.move(pos)
             self._popup.resize(size)
+            #if self.personIdList:
+            self._popup.setPersonEventIdList(self.personIdList, id)
+            self._popup.setOrgStructureList(self.orgStructureIdList)
             if self.organisationId:
                 self._popup.cmbOrganisation.setValue(self.organisationId)
             if self.orgStructureId:
@@ -113,7 +120,13 @@ class CPersonComboBoxEx(CPersonComboBox):
             elif hasattr(self, 'propertyOrgStructure') and self.propertyOrgStructure:
                 self._popup.setPropertyOrgStructure(self.propertyOrgStructure)
                 self._popup.cmbOrgStructure.setValue(self.orgStructureId)
-
+            elif self.orgStructureIdList:
+                db = QtGui.qApp.db
+                tableOS = db.table('OrgStructure')
+                self._popup.cmbOrgStructure.setFilter(tableOS['id'].inlist(self.orgStructureIdList))
+            else:
+                self._popup.cmbOrgStructure.setFilter('')
+                self._popup.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
             if self.postCode:
                 self._popup.cmbPost.setCode(self.postCode)
             if self.activityCode:
@@ -181,6 +194,11 @@ class CPersonComboBoxEx(CPersonComboBox):
     def setDate(self, date):
         self.date = date
 
+    def setOrgStructureList(self, orgStructureIdList):
+        self.orgStructureIdList = orgStructureIdList
+
+    def setPersonIdList(self, personIdList):
+        self.personIdList = personIdList
 
 #    def setValue(self, personId):
 #        self.personId = personId
@@ -251,6 +269,8 @@ class CPersonFindInDocTableCol(CInDocTableCol):
         self.preferredWidth = params.get('preferredWidth', None)
         self.orgStructureId = QtGui.qApp.currentOrgStructureId()
         self.date = None
+        self.orgStructureIdList = []
+        self.personIdList = []
 
 
     def toString(self, val, record):
@@ -265,6 +285,8 @@ class CPersonFindInDocTableCol(CInDocTableCol):
     def createEditor(self, parent):
         editor = CPersonComboBoxEx(parent)
         editor.setOrgStructureId(self.orgStructureId)
+        editor.setOrgStructureList(self.orgStructureIdList)
+        editor.setPersonIdList(self.personIdList)
         editor.setDate(self.date)
         editor.setBegDate(self.date)
         return editor
@@ -311,6 +333,8 @@ class CPersonWithOrgListComboBoxEx(CPersonComboBoxEx):
                 cond.append(table['post_id'].eq(self._postId))
         if self._retireDate:
             cond.append(db.joinOr([table['retireDate'].isNull(), table['retireDate'].ge(self._retireDate)]))
+        if self._personIdList:
+            cond.append(table['id'].inlist(self._personIdList))
         if self._customFilter:
             cond.append(self._customFilter)
         return db.joinAnd(cond)

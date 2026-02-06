@@ -614,4 +614,5 @@ class CDentitionVisitsModel(CEventVisitsModel):
         for i in xrange(record.count()):
             fieldName = record.fieldName(i)
             record.setValue(fieldName, srcRecord.value(fieldName))
+        record._dirty = srcRecord._dirty
         return record

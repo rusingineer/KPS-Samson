@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,7 +12,7 @@
 #############################################################################
 
 from library.ItemsListDialog import CItemEditorBaseDialog
-from library.Utils import forceRef
+from library.Utils import forceRef, toVariant
 from library.interchange import setRBComboBoxValue, getRBComboBoxValue
 
 from Surveillance.Ui_ChangeDispanserPerson import Ui_ChangeDispanserPerson
@@ -43,3 +43,13 @@ class CChangeDispanserPerson(CItemEditorBaseDialog, Ui_ChangeDispanserPerson):
         personId = forceRef(self.cmbPerson.value())
         result = result and (personId or self.checkInputMessage(u'врача по диспансерному учету', True, self.cmbPerson))
         return result
+    
+    
+    def save(self):
+        if self.getRecord() and self._id:
+            return CItemEditorBaseDialog.save(self)
+        return True
+    
+    
+    def getPersonId(self):
+        return toVariant(self.cmbPerson.value())

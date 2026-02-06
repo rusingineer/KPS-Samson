@@ -57,9 +57,9 @@ def selectData(params):
     cond = []
 
     if begDate:
-        cond.append(tableAccount['date'].dateGe(begDate))
+        cond.append(tableAccount['date'].ge(begDate))
     if endDate:
-        cond.append(tableAccount['date'].dateLe(endDate))
+        cond.append(tableAccount['date'].lt(endDate.addDays(1)))
     if orgStructureId:
         cond.append(tableAccount['orgStructure_id'].inlist(getOrgStructureDescendants(orgStructureId)))
     if contractId:

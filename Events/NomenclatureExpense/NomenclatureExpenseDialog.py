@@ -1071,6 +1071,7 @@ class CNomenclatureExpenseDialog(CDialogBase, Ui_NomenclatureExpenseDialog):
                     try:
                         actions = dlg.getSelectedList()
                         for action in actions:
+                            notCalculationParamTemplateIdList = self.modelNomenclatureExpense._addNewGroupFromTemplate(action, notCalculationParamTemplateIdList)
                             if hasattr(action.executionPlanManager.currentItem, 'groupingItem'):
                                 if action.executionPlanManager.currentItem.groupingItem[1]:
                                     action.executionPlanManager.currentItem.groupingItem = None
@@ -1082,7 +1083,6 @@ class CNomenclatureExpenseDialog(CDialogBase, Ui_NomenclatureExpenseDialog):
                                             or subaction.executionPlanManager.groupingItem and subaction.executionPlanManager.groupingInfo:
                                                 action.executionPlanManager.groupingItem = subaction.executionPlanManager.currentItem
                                                 subaction.executionPlanManager.groupingInfo.append(action.executionPlanManager.currentItem)
-                            notCalculationParamTemplateIdList = self.modelNomenclatureExpense._addNewGroupFromTemplate(action, notCalculationParamTemplateIdList)
                         if notCalculationParamTemplateIdList:
                             templateNameList = {}
                             message = u''
@@ -1669,7 +1669,7 @@ class CNomenclatureExpenseDialog(CDialogBase, Ui_NomenclatureExpenseDialog):
                     currentIndex = item.action.executionPlanManager.getCurrentItemIndex()
                     executionPlan = group._epGroup.getExecutionPlan()
                     item.action.executionPlanManager.setExecutionPlan(executionPlan, force=True)
-                    item.action.executionPlanManager.setCurrentItemIndex(currentIndex)
+                    #item.action.executionPlanManager.setCurrentItemIndex(currentIndex)
                     #item.action.executionPlanManager.bindAction(item.action)
                     if item.action.executionPlanManager.hasItemsToDo():
                         if item.action.getType().isNomenclatureExpense:

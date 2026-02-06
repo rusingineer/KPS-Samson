@@ -86,7 +86,11 @@
          <enum>Qt::Vertical</enum>
         </property>
         <widget class="CInDocTableView" name="tblCSGs"/>
-        <widget class="CInDocTableView" name="tblCSGSubItems"/>
+        <widget class="CInDocTableView" name="tblCSGSubItems">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+        </widget>
        </widget>
       </item>
      </layout>

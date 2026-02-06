@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client\Accounting\CashDialog.ui'
+# Form implementation generated from reading ui file 'D:\samson\Accounting\CashDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -40,14 +40,9 @@ class Ui_CashDialog(object):
         self.lblDate.setSizePolicy(sizePolicy)
         self.lblDate.setObjectName(_fromUtf8("lblDate"))
         self.gridLayout.addWidget(self.lblDate, 0, 0, 1, 1)
-        self.edtDate = CDateEdit(CashDialog)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.edtDate.sizePolicy().hasHeightForWidth())
-        self.edtDate.setSizePolicy(sizePolicy)
-        self.edtDate.setObjectName(_fromUtf8("edtDate"))
-        self.gridLayout.addWidget(self.edtDate, 0, 1, 1, 1)
+        self.edtDateTime = QtGui.QDateTimeEdit(CashDialog)
+        self.edtDateTime.setObjectName(_fromUtf8("edtDateTime"))
+        self.gridLayout.addWidget(self.edtDateTime, 0, 1, 1, 1)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.gridLayout.addItem(spacerItem, 0, 2, 1, 1)
         self.lblCashOperation = QtGui.QLabel(CashDialog)
@@ -116,7 +111,7 @@ class Ui_CashDialog(object):
         self.edtDocumentPayment = QtGui.QLineEdit(CashDialog)
         self.edtDocumentPayment.setObjectName(_fromUtf8("edtDocumentPayment"))
         self.gridLayout.addWidget(self.edtDocumentPayment, 3, 1, 1, 2)
-        self.lblDate.setBuddy(self.edtDate)
+        self.lblDate.setBuddy(self.edtDateTime)
         self.lblCashOperation.setBuddy(self.cmbCashOperation)
         self.lblSum.setBuddy(self.edtSum)
         self.lblTypePayment.setBuddy(self.cmbTypePayment)
@@ -126,13 +121,13 @@ class Ui_CashDialog(object):
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), CashDialog.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), CashDialog.reject)
         QtCore.QMetaObject.connectSlotsByName(CashDialog)
-        CashDialog.setTabOrder(self.edtDate, self.cmbCashOperation)
+        CashDialog.setTabOrder(self.edtDateTime, self.cmbCashOperation)
         CashDialog.setTabOrder(self.cmbCashOperation, self.edtSum)
         CashDialog.setTabOrder(self.edtSum, self.buttonBox)
 
     def retranslateUi(self, CashDialog):
         CashDialog.setWindowTitle(_translate("CashDialog", "Приём оплаты", None))
-        self.lblDate.setText(_translate("CashDialog", "&Дата", None))
+        self.lblDate.setText(_translate("CashDialog", "Дата и время", None))
         self.lblCashOperation.setText(_translate("CashDialog", "&Кассовая операция", None))
         self.lblSum.setText(_translate("CashDialog", "&Сумма", None))
         self.lblTypePayment.setText(_translate("CashDialog", "&Тип оплаты", None))
@@ -141,5 +136,4 @@ class Ui_CashDialog(object):
         self.cmbTypePayment.setItemText(2, _translate("CashDialog", "по реквизитам", None))
         self.lblDocumentPayment.setText(_translate("CashDialog", "Документ &об оплате", None))
 
-from library.DateEdit import CDateEdit
 from library.crbcombobox import CRBComboBox

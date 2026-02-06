@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,6 +16,7 @@
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QTime, QVariant, pyqtSignature, pyqtSignal,  SIGNAL,  QMimeData,  QString
 
+from Registry.ClientEditDialog import CClientEditDialog
 from library.Counter                  import CCounterController
 
 from library.interchange              import getDatetimeEditValue, getLineEditValue, getRBComboBoxValue, setDatetimeEditValue, setLineEditValue, setRBComboBoxValue
@@ -38,7 +39,7 @@ from Events.Utils                         import checkAttachOnDate, checkPolicyO
 from Orgs.Utils                       import getOrgStructureName
 from RefBooks.Equipment.RoleInIntegration import CEquipmentRoleInIntegration
 from Registry.StatusObservationClientEditor import CStatusObservationClientEditor
-from Registry.Utils                   import formatClientBanner, getClientInfo, CClientInfo
+from Registry.Utils                   import getClientInfo, CClientInfo, getClientBanner
 from Resources.JobTicketActionsModel  import CJobTicketActionsModel as CActionsModel
 from Resources.JobTicketInfo          import makeDependentActionIdList, CJobTicketWithActionsInfo
 from Resources.JobTicketProbeModel        import CJobTicketProbeModel, CJobTicketProbeTestItem
@@ -1207,7 +1208,7 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
     def updateClientInfo(self):
         if self.clientId:
             clientInfo = getClientInfo(self.clientId, date=self.date)
-            self.txtClientInfoBrowser.setHtml(formatClientBanner(clientInfo, self.date))
+            self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.date))
             self.clientSex       = clientInfo.sexCode
             self.clientBirthDate = clientInfo.birthDate
             self.clientAge      = calcAgeTuple(self.clientBirthDate, self.date)
@@ -2358,6 +2359,8 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
             record = db.getRecordEx(tablePerson, [tablePerson['speciality_id']], [tablePerson['deleted'].eq(0), tablePerson['id'].eq(personId)])
             specialityId = forceRef(record.value('speciality_id')) if record else None
         return specialityId
+    
+    
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_modelActionProperties_dataChanged(self, index, index2):
         column = index.column()
@@ -2365,6 +2368,19 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
             for item in self.modelJobTicketProbe.absoluteItemList():
                 if isinstance(item, CJobTicketProbeTestItem):
                     item.setChecked(item.isAssigned())
+
+    @pyqtSignature('')
+    def on_actEditClient_triggered(self):
+        # jobTicketId = self.tblJobTickets.currentItemId()
+        # clientId = self.modelJobTickets.getClientId(jobTicketId)
+        if self.clientId and QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]):
+            dialog = CClientEditDialog(self)
+            try:
+                dialog.load(self.clientId)
+                if dialog.exec_():
+                    self.updateClientInfo()
+            finally:
+                dialog.deleteLater()
 
 
 # #################################################

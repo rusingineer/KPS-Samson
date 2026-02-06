@@ -28,14 +28,15 @@ from PyQt4.QtCore import (
     QByteArray,
     QDateTime,
     QModelIndex,
-    QVariant, pyqtSignal,
+    QVariant,
+    pyqtSignal,
 )
 
 from library.Utils import forceDateTime, forceRef, forceString, forceInt, toVariant
 from library.CertComboBox import extractCertInfo
 from library.MSCAPI       import MSCApi
 from library.naturalSort import convertKeyForNaturalSort
-from library.database    import CTableRecordCache
+from library.database    import CTableRecordCache, CSqlRecord
 
 
 class CAttachedFileSignature:
@@ -155,6 +156,10 @@ class CAttachedFile:
         if self._record:
             record = self._record
         else:
+            if not table:
+                record = CSqlRecord()
+                record._dirty = True
+                return record
             record = table.newRecord()
             record.setValue('deleted', 0)
         record.setValue('path', self.getPath())
@@ -212,7 +217,10 @@ class CAttachedFile:
             self.templateId = forceRef(record.value('template_id'))
             try:
                 if html:
-                    self.htmlTemplate = zlib.decompress(html, zlib.MAX_WBITS | 32).decode('utf8')
+                    decompressor = zlib.decompressobj(zlib.MAX_WBITS | 32)
+                    decompressedData = decompressor.decompress(html)
+                    decompressedData += decompressor.flush()
+                    self.htmlTemplate = decompressedData.decode('utf8')
             except Exception:
                 QtGui.qApp.logCurrentException()
 
@@ -360,6 +368,22 @@ class CAttachedFilesLoader:
         else:
             return []
 
+    @staticmethod
+    def loadItemsWithOrder(interface, tableName, masterId, order):
+        if interface:
+            db = QtGui.qApp.db
+            table = db.table(tableName)
+            cond = db.joinAnd([table['deleted'].eq(0), table['master_id'].eq(masterId)])
+            records = db.getRecordList(table, '*', cond, order)
+            result = []
+            for record in records:
+                path = forceString(record.value('path'))
+                item = interface.createAttachedFileItem(path)
+                item.setRecord(record)
+                result.append(item)
+            return result
+        else:
+            return []
 
     @staticmethod
     def loadItemsFromRecords(interface, records):
@@ -374,6 +398,98 @@ class CAttachedFilesLoader:
         else:
             return []
 
+    @staticmethod
+    def loadAllItems(interface, clientId, filterFiles):
+        records = []
+        result = []
+        recordMap = {}
+        if interface and clientId:
+            db = QtGui.qApp.db
+            cols = ['master_id', 'comment', 'path', 'createPerson_id', 'respSignatureBytes', 'respSigner_id',
+                    'respSigningDatetime', 'orgSignatureBytes', 'orgSigner_id', 'orgSigningDatetime', 'id']
+            tableCFA = db.table('Client_FileAttach')
+            cond = [
+                tableCFA['deleted'].eq(0),
+                tableCFA['master_id'].eq(clientId),
+            ]
+            colsCfa = list(cols)
+            colsCfa.append(u'\'Client\' as objectTableName')
+            if filterFiles['docTableName'] in (u'All', u'Client'):
+                cond.extend(getFilterCond(filterFiles, tableCFA))
+                records.extend(db.getRecordList(tableCFA, colsCfa, cond))
+            tableA = db.table('Action')
+            tableAFA = db.table('Action_FileAttach')
+            tableAFAE = db.table('Action_FileAttach_Export')
+            tableAT = db.table('ActionType')
+            tableE = db.table('Event')
+            table = tableAFA.leftJoin(tableAFAE, tableAFA['id'].eq(tableAFAE['master_id']))
+            table = table.leftJoin(tableA, tableA['id'].eq(tableAFA['master_id']))
+            table = table.leftJoin(tableAT, tableAT['id'].eq(tableA['actionType_id']))
+            table = table.leftJoin(tableE, tableE['id'].eq(tableA['event_id']))
+            colsAfa = u', '.join([u', '.join(['Action_FileAttach.%s' % col for col in cols]),
+                                  tableAFAE['success'].name(),
+                                  u'\'Action\' as objectTableName'])
+            cond = [
+                tableE['client_id'].eq(clientId),
+                tableA['deleted'].eq(0),
+                tableAFA['deleted'].eq(0),
+            ]
+            if filterFiles['docTableName'] in (u'All', u'Action'):
+                actionTypeClass = filterFiles.get('actionTypeClass', None)
+                if actionTypeClass or actionTypeClass == 0:
+                    cond.append(tableAT['class'].eq(filterFiles.get('actionTypeClass')))
+                if filterFiles.get('actionTypeGroup', None):
+                    cond.append(tableAT['group_id'].eq(filterFiles.get('actionTypeGroup')))
+                if filterFiles.get('actionType', None):
+                    cond.append(tableA['actionType_id'].eq(filterFiles.get('actionType')))
+                serviceType = filterFiles.get('serviceType', None)
+                if serviceType or serviceType == 0:
+                    cond.append(tableAT['serviceType'].eq(filterFiles.get('serviceType')))
+                cond.extend(getFilterCond(filterFiles, table, extTable=tableA))
+                records.extend(db.getRecordList(table, colsAfa, cond))
+            tableEFA = db.table('Event_FileAttach')
+            tableEFAExport = db.table('Event_FileAttach_Export')
+            table = tableEFA.leftJoin(tableEFAExport, tableEFA['id'].eq(tableEFAExport['master_id']))
+            table = table.leftJoin(tableE, tableE['id'].eq(tableEFA['master_id']))
+            colsEfa = u', '.join([u', '.join(['Event_FileAttach.%s' % col for col in cols]),
+                                  tableEFAExport['success'].name(),
+                                  u'\'Event\' as objectTableName'])
+            cond = [
+                tableE['client_id'].eq(clientId),
+                tableE['deleted'].eq(0),
+                tableEFA['deleted'].eq(0),
+            ]
+            if filterFiles['docTableName'] in (u'All', u'Event'):
+                if filterFiles.get('eventId', None):
+                    cond.append(tableE['id'].eq(filterFiles.get('eventId')))
+                if filterFiles.get('eventType', None):
+                    cond.append(tableE['eventType_id'].eq(filterFiles.get('eventType')))
+                if filterFiles.get('externalId', None):
+                    cond.append(tableE['externalId'].eq(filterFiles.get('externalId')))
+                cond.extend(getFilterCond(filterFiles, table, extTable=tableE))
+                records.extend(db.getRecordList(table, colsEfa, cond))
+            tablePP = db.table('ProphylaxisPlanning')
+            tablePPFA = db.table('ProphylaxisPlanning_FileAttach')
+            colsPpfa = u', '.join([u', '.join(['ProphylaxisPlanning_FileAttach.%s' % col for col in cols]),
+                                   u'\'ProphylaxisPlanning\' as objectTableName'])
+            table = tablePPFA.join(tablePP, tablePP['id'].eq(tablePPFA['master_id']))
+            cond = [
+                tablePP['client_id'].eq(clientId),
+                tablePP['deleted'].eq(0),
+                tablePPFA['deleted'].eq(0),
+            ]
+            if filterFiles['docTableName'] in (u'All', u'ProphylaxisPlanning'):
+                cond.extend(getFilterCond(filterFiles, table))
+                records.extend(db.getRecordList(table, colsPpfa, cond))
+
+        for record in records:
+            path = forceString(record.value('path'))
+            recordMap[path] = record
+        for path in recordMap:
+            item = interface.createAttachedFileItem(path)
+            item.setRecord(recordMap[path])
+            result.append(item)
+        return result
 
     @staticmethod
     def saveItems(interface, tableName, masterId, items, saveOnlyChanged=False):
@@ -498,8 +614,13 @@ class CAttachedFilesModel(QAbstractTableModel):
     def _getPersonName(self, personId):
         return self.personsCache.get(personId).value('name') if personId else None
 
+    def _getPersonNameWithSnils(self, item):
+        return u'{0} {1}, СНИЛС {2}'.format(forceString(item.respSignature.certCustom.surName()),
+                                            forceString(item.respSignature.certCustom.givenName()),
+                                            forceString(item.respSignature.certCustom.snils())) if item.respSignature else None
 
     def _getAddSignatures(self, currentItem):
+        result = u''
         if currentItem:
             res = []
             result = ''
@@ -523,7 +644,7 @@ class CAttachedFilesModel(QAbstractTableModel):
                             forceString(self._getPersonName(sign.signerId)),
                             forceString(sign.signingDatetime), temp))
                 result = '\n'.join(res)
-            return result
+        return result
 
 
     def data(self, index, role=Qt.DisplayRole):
@@ -545,9 +666,9 @@ class CAttachedFilesModel(QAbstractTableModel):
                 return QVariant(self._getPersonName(item.authorId))
             elif column == 6:
                 if item.respSignature and item.respSignature.certCustom:
-                    respSigner_name = u'{0} {1} {2}'.format(forceString(item.respSignature.certCustom.surName()),
-                                                            forceString(item.respSignature.certCustom.givenName()),
-                                                            forceString(item.respSignature.certCustom.snils())) if item.respSignature else None
+                    respSigner_name = u'{0} {1}, СНИЛС {2}'.format(forceString(item.respSignature.certCustom.surName()),
+                                                                   forceString(item.respSignature.certCustom.givenName()),
+                                                                   forceString(item.respSignature.certCustom.snils())) if item.respSignature else None
                 else:
                     respSigner_name = None
                 return QVariant(item.respSigner_name if item.respSigner_name else respSigner_name)
@@ -596,13 +717,10 @@ class CAttachedFilesModel(QAbstractTableModel):
             if column == 5:
                 row = index.row()
                 item = self.items[row]
-                tooltip = ('<html><body><table width = 400>'
-                           + ''.join(
-                            '<tr><td>%s</td></tr>' % (self._getAddSignatures(item))
-                            # '<tr><td>%s</td></tr>' % (self._getAddSignatures(item.id))
-                           + '</table></body></html>'))
-                return tooltip
-                # return QVariant(self._getAddSignatures(item.id))
+                if self._getAddSignatures(item):
+                    tooltip = ('<html><body><table width = 400>' +
+                               ''.join('<tr><td>%s</td></tr>' % self._getAddSignatures(item) + '</table></body></html>'))
+                    return tooltip
             if column == 7:
                 row = index.row()
                 item = self.items[row]
@@ -615,7 +733,7 @@ class CAttachedFilesModel(QAbstractTableModel):
         return QVariant()
 
 
-    def sort(self, column, order = Qt.AscendingOrder):
+    def sort(self, column, order=Qt.AscendingOrder):
 #        def prepKey(s):
 #            return ( convertKeyForNaturalSort(s.upper().replace(u'Ё', u'Е'))
 #                     + unichr(0xFFFF)
@@ -624,19 +742,16 @@ class CAttachedFilesModel(QAbstractTableModel):
         def prepKey(s):
             return locale.strxfrm(convertKeyForNaturalSort(s))
 
-
-        keys = { 0: lambda item: item.id,
-                 1: lambda item: prepKey(item.newName),
-                 2: lambda item: prepKey(item.comment),
-                 3: lambda item: item.size,
-                 4: lambda item: item.lastModified,
-                 5: lambda item: prepKey(forceString(self._getPersonName(item.authorId))),
-                 6: lambda item: prepKey(forceString(self._getPersonName(item.getRespSignerId()))),
-                 7: lambda item: prepKey(forceString(self._getPersonName(item.getOrgSignerId()))),
-               }
-        self.items.sort( key=keys[column],
-                         reverse = order != Qt.AscendingOrder
-                       )
+        keys = {0: lambda item: prepKey(item.newName),
+                1: lambda item: prepKey(item.comment),
+                2: lambda item: item.size,
+                3: lambda item: item.lastModified,
+                4: lambda item: forceString(self._getPersonName(item.authorId)),
+                5: lambda item: forceString(self._getPersonNameWithSnils(item)),
+                6: lambda item: forceString(self._getPersonName(item.getRespSignerId())),
+                7: lambda item: forceString(self._getPersonName(item.getOrgSignerId())),
+                }
+        self.items.sort(key=keys[column], reverse=order != Qt.AscendingOrder)
         self.reset()
 
 
@@ -708,3 +823,25 @@ class CAttachedFilesModel(QAbstractTableModel):
         self.items[row].edtComment(comment)
         self.touchRow(row)
         self.changed.emit()
+
+
+def getFilterCond(filter, table, extTable=None):
+    filterCond = []
+    if extTable and filter.get('begSetDate', None):
+        if extTable.tableName == u'Action':
+            filterCond.append(extTable['begDate'].dateGe(filter.get('begSetDate')))
+            filterCond.append(extTable['begDate'].dateLt(filter.get('endSetDate')))
+        elif extTable.tableName == u'Event':
+            filterCond.append(extTable['setDate'].dateGe(filter.get('begSetDate')))
+            filterCond.append(extTable['setDate'].dateLt(filter.get('endSetDate')))
+    if filter.get('begDate', None):
+        filterCond.append(table['createDatetime'].dateGe(filter.get('begDate')))
+        filterCond.append(table['createDatetime'].dateLt(filter.get('endDate')))
+    if filter.get('authorId', None):
+        filterCond.append(table['createPerson_id'].eq(filter.get('authorId')))
+    if filter.get('signerId', None):
+        filterCond.append(table['respSigner_id'].eq(filter.get('signerId')))
+    if filter.get('fileName', None):
+        fileName = filter.get('fileName').replace('_', '\\_').replace('%', '\\%')
+        filterCond.append(u'SUBSTRING_INDEX({0}, "/", -1) LIKE "%{1}%"'.format(table['path'], fileName))
+    return filterCond

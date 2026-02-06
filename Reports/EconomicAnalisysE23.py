@@ -21,7 +21,7 @@ from Reports.ReportBase import CReportBase
 from library.Utils import forceString, forceInt, forceDouble, forceBool, forceDate, pyDate
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
 from EconomicAnalisys import getStmt, colSpecialityOKSOName, colPosType, colIsAdult, colAmount, colSUM, colPos, \
-    colServiceEndDate, colMedicalTypeCode, colUET, colEvent
+    colServiceEndDate, colMedicalTypeCode, colUET, colEvent, colExposedSum
 
 
 class CEconomicAnalisysE23(CReport):
@@ -31,13 +31,15 @@ class CEconomicAnalisysE23(CReport):
 
 
     def selectData(self, params):
-        cols = [colSpecialityOKSOName, colPosType, colEvent, colIsAdult, colAmount, colSUM, colPos, colUET, colServiceEndDate, colMedicalTypeCode]
+        cols = [colSpecialityOKSOName, colPosType, colEvent, colIsAdult, colAmount, colSUM, colExposedSum, colPos,
+                colUET, colServiceEndDate, colMedicalTypeCode]
         colsStmt = u"""select colSpecialityOKSOName as spec,
         colEvent,
         colPosType as vtype,
         colIsAdult as adult,
         colAmount as cnt,
         round(colSUM, 2) as sum,
+        round(colExposedSUM, 2) as exposedSum,
         round(colUET, 2) as uet,
         colServiceEndDate,
         colMedicalTypeCode
@@ -49,11 +51,12 @@ class CEconomicAnalisysE23(CReport):
 
 
     def build(self, description, params):
+        needExposedSum = params.get('dataType', None) == 3
 
         reportData = {'keys': [], 'total': {
-                                    'total': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]},
-                                    'adult': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]},
-                                    'child': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]}
+                                    'total': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]},
+                                    'adult': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]},
+                                    'child': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]}
                                 }}
 
         def processQuery(query):
@@ -70,9 +73,11 @@ class CEconomicAnalisysE23(CReport):
                     eventId = forceString(record.value('colEvent'))
                     uet = forceDouble(record.value('uet'))
                     sum = forceDouble(record.value('sum'))
-                    item = stomPosDict.setdefault((eventId, pyDate(endDate)), [0.0, 0.0])
+                    exposedSum = forceDouble(record.value('exposedSum'))
+                    item = stomPosDict.setdefault((eventId, pyDate(endDate)), [0.0, 0.0, 0.0])
                     item[0] += sum
                     item[1] += uet
+                    item[2] += exposedSum
 
             for record in recordList:
                 spec = forceString(record.value('spec'))
@@ -81,19 +86,20 @@ class CEconomicAnalisysE23(CReport):
                 vtype = forceString(record.value('vtype'))
                 adult = forceBool(record.value('adult'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
                 cnt = forceInt(record.value('cnt'))
                 VP = forceString(record.value('colMedicalTypeCode'))
                 endDate = forceDate(record.value('colServiceEndDate'))
                 eventId = forceString(record.value('colEvent'))
                 if vtype and VP in ['31', '32'] and endDate >= QDate(2018, 1, 1):
-                    sum, uet = stomPosDict[(eventId, pyDate(endDate))]
+                    sum, uet, exposedSum = stomPosDict[(eventId, pyDate(endDate))]
                 if spec not in reportData['keys']:
                     reportData['keys'].append(spec)
 
                 reportline = reportData.setdefault(spec,  {
-                                    'total': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]},
-                                    'adult': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]},
-                                    'child': {'diag': [0, 0], 'dn': [0, 0], 'prof': [0, 0], 'dom': [0, 0]}
+                                    'total': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]},
+                                    'adult': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]},
+                                    'child': {'diag': [0, 0, 0], 'dn': [0, 0, 0], 'prof': [0, 0, 0], 'dom': [0, 0, 0]}
                                 })
 
                 if vtype == '1':
@@ -115,13 +121,17 @@ class CEconomicAnalisysE23(CReport):
                 if vtype_key:
                     reportline[adult_key][vtype_key][0] += cnt
                     reportline[adult_key][vtype_key][1] += sum
+                    reportline[adult_key][vtype_key][2] += exposedSum
                     reportline['total'][vtype_key][0] += cnt
                     reportline['total'][vtype_key][1] += sum
+                    reportline['total'][vtype_key][2] += exposedSum
                     # total by report
                     reportData['total'][adult_key][vtype_key][0] += cnt
                     reportData['total'][adult_key][vtype_key][1] += sum
+                    reportData['total'][adult_key][vtype_key][2] += exposedSum
                     reportData['total']['total'][vtype_key][0] += cnt
                     reportData['total']['total'][vtype_key][1] += sum
+                    reportData['total']['total'][vtype_key][2] += exposedSum
 
         query = self.selectData(params)
         processQuery(query)
@@ -171,12 +181,17 @@ class CEconomicAnalisysE23(CReport):
             col_n = 1
             table.setText(row, col_n, u'кол-во',  blockFormat=CReportBase.AlignLeft)
             table.setText(row + 1, col_n, u'сумма',  blockFormat=CReportBase.AlignLeft)
-            table.mergeCells(row, 0, 2, 1)
+            if needExposedSum:
+                table.addRow()
+                table.setText(row + 2, col_n, u'выставленная сумма', blockFormat=CReportBase.AlignLeft)
+            table.mergeCells(row, 0, 3 if needExposedSum else 2, 1)
             for col1 in ['total', 'adult', 'child']:
                 for key in ['diag', 'dn', 'prof', 'dom']:
                     col_n += 1
                     table.setText(row, col_n, rl[col1][key][0],  blockFormat=CReportBase.AlignLeft)
                     table.setText(row+1, col_n, rl[col1][key][1],   blockFormat=CReportBase.AlignLeft)
+                    if needExposedSum:
+                        table.setText(row + 2, col_n, rl[col1][key][2], blockFormat=CReportBase.AlignLeft)
 
         return doc
 
@@ -190,6 +205,7 @@ class CEconomicAnalisysE23Ex(CEconomicAnalisysE23):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

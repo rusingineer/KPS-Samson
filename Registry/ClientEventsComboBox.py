@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,6 +17,7 @@ from PyQt4.QtCore import SIGNAL
 
 __all__ = ['CClientEventsComboBox']
 
+from PyQt4.QtCore import Qt
 from Registry.ClientEventsComboBoxPopup import CClientEventsComboBoxPopup
 from Registry.Utils import eventIdToText
 from library.ROComboBox import CROComboBox
@@ -79,8 +80,17 @@ class CClientEventsComboBox(CROComboBox):
         self.eventId = eventId
         self.updateText()
 
+    def clearValue(self):
+        self.eventId = None
+        self.clearEditText()
+
     def value(self):
         return self.eventId
 
     def updateText(self):
         self.setEditText(eventIdToText(self.eventId))
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Backspace, Qt.Key_Delete):
+            self.clearValue()
+        CROComboBox.keyPressEvent(self, event)

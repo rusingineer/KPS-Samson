@@ -128,6 +128,12 @@ class CClientEventsComboBoxPopup(QtGui.QFrame, Ui_ClientEventsComboBoxPopup):
                 self.emit(SIGNAL('eventIdIdSelected(int)'), self.eventId)
                 self.close()
 
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Backspace, Qt.Key_Delete):
+            parent = self.parentWidget()
+            parent.clearValue()
+        QtGui.QFrame.keyPressEvent(self, event)
+
 
 class CClientEventsTableModel(CTableModel):
     class CLocEventMKBColumn(CCol):

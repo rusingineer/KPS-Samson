@@ -141,6 +141,7 @@ class CEconomicAnalisysE26Ex(CEconomicAnalisysE26):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

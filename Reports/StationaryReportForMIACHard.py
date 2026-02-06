@@ -1131,8 +1131,8 @@ class CStationaryReportForMIACHard(CStationaryF007):
                     cond = [
                         tableOSHB['profile_id'].inlist(profileIdList),
                         tableOSHB['master_id'].inlist(orgStructureIdList),
-                        tableOSHBI['begDate'].dateLe(endDateTime),
-                        tableOSHBI['endDate'].dateGe(begDateTime)
+                        tableOSHBI['begDate'].lt(endDateTime.addDays(1)),
+                        tableOSHBI['endDate'].ge(begDateTime)
                     ]
                     if financeId:
                        cond.append(tableOSHB['finance_id'].eq(financeId))

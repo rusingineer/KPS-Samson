@@ -51,7 +51,7 @@ def selectData(params):
     queryTable = queryTable.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
     queryTable = queryTable.innerJoin(tableContract, tableEvent['contract_id'].eq(tableContract['id']))
     queryTable = queryTable.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
-    queryTable = queryTable.innerJoin(tablePerson, tableEvent['setPerson_id'].eq(tablePerson['id']))
+    queryTable = queryTable.innerJoin(tablePerson, tableEvent['execPerson_id'].eq(tablePerson['id']))
 
     cols = [ tableEvent['setDate'],
              tableEvent['execDate'],
@@ -78,9 +78,9 @@ def selectData(params):
     group = tableEvent['id'].name()
 
     if begDate:
-        cond.append(tableEvent['setDate'].dateGe(begDate))
+        cond.append(tableEvent['setDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['setDate'].dateLe(endDate))
+        cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
     if MKBFilter:
         cond.append(isMKB(params['MKBFrom'], params['MKBTo']))
     if eventTypeId:

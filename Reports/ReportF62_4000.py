@@ -380,13 +380,13 @@ isEventOMS, kladrOCATDBudget, kladrOCATDOMS, isCitizensSNG, isNotCitizens
     cond = []
     joinVisits = []
     if begDate and not begDate.isNull():
-        joinVisits.append(tableVisit['date'].dateGe(begDate))
+        joinVisits.append(tableVisit['date'].ge(begDate))
     if endDate and not endDate.isNull():
-        joinVisits.append(tableVisit['date'].dateLe(endDate))
+        joinVisits.append(tableVisit['date'].lt(endDate.addDays(1)))
     if begDate and not begDate.isNull():
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate and not endDate.isNull():
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
     return db.query(stmt % dict(cond            = db.joinAnd(cond),
                                 condJoinVisits  = db.joinAnd(joinVisits),
                                 begDate         = db.formatDate(begDate),

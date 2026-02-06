@@ -41,7 +41,7 @@
         <x>0</x>
         <y>0</y>
         <width>1345</width>
-        <height>745</height>
+        <height>748</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_18">
@@ -1128,6 +1128,13 @@
              </property>
             </widget>
            </item>
+           <item row="12" column="7">
+            <widget class="QCheckBox" name="chkEditOrgStructure">
+             <property name="text">
+              <string>Редактировать поле Подразделение</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </widget>
          <widget class="QWidget" name="tabDefaults">
@@ -1146,8 +1153,8 @@
              <property name="title">
               <string>Настройка видимости колонок свойств в редакторе Действия</string>
              </property>
-             <layout class="QVBoxLayout" name="verticalLayout_2">
-              <item>
+             <layout class="QGridLayout" name="gridLayout_20">
+              <item row="0" column="0">
                <widget class="QCheckBox" name="chkPropertyAssignedVisible">
                 <property name="text">
                  <string>Колонка «назначено»</string>
@@ -1157,17 +1164,7 @@
                 </property>
                </widget>
               </item>
-              <item>
-               <widget class="QCheckBox" name="chkPropertyUnitVisible">
-                <property name="text">
-                 <string>Колонка «единица измерения»</string>
-                </property>
-                <property name="checked">
-                 <bool>true</bool>
-                </property>
-               </widget>
-              </item>
-              <item>
+              <item row="2" column="0">
                <widget class="QCheckBox" name="chkPropertyNormVisible">
                 <property name="text">
                  <string>Колонка «норма»</string>
@@ -1177,7 +1174,34 @@
                 </property>
                </widget>
               </item>
-              <item>
+              <item row="0" column="1">
+               <widget class="QCheckBox" name="chkPropertyAssignedRequired">
+                <property name="text">
+                 <string>Требовать заполнение назначаемых свойств</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
+               <widget class="QCheckBox" name="chkPropertyCommentVisible">
+                <property name="text">
+                 <string>Колонка «комментарий»</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QCheckBox" name="chkPropertyUnitVisible">
+                <property name="text">
+                 <string>Колонка «единица измерения»</string>
+                </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
                <widget class="QCheckBox" name="chkPropertyEvaluationVisible">
                 <property name="text">
                  <string>Колонка «оценка»</string>
@@ -1187,15 +1211,18 @@
                 </property>
                </widget>
               </item>
-              <item>
-               <widget class="QCheckBox" name="chkPropertyCommentVisible">
-                <property name="text">
-                 <string>Колонка «комментарий»</string>
+              <item row="0" column="2">
+               <spacer name="horizontalSpacer_13">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
                 </property>
-                <property name="checked">
-                 <bool>true</bool>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
                 </property>
-               </widget>
+               </spacer>
               </item>
              </layout>
             </widget>
@@ -2930,6 +2957,22 @@
     <hint type="destinationlabel">
      <x>343</x>
      <y>552</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPropertyAssignedVisible</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkPropertyAssignedRequired</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>64</x>
+     <y>75</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>64</x>
+     <y>75</y>
     </hint>
    </hints>
   </connection>

@@ -51,11 +51,11 @@ GROUP BY clientAge, clientSex, shortName
     tableRBPolicyType = db.table('rbPolicyType')
     cond = []
     if policyDate:
-        cond.append(tableClientPolicy['begDate'].dateLe(policyDate))
+        cond.append(tableClientPolicy['begDate'].lt(policyDate.addDays(1)))
         cond.append(
                     db.joinOr(
                               [
-                               tableClientPolicy['endDate'].dateGe(policyDate),
+                               tableClientPolicy['endDate'].ge(policyDate),
                                tableClientPolicy['endDate'].isNull()
                               ]
                              )

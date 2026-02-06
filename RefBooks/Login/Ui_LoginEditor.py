@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:/proj/client_test/RefBooks/Login/LoginEditor.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\RefBooks\Login\LoginEditor.ui'
 #
-# Created: Tue Jun 11 16:12:19 2024
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -36,7 +35,6 @@ class Ui_ItemEditorDialog(object):
         self.verticalLayoutWidget_3 = QtGui.QWidget(self.splitter)
         self.verticalLayoutWidget_3.setObjectName(_fromUtf8("verticalLayoutWidget_3"))
         self.gridLayout_2 = QtGui.QGridLayout(self.verticalLayoutWidget_3)
-        self.gridLayout_2.setMargin(0)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.lblPersonContact = QtGui.QLabel(self.verticalLayoutWidget_3)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
@@ -84,7 +82,7 @@ class Ui_ItemEditorDialog(object):
         self.lblLogin.setMaximumSize(QtCore.QSize(300, 16777215))
         self.lblLogin.setObjectName(_fromUtf8("lblLogin"))
         self.gridLayout_3.addWidget(self.lblLogin, 0, 0, 1, 1)
-        self.edtPassword = QtGui.QLineEdit(ItemEditorDialog)
+        self.edtPassword = CPasswordEdit(ItemEditorDialog)
         self.edtPassword.setEnabled(False)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -133,13 +131,4 @@ class Ui_ItemEditorDialog(object):
         self.chkChangePassword.setText(_translate("ItemEditorDialog", "Изменить пароль", None))
 
 from library.InDocTable import CInDocTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    ItemEditorDialog = QtGui.QDialog()
-    ui = Ui_ItemEditorDialog()
-    ui.setupUi(ItemEditorDialog)
-    ItemEditorDialog.show()
-    sys.exit(app.exec_())
-
+from library.PasswordEdit import CPasswordEdit

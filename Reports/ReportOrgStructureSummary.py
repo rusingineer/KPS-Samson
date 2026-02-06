@@ -78,8 +78,8 @@ def selectData(params):
     cond = [
             tableEvent['deleted'].eq(0),
             tableAction['deleted'].eq(0),
-            tableAction[dateFieldName].dateLe(endDate),
-            tableAction[dateFieldName].dateGe(begDate)
+            tableAction[dateFieldName].lt(endDate.addDays(1)),
+            tableAction[dateFieldName].ge(begDate)
            ]
     if financeId:
         cond.append(tableAction['finance_id'].eq(financeId))
@@ -123,9 +123,9 @@ def selectData(params):
             cond.append(tableAccountItem['refuseType_id'].isNotNull())
 
         if confirmationBegDate:
-            cond.append(tableAccountItem['date'].dateGe(confirmationBegDate))
+            cond.append(tableAccountItem['date'].ge(confirmationBegDate))
         if confirmationEndDate:
-            cond.append(tableAccountItem['date'].dateLe(confirmationEndDate))
+            cond.append(tableAccountItem['date'].lt(confirmationEndDate.addDays(1)))
     fieldUetDoctor = 'IF(YEAR(FROM_DAYS(DATEDIFF(Action.`endDate`, Client.`birthDate`))) < 18, rbService.`childUetDoctor`, rbService.`adultUetDoctor`) AS uetDoctor'
     cols = [
             tableAction['id'].alias('actionId'),

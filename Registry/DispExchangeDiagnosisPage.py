@@ -7,7 +7,7 @@ from PyQt4.QtGui import QAbstractItemView, QWidget, QAction
 from library.Calendar import monthName
 from library.DialogBase import CConstructHelperMixin
 from library.TableModel import CTableModel, CCol, CDesignationCol, CIntCol, CTextCol, CEnumCol
-from library.Utils import forceStringEx, forceString, forceRef, formatRecordsCount
+from library.Utils import forceInt, forceStringEx, forceString, forceRef, formatRecordsCount, toVariant
 
 from Exchange.ExportDispPlanDiagnosisDialog import CExportDispPlanDiagnosisDialog
 from Exchange.ImportDispExportedPlanDiagnosisDialog import CImportDispExportedPlanDiagnosisDialog
@@ -30,6 +30,8 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
         self.addModels('DiagnosisDispansPlaned', CDiagnosisDispansPlanedModel(self))
         self.addModels('PlanExportErrors', CPlanExportErrorsModel(self))
         self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actEditExport', QAction(u'Изменить признак экспорта', self))
+        self.addObject('actEditPlan', QAction(u'Перепланировать', self))
         self.setupUi(self)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.setModels(self.tblDiagnosisDispansPlaned, self.modelDiagnosisDispansPlaned, self.selectionModelDiagnosisDispansPlaned)
@@ -45,7 +47,8 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
             'Diagnosis.MKB',
             'DDP.year',
             'DDP.month',
-            'Person.code'
+            'Person.code',
+            'DDP.isExport'
         ]
         self.order = (0, True)
         self.sbYear.setValue(currentDate.year())
@@ -58,12 +61,16 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
         self.tblDiagnosisDispansPlaned.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.cmbSocStatusesType.setTable('rbSocStatusType', True)
         self.on_chkSocStatuses_toggled(self.chkSocStatuses.isChecked())
+        self.cmbExportedWithErrors.setVisible(False)
+        self.cmbExportedWithErrors.setTable(u'disp_ErrorTypes', ['id', 'name'])
 
     def contextMenuEvent(self, event):
         self.menu = QtGui.QMenu(self)
         selectedRows = self.getSelectedRows(self.tblDiagnosisDispansPlaned)
         if len(selectedRows) == 1:
             self.menu.addAction(self.actEditClient)
+            self.menu.addAction(self.actEditExport)
+        self.menu.addAction(self.actEditPlan)
         self.menu.popup(QtGui.QCursor.pos())
 
     def getSelectedRows(self, tbl):
@@ -88,6 +95,7 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
                 Client.birthDate,
                 (case Client.sex when 1 then 'М' when 2 then 'Ж' end) as sex,
                 AttachOrgStructure.name as attachName,
+                ifnull(SocAttachOrgStructure.id, 0) != ifnull(AttachOrgStructure.id, 0) as bold,
                 Diagnosis.MKB,
                 concat(Person.code, ' | ', formatPersonName(Person.id), ', ', rbSpeciality.name) as personName,
                 PlanExport.id as planExport_id
@@ -103,6 +111,15 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
                         and o.areaType > 0
                         and Attach.attachType_id in (%(attachTypeIds)s)
                 )
+                LEFT JOIN (
+                    SELECT soc_attachments.client_id,  OrgStructure.id orgStructure_id 
+                    FROM soc_attachments
+                    INNER JOIN OrgStructure ON OrgStructure.id = 
+                            (SELECT id FROM OrgStructure org WHERE org.deleted=0 
+                            AND getOMSCode(org.id)=soc_attachments.attach_mo 
+                            AND org.infisInternalCode=soc_attachments.attach_area  AND org.areaType > 0 limit 1)
+                    WHERE soc_attachments.serviceMethod = 0
+                ) SocAttach ON Client.id = SocAttach.client_id
                 LEFT JOIN ClientWork ON ClientWork.client_id = Client.id AND ClientWork.id = (
                     SELECT
                     MAX(CW.id)
@@ -113,9 +130,11 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
                 left join Person on Person.id = DDP.person_id
                 left join rbSpeciality on rbSpeciality.id = Person.speciality_id
                 left join disp_PlanExport as PlanExport on PlanExport.exportKind = 'DiagnosisDispansPlaned' and PlanExport.row_id = DDP.id
+                left join disp_PlanExportErrors as PlanExportErrors on PlanExportErrors.planExport_id = PlanExport.id
                 left join OrgStructure as AttachOrgStructure on AttachOrgStructure.id = Attach.orgStructure_id
+                left join OrgStructure as SocAttachOrgStructure on SocAttachOrgStructure.id = SocAttach.orgStructure_id
             """ % {
-                "attachTypeIds": ', '.join([str(id) for id in attachTypeIds])
+                "attachTypeIds": ', '.join([str(id) for id in attachTypeIds]),
             }
             where = [
                 "DDP.year = %d" % year,
@@ -214,13 +233,20 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
                     where.append("Diagnosis.MKB >= '%s'" % mkbFrom)
                 if mkbTo:
                     where.append("Diagnosis.MKB <= '%s'" % mkbTo)
+            if self.chkFilterIsExport.isChecked():
+                where.append('DDP.isExport = 0')
             statusFilter = []
             if self.chkNotExported.isChecked():
                 statusFilter.append('PlanExport.id is null')
             if self.chkExportedSuccessfully.isChecked():
                 statusFilter.append('PlanExport.exportSuccess = 1')
+            if self.chkHideSuccess.isChecked():
+                statusFilter.append('ifnull(PlanExport.exportSuccess, 0) != 1')
             if self.chkExportedWithErrors.isChecked():
                 statusFilter.append('PlanExport.exportSuccess = 0')
+                errorTypes = self.cmbExportedWithErrors.value()
+                if errorTypes:
+                    where.append('PlanExportErrors.errorType_id in ({})'.format(errorTypes))
             if len(statusFilter) > 0 and len(statusFilter) < 3:
                 where.append('(' + ' or '.join(statusFilter) + ')')
             sql += (' where ' + ' and '.join(where))
@@ -232,14 +258,27 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
             infoDict = self.modelDiagnosisDispansPlaned.infoDict
             infoDict.clear()
             query = db.query(sql)
+            ddpIdList = []
+            clientsList = []
             while query.next():
                 record = query.record()
                 clientId = forceRef(record.value('id'))
                 idList.append(clientId)
                 infoDict[clientId] = record
+                ddpIdList.append(forceRef(record.value('id')))
+                clientsList.append(forceRef(record.value('client_id')))
             self.modelDiagnosisDispansPlaned.setIdList(idList)
+            
+            tablePlanExport = db.table('disp_PlanExport')
+            planExportFilter = [
+                tablePlanExport['exportKind'].eq('DiagnosisDispansPlaned'),
+                tablePlanExport['row_id'].inlist(idList),
+            ]
+            exportedIdSet = set(db.getDistinctIdList(tablePlanExport, idCol='row_id', where=planExportFilter))
+            self.modelDiagnosisDispansPlaned.setExportedIdSet(exportedIdSet)
+            
             count = len(idList)
-            people = u", {0} человек".format(len(list(set(idList)))) if idList else u""
+            people = u", {0} человек".format(len(list(set(clientsList)))) if idList else u""
             self.lblRowCount.setText(formatRecordsCount(count) + people)
         finally:
             QtGui.QApplication.restoreOverrideCursor()
@@ -303,6 +342,8 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
         statusLines = []
         if self.chkNotExported.isChecked():
             statusLines.append(u'- запланированные, не отправленные')
+        if self.chkFilterIsExport.isChecked():
+            statusLines.append(u'- не подлежащие экспорту')
         if self.chkExportedSuccessfully.isChecked():
             statusLines.append(u'- отправленные успешно')
         if self.chkExportedWithErrors.isChecked():
@@ -334,6 +375,7 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
         self.chkFilterMKB.setChecked(False)
         self.cmbBusyness.setCurrentIndex(0)
         self.chkNotExported.setChecked(True)
+        self.chkFilterIsExport.setChecked(False)
         self.chkExportedSuccessfully.setChecked(False)
         self.chkExportedWithErrors.setChecked(False)
         self.updateDDPList()
@@ -441,6 +483,103 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
             finally:
                 if dialog:
                     dialog.deleteLater()
+    
+    
+    @pyqtSignature('')
+    def on_actEditExport_triggered(self):
+        item = self.tblDiagnosisDispansPlaned.currentItem()
+        dialog = QtGui.QDialog()
+        dialog.setWindowTitle(u"Изменение признака экспорта")
+        layout = QtGui.QVBoxLayout(dialog)
+
+        dialog.rdIsNotExport = QtGui.QRadioButton(u"Не подлежит")
+        dialog.rdNotExported = QtGui.QRadioButton(u"Не отправлен")
+        layout.addWidget(dialog.rdIsNotExport)
+        layout.addWidget(dialog.rdNotExported)
+        dialog.buttonGroup = QtGui.QButtonGroup(dialog)
+        dialog.buttonGroup.addButton(dialog.rdIsNotExport)
+        dialog.buttonGroup.addButton(dialog.rdNotExported)
+
+        dialog.buttonBox = QtGui.QDialogButtonBox(dialog)
+        dialog.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        dialog.connect(dialog.buttonBox, SIGNAL('accepted()'), dialog.accept)
+        dialog.connect(dialog.buttonBox, SIGNAL('rejected()'), dialog.reject)
+        layout.addWidget(dialog.buttonBox)
+        dialog.rdIsNotExport.setChecked(True)
+        if dialog.exec_():
+            db = QtGui.qApp.db
+            result = int(dialog.rdNotExported.isChecked())
+            if result:
+                db.deleteRecord(u'disp_PlanExport', [u'disp_PlanExport.exportKind = "DiagnosisDispansPlaned"',
+                                                     u'disp_PlanExport.exportSuccess = 0',
+                                                     u'disp_PlanExport.row_id = {}'.format(forceString(item.value('id')))])
+            item.setValue('isExport', result)
+            item.setValue('modifyDatetime', toVariant(QDate.currentDate()))
+            item.setValue('modifyPerson_id', QtGui.qApp.userId)
+            db.updateRecord(u'DiagnosisDispansPlaned', item)
+            db.commit()
+            self.updateDDPList()   
+    
+    
+    @pyqtSignature('')
+    def on_actEditPlan_triggered(self):
+        records = []
+        itemIdList = self.tblDiagnosisDispansPlaned.selectedItemIdList()
+        for id in itemIdList:
+            records.append(self.tblDiagnosisDispansPlaned.model().recordCache().get(id))
+        dialog = QtGui.QDialog()
+        dialog.setWindowTitle(u"Перепланировать")
+        layout = QtGui.QVBoxLayout(dialog)
+        
+        ylayout = QtGui.QHBoxLayout()
+        lblYear = QtGui.QLabel(u"Год ", dialog)
+        dialog.cmbYear = QtGui.QSpinBox(dialog)
+        dialog.cmbYear.setMinimum(2017)
+        dialog.cmbYear.setMaximum(9999)
+        ylayout.addWidget(lblYear)
+        ylayout.addWidget(dialog.cmbYear)
+        layout.addLayout(ylayout)
+        
+        monthNames = (
+        u'январь', u'февраль', u'март', u'апрель', u'май', u'июнь', u'июль', u'август', u'сентябрь', u'октябрь',
+        u'ноябрь', u'декабрь')
+        lblMonth = QtGui.QLabel(u"Месяц ", dialog)
+        dialog.cmbMonth = QtGui.QComboBox(dialog)
+        dialog.cmbMonth.addItems(monthNames)
+        mlayout = QtGui.QHBoxLayout()
+        mlayout.addWidget(lblMonth)
+        mlayout.addWidget(dialog.cmbMonth)
+        layout.addLayout(mlayout)
+
+        dialog.buttonBox = QtGui.QDialogButtonBox(dialog)
+        dialog.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        dialog.connect(dialog.buttonBox, SIGNAL('accepted()'), dialog.accept)
+        dialog.connect(dialog.buttonBox, SIGNAL('rejected()'), dialog.reject)
+        layout.addWidget(dialog.buttonBox)
+        dialog.cmbYear.setValue(QDate.currentDate().year())
+        dialog.cmbMonth.setCurrentIndex(QDate.currentDate().month() - 1)
+        
+        if dialog.exec_():
+            db = QtGui.qApp.db
+            year = dialog.cmbYear.value()
+            month = dialog.cmbMonth.currentIndex()+1
+            tablePlanExport = db.table('disp_PlanExport')
+            planExportFilter = [
+                tablePlanExport['exportKind'].eq('DiagnosisDispansPlaned'),
+                tablePlanExport['row_id'].inlist(itemIdList),
+                tablePlanExport['exportSuccess'].eq(1),
+            ]
+            exportedIdSet = set(db.getDistinctIdList(tablePlanExport, idCol='row_id', where=planExportFilter))
+            for item in records:
+                if forceInt(item.value('id')) not in exportedIdSet:
+                    item.setValue('year', year)
+                    item.setValue('month', month)
+                    item.setValue('modifyDatetime', toVariant(QDate.currentDate()))
+                    item.setValue('modifyPerson_id', QtGui.qApp.userId)
+                    db.updateRecord(u'DiagnosisDispansPlaned', item)
+            db.commit()
+            self.updateDDPList() 
+            
 
     @pyqtSignature('')
     def on_btnShowReport_clicked(self):
@@ -448,6 +587,24 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
 
 
 class CDiagnosisDispansPlanedModel(CTableModel):
+    class CEnableEditCol(CTextCol):
+        def __init__(self, title, fields, width, exportedIdSet):
+            CTextCol.__init__(self, title, fields, width, 'l')
+            self.exportedIdSet = exportedIdSet
+
+        def setExportedIdSet(self, idList):
+            self.exportedIdSet = idList
+        
+        def format(self, values):
+            val = forceRef(values[0])
+            record = values[1]
+            if not val:
+                return QVariant(u'Не подлежит')
+            elif forceRef(record.value('id')) not in self.exportedIdSet:
+                return QVariant(u'Не отправлен')
+            else:
+                return QVariant(u'Отправлен')
+            
     class CInfoCol(CTextCol):
         def __init__(self, title, infoField, infoDict, defaultWidth, alignment='l'):
             CTextCol.__init__(self, title, ['id'], defaultWidth, alignment)
@@ -476,7 +633,28 @@ class CDiagnosisDispansPlanedModel(CTableModel):
         self.addColumn(CIntCol(u'Год', ['year'], 15))
         self.addColumn(CEnumCol(u'Месяц', ['month'], monthName, 15))
         self.addColumn(self.CInfoCol(u'Врач', 'personName', self.infoDict, 15))
+        self.exportedIdSet = []
+        self.enableEditCol = self.CEnableEditCol(u'Экспорт в ТФОМС', ['isExport'], 10, self.exportedIdSet)
+        self.addColumn(self.enableEditCol)
         self.setTable('DiagnosisDispansPlaned')
+
+        self._boldFont = QtGui.QFont()
+        self._boldFont.setWeight(QtGui.QFont.Bold)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.FontRole:
+                clientId = self._idList[index.row()]
+                if forceInt(self.infoDict.get(clientId).value('bold')):
+                    return toVariant(self._boldFont)
+        return CTableModel.data(self, index, role)
+    
+    def setExportedIdSet(self, idList):
+        self.exportedIdSet = idList
+        self.enableEditCol.setExportedIdSet(idList)
+    
+    def getExportedIdSet(self):
+        return self.exportedIdSet
 
 
 class CPlanExportErrorsModel(CTableModel):
@@ -528,6 +706,7 @@ class CDispExchangeReport(CReportBase):
             ('5%',  [u'Год'           ], CReportBase.AlignLeft),
             ('5%',  [u'Месяц'         ], CReportBase.AlignLeft),
             ('10%', [u'Врач'          ], CReportBase.AlignLeft),
+            ('5%',  [u'Экспорт в ТФОМС'], CReportBase.AlignLeft)
         ]
         table = createTable(cursor, tableColumns)
         n = 0

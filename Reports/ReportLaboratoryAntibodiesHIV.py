@@ -62,8 +62,8 @@ def selectData(params):
              tableClientSocStatus['deleted'].eq(0),
              tableActionType['name'].eq(u'Исследование образцов крови в ИФА на СПИД'),
              tablePropertyType['name'].eq(u'Результат'),
-             tableEvent['setDate'].dateGe(params['begDate']),
-             tableEvent['setDate'].dateLe(params['endDate'])
+             tableEvent['setDate'].ge(params['begDate']),
+             tableEvent['setDate'].lt(params['endDate'].addDays(1))
            ]
     cols = [ tableRbSocStatusType['socCode'],
              tablePropertyString['value'],

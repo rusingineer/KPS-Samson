@@ -160,6 +160,18 @@ class CKRITActionPropertyValueType(CActionPropertyValueType):
                         type = 32
                     elif vallower == u'сурф':
                         type = 33
+                    elif vallower == u'витрект':
+                        type = 34
+                    elif vallower == u'диспмм':
+                        type = 35
+                    elif vallower == u'нормиммун':
+                        type = 36
+                    elif vallower == u'стент':
+                        type = 37
+                    elif vallower == u'тромбсочет':
+                        type = 38
+                    elif vallower == u'отдреаним':
+                        type = 39
                 else:
                     raise ValueError, self.badKey % locals()
                     

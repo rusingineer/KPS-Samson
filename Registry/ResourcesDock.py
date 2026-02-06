@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -204,11 +204,16 @@ class CResourcesDockContent(QtGui.QWidget,
         CCheckNetMixin.__init__(self)
         CRecordLockMixin.__init__(self)
 
-        qApp = QtGui.qApp
-        self.groupingSpeciality  = forceBool(qApp.preferences.appPrefs.get('groupingSpeciality', True))
-        self.activityListIsShown = forceBool(qApp.preferences.appPrefs.get('activityListIsShown', False))
+        application = QtGui.qApp
+        self.groupingSpeciality  = forceBool(application.preferences.appPrefs.get('groupingSpeciality', True))
+        self.activityListIsShown = forceBool(application.preferences.appPrefs.get('activityListIsShown', False))
+        orgStructureFilter = None
+        if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
+            preferenceFilter = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
+            if preferenceFilter:
+                orgStructureFilter = 'OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
 
-        self.addModels('OrgStructure',  COrgStructureModel(self, qApp.currentOrgId()))
+        self.addModels('OrgStructure',  COrgStructureModel(self, application.currentOrgId(), filter=orgStructureFilter))
         self.addModels('Activity',      CActivityModel(self))
         self.addModels('AmbTimeTable',  CTimeTableModel(self, CSchedule.atAmbulance))
         self.addModels('AmbQueue',      CQueueModel(self, CSchedule.atAmbulance))
@@ -256,11 +261,12 @@ class CResourcesDockContent(QtGui.QWidget,
         self.addObject('actRegistryProphylaxisPlanning', QtGui.QAction(u'Зарегистрировать пациента в Журнале планирования профилактического наблюдения', self))
 
         self.enableQueueing = False
+        self.isNeededUpdateSchedulesForSelectedDate = False
 
         self.timer = QTimer(self)
         self.timer.setObjectName('timer')
         self.timer.setInterval(60*1000) # раз в минуту
-        self.activityPref = qApp.getGlobalPreference('23')
+        self.activityPref = application.getGlobalPreference('23')
 
         self.setupUi(self)
         for treeWidget in (self.treeOrgStructure, self.treeOrgPersonnel):
@@ -342,8 +348,8 @@ class CResourcesDockContent(QtGui.QWidget,
                                           ]
                                           )
 
-        self.connect(QtGui.qApp, SIGNAL('currentOrgIdChanged()'), self.onCurrentOrgIdChanged)
-        self.connect(QtGui.qApp, SIGNAL('currentUserIdChanged()'), self.onCurrentUserIdChanged)
+        self.connect(application, SIGNAL('currentOrgIdChanged()'), self.onCurrentOrgIdChanged)
+        self.connect(application, SIGNAL('currentUserIdChanged()'), self.onCurrentUserIdChanged)
         # qApp.currentOrgIdChanged.connect(self.onCurrentOrgIdChanged)
         # qApp.currentUserIdChanged.connect(self.onCurrentUserIdChanged)
 
@@ -374,6 +380,9 @@ class CResourcesDockContent(QtGui.QWidget,
         self.onCurrentUserIdChanged()
 
         self.tblHomeTimeTable.setColumnHidden(1,True) # кабинет в вызовах на дом
+
+        self.postForMainLogicRecord = []
+        self.postForInterofficeRecord = []
 
         self.timer.start()
         self.updateTimeTable()
@@ -611,13 +620,13 @@ class CResourcesDockContent(QtGui.QWidget,
 
 
     def setCalendarDataRange(self):
-        qApp = QtGui.qApp
+        application = QtGui.qApp
         today = QDate.currentDate()
-        if qApp.userHasRight(urQueueCancelMinDateLimit):
+        if application.userHasRight(urQueueCancelMinDateLimit):
             minDate = today.addYears(-10)
         else:
             minDate = today.addDays(-7)
-        queueCancelMaxDateLimit = qApp.userHasRight(urQueueCancelMaxDateLimit)
+        queueCancelMaxDateLimit = application.userHasRight(urQueueCancelMaxDateLimit)
         if queueCancelMaxDateLimit:
             maxDate = today.addYears(10)
         else:
@@ -789,6 +798,11 @@ class CResourcesDockContent(QtGui.QWidget,
                    ):
                     self.enableQueueing = True
                     break
+                elif schedule.reasonOfAbsenceId is None:
+                    for scheduleItem in schedule.items:
+                        if not self.enableQueueing and scheduleItem.enableQueueing:
+                            self.enableQueueing = True
+                            break
         tblQueue.setEnabled(modelQueue.rowCount()>0)
 
 
@@ -882,15 +896,20 @@ class CResourcesDockContent(QtGui.QWidget,
         variantPrintQueue = QtGui.qApp.ambulanceUserCheckable()
         clientIsInvited = modelQueue.getInvitation(currentRow)
 
+        if 0<=currentRow<len(modelQueue.scheduleItems):
+            isEnableQueueingForItem = modelQueue.scheduleItems[currentRow].enableQueueing
+        else:
+            isEnableQueueingForItem = self.enableQueueing
+
         actCreateOrder.setEnabled(bool(currentClientId)
                                   and itemPresent
                                   and not orderPresent
-                                  and self.enableQueueing
+                                  and (self.enableQueueing and isEnableQueueingForItem)
                                   and not deathDate)
         actCreateOrderUrgent.setEnabled(bool(currentClientId)
                                   and itemPresent
                                   and not orderPresent
-                                  and self.enableQueueing
+                                  and (self.enableQueueing and isEnableQueueingForItem)
                                   and not deathDate)
         actDeleteOrder.setEnabled(orderPresent)
         actChangeComplaint.setEnabled(orderPresent)
@@ -937,8 +956,19 @@ class CResourcesDockContent(QtGui.QWidget,
             QtGui.QMessageBox.warning(self, u'Внимание!', u'Назначение приёма препятствует записи пациента')
             return False
 
-        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem):
-            QtGui.QMessageBox.warning(self, u'Внимание!', u'Запись за горизонт 14 дней разрешена только для повторной записи самому к себе')
+        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem, personId):
+            personInfo = getPersonInfo(personId)
+            if QtGui.qApp.userId == personId:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                          u'Запись на КТ разрешена только на 14 дней')
+            else:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                          u'Запись на ' + scheduleItem.time.toString(
+                                              'dd.MM.yyyy HH:mm') + u' разрешена только для врача ' + personInfo[
+                                              'shortName'])
+            return False
+
+        if not checkInterofficeRecord(self, personId, scheduleItem):
             return False
 
         scheduleItemIdList = getScheduleItemIdListForClient(clientId, specialityId, date, modelQueue.appointmentType)
@@ -1483,24 +1513,24 @@ class CResourcesDockContent(QtGui.QWidget,
     ######### слоты
 
     def onCurrentOrgIdChanged(self):
-        qApp = QtGui.qApp
-        self.modelOrgStructure.setOrgId(qApp.currentOrgId())
+        application = QtGui.qApp
+        self.modelOrgStructure.setOrgId(application.currentOrgId())
         self.updatePersonnelByOrgStructure()
         self.updateTimeTable()
 
 
     def onCurrentUserIdChanged(self):
-        qApp = QtGui.qApp
-        if qApp.userOrgStructureId:
-            index = self.modelOrgStructure.findItemId(qApp.userOrgStructureId)
+        application = QtGui.qApp
+        if application.userOrgStructureId:
+            index = self.modelOrgStructure.findItemId(application.userOrgStructureId)
             if index and index.isValid():
                 self.treeOrgStructure.setCurrentIndex(index)
-        if qApp.userSpecialityId:
-            index = self.modelPersonnel.findPersonId(qApp.userId)
+        if application.userSpecialityId:
+            index = self.modelPersonnel.findPersonId(application.userId)
             if index and index.isValid():
                 self.treeOrgPersonnel.setCurrentIndex(index)
         self.setCalendarDataRange()
-        self.actAmbNotification.setEnabled(qApp.userHasAnyRight([
+        self.actAmbNotification.setEnabled(application.userHasAnyRight([
                         urAdmin, urSendInternalAmbNotifications]))
         hasRightmodifyCheck = QtGui.qApp.userHasRight(urQueueModifyCheck)
         ambCheckable = QtGui.qApp.ambulanceUserCheckable()
@@ -1558,14 +1588,14 @@ class CResourcesDockContent(QtGui.QWidget,
 
 
     def onTreeOrgStructureHeaderClicked(self, col, reverse=True):
-        qApp = QtGui.qApp
+        application = QtGui.qApp
         if reverse:
             self.activityListIsShown = not self.activityListIsShown
 
         if not self.activityListIsShown:
             self.treeOrgStructure.setModel(None)
             self.setModels(self.treeOrgStructure, self.modelOrgStructure, self.selectionModelOrgStructure)
-            orgStructureIndex = self.modelOrgStructure.findItemId(qApp.currentOrgStructureId())
+            orgStructureIndex = self.modelOrgStructure.findItemId(application.currentOrgStructureId())
             if orgStructureIndex and orgStructureIndex.isValid():
                 self.treeOrgStructure.setCurrentIndex(orgStructureIndex)
                 self.treeOrgStructure.setExpanded(orgStructureIndex, True)
@@ -1574,7 +1604,7 @@ class CResourcesDockContent(QtGui.QWidget,
              self.treeOrgStructure.setModel(None)
              self.setModels(self.treeOrgStructure, self.modelActivity, self.selectionModelActivity)
              self.updatePersonnelByActivity()
-        qApp.preferences.appPrefs['activityListIsShown'] = self.activityListIsShown
+        application.preferences.appPrefs['activityListIsShown'] = self.activityListIsShown
 
 
     def onTreeOrgPersonnelHeaderClicked(self, col, reverse=True):
@@ -1608,11 +1638,13 @@ class CResourcesDockContent(QtGui.QWidget,
 
     @pyqtSignature('int')
     def on_tabPlace_currentChanged(self, index):
+        self.isNeededUpdateSchedulesForSelectedDate = True
         newAppointmentType = CSchedule.atAmbulance if index == 0 else CSchedule.atHome
         if self.appointmentType != newAppointmentType:
             self.appointmentType = newAppointmentType
             self.emit(SIGNAL('appointmentTypeChanged(int)'), self.appointmentType)
         self.updateTimeTable()
+        self.isNeededUpdateSchedulesForSelectedDate = False
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -1737,6 +1769,11 @@ class CResourcesDockContent(QtGui.QWidget,
     @pyqtSignature('QModelIndex')
     def on_tblAmbQueue_doubleClicked(self, index):
         clientId = self.getCurrentQueuedClientId(self.tblAmbQueue)
+        queueModel = self.tblAmbQueue.model()
+        if 0<=index.row()<len(queueModel.scheduleItems):
+            isEnableQueueingForItem = queueModel.scheduleItems[index.row()].enableQueueing
+        else:
+            isEnableQueueingForItem = self.enableQueueing
         if clientId:
             if QtGui.qApp.doubleClickQueuePerson() == 0:
                 self.on_actAmbChangeComplaint_triggered()
@@ -1744,7 +1781,7 @@ class CResourcesDockContent(QtGui.QWidget,
                     self.on_actAmbFindClient_triggered()
             elif QtGui.qApp.doubleClickQueuePerson() == 2:
                    self.on_actAmbCreateEvent_triggered()
-        elif self.enableQueueing:
+        elif self.enableQueueing and isEnableQueueingForItem:
             self.on_actAmbCreateOrder_triggered()
 
 
@@ -2237,6 +2274,13 @@ limit 0,1""" % {'personId'    : personId,
                      ).exec_()
 
 
+    @pyqtSignature('bool')
+    def on_chkShowSchedulesForSelectedDate_toggled(self, checked):
+        self.isNeededUpdateSchedulesForSelectedDate = True
+        self.updateTimeTable()
+        self.isNeededUpdateSchedulesForSelectedDate = False
+
+
 ################################################################################
 
 
@@ -2254,6 +2298,7 @@ class CTimeTableModel(QAbstractTableModel):
         self.activityId = None
         self.schedules = []
         self.redBrush = QtGui.QBrush(Qt.red)
+        self.parent = parent
 
 
     def columnCount(self, index = None):
@@ -2320,15 +2365,18 @@ class CTimeTableModel(QAbstractTableModel):
 
 
     def setPersonActivityAndDate(self, personId, activityId, date, minDate, maxDate):
-        if self.personId == personId and activityId == self.activityId and self.begDate <= date <= self.endDate:
+        if (self.personId == personId and activityId == self.activityId and self.begDate <= date <= self.endDate) and (not self.parent.isNeededUpdateSchedulesForSelectedDate):
             self.updateData()
         else:
             # self.beginResetModel()
             try:
                 self.personId = personId
                 self.activityId = activityId
-                self.begDate = max(date.addDays(1-date.dayOfWeek()), minDate)
-                self.endDate = min(self.begDate.addDays(6), maxDate)
+                if self.parent.chkShowSchedulesForSelectedDate.isChecked():
+                    self.begDate, self.endDate = date, date
+                else:
+                    self.begDate = max(date.addDays(1-date.dayOfWeek()), minDate)
+                    self.endDate = min(self.begDate.addDays(6), maxDate)
                 self.loadData()
             finally:
                 #self.endResetModel()
@@ -2582,7 +2630,7 @@ class CQueueModel(QAbstractTableModel):
             if role == Qt.ForegroundRole:
                 if 0 <= section < len(self.scheduleItems):
                     item = self.scheduleItems[section]
-                    if not item.enableQueueing:
+                    if not item.enableQueueing or not self.parent.enableQueueing:
                         return QVariant(QtGui.QBrush(Qt.darkGray))
         return QVariant()
 
@@ -2617,7 +2665,7 @@ class CQueueModel(QAbstractTableModel):
                     else:
                         return QVariant()
         elif role == Qt.ForegroundRole:
-            if item and not item.enableQueueing:
+            if (item and not item.enableQueueing) or not self.parent.enableQueueing:
                 return QVariant(QtGui.QBrush(Qt.darkGray))
 
         elif role == Qt.CheckStateRole and column == 0 and self.itemsAreCheckable:
@@ -2705,6 +2753,9 @@ class CQueueModel(QAbstractTableModel):
         for schedule in self.schedules:
             newItems.extend(schedule.items)
         newItems.sort(key=lambda scheduleItem: (scheduleItem.overtime, scheduleItem.time))
+        for item in newItems:
+            appointmentPurposeId = item.appointmentPurposeId
+            item.enableQueueing = isAppointmentEnabled(appointmentPurposeId, self.parent.getCurrentPersonId())
         self.scheduleItems = newItems
 
 
@@ -2807,6 +2858,7 @@ class CQueueModel(QAbstractTableModel):
         result = CScheduleItem()
         result.scheduleId = schedule.id
         result.time = QDateTime(schedule.date, schedule.endTime)
+        result.appointmentPurposeId = schedule.appointmentPurposeId
         result.overtime = True
         return result
 
@@ -3064,10 +3116,15 @@ def isAppointmentEnabledForClient(appointmentPurposeId, personId, date, clientId
             return appointmentPurpose.enablePrimaryRecord
     return True
 
-def isAppointmentEnabledForDate(scheduleItem):
+def isAppointmentEnabledForDate(scheduleItem, personId):
     db = QtGui.qApp.db
     id_ = scheduleItem.id if scheduleItem.id else '-1'
-    AppointmentPerson = db.getRecord('Schedule', ('Schedule.date<=%s or (Schedule.date<=%s and Schedule.person_id = %s ) or (SELECT f.code IS not NULL and f.code!=2 FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id   LEFT JOIN rbFinance f ON ap.finance_id = f.id WHERE si.id=%s) as check_' % (db.dateAdd('current_date', 'day', '14'),db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId, id_)),forceInt(scheduleItem.record.value('master_id')))
+    isAvalibleForExternal = forceBool(db.translate('Person', 'id', personId, 'availableForExternal'))
+    table = db.table('GetPositionList')
+    record = db.getRecordEx(table, table['id'], [table['code_last'].eq(14), table['code'].eq(getPostIdentCodeByPersonId(personId))])
+    isInListForInterofficeRecord = True if record and forceRef(record.value('id')) else False
+    isInterofficeRecord = not isAvalibleForExternal or isInListForInterofficeRecord
+    AppointmentPerson = db.getRecord('Schedule', ('Schedule.date<=%s or (Schedule.date<=%s and Schedule.person_id = %s  AND (SELECT ap.enablePrimaryRecord = 0  AND ap.enableConsultancyRecord = 0  AND ap.enableRecordViaInfomat  = 0  AND ap.enableRecordViaCallCenter = 0  AND ap.enableRecordViaInternet = 0  FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id  WHERE si.id= %s) ) or (SELECT f.code IS not NULL and f.code!=2 FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id   LEFT JOIN rbFinance f ON ap.finance_id = f.id WHERE si.id=%s) as check_' % (db.dateAdd('current_date', 'day', '14') if not isInterofficeRecord else db.dateAdd('current_date', 'day', '30'),db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId, id_, id_)),forceInt(scheduleItem.record.value('master_id')))
     check = forceInt(AppointmentPerson.value('check_'))
     return check
 
@@ -3076,6 +3133,95 @@ def isReferralRequired(appointmentPurposeId):
     if appointmentPurpose:
         return appointmentPurpose.requireReferral
     return False
+
+
+def getPostIdentCodeByPersonId(personId):
+    db = QtGui.qApp.db
+
+    tablePost = db.table('rbPost')
+    tablePerson = db.table('Person')
+    tablePostIdentification = db.table('rbPost_Identification')
+    tableAccountingSystem = db.table('rbAccountingSystem')
+
+    table = tablePost.leftJoin(tablePerson, tablePost['id'].eq(tablePerson['post_id']))
+    table = table.leftJoin(tablePostIdentification, tablePost['id'].eq(tablePostIdentification['master_id']))
+    table = table.leftJoin(tableAccountingSystem, tablePostIdentification['system_id'].eq(tableAccountingSystem['id']))
+
+    cond = [
+        tableAccountingSystem['urn'].eq('urn:oid:1.2.643.5.1.13.13.11.1002'),
+        tablePerson['id'].eq(personId)
+    ]
+
+    postRecord = db.getRecordEx(table, tablePostIdentification['value'], cond)
+    if postRecord:
+        return forceRef(postRecord.value('value'))
+    return None
+
+
+def checkInterofficeRecord(self, personId, scheduleItem=None):
+    if QtGui.qApp.isReStagingInQueue():
+        return True
+    db = QtGui.qApp.db
+    postIdentificationCode = getPostIdentCodeByPersonId(personId)
+    appointmentPurpose = CAppointmentPurposeCache.getItem(scheduleItem.appointmentPurposeId)
+
+    if scheduleItem and appointmentPurpose:
+        recordFinance = getScheduleItemIdFinance(scheduleItem)
+        if recordFinance and (forceString(recordFinance.value('code')) != '' and forceString(recordFinance.value('code')) != '2'):
+            return True
+
+    if not self.postForMainLogicRecord and not self.postForInterofficeRecord:
+        records = db.getRecordList('GetPositionList', ['code_last', 'code'], 'code_last IN (13,14)')
+        for record in records:
+            if record.value('code_last') == 13:
+                self.postForMainLogicRecord.append(forceRef(record.value('code')))
+            else:
+                self.postForInterofficeRecord.append(forceRef(record.value('code')))
+
+    if getPostIdentCodeByPersonId(QtGui.qApp.userId) in self.postForInterofficeRecord:
+        QtGui.QMessageBox.warning(self, u'Внимание!', u'Для вашей специальности запрещена запись в график!')
+        return False
+
+    if postIdentificationCode in self.postForMainLogicRecord:
+        isExternal = forceBool(QtGui.qApp.db.translate('Person', 'id', personId, 'availableForExternal'))
+        if not isExternal:
+            if appointmentPurpose and (not appointmentPurpose.enablePrimaryRecord
+                    and not appointmentPurpose.enableConsultancyRecord
+                    and not appointmentPurpose.enableRecordViaInfomat
+                    and not appointmentPurpose.enableRecordViaCallCenter
+                    and not appointmentPurpose.enableRecordViaInternet
+                    and appointmentPurpose.enableOwnRecord):
+                return True
+            else:
+                if personId == QtGui.qApp.userId:
+                    QtGui.QMessageBox.warning(self, u'Внимание!', u'Возможна только межкабинетная запись!')
+                    return False
+                elif forceRef(db.translate('rbPost', 'id', QtGui.qApp.userPostId, 'code')) == 6000 or not QtGui.qApp.userSpecialityId:
+                    QtGui.QMessageBox.warning(self, u'Внимание!', u'Запись доступна только врачу!')
+                    return False
+                elif not appointmentPurpose or appointmentPurpose.enableConsultancyRecord:
+                    return True
+                else:
+                    QtGui.QMessageBox.warning(self, u'Внимание!',
+                                              u'В назначении приёма отсутствует разрешение на запись для консультации!')
+                    return False
+        else:
+            return True
+    elif postIdentificationCode in self.postForInterofficeRecord:
+        if personId == QtGui.qApp.userId:
+            QtGui.QMessageBox.warning(self, u'Внимание!', u'Для вашей специальности запрещена запись в график!')
+            return False
+        elif forceRef(db.translate('rbPost', 'id', QtGui.qApp.userPostId, 'code')) == 6000 or not QtGui.qApp.userSpecialityId:
+            QtGui.QMessageBox.warning(self, u'Внимание!', u'Запись доступна только врачу!')
+            return False
+        elif not appointmentPurpose or appointmentPurpose.enableConsultancyRecord:
+            return True
+        else:
+            QtGui.QMessageBox.warning(self, u'Внимание!',
+                                      u'В назначении приёма отсутствует разрешение на запись для консультации!')
+            return False
+
+    return True
 
 
 class CActivityTreeItem(CTreeItemWithId):

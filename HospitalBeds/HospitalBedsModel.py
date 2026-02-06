@@ -1045,7 +1045,7 @@ class CPresenceModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -1435,7 +1435,7 @@ class CPresenceModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -1662,15 +1662,27 @@ class CPresenceModel(CMonitoringModel):
     def sort(self, col, order=Qt.AscendingOrder):
         self.headerSortingCol = {col: order}
         reverse = order == Qt.DescendingOrder
+        alphabet = u'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
+        alphabet_dict = {char: index for index, char in enumerate(alphabet)}
+        def sortByRussia(x):
+            customString = forceString(x[col]).lower() if x else u''
+            return [alphabet_dict.get(char, len(alphabet)) for char in customString]
+
         if col == self.bedDaysCol:
             self.items.sort(key=lambda x: forceInt(0 if x[col] == '-' else x[col]) if x else None, reverse=reverse)
         elif col in [self.clientColumn, self.eventColumn]:
             self.items.sort(key=lambda x: forceInt(x[col]) if x else None, reverse=reverse)
         elif col in [self.birthDateCol, self.hospDateCol, self.receivedDateCol, self.plannedEndDateColumn]:
             self.items.sort(key=lambda x: forceDateTime(x[col]) if x else None, reverse=reverse)
+        elif col in [self.defaultOrderCol]:
+            self.items.sort(key=sortByRussia, reverse = reverse)
         else:
             self.items.sort(key=lambda x: forceString(x[col]).lower() if x else None, reverse=reverse)
         self.reset()
+
+
+
+
 
 
 class CReceivedModel(CMonitoringModel):
@@ -2088,7 +2100,7 @@ class CReceivedModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -2346,7 +2358,7 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -2592,7 +2604,7 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -2827,7 +2839,7 @@ AM.event_id = Event.id)'''%(','.join(forceString(leavedId) for leavedId in leave
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -3340,7 +3352,7 @@ class CTransferModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -3624,7 +3636,7 @@ class CLeavedModel(CMonitoringModel):
 
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
 
         if quotingType:
             quotingTypeClass, quotingTypeId = quotingType
@@ -3751,7 +3763,7 @@ class CLeavedModel(CMonitoringModel):
             if not regionSMO:
                 cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
             else:
-                tableOrganisation = db.table('Organisation')
+                tableOrganisation = db.table('Organisation').alias('Org_Area')
                 queryTable = queryTable.innerJoin(tableOrganisation,
                                                   [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']),
                                                    tableOrganisation['deleted'].eq(0)])
@@ -4371,7 +4383,7 @@ class CReabyToLeaveModel(CMonitoringModel):
             if not regionSMO:
                 cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
             else:
-                tableOrganisation = db.table('Organisation')
+                tableOrganisation = db.table('Organisation').alias('Org_Area')
                 queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                 if regionSMOCode:
                     if regionTypeSMO:
@@ -4476,6 +4488,7 @@ class CQueueModel(CMonitoringModel):
     profileCol = 14
     documentLocationCol = 18
     policlinicPlannedDateCol = 21
+    orderDirectionCol = 22
     codeFinanceCol = 23
     statusObservationNameCol = 25
     colorStatusObservationCol = 26
@@ -4542,23 +4555,23 @@ class CQueueModel(CMonitoringModel):
     def getMKB(self, row):
         return self.items[row][self.MKBColumn]
     
-    def headerData(self, section, orientation, role = Qt.DisplayRole):
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal:
             if role == Qt.DisplayRole:
                 return QVariant(self.column[section])
             elif role == Qt.ToolTipRole:
-                if section == 0:
+                if section == self.statusObservationCol:
                     return QVariant(u'Статус наблюдения пациента')
-                elif section == 1:
+                elif section == self.financeCol:
                     return QVariant(u'Источник финансирования (код)')
-                elif section == 17:
-                    return QVariant(u'Место нахождения учетного документа')
-                elif section == 20:
-                    return QVariant(u'Плановая дата госпитализации поликлиники')
-                elif section == 21:
-                    return QVariant(u'Порядок направления')
                 elif section == self.eventColumn:
                     return QVariant(u'Код события')
+                elif section == self.documentLocationCol:
+                    return QVariant(u'Место нахождения учетного документа')
+                elif section == self.policlinicPlannedDateCol:
+                    return QVariant(u'Плановая дата госпитализации поликлиники')
+                elif section == self.orderDirectionCol:
+                    return QVariant(u'Порядок направления')
         return QVariant()
 
 
@@ -5306,7 +5319,7 @@ class CEmergencyModel(CMonitoringModel):
                 personSex = u'' if record.isNull('personSex') else self.smpSex[forceInt(record.value('personSex'))],
                 personBirthDateText = personBirthDateText,
                 callDateTime = forceDateTime(record.value('callDateTime')),
-                hospitalizationDate = forceDate(record.value('hospitalizationDate')),
+                hospitalizationDate = forceDateTime(record.value('hospitalizationDate')),
                 mkb = forceString(record.value('mkb')),
                 callOccasion = forceString(record.value('callOccasion')),
                 addressCall = forceString(record.value('addressCall')),
@@ -5731,7 +5744,7 @@ class CRenunciationModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:
@@ -6297,7 +6310,7 @@ class CDeathModel(CMonitoringModel):
                 if not regionSMO:
                     cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
                 else:
-                    tableOrganisation = db.table('Organisation')
+                    tableOrganisation = db.table('Organisation').alias('Org_Area')
                     queryTable = queryTable.innerJoin(tableOrganisation, [tableOrganisation['id'].eq(tableClientPolicy['insurer_id']), tableOrganisation['deleted'].eq(0)])
                     if regionSMOCode:
                         if regionTypeSMO:

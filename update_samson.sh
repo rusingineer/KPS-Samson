@@ -23,6 +23,7 @@ homedir=$HOME
 #if [ -f "$homedir/Рабочий стол/Samson_AutoUP.desktop" ] ; then desktop="$homedir/Рабочий стол"; fi ;
 #if [ -f "$homedir/Desktop/Samson_AutoUP.desktop" ] ; then desktop="$homedir/Desktop"; fi ;
 desktop=`xdg-user-dir DESKTOP`
+mkdir $desktop
 echo "homedir = $homedir" >> "$outfile"
 echo "desktop = $desktop" >> "$outfile"
 file=$homedir/.config/samson-vista/S11App.ini
@@ -105,6 +106,7 @@ END_SCRIPT
 	tar xvzf client_lin.tar.gz -C /opt/client --strip-components=1 >> "$desktop/Обновление МИС САМСОН" 2>&1 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" >> "$outfile"
+	chmod 777 -R /opt/client
 	chmod +x /opt/client/*.py
 	chmod +x /opt/client/*.sh
 	chmod +x /opt/client/install/bin/*.sh 

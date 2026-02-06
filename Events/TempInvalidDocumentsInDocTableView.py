@@ -18,6 +18,7 @@ from PyQt4.QtCore import Qt, SIGNAL, QVariant, QDate, QDateTime, QEvent
 
 from library.Utils                         import copyFields, exceptionToUnicode, forceBool, forceRef, forceStringEx, toVariant, forceString, forceDateTime, forceDate, forceInt
 from library.InDocTable                    import CInDocTableView, CLocItemDelegate
+from library.Counter                       import CCounterController
 #from Registry.ClientRelationSimpleComboBox import CClientRelationSimpleComboBox
 from Registry.Utils                        import getRightEditTempInvalid, deleteTempInvalidDocument, getDocumentExportSuccess, getTempInvalidDocumentPrevFssStatus, getDocumentExportId
 from Events.Action                         import CAction, CActionTypeCache
@@ -172,6 +173,8 @@ class CTempInvalidDocumentsInDocTableView(CInDocTableView):
     def on_directionMC(self):
         eventEditor = self.model().eventEditor
         if eventEditor and eventEditor.preCreateDirectionMC():
+            if not QtGui.qApp.counterController():
+                QtGui.qApp.setCounterController(CCounterController(self))
             actions = []
             db = QtGui.qApp.db
             clientId = self.model().getTempInvalidClientId()
@@ -224,9 +227,12 @@ class CTempInvalidDocumentsInDocTableView(CInDocTableView):
                                     if mkb:
                                         newRecord.setValue('MKB', toVariant(mkb))
                             newAction = CAction(record=newRecord)
+                            newAction.updatePresetValuesConditions({'clientId': eventEditor.clientId})
+                            newAction.initPresetValues()
                             record = items[selectRowList[0]]
                             newAction = self.setNumberVUT(newAction, record, tempInvalidId, clientId)
                             if not newAction:
+                                QtGui.qApp.setCounterController(None)
                                 return
                             dialog.load(newAction.getRecord(), newAction, clientId)
                             dialog.btnPrint.setEnabled(False)
@@ -248,6 +254,7 @@ class CTempInvalidDocumentsInDocTableView(CInDocTableView):
                                 newAction.updateByAction(action)
                                 newAction = self.setNumberVUT(newAction, record, tempInvalidId, clientId)
                                 if not newAction:
+                                    QtGui.qApp.setCounterController(None)
                                     return
                                 actions.append(newAction)
                             if actions:
@@ -286,6 +293,7 @@ class CTempInvalidDocumentsInDocTableView(CInDocTableView):
                                             if eventId:
                                                 recordEvent.setValue('id', toVariant(eventId))
                                                 self.saveMedicalCommissionActions(actions, recordEvent, eventId)
+            QtGui.qApp.setCounterController(None)
             eventEditor.medicalCommissionLoadItems()
 
 

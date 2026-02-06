@@ -235,10 +235,10 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                 return Qt.ItemIsEnabled|Qt.ItemIsSelectable
         else:
             if column == self.ciIsAssigned and self.propertyTypeList[row].isAssignable:
-                return Qt.ItemIsSelectable | Qt.ItemIsUserCheckable | Qt.ItemIsEnabled
+                return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable
             if self.hasCommonPropertyChangingRight(row):
                 if column == self.ciIsAssigned and propertyType.isAssignable:
-                    return Qt.ItemIsSelectable|Qt.ItemIsUserCheckable|Qt.ItemIsEnabled
+                    return Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsUserCheckable
                 elif column == self.ciValue:
                     if propertyType.isBoolean():
                         return Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsUserCheckable
@@ -438,18 +438,31 @@ class CActionPropertiesTableModel(QAbstractTableModel):
         if role == Qt.EditRole:
             if column == self.ciValue:
                 if not propertyType.isVector:
-                    property.preApplyDependents(self.action)
-                    property.setValue(propertyType.convertQVariantToPyValue(value))
-                    self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
-                    self.getDefaultEvaluation(propertyType, property, index)
-                    if property.isActionNameSpecifier():
-                        self.action.updateSpecifiedName()
-                        self.emit(SIGNAL('actionNameChanged()'))
-                    property.applyDependents(self.action)
-                    if propertyType.isJobTicketValueType():
-                        self.action.setPlannedEndDateOnJobTicketChanged(property.getValue())
-                    if propertyType.whatDepends:
-                        self.updateDependedProperties(propertyType.whatDepends)
+                    oldValue = property.getValue()
+                    newValue = propertyType.convertQVariantToPyValue(value)
+                    if oldValue != newValue:
+                        if property.type().isNomenclatureValueType():
+                            property.preApplyDependents(self.action)
+                            property.setValue(newValue)
+                            self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                            self.getDefaultEvaluation(propertyType, property, index)
+                            if property.isActionNameSpecifier():
+                                self.action.updateSpecifiedName()
+                                self.emit(SIGNAL('actionNameChanged()'))
+                            property.applyDependents(self.action)
+                        else:
+                            property.preApplyDependents(self.action)
+                            property.setValue(propertyType.convertQVariantToPyValue(value))
+                            self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+                            self.getDefaultEvaluation(propertyType, property, index)
+                            if property.isActionNameSpecifier():
+                                self.action.updateSpecifiedName()
+                                self.emit(SIGNAL('actionNameChanged()'))
+                            property.applyDependents(self.action)
+                        if propertyType.isJobTicketValueType():
+                            self.action.setPlannedEndDateOnJobTicketChanged(property.getValue())
+                        if propertyType.whatDepends:
+                            self.updateDependedProperties(propertyType.whatDepends)
                     return True
             elif column == self.ciEvaluation:
                 property.setEvaluation(None if value.isNull() else forceInt(value))
@@ -570,6 +583,8 @@ class CActionPropertyBaseDelegate(QtGui.QItemDelegate):
 
 
 class CActionPropertyDelegate(CActionPropertyBaseDelegate):
+    __pyqtSignals__ = ('editorCreated(QWidget *)')
+
     def __init__(self, lineHeight, parent):
         CActionPropertyBaseDelegate.__init__(self, lineHeight, parent)
 
@@ -635,16 +650,20 @@ class CActionPropertyDelegate(CActionPropertyBaseDelegate):
                 painter.fillRect(option.rect, option.palette.highlight())
             painter.setBrush(QtGui.QColor(Qt.black))
             document = QtGui.QTextDocument()
-#            textOption = QTextOption(document.defaultTextOption())
-#            textOption.setWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
-#            document.setDefaultTextOption(textOption)
+            document.setDefaultFont(option.font)
+            
+            textOption = QtGui.QTextOption(document.defaultTextOption())
+            textOption.setWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
+            document.setDefaultTextOption(textOption)
             document.setHtml(index.data(Qt.DisplayRole).toString())
+            document.setTextWidth(option.rect.width())
             context = QtGui.QAbstractTextDocumentLayout.PaintContext()
             context.palette = option.palette
-            if option.state & QtGui.QStyle.State_Selected:
-                context.palette.setColor(QtGui.QPalette.Text, Qt.white)
-            else:
-                context.palette.setColor(QtGui.QPalette.Text, Qt.black)
+            #if option.state & QtGui.QStyle.State_Selected:
+            #    context.palette.setColor(QtGui.QPalette.Text,
+            #                            option.palette.color(QtGui.QPalette.Active, QtGui.QPalette.HighlightedText))
+            #else:
+            #    context.palette.setColor(QtGui.QPalette.Text, Qt.black)
             painter.save()
             layout = document.documentLayout()
             painter.setClipRect(option.rect, Qt.IntersectClip)
@@ -717,6 +736,7 @@ class CActionPropertyDelegate(CActionPropertyBaseDelegate):
         editor.setStatusTip(forceString(model.data(index, Qt.StatusTipRole)))
         self.connect(editor, SIGNAL('commit()'), self.commit)
         self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
+        self.emit(SIGNAL('editorCreated(QWidget *)'), editor)
         return editor
 
 
@@ -912,7 +932,30 @@ class CActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
         self.preferencesLocal = {}
         self.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
 
-    
+
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if index.isValid() and index.column() == CActionPropertiesTableModel.ciIsAssigned:  # tt3349 Решил сделать так, чтобы не создавать еще один делегат
+            model = self.model()
+            propertyType = model.getPropertyType(index.row())
+            if propertyType.isAssignable:
+                opt = QtGui.QStyleOptionViewItem()
+                opt.initFrom(self)
+                opt.rect = self.visualRect(index)
+                opt.state = QtGui.QStyle.State_Enabled
+                if self.selectionModel() and self.selectionModel().isSelected(index):
+                    opt.state |= QtGui.QStyle.State_Selected
+                indicator_rect = self.style().subElementRect(QtGui.QStyle.SE_ItemViewItemCheckIndicator, opt, self)
+                if indicator_rect.contains(event.pos()):
+                    return QtGui.QTableView.mousePressEvent(self, event)
+                current_state = model.data(index, Qt.CheckStateRole).toInt()[0]
+                new_state = Qt.Unchecked if current_state == Qt.Checked else Qt.Checked
+                model.setData(index, new_state, Qt.CheckStateRole)
+                self.selectRow(index.row())
+                return
+        super(CActionPropertiesTableView, self).mousePressEvent(event)
+
+
     def valueDelegateSizeHintChanged(self, index):
         self.resizeRowToContents(index.row())
 
@@ -1149,3 +1192,26 @@ class CActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
             actionTypeId = model.action.actionType().id
             self.savePreferencesLoc(actionTypeId)
         return self.preferencesLocal
+    
+
+    def lastVisibleCol(self):
+        cols = (
+            CActionPropertiesTableModel.ciComment,
+            CActionPropertiesTableModel.ciEvaluation,
+            CActionPropertiesTableModel.ciNorm,
+            CActionPropertiesTableModel.ciUnit,
+            CActionPropertiesTableModel.ciValue
+        )
+        for col in cols:
+            if not self.isColumnHidden(col):
+                return col
+        return None
+
+
+    def resizeLastColumn(self):
+        lastVisibleCol = self.lastVisibleCol()
+        if not lastVisibleCol:
+            return
+        # последняя колонка расширится обратно до конца таблицы, уменьшаем ее до минимальной ширины
+        self.setColumnWidth(lastVisibleCol, 100)
+        

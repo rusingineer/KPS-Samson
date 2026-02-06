@@ -496,11 +496,11 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getRemovingObserved,
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -686,11 +686,11 @@ ORDER BY firstInPeriod DESC, observed DESC """
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if boolThyroidosData:
         return db.query(stmt % (stmtAddress, db.joinAnd(cond), tableDiagnosis['setDate'].formatValue(endDate.addDays(1))))
     else:

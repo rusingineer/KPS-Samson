@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -42,7 +42,7 @@ class CRBSpecialityList(CItemsListDialog):
             CTextCol(   u'Код ЕГИСЗ',            ['usishCode'],   10),
             CTextCol(   u'Региональный код',     ['regionalCode'], 10),
             CRefBookCol(u'Профиль МП',           ['medicalAidProfile_id'], 'rbMedicalAidProfile', 30),
-            CRefBookCol(u'Услуга',               ['service_id'], 'rbService', 30),
+            CRefBookCol(u'Услуга',               ['ambAppointmentService_id'], 'rbService', 30),
             CEnumCol(   u'Пол',                  ['sex'], ['', u'М', u'Ж'], 10),
             CTextCol(   u'Возраст',              ['age'], 10),
             CTextCol(   u'Фильтр по МКБ',        ['mkbFilter'], 20),
@@ -59,7 +59,7 @@ class CRBSpecialityEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentificati
     def __init__(self,  parent):
         CItemEditorDialogWithIdentification.__init__(self, parent, rbSpeciality)
         self.setWindowTitleEx(u'Специальность врача')
-        for cmb in (self.cmbLocalService, self.cmbProvinceService, self.cmbOtherService,
+        for cmb in (self.cmbLocalService, self.cmbProvinceService, self.cmbOtherService, self.cmbAmbAppointmentService,
                     self.cmbAltLocalService, self.cmbAltProvinceService, self.cmbAltOtherService):
             cmb.setTable(rbService, True)
             cmb.setCurrentIndex(0)
@@ -94,6 +94,7 @@ class CRBSpecialityEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentificati
         setRBComboBoxValue(self.cmbLocalService, record, 'service_id')
         setRBComboBoxValue(self.cmbProvinceService, record, 'provinceService_id')
         setRBComboBoxValue(self.cmbOtherService, record, 'otherService_id')
+        setRBComboBoxValue(self.cmbAmbAppointmentService, record, 'ambAppointmentService_id')
         setRBComboBoxValue(self.cmbAltLocalService, record, 'altService_id')
         setRBComboBoxValue(self.cmbAltProvinceService, record, 'altProvinceService_id')
         setRBComboBoxValue(self.cmbAltOtherService, record, 'altOtherService_id')
@@ -119,6 +120,7 @@ class CRBSpecialityEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentificati
         getRBComboBoxValue(self.cmbLocalService, record, 'service_id')
         getRBComboBoxValue(self.cmbProvinceService, record, 'provinceService_id')
         getRBComboBoxValue(self.cmbOtherService, record, 'otherService_id')
+        getRBComboBoxValue(self.cmbAmbAppointmentService, record, 'ambAppointmentService_id')
         getRBComboBoxValue(self.cmbAltLocalService, record, 'altService_id')
         getRBComboBoxValue(self.cmbAltProvinceService, record, 'altProvinceService_id')
         getRBComboBoxValue(self.cmbAltOtherService, record, 'altOtherService_id')
@@ -157,6 +159,9 @@ class CRBSpecialityEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentificati
     def on_btnSelectOtherService_clicked(self):
         self.selectService(self.cmbOtherService)
 
+    @pyqtSignature('')
+    def on_btnSelectAmbAppointmentService_clicked(self):
+        self.selectService(self.cmbAmbAppointmentService)
 
     @pyqtSignature('')
     def on_btnSelectAltLocalService_clicked(self):

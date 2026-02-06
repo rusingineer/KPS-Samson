@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -32,7 +32,9 @@ from library.DbComboBox    import CDbModel
 from library.DbEntityCache import CDbEntityCache
 from library.PrintInfo import CInfoContext, CInfo, CInfoList, CDateInfo, CDateTimeInfo, CRBInfo, CTimeInfo, \
     CDictInfoMixin, CRBInfoWithIdentification, CIdentificationInfoMixin
-from library.Utils         import calcAge, calcAgeTuple, forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString, forceStringEx, forceTime, formatAgeTuple, formatDate, formatName, formatNameInt, formatSex, formatShortName, formatShortNameInt, formatSNILS, smartDict, toVariant, trim
+from library.Utils import calcAge, calcAgeTuple, forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, \
+    forceString, forceStringEx, forceTime, formatAgeTuple, formatDate, formatName, formatNameInt, formatSex, \
+    formatShortName, formatShortNameInt, formatSNILS, smartDict, toVariant, trim, formatDateTime
 from library.ROComboBox    import CROComboBox
 from Events.ActionStatus   import CActionStatus
 import platform
@@ -553,7 +555,10 @@ def getClientPolicyEx(clientId, isCompulsory, date=None, eventId=None):
     else:
         funcCall = 'getClientPolicyId(%d,%d)' % (clientId, 1 if isCompulsory else 0)
 
-    stmt = 'SELECT ClientPolicy.*, Organisation.compulsoryServiceStop, Organisation.voluntaryServiceStop, Organisation.area ' \
+    stmt = 'SELECT ClientPolicy.*, Organisation.compulsoryServiceStop, Organisation.voluntaryServiceStop, Organisation.area, ' \
+           " IF (ClientPolicy.policyKind_id = (SELECT id FROM rbPolicyKind WHERE rbPolicyKind.code = '3'), ClientPolicy.number, " \
+           " (SELECT ci.identifier FROM ClientIdentification ci WHERE ci.client_id = ClientPolicy.client_id AND ci.deleted = 0 AND " \
+           " ci.accountingSystem_id = (SELECT id FROM rbAccountingSystem rbas WHERE rbas.code = 'ENP') ) ) AS enp" \
            ' FROM ClientPolicy' \
            ' LEFT JOIN Organisation ON Organisation.id = ClientPolicy.insurer_id' \
            ' WHERE ClientPolicy.id = %s' % funcCall
@@ -718,6 +723,16 @@ def getClientSocStatuses(clientId):
              table['deleted'].eq(0),
              db.joinOr([table['endDate'].isNull(), table['endDate'].ge(QDate.currentDate())])]
     return db.getIdList(table, idCol='socStatusType_id', where=cond, order='begDate')
+
+
+def getClientSvoSocStatus(clientId):
+    db = QtGui.qApp.db
+    table = db.table('ClientSocStatus')
+    cond  = [table['client_id'].eq(clientId),
+             table['deleted'].eq(0),
+             table['socStatusClass_id'].eq(forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))),
+             db.joinOr([table['endDate'].isNull(), table['endDate'].ge(QDate.currentDate())])]
+    return db.getRecordEx(table, '*', where=cond, order='begDate')
 
 
 def getClientSocStatusIds(clientId):
@@ -980,7 +995,7 @@ def formatClientIdentification(clientIdentification):
 
 
 def getClientObservationStatus(clientId):
-    if id:
+    if clientId:
         db = QtGui.qApp.db
         table = db.table('Client_StatusObservation')
         rbTable = db.table('rbStatusObservationClientType')
@@ -1292,6 +1307,37 @@ def checkClientAttachService(personInfo):
     def formatISODateTime(isoString, format):
         return QDateTime.fromString(isoString, Qt.ISODate).toString(format)
 
+        # Синхронизация данных о пациенте с фондом
+    def update_soc_attach(clientId, attachment):
+        # !!!!!!!!!!!!!!!!!!!!!!!!!ПРОВЕРКА ВЫСТАВЛЕНИЯ ГЛОБАЛЬНОЙ НАСТРОЙКИ
+        if QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'):
+            try:
+                db = QtGui.qApp.db
+                table = db.table('soc_attachments')
+                cond = u'soc_attachments.enp = {0} and soc_attachments.serviceMethod in (0,5)'.format(
+                    attachment['person']['enp'])
+                record = db.getRecordEx(table, '*', cond)
+                if record:
+                    record.setValue('client_id', toVariant(clientId))
+                    record.setValue('attach_area', toVariant(
+                        attachment['info'][0]['area'] if attachment['info'][0].get('area') else None))
+                    record.setValue('serviceMethod', toVariant(0))
+                else:
+                    record = table.newRecord()
+                    record.setValue('lastName', toVariant(attachment['person']['lastName']))
+                    record.setValue('firstName', toVariant(attachment['person']['firstName']))
+                    record.setValue('patrName', toVariant(attachment['person']['patrName']))
+                    record.setValue('birthDate', toVariant(attachment['person']['birthDate']))
+                    record.setValue('sex', toVariant(attachment['person']['sex']))
+                    record.setValue('enp', toVariant(attachment['person']['enp']))
+                    record.setValue('attach_mo', toVariant(attachment['mo']))
+                    record.setValue('attach_area', toVariant(
+                        attachment['info'][0]['area'] if attachment['info'][0].get('area') else None))
+                    record.setValue('serviceMethod', toVariant(0))
+                    record.setValue('client_id', toVariant(clientId))
+                db.insertOrUpdate(table, record)
+            except Exception as e:
+                print 'error update_soc_attach'
     try:
         result = AttachService.searchClientAttach(personInfo, timeout=10)
         if result.get('attachlist') is None:
@@ -1320,6 +1366,8 @@ def checkClientAttachService(personInfo):
                     attachText = u'- нет прикрепления'
                     attachesSnils = ''
                 else:
+                    if 'clientId' in personInfo:
+                        update_soc_attach(personInfo['clientId'], attachment)
                     attachTextList = []
                     attachDate = (u'Дата прикрепления: %s' % formatISODateTime(attachment['info'][0]['date'],
                                                                                'dd.MM.yyyy')) if attachment['info'][
@@ -1352,6 +1400,7 @@ def getAttachmentPersonInfo(clientId):
     table = db.table('Client')
     record = db.getRecord(table, '*', clientId)
     personInfo = {}
+    personInfo['clientId'] = clientId
     personInfo['lastName'] = forceString(record.value('lastName'))
     personInfo['firstName'] = forceString(record.value('firstName'))
     personInfo['patrName'] = forceString(record.value('patrName'))
@@ -1467,22 +1516,11 @@ def getClientInfo(clientId, hasRegAddress=True, hasLocAddress=True, date=None, d
     result.birthTime   = forceTime(record.value('birthTime'))
     result.birthWeight = forceRef(record.value('birthWeight'))
     result.birthNumber = forceInt(record.value('birthNumber'))
-    result.deathDate   = forceDate(record.value('deathDate'))
+    result.deathDate   = forceDateTime(record.value('deathDate'))
     result.birthPlace  = forceString(record.value('birthPlace'))
     result.SNILS       = forceString(record.value('SNILS'))
     result.notes       = forceString(record.value('notes'))
-    listAttaches = getClientAttaches(clientId, dateAttaches)
-    templistAttached = []
-    for item in listAttaches:
-        if item['endDate']:
-            if QtGui.qApp.showingAttach():
-                templistAttached.append(item)
-        else:
-            templistAttached.append(item)
-    result.attaches = templistAttached if len(templistAttached)>0 else []
-    # result.attaches    = getClientAttaches(clientId, dateAttaches)
-    
-    # result.allAttaches    = getClientAttaches(clientId)
+    result.attaches    = getClientAttaches(clientId, dateAttaches)
     result.socStatuses = getClientSocStatuses(clientId)
     result.quoting     = getActualClientQuoting(clientId)
     result.identification = formatClientIdentification(getClientIdentifications(clientId))
@@ -1666,18 +1704,32 @@ def getClientInfoEx(clientId, date=None):
     clientInfo.attaches = formatAttaches(clientInfo.attaches, date)
     return clientInfo
 
+def formatAttachGetPersonName(attachId):
+    if attachId:
+        personRec = QtGui.qApp.db.getRecordEx('Person_Order', 'master_id',
+                                              'orgStructure_id = {0} AND type = 6 AND ((validToDate IS NULL OR LENGTH(validToDate) = 0) or validToDate > now()) '
+                                              'AND deleted=0 '
+                                              'AND (SELECT 1 FROM Person p INNER JOIN rbSpeciality s ON p.speciality_id = s.id  WHERE p.id = Person_Order.master_id AND p.deleted=0 AND isHigh=1)'.format(
+                                                  attachId))
+        if personRec and forceRef(personRec.value('master_id')):
+            return u' <font color=black> Участковый врач:</font> %s' % forceString(
+                QtGui.qApp.db.translate('Person', 'id', forceRef(personRec.value('master_id')), 'formatPersonName(id)'))
+    return ''
+
 def formatAttachAsHTML_SynchronizeAttachment(attach, clientId, atDate):
     td = forceDate(atDate) if atDate else QDate.currentDate()
     bold = False
     txt = attach['name']
     color = '#ffa500'
     organisationName = getOrganisationShortName(attach['LPU_id'])
-    orgstructureIdList, uch, mocode = getWebattach(clientId)
+    orgstructureIdList, uch, mocode,OrgNameAttach = getWebattach(clientId)
     orgStructureWebIdTrue = attach[
                                 'orgStructure_id'] in orgstructureIdList  # any(attach['orgStructure_id'] == org_id for org_id in orgstructureIdList)
     orgStructureWebId = orgstructureIdList[0] if orgstructureIdList else None
     orgUch = organisationName + u' (' + forceString(
         QtGui.qApp.db.translate('OrgStructure', 'id', attach['orgStructure_id'], 'code')) + u')'
+    orgUch += formatAttachGetPersonName(attach['orgStructure_id'])
+
     orgUchWeb = ''
     if orgStructureWebId:
         orgUchWeb = organisationName + u' (' + forceString(
@@ -1689,7 +1741,7 @@ def formatAttachAsHTML_SynchronizeAttachment(attach, clientId, atDate):
         # txt = txt + ' '
         if orgStructureWebId or orgStructureWebIdTrue:
             txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (
-                orgUchWeb if orgStructureWebId else orgUch)
+                OrgNameAttach)
         elif attach['name'] != u'умер':
             if uch and mocode:
                 txt += u'''код МО: %s участок: %s''' % (mocode, uch)
@@ -1700,10 +1752,10 @@ def formatAttachAsHTML_SynchronizeAttachment(attach, clientId, atDate):
         color = 'green'
     elif orgStructureWebId:
         if not attach['orgStructure_id']:
-            txt = u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (orgUchWeb)
+            txt = u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (OrgNameAttach)
         else:
             txt = txt + ' ' + orgUch
-            txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (orgUchWeb)
+            txt += u'''<BR><font color=black>Прикрепление в ТФОМС:</font> %s''' % (OrgNameAttach)
     elif uch and mocode:
         if orgUch:
             txt = txt + ' ' + orgUch
@@ -1721,13 +1773,15 @@ def formatAttachAsHTML(attach, atDate):
     bold = False
     txt = attach['name']
     orgStructureCode = u' (' + forceString(QtGui.qApp.db.translate('OrgStructure', 'id', attach['orgStructure_id'], 'code')) + u')'
+    personName = formatAttachGetPersonName(attach['orgStructure_id'])
+
     if attach['outcome']:
         color = 'red'
         txt = txt + ' ' + forceString(attach['begDate'])
     elif attach['temporary']:
         color = 'blue'
         bold = True
-        txt = txt + ' ' + getOrganisationShortName(attach['LPU_id']) + orgStructureCode
+        txt = txt + ' ' + getOrganisationShortName(attach['LPU_id']) + orgStructureCode + personName
         if attach['begDate'].isValid():
             txt = txt + u' с ' + forceString(attach['begDate'])
             color = 'blue' if attach['begDate'] <= td else 'red'
@@ -1735,7 +1789,7 @@ def formatAttachAsHTML(attach, atDate):
             txt = txt + u' по ' + forceString(attach['endDate'])
             color = 'blue' if attach['endDate'] >= td else 'red'
     else:
-        txt = txt + ' ' + getOrganisationShortName(attach['LPU_id']) + orgStructureCode
+        txt = txt + ' ' + getOrganisationShortName(attach['LPU_id']) + orgStructureCode + personName
         if attach['endDate'].isValid():
             color = 'red' if attach['endDate'] < td else 'green'
         else:
@@ -1751,32 +1805,35 @@ def formatAttachesAsHTML(attaches, clientId, atDate):
 def getWebattach(clientId):
     db = QtGui.qApp.db
     stmt = u'''SELECT 
-  o.id  AS id,
-  sa.attach_area AS uch,
-  sa.attach_mo AS mocode
-FROM soc_attachments sa
- LEFT JOIN OrgStructure o ON o.infisinternalcode=sa.attach_area 
-WHERE sa.client_id = "{0}"'''.format(clientId)
+    Org.fullName AS OrgNameAttach,
+      o.id  AS id,
+      sa.attach_area AS uch,
+      sa.attach_mo AS mocode
+    FROM soc_attachments sa
+     LEFT JOIN OrgStructure o ON o.infisinternalcode=sa.attach_area 
+     LEFT JOIN Organisation Org ON Org.infisCode =  sa.attach_mo
+    WHERE sa.client_id = "{0}"'''.format(clientId)
     idlist = []
-    uch = mocode = ''
+    uch = mocode = OrgNameAttach = ''
     result = db.query(stmt)
     while result.next():
         record = result.record()
         idlist.append(forceRef(record.value('id')))
         uch = forceString(record.value('uch'))
         mocode = forceString(record.value('mocode'))
-    return idlist, uch, mocode
+        OrgNameAttach = forceString(record.value('OrgNameAttach'))
+    return idlist, uch, mocode,OrgNameAttach
 
 def getWebattachAsHTML(clientId):
     txt = ''
-    orgstructureIdList, uch, mocode = getWebattach(clientId)
+    orgstructureIdList, uch, mocode,OrgNameAttach = getWebattach(clientId)
     orgStructureWebId = orgstructureIdList[0] if orgstructureIdList else None
     if orgStructureWebId:
         record = QtGui.qApp.db.getRecordEx('OrgStructure', 'organisation_id, code', 'id = %d' % orgStructureWebId)
         if record:
             orgWebId = forceRef(record.value('organisation_id'))
             orgStructureWebCode = forceString(record.value('code'))
-            orgUchWeb = getOrganisationShortName(orgWebId) + u' (' + orgStructureWebCode + u')'
+            orgUchWeb = OrgNameAttach + u' (' + uch + u')'
             txt += u'''Прикрепление в МИС: <font color=#ffa500>Информация отсутствует</font>
                            <BR>Прикрепление в ТФОМС: <font color=#ffa500>%s</font>''' % (
                 orgUchWeb)
@@ -1887,9 +1944,273 @@ def getClientMiniInfo(clientId, atDate=None):
         return ''
 
 
-def getClientBanner(clientId, atDate=None, aDateAttaches=None, aConsents=None):
-    info = getClientInfo(clientId, date=atDate, dateAttaches=aDateAttaches, consents=aConsents)
-    return formatClientBanner(info, atDate)
+def getClientBanner(clientId, atDate=None):
+    appPrefs = QtGui.qApp.preferences.appPrefs
+    showingFIO = forceBool(appPrefs.get('showingFIO', True))
+    showingConsents = forceBool(appPrefs.get('showingConsents', True))
+    showingIdentification = forceBool(appPrefs.get('showingIdentification', True))
+    showingQuoting = forceBool(appPrefs.get('showingQuoting', True))
+    showingSocStatuses = forceBool(appPrefs.get('showingSocStatuses', True))
+    showingDocument = forceBool(appPrefs.get('showingDocument', True))
+    showingCompulsoryPolicy = forceBool(appPrefs.get('showingCompulsoryPolicy', True))
+    showingHospitalBed = forceBool(appPrefs.get('showingHospitalBed', True))
+    showingVoluntaryPolicy = forceBool(appPrefs.get('showingVoluntaryPolicy', True))
+    showingRegAddress = forceBool(appPrefs.get('showingRegAddress', True))
+    showingLocAddress = forceBool(appPrefs.get('showingLocAddress', True))
+    showingWork = forceBool(appPrefs.get('showingWork', True))
+    showingPhones = forceBool(appPrefs.get('showingPhones', True))
+    showingNotes = forceBool(appPrefs.get('showingNotes', True))
+    showingAllergy = forceBool(appPrefs.get('showingAllergy', True))
+    showingBirthPlace = forceBool(appPrefs.get('showingBirthPlace', True))
+    showingObservationStatus = forceBool(appPrefs.get('showingObservationStatus', True))
+    showingObservationGroup = forceBool(appPrefs.get('showingObservationGroup', False))
+    showingAttaches = forceBool(appPrefs.get('showingAttaches', True))
+    showingClientContingent = forceInt(appPrefs.get('showingClientContingent', 1))
+    showingClientRelations = forceBool(appPrefs.get('showingClientRelations', False))
+    showingBlockFromNewLine = forceBool(appPrefs.get('showingBlockFromNewLine', True))
+    showingEpidCase = forceInt(appPrefs.get('showingEpidCase', 2))
+    showingDispanserySpecialities = forceBool(appPrefs.get('showingDispanserySpecialities', True))
+    showingResearch = forceBool(appPrefs.get('showingResearch', True))
+    showingIntoleranceMedicament = forceBool(appPrefs.get('showingIntoleranceMedicament', True))
+    showingProf = forceBool(appPrefs.get('showingProf', True))
+
+    db = QtGui.qApp.db
+    table = db.table('Client')
+    cols = []
+    if showingFIO:
+        cols.extend(['lastName', 'firstName', 'patrName'])
+    cols.append('birthDate')
+    cols.append('deathDate')
+    cols.append('sex')
+    cols.append('SNILS')
+    cols.append('getClientInfoDocumentLocation(id) AS documentLocation')
+    if showingHospitalBed:
+        cols.append('getClientInfoHospitalization(id) as hospitalBed')
+    if showingSocStatuses:
+        cols.append('getClientInfoSocStatus(id, {showing}) as socStatuses'.format(showing=QtGui.qApp.showingInInfoBlockSocStatus()))
+    if showingConsents:
+        cols.append('getClientInfoConsents(id, NULL, {0}) as clientConsents'.format(db.formatDate(atDate) if atDate else 'CURDATE()')) # TODO: даты события
+    if showingIdentification:
+        cols.append('getClientInfoIdentifications(id) as identification')
+    if showingQuoting:
+        cols.append('getClientInfoQuoting(id, CURDATE()) as quoting')
+    if showingClientContingent != 2:
+        cols.append('getClientInfoContingent(id, {0}) as contingents'.format(showingClientContingent))
+    if showingAttaches:
+        cols.append('getClientInfoAttach(id, 0, {0}, {1}) as permanentAttach'.format(db.formatDate(atDate) if atDate else 'NULL', forceInt(QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'))))
+        cols.append('getClientInfoAttach(id, 1, {0}, {1}) as temporaryAttach'.format(db.formatDate(atDate) if atDate else 'NULL', forceInt(QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'))))
+    if showingDocument:
+        cols.append('getClientInfoDocument(id) as document')
+    if showingCompulsoryPolicy:
+        if atDate:
+            cols.append("getClientInfoPolicy(id, 1, {0}, {1}) AS compulsoryPolicy".format(db.formatDate(atDate), QtGui.qApp.provinceKLADR()))
+        else:
+            cols.append("getClientInfoPolicy(id, 1, NULL, {0}) AS compulsoryPolicy".format(QtGui.qApp.provinceKLADR()))
+    if showingVoluntaryPolicy:
+        if atDate:
+            cols.append("getClientInfoPolicy(id, 0, {0}, {1}) AS voluntaryPolicy".format(db.formatDate(atDate), QtGui.qApp.provinceKLADR()))
+        else:
+            cols.append("getClientInfoPolicy(id, 0, NULL, {0}) AS voluntaryPolicy".format(QtGui.qApp.provinceKLADR()))
+    if showingRegAddress:
+        cols.append('getClientRegAddress(id) AS regAddress')
+    if showingLocAddress:
+        cols.append('getClientLocAddress(id) AS locAddress')
+    if showingWork:
+        cols.append('getClientInfoWork(id) as work')
+    if showingPhones:
+        cols.append('getClientContacts(id) AS phones')
+    if showingBirthPlace:
+        cols.append('birthPlace')
+    if showingAllergy:
+        cols.append('getClientInfoAllergy(id) as allergy')
+    if showingClientRelations:
+        cols.append('getClientInfoRelations(id) as relations')
+    if showingObservationStatus:
+        cols.append('getClientInfoObservationStatus(id) as observationStatus')
+    if showingEpidCase != 2:
+        cols.append('getClientInfoEpidCases(id, 0) as epidCase')
+    if showingNotes:
+        cols.append('notes')
+    if showingObservationGroup:
+        cols.append('getClientInfoObservationGroup(id) as observationGroup')
+    if showingIntoleranceMedicament:
+        cols.append('getClientInfoIntoleranceMedicament(id) as intoleranceMedicament')
+    if showingResearch:
+        cols.append('getClientInfoResearch(id) as research')
+    if showingDispanserySpecialities:
+        cols.append('getClientInfoDispanserySpecialities(id) as dispanserySpecialities')
+    if showingProf:
+        cols.append('getClientProfEventThisYear(id) as lastProf')
+
+    record = db.getRecord(table, cols, clientId)
+
+    bannerHTML = []
+    lineEnd = u'<br/>' if showingBlockFromNewLine else u', '
+
+    deathDate = forceDateTime(record.value('deathDate'))
+    lineItems = []
+    if deathDate:
+        lineItems.append(u'<b><font color=red>УМЕР %s</font></b>' % formatDateTime(deathDate))
+    lineItems.append(u'Код пациента: <b><font size=+1 color=blue>%s</font></b>' % clientId)
+    documentLocation = forceString(record.value('documentLocation'))
+    if documentLocation:
+        lineItems.append(documentLocation)
+    bannerHTML.append(' '.join(lineItems))
+
+    lineItems = []
+    if showingFIO:
+        lastName = forceString(record.value('lastName'))
+        firstName = forceString(record.value('firstName'))
+        patrName = forceString(record.value('patrName'))
+        name = formatName(lastName, firstName, patrName)
+        lineItems.append('<b><font size=+1>' + name + '</font></b>,')
+    birthDate = forceDate(record.value('birthDate'))
+    age = calcAge(birthDate, deathDate if deathDate else atDate)
+    lineItems.append(u'дата рождения: <b>%s</b> (%s)' % (formatDate(birthDate), age))
+    lineItems.append(u'пол: <b>' + formatSex(forceInt(record.value('sex'))) + '</b>')
+    bannerHTML.append(' '.join(lineItems))
+
+    if showingClientContingent != 2:
+        contingents = forceString(record.value('contingents'))
+        if contingents:
+            bannerHTML.append(u'Наблюдаемый контингент: ' + contingents)
+
+    if showingObservationGroup:
+        observationGroup = forceString(record.value('observationGroup'))
+        if observationGroup:
+            bannerHTML.append(u'Группа наблюдения: <b>' + observationGroup + '</b>')
+
+    lineItems = []
+    snils = formatSNILS(forceString(record.value('SNILS')))
+    lineItems.append(u'СНИЛС: <b>' + (snils if snils else u'не указан') + '</b>')
+    if showingDocument:
+        document = forceString(record.value('document'))
+        lineItems.append(u'Документ: <b>' + (document if document else u'не указан') + '</b>')
+    bannerHTML.append(' '.join(lineItems))
+
+    if showingConsents:
+        clientConsents = forceString(record.value('clientConsents'))
+        if clientConsents:
+            bannerHTML.append(u'Согласия: <b>' + clientConsents + '</b>')
+
+    if showingDispanserySpecialities:
+        dispanserySpecialities = forceString(record.value('dispanserySpecialities'))
+        if dispanserySpecialities:
+            bannerHTML.append(u'Д-учет: <font color=#990000><b>' + dispanserySpecialities + '</b></font>')
+
+    if showingSocStatuses:
+        socStatuses = forceString(record.value('socStatuses'))
+        bannerHTML.append(u'Статус: ' + (socStatuses if socStatuses else u'<b>не указан</b>'))
+
+    if showingAttaches:
+        permanentAttach = forceString(record.value('permanentAttach'))
+        temporaryAttach = forceString(record.value('temporaryAttach'))
+        attaches = []
+        if permanentAttach:
+            attaches.append(permanentAttach)
+        if temporaryAttach:
+            attaches.append(temporaryAttach)
+        if attaches:
+            if QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'):
+                attaches = u', '.join(attaches)
+            else:
+                attaches = u'Прикрепление: ' + u', '.join(attaches)
+            bannerHTML.append(attaches)
+        else:
+            bannerHTML.append(u'Прикрепление: <b>отсутствует</b>')
+
+    if showingCompulsoryPolicy:
+        compulsoryPolicy = forceString(record.value('compulsoryPolicy'))
+        bannerHTML.append(u'Полис ОМС: ' + (compulsoryPolicy if compulsoryPolicy else u'<b>не указан</b>'))
+
+    if showingVoluntaryPolicy:
+        voluntaryPolicy = forceString(record.value('voluntaryPolicy'))
+        bannerHTML.append(u'Полис ДМС: ' + (voluntaryPolicy if voluntaryPolicy else u'<b>не указан</b>'))
+
+    if showingRegAddress:
+        regAddress = forceString(record.value('regAddress'))
+        if not regAddress:
+            regAddress = u'не указан'
+        bannerHTML.append(u'Адрес регистрации: <b>' + regAddress + '</b>')
+
+    if showingLocAddress:
+        locAddress = forceString(record.value('locAddress'))
+        if not locAddress:
+            locAddress = u'не указан'
+        bannerHTML.append(u'Адрес проживания: <b>' + locAddress + '</b>' )
+
+    if showingWork:
+        work = forceString(record.value('work'))
+        if not work:
+            work = u'не указано'
+        bannerHTML.append(u'Место работы (учёбы): <b>' + work + '</b>')
+
+    lineItems = []
+    if showingHospitalBed:
+        hospitalBed = forceString(record.value('hospitalBed'))
+        if hospitalBed:
+            lineItems.append(u'Госпитализация: ' + hospitalBed)
+    if showingObservationStatus:
+        observationStatus = forceString(record.value('observationStatus'))
+        if observationStatus:
+            lineItems.append(observationStatus)
+    if showingQuoting:
+        quoting = forceString(record.value('quoting'))
+        if quoting:
+            lineItems.append(u'<i>Квоты:</i> ' + quoting)
+    bannerHTML.append(' '.join(lineItems))
+
+    if showingIdentification:
+        identification = forceString(record.value('identification'))
+        if identification:
+            bannerHTML.append(identification)
+
+    if showingPhones:
+        phones = forceString(record.value('phones'))
+        if phones:
+            bannerHTML.append(u'Контакты: <b>' + phones + '</b>')
+
+    if showingBirthPlace:
+        birthPlace = forceString(record.value('birthPlace'))
+        if birthPlace:
+            bannerHTML.append(u'Место рождения: <b>' + birthPlace + '</b>')
+
+    if showingResearch:
+        research = forceString(record.value('research'))
+        if research:
+            bannerHTML.append(u'Обследования: <b>' + research + '</b>')
+
+    if showingNotes:
+        notes = forceString(record.value('notes'))
+        if notes:
+            bannerHTML.append(u'Примечания: <b><font color=#990000>' + notes + '</font></b>')
+
+    if showingAllergy:
+        allergy = forceString(record.value('allergy'))
+        if allergy:
+            bannerHTML.append(u'Аллергии: <b>' + allergy + '</b>')
+
+    if showingIntoleranceMedicament:
+        intoleranceMedicament = forceString(record.value('intoleranceMedicament'))
+        if intoleranceMedicament:
+            bannerHTML.append(u'Медикаментозная непереносимость: <b>' + intoleranceMedicament + '</b>')
+
+    if showingClientRelations:
+        relations = forceString(record.value('relations'))
+        if relations:
+            bannerHTML.append(u'Связи: <b>' + relations + '</b>' )
+
+    if showingEpidCase != 2:
+        epidCase = forceString(record.value('epidCase'))
+        if epidCase:
+            bannerHTML.append(epidCase)
+
+    if showingProf:
+        prof = forceString(record.value('lastProf'))
+        if prof:
+            bannerHTML.append(u'Профилактические мероприятия: <b>' + prof +'</b>')
+
+    return u'<html><body>' + lineEnd.join(bannerHTML).replace('<br/><br/>', '<br/>').replace('<br/>,', ',<br/>') + '</body></html>'
 
 
 def getClientString(clientId, atDate=None):
@@ -1897,7 +2218,7 @@ def getClientString(clientId, atDate=None):
     return formatClientString(info, atDate)
 
 
-def clientIdToText(clientId):
+def clientIdToText(clientId, needSNILS=False):
     text = ''
     if clientId:
         db = QtGui.qApp.db
@@ -1918,6 +2239,8 @@ def clientIdToText(clientId):
                 tableDocument['origin'],
                 tableDocumentType['name']
                 ]
+        if needSNILS:
+            cols.append(tableClient['SNILS'])
         cols.append(u"IF(reg.id IS NOT null, CONCAT(_utf8 'Адрес регистрации: ', formatClientAddress(reg.id)), _utf8 '') AS regAddress, IF(loc.id IS NOT null, CONCAT(_utf8 'Адрес проживания: ', formatClientAddress(loc.id)), _utf8 '') AS logAddress")
         queryTable = tableClient.leftJoin(tableRegAddress, 'reg.id = getClientRegAddressId(Client.id)')
         queryTable = queryTable.leftJoin(tableLocAddress, 'loc.id = getClientLocAddressId(Client.id)')
@@ -1933,6 +2256,7 @@ def clientIdToText(clientId):
             lastName = forceString(record.value('lastName'))
             firstName = forceString(record.value('firstName'))
             patrName = forceString(record.value('patrName'))
+            SNILS = formatSNILS(forceString(record.value('SNILS')))
             birthDate = forceString(record.value('birthDate'))
             sex = formatSex(forceInt(record.value('sex')))
             regAddress = forceString(record.value('regAddress'))
@@ -1950,7 +2274,7 @@ def clientIdToText(clientId):
             infoDocOrg = ': '.join([u' выдан', originDoc])
             infoDocDate = ' '.join([dateDoc])
             infoDoc += ' '.join([infoDocOrg, infoDocDate])
-            text = ', '.join([field for field in (FIO, clientId, birthDate, sexStr, infoDoc, regAddress, logAddress) if field])
+            text = ', '.join([field for field in (FIO, SNILS, clientId, birthDate, sexStr, infoDoc, regAddress, logAddress) if field])
     else:
         text = ''
     return text
@@ -2179,131 +2503,6 @@ def getClientHospitalOrgStructureAndBeds(clientId):
         resultFlatCode = 0
     result = [resultStr, resultFlatCode]
     return result
-
-
-def formatClientBanner(info, atDate=None):
-    id        = info.id
-    name      = formatName(info.lastName, info.firstName, info.patrName)
-    birthDate = formatDate(info.birthDate)
-    deathDate = ''
-    if info.deathDate:
-        deathDate = u'<font color=red>УМЕР %s</font>'%formatDate(info.deathDate)
-    birthPlace= info.birthPlace
-    age       = calcAge(info.birthDate, info.deathDate if info.deathDate else atDate)
-    sex       = formatSex(info.sexCode)
-    SNILS     = formatSNILS(info.SNILS) if info.SNILS else u'не указан'
-    attaches  = info.get('attaches', u'отсутствует')
-    socStatuses = info.get('socStatuses', u'не указан')
-
-    document                  = info.get('document', u'не указан')
-    # compulsoryPolicy          = info.get('compulsoryPolicy', u'нет')
-    # voluntaryPolicy           = info.get('voluntaryPolicy', u'')
-    compulsoryvoluntaryPolicy = info.get('compulsoryvoluntaryPolicy', u'не указан')
-    regAddress                = info.get('regAddress', u'не указан')
-    locAddress                = info.get('locAddress', u'не указан')
-    work                      = info.get('work', u'не указано')
-    research                  = info.get('research', u'')
-    notes                     = info.get('notes', u'')
-    identification            = info.get('identification',  u'')
-    quoting                   = formatClientQuoting(info.get('quoting', []))
-    # contacts                  = getClientPhones(id)
-    phones                    = getClientPhonesEx(id)
-    documentLocation = getClientDocumentLocation(id)
-    clientObservationStatus   = info.get('clientObservationStatus', u'')
-    hospitalBed, busy         = getClientHospitalOrgStructureAndBeds(id)
-    dispensarySpecialties = info.get('dispensarySpecialties', u'')
-    clientConsents            = formatClientConsents(info.get('clientConsents', []))
-    clientContingent          = ''
-    allergy                   = info.get('allergy') #tt1304
-    intoleranceMedicament     = info.get('intoleranceMedicament')
-    for contingentTypeId in info.clientContingentTypeIdList:
-        clientContingentTypeCode, clientContingentTypeColor = formatClientContingentType(id, contingentTypeId)
-        clientContingent += u' <B><font color="%s">[%s]</font></B>' % (clientContingentTypeColor, clientContingentTypeCode)
-    if hospitalBed:
-        bed = u'Госпитализация: <B><font color=%s>%s</font></B>' % ( 'green' if busy else 'blue',  hospitalBed)
-    else:
-        bed = ''
-    bannerDocumentLocation = ''
-     
-    #bannerLocationCard = ''
-    bannerStatusObservation = ''
-    if documentLocation:
-        if documentLocation[3]:
-            bannerDocumentLocation = u''' [%s: <B><font size=+1 color=%s>%s (%s)</font></B>]''' % (documentLocation[0],
-                                                                                                   documentLocation[2],
-                                                                                                   documentLocation[1],
-                                                                                                   documentLocation[3])
-        else:
-            bannerDocumentLocation = u''' [%s: <B><font size=+1 color=%s>%s</font></B>]''' % (documentLocation[0],
-                                                                                              documentLocation[2],
-                                                                                              documentLocation[1])
-    if clientObservationStatus and len(clientObservationStatus) == 2:
-        bannerStatusObservation = u''' [Статус: <B><font color=%s>%s</font></B>] ''' % (clientObservationStatus[1],
-                                                                                        clientObservationStatus[0])
-    AttachesAsHTML = formatAttachesAsHTML(attaches, id, atDate)
-    if not AttachesAsHTML and QtGui.qApp.checkGlobalPreference('23:SynchronizeAttachment', u'да'):
-        AttachesAsHTML = getWebattachAsHTML(id)
-    elif AttachesAsHTML == '':
-        AttachesAsHTML = u'Прикрепление:'
-
-
-    bannerHTML=u'''<B>%s </B>Код:&nbsp;<B><font size=+1 color=blue>%s</font></B> %s
-			 <br><B><font size=+1>%s</font></B>, дата рождения:&nbsp;<B>%s</B> (%s) пол:&nbsp;<B>%s</B>
-			 %s
-			 <br>СНИЛС:&nbsp;<B>%s</B> Документ:&nbsp;<B>%s</B> 
-			 %s
-			 %s
-    
-			 <br>Статус:&nbsp;%s 
-			 <br>%s 
-			 <br>Полис ОМС&nbsp;<B>%s</B>
-			 <BR>Адрес регистрации:&nbsp;<B>%s</B> 
-			 <br>Адрес проживания:&nbsp;<B>%s</B>
-			 <BR>Место работы (учёбы):&nbsp;<B>%s</B>
-			 %s %s %s<br>
-			 %s
-             ''' % (deathDate, id, bannerDocumentLocation,
-					name, birthDate, age, sex,
-					u'<br>Наблюдаемый контингент: <B>%s</B>' % clientContingent if clientContingent else u'',
-					SNILS, document,
-					u'<br>Согласия: <B>%s</B>' % clientConsents if clientConsents else u'',
-                    u'<br>Д-учет: <font color=#990000><B>%s</B></font>' % dispensarySpecialties if dispensarySpecialties else u'',
-					formatSocStatuses(socStatuses, True),
-                    AttachesAsHTML if AttachesAsHTML else '',
-					compulsoryvoluntaryPolicy,
-					regAddress,
-					locAddress,
-					work,
-					((u'<br>%s' % bed) if bed else u''), bannerStatusObservation, u'<I>Квоты:</I> %s' % quoting if quoting else u'',
-					((u'%s<br>' % identification) if identification else u''),)
-    if phones:
-        bannerHTML += u'Контакты: <B>%s</B><br>' % phones
-    if birthPlace:
-        bannerHTML += u'Место рождения: <B>%s</B><br>' % birthPlace
-    if research:
-        bannerHTML += u'Обследования: <B>%s</B><br>' % research
-    if notes:
-        bannerHTML += u'<font color=#990000>Примечания: <B>%s</B></font><br>' % notes
-    try:
-        TFAccountingSystemId = QtGui.qApp.TFAccountingSystemId()
-        if TFAccountingSystemId:
-            tableClientIdentification = QtGui.qApp.db.table('ClientIdentification')
-            identDate = QtGui.qApp.db.getRecordEx(
-                tableClientIdentification,
-                'max(checkDate)',
-                'client_id=%d and accountingSystem_id=%d' % (id, TFAccountingSystemId))
-            if identDate:
-                checkDate = forceDate(identDate.value(0))
-                if checkDate:
-                    bannerHTML += u'Дата подтверждения ТФОМС: <B>%s</B><BR>' % forceString(checkDate)
-    except:
-        QtGui.qApp.logCurrentException()
-    if allergy:
-        bannerHTML += u'Аллергии: <B>%s</B><br>' %allergy
-    if intoleranceMedicament:
-        bannerHTML += u'Медикаментозная непереносимость: <B>%s</B><br>' %intoleranceMedicament
-    clientBanner = u'<HTML><BODY>%s</BODY></HTML>' % bannerHTML
-    return clientBanner
 
 
 def formatClientString(info, atDate=None):
@@ -2680,6 +2879,7 @@ class CClientInfo(CInfo):
         self._server = ''
         self._clientEvents = []
         self._documentLocation = ''
+        self._dispensarySpecialties = ''
 
         self._createDatetime = CDateTimeInfo(None)
         self._createPerson = self.getInstance(CPersonInfo, None)
@@ -2762,6 +2962,7 @@ class CClientInfo(CInfo):
             self._contingentKindList = self.getInstance(CClientContingentKindInfoList, self._id)
             self._clientEvents = self.getEventCount(self._id)
             self._documentLocation = getClientDocumentLocation(self._id)
+            self._dispensarySpecialties = getDispensarySpecialties(self._id)
             return True
         else:
             return False
@@ -2873,6 +3074,7 @@ class CClientInfo(CInfo):
     forcedTreatmentList = property(lambda self: self.load()._forcedTreatmentList)
     suicideList = property(lambda self: self.load()._suicideList)
     contingentKindList = property(lambda self: self.load()._contingentKindList)
+    dispensarySpecialties = property(lambda self: self.load()._dispensarySpecialties)
 
 
 class CClientInfoListEx(CInfoList):
@@ -2904,6 +3106,9 @@ class CRBVaccinationProbeInfo(CRBInfoWithIdentification):
 class CRBMedicalExemptionTypeInfo(CRBInfo):
     tableName = 'rbMedicalExemptionType'
 
+class CRBMedicalExemptionReasonInfo(CRBInfo):
+    tableName = 'rbMedicalExemptionReason'
+
 
 class CClientMedicalExemptionInfoList(CInfoList):
     def __init__(self, context, clientId):
@@ -2932,6 +3137,7 @@ class CClientMedicalExemptionInfo(CInfo):
             self._person = self.getInstance(CPersonInfo, forceRef(record.value('person_id')))
             self._endDate = CDateInfo(forceDate(record.value('endDate')))
             self._medicalExemptionType = self.getInstance(CRBMedicalExemptionTypeInfo, forceRef(record.value('medicalExemptionType_id')))
+            self._medicalExemptionReason = self.getInstance(CRBMedicalExemptionReasonInfo, forceRef(record.value('medicalExemptionReason_id')))
             self._infections = self.getInstance(CClientMedicalExemptionInfectionInfoList, forceRef(record.value('id')))
         else:
             self._date = CDateInfo()
@@ -2939,6 +3145,7 @@ class CClientMedicalExemptionInfo(CInfo):
             self._person = self.getInstance(CPersonInfo, None)
             self._endDate = CDateInfo()
             self._medicalExemptionType = self.getInstance(CRBMedicalExemptionTypeInfo, None)
+            self._medicalExemptionReason = self.getInstance(CRBMedicalExemptionReasonInfo, None)
             self._infections = self.getInstance(CClientMedicalExemptionInfectionInfoList, None)
 
     date = property(lambda self: self.load()._date)
@@ -2946,6 +3153,7 @@ class CClientMedicalExemptionInfo(CInfo):
     person = property(lambda self: self.load()._person)
     endDate = property(lambda self: self.load()._endDate)
     medicalExemptionType = property(lambda self: self.load()._medicalExemptionType)
+    medicalExemptionReason = property(lambda self: self.load()._medicalExemptionReason)
     infections = property(lambda self: self.load()._infections)
 
 
@@ -3168,7 +3376,7 @@ class CClientVaccinationInfo(CInfo):
 
         self._vaccine          = self.getInstance(CRBVaccineInfo, forceRef(record.value('vaccine_id')))
         code, name, urn, version, value, note, checkDate,value_spr, name_spr, record_ = getIdentificationInfoById('rbVaccine', forceRef(record.value('vaccineIdentificationIBP_id')))
-        self._vaccineIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate),value_spr, name_spr, record)
+        self._vaccineIdentificationIBP = _identification(code, name, urn, version, value, note, CDateInfo(checkDate),value_spr, name_spr, record_)
         self._vaccinationType  = forceString(record.value('vaccinationType'))
         self._datetime         = CDateTimeInfo(forceDateTime(record.value('datetime')))
         self._dose             = forceDouble(record.value('dose'))
@@ -3792,14 +4000,20 @@ class CClientAddressInfo(CAddressInfo):
         self._begDate = ''
         self._freeInput = ''
         self._index = ''
+        self._resident = ''
         self._addressDate = QDate()
 
     def _load(self):
         record = getClientAddress(self._clientId, self._addrType)
         if record:
-            self._addressId = record.value('address_id')
+            self._addressId = forceRef(record.value('address_id'))
             self._begDate = CDateInfo(forceDate(record.value('createDatetime')))
             self._freeInput = forceString(record.value('freeInput'))
+            self._resident = '' if record.value('resident').isNull() else forceInt(record.value('resident'))
+            if self._addrType == 1 and self._resident != '':
+                self._resident = u'Городской' if self._resident == 0 else u'Сельский'
+            else:
+                self._resident = ''
             self._livingArea = forceString(rblivingAreaName(forceString(record.value('livingArea'))))
             self._addressDate = CDateInfo(forceDate(record.value('addressDate')))
             # WTF district23?
@@ -3809,14 +4023,17 @@ class CClientAddressInfo(CAddressInfo):
             self._district23 = getClientDistrict(result.KLADRCode, result.KLADRStreetCode, result.number)
             if self._addressId:
                 return CAddressInfo._load(self)
-            else:
+            elif self._freeInput:
                 return True
+            else:
+                return False
         else:
             self._addressId = None
             self._index = ''
             self._begDate = ''
             self._freeInput = ''
             self._livingArea = ''
+            self._resident = ''
             self._addressDate = QDate()
             return False
 
@@ -3825,6 +4042,7 @@ class CClientAddressInfo(CAddressInfo):
     livingArea  = property(lambda self: self.load()._livingArea)
     addressDate = property(lambda self: self.load()._addressDate)
     begDate  = property(lambda self: self.load()._begDate)
+    resident  = property(lambda self: self.load()._resident)
 
 
 #    def __unicode__(self):
@@ -5703,9 +5921,11 @@ class CClientRelationComboBoxPatronEx(CROComboBox):
     def __init__(self, parent=None):
         CROComboBox.__init__(self, parent)
         self._clientId = None
+        self.clientRelationDict = {}
 
 
     def setClientId(self, clientId):
+        self.clientRelationDict = {}
         self._clientId = clientId
         self.addItem(u'не задано', QVariant(None))
         db = QtGui.qApp.db
@@ -5724,7 +5944,8 @@ class CClientRelationComboBoxPatronEx(CROComboBox):
         fields = ['CONCAT_WS(\' | \', rbRelationType.code, CONCAT_WS(\'->\', rbRelationType.leftName, rbRelationType.rightName)) AS relationType',
                   tableC['lastName'].alias(), tableC['firstName'].name(),
                   tableC['patrName'].name(), tableC['birthDate'].name(),
-                  tableCR['id'].alias(colFields)]
+                  tableCR['id'].alias(colFields),
+                  tableCR['client_id'], tableCR['relative_id']]
         clientRelationRecordList = db.getRecordList(queryTable, fields, cond)
         for relationRecord in clientRelationRecordList:
             name = formatShortName(relationRecord.value('lastName'),
@@ -5734,6 +5955,13 @@ class CClientRelationComboBoxPatronEx(CROComboBox):
                                   forceString(relationRecord.value('birthDate')),
                                   forceString(relationRecord.value('relationType'))])
             relativeId = forceRef(relationRecord.value(colFields))
+            if relativeId and relativeId not in self.clientRelationDict.keys():
+                crClientId = forceRef(relationRecord.value('client_id'))
+                crRelativeId = forceRef(relationRecord.value('relative_id'))
+                if colRelative == u'relative_id':
+                    self.clientRelationDict[relativeId] = (crClientId, crRelativeId)
+                elif colRelative == u'client_id':
+                    self.clientRelationDict[relativeId] = (crRelativeId, crClientId)
             self.addItem(itemText, QVariant(relativeId))
 
 
@@ -5748,6 +5976,20 @@ class CClientRelationComboBoxPatronEx(CROComboBox):
     def setValue(self, clientId):
         index = self.findData(QVariant(clientId))
         self.setCurrentIndex(index)
+
+
+    def getClientId(self, clientRelationId):
+        if clientRelationId:
+            clientRelationLine = self.clientRelationDict.get(clientRelationId, (None, None))
+            return clientRelationLine[0]
+        return None
+
+
+    def getRelativeId(self, clientRelationId):
+        if clientRelationId:
+            clientRelationLine = self.clientRelationDict.get(clientRelationId, (None, None))
+            return clientRelationLine[1]
+        return None
 
 
 def getHousesList(records):
@@ -6050,7 +6292,7 @@ def removeExtCols(db, srcRecord):
 def addActionTabPresence(obj, eventId, currentWidget, currentTable):
     from Events.Action import CActionTypeCache, CAction
     from Events.EditDispatcher import getEventFormClass
-    from Events.Utils import checkTissueJournalStatusByActions, getEventCSGRequired, getEventShowTime
+    from Events.Utils import checkTissueJournalStatusByActions, getEventCSGRequired, getEventShowTime, CFinanceType
 
     def getActionIdxLast(db, eventId, actionTypeClass):
         tableAction = db.table('Action')
@@ -6062,7 +6304,7 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
              tableActionType['class'].eq(actionTypeClass)])
         return forceInt(recordAction.value('idxLast')) if recordAction else -1
 
-    def saveNewAction(db, eventId, actionTypeId, action, idxLastDict):
+    def saveNewAction(db, eventId, actionTypeId, action, idxLastDict, eventFinanceId):
         actionType = CActionTypeCache.getById(actionTypeId)
         actionTypeClass = actionType.class_
         idxLast = idxLastDict.get(actionTypeClass, -1)
@@ -6074,6 +6316,11 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
             idxLastDict[actionTypeClass] = idxLast
         outRecord = removeExtCols(db, action.getRecord())
         if outRecord:
+            cashFinanceId = CFinanceType.getId(CFinanceType.cash)
+            actionFinanceId = forceRef(outRecord.value('finance_id'))
+            if actionFinanceId is None:
+                actionFinanceId = eventFinanceId
+            outRecord.setValue('account', toVariant(actionFinanceId == cashFinanceId))
             action._record = outRecord
             id = action.save(eventId, idx=idxLast, checkModifyDate=False)
             if id:
@@ -6234,7 +6481,8 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
                     if action:
                         if isEventCSGRequired and csgRecord:
                             action.getRecord().setValue('eventCSG_id', csgRecord.value('id'))
-                        idxLastDict = saveNewAction(db, forceRef(action.getRecord().value('event_id')), actionTypeId, action, idxLastDict)
+                        idxLastDict = saveNewAction(db, forceRef(action.getRecord().value('event_id')), actionTypeId,
+                                                    action, idxLastDict, forceRef(record.value('finance_id')))
                         if action in relatedItems.keys() and action.getId():
                             for item in relatedItems[action]:
                                 item[1].setMasterId(action.getId())
@@ -6248,6 +6496,10 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
                     if not eventExecDate:
                         CDialogBase(obj).checkValueMessage(u'Добавлено Мероприятие требующее закрытия Случая Обслуживания! Для этого откройте на редактирование Случай Обслуживания и внесите необходимые правки.', False, None)
                 currentTable.setCurrentRow(currentRow)
+            record.setValue('modifyDatetime', QVariant(QDateTime.currentDateTime()))
+            record.setValue('modifyPerson_id', QVariant(QtGui.qApp.userId))
+            record._dirty = True
+            db.updateRecord("Event", record)
     return currentTable, currentRow, newActionIdList
 
 

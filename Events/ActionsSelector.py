@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1423,6 +1423,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
                     if code not in codeSet:
                         codeSet.add(code)
                         idList.append(id)
+                        idList.append(id)
 
             # возвращаем необходимую сортировку
             recordList = QtGui.qApp.db.getRecordList(tableActionType, 'id, code, name', tableActionType['id'].inlist(idList), self._sortActionType.order)
@@ -1749,7 +1750,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
                         if actionTypeId in mesExistsListId:
                             # ТТ 2691 исключение должно быть для услуг врачей терапевта B04.047 или врача общей практики B04.026
                             if actionType.code.startswith('B04.047') or actionType.code.startswith('B04.026'):
-                                if bool(actionType.code.startswith('B04.047') and self.specialityRegionalCode == '76') or bool(actionType.code.startswith('B04.026') and self.specialityRegionalCode in ['39', '224']):
+                                if bool(actionType.code.startswith('B04.047') and self.specialityRegionalCode in ['76', '206']) or bool(actionType.code.startswith('B04.026') and self.specialityRegionalCode in ['39', '224']):
                                     mesExistsListId.pop(mesExistsListId.index(actionTypeId))
                                     notSelected += mesExistsListId
                                 else:
@@ -2253,7 +2254,7 @@ class CExistsClientActionsModel(CTableModel):
 
 class CActionTypeGroupsTemplatesModel(CActionTypeGroupsModel):
     def __init__(self, parent):
-        CActionTypeGroupsModel.__init__(self, parent, ACTION_TYPE_GROUP_APPOINTMENT, show_class=False)
+        CActionTypeGroupsModel.__init__(self, parent, show_class=False)
         self.findFilterText = None
         self.templates_order = 'ActionTypeGroup.code ASC'
         self.last_class = None

@@ -50,9 +50,9 @@ def selectData(params):
              tableDiagnosis['MKB'].le('C99.99'),
            ]
     if begDate:
-        cond.append(tableDiagnostic['setDate'].dateGe(begDate))
+        cond.append(tableDiagnostic['setDate'].ge(begDate))
     if endDate:
-        cond.append(tableDiagnostic['setDate'].dateLe(endDate))
+        cond.append(tableDiagnostic['setDate'].lt(endDate.addDays(1)))
 
     fields = [ tableDiagnosis['MKB'],
                'age(Client.birthDate, Diagnostic.setDate) AS `age`',

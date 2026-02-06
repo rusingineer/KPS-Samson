@@ -10,8 +10,8 @@ from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
 from EconomicAnalisys import (
     getStmt, colClient, colEvent, colParentOrgStructure, colOrgStructure, colClientName,
     colEventSetDate, colEventExecDate, colServiceInfis, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount,
-    colSUM, colPerson
-    )
+    colSUM, colPerson, colExposedSum
+)
 
 
 class CEconomicAnalisysE19(CReport):
@@ -33,7 +33,7 @@ class CEconomicAnalisysE19(CReport):
             detailCol = [colPerson]
             detailColName = u"colPerson"
         cols = [colClient, colEvent, colClientName, colEventSetDate, colEventExecDate, colServiceInfis,
-                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM]
+                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum]
         cols.extend(detailCol)
         colsStmt = u"""select
         %s as detailCol,
@@ -52,7 +52,8 @@ class CEconomicAnalisysE19(CReport):
         colPD as pd,
         colSMP as callambulance,
         IF(colPos = 0 and colCSG = 0 and colSMP = 0 and colObr = 0, colAmount, 0) as usl,
-        colSUM as sum
+        colSUM as sum,
+        colExposedSUM as exposedSum
         """ % detailColName
         groupCols = u''
         orderCols = u'%s, colClientName, colEventSetDate, colEventExecDate, colServiceInfis' % detailColName
@@ -62,6 +63,9 @@ class CEconomicAnalisysE19(CReport):
         return QtGui.qApp.db.query(stmt)
 
     def build(self, params):
+        needExposedSum = params.get('dataType', None) == 3
+        reportRowSize = 10 if needExposedSum else 9
+
         reportData = {'keys': [],
                       'events': [],  
                       'total': {
@@ -71,7 +75,8 @@ class CEconomicAnalisysE19(CReport):
                                 'kd': 0,
                                 'pos': 0,
                                 'usl': 0,
-                                'sum': 0
+                                'sum': 0,
+                                'exposedSum': 0,
                                 }
                       }
 
@@ -87,8 +92,10 @@ class CEconomicAnalisysE19(CReport):
                 code = forceString(record.value('code'))
                 amount = forceInt(record.value('amount'))
                 kd = forceInt(record.value('kd'))
+                pd = forceInt(record.value('pd'))
                 uet = forceDouble(record.value('uet'))
                 sums = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
                 mes = forceInt(record.value('mes'))
                 pos = forceInt(record.value('pos'))
                 usl = forceInt(record.value('usl'))
@@ -122,7 +129,8 @@ class CEconomicAnalisysE19(CReport):
                         'kd': 0,
                         'pos': 0,
                         'usl': 0,
-                        'sum': 0
+                        'sum': 0,
+                        'exposedSum': 0,
                         }
 
                 if reportData[detailCol][clientId]['setDate'] > setDate:
@@ -134,22 +142,24 @@ class CEconomicAnalisysE19(CReport):
                 if 'usls' not in reportData[detailCol][clientId]:
                     reportData[detailCol][clientId]['usls'] = []
 
-                reportData[detailCol][clientId]['usls'].append([code, amount, kd, uet, sums])
+                reportData[detailCol][clientId]['usls'].append([code, amount, kd + pd, uet, sums, exposedSum])
 
                 reportData[detailCol]['total']['exposed'] += exposed
                 reportData[detailCol]['total']['mes'] += mes
                 reportData[detailCol]['total']['uet'] += uet
-                reportData[detailCol]['total']['kd'] += kd
+                reportData[detailCol]['total']['kd'] += kd + pd
                 reportData[detailCol]['total']['pos'] += pos
                 reportData[detailCol]['total']['usl'] += usl
                 reportData[detailCol]['total']['sum'] += sums
+                reportData[detailCol]['total']['exposedSum'] += exposedSum
                 reportData['total']['exposed'] += exposed
                 reportData['total']['mes'] += mes
                 reportData['total']['uet'] += uet
-                reportData['total']['kd'] += kd
+                reportData['total']['kd'] += kd + pd
                 reportData['total']['pos'] += pos
                 reportData['total']['usl'] += usl
                 reportData['total']['sum'] += sums
+                reportData['total']['exposedSum'] += exposedSum
 
         query = self.selectData(params)
         processQuery(query)
@@ -176,12 +186,13 @@ class CEconomicAnalisysE19(CReport):
             ('10%',  [u'Кол-во услуг'], CReportBase.AlignCenter),
             ('10%',  [u'Кол-во койко-дней'], CReportBase.AlignCenter),
             ('10%',  [u'Кол-во УЕТ'], CReportBase.AlignCenter),
-            ('10%',  [u'Сумма'], CReportBase.AlignCenter),
+            ('5%',  [u'Сумма'], CReportBase.AlignCenter),
             ]
-
+        if needExposedSum:
+            tableColumns.append(('5%', [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 2, 1, 2)
-        for i in range(9):
+        for i in range(reportRowSize):
             if i != 2 and i != 3:
                 table.mergeCells(0, i, 2, 1)
 
@@ -200,7 +211,8 @@ class CEconomicAnalisysE19(CReport):
                 [u'кол-во УЕТ:',  total['uet']],
                 [u'сумма, р:',  total['sum']],
             ]
-
+            if needExposedSum:
+                pairs.append([u'выставленная сумма, р:',  total['exposedSum']])
             for title, val in pairs:
                 row = table.addRow()
                 table.setText(row,  2,  title)
@@ -212,7 +224,7 @@ class CEconomicAnalisysE19(CReport):
 
         for osname in reportData['keys']:
             row = table.addRow()
-            table.mergeCells(row, 0, 1, 9)
+            table.mergeCells(row, 0, 1, reportRowSize)
             table.setText(row, 0, osname,  CReportBase.TableHeader, CReportBase.AlignLeft)
 
             for clientId in reportData[osname]['keys']:
@@ -223,7 +235,7 @@ class CEconomicAnalisysE19(CReport):
                 table.setText(originRow, 2, reportData[osname][clientId]['setDate'].toString('yyyy-MM-dd'))
                 table.setText(originRow, 3, reportData[osname][clientId]['execDate'].toString('yyyy-MM-dd'))
                 firstRowWasSkipped = False
-                for code, amount, kd, uet, sums in reportData[osname][clientId]['usls']:
+                for code, amount, kd, uet, sums, exposedSum in reportData[osname][clientId]['usls']:
                     if firstRowWasSkipped:
                         row = table.addRow()
                     else:
@@ -234,7 +246,11 @@ class CEconomicAnalisysE19(CReport):
                     table.setText(row, 6, kd)
                     table.setText(row, 7, uet)
                     table.setText(row, 8, sums)
+                    if needExposedSum:
+                        table.setText(row, 9, exposedSum)
                 mergeCnt = len(reportData[osname][clientId]['usls'])
+                if not needExposedSum:
+                    mergeCnt -= 1
                 table.mergeCells(originRow, 0, mergeCnt, 1)
                 table.mergeCells(originRow, 1, mergeCnt, 1)
                 table.mergeCells(originRow, 2, mergeCnt, 1)
@@ -255,6 +271,7 @@ class CEconomicAnalisysE19Ex(CEconomicAnalisysE19):
         result.setListDetailTo(self.detailList)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

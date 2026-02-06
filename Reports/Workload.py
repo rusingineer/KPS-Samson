@@ -74,6 +74,7 @@ class CWorkload(CReport):
         result.buttonBox.button(QtGui.QDialogButtonBox.Ok).setAutoDefault(True)
         minWidth = result.edtBegDate.fontMetrics().width('99.99.9999')
         result.edtBegDate.setMinimumSize(minWidth + 50, 0)
+        result.loadPrefs()
         return result
 
     def build(self, params):

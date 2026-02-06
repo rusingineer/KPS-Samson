@@ -319,6 +319,7 @@ class CReportBase(object):
         result['addressType'] = getPrefInt(prefs, 'addressType', 0) # тип адреса для определения сельского жителя
         result['forResult'] = getPrefInt(prefs, 'forResult', 0)  # для формы 11
         result['typeDN'] = getPrefInt(prefs, 'typeDN', 0)  # для формы 10
+        result['onlyNotExposed'] = getPrefInt(prefs, 'onlyNotExposed', False)  # для формы 10
         result['isOnlyContingent'] = getPrefBool(prefs, 'isOnlyContingent', False)  # для формы 19
         result['cashPayments'] = getPrefBool(prefs, 'cashPayments', False)
         result['filterClientId'] = getPrefRef(prefs, 'filterClientId', None)

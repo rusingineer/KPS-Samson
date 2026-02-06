@@ -78,7 +78,7 @@ class CContingentTypeListModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['rbContingentType.code', 'rbContingentType.name']
+        self._fieldNames = ['rbContingentType.id', 'rbContingentType.code', 'rbContingentType.name']
         self.setTable('rbContingentType')
 
 

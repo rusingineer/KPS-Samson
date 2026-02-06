@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,7 +21,7 @@ from Reports.ReportBase import CReportBase, createTable
 from Reports.Utils      import dateRangeAsStr
 from Timeline.Schedule  import CSchedule
 from library.DialogBase import CDialogBase
-from library.Utils      import firstMonthDay, forceBool, forceInt, forceRef, forceString, formatName, lastMonthDay
+from library.Utils import firstMonthDay, forceBool, forceInt, forceRef, forceString, formatName, lastMonthDay, getPersonIdList
 
 from Ui_PreRecordDoctorsDialog import Ui_PreRecordDoctorsDialog
 
@@ -38,6 +38,7 @@ def selectData(params):
     personId          = params.get('personId', None)
     isOvertime        = params.get('isOvertime', 0)
     showDeleted        = params.get('showDeleted', 0)
+    joinPersonBySNILS = params.get('joinPersonBySNILS', None)
 
     db = QtGui.qApp.db
     tablePerson = db.table('Person')
@@ -61,7 +62,15 @@ def selectData(params):
         if endScheduleDate:
             cond.append(tableSchedule['date'].le(endScheduleDate))
     if personId:
-        cond.append(tableSchedule['person_id'].eq(personId))
+        duplicatePersons = []
+        if joinPersonBySNILS:
+            duplicates = getPersonIdList(personId)
+            if duplicates:
+                for duplicate in duplicates:
+                    duplicatePersons.append(forceRef(duplicate.value('id')))
+        if not duplicatePersons:
+            duplicatePersons.append(personId)
+        cond.append(tableSchedule['person_id'].inlist(duplicatePersons))
     if specialityId:
         cond.append(tablePerson['speciality_id'].eq(specialityId))
     if orgStructureId:
@@ -95,7 +104,7 @@ def selectData(params):
               (SELECT vrbP.name FROM vrbPersonWithSpeciality AS vrbP WHERE vrbP.id = Schedule_Item.recordPerson_id)) AS recordPersonName,
                                     count((SELECT max(cp.id) AS cli FROM ClientPolicy cp
   LEFT JOIN Organisation o ON cp.insurer_id=o.id
-  WHERE cp.client_id=Schedule_Item.client_id AND cp.deleted=0 AND o.deleted=0 AND o.area not LIKE '23%%')) AS inkray,Schedule_Item.note
+  WHERE cp.client_id=Schedule_Item.client_id AND cp.deleted=0 AND o.deleted=0 AND o.area not LIKE '23%%')) AS inkray,Schedule_Item.note, Schedule_Item.system_guid
             FROM
                 Schedule_Item
                 LEFT JOIN Schedule     ON Schedule.id = Schedule_Item.master_id
@@ -104,7 +113,7 @@ def selectData(params):
                 LEFT JOIN rbPost       ON rbPost.id = RP.post_id
             WHERE %(whereCond)s
             GROUP BY %(groupBy)s (SELECT vrbP.name FROM vrbPersonWithSpeciality AS vrbP WHERE vrbP.id = Person.id), appointmentType, isSamePerson, isSameOrg,
-                      recorderHasSpeciality, recordClassExt, isVisited, recordPersonName, recordPerson_id'''
+                      recorderHasSpeciality, recordClassExt, isVisited, recordPersonName, recordPerson_id, system_guid '''
     st = stmt % (dict(colsOvertime=colsOvertime,
                  whereCond=db.joinAnd(cond),
                  groupBy=groupBy
@@ -131,6 +140,7 @@ class CPreRecordDoctors(CReport):
         personId            = params.get('personId', None)
         groupByOrgStructure = params.get('groupByOrgStructure', None)
         hidePersons         = params.get('hidePersons', None)
+        joinPersonBySNILS   = params.get('joinPersonBySNILS', None)
         showDeleted         = params.get('showDeleted', None)
         description = []
 
@@ -148,7 +158,10 @@ class CPreRecordDoctors(CReport):
             description.append(u'специальность: ' + forceString(db.translate('rbSpeciality', 'id', specialityId, 'name')))
         if personId:
             personInfo = getPersonInfo(personId)
-            description.append(u'врач: ' + personInfo['shortName']+', '+personInfo['specialityName'])
+            if joinPersonBySNILS:
+                description.append(u'врач: ' + personInfo['shortName'])
+            else:
+                description.append(u'врач: ' + personInfo['shortName']+', '+personInfo['specialityName'])
         if groupByOrgStructure:
             description.append(u'группировать по подразделениям')
         if hidePersons:
@@ -201,6 +214,7 @@ class CPreRecordDoctors(CReport):
             isVisited       = forceBool(record.value('isVisited'))
             cnt             = forceInt(record.value('cnt'))
             inkray             = forceInt(record.value('inkray'))
+            sysGuid         = forceString(record.value('system_guid'))
             column = mapATtoCol.get(appointmentType, -1)
             if column>=0:
                 personData = reportData.setdefault(personId, {})
@@ -212,9 +226,11 @@ class CPreRecordDoctors(CReport):
                     else:
                         recordPersonName = u'Call-центр'
                 elif recordClass  in (3, 5, 6, 7): # интернет
-                    if u'ПГУ' in recordNote:
+                    if sysGuid == u'075AEF71-C1C6-46B7-BE97-931037F03E2A':
+                        recordPersonName = u'Мессенджер MAX'
+                    elif sysGuid == u'4001E5F6-E96D-4742-8561-C81C838E9064':
                         recordPersonName = u'Портал госуслуг'
-                    elif u'онлайн' in recordNote:
+                    elif sysGuid == u'D127D963-EB51-4624-8778-F0508CE67648':
                         recordPersonName = u'Кубань-онлайн'
                     else:
                         recordPersonName = u'Интернет'
@@ -268,6 +284,7 @@ class CPreRecordDoctors(CReport):
             #recordClass     = forceInt(record.value('recordClass'))
             recordNote = forceString(record.value('note'))
             isUrgent = forceBool(record.value('isUrgent'))
+            sysGuid = forceString(record.value('system_guid'))
             column = mapATtoCol.get(appointmentType, -1)
             if column>=0:
                 personData = reportData.setdefault(personId, {})
@@ -279,9 +296,11 @@ class CPreRecordDoctors(CReport):
                     else:
                         recordPersonName = u'Call-центр'
                 elif recordClass  in (3, 5, 6, 7): # интернет
-                    if u'ПГУ' in recordNote:
+                    if sysGuid == u'075AEF71-C1C6-46B7-BE97-931037F03E2A':
+                        recordPersonName = u'Мессенджер MAX'
+                    elif sysGuid == u'4001E5F6-E96D-4742-8561-C81C838E9064':
                         recordPersonName = u'Портал госуслуг'
-                    elif u'онлайн' in recordNote:
+                    elif sysGuid == u'D127D963-EB51-4624-8778-F0508CE67648':
                         recordPersonName = u'Кубань-онлайн'
                     else:
                         recordPersonName = u'Интернет'
@@ -346,9 +365,10 @@ class CPreRecordDoctors(CReport):
     def getPersonSortedList(self, personIdList):
         result = []
         db = QtGui.qApp.db
-        tablePerson = db.table('Person')
-        for record in db.getRecordList(tablePerson, ['id','lastName', 'firstName', 'patrName'], tablePerson['id'].inlist(personIdList)):
-            name = formatName(record.value('lastName'), record.value('firstName'), record.value('patrName'))
+        tablePerson = db.table('vrbPersonWithSpecialityAndOrgStr')
+        for record in db.getRecordList(tablePerson, ['id', 'name'], tablePerson['id'].inlist(personIdList)):
+            #name = formatName(record.value('lastName'), record.value('firstName'), record.value('patrName'))
+            name = forceString(record.value('name'))
             personId = forceRef(record.value('id'))
             result.append(('', name, personId, None))
         result.sort()
@@ -621,6 +641,7 @@ class CPreRecordDoctorsDialog(CDialogBase, Ui_PreRecordDoctorsDialog):
         self.cmbPerson.setValue(params.get('personId', None))
         self.chkGroupByOrgStructure.setChecked(bool(params.get('groupByOrgStructure', None)))
         self.chkHidePersons.setChecked(bool(params.get('hidePersons', None)))
+        self.chkJoinPersonBySNILS.setChecked(bool(params.get('joinPersonBySNILS', None)))
         self.chkOvertime.setChecked(params.get('isOvertime', False))
         self.chkShowDeleted.setChecked(params.get('showDeleted', False))
 
@@ -637,6 +658,7 @@ class CPreRecordDoctorsDialog(CDialogBase, Ui_PreRecordDoctorsDialog):
                     personId          = self.cmbPerson.value(),
                     groupByOrgStructure = self.chkGroupByOrgStructure.isChecked(),
                     hidePersons       = self.chkHidePersons.isChecked(),
+                    joinPersonBySNILS =self.chkJoinPersonBySNILS.isChecked(),
                     isOvertime        = self.chkOvertime.isChecked(), 
                     showDeleted        = self.chkShowDeleted.isChecked()
                    )

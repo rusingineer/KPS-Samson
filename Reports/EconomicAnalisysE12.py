@@ -121,6 +121,7 @@ class CEconomicAnalisysE12Ex(CEconomicAnalisysE12):
         result.cbPrice.setChecked(False)
         result.cbPrice.setEnabled(False)
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

@@ -160,3 +160,31 @@ class CRBAccountingSystemEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         getCheckBoxValue(self.chkShowInClientInfo, record, 'showInClientInfo')
         getCheckBoxValue(self.chkIsUnique,         record, 'isUnique')
         return record
+
+    def saveData(self):
+        if not self.checkDataEntered():
+            QtGui.QMessageBox.critical(
+                self,
+                u'Ошибка сохранения',
+                u'Невозможно добавление справочника с уже существующим URN\n',
+                QtGui.QMessageBox.Close)
+            return False
+        else:
+            return self.save()
+
+    def checkDataEntered(self):
+        # проверка на уникальность urn
+        par = self.parent().model
+        record = self.getRecord()
+        urn = forceString(record.value('urn'))
+        id = forceString(record.value('id'))
+        unique_urn = True
+        if urn:
+            for _ in range(par.rowCount()):
+                rec = par.getRecordByRow(_)
+                rec_id = forceString(rec.value('id'))
+                rec_urn = forceString(rec.value('urn'))
+                if rec_id != id and rec_urn == urn:
+                    unique_urn = False
+                    break
+        return unique_urn

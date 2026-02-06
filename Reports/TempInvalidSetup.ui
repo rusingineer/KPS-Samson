@@ -20,12 +20,177 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
+   <item row="33" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkTempInvalidDuplicate">
+     <property name="text">
+      <string>Выводить листы по совместительству</string>
+     </property>
+    </widget>
+   </item>
+   <item row="37" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbDateSort">
+     <item>
+      <property name="text">
+       <string>по дате начала случая</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>по дате начала ЛН</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="31" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkTempInvalidReceiver">
+     <property name="text">
+      <string>Отображать данные Лица по уходу</string>
+     </property>
+    </widget>
+   </item>
+   <item row="37" column="0">
+    <widget class="QLabel" name="lblDateSort">
+     <property name="text">
+      <string>Сортировать</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="lblTempInvalidReason">
+     <property name="text">
+      <string>При&amp;чина</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbReason</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkByPeriod">
+     <property name="toolTip">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;Если отметка &lt;span style=&quot; font-weight:600;&quot;&gt;стоит&lt;/span&gt;, то для отчёта &lt;br /&gt;выбираются документы ВУТ с &lt;span style=&quot; font-weight:600;&quot;&gt;периодом, &lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt; font-weight:600;&quot;&gt;пересекающимя с периодом отчёта&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;Если отметка &lt;span style=&quot; font-weight:600;&quot;&gt;снята&lt;/span&gt;, то для отчёта &lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;выбираются документы ВУТ &lt;/p&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;закрытые в периоде отчёта&lt;/span&gt;&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Отчёт по периоду случая</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="CDateEdit" name="edtBegDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="displayFormat">
+      <string>dd.MM.yyyy</string>
+     </property>
+     <property name="calendarPopup">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="0">
+    <widget class="QLabel" name="lblAge">
+     <property name="text">
+      <string>Во&amp;зраст с</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtAgeFrom</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QLabel" name="lblPerson">
+     <property name="text">
+      <string>&amp;Врач</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbPerson</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbDoctype"/>
+   </item>
+   <item row="17" column="0">
+    <widget class="QLabel" name="lblInsuranceOfficeMark">
+     <property name="text">
+      <string>&amp;Отметка страхового стола</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbInsuranceOfficeMark</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="1" colspan="2">
+    <widget class="QComboBox" name="cmbInsuranceOfficeMark">
+     <item>
+      <property name="text">
+       <string/>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>без отметки</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>с отметкой</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="11" column="0">
+    <widget class="QLabel" name="lblSex">
+     <property name="text">
+      <string>По&amp;л</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbSex</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="13" column="1" colspan="2">
+    <widget class="CSocStatusComboBox" name="cmbSocStatusClass"/>
+   </item>
+   <item row="16" column="0">
+    <widget class="QLabel" name="lblMKB">
+     <property name="text">
+      <string>Коды диагнозов по &amp;МКБ</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbMKBFilter</cstring>
+     </property>
+    </widget>
+   </item>
    <item row="9" column="1" colspan="2">
     <widget class="QFrame" name="frmDuration">
      <property name="frameShape">
@@ -38,7 +203,16 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -115,7 +289,16 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -189,13 +372,22 @@
       <enum>QFrame::Raised</enum>
      </property>
      <layout class="QGridLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
       <property name="horizontalSpacing">
        <number>4</number>
       </property>
       <property name="verticalSpacing">
-       <number>0</number>
-      </property>
-      <property name="margin">
        <number>0</number>
       </property>
       <item row="0" column="0">
@@ -235,7 +427,7 @@
          </size>
         </property>
         <property name="inputMask">
-         <string>a00.00; </string>
+         <string>a00.00</string>
         </property>
         <property name="text">
          <string>A.</string>
@@ -263,7 +455,7 @@
          </size>
         </property>
         <property name="inputMask">
-         <string>a00.00; </string>
+         <string>a00.00</string>
         </property>
         <property name="text">
          <string>Z99.9</string>
@@ -301,7 +493,16 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -339,120 +540,6 @@
      </layout>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="CDateEdit" name="edtBegDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="displayFormat">
-      <string>dd.MM.yyyy</string>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="12" column="0">
-    <widget class="QLabel" name="lblAge">
-     <property name="text">
-      <string>Во&amp;зраст с</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtAgeFrom</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkByPeriod">
-     <property name="toolTip">
-      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;Если отметка &lt;span style=&quot; font-weight:600;&quot;&gt;стоит&lt;/span&gt;, то для отчёта &lt;br /&gt;выбираются документы ВУТ с &lt;span style=&quot; font-weight:600;&quot;&gt;периодом, &lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt; font-weight:600;&quot;&gt;пересекающимя с периодом отчёта&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;Если отметка &lt;span style=&quot; font-weight:600;&quot;&gt;снята&lt;/span&gt;, то для отчёта &lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;выбираются документы ВУТ &lt;/p&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;закрытые в периоде отчёта&lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="text">
-      <string>Отчёт по периоду случая</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="lblTempInvalidReason">
-     <property name="text">
-      <string>При&amp;чина</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbReason</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="17" column="0">
-    <widget class="QLabel" name="lblInsuranceOfficeMark">
-     <property name="text">
-      <string>&amp;Отметка страхового стола</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbInsuranceOfficeMark</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="8" column="0">
-    <widget class="QLabel" name="lblPerson">
-     <property name="text">
-      <string>&amp;Врач</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbPerson</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbDoctype"/>
-   </item>
-   <item row="34" column="0">
-    <widget class="QLabel" name="lblDateSort">
-     <property name="text">
-      <string>Сортировать</string>
-     </property>
-    </widget>
-   </item>
-   <item row="34" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbDateSort">
-     <item>
-      <property name="text">
-       <string>по дате начала случая</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>по дате начала ЛН</string>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item row="30" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkTempInvalidDuplicate">
-     <property name="text">
-      <string>Выводить листы по совместительству</string>
-     </property>
-    </widget>
-   </item>
-   <item row="28" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkTempInvalidReceiver">
-     <property name="text">
-      <string>Отображать данные Лица по уходу</string>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="1">
     <widget class="CDateEdit" name="edtEndDate">
      <property name="sizePolicy">
@@ -468,19 +555,6 @@ p, li { white-space: pre-wrap; }
       <bool>true</bool>
      </property>
     </widget>
-   </item>
-   <item row="22" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>21</width>
-       <height>21</height>
-      </size>
-     </property>
-    </spacer>
    </item>
    <item row="6" column="1" colspan="2">
     <widget class="QCheckBox" name="chkOnlyClosed">
@@ -512,14 +586,18 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="8" column="1" colspan="2">
-    <widget class="CPersonComboBoxEx" name="cmbPerson">
-     <item>
-      <property name="text">
-       <string>Врач</string>
-      </property>
-     </item>
-    </widget>
+   <item row="24" column="0">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>21</width>
+       <height>21</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblBegDate">
@@ -541,121 +619,22 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="7" column="1" colspan="2">
-    <widget class="COrgStructureComboBox" name="cmbOrgStructure"/>
-   </item>
-   <item row="5" column="1" colspan="2">
-    <widget class="CRBMultivalueComboBox" name="cmbReason"/>
-   </item>
-   <item row="1" column="2">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>101</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="19" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkAverageDuration">
-     <property name="text">
-      <string>Средняя длительность</string>
-     </property>
-    </widget>
-   </item>
-   <item row="9" column="0" rowspan="2">
-    <widget class="QLabel" name="lblDuration">
-     <property name="text">
-      <string>&amp;Длительность с</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtDurationFrom</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="2">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>101</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="36" column="0" colspan="3">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="25" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkBeginPerson">
-     <property name="text">
-      <string>Начавший БЛ</string>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="0">
-    <widget class="QLabel" name="lblSex">
-     <property name="text">
-      <string>По&amp;л</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbSex</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="17" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbInsuranceOfficeMark">
+   <item row="8" column="1" colspan="2">
+    <widget class="CPersonComboBoxEx" name="cmbPerson">
      <item>
       <property name="text">
-       <string/>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>без отметки</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>с отметкой</string>
+       <string>Врач</string>
       </property>
      </item>
     </widget>
    </item>
-   <item row="13" column="1" colspan="2">
-    <widget class="CSocStatusComboBox" name="cmbSocStatusClass"/>
-   </item>
-   <item row="16" column="0">
-    <widget class="QLabel" name="lblMKB">
+   <item row="26" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkLocAddress">
      <property name="text">
-      <string>Коды диагнозов по &amp;МКБ</string>
+      <string>Адрес проживания</string>
      </property>
-     <property name="buddy">
-      <cstring>cmbMKBFilter</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="13" column="0">
-    <widget class="QLabel" name="lblSocStatusClass">
-     <property name="text">
-      <string>Класс соц.статуса</string>
-     </property>
-     <property name="buddy">
-      <cstring>cmbSocStatusClass</cstring>
+     <property name="checked">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -669,9 +648,6 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="15" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbSocStatusType"/>
-   </item>
    <item row="21" column="1" colspan="2">
     <widget class="QCheckBox" name="chkResultsForGroups">
      <property name="text">
@@ -679,7 +655,7 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="23" column="1" colspan="2">
+   <item row="25" column="1" colspan="2">
     <widget class="QCheckBox" name="chkRegAddress">
      <property name="text">
       <string>Адрес регистрации</string>
@@ -689,34 +665,13 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="24" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkLocAddress">
-     <property name="text">
-      <string>Адрес проживания</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
+   <item row="15" column="1" colspan="2">
+    <widget class="CRBComboBox" name="cmbSocStatusType"/>
    </item>
-   <item row="26" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkEndPerson">
+   <item row="38" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkClientNameSort">
      <property name="text">
-      <string>Закончивший БЛ</string>
-     </property>
-    </widget>
-   </item>
-   <item row="27" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkPlaceWork">
-     <property name="text">
-      <string>Место работы</string>
-     </property>
-    </widget>
-   </item>
-   <item row="18" column="0">
-    <widget class="QLabel" name="lblCntUser">
-     <property name="text">
-      <string>Номер строки с</string>
+      <string>по ФИО пациента </string>
      </property>
     </widget>
    </item>
@@ -727,6 +682,20 @@ p, li { white-space: pre-wrap; }
      </property>
      <property name="maximum">
       <number>999999999</number>
+     </property>
+    </widget>
+   </item>
+   <item row="29" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkPlaceWork">
+     <property name="text">
+      <string>Место работы</string>
+     </property>
+    </widget>
+   </item>
+   <item row="28" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkEndPerson">
+     <property name="text">
+      <string>Закончивший БЛ</string>
      </property>
     </widget>
    </item>
@@ -743,10 +712,10 @@ p, li { white-space: pre-wrap; }
      </property>
     </spacer>
    </item>
-   <item row="35" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkClientNameSort">
+   <item row="18" column="0">
+    <widget class="QLabel" name="lblCntUser">
      <property name="text">
-      <string>по ФИО пациента </string>
+      <string>Номер строки с</string>
      </property>
     </widget>
    </item>
@@ -769,6 +738,13 @@ p, li { white-space: pre-wrap; }
      </item>
     </widget>
    </item>
+   <item row="34" column="1">
+    <widget class="QCheckBox" name="chkTempInvalidDuplicateWork">
+     <property name="text">
+      <string>Включать дубликаты ЛВН</string>
+     </property>
+    </widget>
+   </item>
    <item row="4" column="0">
     <widget class="QLabel" name="lblElectronic">
      <property name="text">
@@ -776,17 +752,168 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="32" column="1">
+   <item row="35" column="1">
     <widget class="QCheckBox" name="chkTempInvalidCOVID19">
      <property name="text">
       <string>Детализировать по COVID19</string>
      </property>
     </widget>
    </item>
-   <item row="31" column="1">
-    <widget class="QCheckBox" name="chkTempInvalidDuplicateWork">
+   <item row="13" column="0">
+    <widget class="QLabel" name="lblSocStatusClass">
      <property name="text">
-      <string>Включать дубликаты ЛВН</string>
+      <string>Класс соц.статуса</string>
+     </property>
+     <property name="buddy">
+      <cstring>cmbSocStatusClass</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="23" column="0">
+    <widget class="QLabel" name="lblOrderBy">
+     <property name="text">
+      <string>Сортировать по</string>
+     </property>
+    </widget>
+   </item>
+   <item row="22" column="0">
+    <widget class="QLabel" name="lblClientArea">
+     <property name="text">
+      <string>Участок</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>101</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="2">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>101</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="5" column="1" colspan="2">
+    <widget class="CRBMultivalueComboBox" name="cmbReason"/>
+   </item>
+   <item row="19" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkAverageDuration">
+     <property name="text">
+      <string>Средняя длительность</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1" colspan="2">
+    <widget class="COrgStructureComboBox" name="cmbOrgStructure"/>
+   </item>
+   <item row="9" column="0" rowspan="2">
+    <widget class="QLabel" name="lblDuration">
+     <property name="text">
+      <string>&amp;Длительность с</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtDurationFrom</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="27" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkBeginPerson">
+     <property name="text">
+      <string>Начавший БЛ</string>
+     </property>
+    </widget>
+   </item>
+   <item row="39" column="0" colspan="3">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="23" column="1" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QCheckBox" name="chkOrderBy">
+       <property name="maximumSize">
+        <size>
+         <width>20</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cmbOrderBy">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <item>
+        <property name="text">
+         <string>ФИО</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Дате начала периода</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="22" column="1" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QCheckBox" name="chkClientArea">
+       <property name="maximumSize">
+        <size>
+         <width>20</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="CAreaComboBox" name="cmbClientArea">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="30" column="1">
+    <widget class="QCheckBox" name="chkIsExternal">
+     <property name="text">
+      <string>Отображать внешние БЛ</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -827,6 +954,11 @@ p, li { white-space: pre-wrap; }
    <class>CRBMultivalueComboBox</class>
    <extends>QComboBox</extends>
    <header>library/MultivalueComboBox</header>
+  </customwidget>
+  <customwidget>
+   <class>CAreaComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgStructComboBoxes.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

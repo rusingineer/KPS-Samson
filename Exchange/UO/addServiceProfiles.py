@@ -67,10 +67,11 @@ class CMedServiceProfileDialog(CItemEditorBaseDialog, Ui_MedServiceProfileDialog
             orgstructureId = self.cmbLpuId.value()
             value = ConnectionInfo(orgstructureId)
             if value != '':
-                if is_valid_guid:
+                if is_valid_guid(value):
                     self.targetMo = value
                 else:
-                    warninWindow(u'Не верный формат значение идентификации по справочнику 1.2.643.2.69.1.1.1.64')
+                    warninWindow(u'Не верный формат значения идентификации по справочнику 1.2.643.2.69.1.1.1.64 "GUID_TVSP"')
+                    return
             else:
                 warninWindow(u'Для подразделения не заполнена идентификации по справочнику 1.2.643.2.69.1.1.1.64')
                 return

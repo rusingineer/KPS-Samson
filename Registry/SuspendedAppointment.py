@@ -27,7 +27,7 @@ from library.PrintInfo                 import CInfoContext, CDateInfo
 from library.PrintTemplates            import applyTemplate, CPrintAction, getPrintTemplates
 from library.RecordLock                import CRecordLockMixin
 from library.SimpleProgressDialog      import CSimpleProgressDialog
-from library.TableModel                import CBoolCol, CEnumCol, CDateCol, CDesignationCol, CTextCol, CDateTimeCol, CCol, CRefBookCol, CTableModel
+from library.TableModel                import CBoolCol, CEnumCol, CDateCol, CDesignationCol, CTextCol, CDateTimeCol, CCol, CRefBookCol, CTableModel, CIntCol
 from library.Utils import formatName, toVariant, forceString, withWaitCursor, forceRef, forceTime, forceBool, \
     formatRecordsCount, forceDate, forceStringEx, formatSex, forceInt, formatDate, nameCase
 from Registry.SuspendedAppointmentInfo import CSuspendedAppointmentInfo, CSuspendedAppointmentInfoList
@@ -621,42 +621,44 @@ class CSuspenedAppointmentWindow(QtGui.QScrollArea, Ui_SuspenedAppointmentWindow
             else:
                 ASC = u'DESC'
             if key == 0:
-                orderBY = u'Client.lastName %s' % ASC
+                orderBY = u'Client.id %s' % ASC
             elif key == 1:
-                orderBY = u'Client.birthDate %s' % ASC
+                orderBY = u'Client.lastName %s' % ASC
             elif key == 2:
-                orderBY = u'Client.sex %s' % ASC
+                orderBY = u'Client.birthDate %s' % ASC
             elif key == 3:
-                orderBY = u'SuspendedAppointment.contact %s' % ASC
+                orderBY = u'Client.sex %s' % ASC
             elif key == 4:
-                orderBY = u'SuspendedAppointment.begDate %s' % ASC
+                orderBY = u'SuspendedAppointment.contact %s' % ASC
             elif key == 5:
-                orderBY = u'SuspendedAppointment.endDate %s' % ASC
+                orderBY = u'SuspendedAppointment.begDate %s' % ASC
             elif key == 6:
-                orderBY = u'OrgStructure.name %s' % ASC
+                orderBY = u'SuspendedAppointment.endDate %s' % ASC
             elif key == 7:
-                orderBY = u'rbSpeciality.name %s' % ASC
+                orderBY = u'OrgStructure.name %s' % ASC
             elif key == 8:
-                orderBY = u'vrbPerson.name %s' % ASC
+                orderBY = u'rbSpeciality.name %s' % ASC
             elif key == 9:
-                orderBY = u'SuspendedAppointment.processed %s' % ASC
+                orderBY = u'vrbPerson.name %s' % ASC
             elif key == 10:
-                orderBY = u'Schedule.date %s, Schedule_Item.time %s' % (ASC, ASC)
+                orderBY = u'SuspendedAppointment.processed %s' % ASC
             elif key == 11:
-                orderBY = u'SuspendedAppointment.notified %s' % ASC
+                orderBY = u'Schedule.date %s, Schedule_Item.time %s' % (ASC, ASC)
             elif key == 12:
-                orderBY = u'SuspendedAppointment.note %s' % ASC
+                orderBY = u'SuspendedAppointment.notified %s' % ASC
             elif key == 13:
-                orderBY = u'SuspendedAppointment.externalUserRole %s' % ASC
+                orderBY = u'SuspendedAppointment.note %s' % ASC
             elif key == 14:
-                orderBY = u'SuspendedAppointment.externalUserName %s' % ASC
+                orderBY = u'SuspendedAppointment.externalUserRole %s' % ASC
             elif key == 15:
-                orderBY = u'SuspendedAppointment.reason %s' % ASC
+                orderBY = u'SuspendedAppointment.externalUserName %s' % ASC
             elif key == 16:
-                orderBY = u'SuspendedAppointment.createDatetime %s' % ASC
+                orderBY = u'SuspendedAppointment.reason %s' % ASC
             elif key == 17:
-                orderBY = u'SuspendedAppointment.modifyDatetime'
+                orderBY = u'SuspendedAppointment.createDatetime %s' % ASC
             elif key == 18:
+                orderBY = u'SuspendedAppointment.modifyDatetime'
+            elif key == 19:
                 orderBY = u'vrbPersonWithSpeciality.name %s' % ASC
 
         return orderBY
@@ -1100,6 +1102,7 @@ class CSuspendedAppointmentModel(CTableModel):
     def __init__(self, parent):
         self.clientCache = CTableRecordCache(QtGui.qApp.db, 'Client', ('id', 'lastName', 'firstName', 'patrName', 'birthDate', 'sex'), 300)
         CTableModel.__init__(self, parent)
+        self.addColumn(CIntCol(u'Код пациента', ('client_id',), 10))
         self.addColumn(self.CLocClientColumn( u'Ф.И.О.', ('client_id',), 60, self.clientCache))
         self.addColumn(self.CLocClientBirthDateColumn(u'Дата рожд.', ('client_id',), 20, self.clientCache, ['birthDate']))
         self.addColumn(self.CLocClientSexColumn(u'Пол', ('client_id',), 5, self.clientCache, ['sex']))
@@ -1122,7 +1125,8 @@ class CSuspendedAppointmentModel(CTableModel):
         self.addColumn(CRefBookCol(u'Изменил',    ('modifyPerson_id',), 'vrbPersonWithSpeciality', 30))
         self.setTable('SuspendedAppointment')
         self.headerSortingCol = {}
-        self._mapColumnToOrder = {'client_id'          :'CONCAT(Client.lastName, Client.firstName, Client.patrName)',
+        self._mapColumnToOrder = {'client_ID'          :'Client.id',
+                                  'client_id'          :'CONCAT(Client.lastName, Client.firstName, Client.patrName)',
                                   'birthDate'          :'Client.birthDate',
                                   'sex'                :'Client.sex',
                                   'contact'            :'SuspendedAppointment.contact',

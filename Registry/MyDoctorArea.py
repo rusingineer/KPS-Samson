@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -19,7 +19,7 @@ from library.DialogBase import CConstructHelperMixin
 from library.ICDInDocTableCol import CICDExInDocTableCol
 from library.InDocTable import CRecordListModel, CTextInDocTableCol, CDateInDocTableCol, CBoolInDocTableCol
 from library.PrintTemplates import applyTemplate
-from library.Utils import forceRef, forceInt, forceBool, firstMonthDay
+from library.Utils import forceRef, forceInt, forceBool, firstMonthDay, toVariant
 
 from Events.AmbulatoryCardDialog import CAmbulatoryCardDialog
 from Events.CreateEvent import editEvent
@@ -53,10 +53,10 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.updateButtonsState()
 
         # models
-        self.modelEmergencyCalls = CSMPTableModel(self, callType=0)
+        self.modelEmergencyCalls = CSMPTableModel(self)
         self.selectionModelEmergencyCalls = QtGui.QItemSelectionModel(self.modelEmergencyCalls, self)
-        self.modelAmbulanceCalls = CSMPTableModel(self, callType=1)
-        self.selectionModelAmbulanceCalls = QtGui.QItemSelectionModel(self.modelAmbulanceCalls, self)
+        # self.modelAmbulanceCalls = CSMPTableModel(self, callType=1)
+        # self.selectionModelAmbulanceCalls = QtGui.QItemSelectionModel(self.modelAmbulanceCalls, self)
 
         self.modelOpenedTempInvalidDocuments = CTempInvalidDocumentTableModel(self, isOpened=True)
         self.selectionModelOpenedTempInvalidDocuments = QtGui.QItemSelectionModel(self.modelOpenedTempInvalidDocuments,
@@ -78,8 +78,8 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         # views
         self.tblEmergencyCalls.setModel(self.modelEmergencyCalls)
         self.tblEmergencyCalls.setSelectionModel(self.selectionModelEmergencyCalls)
-        self.tblAmbulanceCalls.setModel(self.modelAmbulanceCalls)
-        self.tblAmbulanceCalls.setSelectionModel(self.selectionModelAmbulanceCalls)
+        # self.tblAmbulanceCalls.setModel(self.modelAmbulanceCalls)
+        # self.tblAmbulanceCalls.setSelectionModel(self.selectionModelAmbulanceCalls)
 
         self.tblOpenedTempInvalidDocuments.setModel(self.modelOpenedTempInvalidDocuments)
         self.tblOpenedTempInvalidDocuments.setSelectionModel(self.selectionModelOpenedTempInvalidDocuments)
@@ -97,7 +97,6 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.tblBadTest.setSelectionModel(self.selectionModelBadTest)
 
         for tableView in [self.tblEmergencyCalls,
-                          self.tblAmbulanceCalls,
                           self.tblOpenedTempInvalidDocuments,
                           self.tblForCloseTempInvalidDocuments,
                           self.tblDeaths,
@@ -111,7 +110,7 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.btnAmbulatoryCard.clicked.connect(self.on_actOpenAmbulatoryCard_triggered)
 
         # popup
-        for tbl in [self.tblEmergencyCalls, self.tblAmbulanceCalls, self.tblOpenedTempInvalidDocuments,
+        for tbl in [self.tblEmergencyCalls,  self.tblOpenedTempInvalidDocuments,
                     self.tblForCloseTempInvalidDocuments, self.tblDeaths, self.tblLeavedStationary,
                     self.tblDispansAbsent, self.tblBadTest]:
             tbl.createPopupMenu([self.actFindClient])
@@ -121,6 +120,11 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.tblBadTest.addPopupAction(self.actEditEvent)
         if QtGui.qApp.visibleMyDoctorArea:
             self.reloadData(self.edtDate.date())
+
+        self.chkSMPColor.setStyleSheet(' QCheckBox::indicator { background-color: '+ CSMPTableModel.ambulanceColor +';}')
+        self.chkNMPColor.setStyleSheet(' QCheckBox::indicator { background-color: '+ CSMPTableModel.emergencyColor +';}')
+        self.chkSMPActiveColor.setStyleSheet(' QCheckBox::indicator { background-color: '+ CSMPTableModel.ambulanceActiveColor +';}')
+
 
     def changeUserId(self):
         self._currentClientId = None
@@ -304,9 +308,9 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
                 else:
                     orgStructureList = self.myDoctorsAreaList
             self.modelEmergencyCalls.loadData(date, orgStructureList, self.isNarrowSpec, self.narrowPersonsList)
-            self.lblEmergency.setText(u"Вызовы НМП: %d" % self.modelEmergencyCalls.realRowCount())
-            self.modelAmbulanceCalls.loadData(date, orgStructureList, self.isNarrowSpec, self.narrowPersonsList)
-            self.lblAmbulance.setText(u"Вызовы СМП: %d" % self.modelAmbulanceCalls.realRowCount())
+            self.lblEmergency.setText(u"Вызовы НМП и СМП: %d" % self.modelEmergencyCalls.realRowCount())
+            # self.modelAmbulanceCalls.loadData(date, orgStructureList, self.isNarrowSpec, self.narrowPersonsList)
+            # self.lblAmbulance.setText(u"Вызовы СМП: %d" % self.modelAmbulanceCalls.realRowCount())
             self.modelOpenedTempInvalidDocuments.loadData(date, orgStructureList, self.isNarrowSpec, self.narrowPersonsList, self.clientsWithDn)
             self.lblOpenedTempInvalidDocuments.setText(u"Открытые листы нетрудоспособности: %d" % self.modelOpenedTempInvalidDocuments.realRowCount())
             self.modelForCloseTempInvalidDocuments.loadData(date, orgStructureList, self.isNarrowSpec, self.narrowPersonsList, self.clientsWithDn)
@@ -348,7 +352,6 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
     def on_tableViewClicked(self, index):
         if index.isValid():
             for tbl in [self.tblEmergencyCalls,
-                        self.tblAmbulanceCalls,
                         self.tblOpenedTempInvalidDocuments,
                         self.tblForCloseTempInvalidDocuments,
                         self.tblDeaths,
@@ -365,6 +368,10 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
 
 
 class CSMPTableModel(CRecordListModel):
+    emergencyColor = '#2D8659'
+    ambulanceColor =  '#8FFFB0'
+    ambulanceActiveColor =  '#55AAFF'
+
     def __init__(self, parent, callType=0):
         CRecordListModel.__init__(self, parent)
         self.addCol(CTextInDocTableCol(u'ФИО', 'clientName', 100, readOnly=True))
@@ -374,6 +381,7 @@ class CSMPTableModel(CRecordListModel):
         self.addCol(CTextInDocTableCol(u'Диагноз', 'diseaseBasic', 150, readOnly=True))
         self.addCol(CTextInDocTableCol(u'Адрес вызова', 'address', 150, readOnly=True))
         self.addHiddenCol('client_id')
+        self.addHiddenCol('Type')
         self.callType = callType
 
     def loadData(self, date=QDate().currentDate(), orgStructureIdList=None, isNarrowSpec=False, narrowPersonList=None):
@@ -398,7 +406,7 @@ class CSMPTableModel(CRecordListModel):
             queryTable = queryTable.leftJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnostic['dispanser_id']))
             queryTable = queryTable.leftJoin(tableMedicalAidType, tableMedicalAidType['id'].eq(tableEventType['medicalAidType_id']))
 
-            cond = [table['Type'].eq(self.callType),
+            cond = [table['Type'].inlist([0,1,2]),        #eq(self.callType),
                     table['callDate'].eq(date),
                     tableMedicalAidType['code'].notInlist([1, 7]),
                     tableDispanser['code'].inlist([1, 2, 6]),
@@ -424,7 +432,8 @@ class CSMPTableModel(CRecordListModel):
                       IF(smp_callinfo.houseFract = '', NULL, smp_callinfo.houseFract),
                       IF(smp_callinfo.building = '', NULL, smp_callinfo.building),
                       IF(smp_callinfo.flat = '', NULL, CONCAT('кв. ', smp_callinfo.flat))) AS address""",
-                    tableClient['id'].alias('client_id')]
+                    tableClient['id'].alias('client_id'),
+                    u'smp_callinfo.Type as Type']
         else:
             table = db.table('smp_callinfo')
             tableClient = db.table('Client')
@@ -442,7 +451,7 @@ class CSMPTableModel(CRecordListModel):
                                 WHERE client_id = Client.id
                                   AND ClientAttach.deleted = 0
                                   AND NOT rbAttachType.TEMPORARY)""")
-            cond = [table['Type'].eq(self.callType),
+            cond = [table['Type'].inlist([0,1,2]),    #.eq(self.callType),
                     table['callDate'].eq(date),
                     tableClientAttach['orgStructure_id'].inlist(orgStructureIdList)]
 
@@ -457,10 +466,22 @@ class CSMPTableModel(CRecordListModel):
                       IF(smp_callinfo.houseFract = '', NULL, smp_callinfo.houseFract),
                       IF(smp_callinfo.building = '', NULL, smp_callinfo.building),
                       IF(smp_callinfo.flat = '', NULL, CONCAT('кв. ', smp_callinfo.flat))) AS address""",
-                    tableClient['id'].alias('client_id')]
+                    tableClient['id'].alias('client_id'),
+                    u'smp_callinfo.Type as Type']
         items = db.getRecordListGroupBy(queryTable, cols, where=cond, group='smp_callinfo.id', order='clientName')
         self.setItems(items)
 
+    def data(self, index, role=Qt.DisplayRole):
+        row = index.row()
+        if role == Qt.BackgroundColorRole:
+            if self.value(row,'Type') == 0:
+                return toVariant(QtGui.QColor(self.emergencyColor))
+            if self.value(row,'Type') == 1:
+                return toVariant(QtGui.QColor(self.ambulanceColor))
+            if self.value(row,'Type') == 2:
+                return toVariant(QtGui.QColor(self.ambulanceActiveColor))
+
+        return CRecordListModel.data(self, index, role)
 
 class CTempInvalidDocumentTableModel(CRecordListModel):
 
@@ -731,7 +752,7 @@ class CLeavedStationaryTableModel(CRecordListModel):
             queryTable = queryTable.leftJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnostic['dispanser_id']))
             queryTable = queryTable.leftJoin(tableMedicalAidType, tableMedicalAidType['id'].eq(tableEventType['medicalAidType_id']))
             cond = [tableClient['deleted'].eq(0),
-                    table['endDate'].ge(date.addDays(-3)),
+                    table['endDate'].ge(date.addDays(-9)),
                     table['endDate'].lt(date.addDays(1)),
                     table['category_display'].eq(u'стационарный'),
                     tableEvent['deleted'].eq(0),
@@ -780,7 +801,7 @@ class CLeavedStationaryTableModel(CRecordListModel):
             queryTable = table.leftJoin(tableClient, tableClient['id'].eq(table['client_id']))
             queryTable = queryTable.leftJoin(tableMKB, tableMKB['DiagID'].eq(table['mkb']))
             cond = [tableClient['deleted'].eq(0),
-                    table['endDate'].ge(date.addDays(-3)),
+                    table['endDate'].ge(date.addDays(-9)),
                     table['endDate'].lt(date.addDays(1)),
                     table['category_display'].eq(u'стационарный'),
                     table['orgStructure_id'].inlist(orgStructureIdList)]

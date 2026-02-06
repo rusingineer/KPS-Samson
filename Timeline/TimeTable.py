@@ -34,7 +34,28 @@ def formatTimeRange(range): # должно переехать. куда-нибу
         return ''
 
 
-def checkDurationAndCapacity(value, parent, checkCapacity=False, begTime=None, endTime=None):
+def checkDurationAndCapacity(value, parent, appointmentPurposeId, appointmentType,checkCapacity=False, begTime=None, endTime=None, diffMessage=False, isFreeToChange=True):
+    #Если назначение приёма "На дому", то пропускаем проверку
+    if appointmentType == 2:
+        return False
+    #Если финансирование не ОМС, то проверка пропускается
+    if appointmentPurposeId:
+        tableAppointment = QtGui.qApp.db.table('rbAppointmentPurpose')
+        tableFinance = QtGui.qApp.db.table('rbFinance')
+        table = tableAppointment.innerJoin(tableFinance, tableFinance['id'].eq(tableAppointment['finance_id']))
+        record = QtGui.qApp.db.getRecordEx(table, [tableFinance['code']],
+                                           [tableAppointment['id'].eq(appointmentPurposeId)])
+
+        if record and record.value('code') != 2:
+            return False
+
+    if not diffMessage:
+        messageHeader = u''
+        messageFooter = u''
+    else:
+        messageHeader = u'Недопустимое количество талонов в копируемой записи!\n'
+        messageFooter = u'\n(в случае отмены запись вставлена не будет)'
+
     if not checkCapacity:
         time = forceTime(value)
         zeroDuration = QTime.fromString('00:00', 'hh:mm')
@@ -43,15 +64,22 @@ def checkDurationAndCapacity(value, parent, checkCapacity=False, begTime=None, e
             maxTime = QTime.fromString('00:50', 'hh:mm')
             if not (minTime <= time <= maxTime):
                 allowedTime = max(minTime if (minTime > time) else 0, maxTime if (time > maxTime) else 0)
-                if QtGui.QMessageBox.question(parent, u'Внимание!',
-                                              u'Длительность одного талона не может быть {0} {1} минут.\n'
-                                              u'Установить длительность {1} минут?'.format(
-                                                  u'менее' if allowedTime.minute() == 5 else u'более',
-                                                  allowedTime.minute()),
-                                              QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                              QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                    return toVariant(allowedTime)
+                if isFreeToChange:
+                    if QtGui.QMessageBox.question(parent, u'Внимание!',
+                                                  u'{2}Длительность одного талона не может быть {0} {1} минут.\n'
+                                                  u'Установить длительность {1} минут?{3}'.format(
+                                                      u'менее' if allowedTime.minute() == 5 else u'более',
+                                                      allowedTime.minute(), messageHeader, messageFooter),
+                                                  QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                  QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                        return toVariant(allowedTime)
+                    else:
+                        return toVariant(zeroDuration)
                 else:
+                    QtGui.QMessageBox.information(parent,
+                                                  u'Внимание!',
+                                                  u'Обнаружен записанный пациент, изменение невозможно!',
+                                                  QtGui.QMessageBox.Ok)
                     return toVariant(zeroDuration)
         else:
             return False
@@ -70,25 +98,100 @@ def checkDurationAndCapacity(value, parent, checkCapacity=False, begTime=None, e
                         formMassage = u'не менее'
                         formMassage1 = u'более 50 минут'
                         allowedCapacity = int(ceil(float(workPeriodDuration) / 3000.0))
-                    if QtGui.QMessageBox.question(parent, u'Внимание!',
-                                                  u'Длительность одного талона не может быть {2}.\n'
-                                                  u'Согласно требованиям доступно {0} {1} талона(ов), создать?'.format(
-                                                      formMassage, allowedCapacity, formMassage1),
-                                                  QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                                  QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                        return toVariant(allowedCapacity)
+                    if isFreeToChange:
+                        if QtGui.QMessageBox.question(parent, u'Внимание!',
+                                                      u'{3}Длительность одного талона не может быть {2}.\n'
+                                                      u'Согласно требованиям доступно {0} {1} талона(ов), создать?{4}'.format(
+                                                          formMassage, allowedCapacity, formMassage1, messageHeader,
+                                                          messageFooter),
+                                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                            return toVariant(allowedCapacity)
+                        else:
+                            return toVariant(0)
                     else:
+                        QtGui.QMessageBox.information(parent,
+                                                      u'Внимание!',
+                                                      u'Обнаружен записанный пациент, изменение невозможно!',
+                                                      QtGui.QMessageBox.Ok)
                         return toVariant(0)
             else:
+                QtGui.QMessageBox.information(parent,
+                                              u'Внимание!',
+                                              u'Значение "План" введено, но отсутствует время начала и конца!',
+                                              QtGui.QMessageBox.Ok)
                 return toVariant(0)
         else:
             return False
+
+
+def getSchedulesListForDate(scheduleItems, excludedSchedule, isTemplate, isDict=False):
+    schedulesList = []
+    if not isTemplate:
+        searchDate = excludedSchedule.date if not isDict else excludedSchedule.get('date')
+    else:
+        searchDate = excludedSchedule.day if not isDict else excludedSchedule.get('day')
+    for schedule in scheduleItems:
+        scheduleDay = schedule.date if not isTemplate else schedule.day
+        if scheduleDay == searchDate:
+            if not isDict and schedule != excludedSchedule and schedule.appointmentType != 2:
+                schedulesList.append(schedule)
+            elif isDict and schedule.appointmentType != 2:
+                schedulesList.append(schedule)
+    return schedulesList
+
+
+def isShedulesOverlap(excludedSchedule, scheduleItems, isTemplate=False, begTime=None, endTime=None, newAppointmentType=None, isInesrtFromClipboard=False, isUseScheduleItems=False):
+    """
+    Проверка пересечения периодов в контексте одного дня.
+    """
+    if QtGui.qApp.isReStagingInQueue():
+        return False
+
+    isDict = True if isinstance(excludedSchedule, dict) else False
+
+    if not newAppointmentType:
+        appointmentType = excludedSchedule.appointmentType if not isDict else excludedSchedule.get('appointmentType')
+    else:
+        appointmentType = newAppointmentType
+    if appointmentType == 2:
+        return False
+
+    begTime = begTime if begTime else excludedSchedule.begTime if not isDict else excludedSchedule.get('begTime')
+    endTime = endTime if endTime else excludedSchedule.endTime if not isDict else excludedSchedule.get('endTime')
+
+    if not (begTime or endTime) or (begTime in (QTime(0, 0), QTime()) or endTime in (QTime(0, 0), QTime())):
+        return False
+
+    if isInesrtFromClipboard:
+        for schedule in scheduleItems:
+            if not isTemplate:
+                if schedule != excludedSchedule and schedule.get('appointmentType') != 2 and schedule.get('date') == excludedSchedule.get('date'):
+                    if (schedule.get('begTime') < begTime < schedule.get('endTime')) or (schedule.get('begTime') < endTime <= schedule.get('endTime')) or (begTime <= schedule.get('begTime') and endTime >= schedule.get('endTime')):
+                        return True
+            else:
+                if schedule != excludedSchedule and schedule.appointmentType != 2 and schedule.day == excludedSchedule.day:
+                    if (schedule.begTime < begTime < schedule.endTime) or (schedule.begTime < endTime <= schedule.endTime) or (begTime <= schedule.begTime and endTime >= schedule.endTime):
+                        return True
+        return False
+
+    schedulesList = getSchedulesListForDate(scheduleItems, excludedSchedule, isTemplate, isDict) if not isUseScheduleItems else scheduleItems
+
+    for schedule in schedulesList:
+        overlap = (schedule.begTime < begTime < schedule.endTime) or (schedule.begTime < endTime <= schedule.endTime) or (begTime <= schedule.begTime and endTime >= schedule.endTime)
+        overlap = overlap if not isUseScheduleItems else overlap and schedule != excludedSchedule
+        if overlap:
+            return True
+
+    return False
 
 
 class CTimeTableModel(CRecordListModel):
     def __init__(self, parent):
         CRecordListModel.__init__(self, parent)
         self.addCol(CRBLikeEnumInDocTableCol(u'Тип', 'appointmentType',  7, CSchedule.atNames, showFields=CRBComboBox.showName)).setToolTip(u'Тип приёма')
+        self.addCol(CRBInDocTableCol(u'Вид деятельности', 'activity_id', 10, 'rbActivity')).setToolTip(
+            u'Вид деятельности')
         self.addCol(CRBInDocTableCol(u'Назначение', 'appointmentPurpose_id', 10, 'rbAppointmentPurpose', showFields=CRBComboBox.showCodeAndName)).setToolTip(u'Назначение приёма')
         self.addCol(CInDocTableCol(u'Каб.', 'office', 5)).setToolTip(u'Кабинет')
         self.addCol(CNotCleanTimeInDocTableCol(u'Начало', 'begTime', 10)).setToolTip(u'Время начала приёма')
@@ -97,12 +200,15 @@ class CTimeTableModel(CRecordListModel):
         self.addCol(CIntInDocTableCol(u'План', 'capacity', 5, low=0, high=999)).setToolTip(u'Плановое количество пациентов')
         self.addCol(CIntInDocTableCol(u'Факт', 'done', 5, low=0, high=999)).setToolTip(u'Фактическое количестово пациентов')
         self.addCol(CNotCleanTimeInDocTableCol(u'Факт.время', 'doneTime', 10)).setToolTip(u'Фактическая длительность приёма')
+        self.addExtCol(CIntInDocTableCol(u'К-во свободных талонов', 'freeCount', 10), QVariant.Int).setReadOnly(True)
         self.addCol(CRBInDocTableCol(u'Причина отсутствия', 'reasonOfAbsence_id', 10, 'rbReasonOfAbsence', showFields=CRBComboBox.showCodeAndName))
-        self.addCol(CRBInDocTableCol(u'Вид деятельности',  'activity_id',  10,  'rbActivity')).setToolTip(u'Вид деятельности')
 
         self.personId = self.year = self.month = self.begDate = None
         self.daysInMonth = 0
         self.redDays = []
+
+        self.onSetWorkPlanSkippedDays = []
+        self.idToPaste = -1
 
         # статистика:
         self.numDays =  self.numAbsenceDays = self.numServDays = \
@@ -146,85 +252,130 @@ class CTimeTableModel(CRecordListModel):
         column = index.column()
         schedule = self.getItem(index.row())
         if not schedule.isFreeToChange():
-            return (not column == 1 and column<=6) or column == 10 # 6 - это capacity
-        if column == 6:
-            return schedule.duration.secsTo(QTime()) != 0
+            if (not column == self.getColIndex('appointmentPurpose_id') and column <= self.getColIndex(
+                    'capacity')) or column == self.getColIndex('activity_id'):  # 6 - это capacity
+                return u'Изменение запрещено, так как в очереди уже есть пациенты'
+        if column == self.getColIndex('capacity'):
+            if schedule.duration.secsTo(QTime()) != 0:
+                return u'Изменение запрещено, так как указана длительность'
         return False
 
 
     def data(self, index, role=Qt.EditRole):
+        column = index.column()
         if role == Qt.FontRole:
-            if self.cellReadOnly(index):
+            if self.cellReadOnly(index) or column == self.getColIndex('freeCount'):
                 result = QtGui.QFont()
                 result.setItalic(True)
                 return QVariant(result)
         if role == Qt.ToolTipRole:
-            if self.cellReadOnly(index):
-                return QVariant(u'Изменение запрещено, так как в очереди уже есть пациенты')
+            message = self.cellReadOnly(index)
+            if message:
+                return QVariant(message)
+        if role == Qt.DisplayRole:
+            if column == self.getColIndex('freeCount'):
+                schedule = self.getItem(index.row())
+                return QVariant(schedule.capacity - schedule.getQueuedClientsCount())
+        if column == self.getColIndex('freeCount'):
+            return QVariant()
         return CRecordListModel.data(self, index, role)
 
 
     def setData(self, index, value, role=Qt.EditRole):
         column = index.column()
-        if column in (3, 4, 5, 6): # время, период и план
+        # if column in (3, 4, 5, 6): # время, период и план
+        if column in (self.getColIndex('begTime'), self.getColIndex('endTime'), self.getColIndex('duration'), self.getColIndex('capacity')):  # время, период и план
             row = index.row()
             schedule = self._items[row]
             if not schedule.isFreeToChange():
                 return False
-            if column == 3:
+            if column == self.getColIndex('begTime'):
                 begTime = forceTime(value)
                 if begTime != schedule.begTime:
-                    if schedule.capacity != 0 and schedule.duration == QTime.fromString('00:00', 'hh:mm'):
-                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, begTime, schedule.endTime)
-                        if checkCapacity:
-                            schedule.capacity = checkCapacity
-            if column == 4:
+                    if isShedulesOverlap(schedule, self._items, begTime=begTime):
+                        QtGui.QMessageBox.information(self._parent,
+                                                      u'Внимание!',
+                                                      u'Обнаружено пересечение периодов в рамках выбранного дня,\nвремя начала будет возвращено к прежнему значению!',
+                                                      QtGui.QMessageBox.Ok)
+                        value = schedule.begTime
+                    else:
+                        if schedule.capacity != 0 and schedule.duration in (QTime(0, 0), QTime()):
+                            checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, begTime, schedule.endTime)
+                            if checkCapacity:
+                                schedule.capacity = checkCapacity
+            if column == self.getColIndex('endTime'):
                 endTime = forceTime(value)
                 if endTime != schedule.endTime:
-                    if schedule.capacity != 0 and schedule.duration == QTime.fromString('00:00', 'hh:mm'):
-                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, schedule.begTime, endTime)
-                        if checkCapacity:
-                            schedule.capacity = checkCapacity
-            if column == 5:
-                checkValue = checkDurationAndCapacity(value, self._parent)
+                    if isShedulesOverlap(schedule, self._items, endTime=endTime):
+                        QtGui.QMessageBox.information(self._parent,
+                                                      u'Внимание!',
+                                                      u'Обнаружено пересечение периодов в рамках выбранного дня,\nвремя окончания будет возвращено к прежнему значению!',
+                                                      QtGui.QMessageBox.Ok)
+                        value = schedule.endTime
+                    else:
+                        if schedule.capacity != 0 and schedule.duration in (QTime(0, 0), QTime()):
+                            checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, schedule.begTime, endTime)
+                            if checkCapacity:
+                                schedule.capacity = checkCapacity
+            if column == self.getColIndex('duration'):
+                checkValue = checkDurationAndCapacity(value, self._parent, schedule.appointmentPurposeId, schedule.appointmentType)
                 if checkValue:
                     value = checkValue
-            if column == 6:
-                checkValue = checkDurationAndCapacity(value, self._parent, True, schedule.begTime, schedule.endTime)
+            if column == self.getColIndex('capacity'):
+                checkValue = checkDurationAndCapacity(value, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, schedule.begTime, schedule.endTime)
                 if checkValue:
                     value = checkValue
             schedule.cleanItems()
-        if column == 1: # назначение приема
+        if column == self.getColIndex('appointmentPurpose_id'): # назначение приема
             row = index.row()
             schedule = self._items[row]
-            if value != schedule.appointmentPurposeId and schedule.items:
-                if forceRef(value):
-                    appointment = forceString(QtGui.qApp.db.translate('rbAppointmentPurpose', 'id', value, 'name'))
-                    message = u'Применить назначение приёма "{0}" для номерков с НЕ заполненным назначением?'.format(appointment)
-                else:
-                    message = u'Удалить назначение приема из всех номерков в периоде?'
+            if value != schedule.appointmentPurposeId:
+                checkValue = schedule.capacity
+                checkCapacity = True
+                if schedule.duration not in (QTime(0, 0), QTime()):
+                    checkValue = schedule.duration
+                    checkCapacity = False
+                if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
+                    checkResult = checkDurationAndCapacity(checkValue, self._parent, value, schedule.appointmentType, checkCapacity, schedule.begTime, schedule.endTime, False, schedule.isFreeToChange())
+                    if not checkResult:
+                        if schedule.items:
+                            if forceRef(value):
+                                appointment = forceString(QtGui.qApp.db.translate('rbAppointmentPurpose', 'id', value, 'name'))
+                                message = u'Применить назначение приёма "{0}" для номерков с НЕ заполненным назначением?'.format(appointment)
+                            else:
+                                message = u'Удалить назначение приема из всех номерков в периоде?'
 
-                if QtGui.QMessageBox.question(QtGui.qApp.mainWindow,
-                                              u'Внимание!',
-                                              message,
-                                              QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                              QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                    for item in schedule.items:
-                        if (item.appointmentPurposeId is None or forceRef(value) is None) and item.clientId is None:
-                            item.appointmentPurposeId = value
-                            
-                if forceRef(value):
-                    message = u'Применить назначение приёма "{0}" для номерков с заполненным назначением?'.format(appointment)
-                    if QtGui.QMessageBox.question(QtGui.qApp.mainWindow,
-                                                    u'Внимание!',
-                                                    message,
-                                                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                                    QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                        for item in schedule.items:
-                            if item.clientId is None and item.appointmentPurposeId:
-                                item.appointmentPurposeId = value
-                        return CRecordListModel.setData(self, index, value, role)
-        if column == 9 and (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)) and forceInt(value) != 0:
+                            if QtGui.QMessageBox.question(QtGui.qApp.mainWindow,
+                                                          u'Внимание!',
+                                                          message,
+                                                          QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                          QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                                for item in schedule.items:
+                                    if (item.appointmentPurposeId is None or forceRef(value) is None) and item.clientId is None:
+                                        item.appointmentPurposeId = value
+
+                            if forceRef(value):
+                                message = u'Применить назначение приёма "{0}" для номерков с заполненным назначением?'.format(appointment)
+                                if QtGui.QMessageBox.question(QtGui.qApp.mainWindow,
+                                                                u'Внимание!',
+                                                                message,
+                                                                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                                                QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                                    for item in schedule.items:
+                                        if item.clientId is None and item.appointmentPurposeId:
+                                            item.appointmentPurposeId = value
+                            return CRecordListModel.setData(self, index, value, role)
+
+                    else:
+                        if schedule.isFreeToChange() and checkResult not in (0, QTime(0,0)):
+                            schedule.cleanItems()
+                            if checkCapacity:
+                                schedule.capacity = checkResult
+                            else:
+                                schedule.duration = checkResult
+                        else:
+                            value = schedule.appointmentPurposeId
+        if column == self.getColIndex('reasonOfAbsence_id') and (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)) and forceInt(value) != 0:
             #print(forceInt(value))# Причина отсутствия
             row = index.row()
             item = self._items[row]
@@ -243,6 +394,35 @@ class CTimeTableModel(CRecordListModel):
                 }
                 dialog.loadData(data)
                 dialog.exec_()
+        if column == self.getColIndex('appointmentType'):
+            row = index.row()
+            schedule = self._items[row]
+            if value != schedule.appointmentType and value != schedule.atHome:
+                if isShedulesOverlap(schedule, self._items, newAppointmentType=value):
+                    QtGui.QMessageBox.information(self._parent,
+                                                  u'Внимание!',
+                                                  u'Обнаружено пересечение периодов в рамках выбранного дня,\nТип периода будет возвращен к прежнему значению!',
+                                                  QtGui.QMessageBox.Ok)
+                    value = schedule.appointmentType
+                else:
+                    checkValue = schedule.capacity
+                    checkCapacity = True
+                    if schedule.duration not in (QTime(0, 0), QTime()):
+                        checkValue = schedule.duration
+                        checkCapacity = False
+                    if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
+                        checkResult = checkDurationAndCapacity(checkValue, self._parent, schedule.appointmentPurposeId, value, checkCapacity,
+                                                               schedule.begTime, schedule.endTime, False,
+                                                               schedule.isFreeToChange())
+                        if checkResult:
+                            if schedule.isFreeToChange() and checkResult not in (0, QTime(0, 0)):
+                                schedule.cleanItems()
+                                if checkCapacity:
+                                    schedule.capacity = checkResult
+                                else:
+                                    schedule.duration = checkResult
+                            else:
+                                value = schedule.appointmentType
         return CRecordListModel.setData(self, index, value, role)
 
 
@@ -436,6 +616,7 @@ class CTimeTableModel(CRecordListModel):
         for newItemData in data:
             minDay = min(minDay, newItemData['date'].day())
 
+        removedDays = []
         for newItemData in data:
             # id - не нужно
             del newItemData['id']
@@ -452,6 +633,33 @@ class CTimeTableModel(CRecordListModel):
             pasteDate = QDate(self.year, self.month, pasteDay)
             dateShift = copyDate.daysTo(pasteDate)
             newItemData['date'] = pasteDate
+
+            #Проверка на пересечение периодов
+            if isShedulesOverlap(newItemData, data, isInesrtFromClipboard=True) or isShedulesOverlap(newItemData, self._items, False, newItemData['begTime'], newItemData['endTime']):
+                removedDays.append(forceString(pasteDay)) if forceString(pasteDay) not in removedDays else None
+                continue
+
+            checkValue = None
+            checkCapacity = True
+            if newItemData['capacity']:
+                checkValue = newItemData['capacity']
+            elif newItemData['duration'] != QTime(0,0):
+                checkValue = newItemData['duration']
+                checkCapacity = False
+
+            if checkValue:
+                checkResult = checkDurationAndCapacity(checkValue, self._parent, newItemData['appointmentPurpose_id'], newItemData['appointmentType'], checkCapacity,
+                                         newItemData['begTime'], newItemData['endTime'], True)
+                if checkResult:
+                    if checkResult not in (0,QTime(0,0)):
+                        if checkCapacity:
+                            newItemData['capacity'] = checkResult
+                            newItemData['items'] = []
+                        else:
+                            newItemData['duration'] = checkResult
+                            newItemData['items'] = []
+                    else:
+                        return
             # schedule item-ы:
             #   во-первых - отфильтруем overtime
             #   во-вторых - скопируем только time, а idx - подделаем
@@ -471,6 +679,13 @@ class CTimeTableModel(CRecordListModel):
             item.setDict(newItemData)
             dayItems = pasteByDay.setdefault(item.date.day(), [])
             dayItems.append(item)
+
+        if removedDays:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов во вставляемых записях,\nотменены вставки в {1}: {0}!'.format(
+                                              u', '.join(removedDays), u"дне" if len(removedDays) == 1 else u"днях"),
+                                          QtGui.QMessageBox.Ok)
 
         for day, pasteItems in pasteByDay.iteritems():
             groupByDay[day] = mergeItems(groupByDay.get(day, []), pasteItems)
@@ -510,7 +725,7 @@ class CTimeTableModel(CRecordListModel):
         return filter(filterExpr, schedules)
 
 
-    def _addSchedulesFromTemplates(self, existingSchedules, date, templates):
+    def _addSchedulesFromTemplates(self, existingSchedules, date, templates, removeExistingSchedules):
         result = existingSchedules
         for template in templates:
             if template.appointmentType:
@@ -525,7 +740,13 @@ class CTimeTableModel(CRecordListModel):
                 schedule.duration = template.duration
                 schedule.capacity = template.capacity
                 schedule.activityId = template.activityId
-                result.append(schedule)
+                schedule.id = self.idToPaste
+                self.idToPaste -= 1
+                if not isShedulesOverlap(schedule, self._items) or removeExistingSchedules:
+                    schedule.id = None
+                    result.append(schedule)
+                else:
+                    self.onSetWorkPlanSkippedDays.append(forceString(schedule.date)) if forceString(schedule.date) not in self.onSetWorkPlanSkippedDays else None
         result.sort(key=lambda schedule: (schedule.begTime, schedule.appointmentType))
         if not result:
             result.append(self.getEmptyItem(date))
@@ -533,44 +754,73 @@ class CTimeTableModel(CRecordListModel):
 
 
     def setWorkPlan(self, (begDate, endDate), period, customLength, fillRedDays, sheduleTemplates, removeExistingSchedules):
-        groupByDay = self._getGroupByDay()
-
-        templateByDay = {}
-        for template in sheduleTemplates:
-            day = template.day
-            templateByDay.setdefault(day, []).append(template)
-
-        periodLength = getPeriodLength(period, customLength)
-        if period in (0, 1, 2): # 1 день, 2 дня или "произвольный":
-            for day in xrange(begDate.day(), endDate.day()+1):
-                date = QDate(self.year, self.month, day)
-                if fillRedDays or day not in self.redDays:
-                    templates = templateByDay[(day-1)%periodLength]
-                else:
-                    templates = []
-                groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates)
-        elif period in (3, 4, 5, 6): # неделя, две, три или четыре
-            # В соответствии с ISO 8601, недели начинаются с понедельника
-            # и первый четверг года всегда находится в первой неделе этого года.
-            firstDayOfMonth = QDate(begDate.year(), begDate.month(), 1)
-            firstMondayOfMonth = firstDayOfMonth.addDays((0, -1, -2, -3, 3, 2, 1)[firstDayOfMonth.dayOfWeek()-1])
-            for day in xrange(begDate.day(), endDate.day()+1):
-                date = QDate(self.year, self.month, day)
-                idx = firstMondayOfMonth.daysTo(date) % periodLength
-                if fillRedDays or day not in self.redDays:
-                    templates = templateByDay[idx]
-                else:
-                    templates = []
-                groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates)
-        self._setGroupByDay(groupByDay)
+        self.onSetWorkPlanSkippedDays = []
+        selectedInCalendarDate = self._parent.calendar.selectedDate()
+        if begDate.year() != self.year or begDate.month() != self.month:
+            self.setPersonAndMonth(self.personId, begDate.year(), begDate.month())
+        monthsCount = (endDate.year() - begDate.year()) * 12 + (endDate.month() - begDate.month())
+        for _ in xrange(monthsCount + 1):
+            groupByDay = self._getGroupByDay()
+            templateByDay = {}
+            for template in sheduleTemplates:
+                day = template.day
+                templateByDay.setdefault(day, []).append(template)
+            periodLength = getPeriodLength(period, customLength)
+            begDay = begDate.day() if self.month == begDate.month() else 1
+            endDay = endDate.day() if self.month == endDate.month() else QDate(self.year, self.month, 1).daysInMonth()
+            if period in (0, 1, 2): # 1 день, 2 дня или "произвольный":
+                for day in xrange(begDay, endDay+1):
+                    date = QDate(self.year, self.month, day)
+                    if fillRedDays or day not in self.redDays:
+                        templates = templateByDay[(day-1)%periodLength]
+                    else:
+                        templates = []
+                    groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates, removeExistingSchedules)
+            elif period in (3, 4, 5, 6): # неделя, две, три или четыре
+                # В соответствии с ISO 8601, недели начинаются с понедельника
+                # и первый четверг года всегда находится в первой неделе этого года.
+                firstDayOfMonth = QDate(self.year, self.month, 1)
+                firstMondayOfMonth = firstDayOfMonth.addDays((0, -1, -2, -3, 3, 2, 1)[firstDayOfMonth.dayOfWeek() - 1])
+                for day in xrange(begDay, endDay + 1):
+                    date = QDate(self.year, self.month, day)
+                    idx = firstMondayOfMonth.daysTo(date) % periodLength
+                    if fillRedDays or day not in self.redDays:
+                        templates = templateByDay[idx]
+                    else:
+                        templates = []
+                    groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates, removeExistingSchedules)
+            self._setGroupByDay(groupByDay)
+            if not self.month == endDate.month():
+                nextDate = QDate(self.year, self.month, 1).addMonths(1)
+                self.setPersonAndMonth(self.personId, nextDate.year(), nextDate.month())
+            elif monthsCount > 0:
+               #self._parent.calendar.setSelectedDate(endDate)
+                self._parent.calendar.setSelectedDate(selectedInCalendarDate)
+        if self.onSetWorkPlanSkippedDays and len(self.onSetWorkPlanSkippedDays) <= 10:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов в заполняемых днях,\nотменено заполнение в {1}: {0}!'.format(
+                                              u', '.join(self.onSetWorkPlanSkippedDays), u"дне" if len(self.onSetWorkPlanSkippedDays) == 1 else u"днях"),
+                                          QtGui.QMessageBox.Ok)
+        elif self.onSetWorkPlanSkippedDays:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов в заполняемых днях,\nотменено заполнение пересекающихся периодов!',
+                                          QtGui.QMessageBox.Ok)
 
 
     def setFlexWorkPlan(self, dates, sheduleTemplates, removeExistingSchedules):
+        self.onSetWorkPlanSkippedDays = []
         groupByDay = self._getGroupByDay()
         for date in dates:
             day = date.day()
-            groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, sheduleTemplates)
+            groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, sheduleTemplates, removeExistingSchedules)
         self._setGroupByDay(groupByDay)
+        if self.onSetWorkPlanSkippedDays:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов в заполняемом дне,\nотменено заполнение пересекающихся периодов!',
+                                          QtGui.QMessageBox.Ok)
 
 
     def fillTime(self):

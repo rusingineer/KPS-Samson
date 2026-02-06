@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/natkuch/s11/Registry/ResourcesDockContent.ui'
+# Form implementation generated from reading ui file 'C:\Projects\Samson\UP_s11\client_test\Registry\ResourcesDockContent.ui'
 #
-# Created: Tue Nov 13 17:12:14 2018
-#      by: PyQt4 UI code generator 4.10.3
+# Created: Thu Jul 24 17:17:23 2025
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -26,14 +26,13 @@ except AttributeError:
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName(_fromUtf8("Form"))
-        Form.resize(202, 720)
+        Form.resize(280, 720)
         self.hboxlayout = QtGui.QHBoxLayout(Form)
         self.hboxlayout.setSpacing(0)
         self.hboxlayout.setMargin(0)
         self.hboxlayout.setObjectName(_fromUtf8("hboxlayout"))
         self.splitterMain = QtGui.QSplitter(Form)
         self.splitterMain.setOrientation(QtCore.Qt.Vertical)
-        self.splitterMain.setChildrenCollapsible(False)
         self.splitterMain.setObjectName(_fromUtf8("splitterMain"))
         self.splitterOrgs = QtGui.QSplitter(self.splitterMain)
         self.splitterOrgs.setOrientation(QtCore.Qt.Horizontal)
@@ -44,7 +43,16 @@ class Ui_Form(object):
         self.treeOrgStructure.setObjectName(_fromUtf8("treeOrgStructure"))
         self.treeOrgPersonnel = CTreeView(self.splitterOrgs)
         self.treeOrgPersonnel.setObjectName(_fromUtf8("treeOrgPersonnel"))
-        self.calendarWidget = CCalendarWidget(self.splitterMain)
+        self.frame = QtGui.QFrame(self.splitterMain)
+        self.frame.setFrameShape(QtGui.QFrame.NoFrame)
+        self.frame.setFrameShadow(QtGui.QFrame.Raised)
+        self.frame.setLineWidth(0)
+        self.frame.setObjectName(_fromUtf8("frame"))
+        self.verticalLayout_3 = QtGui.QVBoxLayout(self.frame)
+        self.verticalLayout_3.setSpacing(0)
+        self.verticalLayout_3.setMargin(0)
+        self.verticalLayout_3.setObjectName(_fromUtf8("verticalLayout_3"))
+        self.calendarWidget = CCalendarWidget(self.frame)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -52,6 +60,10 @@ class Ui_Form(object):
         self.calendarWidget.setSizePolicy(sizePolicy)
         self.calendarWidget.setFirstDayOfWeek(QtCore.Qt.Monday)
         self.calendarWidget.setObjectName(_fromUtf8("calendarWidget"))
+        self.verticalLayout_3.addWidget(self.calendarWidget)
+        self.chkShowSchedulesForSelectedDate = QtGui.QCheckBox(self.frame)
+        self.chkShowSchedulesForSelectedDate.setObjectName(_fromUtf8("chkShowSchedulesForSelectedDate"))
+        self.verticalLayout_3.addWidget(self.chkShowSchedulesForSelectedDate)
         self.tabPlace = QtGui.QTabWidget(self.splitterMain)
         self.tabPlace.setTabShape(QtGui.QTabWidget.Rounded)
         self.tabPlace.setObjectName(_fromUtf8("tabPlace"))
@@ -100,19 +112,10 @@ class Ui_Form(object):
 
     def retranslateUi(self, Form):
         Form.setWindowTitle(_translate("Form", "Form", None))
+        self.chkShowSchedulesForSelectedDate.setText(_translate("Form", "На дату", None))
         self.tabPlace.setTabText(self.tabPlace.indexOf(self.tabAmbulatory), _translate("Form", "Амбулаторно", None))
         self.tabPlace.setTabText(self.tabPlace.indexOf(self.tabHome), _translate("Form", "На дому", None))
 
 from library.CalendarWidget import CCalendarWidget
 from library.TreeView import CTreeView
 from library.TableView import CTableView
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    Form = QtGui.QWidget()
-    ui = Ui_Form()
-    ui.setupUi(Form)
-    Form.show()
-    sys.exit(app.exec_())
-

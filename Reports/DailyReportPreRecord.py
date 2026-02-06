@@ -43,10 +43,10 @@ def selectData(params):
     condJT = [tableJobTicket['datetime'].dateEq(tableScheduleItem['time'])]
     if begDate:
         cond.append(tableSchedule['date'].ge(begDate))
-        condJT.append(tableJobTicket['datetime'].dateGe(begDate))
+        condJT.append(tableJobTicket['datetime'].ge(begDate))
     if endDate:
         cond.append(tableSchedule['date'].le(endDate))
-        condJT.append(tableJobTicket['datetime'].dateLe(endDate))
+        condJT.append(tableJobTicket['datetime'].lt(endDate.addDays(1)))
     if orgStructureId:
         orgStructureIdList = getOrgStructureDescendants(orgStructureId)
         cond.append(tablePerson['orgStructure_id'].inlist(orgStructureIdList))

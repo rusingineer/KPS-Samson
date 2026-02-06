@@ -17,6 +17,8 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QObject, QTime, QString, pyqtSignature, SIGNAL
 
+from Orgs.Utils import getPersonListByEventtypeId, getOrgstructureListByEventtypeId, \
+    checkPersonByDefaultSettingsFromEventtype
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays
 from library.Counter import CCounterController
 from library.database import CTableRecordCache
@@ -389,11 +391,19 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
                     return False
         return True
 
+    def checkCorrectlyEnteredCmbPerson(self, preference_flag, cmbPerson):
+        message = u'Врач не соответствует умолчаниям типа события'
+        result = True
+        if not checkPersonByDefaultSettingsFromEventtype(cmbPerson.value(), self.eventTypeId()):
+            result = result and self.checkValueMessage(message, preference_flag, cmbPerson)
+        return result
 
     def saveData(self):
         result = True
         if QtGui.qApp.defaultNeedPreCreateEventPerson():
             result = bool(self.cmbPerson.value()) or self.checkInputMessage(u'ответственного врача', False, self.cmbPerson)
+        if not QtGui.qApp.checkGlobalPreference('23:checkChosenPerson', u'не выполнять'):
+            result = self.checkCorrectlyEnteredCmbPerson(QtGui.qApp.checkGlobalPreference('23:checkChosenPerson', u'мягкий'), self.cmbPerson)
         result = result and (self.cmbEventType.value() or self.checkInputMessage(u'цель обращения', False, self.cmbEventType))
         if result and self.checkOrGenerateUniqueEventExternalId() and self.checkOrGenerateUniqueEventVoucherNumber() and self.checkSpecialityId():
             self.saveDefaults()
@@ -824,6 +834,8 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
         self.setRelegateVisible(eventTypeId, self.params)
         self.setVoucherVisible()
         if eventTypeId:
+            self.cmbPerson.setOrgStructureList(getOrgstructureListByEventtypeId(eventTypeId))
+            self.cmbPerson.setPersonIdList(getPersonListByEventtypeId(eventTypeId))
             db = QtGui.qApp.db
             tableEventType = db.table('EventType')
             record = db.getRecordEx(tableEventType, [tableEventType['form']], [tableEventType['deleted'].eq(0), tableEventType['id'].eq(eventTypeId)])

@@ -71,8 +71,8 @@ def selectData(params, relative=False):
     cond = [ tableAction['deleted'].eq(0),
              tableActionType['deleted'].eq(0),
              tableActionType['flatCode'].eq('moving'),
-             tableAction['begDate'].dateLe(begDate),
-             db.joinOr([tableAction['endDate'].dateGe(begDate), tableAction['endDate'].isNull()]),
+             tableAction['begDate'].lt(begDate.addDays(1)),
+             db.joinOr([tableAction['endDate'].ge(begDate), tableAction['endDate'].isNull()]),
              tableRbMedicalAidType['code'].eq(8)  #Санаторно-курортная
            ]
     if buildBy:

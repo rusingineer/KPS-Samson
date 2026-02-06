@@ -43,8 +43,8 @@ def selectData(params, is5000=True):
     queryTable = queryTable.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
 
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableMESGroup['code'].eq(u'ДиспанС'),
             ]
 

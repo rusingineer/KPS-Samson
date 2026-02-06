@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -51,6 +51,7 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
         self.eventEditor = None
         self.edtExpertiseDate.setDate(QDate())
         self.btnAttachedFiles.setTable('Event_FileAttach')
+        self.connect(self.btnAttachedFiles, SIGNAL('changed()'), self.setDirty)
         self.setCheckedChkExpose(True)
         self.chkExpose.setEnabled(QtGui.qApp.userHasRight(urCanChangeEventExpose))
         self.cmbRelegateOrg.setFilter('isMedical != 0 and deleted = 0 and isActive = 1')
@@ -413,6 +414,10 @@ class CEventNotesPage(QtGui.QWidget, Ui_EventNotesPageWidget):
     def on_edtExpertiseDate_dateChanged(self, date):
         if not self.cmbExpertPerson.value() and date and QtGui.qApp.userHasRight(urEditEventExpertise):
             self.cmbExpertPerson.setValue(QtGui.qApp.userId)
+            
+    
+    def setDirty(self):
+        self.eventEditor.setIsDirty(True)
 
 
 class CEventNotesPageEx(Ui_EventNotesPageExWidget, CEventNotesPage):

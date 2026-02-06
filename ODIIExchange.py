@@ -54,7 +54,7 @@ from Exchange.FHIRClient4.models.servicerequest import ServiceRequest
 from Exchange.FHIRClient4.models.task import Task
 from Exchange.FHIRClient4.server import FHIRUnprocessableEntityException, FHIRBadRequestException, \
     FHIRUnauthorizedException, FHIRPermissionDeniedException
-from Orgs.Utils import getOrgStructureDescendants
+from Orgs.Utils import getOrgStructureDescendants, getOrgStructures
 from Registry.Utils import getClientInfo
 from library import database
 from library.Attach.AttachedFile import CAttachedFilesLoader
@@ -62,8 +62,8 @@ from library.Attach.WebDAVInterface import CWebDAVInterface
 from library.Identification import getIdentificationEx, getIdentification, CIdentificationException
 from library.Preferences import CPreferences
 from library.PrintInfo import CInfoContext
-from library.Utils import anyToUnicode, forceString, forceRef, forceBool, formatNameInt, forceDate, toVariant, quote, \
-    forceInt
+from library.Utils import anyToUnicode, forceString, forceRef, forceBool, forceDate, toVariant, quote, \
+    forceInt, nameCase, formatName
 import platform
 
 _referral = namedtuple('referral', ('actionId', 'eventId', 'exportId', 'externalId', 'exportHash'))
@@ -138,6 +138,7 @@ class CODIIExchange(QtCore.QCoreApplication):
     volPolicyUrn = 'urn:oid:1.2.643.2.69.1.1.1.6.240'  # OID для страхового полиса ДМС
     #
     orgUrn = 'urn:oid:1.2.643.2.69.1.1.1.64'  # кодификатор организаций
+    orgUrnExternal = 'urn:odiiExternalOtdGUID' # кодификатор внешних организаций (для выгрузки в конкретные отделения)
     hicRegistryUrn = 'urn:oid:1.2.643.5.1.13.2.1.1.635'  # Реестр СМО (ФФОМС)
     hicRegistryOid = '1.2.643.5.1.13.2.1.1.635'  # Реестр СМО (ФФОМС)
 
@@ -181,6 +182,8 @@ class CODIIExchange(QtCore.QCoreApplication):
     NS_FILEATTACH_ORG_SIGNATURE = uuid.UUID(bytes='Signature(O)'.ljust(16, '\0'))
 
     iniFileName = '/root/.config/samson-vista/ODIIExchange.ini'
+    # Путь к инишнику для тестирования на Windows
+    # iniFileName = 'C:\Users\prog5\AppData\Roaming\samson-vista\ODIIExchange.ini'
 
     def __init__(self, args):
         parser = OptionParser(usage="usage: %prog [options]")
@@ -232,6 +235,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.days = 7
         self.logExchange = None
         self.mapVerifiers = {}
+        self.externalMapVerifiers = {}
         self.externalSystemId = None
         self.webDAVInterface = None
         self.updateJobTicketStatus = False
@@ -280,9 +284,15 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', u'N3.РЕГИСЗ.ОДИИ', 'id'))
         self.db.query('CALL getAppLock_prepare()')
         self.webDAVInterface = CWebDAVInterface()
-        url = forceString(self.preferences.appPrefs.get('WebDAVUrl', ''))
+        # --- url берем из настроек в БД
+        url = unicode('')
+        # url = forceString(self.preferences.appPrefs.get('WebDAVUrl', ''))
+        rec_glb = self.db.getRecordEx('GlobalPreferences', 'value', 'code = \'WebDAV\'')
+        if rec_glb:
+            url = unicode(forceString(rec_glb.value(0)))
+            url = url.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
+        # ---
         self.webDAVInterface.setWebDAVUrl(url)
-
         tableActionType = self.db.table('ActionType')
         tableAS = self.db.table('rbAccountingSystem')
         tableATI = self.db.table('ActionType_Identification')
@@ -305,15 +315,17 @@ class CODIIExchange(QtCore.QCoreApplication):
         if not snils:
             return None, u'ОДИИ: У врача назначившего исследование не указан СНИЛС'
 
-        lastName = forceString(personRecord.value('lastName'))
-        firstName = forceString(personRecord.value('firstName'))
-        patrName = forceString(personRecord.value('patrName'))
+        lastName = nameCase(forceString(personRecord.value('lastName')))
+        firstName = nameCase(forceString(personRecord.value('firstName')))
+        patrName = nameCase(forceString(personRecord.value('patrName')))
 
         practitioner = Practitioner()
         practitioner.active = True
         name = HumanName()
         name.family = lastName or '-'
-        name.given = [firstName or '-', patrName or '-']
+        name.given = [firstName or '-']
+        if patrName:
+            name.given.append(patrName)
         practitioner.name = [name]
         practitioner.identifier = [self.createPPMisIdentifierNoURN(personId),  # идентификатор в МИС
                                    ]
@@ -365,9 +377,11 @@ class CODIIExchange(QtCore.QCoreApplication):
         patient = Patient()
         patient.active = True
         name = HumanName()
-        name.family = clientInfo.lastName or '-'
-        name.given = [clientInfo.firstName or '-', clientInfo.patrName or '-']
-        name.text = formatNameInt(clientInfo.lastName, clientInfo.firstName, clientInfo.patrName)
+        name.family = nameCase(clientInfo.lastName) or '-'
+        name.given = [nameCase(clientInfo.firstName) or '-']
+        if clientInfo.patrName:
+            name.given.append(nameCase(clientInfo.patrName))
+        name.text = formatName(clientInfo.lastName, clientInfo.firstName, clientInfo.patrName)
         name.use = 'official'
         patient.name = [name]
         patient.gender = {1: 'male', 2: 'female'}.get(clientInfo.sexCode, 'undefined')
@@ -435,13 +449,19 @@ class CODIIExchange(QtCore.QCoreApplication):
         note = None
         height = weight = None
         serviceProviderOrgStructureId = None
+        serviceExternalProviderOrganisationId = None
         for prop in action._action.getProperties():
             if prop.type().shortName == u'researchKind':
                 serviceCode = prop.getInfo(context).code
             elif prop.type().shortName == u'anatomicalLocalizations':
                 bodySitCodes = [val.code for val in prop.getInfo(context)]
-            elif prop.type().shortName in [u'orgstructName', u'Office']:
-                serviceProviderOrgStructureId = prop.getInfo(context).id
+            elif prop.type().shortName in [u'orgstructName', u'Office', u'externalOtd']:
+                if prop.type().shortName == u'externalOtd':
+                # 21.05.2025 if action.code == u'soc_odii' and prop.type().shortName == u'externalOtd':
+                    serviceExternalProviderOrganisationId = prop.getInfo(context).id
+                # 21.05.2025 elif not prop.type().shortName == u'externalOtd':
+                else:
+                    serviceProviderOrgStructureId = prop.getInfo(context).id
             elif prop.type().shortName == u'height':
                 height = prop
             elif prop.type().shortName == u'weight':
@@ -465,7 +485,10 @@ class CODIIExchange(QtCore.QCoreApplication):
             return None
         practitionerRoleReference = addBundleEntry(bundle, practitionerRole, self.NS_PRACTITIONER_ROLE, personId)
         organisationReference = practitionerRole.organization
-        serviceProviderReference = self.createOrgStructureReference(serviceProviderOrgStructureId)
+        if serviceExternalProviderOrganisationId:
+            serviceProviderReference = self.createOrganisationReference(serviceExternalProviderOrganisationId, self.orgUrnExternal)
+        else:
+            serviceProviderReference = self.createOrgStructureReference(serviceProviderOrgStructureId)
         isOMS = bool(event.contract and event.contract.finance and forceInt(event.contract.finance.code) == CFinanceType.CMI)
         patient, isNoPolicy = self.createPatient(clientId, organisationReference, isOMS)
         if isOMS and isNoPolicy:
@@ -492,7 +515,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                                                    patientReference, encounterReference, practitionerRoleReference,
                                                    obsCondRefs, note)
         serviceRequestReference = addBundleEntry(bundle, serviceRequest, self.NS_SERVICE_REQUEST, actionId)
-        task = self.createTask(actionId, patientReference, organisationReference,
+        task = self.createTask(actionId, action.begDate.datetime, patientReference, organisationReference,
                                serviceRequestReference, serviceProviderReference, isPrimary)
         addBundleEntry(bundle, task, self.NS_TASK, actionId)
 
@@ -716,6 +739,15 @@ class CODIIExchange(QtCore.QCoreApplication):
         reference.reference = '%s/%s' % (organization.resource_type, organization.id)
         return reference
 
+    def createOrganisationReference(self, orgId, urn):
+        if orgId is None:
+            return None
+        fhirId = getIdentification('Organisation', orgId, urn)
+        organization = createOrganization(fhirId)
+        reference = FHIRReference()
+        reference.reference = '%s/%s' % (organization.resource_type, organization.id)
+        return reference
+
     def createCodeableConcept(self, system, code, version='', display=''):
         codeableConcept = CodeableConcept()
         codeableConcept.coding = [self.createCoding(system, code, version, display)]
@@ -866,19 +898,22 @@ class CODIIExchange(QtCore.QCoreApplication):
                         except:
                             self.logCurrentException()
                 else:
-                    if not self.directIntegration:
-                        # отправка заявок
-                        referrals = self.selectReferrals()
-                        for referral in referrals.values():
-                            try:
-                                self.sendOrder(referral)
-                            except:
-                                self.logCurrentException()
+                    # отправка заявок
+                    referrals = self.selectReferrals()
+                    for referral in referrals.values():
+                        try:
+                            res_mess = self.sendOrder(referral)
+                            if not self.checkWebServiceConnect(res_mess):
+                                return
+                        except:
+                            self.logCurrentException()
                     # отправка локальных результатов
                     results = self.selectResults()
                     for result in results.values():
                         try:
-                            self.sendLocalResult(result)
+                            res_mess = self.sendLocalResult(result)
+                            if not self.checkWebServiceConnect(res_mess):
+                                return
                         except:
                             self.logCurrentException()
                     # загрузка результатов
@@ -895,6 +930,16 @@ class CODIIExchange(QtCore.QCoreApplication):
                             except:
                                 self.logCurrentException()
         self.closeDatabase()
+
+    def checkWebServiceConnect(self, res_mess):
+        if res_mess and (
+                res_mess.find("Max retries exceeded with url") > 0 or
+                res_mess.find("Gateway Time-out for url") > 0
+        ):
+            self.log('error', u"Web-сервис недоступен! Процесс прекращен", 2)
+            self.closeDatabase()
+            return False
+        return True
 
     def getResource(self, resourceClass, resId, logResponse=True):
         path = '/imaging/exlab/api/fhir/' + resId
@@ -927,6 +972,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                 _file.setOrgSignature(binary.data.decode('base64'), personId, QDateTime.currentDateTime())
 
     def sendOrder(self, referral):
+        note = ''
+
         actionId = referral.actionId
         exportId = referral.exportId
         externalId = referral.externalId
@@ -957,7 +1004,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                     return None
 
                 bundleJson = bundle.as_json()
-                bundleHash = md5(str(bundleJson)).hexdigest()
+                bundleStr = json.dumps(bundleJson)
+                bundleHash = md5(bundleStr).hexdigest()
                 if bundleHash == exportHash:
                     self.log(u'Направление не отправлено, ошибки не исправлены. actionId={0} eventId={1} запрос'.format(actionId, referral.eventId), bundleJson, level=1)
                     # снимаем блокировку
@@ -1032,17 +1080,22 @@ class CODIIExchange(QtCore.QCoreApplication):
                 self.db.insertOrUpdate(tableActionExport, actionExportRecord)
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
+            note = anyToUnicode(e)
+
         finally:
             # снимаем блокировку
             if lockId:
                 self.db.query('CALL ReleaseAppLock(%d)' % lockId)
 
+        return note
+
     def sendLocalResult(self, result):
+        note = ""
+
         actionId = result.actionId
         exportId = result.exportId
         externalId = result.externalId
         exportHash = result.exportHash
-
 
         lockId = None
         try:
@@ -1143,10 +1196,13 @@ class CODIIExchange(QtCore.QCoreApplication):
                 self.db.insertOrUpdate(tableActionExport, actionExportRecord)
         except Exception as e:
             self.log('error actionId={0}'.format(actionId), anyToUnicode(e), 2, localLog=True)
+            note = anyToUnicode(e)
         finally:
             # снимаем блокировку
             if lockId:
                 self.db.query('CALL ReleaseAppLock(%d)' % lockId)
+
+        return note
 
     def searchResult(self, referral):
         actionId = referral.actionId
@@ -1203,11 +1259,15 @@ class CODIIExchange(QtCore.QCoreApplication):
                         performer = self.getResource(Practitioner, performerRole.practitioner.reference)
                         snils = ''
                         context = CInfoContext()
-                        orgStructureId = action.getProperty(u'Отделение исследования').getInfo(context).id
+                        orgStructureId = action.getProperty(u'Отделение исследования').getInfo(context).id 
+                        orgId = action.getProperty(u'Внешнаяя лаборатория').getInfo(context).id
                         for ident in performer.identifier:
                             if ident.system == self.snilsUrn:
                                 snils = ident.value
-                        personId = self.getVerifierId(orgStructureId, snils)
+                        if orgId:
+                            personId = self.getVerifierIdByOrg(orgId, snils)
+                        else:
+                            personId = self.getVerifierId(orgStructureId, snils)
                         if personId:
                             action.getRecord().setValue('person_id', toVariant(personId))
                         if diagnostic.result:
@@ -1335,17 +1395,38 @@ class CODIIExchange(QtCore.QCoreApplication):
                         snils = ''
                         context = CInfoContext()
                         orgStructureId = None
+                        orgId = None
                         prop = action.getPropertyByShortName(u'orgstructName')
                         if not prop:
                             prop = action.getPropertyByShortName(u'Office')
                         if prop:
                             orgStructureId = prop.getInfo(context).id
+                        if not prop:
+                            prop = action.getPropertyByShortName(u'externalOtd')
+                            if prop:
+                                orgId = prop.getInfo(context).id
                         for ident in performer.identifier:
                             if ident.system == self.snilsUrn:
                                 snils = ident.value
-                        personId = self.getVerifierId(orgStructureId, snils)
+                        if orgId:
+                            personId = self.getVerifierIdByOrg(orgId, snils)
+                        else:
+                            personId = self.getVerifierId(orgStructureId, snils)
                         if personId:
                             action.getRecord().setValue('person_id', toVariant(personId))
+                        if performer and performer.name:
+                            per = performer.name
+                            executerOtd = ''
+                            if per[0] and per[0].family:
+                                executerOtd = per[0].family
+                                if per[0].given and per[0].given[0]:
+                                    executerOtd = executerOtd + u' ' + per[0].given[0]
+                                    if per[0].given and per[0].given[1]:
+                                        executerOtd = executerOtd + u' ' + per[0].given[1]
+                            if executerOtd != '':
+                                prop = action.getPropertyByShortName(u'executerOtd')
+                                if prop:
+                                    prop.setValue(executerOtd)
                         if diagnostic.result:
                             for result in diagnostic.result:
                                 observation = self.getResource(Observation, result.reference)
@@ -1440,6 +1521,22 @@ class CODIIExchange(QtCore.QCoreApplication):
                 personId = personIdList[0]
                 self.mapVerifiers[(orgStructureId, snils)] = personId
         return personId
+    
+    def getVerifierIdByOrg(self, orgId, snils):
+        personId = self.externalMapVerifiers.get((orgId, snils), None)
+        if not personId and orgId and snils:
+            orgStructureList = getOrgStructures(orgId)
+            tablePerson = self.db.table('Person')
+            cond = [tablePerson['orgStructure_id'].inlist(orgStructureList),
+                    tablePerson['SNILS'].eq(snils),
+                    tablePerson['deleted'].eq(0),
+                    tablePerson['retireDate'].isNull()
+                    ]
+            personIdList = self.db.getIdList(tablePerson, where=self.db.joinAnd(cond), limit=1)
+            if personIdList:
+                personId = personIdList[0]
+                self.externalMapVerifiers[(orgId, snils)] = personId
+        return personId
 
     def selectReferrals(self, actionId=None):
         referrals = {}
@@ -1457,13 +1554,17 @@ class CODIIExchange(QtCore.QCoreApplication):
         table = table.leftJoin(tableActionExport, [tableActionExport['master_id'].eq(tableAction['id']),
                                                    tableActionExport['system_id'].eq(self.externalSystemId)])
         cond = [tableAction['deleted'].eq(0),
-                tableAction['note'].notlike(u"Ошибка валидации. В БД уже есть бандл с таким идентификатором МИС%"),
+                # tableAction['note'].notlike(u"Ошибка валидации. В БД уже есть бандл с таким идентификатором МИС%"),
                 tableActionType['serviceType'].eq(5),
                 tableActionType['deleted'].eq(0),
                 tableAPT['id'].isNotNull(),
                 tableActionType['id'].notInlist(self.actionTypeIdLocalResultList),
                 self.db.joinOr([tableActionExport['id'].isNull(), tableActionExport['externalId'].eq('')])
                 ]
+
+        # Если включена прямая интеграция, то в ОДИИ будем отправлять только внешние направления
+        if self.directIntegration:
+            cond.append(tableActionType['flatCode'].eq('ODII_outexportdirection'))
 
         fields = [tableAction['id'].alias('actionId'),
                   tableAction['event_id'].alias('eventId'),
@@ -1606,7 +1707,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         tasks = ','.join(taskList)
         return referrals, tasks
 
-    def createTask(self, actionId, patientReference, organizationRef, serviceRequestRef, serviceProviderRef, isPrimary):
+    def createTask(self, actionId, refferalDateTime, patientReference, organizationRef, serviceRequestRef, serviceProviderRef, isPrimary):
         u"""
         Ресурс Task предназначен для передачи общей информации о заявке.
         """
@@ -1615,7 +1716,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         task.intent = 'original-order'
         task.focus = serviceRequestRef
         task.for_fhir = patientReference
-        task.authoredOn = dateTimeToFHIRDate(self.db.getCurrentDatetime())
+        task.authoredOn = dateTimeToFHIRDate(refferalDateTime)
         task.requester = organizationRef
         task.owner = serviceProviderRef
         return task

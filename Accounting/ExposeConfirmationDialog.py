@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -29,9 +29,15 @@ class CExposeConfirmationDialog(CDialogBase, Ui_ExposeConfirmationDialog):
         if orgStructureId:
             self.chkFilterPaymentByOrgStructure.setChecked(QtGui.qApp.filterPaymentByOrgStructure())
             self.chkFilterPaymentByOrgStructure.setEnabled(True)
+
+            self.chkExposeByChildOrgStruct.setChecked(False)
+            self.chkExposeByChildOrgStruct.setEnabled(False)
         else:
             self.chkFilterPaymentByOrgStructure.setChecked(False)
             self.chkFilterPaymentByOrgStructure.setEnabled(False)
+
+            self.chkExposeByChildOrgStruct.setChecked(False)
+            self.chkExposeByChildOrgStruct.setEnabled(True)
         if QtGui.qApp.defaultKLADR()[:2] == '23':
             self.chkMesCheck.setVisible(False)
             self.chkMesCheck.setChecked(False)
@@ -40,6 +46,7 @@ class CExposeConfirmationDialog(CDialogBase, Ui_ExposeConfirmationDialog):
             self.chkMesCheck.setChecked(True)
         self.chkOnlyDispCOVID.setChecked(False)
         self.chkOnlyResearchOnCOVID.setChecked(False)
+        self.chkOnlyTFOMS.setChecked(False)
         self.buttonBox.button(QtGui.QDialogButtonBox.Cancel).setDefault(True)
 
     def options(self):
@@ -50,4 +57,7 @@ class CExposeConfirmationDialog(CDialogBase, Ui_ExposeConfirmationDialog):
                 self.chkSeparateReExpose.isChecked(),
                 self.chkMesCheck.isChecked(),
                 self.chkOnlyDispCOVID.isChecked(),
-                self.chkOnlyResearchOnCOVID.isChecked())
+                self.chkOnlyResearchOnCOVID.isChecked(),
+                self.chkOnlyTFOMS.isChecked(),
+                self.chkExposeByChildOrgStruct.isChecked()
+                )

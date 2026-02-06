@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -42,7 +42,9 @@ MainRows = [
     ( u'из них апластические анемии', u'4.1.1', u'D60-D61'),
     ( u'нарушения свертываемости крови, пурпуа и другие гемморагические состояния', u'4.2', u'D65-D69'),
     ( u'гемофилия', u'4.2.1', u'D66-D68'),
+    ( u'в т.ч. болезнь Виллебранда', u'4.2.1.1', u'D68.0'),
     ( u'отдельные нарушения, вовлекающие иммунный механизм', u'4.3', u'D80-D89'),
+    ( u'из них другие уточненные нарушения с вовлечением иммунного механизма, не классифицированные в других рубриках', u'4.3.1', u'D89.8'),
     ( u'болезни эндокринной системы, расстройства питания и нарушения обмена веществ', u'5.0', u'E00-E89'),
     ( u'из них: болезни щитовидной железы', u'5.1', u'E00-E07'),
     ( u'из них: синдром врожденной йодной недостаточности', u'5.1.1', u'E00'),
@@ -62,15 +64,17 @@ MainRows = [
     ( u'адреногенитальные расстройства', u'5.6', u'E25'),
     ( u'дисфункция яичников', u'5.7', u'E28'),
     ( u'дисфункция яичек', u'5.8', u'E29'),
-    ( u'ожирение', u'5.10', u'E66'),
-    ( u'из них, крайняя степень ожирения', u'5.10.1', u'E66.2'),
-    ( u'фенилкетонурия', u'5.11', u'E70.0'),
-    ( u'нарушения обмена галактозы (галактоземия)', u'5.12', u'E74.2'),
-    ( u'болезнь Гоше', u'5.13', u'E75.2'),
-    ( u'нарушения обмена гликозамигликанов (мукополисахаридоз)', u'5.14', u'E76'),
-    ( u'муковисцидоз', u'5.15', u'E84'),
+    ( u'недостаточность питания', u'5.9', u'E40-E46'),
+    ( u'ожирение', u'5.11', u'E66'),
+    ( u'из них, крайняя степень ожирения', u'5.11.1', u'E66.2'),
+    ( u'фенилкетонурия', u'5.12', u'E70.0'),
+    ( u'нарушения обмена галактозы (галактоземия)', u'5.13', u'E74.2'),
+    ( u'болезнь Гоше', u'5.14', u'E75.2'),
+    ( u'нарушения обмена гликозамигликанов (мукополисахаридоз)', u'5.15', u'E76'),
+    ( u'муковисцидоз', u'5.16', u'E84'),
     ( u'психические расстройства и расстройства поведения', u'6.0', u'F01, F03-F99'),
     ( u'из них: психические расстройства и расстройства поведения, связанные с употреблением психоактивных веществ', u'6.1', u'F10-F19'),
+    ( u'невротические, связанные со стрессом и соматоформные расстройства', u'6.2', u'F40-F48'),
     ( u'болезни нервной системы', u'7.0', u'G00-G98'),
     ( u'из них: воспалительные болезни центральной нервной системы', u'7.1', u'G00-G09'),
     ( u'из них: бактериальный менингит', u'7.1.1', u'G00'),
@@ -133,8 +137,8 @@ MainRows = [
     ( u'болезни, характеризующиеся повышенным кровяным давлением', u'10.3', u'I10-I13'),
     ( u'из них: эссенциальная гипертензия', u'10.3.1', u'I10'),
     ( u'гипертензивная болезнь сердца (гипертоническая болезнь с преимущественным поражением сердца)', u'10.3.2', u'I11'),
-    ( u'гипертензивная (гипертоническая) болезнь с преимущественным поражением почек с почечной недостаточностью', u'10.3.3', u'I12'),
-    ( u'гипертензивная (гипертоническая) болезнь с преимущественным поражением сердца и почек', u'10.3.4', u'I13'),
+    ( u'гипертензивная болезнь почки (гипертоническая болезнь с преимущественным поражением почек)', u'10.3.3', u'I12'),
+    ( u'гипертензивная болезнь сердца и почки (гипертоническая болезнь с преимущественным поражением сердца и почек)', u'10.3.4', u'I13'),
     ( u'ишемические болезни сердца', u'10.4', u'I20-I25'),
     ( u'из них: стенокардия', u'10.4.1', u'I20'),
     ( u'из нее: нестабильная стенокардия', u'10.4.1.1', u'I20.0'),
@@ -208,6 +212,7 @@ MainRows = [
     ( u'системные поражения соединительной ткани', u'14.2', u'M30-M35'),
     ( u'из них: системная красная волчанка', u'14.2.1', u'M32'),
     ( u'деформирующие дорсопатии', u'14.3', u'M40-M43'),
+    ( u'из них: кифоз, лордоз, сколиоз', u'14.3.1', u'M40-M41'),
     ( u'спондилопатии', u'14.4', u'M45-M48'),
     ( u'из них: анкилозирующий спондилит', u'14.4.1', u'M45'),
     ( u'поражения синовиальных оболочек и сухожилий', u'14.5', u'M65-M67'),
@@ -285,7 +290,20 @@ def selectData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureId
 SELECT
    Diagnosis.MKB AS MKB,
    COUNT(*) AS sickCount,
-   rbDiseaseCharacter.code AS diseaseCharacter,
+
+    EXISTS(
+        SELECT NULL
+        FROM Diagnostic AS D1
+            INNER JOIN Event AS E ON E.id = D1.event_id
+            INNER JOIN rbDiseaseCharacter on rbDiseaseCharacter.id = D1.character_id
+        WHERE D1.diagnosis_id = Diagnosis.id
+            AND E.deleted = 0
+            AND D1.deleted = 0
+            AND rbDiseaseCharacter.code in ('1', '2')
+            AND D1.setDate >= \'%(begDate)s\'
+            AND D1.setDate <= \'%(endDate)s\'
+    ) AS hasFirstTimeDiagnostic,
+
    rbDiagnosisType.code AS diagnosisType,
 
    EXISTS(SELECT rbResult.id
@@ -297,16 +315,18 @@ SELECT
    ORDER BY Event.id
    LIMIT 1) AS closedEvent,
 
-   (%s) AS firstInPeriod,
+   (%(firstInPeriod)s) AS firstInPeriod,
 
-   %s
+   %(colsEventTypeDDId)s
    (SELECT IF(rbDispanser.code IN (2,6), 1, 0)
     FROM
     Diagnostic AS D1
     LEFT JOIN rbDispanser ON rbDispanser.id = D1.dispanser_id
     WHERE
       D1.diagnosis_id = Diagnosis.id
-      AND (rbDispanser.code IN (2,6) AND D1.setDate >= \'%s\' AND D1.setDate <= \'%s\')
+      AND (rbDispanser.code IN (2,6)
+      AND D1.setDate >= \'%(begDate)s\'
+      AND D1.setDate <= \'%(endDate)s\')
     ORDER BY rbDispanser.code
     LIMIT 1) AS getObserved,
 
@@ -363,12 +383,11 @@ SELECT
 
     FROM Diagnosis
     LEFT JOIN Client ON Client.id = Diagnosis.client_id
-    %s
-    LEFT JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-    LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
+    %(join)s
+    LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
     WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code IN ('7','11','51','52','53','54'))
-    AND %s
-    GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNotPrimary, closedEvent, getAdultsDispans, rbDiagnosisType.id, Client.id
+    AND %(cond)s
+    GROUP BY MKB, hasFirstTimeDiagnostic, diagnosisType, firstInPeriod, getObserved, getProfilactic, isNotPrimary, closedEvent, getAdultsDispans, Client.id
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -394,7 +413,7 @@ SELECT
     tableEventType = db.table('EventType')
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
-    diagnosticCond.append(tableEventType['code'].ne('rmDisp'))
+    diagnosticCond.append(tableEventType['code'].notInlist(['rmDisp', 'MSE']))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -514,22 +533,23 @@ SELECT
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
         cond.append(tableDiagnosis['MKB'].le(params.get('MKBTo')))
-    return db.query(stmt % (db.joinAnd([tableDiagnosis['setDate'].le(endDate),
-                                        tableDiagnosis['setDate'].ge(begDate)]),
-                            colsEventTypeDDId,
-                            begDate.toString("yyyy-MM-dd"), 
-                            endDate.toString("yyyy-MM-dd"),
-                            stmtAddress,
-                            db.joinAnd(cond)))
+    return db.query(stmt % {
+        'begDate': begDate.toString("yyyy-MM-dd"), 
+        'endDate': endDate.toString("yyyy-MM-dd"),
+        'colsEventTypeDDId': colsEventTypeDDId,
+        'firstInPeriod': db.joinAnd([tableDiagnosis['setDate'].le(endDate), tableDiagnosis['setDate'].ge(begDate)]),
+        'join': stmtAddress,
+        'cond': db.joinAnd(cond)
+    })
 
 
 def selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, eventTypeDDId, params):
@@ -537,7 +557,6 @@ def selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeIdList, orgS
 SELECT
     Diagnosis.MKB AS MKB,
     COUNT(*) AS sickCount,
-    rbDiagnosisType.code AS diagnosisType,
     Diagnosis.client_id,
     IF(Client.deathDate is NULL, 0, 1) AS isDead,
     (SELECT D3.MKB
@@ -550,11 +569,9 @@ SELECT
     FROM Diagnosis
     LEFT JOIN Client ON Client.id = Diagnosis.client_id
     %s
-    LEFT JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-    LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
     WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code IN ('7','11','51','52','53','54'))
     AND %s
-    GROUP BY MKB, rbDiagnosisType.id
+    GROUP BY MKB
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -584,6 +601,7 @@ SELECT
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
     diagnosticCond.append(tableRBDispanser['code'].inlist(['3','4','5']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -703,11 +721,11 @@ SELECT
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -733,8 +751,6 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code IN ('7','11','51','52','53','54'))
 AND %s
 GROUP BY MKB
@@ -744,7 +760,6 @@ GROUP BY MKB
     tableClient = db.table('Client')
     tableDiagnostic = db.table('Diagnostic')
     tablePerson = db.table('Person')
-    tableEvent = db.table('Event')
     specialityId = params.get('specialityId', None)
     extraAgesCond = params.get('extraAgesCond', None)
 
@@ -758,6 +773,11 @@ GROUP BY MKB
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
                        tableDiagnostic['deleted'].eq(0)
                      ]
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -786,12 +806,8 @@ GROUP BY MKB
             diagnosticCond.append(tablePerson['deleted'].eq(0))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
     if sex:
@@ -869,11 +885,11 @@ GROUP BY MKB
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -905,8 +921,6 @@ SELECT
 FROM Diagnosis
 INNER JOIN Client ON Client.id = Diagnosis.client_id
 %s
-INNER JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-INNER JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE %s
 GROUP BY Diagnosis.client_id
 ORDER BY firstInPeriod DESC"""
@@ -927,6 +941,11 @@ ORDER BY firstInPeriod DESC"""
                        tableDiagnostic['deleted'].eq(0)
                      ]
     addDateInRange(diagnosticCond, tableDiagnostic['setDate'], begDate, endDate)
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -942,14 +961,8 @@ ORDER BY firstInPeriod DESC"""
             diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -1023,11 +1036,11 @@ ORDER BY firstInPeriod DESC"""
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     isDispanser = params.get('isDispanser', False)
     if isDispanser:
         cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
@@ -1053,14 +1066,11 @@ def selectObservedDataClient(begDate, endDate, eventPurposeId, eventTypeIdList, 
     stmt="""
 SELECT
    Diagnosis.client_id,
-   rbDiseaseCharacter.code AS diseaseCharacter,
    Diagnosis.MKB
 
 FROM Diagnosis
 INNER JOIN Client ON Client.id = Diagnosis.client_id
 %s
-INNER JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-INNER JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11') AND %s
 GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
     db = QtGui.qApp.db
@@ -1079,6 +1089,11 @@ GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
                        tableDiagnostic['deleted'].eq(0)
                      ]
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1094,14 +1109,8 @@ GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
             diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -1178,11 +1187,11 @@ GROUP BY Diagnosis.client_id, Diagnosis.MKB"""
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
         FROM
         Diagnostic AS D1
@@ -1316,7 +1325,7 @@ class CStatReportF12Adults_2022(CReport):
             clientId = forceRef(record.value('client_id'))
             MKB = normalizeMKB(forceString(record.value('MKB')))
             sickCount = forceInt(record.value('sickCount'))
-            diseaseCharacter = forceString(record.value('diseaseCharacter'))
+            hasFirstTimeDiagnostic = forceBool(record.value('hasFirstTimeDiagnostic'))
             diagnosisType = forceString(record.value('diagnosisType'))
             firstInPeriod = forceBool(record.value('firstInPeriod'))
             closedEvent = forceBool(record.value('closedEvent'))
@@ -1332,7 +1341,7 @@ class CStatReportF12Adults_2022(CReport):
             #deathMKB = normalizeMKB(forceString(record.value('deathMKB')))
             sex = forceInt(record.value('sex'))
             
-            if (eventId not in eventIdList) and (diseaseCharacter == 1 or diseaseCharacter == 2):
+            if (eventId not in eventIdList) and hasFirstTimeDiagnostic:
                 eventTypeDDSum += 1
                 eventIdList.append(eventId)
             
@@ -1351,19 +1360,7 @@ class CStatReportF12Adults_2022(CReport):
                 cols.append(7)
                 if MKB.startswith('I'):
                     registered3004[0] = registered3004[0] + sickCount
-            if diseaseCharacter == u'1': # острое
-                cols.append(2)
-                if sex == 1 and MKB.startswith('E66'):
-                    registered3006[1] += sickCount
-                    if MKB.startswith('E66.2'):
-                        registered3006[3] += sickCount
-                if getObserved:
-                    cols.append(3)
-                if getProfilactic and not getAdultsDispans:
-                    cols.append(4)
-                if getAdultsDispans:
-                    cols.append(5)
-            elif firstInPeriod:
+            if hasFirstTimeDiagnostic: # острое и хроническое впервые установленное
                 cols.append(2)
                 if sex == 1 and MKB.startswith('E66'):
                     registered3006[1] += sickCount
@@ -1386,7 +1383,7 @@ class CStatReportF12Adults_2022(CReport):
                     for col in cols:
                         reportLine[col] += sickCount
 
-            if diagnosisType == u'98':
+            if diagnosisType == '98':
                 if detailMKB:
                     reportLine = reportCompData.setdefault(MKB, [0]*rowSizeComp)
                     reportLine[0] += sickCount
@@ -1479,7 +1476,6 @@ class CStatReportF12Adults_2022(CReport):
         while queryObservedClient.next():
             record = queryObservedClient.record()
             clientId = forceRef(record.value('client_id'))
-            diseaseCharacter = forceString(record.value('diseaseCharacter'))
             MKB = normalizeMKB(forceString(record.value('MKB')))
             if clientId and MKB in [u'B18.2', u'B18.1', u'B18', u'B18.8', u'B18.9', u'K74.6']:
                 clientIdFor30031 = clientIdFor3003List1.setdefault(clientId, [])
@@ -1587,19 +1583,35 @@ class CStatReportF12Adults_2022(CReport):
                           u'лиц, имеющих право на социальную помощь 2 _____________________.')
         cursor.insertBlock() 
         cursor.insertText(
-            u'(3006) Число зарегистрированных заболеваний ожирением (из гр. 4 стр. 5.10) у мужчин 1 - {}, '\
+            u'(3006) Число зарегистрированных заболеваний ожирением (из гр. 4 стр. 5.11) у мужчин 1 - {}, '\
             u'из них с впервые в жизни установленным диагнозом (из гр. 1) 2 - {}, '\
-            u'крайняя степень ожирения (из гр. 4 стр. 5.10.1) у мужчин 3 - {}, '\
+            u'крайняя степень ожирения (из гр. 4 стр. 5.11.1) у мужчин 3 - {}, '\
             u'из них с впервые в жизни установленным диагнозом (из гр. 3) 4 - {}'.format(registered3006[0], registered3006[1], registered3006[2], registered3006[3]))
+        cursor.insertBlock()
+        cursor.insertText(
+            u'(3007) Число физических лиц с сахарным диабетом 1 или 2 типа, состоявших под диспансерным наблюдением в отчетном периоде '\
+            u'(из гр. 8 строк 5.2.3 и 5.2.4), которым однократно или более раз проводилось измерение гликированного гемоглобина '\
+            u'с помощью лабораторных методов в отчетном периоде 1 ________ и по результатам последнего исследования в отчетном году, '\
+            u'уровень гликированного гемоглобина составил не более 7,0% (из гр. 1) 2 ________.')
+        cursor.insertBlock()
+        cursor.insertText(
+            u'(3008) Число физических лиц в отчетном периоде с сахарным диабетом 1 или 2 типа с диагностированными осложнениями сахарного '\
+            u'диабета в виде диабетической ретинопатии и/или хронической болезни почек 1 _______, '\
+            u'из них с диагностированными осложнениями сахарного диабета в виде слепоты и/или хронической болезни почек 5 стадии (из гр. 1) 2_______.')
+        cursor.insertBlock()
+        cursor.insertText(
+            u'(3009) Число физических лиц с сахарным диабетом 1 или 2 типа, состоявших под диспансерным наблюдением в отчетном периоде '\
+            u'(из гр. 8 строк 5.2.3 и 5.2.4), которым в полном объеме оказаны медицинские услуги в рамках диспансерного наблюдения '\
+            u'в созданных и оснащенных в ходе федерального проекта региональных медицинских организациях и других медицинских организациях, осуществляющих диспансерное наблюдение 1 _______.')
         cursor.insertBlock()
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.setCharFormat(CReportBase.ReportTitle)
         cursor.insertBlock()
         cursor.insertText(u'Взрослые 18 лет и старше.')
         cursor.insertBlock()
-        cursor.insertText(u'ФАКТОРЫ, ВЛИЯЮЩИЕ НА СОСТОЯНИЕ ЗДОРОВЬЯ НАСЕЛЕНИЯ')
+        cursor.insertText(u'Факторы, влияющие на состояние здоровья населения')
         cursor.insertBlock()
-        cursor.insertText(u'И ОБРАЩЕНИЯ В МЕДИЦИНСКИЕ ОРГАНИЗАЦИИ (С ПРОФИЛАКТИЧЕСКОЙ ЦЕЛЬЮ)')
+        cursor.insertText(u'и обращения в медицинские организации (с профилактической и иными целями), единица')
         cursor.insertBlock()
         cursor.insertText(u'(3100)')
         cursor.insertBlock()

@@ -178,8 +178,8 @@ def selectData(params):
         'Client.id IN (' + getClientIdListStmt(params) + ')',
     ]
     fmt = {
-        'eventBegDate': ('AND ' + tableEvent['execDate'].dateGe(begDate)) if begDate else u'',
-        'eventEndDate': ('AND ' + tableEvent['execDate'].dateLe(endDate)) if endDate else u'',
+        'eventBegDate': ('AND ' + tableEvent['execDate'].ge(begDate)) if begDate else u'',
+        'eventEndDate': ('AND ' + tableEvent['execDate'].lt(endDate.addDays(1))) if endDate else u'',
         'contingentDogvn': db.joinOr(contingentDogvn),
     }
     return db.query(stmt.format(**fmt) + db.joinAnd(cond))

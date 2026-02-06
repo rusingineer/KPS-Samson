@@ -924,8 +924,8 @@ class CStationaryF30Moving(CStationaryF30):
                     cond = [
                         tableOSHB['profile_id'].inlist(profileIdList),
                         tableOSHB['master_id'].inlist(orgStructureIdList),
-                        tableOSHBI['begDate'].dateLe(endDateTime),
-                        tableOSHBI['endDate'].dateGe(begDateTime)
+                        tableOSHBI['begDate'].lt(endDateTime.addDays(1)),
+                        tableOSHBI['endDate'].ge(begDateTime)
                     ]
                     recordList = db.getRecordList(dbTable, 'OSHBI.begDate,OSHBI.endDate', cond)
                     days = 0

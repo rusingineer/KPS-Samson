@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\soc-inform\Resources\JobTicketEditor.ui'
+# Form implementation generated from reading ui file '/work/kmivc-arch/Samson/client_test/Resources/JobTicketEditor.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created by: PyQt4 UI code generator 4.12.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -38,6 +38,7 @@ class Ui_JobTicketEditorDialog(object):
         self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1454, 781))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.gridLayout_4 = QtGui.QGridLayout(self.scrollAreaWidgetContents)
+        self.gridLayout_4.setMargin(0)
         self.gridLayout_4.setObjectName(_fromUtf8("gridLayout_4"))
         self.splitter_2 = QtGui.QSplitter(self.scrollAreaWidgetContents)
         self.splitter_2.setOrientation(QtCore.Qt.Vertical)
@@ -443,6 +444,8 @@ class Ui_JobTicketEditorDialog(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.tblProps.sizePolicy().hasHeightForWidth())
         self.tblProps.setSizePolicy(sizePolicy)
+        self.tblProps.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
+        self.tblProps.setHorizontalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
         self.tblProps.setObjectName(_fromUtf8("tblProps"))
         self.gridLayout_2.addWidget(self.tblProps, 0, 0, 1, 9)
         self.btnLoadPrevAction = QtGui.QPushButton(self.widget)

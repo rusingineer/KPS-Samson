@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2019 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QEvent, QModelIndex, QVariant, QString
+from PyQt4.QtCore import Qt, QEvent, QModelIndex, QVariant, QString, QAbstractTableModel
 
 from library.Utils import forceString, trim
 
@@ -39,6 +39,27 @@ class CStandardItemModel(QtGui.QStandardItemModel):
         return result
 
 
+class CStandardItemModelEx(QAbstractTableModel):
+    def __init__(self, parent = None):
+        QAbstractTableModel.__init__(self, parent)
+        self._readOnly = False
+
+
+    def setReadOnly(self, value=False):
+        self._readOnly = value
+
+
+    def isReadOnly(self):
+        return self._readOnly
+
+
+    def flags(self, index=QModelIndex()):
+        result = QAbstractTableModel.flags(self, index)
+        if self._readOnly:
+            result = Qt.ItemIsEnabled
+        return result
+
+
 class CROComboBox(QtGui.QComboBox):
     u"""ComboBox с ReadOnly"""
 
@@ -48,7 +69,12 @@ class CROComboBox(QtGui.QComboBox):
         self.setSizeAdjustPolicy(QtGui.QComboBox.AdjustToMinimumContentsLength)
         self.setModel(self._model)
         self.readOnly = False
+        self.isWheel = True
         self.installEventFilter(self)
+
+
+    def setWheel(self, value=False):
+        self.isWheel = value
 
 
     def setReadOnly(self, value=False):
@@ -70,6 +96,10 @@ class CROComboBox(QtGui.QComboBox):
             if self.model().isReadOnly():
                 event.accept()
                 return False
+        elif event.type() == QEvent.Wheel: # QWheelEvent
+            if not self.isWheel:
+                event.ignore() 
+                return False
         return QtGui.QComboBox.event(self, event)
 
 
@@ -77,7 +107,12 @@ class CROComboBox(QtGui.QComboBox):
         if self.model().isReadOnly():
             event.accept()
         else:
-            QtGui.QComboBox.keyPressEvent(self, event)
+            key = event.key()
+            if key in (Qt.Key_Delete, Qt.Key_Backspace):
+                self.setCurrentIndex(-1)
+                event.accept()
+            else:
+                QtGui.QComboBox.keyPressEvent(self, event)
 
 
     def eventFilter(self, watched, event):

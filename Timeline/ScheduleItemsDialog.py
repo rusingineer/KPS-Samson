@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,7 +15,8 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QAbstractTableModel, QDate, QDateTime, QTime, QVariant, pyqtSignature, SIGNAL
 
-from Registry.ResourcesDock import isAppointmentEnabledForClient, isAppointmentEnabledForDate
+from Orgs.Utils import getPersonInfo
+from Registry.ResourcesDock import isAppointmentEnabledForClient, isAppointmentEnabledForDate, checkInterofficeRecord
 from library.DialogBase               import CDialogBase
 from library.RecordLock               import CRecordLockMixin
 from library.TableModel               import CTableModel, CDesignationCol, CNameCol, CRefBookCol, CTextCol, CTimeCol
@@ -159,7 +160,8 @@ class CScheduleItemsModel(QAbstractTableModel):
             if not item[1]:
                 result |= Qt.ItemIsEditable
         if column == 2:
-            result |= Qt.ItemIsEditable
+            if not item[1]:
+                result |= Qt.ItemIsEditable
         return result
 
 
@@ -401,6 +403,9 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
         self.destScheduleId = None
         self.destScheduleItemId = None
 
+        self.postForMainLogicRecord = []
+        self.postForInterofficeRecord = []
+
 
     def saveData(self):
         return self.doRecordTransfer()
@@ -512,16 +517,27 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
         button = self.buttonBox.button(QtGui.QDialogButtonBox.Ok)
         button.setEnabled(value)
 
-    def queueingEnabled(self, scheduleItemId, date, personId, specialityId, clientId, scheduleItem):
+    def queueingEnabled(self, scheduleItemId, date, personId, specialityId, clientId, scheduleItem, originScheduleItem):
         appointmentPurposeId = forceRef(scheduleItem.record.value('appointmentPurpose_id'))
 
         if not isAppointmentEnabledForClient(appointmentPurposeId, personId, date, clientId):
             QtGui.QMessageBox.warning(self, u'Внимание!', u'Назначение приёма препятствует записи пациента')
             return False
 
-        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem):
-            QtGui.QMessageBox.warning(self, u'Внимание!',
-                                      u'Запись за горизонт 14 дней разрешена только для повторной записи самому к себе')
+        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem, personId):
+            personInfo = getPersonInfo(personId)
+            if QtGui.qApp.userId == personId:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                          u'Запись на КТ разрешена только на 14 дней')
+            else:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                      u'Запись на ' + scheduleItem.time.toString(
+                                          'dd.MM.yyyy HH:mm') + u' разрешена только для врача ' + personInfo[
+                                          'shortName'])
+            return False
+
+        destinationPersonId = forceRef(QtGui.qApp.db.translate('Schedule', 'id', scheduleItem.scheduleId, 'person_id'))
+        if not checkInterofficeRecord(self, personId, originScheduleItem) or not checkInterofficeRecord(self, destinationPersonId, scheduleItem):
             return False
 
         scheduleItemIdList = getScheduleItemIdListForClient(clientId, specialityId, date, '1')
@@ -567,7 +583,7 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
                 result = ( bool(destRecord)
                            and not forceBool(destRecord.value('deleted'))
                            and not forceRef(destRecord.value('client_id'))
-                           and self.queueingEnabled(destScheduleItemId, self.calendar.selectedDate(), self.personId, self.specialityId, self.scheduleItem.clientId, scheduleItem)
+                           and self.queueingEnabled(destScheduleItemId, self.calendar.selectedDate(), self.personId, self.specialityId, self.scheduleItem.clientId, scheduleItem, self.scheduleItem)
                          )
                 if not result:
                     return result

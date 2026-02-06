@@ -138,6 +138,8 @@ class CAriadnaExchangeClient():
         self.logException(*sys.exc_info())
 
     def main(self):
+        self.msg = ''
+        self.msgrSuccess = self.msgrBlocked = self.msgrNoSuccess = self.msgoSuccess = self.msgoBlocked = self.msgoNoSuccess = self.msgoNoCodes = ''
         if self.db:
             self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AriadnaLIS', 'id'))
             self.loadPreferences()
@@ -169,6 +171,24 @@ class CAriadnaExchangeClient():
                             self.sendOrders(referral)
                         except Exception:
                             self.logCurrentException()
+        return self.getMsg()
+
+    def getMsg(self):
+        if self.msgrSuccess:
+            self.msg += u'Заказы %s успешно загружены\n' % self.msgrSuccess
+        if self.msgrBlocked:
+            self.msg += u'Заказы не загружены: События %s открыты\n' % self.msgrBlocked
+        if self.msgrNoSuccess:
+            self.msg += u'Заказы %s не загружены\n' % self.msgrNoSuccess
+        if self.msgoSuccess:
+            self.msg += u'Заказы %s успешно выгружены\n' % self.msgoSuccess
+        if self.msgoBlocked:
+            self.msg += u'Заказы не выгружены: События %s открыты\n' % self.msgoBlocked
+        if self.msgoNoSuccess:
+            self.msg += u'Заказы %s не выгружены\n'  % self.msgoNoSuccess
+        if self.msgoNoCodes:
+            self.msg += u'В направлении %s отсутствуют выбранные исследования' % self.msgoNoCodes
+        return self.msg
 
     def mappingTestToServices(self):
         stmt = """SELECT t.id AS testId, st.baseServiceCode, st.testCode, st.serviceCode, st.serviceName
@@ -244,6 +264,27 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             referral = _referral(actionId, eventId, clientId, exportId)
         return referral
 
+    def getNumberByActionId(self, actionId):
+        apsNumber = ''
+        if not actionId:
+            return ''
+        stmt = u"""SELECT aps.value as apsNumber
+  FROM Action a
+    LEFT JOIN ActionType at ON at.id= a.actionType_id
+    left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0 and apt.name = 'Номер направления'
+    left join ActionProperty ap on ap.action_id = a.id and ap.type_id = apt.id and ap.deleted = 0
+    left join ActionProperty_String aps on aps.id = ap.id
+    WHERE at.flatCode LIKE '%ariadna%'
+  AND a.deleted = 0
+  and at.deleted = 0 
+  AND at.serviceType = 10
+  and a.id = {actionId}""".format(actionId=actionId)
+        query = self.db.query(stmt)
+        while query.next():
+            record = query.record()
+            apsNumber = forceString(record.value('apsNumber'))
+        return apsNumber
+
     def getHeaders(self):
         headers = {'Content-Type': 'application/json',
                    'ApiKey': self.apikey,
@@ -266,6 +307,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         lockId = int(s[1])
                     else:
                         QtGui.qApp.log(u'Выгрузка направления', u'Событие %i заблокировано' % referral.eventId) #, level=1)
+                        self.msgoBlocked += u'%i; ' % referral.eventId
             if lockId:
                 context = CInfoContext()
                 client = context.getInstance(CClientInfo, referral.clientId)
@@ -442,6 +484,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
 
                 if not observation.orderInfo:
                     QtGui.qApp.log(u'В направлении отсутствуют коды услуг', observation.order.id) #, 2)
+                    self.msgoNoCodes += u'%s; ' % observation.order.id
                     return
 
                 person = action.setPerson
@@ -482,8 +525,10 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                     action._record.setValue('status', toVariant(0))
                     action._record.setValue('note', toVariant(u'Заказ успешно выгружен в ЛИС {0}'.format(fmtDate(self.db.getCurrentDatetime()))))
                     action.save(idx=-1)
+                    self.msgoSuccess += u'%s; ' % self.getNumberByActionId(referral.actionId)
                 else:
                     actionExportRecord.setValue('success', toVariant(0))
+                    self.msg += u'Заказ %s не выгружен в ЛИС\n' % self.getNumberByActionId(referral.actionId)
                 self.db.insertOrUpdate(tableActionExport, actionExportRecord)
 
                 QtGui.qApp.log('response code', anyToUnicode(response.status_code))#, 2)
@@ -491,6 +536,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 QtGui.qApp.log('Last received', anyToUnicode(response.content))#, 2)
         except Exception as e:
             QtGui.qApp.log('error', anyToUnicode(e))#, 1)
+            self.msgoNoSuccess += u'%i; ' % referral.eventId
         finally:
             if lockId:
                 self.db.query('CALL ReleaseAppLock(%d)' % lockId)
@@ -533,6 +579,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             elif isinstance(jsonData, list):
                 for result in jsonData:
                     self.saveResults(result, referral)
+        elif response.status_code == 404:
+            self.msg += u'''Результат для направления %s не найден в ЛИС\n''' % self.getNumberByActionId(referral.actionId)
 
     def saveResults(self, jsonResult, referral):
         context = CInfoContext()
@@ -561,6 +609,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         else:
                             QtGui.qApp.log(u'Загрузка результата {0}'.format(observation.order.id),
                                      u'Событие %i заблокировано' % referral.eventId)#, level=1)
+                            self.msgrBlocked += u'%i; ' % referral.eventId
                 if lockId:
                     action = CAction(record=self.db.getRecord('Action', '*', referral.actionId))
                     if action and action.actionType() and 'ariadna' in action.actionType().flatCode:
@@ -843,14 +892,17 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                                                                 referral.actionId))
                                              #,                                                   level=1)
                                     self.applyResults(observation.order.id)
+                                    self.msgrSuccess += u'%s; ' % self.getNumberByActionId(referral.actionId)
                                 else:
                                     self.applyOnExpiration(observation.order.id, observation.observationDates.finish)
+                                    self.msgrNoSuccess += u'%s; ' % self.getNumberByActionId(referral.actionId)
 
 
         except Exception as e:
             QtGui.qApp.log('error', anyToUnicode(e))#, 2)
             QtGui.qApp.log('error', u'ошибка при загрузке результата {0}'.format(observation.order.id))#, 2)
             self.applyOnExpiration(observation.order.id, observation.observationDates.finish)
+            self.msg += u'ошибка при загрузке результата {0}'.format(observation.order.id)
         finally:
             # снимаем блокировку
             if lockId:

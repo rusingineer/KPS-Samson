@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\RefBooks\EventType\EventTypeEditor.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\RefBooks\EventType\EventTypeEditor.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -112,7 +112,7 @@ class Ui_ItemEditorDialog(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName(_fromUtf8("scrollArea"))
         self.scrollAreaWidgetContents = QtGui.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1359, 798))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1360, 798))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.gridLayout_12 = QtGui.QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout_12.setObjectName(_fromUtf8("gridLayout_12"))
@@ -461,8 +461,6 @@ class Ui_ItemEditorDialog(object):
         self.chkIEMK.setChecked(True)
         self.chkIEMK.setObjectName(_fromUtf8("chkIEMK"))
         self.gridLayout_12.addWidget(self.chkIEMK, 14, 5, 1, 2)
-        spacerItem16 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout_12.addItem(spacerItem16, 23, 3, 1, 5)
         self.cmbCounter = CRBComboBox(self.scrollAreaWidgetContents)
         self.cmbCounter.setEnabled(False)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Fixed)
@@ -485,6 +483,14 @@ class Ui_ItemEditorDialog(object):
         self.chkShowButtonAccount.setChecked(True)
         self.chkShowButtonAccount.setObjectName(_fromUtf8("chkShowButtonAccount"))
         self.gridLayout_12.addWidget(self.chkShowButtonAccount, 9, 5, 1, 2)
+        self.lblAvailableOrders = QtGui.QLabel(self.scrollAreaWidgetContents)
+        self.lblAvailableOrders.setObjectName(_fromUtf8("lblAvailableOrders"))
+        self.gridLayout_12.addWidget(self.lblAvailableOrders, 23, 3, 1, 1)
+        spacerItem16 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout_12.addItem(spacerItem16, 23, 5, 1, 3)
+        self.cmbAvailableOrders = CRecordMultivalueComboBox(self.scrollAreaWidgetContents)
+        self.cmbAvailableOrders.setObjectName(_fromUtf8("cmbAvailableOrders"))
+        self.gridLayout_12.addWidget(self.cmbAvailableOrders, 23, 4, 1, 1)
         self.chkShowButtonJobTickets = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkShowButtonJobTickets.setObjectName(_fromUtf8("chkShowButtonJobTickets"))
         self.gridLayout_12.addWidget(self.chkShowButtonJobTickets, 12, 5, 1, 2)
@@ -992,6 +998,22 @@ class Ui_ItemEditorDialog(object):
         self.tblIdentification.setObjectName(_fromUtf8("tblIdentification"))
         self.gridLayout_11.addWidget(self.tblIdentification, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tabIdentification, _fromUtf8(""))
+        self.tabOrgStruct = QtGui.QWidget()
+        self.tabOrgStruct.setObjectName(_fromUtf8("tabOrgStruct"))
+        self.verticalLayout_3 = QtGui.QVBoxLayout(self.tabOrgStruct)
+        self.verticalLayout_3.setObjectName(_fromUtf8("verticalLayout_3"))
+        self.tblOrgStruct = CInDocTableView(self.tabOrgStruct)
+        self.tblOrgStruct.setObjectName(_fromUtf8("tblOrgStruct"))
+        self.verticalLayout_3.addWidget(self.tblOrgStruct)
+        self.tabWidget.addTab(self.tabOrgStruct, _fromUtf8(""))
+        self.tabPersons = QtGui.QWidget()
+        self.tabPersons.setObjectName(_fromUtf8("tabPersons"))
+        self.verticalLayout_2 = QtGui.QVBoxLayout(self.tabPersons)
+        self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
+        self.tblPersons = CInDocTableView(self.tabPersons)
+        self.tblPersons.setObjectName(_fromUtf8("tblPersons"))
+        self.verticalLayout_2.addWidget(self.tblPersons)
+        self.tabWidget.addTab(self.tabPersons, _fromUtf8(""))
         self.tabActionType = QtGui.QWidget()
         self.tabActionType.setObjectName(_fromUtf8("tabActionType"))
         self.gridLayout_15 = QtGui.QGridLayout(self.tabActionType)
@@ -1245,7 +1267,7 @@ class Ui_ItemEditorDialog(object):
         self.cmbSingleInPeriod.setItemText(5, _translate("ItemEditorDialog", "Год", None))
         self.cmbSingleInPeriod.setItemText(6, _translate("ItemEditorDialog", "Два года", None))
         self.cmbSingleInPeriod.setItemText(7, _translate("ItemEditorDialog", "Три года", None))
-        self.lblOrder.setText(_translate("ItemEditorDialog", "Порядок", None))
+        self.lblOrder.setText(_translate("ItemEditorDialog", "Порядок по умолчанию", None))
         self.chkIsLong.setText(_translate("ItemEditorDialog", "Является п&родолжительным", None))
         self.cmbDateInput.setItemText(0, _translate("ItemEditorDialog", "Указывать дату начала", None))
         self.cmbDateInput.setItemText(1, _translate("ItemEditorDialog", "Указывать дату окончания", None))
@@ -1266,6 +1288,7 @@ class Ui_ItemEditorDialog(object):
         self.lblMaxDuration.setText(_translate("ItemEditorDialog", "Максимальная длительность", None))
         self.chkIEMK.setText(_translate("ItemEditorDialog", "Подлежит выгрузке в ИЭМК", None))
         self.chkShowButtonAccount.setText(_translate("ItemEditorDialog", "Показывать кнопку \"Сохранить и создать счет\"", None))
+        self.lblAvailableOrders.setText(_translate("ItemEditorDialog", "Доступные порядки", None))
         self.chkShowButtonJobTickets.setText(_translate("ItemEditorDialog", "Показывать кнопку \"Работы\"", None))
         self.chkExternalId.setText(_translate("ItemEditorDialog", "Требуется ввод внешнего идентификатора", None))
         self.chkShowButtonNomenclatureExpense.setText(_translate("ItemEditorDialog", "Показывать кнопку \"Назначение ЛС\"", None))
@@ -1372,6 +1395,8 @@ class Ui_ItemEditorDialog(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabActionsControl), _translate("ItemEditorDialog", "Контроль обслуживания", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabEventType), _translate("ItemEditorDialog", "Преобразование", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabIdentification), _translate("ItemEditorDialog", "Идентификация", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabOrgStruct), _translate("ItemEditorDialog", "Подразделения", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabPersons), _translate("ItemEditorDialog", "Сотрудники", None))
         self.tabWidget_ActionType.setTabText(self.tabWidget_ActionType.indexOf(self.tabActionType_status), _translate("ItemEditorDialog", "Статус", None))
         self.tabWidget_ActionType.setTabText(self.tabWidget_ActionType.indexOf(self.tabActionType_diagnostic), _translate("ItemEditorDialog", "Диагностика", None))
         self.tabWidget_ActionType.setTabText(self.tabWidget_ActionType.indexOf(self.tabActionType_cure), _translate("ItemEditorDialog", "Лечение", None))
@@ -1380,4 +1405,5 @@ class Ui_ItemEditorDialog(object):
 
 from Orgs.OrgComboBox import CPolyclinicComboBox
 from library.InDocTable import CInDocTableView
+from library.MultivalueComboBox import CRecordMultivalueComboBox
 from library.crbcombobox import CRBComboBox

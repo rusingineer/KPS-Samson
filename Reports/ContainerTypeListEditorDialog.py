@@ -75,7 +75,7 @@ class CContainerTypeTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['rbContainerType.code', 'rbContainerType.name']
+        self._fieldNames = ['rbContainerType.id', 'rbContainerType.code', 'rbContainerType.name']
         self.setTable('rbContainerType')
 
 

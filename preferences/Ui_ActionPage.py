@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_merge\preferences\ActionPage.ui'
+# Form implementation generated from reading ui file '/work/kmivc-arch/Samson/client_test/preferences/ActionPage.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created by: PyQt4 UI code generator 4.12.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -32,7 +32,7 @@ class Ui_actionPage(object):
         self.gridLayout.setSpacing(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         spacerItem = QtGui.QSpacerItem(20, 1, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem, 2, 0, 1, 1)
+        self.gridLayout.addItem(spacerItem, 3, 0, 1, 1)
         self.lblActionTemplatePriorityLoad = QtGui.QLabel(actionPage)
         self.lblActionTemplatePriorityLoad.setObjectName(_fromUtf8("lblActionTemplatePriorityLoad"))
         self.gridLayout.addWidget(self.lblActionTemplatePriorityLoad, 1, 0, 1, 1)
@@ -44,6 +44,9 @@ class Ui_actionPage(object):
         self.chkOrgStructurePriorityForAddActions = QtGui.QCheckBox(actionPage)
         self.chkOrgStructurePriorityForAddActions.setObjectName(_fromUtf8("chkOrgStructurePriorityForAddActions"))
         self.gridLayout.addWidget(self.chkOrgStructurePriorityForAddActions, 0, 0, 1, 2)
+        self.chkEnableUserDictionary = QtGui.QCheckBox(actionPage)
+        self.chkEnableUserDictionary.setObjectName(_fromUtf8("chkEnableUserDictionary"))
+        self.gridLayout.addWidget(self.chkEnableUserDictionary, 2, 0, 1, 1)
 
         self.retranslateUi(actionPage)
         QtCore.QMetaObject.connectSlotsByName(actionPage)
@@ -54,4 +57,5 @@ class Ui_actionPage(object):
         self.cmbActionTemplatePriorityLoad.setItemText(0, _translate("actionPage", "Добавить", None))
         self.cmbActionTemplatePriorityLoad.setItemText(1, _translate("actionPage", "Заполнить", None))
         self.chkOrgStructurePriorityForAddActions.setText(_translate("actionPage", "Приоритет подразделения для функции \"Добавить ...\"", None))
+        self.chkEnableUserDictionary.setText(_translate("actionPage", "Включить отображение Словаря пользователя", None))
 

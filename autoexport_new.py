@@ -356,7 +356,14 @@ def main():
     QtGui.qApp = app
     app.webDAVInterface = None
     app.webDAVInterface = CWebDAVInterface()
-    url = forceString(preferences.appPrefs.get('WebDAVUrl', ''))
+    # --- url берем из настроек в БД
+    url = unicode('')
+    # url = forceString(preferences.appPrefs.get('WebDAVUrl', ''))
+    rec_glb = app.db.getRecordEx('GlobalPreferences', 'value', 'code = \'WebDAV\'')
+    if rec_glb:
+        url = unicode(forceString(rec_glb.value(0)))
+        url = url.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
+    # ---
     app.webDAVInterface.setWebDAVUrl(url)
     database.registerDocumentTable('Action')
     database.registerDocumentTable('ActionProperty')

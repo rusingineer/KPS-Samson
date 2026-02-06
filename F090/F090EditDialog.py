@@ -90,6 +90,7 @@ from Events.ActionEditDialog         import CActionEditDialog
 from Events.ActionInfo               import CCookedActionInfo, CActionMEVaccinationInfoList, CActionMEExaminationsInfoList, CActionMEResearchesInfoList
 from Events.ActionPropertiesTable    import CActionPropertiesTableModel
 from Events.ActionStatus             import CActionStatus
+from Events.ActionsModel             import CActionRecordItem
 from Events.ActionTypeComboBox       import CActionTypeTableCol
 from Events.ActionTemplateChoose     import CActionTemplateCache
 from Events.DiagnosisType            import CDiagnosisTypeCol
@@ -130,7 +131,7 @@ from Events.Utils                    import (
 from Orgs.Orgs                       import selectOrganisation
 from Orgs.OrgComboBox                import CContractDbModel
 from Orgs.PersonComboBoxEx           import CPersonFindInDocTableCol
-from Registry.Utils                  import formatClientBanner, getClientInfo
+from Registry.Utils                  import getClientInfo, getClientBanner
 from Registry.ClientEditDialog       import CClientEditDialog
 from RefBooks.Vaccine.List           import CVaccinationTypeDelegate
 from F001.PreF001Dialog              import CPreF001Dialog
@@ -2326,7 +2327,7 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
     def updateClientInfo(self):
         db = QtGui.qApp.db
         self.clientInfo = getClientInfo(self.clientId, date=self.edtDirectionDate.date())
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDirectionDate.date()))
         table  = db.table('Client')
         record = db.getRecord(table, '*', self.clientId)
         if record:
@@ -4445,6 +4446,7 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
                      'action': action,
                      'client': eventByRecord.client,
                      'actions':eventActions,
+                     'currentAction': CActionRecordItem(self.getRecord(), self.action)
                    }
             signAndAttachResult = applyTemplate(self, templateId, data, signAndAttachHandler=self.btnAttachedFiles.getSignAndAttachHandler())
             if signAndAttachResult:

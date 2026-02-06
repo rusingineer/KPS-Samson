@@ -13,15 +13,15 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, pyqtSignature
+from PyQt4.QtCore import Qt, pyqtSignature, QDateTime
 
-from library.ItemsListDialog    import CItemEditorBaseDialog
-from library.PrintInfo          import CInfoContext, CDateInfo
-from library.PrintTemplates     import getPrintButton, applyTemplate
-from library.Utils import (forceDate, forceDouble, forceRef, forceString, toVariant, forceInt, )
-from Events.EventInfo           import CEventInfo, CCashOperationInfo
+from library.ItemsListDialog import CItemEditorBaseDialog
+from library.PrintInfo import CInfoContext, CDateInfo, CDateTimeInfo
+from library.PrintTemplates import getPrintButton, applyTemplate
+from library.Utils import (forceDate, forceDouble, forceRef, forceString, toVariant, forceInt, forceDateTime)
+from Events.EventInfo import CEventInfo, CCashOperationInfo
 
-from Accounting.Ui_CashDialog   import Ui_CashDialog
+from Accounting.Ui_CashDialog import Ui_CashDialog
 
 
 class CashDialogEditor(CItemEditorBaseDialog, Ui_CashDialog):
@@ -34,6 +34,7 @@ class CashDialogEditor(CItemEditorBaseDialog, Ui_CashDialog):
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.setupDirtyCather()
         self.eventId = None
+        self.edtDateTime.setDateTime(QDateTime.currentDateTime())
         self.cashBox = ''
 
 
@@ -51,7 +52,7 @@ class CashDialogEditor(CItemEditorBaseDialog, Ui_CashDialog):
 
     def setRecord(self, record):
         CItemEditorBaseDialog.setRecord(self, record)
-        self.edtDate.setDate(forceDate(record.value('date')))
+        self.edtDateTime.setDateTime(forceDateTime(record.value('dateTime')))
         self.cmbCashOperation.setValue(forceRef(record.value('cashOperation_id')))
         self.cmbCashOperation.setCurrentIndex(forceInt(record.value('typePayment')))
         self.edtDocumentPayment.setText(forceString(record.value('documentPayment')))
@@ -67,7 +68,7 @@ class CashDialogEditor(CItemEditorBaseDialog, Ui_CashDialog):
     def getRecord(self):
         record = CItemEditorBaseDialog.getRecord(self)
         record.setValue('master_id',         toVariant(self.eventId))
-        record.setValue('date',              toVariant(self.edtDate.date()))
+        record.setValue('dateTime',          toVariant(self.edtDateTime.dateTime()))
         record.setValue('cashOperation_id',  toVariant(self.cmbCashOperation.value()))
         record.setValue('typePayment',       toVariant(self.cmbTypePayment.currentIndex()))
         record.setValue('documentPayment',   toVariant(self.edtDocumentPayment.text()))
@@ -91,19 +92,19 @@ class CashDialogEditor(CItemEditorBaseDialog, Ui_CashDialog):
         printCashOrder(self,
                        templateId,
                        self.eventId,
-                       self.edtDate.date(),
+                       self.edtDateTime.dateTime(),
                        self.cmbCashOperation.value(),
                        self.edtSum.value(),
                        self.cashBox
                       )
 
 
-def printCashOrder(widget, templateId, eventId, date, cashOperationId, sum, cashBox):
+def printCashOrder(widget, templateId, eventId, dateTime, cashOperationId, sum, cashBox):
     context = CInfoContext()
     eventInfo = context.getInstance(CEventInfo, eventId)
     data = { 'event'        : eventInfo,
              'client'       : eventInfo.client,
-             'date'         : CDateInfo(date),
+             'dateTime'     : CDateTimeInfo(dateTime),
              'cashOperation': context.getInstance(CCashOperationInfo, cashOperationId),
              'sum'          : sum,
              'cashBox'      : cashBox

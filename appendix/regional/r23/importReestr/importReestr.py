@@ -25,6 +25,12 @@ import tempfile
 import traceback
 from optparse import OptionParser
 
+import platform
+
+if platform.system() != 'Windows':
+    pathtail = '/appendix/regional/r23/importReestr/importReestr.py'
+    sys.path.insert(0, os.path.realpath(__file__).replace(pathtail, ''))
+
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QDir, qInstallMsgHandler, Qt, QVariant, QDateTime, QDate, pyqtSignature, QTime
 
@@ -36,7 +42,7 @@ from importDispSettings import CDispSettingsImportDialog
 from library import database
 from library.Preferences import CPreferences
 from library.Utils import forceString, forceBool, forceRef, forceInt, anyToUnicode, getPrefString, getPrefBool, getPref, \
-    setPref, nameCase
+    setPref, nameCase, toVariant, forceDate
 
 import Exchange.AttachService as AttachService
 
@@ -529,6 +535,14 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
             db.query('delete from soc_attachments where coalesce(serviceMethod, 0) = %d' % serviceMethodType)
             soc_attachments = db.table('soc_attachments')
             startId = 1
+
+            needUpdateClientInfo = forceString(
+                QtGui.qApp.db.translate('GlobalPreferences', 'code', '23:UpdateClientInfoByGetAuthoAttachment',
+                                        'value')) == u'да'
+            accountingSystemId = 0
+            if needUpdateClientInfo:
+                accountingSystemId = forceRef(QtGui.qApp.db.translate('rbAccountingSystem', 'code', 'ENP', 'id'))
+                
             while startId != -1:
                 if self.attachImportCanceled:
                     break
@@ -573,6 +587,51 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
                 startId = response['nextId']
 
+            #убираем дубли записей (мусор из ТФОМС) Остается запись с максимальной датой прикрепления. Если таких больше одной, то последняя в пакете
+            stmt = u'''
+            SELECT id FROM soc_attachments
+                WHERE EXISTS (
+                    SELECT 1 FROM soc_attachments sa
+                    WHERE sa.client_id=soc_attachments.client_id AND sa.serviceMethod=soc_attachments.serviceMethod AND DATE(soc_attachments.attach_date) < DATE(sa.attach_date)
+                )
+                AND serviceMethod=0 AND IFNULL(client_id, 0) != 0;
+            '''
+            resetGarbageRecordsIdList = []
+            query = db.query(stmt)
+            while query.next():
+                resetGarbageRecordsIdList.append(forceInt(query.record().value('id')))
+            db.updateRecords(soc_attachments, [soc_attachments['client_id'].eq(0)], [soc_attachments['id'].inlist(resetGarbageRecordsIdList)])
+            #Если таких больше одной, то последняя в пакете
+            stmt = u'''
+                SELECT soc_attachments.id FROM soc_attachments
+                INNER JOIN (
+                    SELECT client_id, MAX(id) id FROM soc_attachments WHERE (`serviceMethod`=0) AND IFNULL(client_id, 0) != 0
+                    GROUP BY client_id
+                    HAVING count(id) > 1
+                ) tmp ON tmp.client_id = soc_attachments.client_id AND soc_attachments.id != tmp.id
+                 WHERE (soc_attachments.`serviceMethod`=0) AND IFNULL(soc_attachments.client_id, 0) != 0
+            '''
+            resetGarbageRecordsIdList = []
+            query = db.query(stmt)
+            while query.next():
+                resetGarbageRecordsIdList.append(forceInt(query.record().value('id')))
+            db.updateRecords(soc_attachments, [soc_attachments['client_id'].eq(0)], [soc_attachments['id'].inlist(resetGarbageRecordsIdList)])
+
+            if needUpdateClientInfo:
+                self.prbAttachImport.setFormat(u'Проверка прикрепления и ЕНП пациентов')
+                self.prbAttachImport.setValue(0)
+                socAttachRecordlist = db.getRecordList(soc_attachments, '*', [soc_attachments['serviceMethod'].eq(0), 'IFNULL(client_id, 0) != 0'])
+                self.prbAttachImport.setFormat(u'%v из %m')
+                self.prbAttachImport.setMaximum(len(socAttachRecordlist))
+                for idx, record in enumerate(socAttachRecordlist, 1):
+                    QtGui.qApp.processEvents()
+                    if forceDate(record.value('attach_date')):
+                        self.updateClientAttach(record)
+                    if accountingSystemId and forceString(record.value('enp')):
+                        self.updateClientENP(record, accountingSystemId)
+                    if idx % 100 == 0:
+                        self.prbAttachImport.setValue(self.prbAttachImport.value() + idx)
+
             if self.attachImportCanceled:
                 db.rollback()
             else:
@@ -599,6 +658,115 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
         self.btnImportAttachAct.setEnabled(True)
         self.edtImportAttachActDate.setEnabled(True)
         self.btnImportDeattachMO.setEnabled(True)
+
+
+    def updateClientAttach(self, record):
+        savePointIsActive = 0
+        try:
+            client_id = forceInt(record.value('client_id'))
+            attach_mo = forceString(record.value('attach_mo'))
+            attach_area = forceString(record.value('attach_area'))
+
+            stmt = u'''SELECT ClientAttach.*, 
+                            getOMSCode(OrgStructure.id)  attach_mo, OrgStructure.infisInternalCode attach_area
+                        FROM ClientAttach
+                        INNER JOIN OrgStructure ON OrgStructure.id = ClientAttach.orgStructure_id
+                        WHERE ClientAttach.id = (SELECT max(ca.id) FROM ClientAttach ca
+                                              left join rbAttachType on rbAttachType.id = ca.attachType_id
+                                              where ca.client_id = {client_id} and rbAttachType.code in (1,2) AND ca.deleted = 0
+                                              limit 1)
+                        AND ClientAttach.endDate is null
+            '''.format(client_id=client_id)
+            needNewAttach = 1
+            recordDeAttach = None
+            query = QtGui.qApp.db.query(stmt)
+            if query.first():
+                recordDeAttach = query.record()
+            if recordDeAttach and forceString(recordDeAttach.value('attach_mo')) == attach_mo and forceString(recordDeAttach.value('attach_area')) == attach_area:
+                needNewAttach = 0
+            if needNewAttach:
+                now = QDateTime().currentDateTime()
+                tableOrgStructure = QtGui.qApp.db.table('OrgStructure')
+                tableAttach = QtGui.qApp.db.table('ClientAttach')
+                recordOrgStruct = QtGui.qApp.db.getRecordEx(tableOrgStructure,
+                                                            [
+                                                                tableOrgStructure['id'],
+                                                                tableOrgStructure['name'],
+                                                                tableOrgStructure['organisation_id'].alias('LPU_id')
+                                                            ],
+                                                            [
+                                                                tableOrgStructure['deleted'].eq(0),
+                                                                'getOMSCode(%s)="%s"' % (tableOrgStructure['id'].name(), attach_mo),
+                                                                tableOrgStructure['infisInternalCode'].eq(attach_area),
+                                                                tableOrgStructure['areaType'].gt(0),
+                                                            ])
+                if not recordOrgStruct:
+                    return
+                if recordDeAttach:
+                    deAttachType = QtGui.qApp.db.translate('rbDeAttachType', 'regionalCode', '4', 'id')
+                    if not deAttachType:
+                        return
+                notes = u"Импорт приписного населения {now}".format(now=now.toString(Qt.ISODate))
+                attachDate = forceDate(record.value('attach_date'))
+                if not attachDate:
+                    return
+                QtGui.qApp.db.query("SAVEPOINT sp{client_id}".format(client_id=client_id))
+                savePointIsActive = 1
+                #открепление
+                if recordDeAttach:
+                    attachBegDate = forceDate(recordDeAttach.value('begDate'))
+                    attachEndDate = attachDate.addDays(-1)
+                    recordDeAttach.setValue('modifyDatetime', toVariant(now))
+                    recordDeAttach.setValue('endDate', toVariant(
+                        attachBegDate if attachBegDate and attachBegDate > attachEndDate else attachEndDate))
+                    recordDeAttach.setValue('deAttachType_id', toVariant(deAttachType))
+                    recordDeAttach.setValue('notes', toVariant(notes))
+                    recordDeAttach.remove(recordDeAttach.indexOf("attach_area"))
+                    recordDeAttach.remove(recordDeAttach.indexOf("attach_mo"))
+                    QtGui.qApp.db.updateRecord(tableAttach, recordDeAttach)
+                #прикрепление
+                recordAttach = tableAttach.newRecord()
+                recordAttach.setValue('createDatetime', toVariant(now))
+                recordAttach.setValue('modifyDatetime', toVariant(now))
+                recordAttach.setValue('client_id', toVariant(client_id))
+                recordAttach.setValue('attachType_id', toVariant(forceInt(record.value('attach_type'))))
+                recordAttach.setValue('LPU_id', toVariant(recordOrgStruct.value('LPU_id')))
+                recordAttach.setValue('orgStructure_id', toVariant(recordOrgStruct.value('id')))
+                recordAttach.setValue('begDate', toVariant(attachDate))
+                recordAttach.setValue('notes', toVariant(notes))
+                QtGui.qApp.db.insertRecord(tableAttach, recordAttach)
+                QtGui.qApp.db.query("RELEASE SAVEPOINT sp{client_id}".format(client_id=client_id))
+                savePointIsActive = 0
+        except:
+            if savePointIsActive:
+                QtGui.qApp.db.query("ROLLBACK TO SAVEPOINT sp{client_id}".format(client_id=client_id))
+            QtGui.qApp.logCurrentException()
+
+    def updateClientENP(self, record, accountingSystemId):
+        try:
+            table = QtGui.qApp.db.table('ClientIdentification')
+            recordENP = QtGui.qApp.db.getRecordEx(table, '*',
+                                                  [
+                                                      table['deleted'].eq(0),
+                                                      table['accountingSystem_id'].eq(accountingSystemId),
+                                                      table['client_id'].eq(forceRef(record.value('client_id'))),
+                                                  ],
+                                                  order='id'
+                                                  )
+            if recordENP is None or (recordENP and forceString(recordENP.value('identifier')) != forceString(record.value('enp'))):
+                now = QDateTime().currentDateTime()
+                if not recordENP:
+                    recordENP = table.newRecord()
+                    recordENP.setValue('accountingSystem_id', toVariant(accountingSystemId))
+                    recordENP.setValue('client_id', toVariant(forceRef(record.value('client_id'))))
+                    recordENP.setValue('createDatetime', toVariant(now))
+                recordENP.setValue('modifyDatetime', toVariant(now))
+                recordENP.setValue('identifier', toVariant(forceString(record.value('enp'))))
+                recordENP.setValue('note', toVariant(
+                    u"Импорт приписного населения {now}".format(now=now.toString(Qt.ISODate))))
+                QtGui.qApp.db.insertOrUpdate(table, recordENP)
+        except:
+            QtGui.qApp.logCurrentException()
 
     @QtCore.pyqtSignature('int')
     def on_chkImportClients_stateChanged(self, state):

@@ -53,8 +53,8 @@ def selectData(params):
     queryTable = queryTable.innerJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
     queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
     queryTable = queryTable.leftJoin(tableRBSpeciality, tablePerson['speciality_id'].eq(tableRBSpeciality['id']))
-    cond = [tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+    cond = [tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableRBMedicalAidType['code'].inlist(['9','6']),
             tableRBSpeciality['federalCode'].like(u'173'),
             tableEventType['deleted'].eq(0),

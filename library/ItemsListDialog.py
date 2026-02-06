@@ -21,7 +21,7 @@ from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.TableModel import CTableModel
 from library.RecordLock import CRecordLockMixin
 from library.Utils      import exceptionToUnicode, forceRef, forceString, forceStringEx, toVariant
-from library.database import CDatabaseException, CDocumentTable
+from library.database import CDatabaseException, CDocumentTable, CSqlRecord
 
 from Ui_ItemsListDialog import Ui_ItemsListDialog
 from Ui_ItemsSplitListDialog import Ui_ItemsSplitListDialog
@@ -643,6 +643,8 @@ class CItemEditorBaseDialog(CDialogBase, CRecordLockMixin):
 
 
     def setRecord(self, record):
+        if type(record) != CSqlRecord:
+            record = CSqlRecord(record)
         self._record = record
         self._id     = forceRef(record.value(self.idFieldName))
 

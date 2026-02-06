@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,22 +18,26 @@ import sys
 from optparse import OptionParser
 
 from PyQt4 import QtGui, QtCore, QtSql
-from PyQt4.QtCore import QDir, qInstallMsgHandler, QVariant, pyqtSignature, Qt, QDate, QTime, QDateTime
+from PyQt4.QtCore import QDir, qInstallMsgHandler, QVariant, pyqtSignature, Qt, QTime, QDateTime
 
-from Events.Utils import getAvailableCharacterIdByMKB
-from Ui_importCOVID import Ui_MainWindow
-from Users.Login import CLoginDialog
-from Users.tryKerberosAuth import tryKerberosAuth
-from appPreferencesDialog import CAppPreferencesDialog
 from library import database
 from library.BaseApp import CBaseApp
 from library.DialogBase import CConstructHelperMixin
 from library.InDocTable import CRecordListModel, CInDocTableCol
 from library.Utils import setPref, forceString, forceRef, toVariant, forceDate, pyDate, forceInt, calcAgeInYears
 from library.dbfpy.dbf import Dbf
+
+from appPreferencesDialog import CAppPreferencesDialog
 from preferences.connection import CConnectionDialog
 from preferences.decor import CDecorDialog
 from s11main import parseGCDebug, parseGCThreshold
+
+from Events.Utils import getAvailableCharacterIdByMKB
+
+from Users.Login import CLoginDialog
+from Users.tryKerberosAuth import tryKerberosAuth
+
+from Ui_importCOVID import Ui_MainWindow
 
 
 class CMyApp(CBaseApp):
@@ -91,9 +95,9 @@ class CMyApp(CBaseApp):
         finally:
             self.restoreOverrideCursor()
 
-    def startProgressBar(self, steps, format=u'%v из %m'):
+    def startProgressBar(self, steps, fmt=u'%v из %m'):
         progressBar = self.mainWindow.getProgressBar()
-        progressBar.setFormat(format)
+        progressBar.setFormat(fmt)
         progressBar.setMinimum(0)
         progressBar.setMaximum(steps)
         progressBar.setValue(0)
@@ -110,7 +114,12 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def __init__(self, parent=None):
         QtGui.QMainWindow.__init__(self, parent)
         self.setupUi(self)
-
+        self.progressBar = None
+        self.progressBarVisible = False
+        self.OMSPolicy = None
+        self.oldPolicy = None
+        self.tempPolicy = None
+        self.newPolicy = None
         self.recordList = []
         self.clientMap = {}
         self.eventMap = {}
@@ -119,7 +128,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actionTypeMap = {}
         self.mapOMSCodeToOrgId = {}
         self.actionMap = {}
-        self.sexMap = {u'Ж':2, u'ж':2, u'М':1, u'м':1}
+        self.sexMap = {u'Ж': 2, u'ж': 2, u'М': 1, u'м': 1}
         self.documentTypeMap = {}
         self.dbfProcessed = False
 
@@ -162,17 +171,17 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 self.setUserName(QtGui.qApp.userName())
                 self.updateActionsState()
                 return
-        except database.CDatabaseException, e:
+        except database.CDatabaseException as e:
             QtGui.QMessageBox.critical(
                 QtGui.QMessageBox(),
                 u'Ошибка открытия базы данных',
                 unicode(e),
                 QtGui.QMessageBox.Close)
-        except Exception, e:
+        except Exception as e:
             QtGui.QMessageBox.critical(
                 QtGui.QMessageBox(),
                 u'Ошибка открытия базы данных',
-                u'Невозможно установить соедиенение с базой данных\n' + unicode(e),
+                u'Невозможно установить соединение с базой данных\n' + unicode(e),
                 QtGui.QMessageBox.Close)
             QtGui.qApp.logCurrentException()
         QtGui.qApp.closeDatabase()
@@ -191,13 +200,13 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     @QtCore.pyqtSignature('')
     def on_actPreferences_triggered(self):
-        qApp = QtGui.qApp
+        application = QtGui.qApp
         dialog = CAppPreferencesDialog(self)
-        dialog.setProps(qApp.preferences.appPrefs)
+        dialog.setProps(application.preferences.appPrefs)
         if dialog.exec_():
-            qApp.preferences.appPrefs.update(dialog.props())
-            qApp.preferences.save()
-            self.setUserName(qApp.userName())
+            application.preferences.appPrefs.update(dialog.props())
+            application.preferences.save()
+            self.setUserName(application.userName())
 
     @QtCore.pyqtSignature('')
     def on_actConnection_triggered(self):
@@ -258,8 +267,8 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.progressBarVisible = False
 
     def updateActionsState(self):
-        app = QtGui.qApp
-        loggedIn = bool(app.db) and app.userId is not None
+        application = QtGui.qApp
+        loggedIn = bool(application.db) and application.userId is not None
 
         # Меню Сессия
         self.actLogin.setEnabled(not loggedIn)
@@ -450,7 +459,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                     newRecord.setValue('serial', toVariant(policySerial))
                     newRecord.setValue('number', toVariant(policyNumber))
                     newRecord.setValue('begDate', toVariant(item.value('0000-00-00')))  #
-                    clientPolicyId = db.insertRecord(clientPolicyTable, newRecord)
+                    db.insertRecord(clientPolicyTable, newRecord)
 
                 # добавляем УДЛ
                 docNumber = forceString(item.value('N_DOC'))
@@ -478,7 +487,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                     newRecord.setValue('number', toVariant(docNumber))
                     newRecord.setValue('date', toVariant('0000-00-00'))  #
                     newRecord.setValue('origin', toVariant(''))
-                    clientDocumentId = db.insertRecord(clientDocumentTable, newRecord)
+                    db.insertRecord(clientDocumentTable, newRecord)
 
             elif record:
                 clientId = forceRef(record.value('id'))
@@ -495,17 +504,19 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         if naprMO:
             relegateOrg_id = self.mapOMSCodeToOrgId.get(naprMO, -1)
             if relegateOrg_id == -1:
-                rec = db.getRecordEx(tableOrg, 'id', [tableOrg['infisCode'].eq(naprMO), tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1)])
+                rec = db.getRecordEx(tableOrg, 'id', [tableOrg['infisCode'].eq(naprMO),
+                                                      tableOrg['deleted'].eq(0),
+                                                      tableOrg['isActive'].eq(1)])
                 if rec:
                     relegateOrg_id = forceRef(rec.value('id'))
                 else:
                     relegateOrg_id = None
                 self.mapOMSCodeToOrgId['naprMO'] = relegateOrg_id
 
-
         clientId = forceRef(item.value('clientId'))
         age = calcAgeInYears(forceDate(item.value('DATR')), eventDate)
         eventTypeId = QtGui.qApp.preferences.appPrefs.get('eventTypeId', None) if age >= 18 else QtGui.qApp.preferences.appPrefs.get('eventTypeIdChild', None)
+        eventOrder = forceInt(QtGui.qApp.db.translate('EventType', 'id', eventTypeId, 'EventType.order'))
         orgId = QtGui.qApp.preferences.appPrefs.get('orgId', None)
         contractId = QtGui.qApp.preferences.appPrefs.get('contractId', None)
         resultId = QtGui.qApp.preferences.appPrefs.get('resultId', None)
@@ -537,7 +548,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 newRecord.setValue('execDate', toVariant(eventDate))
                 newRecord.setValue('execPerson_id', toVariant(personId))
                 newRecord.setValue('isPrimary', toVariant(1))  # Признак первичности 1-первичный
-                newRecord.setValue('order', toVariant(6))  # Порядок наступления 6-неотложная
+                newRecord.setValue('order', toVariant(eventOrder+1))
                 newRecord.setValue('result_id', toVariant(resultId))
                 newRecord.setValue('payStatus', toVariant(0))
                 newRecord.setValue('note', toVariant(u'добавлено через importCOVID {0} Номер направления {1} от {2}'.format(QDateTime.currentDateTime().toString("dd.MM.yyyy hh:mm"),
@@ -614,8 +625,9 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                     actionTypeTable['flatCode'].eq('importCOVID')
                     ]
             record = db.getRecordEx(table, actionTypeTable['id'], where=cond, order='ActionType.id desc')
-            actionTypeId = forceRef(record.value('id'))
-            self.actionTypeMap[serviceCode] = actionTypeId
+            if record:
+                actionTypeId = forceRef(record.value('id'))
+                self.actionTypeMap[serviceCode] = actionTypeId
 
         if actionTypeId and eventId > 0:
             actionId = self.actionMap.get((eventId, actionTypeId), -1)
@@ -654,8 +666,9 @@ class CDBFModel(CRecordListModel):
     u"""Данные загруженные из дбф"""
 
     fieldList = (
-    'SN', 'FIO', 'IMA', 'OTCH', 'NAPR_MO', 'SUMMA_I', 'NAPR_N', 'NAPR_D', 'LPUNAME', 'MKB', 'KUSL', 'USLNAME', 'LAB',
-    'OTD', 'DOC', 'IS_VNESH', 'POL', 'DATR', 'KAT', 'SPV', 'SPS', 'SPN', 'C_DOC', 'S_DOC', 'N_DOC')
+        'SN', 'FIO', 'IMA', 'OTCH', 'NAPR_MO', 'SUMMA_I', 'NAPR_N', 'NAPR_D',
+        'LPUNAME', 'MKB', 'KUSL', 'USLNAME', 'LAB', 'OTD', 'DOC', 'IS_VNESH',
+        'POL', 'DATR', 'KAT', 'SPV', 'SPS', 'SPN', 'C_DOC', 'S_DOC', 'N_DOC')
 
     fieldTypeDict = {'SN': QVariant.Int, 'FIO': QVariant.String, 'IMA': QVariant.String, 'OTCH': QVariant.String,
                      'NAPR_MO': QVariant.String, 'SUMMA_I': QVariant.Double, 'NAPR_N': QVariant.String,
@@ -675,7 +688,6 @@ class CDBFModel(CRecordListModel):
 
     def data(self, index, role=Qt.DisplayRole):
         row = index.row()
-        column = index.column()
         item = self._items[row]
         if role == Qt.BackgroundColorRole:
             if forceInt(item.value('clientId')) <= 0:
@@ -721,14 +733,15 @@ if __name__ == '__main__':
 
         app = CMyApp(sys.argv)
         stdTtranslator = QtCore.QTranslator()
-        stdTtranslator.load('i18n/std_ru.qm')
+        path = os.path.join(os.path.realpath(sys.argv[0].split('appendix')[0]), 'i18n', 'std_ru.qm')
+        stdTtranslator.load(path)
         app.installTranslator(stdTtranslator)
 
         QtGui.qApp = app
-        app.applyDecorPreferences()  # надеюсь, что это поможет немного сэкономить при создании гл.окна
+        app.applyDecorPreferences()  # Надеюсь, что это поможет немного сэкономить при создании главного окна
         mainWindow = CMainWindow()
         app.mainWindow = mainWindow
-        app.applyDecorPreferences()  # применение максимизации/полноэкранного режима к главному окну
+        app.applyDecorPreferences()  # Применение максимизации/полноэкранного режима к главному окну
 
         if app.preferences.dbAutoLogin:
             mainWindow.actLogin.activate(QtGui.QAction.Trigger)

@@ -102,6 +102,10 @@ class CApp(QtGui.QApplication):
         return None
 
 
+    def currentOrgStructureId(self):
+        return self.getCurrentOrgStructureId()
+
+
     def __init__(self, args, logSql=False):
         QtGui.QApplication.__init__(self, args)
         self.defaultFont = self.font()

@@ -16,7 +16,7 @@ from PyQt4.QtCore import Qt, SIGNAL, pyqtSignature, QObject
 
 from library.ItemsListDialog import CItemsListDialog, CItemEditorDialog
 from library.interchange     import setLineEditValue, getLineEditValue
-from library.TableModel import CTextCol, CTableModel
+from library.TableModel import CTextCol
 from library.DialogBase import CDialogBase
 from library.Utils           import forceInt
 from RefBooks.Tables         import rbCode
@@ -41,21 +41,20 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
     def setup(self, *args, **kw):
         CItemsListDialog.setup(self, *args, **kw)
         self.setModels(self.tblItems_2, self.model, self.selectionModel)
+        self.setModels(self.tblItems_3, self.model, self.selectionModel)
+        self.setModels(self.tblItems_4, self.model, self.selectionModel)
         shortcutEdt = QtGui.QShortcut(QtGui.QKeySequence('F4'), self)
         shortcutEdt.activated.connect(self.on_btnEdit_clicked)
         shortcutNew = QtGui.QShortcut(QtGui.QKeySequence('F9'), self)
         shortcutNew.activated.connect(self.on_btnNew_clicked)
         QObject.connect(
             self.tblItems_2.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
+        QObject.connect(
+            self.tblItems_3.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
 
     @pyqtSignature('int')
     def on_tabWidget_currentChanged(self):
-        idList = self.select(self.props)
-        self.model.setIdList(idList)
-        if idList:
-            self.tblItems.selectRow(0)
-        self.label.setText(u'всего: %d' % len(idList))
-        self.label_2.setText(u'всего: %d' % len(idList))
+        self.renewListAndSetTo()
 
     def select(self, props={}):
         db = QtGui.qApp.db
@@ -66,6 +65,10 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
             cond = table['code_last'].eq(12)
         elif tab == 1:
             cond = table['code_last'].eq(11)
+        elif tab == 2:
+            cond = table['code_last'].eq(13)
+        elif tab == 3:
+            cond = table['code_last'].eq(14)
         result = []
         query = db.query(db.selectStmt(table, 'DISTINCT GetPositionList.id', cond, self.order))
         while query.next():
@@ -78,8 +81,12 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
         tab = self.tabWidget.currentIndex()
         if tab == 0:
             header = self.tblItems.horizontalHeader()
-        else:
+        elif tab == 1:
             header = self.tblItems_2.horizontalHeader()
+        elif tab == 2:
+            header = self.tblItems_3.horizontalHeader()
+        else:
+            header = self.tblItems_4.horizontalHeader()
         header.setSortIndicatorShown(True)
         self.isAscending = not self.isAscending
         header.setSortIndicator(col, Qt.AscendingOrder if self.isAscending else Qt.DescendingOrder)
@@ -96,6 +103,8 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
             self.tblItems.selectRow(0)
         self.label.setText(u'всего: %d' % len(idList))
         self.label_2.setText(u'всего: %d' % len(idList))
+        self.label_3.setText(u'Всего: %d' % len(idList))
+        self.label_4.setText(u'Всего: %d' % len(idList))
 
     def getItemEditor(self):
         tab = self.tabWidget.currentIndex()
@@ -125,6 +134,10 @@ class CPostOnAppointmentEditor(Ui_PostOnAppointmentEditorDialog, CItemEditorDial
             code_last = 12
         elif self.tab_inx == 1:
             code_last = 11
+        elif self.tab_inx == 2:
+            code_last = 13
+        elif self.tab_inx == 3:
+            code_last = 14
         else:
             code_last = None
         record.setValue('code_last', code_last)

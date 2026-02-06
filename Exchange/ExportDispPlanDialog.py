@@ -26,6 +26,7 @@ class CExportDispPlanDialog(CDialogBase, Ui_ExportDispPlanDialog):
         self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actDeletePlanExport', QtGui.QAction(u'Удалить признак экспорта', self))
         self.setupUi(self)
+        self.modelDispPlan.setHideSuccess(parent.chkHideSuccess.isChecked())
         self.setWindowFlags(Qt.Window)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblDispPlan.createPopupMenu([self.actEditClient, self.actDeletePlanExport])
@@ -113,7 +114,7 @@ class CExportDispPlanDialog(CDialogBase, Ui_ExportDispPlanDialog):
                 ids = self.exportableIdList[0:packageSize]
                 self.exportableIdList = self.exportableIdList[packageSize:]
                 QtGui.qApp.processEvents()
-                result = AttachService.putEvPlanList('ClientSocStatus', ids)
+                result = AttachService.putEvPlanList('ClientSocStatus', ids, useSocAttachments=int(self.chkUseSocAttachments.isChecked()))
                 successCount = successCount + result['successCount']
                 errorCount = errorCount + result['errorCount']
                 acceptedCount = successCount + errorCount
@@ -352,6 +353,7 @@ class CDispPlanModel(CTableModel):
 
     def __init__(self, parent):
         self.cssInfoDict = {}
+        self.hideSuccess = False
         self.orderByColumn = [
             'Client.lastName',
             '(year(CSS.begDate) - year(Client.birthDate))',
@@ -374,6 +376,21 @@ class CDispPlanModel(CTableModel):
         self.addColumn(CDispPlanModel.CAttachCol(u'Участок', ['id'], 15, self.cssInfoDict))
         self.setTable('ClientSocStatus')
 
+        self._boldFont = QtGui.QFont()
+        self._boldFont.setWeight(QtGui.QFont.Bold)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.FontRole:
+                planId = self._idList[index.row()]
+                if forceInt(self.cssInfoDict.get(planId).value('bold')):
+                    return toVariant(self._boldFont)
+        return CTableModel.data(self, index, role)
+
+
+    def setHideSuccess(self, state):
+        self.hideSuccess = state
+
     def update(self, year, monthFrom, monthTo, kind):
         db = QtGui.qApp.db
         dateFrom = QDate(year, monthFrom, 1)
@@ -382,6 +399,7 @@ class CDispPlanModel(CTableModel):
             cssTypeCond = u"SST.code in ('disp', 'disp_2', 'disp_1', 'prof', 'disp_cov1', 'disp_cov2')"
         else:
             cssTypeCond = u"SST.code = '%s'" % kind
+        exportSuccess = u"ifnull(PlanExport.exportSuccess, 0) != 1" if self.hideSuccess else u"1"
 
         sql = u"""
         select CSS.*,
@@ -392,8 +410,9 @@ class CDispPlanModel(CTableModel):
             PlanExport.exportDate,
             PlanExport.exportSuccess,
             PlanExport.id as planExport_id,
-            AttachOrgStructure.name as attachName
-        from ClientSocStatus as CSS
+            AttachOrgStructure.name as attachName,
+            ifnull(SocAttachOrgStructure.id, 0) != ifnull(AttachOrgStructure.id, 0) as bold
+            from ClientSocStatus as CSS
             left join rbSocStatusClass as SSC on SSC.id = CSS.socStatusClass_id
             left join rbSocStatusType as SST on SST.id = CSS.socStatusType_id
             left join Client on Client.id = CSS.client_id
@@ -408,18 +427,30 @@ class CDispPlanModel(CTableModel):
                     and Attach.endDate is null
                     and o.areaType > 0
             )
+            LEFT JOIN (
+                SELECT soc_attachments.client_id,  OrgStructure.id orgStructure_id 
+                FROM soc_attachments
+                INNER JOIN OrgStructure ON OrgStructure.id = 
+                        (SELECT id FROM OrgStructure org WHERE org.deleted=0 
+                        AND getOMSCode(org.id)=soc_attachments.attach_mo 
+                        AND org.infisInternalCode=soc_attachments.attach_area  AND org.areaType > 0 limit 1)
+                WHERE soc_attachments.serviceMethod = 0
+            ) SocAttach ON Client.id = SocAttach.client_id
             left join disp_PlanExport as PlanExport on PlanExport.exportKind = 'ClientSocStatus' and PlanExport.row_id = CSS.id
             left join OrgStructure as AttachOrgStructure on AttachOrgStructure.id = Attach.orgStructure_id
+            left join OrgStructure as SocAttachOrgStructure on SocAttachOrgStructure.id = SocAttach.orgStructure_id
         where CSS.deleted = 0
             and Client.deleted = 0
             and SSC.code = 'profilac'
             and %(cssTypeCond)s
             and CSS.begDate >= '%(dateFrom)s'
             and CSS.begDate <= '%(dateTo)s'
+            and %(exportSuccess)s
         """ % {
             "cssTypeCond": cssTypeCond,
             "dateFrom": dateFrom.toString('yyyy-MM-dd'),
             "dateTo": dateTo.toString('yyyy-MM-dd'),
+            "exportSuccess": exportSuccess
         }
         orderColumnIndex, isAscending = self.order
         orderBy = self.orderByColumn[orderColumnIndex]

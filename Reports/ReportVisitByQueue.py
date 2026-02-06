@@ -57,7 +57,13 @@ class CReportVisitByQueue(CReport):
         cursor.setCharFormat(CReportBase.ReportBody)
         cursor.insertBlock()
         isNoteVisibled = params.get('isNoteVisibled', False)
-        colsSize = '15%' if isNoteVisibled else '18%'
+        isPersonVisibled = params.get('isPersonVisibled', False)
+        if isNoteVisibled and isPersonVisibled:
+            colsSize = '12%'
+        elif isNoteVisibled or isPersonVisibled:
+            colsSize = '15%'
+        else:
+            colsSize = '18%'
         cols = [( '5%', [u'№ п/п'], CReportBase.AlignLeft),
                 (colsSize, [u'Идентификатор пациента'], CReportBase.AlignLeft),
                 (colsSize, [u'ФИО'], CReportBase.AlignLeft),
@@ -68,6 +74,8 @@ class CReportVisitByQueue(CReport):
                ]
         if isNoteVisibled:
             cols.append(('15%', [u'Примечания'], CReportBase.AlignLeft))
+        if isPersonVisibled:
+            cols.append(('15%', [u'Врач'], CReportBase.AlignLeft))
         table = createTable(cursor, cols)
         query = self.getData(params)
         cnt = 1
@@ -95,6 +103,8 @@ class CReportVisitByQueue(CReport):
             table.setText(i, 6, phones)
             if isNoteVisibled:
                 table.setText(i, 7, forceString(record.value('notes')) if clientId else u'')
+            if isPersonVisibled:
+                table.setText(i, 8 if isNoteVisibled else 7, forceString(record.value('personName')))
             cnt += 1
         return doc
 
@@ -152,6 +162,7 @@ class CReportVisitBySchedule(CReportVisitByQueue):
         result = CReportVisitByQueueDialog(self.reportType, parent)
         result.setTitle(self.title())
         result.setChkNoteVisibled(True)
+        result.setChkPersonVisibled(True)
         return result
 
 
@@ -162,6 +173,7 @@ class CReportVisitBySchedule(CReportVisitByQueue):
         specialityId    = params.get('specialityId', None)
         personId        = params.get('personId', None)
         isNoteVisibled  = params.get('isNoteVisibled', False)
+        isPersonVisibled = params.get('isPersonVisibled', False)
 
         listOnlyWithoutVisit = params.get('listOnlyWithoutVisit', False)
         takeAccountVisitToOtherDoctor = params.get('takeAccountVisitToOtherDoctor', False)
@@ -206,12 +218,17 @@ class CReportVisitBySchedule(CReportVisitByQueue):
             noteVisibled = u'Schedule_Item.note,'
         else:
             noteVisibled = u''
+        if isPersonVisibled:
+            personVisibled = u'formatPersonName(Person.id) as personName,'
+        else:
+            personVisibled = u''
         stmt = 'SELECT DISTINCT'                                                               \
                ' Schedule_Item.client_id,'                                                     \
                ' Schedule.date,'                                                               \
                ' Client.lastName, Client.firstName, Client.patrName, Client.birthDate,'        \
                ' getClientContacts(Client.id) AS clientPhones,'                                \
                ' %(noteVisibled)s'                                                             \
+               ' %(personVisibled)s'                                                           \
                ' vVisitExt.id IS NOT NULL AS visited'                                          \
                ' FROM'                                                                         \
                ' Schedule_Item'                                                                \
@@ -226,6 +243,7 @@ class CReportVisitBySchedule(CReportVisitByQueue):
                                              cond = db.joinAnd(cond),
                                              order = orderExpr,
                                              noteVisibled = noteVisibled,
+                                             personVisibled = personVisibled,
                                            )
         return db.query(stmt)
 
@@ -257,9 +275,9 @@ class CReportVisitByNextEventDate(CReportVisitByQueue):
                ]
 
         if begScheduleDate:
-            cond.append(tableEvent['nextEventDate'].dateGe(begScheduleDate))
+            cond.append(tableEvent['nextEventDate'].ge(begScheduleDate))
         if endScheduleDate:
-            cond.append(tableEvent['nextEventDate'].dateLe(endScheduleDate))
+            cond.append(tableEvent['nextEventDate'].lt(endScheduleDate.addDays(1)))
         if personId:
             cond.append(tableEvent['execPerson_id'].eq(personId))
         if specialityId:
@@ -309,6 +327,7 @@ class CReportVisitByQueueDialog(QtGui.QDialog, Ui_ReportVisitByQueueDialog):
         self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
         self.cmbSpeciality.setTable('rbSpeciality', order='name')
         self.setChkNoteVisibled(False)
+        self.setChkPersonVisibled(False)
 #        if reportType:
 #            self.chkListOnlyWithoutVisit.setVisible(False)
 #            self.chkTakeAccountVisitToOtherDoctor.setVisible(False)
@@ -320,11 +339,13 @@ class CReportVisitByQueueDialog(QtGui.QDialog, Ui_ReportVisitByQueueDialog):
     def setTitle(self, title):
         self.setWindowTitle(title)
 
-
     def setChkNoteVisibled(self, value):
         self.isNoteVisibled = value
         self.chkNoteVisibled.setVisible(value)
 
+    def setChkPersonVisibled(self, value):
+        self.isPersonVisibled = value
+        self.chkPersonVisibled.setVisible(value)
 
     def setParams(self, params):
         self.edtBegScheduleDate.setDate(params.get('begScheduleDate', QDate.currentDate()))
@@ -337,6 +358,8 @@ class CReportVisitByQueueDialog(QtGui.QDialog, Ui_ReportVisitByQueueDialog):
         self.cmbOrder.setCurrentIndex(params.get('order', 0))
         if self.isNoteVisibled:
             self.chkNoteVisibled.setChecked(params.get('isNoteVisibled', False))
+        if self.isPersonVisibled:
+            self.chkPersonVisibled.setChecked(params.get('isPersonVisibled', False))
 
 
     def params(self):
@@ -349,6 +372,7 @@ class CReportVisitByQueueDialog(QtGui.QDialog, Ui_ReportVisitByQueueDialog):
                     takeAccountVisitToOtherDoctor = self.chkTakeAccountVisitToOtherDoctor.isChecked(),
                     order           = self.cmbOrder.currentIndex(),
                     isNoteVisibled  = self.chkNoteVisibled.isChecked() if self.isNoteVisibled else False,
+                    isPersonVisibled= self.chkPersonVisibled.isChecked() if self.isPersonVisibled else False,
                    )
 
 

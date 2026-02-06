@@ -53,9 +53,14 @@ def selectData(params):
     hasEndPerson = params.get('hasEndPerson', True)
     placeWork = params.get('placeWork', True)
     electronic = params.get('electronic', True)
+    clientAreaCheck = params.get('isClientArea', False)
+    clientAreaValue = params.get('ClientAreaValue', None)
+    orderByCheck = params.get('isOrderBy', False)
+    orderByValue = params.get('OrderByValue', None)
     if electronic:
         electronicDict = {1: '1', 2: '0'}
         electronic = electronicDict[electronic]
+    isExternal = params.get('isExternal', False)
 
     stmt="""
 SELECT
@@ -64,30 +69,47 @@ SELECT
    TempInvalidDocument.`number`,
    TempInvalidDocument.isExternal,
    IF(TempInvalidDocument.annulmentReason_id IS NOT NULL, 1, 0) AS isAnnulled,
-   IF(TempInvalid.begDate > TempInvalidDocument.issueDate, TempInvalid.begDate, TempInvalidDocument.issueDate) AS begDate,
+  -- IF(TempInvalid.begDate > TempInvalidDocument.issueDate, TempInvalid.begDate, TempInvalidDocument.issueDate) AS begDate,
+   TempInvalid.begDate AS begDate,
    IF(TempInvalidDocument.isExternal = 1,
     (SELECT MIN(TIP.endDate) FROM TempInvalid_Period TIP WHERE TIP.master_id = TempInvalid.id), TempInvalid.endDate) AS endDate,
    %s
    %s
    Diagnosis.MKB,
-   rbTempInvalidReason.code,
-   rbTempInvalidReason.name,
+   rbTempInvalidReason.code AS reasonCode,
+   rbTempInvalidReason.name AS reasonName,
    ClientWork.freeInput,
+   TempInvalidDocument.placeWork AS clientWorkPlace,
    Organisation.shortName,
-   TempInvalidDocument.duplicate AS isDuplicate
+   TempInvalidDocument.duplicate AS isDuplicate,
+   TempInvalid.caseBegDate,
+   rbTempInvalidResult.name AS resultName,
+   c_os.name as clientAttachName
    FROM TempInvalid
    INNER JOIN TempInvalidDocument ON TempInvalid.id = TempInvalidDocument.master_id
    LEFT JOIN Diagnosis ON Diagnosis.id = TempInvalid.diagnosis_id
    LEFT JOIN Person    ON Person.id = TempInvalid.person_id
    LEFT JOIN rbTempInvalidReason ON rbTempInvalidReason.id = TempInvalid.tempInvalidReason_id
+   LEFT JOIN rbTempInvalidResult ON rbTempInvalidResult.id = TempInvalid.result_id
    LEFT JOIN Client    ON Client.id = TempInvalid.client_id
    LEFT JOIN ClientWork ON ClientWork.id = (SELECT MAX(CW.id) FROM ClientWork AS CW
    WHERE CW.client_id = TempInvalid.client_id AND CW.deleted = 0)
    LEFT JOIN Organisation ON Organisation.id = ClientWork.org_id
+  LEFT JOIN ClientAttach on ClientAttach.client_id = Client.id and ClientAttach.deleted = 0 and ClientAttach.endDate IS NULL
+  LEFT JOIN OrgStructure c_os on c_os.id = ClientAttach.orgStructure_id and c_os.deleted = 0
 WHERE
    %s
-ORDER BY number, Client.lastName, Client.firstName, Client.patrName, begDate
+
     """
+    defaultOrderBy = u"  ORDER BY number, Client.lastName, Client.firstName, Client.patrName, begDate  "
+
+    if orderByCheck and orderByValue != None:
+        if  orderByValue == 0:
+            defaultOrderBy = u"  ORDER BY Client.lastName, Client.firstName, Client.patrName  "
+        elif orderByValue == 1:
+            defaultOrderBy = u"  ORDER BY begDate, Client.lastName, Client.firstName, Client.patrName  "
+
+    stmt = stmt + defaultOrderBy
     db = QtGui.qApp.db
     tableTempInvalid = db.table('TempInvalid')
     tableTempInvalidDocument = db.table('TempInvalidDocument')
@@ -140,9 +162,13 @@ ORDER BY number, Client.lastName, Client.firstName, Client.patrName, begDate
     if insuranceOfficeMark in (1, 2):
         cond.append(tableTempInvalid['insuranceOfficeMark'].eq(insuranceOfficeMark-1))
     if placeWork:
-        cond.append('''(Organisation.id IS NULL OR Organisation.deleted = 0)''')
+        cond.append(''' (TempInvalidDocument.placeWork IS NULL OR TempInvalidDocument.placeWork IS NOT NULL) ''')
     if params['electronic']:
         cond.append(tableTempInvalidDocument['electronic'].eq(electronic))
+    if clientAreaCheck and clientAreaValue:
+        cond.append(u' ClientAttach.orgStructure_id = ' + forceString(clientAreaValue))
+    if not isExternal:
+        cond.append(u' (TempInvalidDocument.isExternal = 0 ) ')
     return db.query(stmt % (u'''(SELECT vrbPersonWithSpeciality.name
     FROM vrbPersonWithSpeciality
     WHERE vrbPersonWithSpeciality.id = TempInvalidDocument.execPerson_id) AS endPersonName, ''' if hasEndPerson else u'',
@@ -166,6 +192,8 @@ class CTempInvalidList(CReport):
         result = CTempInvalidSetupDialog(parent)
         result.setElectronicVisible(True)
         result.setAnalysisMode(True)
+        result.setClientAreaVisible(True)
+        result.setOrderByVisible(True)
         result.setTitle(self.title())
         return result
 
@@ -195,6 +223,7 @@ class CTempInvalidList(CReport):
         hasBeginPerson = params.get('hasBeginPerson', True)
         hasEndPerson = params.get('hasEndPerson', True)
         placeWork = params.get('placeWork', True)
+        isClientArea = params.get('isClientArea', False)
 
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
@@ -208,14 +237,16 @@ class CTempInvalidList(CReport):
         tableColumns = [
             ('3%',  [u'№' ],   CReportBase.AlignRight),
             ('3%',  [u'код' ], CReportBase.AlignLeft),
-            ('12%', [u'ФИО,\nдата рождения (возраст),\nпол' ], CReportBase.AlignLeft),
-            ('18%', [u'Адрес,\nтелефон'], CReportBase.AlignLeft),
+            ('8%', [u'ФИО,\nдата рождения (возраст),\nпол' ], CReportBase.AlignLeft),
+            ('15%', [u'Адрес,\nтелефон'], CReportBase.AlignLeft),
             ('10%', [u'СНИЛС,\nполис'],   CReportBase.AlignLeft),
             ('5%',  [u'Шифр МКБ\nТип'],   CReportBase.AlignLeft),
-            ('7%', [u'Период'],          CReportBase.AlignLeft),
+            ('7%',  [u'Период'],          CReportBase.AlignLeft),
             ('4%',  [u'Дней'],            CReportBase.AlignRight),
-            ('8%', [u'Серия\nНомер'],    CReportBase.AlignLeft),
-            ('5%', [u'Дубликат'],        CReportBase.AlignLeft),
+            ('8%',  [u'Серия\nНомер'],    CReportBase.AlignLeft),
+            ('6%',  [u'Дубликат'],        CReportBase.AlignLeft),
+            ('7%',  [u'Дата выдачи'],     CReportBase.AlignLeft),
+            ('7%',  [u'Результат закрытия листка'], CReportBase.AlignLeft),
             ]
         if hasBeginPerson:
            tableColumns.append(('6.5%' if (hasBeginPerson and hasEndPerson) else '8%', [u'Начавший БЛ'],    CReportBase.AlignLeft))
@@ -223,7 +254,8 @@ class CTempInvalidList(CReport):
            tableColumns.append(('6.5%' if (hasBeginPerson and hasEndPerson) else '8%', [u'Закончивший БЛ'], CReportBase.AlignLeft))
         if placeWork:
            tableColumns.append(('6.5%' if (hasBeginPerson and hasEndPerson) else '8%', [u'Место работы'], CReportBase.AlignLeft))
-
+        if isClientArea:
+            tableColumns.append(('7%', [u'Участок'], CReportBase.AlignLeft ))
         table = createTable(cursor, tableColumns)
         n = 0
         query = selectData(params)
@@ -241,8 +273,9 @@ class CTempInvalidList(CReport):
             endPersonName = forceString(record.value('endPersonName'))
             begPersonName = forceString(record.value('begPersonName'))
             MKB  = forceString(record.value('MKB'))
-            reasonCode  = forceString(record.value('code')) + u'-' + forceString(record.value('name'))
+            reasonCode  = forceString(record.value('reasonCode')) + u'-' + forceString(record.value('reasonName'))
             duplicate = forceInt(record.value('isDuplicate'))
+            areaName = forceString( record.value('clientAttachName') )
             if duplicate:
                 duplicate = u'Да'
             else:
@@ -251,6 +284,8 @@ class CTempInvalidList(CReport):
             info = getClientInfo(clientId, hasRegAddress, hasLocAddress)
             name = formatName(info['lastName'], info['firstName'], info['patrName'])
             nameBDateAndSex = '\n'.join([name, '%s (%s)'%(formatDate(info['birthDate']),calcAge(info['birthDate'], begDate)), formatSex(info['sexCode'])])
+            caseBegDate = forceString(record.value('caseBegDate'))
+            resultName  = forceString(record.value('resultName'))
 
             def getListWithoutEmptyAndWhitespaceStrings(lst):
                 return filter(lambda x: x != '' and not x.isspace(), lst)
@@ -280,17 +315,23 @@ class CTempInvalidList(CReport):
                 table.setText(i, 7, duration, blockFormat=CReportBase.AlignLeft)
             table.setText(i, 8, serialAndNumber)
             table.setText(i, 9, duplicate)
+            table.setText(i, 10, caseBegDate)
+            table.setText(i, 11, resultName)
             if hasBeginPerson and hasEndPerson:
-                table.setText(i, 10, begPersonName)
-                table.setText(i, 11, endPersonName)
+                table.setText(i, 12, begPersonName)
+                table.setText(i, 13, endPersonName)
             elif hasBeginPerson:
-                table.setText(i, 10, begPersonName)
+                table.setText(i, 12, begPersonName)
             elif hasEndPerson:
-                table.setText(i, 10, endPersonName)
+                table.setText(i, 12, endPersonName)
             if placeWork:
-                shortName = forceString(record.value('shortName'))
-                freeInput = forceString(record.value('freeInput'))
-                table.setText(i, len(tableColumns)-1, shortName if shortName else freeInput)
+                # tt3497 место работы должно выбираться не из ClientWork, а из tempInvalidDocument.workPlace
+                # shortName = forceString(record.value('shortName'))
+                # freeInput = forceString(record.value('freeInput'))
+                clientPlaceWork = forceString(record.value('clientWorkPlace'))
+                table.setText(i, len(tableColumns)-2 if isClientArea else len(tableColumns)-1, clientPlaceWork if clientPlaceWork else u'' ) # shortName if shortName else freeInput)
+            if isClientArea:
+                table.setText(i, len(tableColumns)-1, areaName)
         return doc
 
 
@@ -313,6 +354,39 @@ class CTempInvalidSetupDialog(CDialogBase, Ui_TempInvalidSetupDialog):
         self.setDateSortVisible(False)
         self.setTempInvalidCOVID19Visible(False)
         self.setElectronicVisible(False)
+        self.setClientAreaVisible(False)
+        self.setOrderByVisible(False)
+        self.chkOrderBy.stateChanged.connect(self.setOrderByEnabled)
+        self.chkClientArea.stateChanged.connect(self.setClientAreaEnabled)
+
+
+    def setClientAreaEnabled(self):
+        if self.chkClientArea.isChecked():
+            self.cmbClientArea.setEnabled(True)
+        else:
+            self.cmbClientArea.setEnabled(False)
+
+
+    def setOrderByEnabled(self):
+        if self.chkOrderBy.isChecked():
+            self.cmbOrderBy.setEnabled(True)
+        else:
+            self.cmbOrderBy.setEnabled(False)
+
+
+
+    def setClientAreaVisible(self, value):
+        self.isClientAreaVisible = value
+        self.lblClientArea.setVisible(value)
+        self.chkClientArea.setVisible(value)
+        self.cmbClientArea.setVisible(value)
+
+
+    def setOrderByVisible(self, value):
+        self.isOrderByVisible = value
+        self.lblOrderBy.setVisible(value)
+        self.chkOrderBy.setVisible(value)
+        self.cmbOrderBy.setVisible(value)
 
 
     def setCntUserVisible(self, value):
@@ -402,6 +476,7 @@ class CTempInvalidSetupDialog(CDialogBase, Ui_TempInvalidSetupDialog):
         self.chkBeginPerson.setChecked(params.get('hasBeginPerson', True))
         self.chkEndPerson.setChecked(params.get('hasEndPerson', True))
         self.chkPlaceWork.setChecked(params.get('placeWork', True))
+        self.chkIsExternal.setChecked(params.get('isExternal', True))
         if self.isCntUserVisible:
             self.edtCntUser.setValue(params.get('cntUser', 1))
         if self.isTempInvalidReceiverVisible:
@@ -416,6 +491,12 @@ class CTempInvalidSetupDialog(CDialogBase, Ui_TempInvalidSetupDialog):
             self.chkClientNameSort.setChecked(params.get('isClientNameSort', False))
         if self.dateSortVisible:
             self.cmbDateSort.setCurrentIndex(params.get('dateSort', 0))
+        if self.isOrderByVisible:
+            self.chkOrderBy.setChecked(params.get('isOrderBy', False))
+            self.cmbOrderBy.setCurrentIndex(params.get('OrderByValue', 0))
+        if self.isClientAreaVisible:
+            self.chkClientArea.setChecked(params.get('isClientArea', False))
+            self.cmbClientArea.setValue(params.get('ClientAreaValue', 0))
 
 
     def params(self):
@@ -468,6 +549,14 @@ class CTempInvalidSetupDialog(CDialogBase, Ui_TempInvalidSetupDialog):
             result['isClientNameSort'] = self.chkClientNameSort.isChecked()
         if self.dateSortVisible:
             result['dateSort'] = self.cmbDateSort.currentIndex()
+        if self.isClientAreaVisible:
+            result['isClientArea'] = self.chkClientArea.isChecked()
+            result['ClientAreaValue'] = self.cmbClientArea.value()
+        if self.isOrderByVisible:
+            result['isOrderBy'] = self.chkOrderBy.isChecked()
+            result['OrderByValue'] = self.cmbOrderBy.currentIndex()
+        if self.chkIsExternal:
+            result['isExternal'] = self.chkIsExternal.isChecked()
         return result
 
 

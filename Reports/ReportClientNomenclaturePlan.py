@@ -110,10 +110,10 @@ def selectData(params):
             ]
 
     if begDate:
-        cond.append(tableAction[dateFieldName].dateGe(begDate))
+        cond.append(tableAction[dateFieldName].ge(begDate))
 
     if endDate:
-        cond.append(tableAction[dateFieldName].dateLe(endDate))
+        cond.append(tableAction[dateFieldName].lt(endDate.addDays(1)))
 
     if setOrgStructureId:
         queryTable = queryTable.leftJoin(tableSetPerson, tableSetPerson['id'].eq(tableEvent['setPerson_id']))

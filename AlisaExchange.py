@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -88,6 +88,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.AlisaExchange')
         self.logger = None
         self.transferConsent = False
+        self.clientAddressType = 0
         self.initLogger()
 
     def openDatabase(self):
@@ -98,6 +99,8 @@ class CAlisaExchange(QtCore.QCoreApplication):
                                                self.preferences.dbUserName, self.preferences.dbPassword,
                                                compressData=self.preferences.dbCompressData,
                                                connectionName=self.connectionName)
+            database.registerDocumentTable('Action')
+            database.registerDocumentTable('Action_ActionProperty')
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
 
@@ -150,6 +153,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
         self.logLevel = self.preferences.appPrefs.get('logLevel', 2)
         self.auth = forceBool(self.preferences.appPrefs.get('auth', False))
         self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
+        self.clientAddressType = forceInt(self.preferences.appPrefs.get('clientAddressType', 0))
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
@@ -482,48 +486,49 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         datetimeTake = u'<tn:времяВзятия xsi:nil="true"/>'
                 else:
                     datetimeTake = u'<tn:времяВзятия xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.index_:
-                    index_ = u'<tn:индекс>{0}</tn:индекс>'.format(client.regAddress.index_)
+                clientAddress = client.regAddress if self.clientAddressType == 0 else client.locAddress
+                if clientAddress and clientAddress.index_:
+                    index_ = u'<tn:индекс>{0}</tn:индекс>'.format(clientAddress.index_)
                 else:
                     index_ = u'<tn:индекс xsi:nil="true"/>'
-                # if client.regAddress and client.regAddress.KLADRCode:
-                #     kladrCode = u'<tn:кодТерритории>{0}</tn:кодТерритории>'.format(client.regAddress.KLADRCode)
+                # if clientAddress and clientAddress.KLADRCode:
+                #     kladrCode = u'<tn:кодТерритории>{0}</tn:кодТерритории>'.format(clientAddress.KLADRCode)
                 # else:
                 kladrCode = u'<tn:кодТерритории xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.district:
-                    district = u'<tn:район>{0}</tn:район>'.format(client.regAddress.district)
+                if clientAddress and clientAddress.district:
+                    district = u'<tn:район>{0}</tn:район>'.format(clientAddress.district)
                 else:
                     district = u'<tn:район xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.city:
-                    city = u'<tn:город>{0}</tn:город>'.format(client.regAddress.city)
+                if clientAddress and clientAddress.city:
+                    city = u'<tn:город>{0}</tn:город>'.format(clientAddress.city)
                 else:
                     city = u'<tn:город xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.exactCity:
-                    exactCity = u'<tn:населенныйПункт>{0}</tn:населенныйПункт>'.format(client.regAddress.exactCity)
+                if clientAddress and clientAddress.exactCity:
+                    exactCity = u'<tn:населенныйПункт>{0}</tn:населенныйПункт>'.format(clientAddress.exactCity)
                 else:
                     exactCity = u'<tn:населенныйПункт xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.street:
-                    street = u'<tn:улица>{0}</tn:улица>'.format(client.regAddress.street)
+                if clientAddress and clientAddress.street:
+                    street = u'<tn:улица>{0}</tn:улица>'.format(clientAddress.street)
                 else:
                     street = u'<tn:улица xsi:nil="true"/>'
-                # if client.regAddress and client.regAddress.KLADRStreetCode:
-                #     kladrStreetCode = u'<tn:кодУлицы>{0}</tn:кодУлицы>'.format(client.regAddress.KLADRStreetCode)
+                # if clientAddress and clientAddress.KLADRStreetCode:
+                #     kladrStreetCode = u'<tn:кодУлицы>{0}</tn:кодУлицы>'.format(clientAddress.KLADRStreetCode)
                 # else:
                 kladrStreetCode = u'<tn:кодУлицы xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.number:
-                    number = u'<tn:дом>{0}</tn:дом>'.format(client.regAddress.number)
+                if clientAddress and clientAddress.number:
+                    number = u'<tn:дом>{0}</tn:дом>'.format(clientAddress.number)
                 else:
                     number = u'<tn:дом xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.corpus:
-                    corpus = u'<tn:корпус>{0}</tn:корпус>'.format(client.regAddress.corpus)
+                if clientAddress and clientAddress.corpus:
+                    corpus = u'<tn:корпус>{0}</tn:корпус>'.format(clientAddress.corpus)
                 else:
                     corpus = u'<tn:корпус xsi:nil="true"/>'
-                if client.regAddress and client.regAddress.flat:
-                    flat = u'<tn:квартира>{0}</tn:квартира>'.format(client.regAddress.flat)
+                if clientAddress and clientAddress.flat:
+                    flat = u'<tn:квартира>{0}</tn:квартира>'.format(clientAddress.flat)
                 else:
                     flat = u'<tn:квартира xsi:nil="true"/>'
-                if client.regAddress:
-                    addressText = u'<tn:адресСтрокой>{0}</tn:адресСтрокой>'.format(client.regAddress.__str__())
+                if clientAddress:
+                    addressText = u'<tn:адресСтрокой>{0}</tn:адресСтрокой>'.format(clientAddress.__str__())
                 else:
                     addressText = u'<tn:адресСтрокой xsi:nil="true"/>'
                 orgStructureCode = person.orgStructure.identifyInfoByCode('Orgstructure_Alisa').value
@@ -754,6 +759,9 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                 prop.setValue(u'Отказ')
                                         prop.setNorm(res.get(u'референсныйДиапазон'))
                                         prop.setUnitId(self.getUnitId(res.get(u'единицаИзмерения')))
+                                        comment = res.get(u'примечание')
+                                        if comment:
+                                            prop.setComment(comment)
                                         if not verifierCode:
                                             verifierCode = res.get(u'исполнительКод')
                             except Exception:

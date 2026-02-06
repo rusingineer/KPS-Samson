@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -64,14 +64,14 @@ from library.TableModel                     import (
 from library.Utils import (calcAgeTuple, checkSNILS, exceptionToUnicode, fixSNILS, forceBool, forceDate, forceDateTime,
                            forceDouble, forceInt, forceRef, forceString, forceStringEx, forceTime, formatSex,
                            formatShortName, formatSNILS, isNameValid, nameCase, pyDate, smartDict, toVariant,
-                           trim, unformatSNILS, formatDate, variantEq)
+                           trim, unformatSNILS, formatDate, variantEq, checkDocCode)
 
 from Accounting.Utils                         import CTariff # WTF!
 from ClientHousesList                         import CClientHousesList
 from ClientQuotaDiscussionEditor              import CQuotingEditorDialog
 from KLADR.KLADRModel                         import getDistrictName, getOKATO
 from Orgs.ContractFindComboBox                import CContractTreeFindComboBox
-from Orgs.OrgComboBox import COrgComboBox, CInsurerInDocTableCol, CPolyclinicComboBox, CInsurerAreaInDocTableCol, \
+from Orgs.OrgComboBox import COrgComboBox, CInsurerInDocTableCol, CPolyclinicComboBox, CInsurerAreaInDocTableCol, COrgInDocTableCol, \
     COrgInDocTableColEx
 from Orgs.Orgs                                import selectOrganisation
 from Orgs.OrgStructureCol                     import COrgStructureInDocTableCol
@@ -503,6 +503,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabDangerous))
         if not QtGui.qApp.showingClientCardTabContingentKind():
             self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabContingentKind))
+        if not QtGui.qApp.showingClientCardTabHospitalization():
+            self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabHospitalization))
         if not QtGui.qApp.showingClientCardTabIdentification():
             self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabIdentification))
         if not QtGui.qApp.showingClientCardTabRelations():
@@ -1443,11 +1445,21 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.edtRegCorpus.setText(regAddress.get('regCorpus', u''))
             self.edtRegFlat.setText(regAddress.get('regFlat', u''))
             self.edtAddressDate.setDate(regAddress.get('addressDate', QDate()))
+            self.cmbResident.setCurrentIndex(regAddress.get('resident', 0))
 
 
     def setLocAddressRecord(self, record):
         self.__locAddressRecord = record
         if record:
+            resident = record.value('resident')
+            if resident.isNull():
+                self.cmbResident.setCurrentIndex(0)
+            else:
+                if forceInt(resident) == 0:
+                    self.cmbResident.setCurrentIndex(1)
+                elif forceRef(resident) == 1:
+                    self.cmbResident.setCurrentIndex(2)
+
             addressId = forceRef(record.value('address_id'))
             if addressId:
                 self.__locAddress = getAddress(addressId)
@@ -1525,7 +1537,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.edtDocNumber.setText(number)
             self.edtDocDate.setDate(date)
             self.edtDocOrigin.setText(origin)
-            self.edtDocOriginCode.setText(originCode)
+            self.edtDocOriginCode.setEditText(originCode)
             self.cmbDocType.setValue(documentTypeId)
         finally:
             self.edtDocSerialLeft.blockSignals(bs)
@@ -1686,6 +1698,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 self.edtLocHouse.setText(info.get('regHouse', ''))
                 self.edtLocCorpus.setText(info.get('regCorpus', ''))
                 self.edtLocFlat.setText(info.get('regFlat', ''))
+            self.cmbResident.setCurrentIndex(info.get('resident', 0))
             regAddress = info.get('regAddress', None)
             if regAddress:
                 self.edtRegFreeInput.setText(regAddress)
@@ -1775,7 +1788,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                      'flat'             : forceStringEx(self.edtRegFlat.text()),
                      'freeInput'        : forceStringEx(self.edtRegFreeInput.text()),
                      'livingArea'       : self.cmbLivingArea.value(),
-                     'addressDate'      : forceDate(self.edtAddressDate.date())}
+                     'addressDate'      : forceDate(self.edtAddressDate.date()),
+                     'resident'         : None}
         else:
             return { 'useKLADR'         : self.chkLocKLADR.isChecked(),
                      'KLADRCode'        : self.cmbLocCity.code(),
@@ -1785,7 +1799,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                      'flat'             : forceStringEx(self.edtLocFlat.text()),
                      'freeInput'        : forceStringEx(self.edtLocFreeInput.text()),
                      'livingArea'       : None,
-                     'addressDate'      : None}
+                     'addressDate'      : None,
+                     'resident'         : self.cmbResident.currentIndex()}
 
 
     def getAddressRecord(self,  clientId, addressType):
@@ -1797,7 +1812,41 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         oldAddressRecord = self.__regAddressRecord if addressType == 0 else self.__locAddressRecord
 
         if oldAddressRecord is not None:
-            recordChanged = addressId != forceRef(oldAddressRecord.value('address_id')) or address['freeInput'] != forceString(oldAddressRecord.value('freeInput')) or address['livingArea'] != forceRef(oldAddressRecord.value('livingArea')) or forceDate(address['addressDate']) != forceDate(oldAddressRecord.value('addressDate'))
+
+            def checkEditResident():
+                resNum = None
+                resident = oldAddressRecord.value('resident')
+                if resident.isNull():
+                    resNum = 0
+                else:
+                    if forceInt(resident) == 0:
+                        resNum = 1
+                    elif forceRef(resident) == 1:
+                        resNum = 2
+
+                if resident.isNull():
+                    if resident.isNull() and address['resident'] != 0:
+                        return True
+                    else:
+                        return False
+                else:
+                    if forceInt(address['resident']) != resNum:
+                        return True
+                    else:
+                        return False
+
+            if addressType == 1:
+                recordChanged = (addressId != forceRef(oldAddressRecord.value('address_id')) or
+                                 address['freeInput'] != forceString(oldAddressRecord.value('freeInput')) or
+                                 address['livingArea'] != forceRef(oldAddressRecord.value('livingArea')) or
+                                 forceDate(address['addressDate']) != forceDate(
+                            oldAddressRecord.value('addressDate')) or
+                                 checkEditResident())
+            else:
+                recordChanged = (addressId != forceRef(oldAddressRecord.value('address_id')) or
+                             address['freeInput'] != forceString(oldAddressRecord.value('freeInput')) or
+                             address['livingArea'] != forceRef(oldAddressRecord.value('livingArea')) or
+                             forceDate(address['addressDate']) != forceDate(oldAddressRecord.value('addressDate')))
         else:
             recordChanged = True
 
@@ -1809,6 +1858,13 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             record.setValue('freeInput',  toVariant(address['freeInput']))
             record.setValue('livingArea', toVariant(address['livingArea']))
             record.setValue('addressDate', toVariant(address['addressDate']))
+            if addressType == 1:
+                if address['resident'] == 0:
+                    record.setValue('resident', toVariant(None))
+                elif address['resident'] == 1:
+                    record.setValue('resident', toVariant(0))
+                elif address['resident'] == 2:
+                    record.setValue('resident', toVariant(1))
         else:
             record = oldAddressRecord
 
@@ -1872,7 +1928,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         result = True
         result = result and (lastName or self.checkInputMessage(u'фамилию', False, self.edtLastName))
         if not isAnonymous:
-            result = result and (isNameValid(lastName) or self.checkInputMessage(u'допустимую фамилию', False, self.edtLastName))
+            result = result and (isNameValid(lastName, True) or self.checkInputMessage(u'допустимую фамилию', False, self.edtLastName))
             if tinyChild:
                 result = result and (isNameValid(self.edtFirstName.text()) or self.checkInputMessage(u'допустимое имя', True, self.edtFirstName))
                 result = result and (isNameValid(self.edtPatrName.text()) or self.checkInputMessage(u'допустимое отчество', True, self.edtPatrName))
@@ -2272,6 +2328,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
 
     def checkDocEntered(self):
         documentTypeId = self.cmbDocType.value()
+        docCode = self.edtDocOriginCode.currentText()
         result = True
         if documentTypeId:
             if self.edtDocSerialLeft.isEnabled() and not self.edtDocSerialLeft.hasAcceptableInput():
@@ -2280,6 +2337,12 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 result = self.checkInputMessage(u'серию документа', False, self.edtDocSerialRight)
             if result and self.edtDocNumber.isEnabled() and not self.edtDocNumber.hasAcceptableInput():
                 result = self.checkInputMessage(u'номер документа', False, self.edtDocNumber)
+            if documentTypeId == 1:
+                if not checkDocCode(docCode):
+                    result = self.checkValueMessageIgnore(u'Код подразделения не соответствует формату ххх-ххх!', False,
+                                                        self.edtDocOriginCode)
+                if len(docCode) == 0:
+                    result = self.checkValueMessageIgnore(u'Требуется указать код подразделения', False, self.edtDocOriginCode)
 #        if result and self.edtDocDate.isEnabled() and not self.edtDocDate.date():
 #            result = self.checkInputMessage(u'дату выдачи документа', True, self.edtDocDate)
 #        if result and self.edtDocOrigin.isEnabled() and not forceStringEx(self.edtDocOrigin.text()):
@@ -2757,10 +2820,13 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
 
     def checkSocStatuses(self):
         table = self.tblSocStatuses
-        for row, record in enumerate(self.modelSocStatuses.items()):
-            socStatucTypeId = forceRef(record.value('socStatusType_id'))
-            if socStatucTypeId is None:
-                return self.checkValueMessage(u'Не указан соц.статус', False, table, row, 1)
+        rowCount = self.modelSocStatuses.realRowCount()
+        for row in xrange(rowCount):
+            record = self.modelSocStatuses.getRecordByRow(row)
+            socStatusTypeId = forceRef(record.value('socStatusType_id'))
+            if socStatusTypeId is None and not forceBool(record.value('socStatusIsHolded')):
+                # У соцстатуса не заполнен тип и нет закрепления
+                return self.checkValueMessage(u'Не указан тип для незакреплённого класса соц. статуса', False, table, row, 1)
         citizenshipGP = QtGui.qApp.isCitizenshipControl()
         if citizenshipGP:
             documentTypeId = self.cmbDocType.value()
@@ -3123,16 +3189,16 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         orgStructureInfisCode = forceString(db.translate('OrgStructure', 'id', orgStructureId, 'infisInternalCode'))  # код подразделения
         lpuInfisCode = forceString(db.translate('OrgStructure', 'id', orgStructureId, 'bookkeeperCode'))  # код участка
         
-        tmpDate = QDate().currentDate().addDays(-3)
+        # tmpDate = QDate().currentDate().addDays(-3)
         begDate = forceDate(actualRecord.value('begDate'))
         endDate = forceDate(actualRecord.value('endDate'))
         
-        # даты прикрепления/открепления проверяем на допустимый диапазон значений для сервиса
-        if begDate and begDate < tmpDate:
-            begDate = tmpDate
-            
-        if endDate and endDate < tmpDate:
-            endDate = tmpDate
+        # # даты прикрепления/открепления проверяем на допустимый диапазон значений для сервиса
+        # if begDate and begDate < tmpDate:
+        #     begDate = tmpDate
+        #
+        # if endDate and endDate < tmpDate:
+        #     endDate = tmpDate
         
                
         #ищем 5-ти значный омс код подразделения к которому прикреплен человек
@@ -3238,7 +3304,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             number = forceStringEx(self.edtDocNumber.text())
             date = forceDate(self.edtDocDate.date())
             origin = forceStringEx(self.edtDocOrigin.text())
-            originCode = forceStringEx(self.edtDocOriginCode.text())
+            originCode = forceStringEx(self.edtDocOriginCode.currentText())
 
         if documentTypeId is not None or len(self.modelIdentificationDocs.items())!=0:
             row = self.modelIdentificationDocs.getCurrentDocRow(documentTypeId, serial, number)
@@ -3949,7 +4015,16 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
       
         
     @pyqtSignature('QString')
-    def on_edtDocOriginCode_textChanged(self, text):
+    def on_edtDocOriginCode_editTextChanged(self, txt):
+        textvalue = forceString(self.edtDocOriginCode.currentText())
+        if textvalue:
+            if len(textvalue) == 1:
+                self.edtDocOriginCode.setTable()
+            elif len(textvalue) > 8:
+                DocCodeName = textvalue.split('| ')
+                if DocCodeName and len(DocCodeName) > 1:
+                    self.edtDocOrigin.setText(DocCodeName[1])
+                    self.edtDocOriginCode.setEditText(DocCodeName[0])
         self.syncIdentificationDocs()
 
 
@@ -4214,22 +4289,25 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                         checkDate = forceDate(orderRecord.value('responseDatetime'))
                         newInsurerId = None
                         newInsurerName = None
+                        newInsurerArea = None
 
-                        record = db.getRecordEx(tableOrg, 'id, shortName',
+                        record = db.getRecordEx(tableOrg, 'id, shortName, area',
                                                 [tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1),
                                                  tableOrg['OKATO'].eq(newInsuranceArea),
                                                  tableOrg['smoCode'].eq(newInsurerCode)], 'id')
                         if record:
                             newInsurerId = forceRef(record.value(0))
                             newInsurerName = forceString(record.value(1))
+                            newInsurerArea = forceString(record.value(2))
                         else:
-                            record = db.getRecordEx(tableOrg, 'id, shortName',
+                            record = db.getRecordEx(tableOrg, 'id, shortName, area',
                                                     [tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1),
                                                      tableOrg['OKATO'].eq(newInsuranceArea)],
                                                     'id')
                             if record:
                                 newInsurerId = forceRef(record.value(0))
                                 newInsurerName = forceString(record.value(1))
+                                newInsurerArea = forceString(record.value(2))
                             else:
                                 newInsurerId = None
                                 newInsurerName = u'{0} {1} ОКАТО {2}'.format(forceString(orderRecord.value('respInsurerCode')),
@@ -4299,7 +4377,9 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                             newRecord.setValue('checkDate', toVariant(checkDate))
                             self.modelPolicies.insertRecord(row, newRecord)
                             self.setPolicyRecord(newRecord, True)
+                            self.setClientEnp(newPolicyKindCode, newPolicyNumber)
                         elif messageBox.clickedButton() == btnUpdate:
+                            self.updateCompulsoryPolicyCompanyArea([newInsurerArea])
                             self.cmbCompulsoryPolisCompany.setValue(newInsurerId)
                             if newPolicySerial:
                                 self.edtCompulsoryPolisSerial.setText(newPolicySerial)
@@ -4316,8 +4396,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                             self.syncPolicy(True)
                             row = self.modelPolicies.getCurrentCompulsoryPolicyRow(newPolicySerial, newPolicyNumber)
                             self.modelPolicies.setValue(row, 'checkDate', toVariant(checkDate))
+                            self.setClientEnp(newPolicyKindCode, newPolicyNumber)
                         self.syncPolicy(True)
-                        return True
                 else:
                     response = requests.get(servicesURL + '$sendIdentityPatient', params)
                     jsonData = response.json()
@@ -4433,6 +4513,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                 u'тип:   %s\n'\
                 u'вид:   %s\n'\
                 u'действителен с %s по %s\n'\
+                u'ЕНП: %s\n'\
                 u'%s\n'\
                 u'%s\n'\
                 u'Обновить данные?\n\n%s' % (
@@ -4445,6 +4526,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     policyKindName,
                     forceString(descr.begDate),
                     forceString(descr.endDate),
+                    descr.ENP,
                     covidSeverityTitle,
                     socStatus,
                     ddInfoStr))
@@ -4499,6 +4581,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     newRecord.setValue('checkDate', toVariant(QDateTime().currentDateTime()))
                     self.modelPolicies.insertRecord(row, newRecord)
                     self.setPolicyRecord(newRecord, True)
+                    self.setClientEnp(descr.kindCode, descr.ENP)
                     socStatusExist = False
                     socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
                     if socStatusCode:
@@ -4542,6 +4625,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     self.syncPolicy(True)
                     row = self.modelPolicies.getCurrentCompulsoryPolicyRow(descr.policySerial, descr.policyNumber)
                     self.modelPolicies.setValue(row, 'checkDate', toVariant(QDateTime().currentDateTime()))
+                    self.setClientEnp(descr.kindCode, descr.ENP)
                     socStatusExist = False
                     socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
                     if socStatusCode:
@@ -4583,6 +4667,27 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.searchPolicyInFederalService(servicesURL)
 
         return False
+
+
+    def setClientEnp(self, policyKindCode, enp):
+        if policyKindCode != '3' and forceString(enp):
+            accountingSystemId = forceRef(QtGui.qApp.db.translate('rbAccountingSystem', 'code', 'ENP', 'id'))
+            if accountingSystemId:
+                exists = False
+                for row, item in enumerate(self.modelClientIdentification.items()):
+                    if forceInt(item.value('accountingSystem_id')) == forceInt(accountingSystemId):
+                        exists = True
+                        item.setValue('identifier', toVariant(forceString(enp)))
+                        item.setValue('client_id', toVariant(forceRef(self.getClientId())))
+                        self.modelClientIdentification.emitRowChanged(row)
+                        break
+                if not exists:
+                    record = self.modelClientIdentification.getEmptyRecord()
+                    record.setValue('accountingSystem_id', toVariant(forceRef(accountingSystemId)))
+                    record.setValue('identifier', toVariant(forceString(enp)))
+                    record.setValue('client_id', toVariant(forceRef(self.getClientId())))
+                    self.modelClientIdentification.items().append(record)
+
 
     @pyqtSignature('QString')
     def on_edtCompulsoryPolisSerial_textEdited(self, text):
@@ -5419,10 +5524,31 @@ class CSocStatusesModel(CInDocTableModel):
 
 
     def loadItems(self, id):
+        u'''
+        Загрузка соц. статусов из БД. Помимо загрузки самих соц. статусов из ClientSocStatus ещё добавляются внешние
+        (exCols) колонки и загружается информация, является ли соц. статус закреплённым
+        :param id: id клиента, для которого загружаются соц. статусы
+        :type id: int
+        '''
+        db = QtGui.qApp.db
         CInDocTableModel.loadItems(self, id)
         for item in self.items():
             self._addExCols(item)
             self._loadDocInfo(item)
+        # В спиок соц. статусов надо добавить закреплённые соц. статусы, при этом не дублируя записи, если они были
+        # загружены. Также для загруженных нужно проставить признак socStatusIsHolded если он есть в справочнике.
+        mapRowsToSocStatusId = dict((forceRef(item.value('socStatusClass_id')), self.items().index(item)) for item in self.items())
+        table = db.forceTable('rbSocStatusClass')
+        socStatusIdList = db.getIdList(table, where=table['isHolded'].eq(1))
+        for id in socStatusIdList:
+            if id not in mapRowsToSocStatusId:
+                record = self.getEmptyRecord()
+                record.setValue('socStatusClass_id', id)
+                record.setValue('socStatusIsHolded', 1)
+                self.addRecord(record)
+            else:
+                item = self.items()[mapRowsToSocStatusId.get(id)]
+                item.setValue('socStatusIsHolded', 1)
 
 
     def saveItems(self, clientId):
@@ -5437,11 +5563,49 @@ class CSocStatusesModel(CInDocTableModel):
             savedItems.append(QtSql.QSqlRecord(record))
             for n in self.documentFields.split(','):
                 record.remove(record.indexOf(n))
-        CInDocTableModel.saveItems(self, clientId)
+            record.remove(record.indexOf('socStatusIsHolded'))
+        self._saveItemsInternal(clientId)
         self.deleteDispPlanExport(clientId)
         for record, savedRecord in zip(items, savedItems):
             for n in self.documentFields.split(','):
                 record.append(savedRecord.field(n))
+            record.append(savedRecord.field('socStatusIsHolded'))
+
+    def _saveItemsInternal(self, masterId):
+        '''
+        Копия CInDocTableModel.saveItems с возможностью пропускать строки, которые не требуют сохранения
+        :param masterId:
+        :return:
+        '''
+        if self._items is not None:
+            db = QtGui.qApp.db
+            table = self._table
+            masterId = toVariant(masterId)
+            masterIdFieldName = self._masterIdFieldName
+            idFieldName = self._idFieldName
+            idList = []
+            for idx, record in enumerate(self._items):
+                # Если во время сохранения встречаем пустой тип соц. статуса - просто пропускаем такую запись
+                socStatusTypeId = forceRef(record.value('socStatusType_id'))
+                if socStatusTypeId is None:
+                    continue
+                record.setValue(masterIdFieldName, masterId)
+                if self._idxFieldName:
+                    record.setValue(self._idxFieldName, toVariant(idx))
+                if self._extColsPresent:
+                    outRecord = self.removeExtCols(record)
+                else:
+                    outRecord = record
+                id = db.insertOrUpdate(table, outRecord)
+                record.setValue(idFieldName, toVariant(id))
+                idList.append(id)
+                self.saveDependence(idx, id)
+
+            filter = [table[masterIdFieldName].eq(masterId),
+                      'NOT ('+table[idFieldName].inlist(idList)+')']
+            if self._filter:
+                filter.append(self._filter)
+            db.deleteRecord(table, filter)
 
     def indexOfStatus(self, socStatusTypeId):
         for i, item in enumerate(self.items()):
@@ -5487,8 +5651,10 @@ class CSocStatusesModel(CInDocTableModel):
         record.append(QtSql.QSqlField('documentType_id', QVariant.Int))
         record.append(QtSql.QSqlField('serial', QVariant.String))
         record.append(QtSql.QSqlField('number', QVariant.String))
-        record.append(QtSql.QSqlField('date',   QVariant.Date))
+        record.append(QtSql.QSqlField('date', QVariant.Date))
         record.append(QtSql.QSqlField('origin', QVariant.String))
+        record.append(QtSql.QSqlField('socStatusIsHolded', QVariant.Int))
+        record.setValue('socStatusIsHolded', 0)
 
 
     def _loadDocInfo(self, record):
@@ -5504,9 +5670,9 @@ class CSocStatusesModel(CInDocTableModel):
     def _saveDocInfo(self, record, clientId):
         documentId = None
         documentRecord = None
+        db = QtGui.qApp.db
+        table = db.table('ClientDocument')
         if forceRef(record.value('documentType_id')):
-            db = QtGui.qApp.db
-            table = db.table('ClientDocument')
             documentId = forceRef(record.value('document_id'))
             if documentId:
                 documentRecord = db.getRecord(table, '*', documentId)
@@ -5516,6 +5682,9 @@ class CSocStatusesModel(CInDocTableModel):
                 documentRecord.setValue(n, record.value(n))
             documentRecord.setValue('client_id', toVariant(clientId))
             documentId = db.insertOrUpdate(table, documentRecord)
+            record.setValue('document_id', toVariant(documentId))
+        elif forceRef(record.value('document_id')):
+            documentRecord = db.deleteRecord(table, 'id = {}'.format(forceRef(record.value('document_id'))))
             record.setValue('document_id', toVariant(documentId))
         return documentId
     
@@ -7373,12 +7542,12 @@ class CClientHospitalizationModel(CInDocTableModel):
         self.addCol(CDateInDocTableCol(u'Дата поступления', 'begDate', 20))
         self.addCol(CDateInDocTableCol(u'Дата выбытия', 'endDate', 20))
         self.addCol(CICDExInDocTableCol(u'Диагноз поступления', 'receivedMKB', 20))
-        self.addCol(CIntInDocTableCol(u'Дней госпитализации', 'bedDays', 20, readOnly=True))
+        self.addExtCol(CIntInDocTableCol(u'Дней госпитализации', 'bedDays', 20), QVariant.Int).setReadOnly(True)
         self.addCol(CSelectStrInDocTableCol(u'Кем направлен', 'whoDirected', 30, (u'', u'участковый врач', u'скорая помощь', u'неотложная помощь', u'полиция')))
         self.addCol(CBoolInDocTableCol(u'Первично', 'isPrimary', 5))
         self.addCol(CIntInDocTableCol(u'№ мед, свед.', 'medicalNumber', 20, high=2147483647))
-        self.addCol(CAPLikeOrgInDocTableCol(u'Куда поступил', 'receivedOrg_id', 20))
-        self.addCol(CAPLikeOrgInDocTableCol(u'Куда направлен', 'leavedOrg_id', 20))
+        self.addCol(COrgInDocTableCol(u'Куда поступил', 'receivedOrg_id', 20))
+        self.addCol(COrgInDocTableCol(u'Куда направлен', 'leavedOrg_id', 20))
         self.addCol(CICDExInDocTableCol(u'Диагноз выписки', 'leavedMKB', 20))
         self.addCol(CBoolInDocTableCol(u'Мед. сведения получены', 'infoTransmitted', 5))
         self.dataChanged.connect(self._updateIdxAndBedDays)
@@ -7392,72 +7561,12 @@ class CClientHospitalizationModel(CInDocTableModel):
             endDate = forceDate(record.value('endDate'))
             if begDate and endDate:
                 record.setValue('bedDays', begDate.daysTo(endDate))
-        self.reset()
 
 
     def loadItems(self, masterId):
-        db = QtGui.qApp.db
-        cols = []
-        for col in self._cols:
-            if not col.external() and col.fieldName() != 'bedDays':
-                cols.append(col.fieldName())
-        cols.extend(['0 as bedDays', 'id', 'client_id', 'idx'])
-        table = self._table
-        filter = [
-            table['client_id'].eq(masterId),
-            table['deleted'].eq(0),
-        ]
-        if self._filter:
-            filter.append(self._filter)
-        self._items = db.getRecordList(table, cols, filter, order='idx, id')
-        for record in self.items():
-            begDate = forceDate(record.value('begDate'))
-            endDate = forceDate(record.value('endDate'))
-            if begDate and endDate:
-                record.setValue('bedDays', begDate.daysTo(endDate))
-        self.reset()
-
-
-    def saveItems(self, masterId):
-        if self._items is not None:
-            db = QtGui.qApp.db
-            table = self._table
-            idList = []
-            for idx, record in enumerate(self._items):
-                record.setValue('client_id', masterId)
-                record.setValue('idx', idx+1)
-                outRecord = QtSql.QSqlRecord(record)  # copy
-                outRecord.remove(outRecord.indexOf('bedDays'))
-                id = db.insertOrUpdate(table, outRecord)
-                record.setValue('id', toVariant(id))
-                idList.append(id)
-                self.saveDependence(idx, id)
-
-            filter = [table['client_id'].eq(masterId),
-                      'NOT ('+table['id'].inlist(idList)+')']
-            if self._filter:
-                filter.append(self._filter)
-            db.deleteRecord(table, filter)
-
-
-    def getEmptyRecord(self):
-        record = QtSql.QSqlRecord()
-        record.append(QtSql.QSqlField('idx', QVariant.Int))
-        record.append(QtSql.QSqlField('purpose', QVariant.Int))
-        record.append(QtSql.QSqlField('begDate', QVariant.Date))
-        record.append(QtSql.QSqlField('endDate', QVariant.Date))
-        record.append(QtSql.QSqlField('receivedMKB', QVariant.String))
-        record.append(QtSql.QSqlField('bedDays', QVariant.Int))
-        record.append(QtSql.QSqlField('whoDirected', QVariant.String))
-        record.append(QtSql.QSqlField('isPrimary', QVariant.Bool))
-        record.append(QtSql.QSqlField('medicalNumber', QVariant.Int))
-        record.append(QtSql.QSqlField('receivedOrg_id', QVariant.Int))
-        record.append(QtSql.QSqlField('leavedOrg_id', QVariant.Int))
-        record.append(QtSql.QSqlField('leavedMKB', QVariant.String))
-        record.append(QtSql.QSqlField('infoTransmitted', QVariant.Bool))
-        record.append(QtSql.QSqlField('client_id', QVariant.Int))
-        record.append(QtSql.QSqlField('id', QVariant.Int))
-        return record
+        CInDocTableModel.loadItems(self, masterId)
+        self._updateIdxAndBedDays()
+    
 
 
 class CAPLikeOrgInDocTableCol(CInDocTableCol):

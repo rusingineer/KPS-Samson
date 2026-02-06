@@ -347,6 +347,90 @@ def getPersonOrgStructureChiefs(personId):
     return result
 
 
+def getOrgstructureListByEventtypeId(eventtype_id):
+    db = QtGui.qApp.db
+    tableEventtype = db.table('EventType')
+    tableEventtypeOrgStruct = db.table('EventType_OrgStruct')
+    table = tableEventtype.leftJoin(tableEventtypeOrgStruct, tableEventtype['id'].eq(tableEventtypeOrgStruct['eventType_id']))
+    stmt = QtGui.qApp.db.selectStmt(table, tableEventtypeOrgStruct['orgstruct_id'], where=tableEventtype['id'].eq(eventtype_id))
+    orgstruct_query_list = db.query(stmt)
+    orgstruct_id_list = []
+    while orgstruct_query_list.next():
+        record = orgstruct_query_list.record()
+        if record:
+            id = forceInt(record.value('orgstruct_id'))
+            if id:
+                org_tree_list = getOrgStructureDescendants(id)
+                orgstruct_id_list.append(org_tree_list)
+    # orgstruct_id_list является списком списков.
+    # Этот генератор списка "разворачивает" его, чтобы новый список
+    # состоял только из int (в данном случае) элементов
+    # orgStructureIdList = [org_id for org_list in orgstruct_id_list for org_id in org_list]
+    orgStructureIdList = []
+    for org_list in orgstruct_id_list:
+        orgStructureIdList.extend(org_list)
+    return orgStructureIdList
+
+
+def getPersonListByEventtypeId(eventtype_id):
+    db = QtGui.qApp.db
+    tableEventtype = db.table('EventType')
+    tableEventtypePersons = db.table('EventType_Persons')
+    table = tableEventtype.leftJoin(tableEventtypePersons, tableEventtype['id'].eq(tableEventtypePersons['eventType_id']))
+    stmt = QtGui.qApp.db.selectStmt(table, tableEventtypePersons['person_id'], where=tableEventtype['id'].eq(eventtype_id))
+    persons_query_list = db.query(stmt)
+    persons_id_list = []
+    while persons_query_list.next():
+        record = persons_query_list.record()
+        if record:
+            id = forceInt(record.value('person_id'))
+            if id:
+                persons_id_list.append(id)
+    return persons_id_list
+
+
+def checkPersonByDefaultSettingsFromEventtype(person_id, eventType_id, speciality_id = None):
+    if person_id:
+        orgstruct_list = getOrgstructureListByEventtypeId(eventType_id)
+        person_list = getPersonListByEventtypeId(eventType_id)
+        person_orgstruct_id = getPersonOrgStructureId(person_id)
+        if not person_list and not orgstruct_list:
+            return True
+        if not speciality_id:
+            if orgstruct_list and person_list:
+                if person_orgstruct_id in orgstruct_list or person_id in person_list:
+                    return True
+            if orgstruct_list:
+                if person_orgstruct_id in orgstruct_list:
+                    return True
+            if person_list:
+                if person_id in person_list:
+                    return True
+        elif getSpecialityId(person_id) == speciality_id:
+            if orgstruct_list and person_list:
+                if person_orgstruct_id in orgstruct_list or person_id in person_list:
+                    return True
+            if orgstruct_list:
+                if person_orgstruct_id in orgstruct_list:
+                    return True
+            if person_list:
+                if person_id in person_list:
+                    return True
+        return False
+    else:
+        return True
+
+
+def getSpecialityId(personId):
+    specialityId = None
+    if personId:
+        db = QtGui.qApp.db
+        tablePerson = db.table('Person')
+        record = db.getRecordEx(tablePerson, [tablePerson['speciality_id']],
+                                    [tablePerson['deleted'].eq(0), tablePerson['id'].eq(personId)])
+        specialityId = forceRef(record.value('speciality_id')) if record else None
+    return specialityId
+
 # пишу и плачу :(
 def getNetIdList(clientSex, clientAge):
     db = QtGui.qApp.db

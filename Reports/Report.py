@@ -197,6 +197,7 @@ class CReport(CReportBase):
         scheta = params.get('scheta', None)
         payer = params.get('payer', None)
         dateType = params.get('dataType', None)
+        onlyNotExposed = params.get('onlyNotExposed', False)
         isPrimary = params.get('isPrimary', 0)
         age1 = params.get('age1',  None)
         age2 = params.get('age2',  None)
@@ -215,6 +216,8 @@ class CReport(CReportBase):
                                        3:u'Планирования'}[actionDateType])
         if dateType == 1:
             rows.append(u'по дате окончания лечения')
+            if onlyNotExposed:
+                rows.append(u'только невыставленные счета')
         if dateType == 2:
             rows.append(u'по дате выставления счет-фактуры')
             accountType = params.get("accountType", 0)

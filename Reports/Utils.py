@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1218,3 +1218,21 @@ def _getChiefName(orgId):
     if not result:
         result = forceString(db.translate('Organisation', 'id', orgId, 'chiefFreeInput'))
     return result
+
+def getRetireeAges(begDate):
+    '''
+        Возвращает возраст нетрудоспособности на заданную дату
+    '''
+
+    if begDate:
+        if begDate.year() == 2021:
+            return 61, 56
+        elif begDate.year() in (2022, 2023):
+            return 62, 57
+        elif begDate.year() in (2024, 2025):
+            return 63, 58
+        elif begDate.year() in (2026, 2027):
+            return 64, 59
+        elif begDate.year() >= 2028:
+            return 65, 60
+    return 60, 55

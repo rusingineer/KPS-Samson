@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client\Reports\ReportSetup.ui'
+# Form implementation generated from reading ui file 'C:\Projects\Samson\client_test\Reports\ReportSetup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -26,7 +26,7 @@ class Ui_ReportSetupDialog(object):
     def setupUi(self, ReportSetupDialog):
         ReportSetupDialog.setObjectName(_fromUtf8("ReportSetupDialog"))
         ReportSetupDialog.setWindowModality(QtCore.Qt.ApplicationModal)
-        ReportSetupDialog.resize(481, 961)
+        ReportSetupDialog.resize(481, 999)
         ReportSetupDialog.setSizeGripEnabled(True)
         ReportSetupDialog.setModal(True)
         self.gridLayout = QtGui.QGridLayout(ReportSetupDialog)
@@ -171,7 +171,7 @@ class Ui_ReportSetupDialog(object):
         self.btnSelectWorkOrganisation.setObjectName(_fromUtf8("btnSelectWorkOrganisation"))
         self.gridLayout.addWidget(self.btnSelectWorkOrganisation, 34, 10, 1, 1)
         spacerItem1 = QtGui.QSpacerItem(428, 16, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem1, 48, 0, 1, 11)
+        self.gridLayout.addItem(spacerItem1, 49, 0, 1, 11)
         self.lblPerson = QtGui.QLabel(ReportSetupDialog)
         self.lblPerson.setObjectName(_fromUtf8("lblPerson"))
         self.gridLayout.addWidget(self.lblPerson, 28, 0, 1, 1)
@@ -197,7 +197,7 @@ class Ui_ReportSetupDialog(object):
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridLayout.addWidget(self.buttonBox, 49, 0, 1, 11)
+        self.gridLayout.addWidget(self.buttonBox, 50, 0, 1, 11)
         self.lblEndPayDate = QtGui.QLabel(ReportSetupDialog)
         self.lblEndPayDate.setObjectName(_fromUtf8("lblEndPayDate"))
         self.gridLayout.addWidget(self.lblEndPayDate, 19, 5, 1, 1)
@@ -398,6 +398,12 @@ class Ui_ReportSetupDialog(object):
         self.edtEndTime = QtGui.QTimeEdit(ReportSetupDialog)
         self.edtEndTime.setObjectName(_fromUtf8("edtEndTime"))
         self.gridLayout.addWidget(self.edtEndTime, 1, 4, 1, 1)
+        self.lblSetPerson = QtGui.QLabel(ReportSetupDialog)
+        self.lblSetPerson.setObjectName(_fromUtf8("lblSetPerson"))
+        self.gridLayout.addWidget(self.lblSetPerson, 48, 0, 1, 1)
+        self.cmbSetPerson = CPersonComboBoxEx(ReportSetupDialog)
+        self.cmbSetPerson.setObjectName(_fromUtf8("cmbSetPerson"))
+        self.gridLayout.addWidget(self.cmbSetPerson, 48, 1, 1, 10)
         self.lblWorkType.setBuddy(self.cmbWorkType)
         self.lblAgeTo.setBuddy(self.edtAgeTo)
         self.lblAgeYears.setBuddy(self.edtAgeTo)
@@ -462,7 +468,8 @@ class Ui_ReportSetupDialog(object):
         ReportSetupDialog.setTabOrder(self.cmbMKBFilter, self.edtMKBFrom)
         ReportSetupDialog.setTabOrder(self.edtMKBFrom, self.edtMKBTo)
         ReportSetupDialog.setTabOrder(self.edtMKBTo, self.cmbEquipment)
-        ReportSetupDialog.setTabOrder(self.cmbEquipment, self.buttonBox)
+        ReportSetupDialog.setTabOrder(self.cmbEquipment, self.cmbSetPerson)
+        ReportSetupDialog.setTabOrder(self.cmbSetPerson, self.buttonBox)
 
     def retranslateUi(self, ReportSetupDialog):
         ReportSetupDialog.setWindowTitle(_translate("ReportSetupDialog", "параметры отчёта", None))
@@ -482,7 +489,7 @@ class Ui_ReportSetupDialog(object):
         self.chkOrderAddress.setText(_translate("ReportSetupDialog", "Сортировать по адресу", None))
         self.lblClientId.setText(_translate("ReportSetupDialog", "Код пациента", None))
         self.edtMonth.setDisplayFormat(_translate("ReportSetupDialog", "yyyy.MM", None))
-        self.edtMKBFrom.setInputMask(_translate("ReportSetupDialog", "a00.00; ", None))
+        self.edtMKBFrom.setInputMask(_translate("ReportSetupDialog", "a00.00", None))
         self.edtMKBFrom.setText(_translate("ReportSetupDialog", "A.", None))
         self.btnSelectWorkOrganisation.setText(_translate("ReportSetupDialog", "...", None))
         self.lblPerson.setText(_translate("ReportSetupDialog", "Врач", None))
@@ -510,7 +517,7 @@ class Ui_ReportSetupDialog(object):
         self.lblEquipment.setText(_translate("ReportSetupDialog", "Оборудование", None))
         self.cmbDetailAction.setItemText(0, _translate("ReportSetupDialog", "по Действиям", None))
         self.cmbDetailAction.setItemText(1, _translate("ReportSetupDialog", "по Профилям", None))
-        self.edtMKBTo.setInputMask(_translate("ReportSetupDialog", "a00.00; ", None))
+        self.edtMKBTo.setInputMask(_translate("ReportSetupDialog", "a00.00", None))
         self.edtMKBTo.setText(_translate("ReportSetupDialog", "Z99.9", None))
         self.chkActionClass.setText(_translate("ReportSetupDialog", "Не учитывать класс", None))
         self.lblActionTypeClass.setText(_translate("ReportSetupDialog", "Кла&сс", None))
@@ -544,6 +551,7 @@ class Ui_ReportSetupDialog(object):
         self.lblMesDispansList.setText(_translate("ReportSetupDialog", "Не задано", None))
         self.lblPersonList.setText(_translate("ReportSetupDialog", "Не задано", None))
         self.chkGroupOrganisation.setText(_translate("ReportSetupDialog", "Группировать по подразделениям", None))
+        self.lblSetPerson.setText(_translate("ReportSetupDialog", "Назначивший врач", None))
 
 from Events.ActionTypeComboBoxEx import CActionTypeComboBoxEx
 from Orgs.OrgComboBox import CInsurerComboBox, COrgComboBox

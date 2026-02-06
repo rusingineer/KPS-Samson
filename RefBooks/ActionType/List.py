@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,21 +15,25 @@
 
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QMimeData, QObject, QVariant, pyqtSignature, SIGNAL, QModelIndex, QEvent, QDate
+from PyQt4.QtGui import QFont
 
 from library.AgeSelector                   import composeAgeSelector, parseAgeSelector
 from library.calc                          import checkExpr, isIdentifier
-from library.crbcombobox                   import CRBModelDataCache, CRBComboBox
+from library.crbcombobox                   import CRBModelDataCache, CRBComboBox, CRBModel
 from library.DialogBase                    import CDialogBase
 from library.HierarchicalItemsListDialog   import CHierarchicalItemsListDialog
 from library.IdentificationModel           import CIdentificationModel, checkIdentification
 from library.InDocTable                    import CInDocTableModel, CBoolInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol, CSelectStrInDocTableCol, CRBSearchInDocTableCol, CRBTestSearchInDocTableCol
+from library.database import CTableRecordCache
 from library.interchange                   import setDateEditValue, getDateEditValue, getCheckBoxValue, getComboBoxValue, getLineEditValue, getRBComboBoxValue, getSpinBoxValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, setSpinBoxValue, getDoubleBoxValue, setDoubleBoxValue
 from library.ItemsListDialog               import CItemEditorBaseDialog
 from library.TableModel                    import CTableModel, CEnumCol, CRefBookCol, CTextCol, CDateCol
 from library.TreeModel                     import CDragDropDBTreeModelWithClassItems
-from library.Utils                         import addDotsEx, forceBool, forceDouble, forceInt, forceRef, forceString, forceStringEx, formatRecordsCount, formatRecordsCountInt, toVariant, trim, formatNum, formatNum1, agreeNumberAndWord
+from library.Utils                         import addDotsEx, forceBool, forceDouble, forceInt, forceRef, forceString, forceStringEx, \
+    formatRecordsCount, formatRecordsCountInt, toVariant, trim, formatNum, formatNum1, agreeNumberAndWord, forceDate, \
+    ActionTypeServiceMixin
 
-from Events.Action                         import CActionType
+from Events.Action                         import CActionType, CActionTypeCache
 from Events.ActionProperty                 import CActionPropertyValueTypeRegistry
 from Events.ActionPropertyTemplateComboBox import CActionPropertyTemplateComboBox
 from Events.ActionTypeComboBox             import CActionTypeTableCol
@@ -117,8 +121,8 @@ class CActionTypeList(Ui_ActionTypeListDialog, CHierarchicalItemsListDialog):
     def preSetupUi(self):
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         showInForm = True
-        self.addModels('Tree', CDragDropDBTreeModelWithClassItems(self, self.tableName, 'id', 'group_id', 'name', 'class', self.order, showInForm))
-        self.addModels('Table',CTableModel(self, self.cols, self.tableName))
+        self.addModels('Tree', CDragDropDBTreeModelWithClassItems(self, self.tableName, 'id', 'group_id', "CONCAT_WS(' | ', code, name)", 'class', self.order, showInForm))
+        self.addModels('Table', CActionTypeTableModel(self, self.cols, self.tableName))
         self.modelTree.setLeavesVisible(True)
         self.modelTree.setClassItems((
                                      (u'Статус', 0),
@@ -933,6 +937,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
 
         # comboboxes
         self.cmbGroup.setTable('ActionType')
+        self.cmbNomenclativeService.setModel(CRBServiceComboBoxModel(self))
         self.cmbNomenclativeService.setTable('rbService')
         self.cmbNomenclativeService.setShowFields(CRBComboBox.showCodeAndName)
         self.cmbQuotaType.setTable('QuotaType')
@@ -1103,6 +1108,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         setCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
         setCheckBoxValue(   self.chkEditSetPerson,             record, 'editSetPerson')
         setCheckBoxValue(   self.chkEditOrg,                   record, 'editOrg')
+        setCheckBoxValue(   self.chkEditOrgStructure,          record, 'editOrgStructure')
         setCheckBoxValue(   self.chkGenTimetable,              record, 'genTimetable')
         setCheckBoxValue(   self.chkShowTime,                  record, 'showTime')
         setCheckBoxValue(   self.chkRequiredCoordination,      record, 'isRequiredCoordination')
@@ -1113,6 +1119,8 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         setSpinBoxValue(    self.edtMaxOccursInEvent,          record, 'maxOccursInEvent')
         setSpinBoxValue(    self.edtTicketDuration,            record, 'ticketDuration')
         setCheckBoxValue(   self.chkPropertyAssignedVisible,   record, 'propertyAssignedVisible')
+        self.chkPropertyAssignedRequired.setVisible(self.chkPropertyAssignedVisible.isChecked())
+        setCheckBoxValue(   self.chkPropertyAssignedRequired,  record, 'propertyAssignedRequired')
         setCheckBoxValue(   self.chkPropertyUnitVisible,       record, 'propertyUnitVisible')
         setCheckBoxValue(   self.chkPropertyNormVisible,       record, 'propertyNormVisible')
         setCheckBoxValue(   self.chkPropertyEvaluationVisible, record, 'propertyEvaluationVisible')
@@ -1225,6 +1233,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         getCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
         getCheckBoxValue(   self.chkEditSetPerson,             record, 'editSetPerson')
         getCheckBoxValue(   self.chkEditOrg,                   record, 'editOrg')
+        getCheckBoxValue(   self.chkEditOrgStructure,          record, 'editOrgStructure')
         getCheckBoxValue(   self.chkGenTimetable,              record, 'genTimetable')
         getCheckBoxValue(   self.chkShowTime,                  record, 'showTime')
         getCheckBoxValue(   self.chkRequiredCoordination,      record, 'isRequiredCoordination')
@@ -1236,6 +1245,7 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         getSpinBoxValue(    self.edtTicketDuration,            record, 'ticketDuration')
         getRBComboBoxValue( self.cmbQuotaType,                 record, 'quotaType_id')
         getCheckBoxValue(   self.chkPropertyAssignedVisible,   record, 'propertyAssignedVisible')
+        getCheckBoxValue(   self.chkPropertyAssignedRequired,  record, 'propertyAssignedRequired')
         getCheckBoxValue(   self.chkPropertyUnitVisible,       record, 'propertyUnitVisible')
         getCheckBoxValue(   self.chkPropertyNormVisible,       record, 'propertyNormVisible')
         getCheckBoxValue(   self.chkPropertyEvaluationVisible, record, 'propertyEvaluationVisible')
@@ -1661,7 +1671,9 @@ class CPropertiesModel(CInDocTableModel):
                     typeId = forceRef(record.value('id'))
                     newTypeName = forceString(value)
                     textPropertyTypes = ['Text', 'String', 'Constructor', u'Счетчик', u'Жалобы']
-                    if not (newTypeName in textPropertyTypes and typeName in textPropertyTypes):
+                    refereceColumnsTypes = ['ReferenceColumns', 'ReferenceColumnsTree']
+                    if not (newTypeName in textPropertyTypes and typeName in textPropertyTypes) and \
+                       not (newTypeName in refereceColumnsTypes and typeName in refereceColumnsTypes):
                         if newTypeName != typeName and typeId:
                             valueDomain = forceString(record.value('valueDomain'))
                             templateId = forceRef(record.value('template_id'))
@@ -1806,6 +1818,39 @@ class CServiceByFinanceTypeModel(CInDocTableModel):
         self.addCol(
             CRBSearchInDocTableCol(u'Услуга', 'service_id', 15, 'rbService', showFields=CRBComboBox.showNameAndCode,
                                    filter='current_date() between begDate and endDate'))
+        self.serviceRecordCache = CTableRecordCache(QtGui.qApp.db, 'rbService', ['id', 'endDate'])
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid() and role == Qt.FontRole:
+            row = index.row()
+            column = index.column()
+            if 0 <= row < len(self._items):
+                if column == 1:
+                    serviceId = forceInt(self.items()[row].value('service_id'))
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            font = QFont()
+                            font.setItalic(True)
+                            font.setBold(True)
+                            return font
+                        else:
+                            return QVariant()
+
+        if index.isValid() and role == Qt.ToolTipRole:
+            row = index.row()
+            column = index.column()
+            if 0 <= row < len(self._items):
+                if column == 1:
+                    serviceId = forceInt(self.items()[row].value('service_id'))
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            return u"Данная услуга не является актуальной"
+                        else:
+                            return u""
+
+        return CInDocTableModel.data(self, index, role)
 
 
 class CQuotaTypeModel(CInDocTableModel):
@@ -1991,6 +2036,78 @@ class CRelationsModel(CInDocTableModel):
             else:
                 return False, False
         return False, False
+
+class CActionTypeTableModel(CTableModel, ActionTypeServiceMixin):
+    def __init__(self, parent, cols, tableName):
+        CTableModel.__init__(self, parent, cols=cols, tableName=tableName)
+        ActionTypeServiceMixin.__init__(self)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        column = index.column()
+        if role == Qt.FontRole and column == 3:
+            record = self.getRecordByRow(index.row())
+            if not record:
+                return QVariant()
+            actionTypeId = forceRef(record.value('id'))
+            actionTypeCache = CActionTypeCache.getById(actionTypeId)
+            code = actionTypeCache.code
+            numService = actionTypeCache.nomenclativeServiceId
+            if not self.checkActionTypeService(actionTypeId, code, numService):
+                font = QFont()
+                font.setItalic(True)
+                font.setBold(True)
+                return font
+
+        if role == Qt.ToolTipRole and column == 3:
+            record = self.getRecordByRow(index.row())
+            if not record:
+                return QVariant()
+            actionTypeId = forceRef(record.value('id'))
+            actionTypeCache = CActionTypeCache.getById(actionTypeId)
+            code = actionTypeCache.code
+            numService = actionTypeCache.nomenclativeServiceId
+            if not self.checkActionTypeService(actionTypeId, code, numService):
+                return u"Услуга в типе действия не является актуальной"
+            else:
+                return u""
+        return CTableModel.data(self, index, role)
+
+
+class CRBServiceComboBoxModel(CRBModel):
+    def  __init__(self, parent):
+        CRBModel.__init__(self, parent)
+        self.serviceRecordCache = CTableRecordCache(QtGui.qApp.db, 'rbService', ['id', 'endDate'])
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return CRBModel.data(self, index, role)
+        row = index.row()
+        column = index.column()
+        if row < self.d.getCount():
+            if column == 1:
+                serviceId = self.getId(row)
+                if role == Qt.ToolTipRole:
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            return u"Данная услуга не является актуальной"
+                        else:
+                            return u""
+                    else:
+                        return u""
+                if role == Qt.FontRole:
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        font = QFont()
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            font.setItalic(True)
+                            font.setBold(True)
+                            return font
+                        else:
+                            return font
+        return CRBModel.data(self, index, role)
 
 # ############################################################
 

@@ -287,6 +287,7 @@ class CEconomicAnalisysFinOtdEx(CEconomicAnalisysFinOtd):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
 

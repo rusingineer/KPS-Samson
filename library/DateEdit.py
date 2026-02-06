@@ -254,8 +254,8 @@ class CDateEdit(QtGui.QComboBox):
             if not date:
                 date = QDate.currentDate()
             self.calendarPopup.setInitialDate(date)
-            adjustPopupToWidget(self, self.calendarPopup, False)
             self.calendarPopup.show()
+            adjustPopupToWidget(self, self.calendarPopup, False)
 
 
     def setDate(self, date):

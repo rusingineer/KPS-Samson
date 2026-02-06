@@ -166,11 +166,14 @@ class CActionTypeSelector(Ui_ActionTypeSelectorDialog, CHierarchicalItemsListDia
 
         showInForm = self.cmbShowInForm.currentText()
         if showInForm != u'не определено':
-            cond.append(self.modelTable.table()['showInForm'].eq(int(showInForm == u'Да')))
+            cond.append(self.modelTable.table()['showInForm'].eq(int(showInForm == u'да')))
+            self.modelTree.setShowInForm(True) if showInForm == u'да' else self.modelTree.setShowInForm(False)
+        else:
+            self.modelTree.setShowInForm(False)
 
         isPreferable = self.cmbIsPreferable.currentText()
         if isPreferable != u'не определено':
-            cond.append(self.modelTable.table()['isPreferable'].eq(int(isPreferable == u'Да')))
+            cond.append(self.modelTable.table()['isPreferable'].eq(int(isPreferable == u'да')))
 
         return cond
 

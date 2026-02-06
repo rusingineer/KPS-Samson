@@ -40,8 +40,8 @@ def selectEventActionData(params):
 
     cond = [
 #            tableEvent['client_id'].inlist(clientIdList),
-            tableEvent['setDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['setDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableEvent['deleted'].eq(0),
             tableAction['deleted'].eq(0),
             'EXISTS (SELECT ActionType_Service.id FROM ActionType_Service WHERE ActionType_Service.master_id = Action.actionType_id) OR Action.id IS NULL'
@@ -72,8 +72,8 @@ def selectEventVisitData(params):
 
     cond = [
 #            tableEvent['client_id'].inlist(clientIdList),
-            tableEvent['setDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['setDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableEvent['deleted'].eq(0),
             tableVisit['deleted'].eq(0),
             'DATE(Event.setDate) <= DATE(Visit.date)'
@@ -104,14 +104,14 @@ def selectClientPolicyData(params):
     queryTable = tableClientPolicy
 
     cpEndDateCond = [
-                     tableClientPolicy['endDate'].dateGe(begDate),
+                     tableClientPolicy['endDate'].ge(begDate),
                      db.joinAnd([tableClientPolicy['endDate'].isNull(),
                      'NOT EXISTS(SELECT CP.id FROM ClientPolicy AS CP WHERE CP.begDate > ClientPolicy.begDate AND CP.client_id = ClientPolicy.client_id)'])
                     ]
 
     cond = [
              tableClientPolicy['deleted'].eq(0),
-             tableClientPolicy['begDate'].dateLe(endDate),
+             tableClientPolicy['begDate'].lt(endDate.addDays(1)),
              db.joinOr(cpEndDateCond)
            ]
 

@@ -19,7 +19,8 @@ from ShtrihErrors  import EShtrihError
 
 class CShtrihInterface:
     tagPayerContact  = 1008 # Электронный адрес / телефон получателя
-    tagPayerName     = 1227 # Наименование получателя
+    tagPayerName     = 1227 # Наименование покупателя (плательщика) для ФФД < 1.2: реквизит чека, для ФФД ≥ 1.2: входит в 1256
+    tagPayerInfo     = 1256 # Сведения о покупателе (плательщике), ФФД ≥ 1.2
 
     #tagAddress       = 1009
     tagOperatorName  = 1021
@@ -73,6 +74,14 @@ class CShtrihInterface:
     vat120    = 5 # НДС 20/120
     vatInvaid = 0 # ?
 
+    # Форматы фискальных документов, см. Руководство по настройке
+    ffdUnknown = -1
+    ffd100     = 0
+    ffd105beta = 1
+    ffd105     = 2
+    ffd110     = 3
+    ffd120     = 4
+
 
     def __init__(self):
         try:
@@ -80,11 +89,11 @@ class CShtrihInterface:
         except:
             self.ci = None
 
-        self.operatorName  = '' # ФИО оператора
-        self.operatorVatin = '' # ИНН оператора
-        self.vatTaxPayer   = False
-        self.operatorPassword = 1  # называется - пароль. на самом деле номер в таблице :(
-        self.sysAdminPassword = 30
+        self._operatorName  = '' # ФИО оператора
+        self._operatorVatin = '' # ИНН оператора
+        self._vatTaxPayer   = False
+        self._operatorPassword = 1  # называется - пароль. на самом деле номер в таблице :(
+        self._sysAdminPassword = 30
 
         self._checkType   = None # FNOperation не довольствуется CheckType из OpenCheck
         self._paymentType = None # Тип и сумма передаются в pay, а используются в closeReceipt: это пряталка
@@ -92,11 +101,11 @@ class CShtrihInterface:
 
 
     def setOperatorName(self, name):
-        self.operatorName = name
+        self._operatorName = name
 
 
     def setOperatorVatin(self, vatin):
-        self.operatorVatin = vatin
+        self._operatorVatin = vatin
 
 
     @classmethod
@@ -110,7 +119,7 @@ class CShtrihInterface:
 
 
     def __encodeVat(self, valPercent):
-        if self.vatTaxPayer:
+        if self._vatTaxPayer:
             v = int(round(valPercent))
             if v == 20:
                 return self.vat120 # НДС 20/120
@@ -134,22 +143,22 @@ class CShtrihInterface:
         self.__checkError(self.ci.GetECRStatus())
         mode = self.ci.ECRMode
         if mode == self.ci.PM_OpenedDocument:
-            self.ci.Password = self.sysAdminPassword
+            self.ci.Password = self._sysAdminPassword
             self.__checkError(self.ci.SysAdminCancelCheck())
         self.__checkError(self.ci.WaitForPrinting())
 
 
     def __setOperatorTags(self):
-#        self.ci.Password = self.operatorPassword
-        if self.operatorName:
+#        self.ci.Password = self._operatorPassword
+        if self._operatorName:
             self.ci.TagNumber = self.tagOperatorName
             self.ci.TagType   = self.ci.TT_String
-            self.ci.TagValueStr = self.operatorName
+            self.ci.TagValueStr = self._operatorName
             self.__checkError(self.ci.FNSendTag())
-        if self.operatorVatin:
+        if self._operatorVatin:
             self.ci.TagNumber = self.tagOperatorVatin
             self.ci.TagType   = self.ci.TT_String
-            self.ci.TagValueStr = self.operatorVatin
+            self.ci.TagValueStr = self._operatorVatin
             self.__checkError(self.ci.FNSendTag())
 
 
@@ -158,33 +167,48 @@ class CShtrihInterface:
         self.__checkError(self.ci.GetECRStatus())
         mode = self.ci.ECRMode
         if mode == self.ci.PM_SessionOpenOver24h:
-            self.ci.Password = self.sysAdminPassword
+            self.ci.Password = self._sysAdminPassword
             self.__checkError(self.ci.FNBeginCloseSession())
             self.__setOperatorTags()
             self.__checkError(self.ci.PrintReportWithCleaning())
             self.__checkError(self.ci.WaitForPrinting())
-            self.ci.Password = self.sysAdminPassword
+            self.ci.Password = self._sysAdminPassword
             self.__checkError(self.ci.FNBeginOpenSession())
-            self.ci.Password = self.operatorPassword
+            self.ci.Password = self._operatorPassword
             self.__setOperatorTags()
             self.__checkError(self.ci.FNOpenSession())
         elif mode == self.ci.PM_SessionClosed:
-            self.ci.Password = self.sysAdminPassword
+            self.ci.Password = self._sysAdminPassword
             self.__checkError(self.ci.FNBeginOpenSession())
-            self.ci.Password = self.operatorPassword
+            self.ci.Password = self._operatorPassword
             self.__setOperatorTags()
             self.__checkError(self.ci.FNOpenSession())
         elif mode == self.ci.PM_OpenedDocument:
-            self.ci.Password = self.sysAdminPassword
+            self.ci.Password = self._sysAdminPassword
             self.__checkError(self.ci.SysAdminCancelCheck())
             self.__checkError(self.ci.WaitForPrinting())
-            self.ci.Password = self.operatorPassword
+            self.ci.Password = self._operatorPassword
+
+
+    def __getFfdVersion(self):
+        self.ci.ModelParamNumber = self.ci.DPE_FFDVersionTableNumber
+        if self.ci.ReadModelParamValue() == 0:
+            table = self.ci.ModelParamValue
+            self.ci.ModelParamNumber = self.ci.DPE_FFDVersionFieldNumber
+            if self.ci.ReadModelParamValue() == 0:
+                field = self.ci.ModelParamValue
+                self.ci.TableNumber = table
+                self.ci.FieldNumber = field
+                self.ci.RowNumber   = 1
+                if self.ci.ReadTable() == 0:
+                    return self.ci.ValueOfFieldInteger
+        return self.ffdUnknown
 
 
     def setup(self, options):
-        self.vatTaxPayer = forceBool(options.get('vatTaxPayer', False))
-        self.operatorPassword = forceInt(options.get('operatorPassword', 0)) or 1
-        self.sysAdminPassword = forceInt(options.get('sysAdminPassword', 0)) or 30
+        self._vatTaxPayer = forceBool(options.get('vatTaxPayer', False))
+        self._operatorPassword = forceInt(options.get('operatorPassword', 0)) or 1
+        self._sysAdminPassword = forceInt(options.get('sysAdminPassword', 0)) or 30
 
         link = forceString(options.get('link'))
         if link == 'serial port':
@@ -219,8 +243,8 @@ class CShtrihInterface:
     def open(self):
         if self.ci:
             self.__checkError(self.ci.Connect())
-            self.ci.Password = self.operatorPassword
-            self.ci.SysAdminPassword = self.sysAdminPassword
+            self.ci.Password = self._operatorPassword
+            self.ci.SysAdminPassword = self._sysAdminPassword
 
 
     def close(self):
@@ -247,7 +271,7 @@ class CShtrihInterface:
 
 
     def getFactoryNumber(self):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
 #        self.ci.Password = 30
         self.ci.TableNumber = 18
         self.ci.RowNumber = 1
@@ -258,7 +282,7 @@ class CShtrihInterface:
 
     def getOfdExchangeStatus(self):
 #    Password - пароль системного администратора.
-        self.ci.Password = self.sysAdminPassword
+        self.ci.Password = self._sysAdminPassword
         self.__checkError(self.ci.FNGetInfoExchangeStatus())
         exchangeStatus = self.ci.InfoExchangeStatus
         unsentCount = self.ci.MessageCount
@@ -298,7 +322,7 @@ class CShtrihInterface:
 
 
     def getSessionInfo(self):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.__checkError(self.ci.GetECRStatus())
         #self.__checkError(self.ci.FNGetCurrentSessionParams())
         sessionNumber = self.ci.SessionNumber
@@ -324,12 +348,24 @@ class CShtrihInterface:
                     customAttrName=None,
                     customAttrValue=None):
         self.__operatorLogin()
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         if payerName:
-            self.ci.TagNumber   = self.tagPayerName
-            self.ci.TagType     = self.ci.TT_String
-            self.ci.TagValueStr = payerName
-            self.ci.FNSendTag()
+            ffdVersion = self.__getFfdVersion()
+            if ffdVersion == self.ffd120:
+                self.ci.TagNumber   = self.tagPayerInfo
+                self.ci.FNBeginSTLVTag()
+                self.ci.TagNumber   = self.tagPayerName
+                self.ci.TagType     = self.ci.TT_String
+                self.ci.TagValueStr = payerName
+                self.ci.FNAddTag()
+                self.ci.FNSendSTLVTag()
+            elif ffdVersion != self.ffdUnknown:
+                self.ci.TagNumber   = self.tagPayerName
+                self.ci.TagType     = self.ci.TT_String
+                self.ci.TagValueStr = payerName
+                self.ci.FNSendTag()
+            else:
+                pass
         if payerEmail:
 #            self.ci.TagNumber   = self.tagPayerContact
 #            self.ci.TagType     = self.ci.TT_String
@@ -359,7 +395,7 @@ class CShtrihInterface:
 
 
     def cancelReceipt(self):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.__checkError(self.ci.CancelCheck())
 
 
@@ -368,7 +404,7 @@ class CShtrihInterface:
         # Перед вызовом метода в свойстве Password указать пароль оператора и заполнить перечисленные в таблице используемые свойства.
         # В свойстве OperatorNumber возвращается порядковый номер оператора, чей пароль был введен.
         # В свойстве Change возвращается сумма сдачи.
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.ci.Summ1  = 0
         self.ci.Summ2  = 0
         self.ci.Summ3  = 0
@@ -459,20 +495,20 @@ class CShtrihInterface:
 
 
     def getCash(self):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.__checkError(self.ci.ReadCashDrawerSum())
         return self.__fromMonetaryUnit(self.ci.Summ1)
 
 
     def putToCash(self, sum_):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
 #        self.__operatorLogin()
         self.ci.Summ1 = self.__toMonetaryUnit(sum_)
         self.__checkError(self.ci.CashIncome())
 
 
     def takeFromCash(self, sum_):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
 #        self.__operatorLogin()
         self.ci.Summ1 = self.__toMonetaryUnit(sum_)
         self.__checkError(self.ci.CashOutcome())
@@ -486,7 +522,7 @@ class CShtrihInterface:
 
     def printLastDocument(self):
         self.__operatorLogin()
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.__checkError(self.ci.RepeatDocument())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()
@@ -509,21 +545,21 @@ class CShtrihInterface:
 
 
     def reportX(self):
-        self.ci.Password = self.sysAdminPassword # self.operatorPassword
+        self.ci.Password = self._sysAdminPassword # self._operatorPassword
         self.__checkError(self.ci.PrintReportWithoutCleaning())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()
 
 
     def reportLastDocument(self):
-        self.ci.Password = self.operatorPassword
+        self.ci.Password = self._operatorPassword
         self.__checkError(self.ci.RepeatDocument())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()
 
 
     def reportOfdExchangeStatus(self):
-        self.ci.Password = self.sysAdminPassword
+        self.ci.Password = self._sysAdminPassword
         self.__checkError(self.ci.FNBeginCalculationStateReport())
         self.__setOperatorTags()
         self.__checkError(self.ci.FNBuildCalculationStateReport())
@@ -534,21 +570,21 @@ class CShtrihInterface:
 
 
     def reportQuantity(self):
-        self.ci.Password = self.sysAdminPassword
+        self.ci.Password = self._sysAdminPassword
         self.__checkError(self.ci.PrintWareReport())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()
 
 
     def reportOperators(self):
-        self.ci.Password = self.sysAdminPassword
+        self.ci.Password = self._sysAdminPassword
         self.__checkError(self.ci.PrintCashierReport())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()
 
 
     def reportHours(self):
-        self.ci.Password = self.sysAdminPassword
+        self.ci.Password = self._sysAdminPassword
         self.__checkError(self.ci.PrintHourlyReport())
         self.__checkError(self.ci.WaitForPrinting())
         self.__checkDocumentClosed()

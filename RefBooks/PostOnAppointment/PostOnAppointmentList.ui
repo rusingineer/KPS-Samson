@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>582</width>
-    <height>335</height>
+    <width>709</width>
+    <height>430</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -38,13 +38,6 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QLabel" name="lblDescription">
-         <property name="text">
-          <string>Мини описание</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <widget class="CTableView" name="tblItems"/>
        </item>
        <item>
@@ -54,20 +47,23 @@
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QLabel" name="lblTab1Description">
+         <property name="text">
+          <string>Должности, анализируемые при передаче сведений о врачах и расписании на ЕПГУ. Если указанная должность отсутствует в данном списке, информация на ЕПГУ не будет выведена</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabCode11">
       <attribute name="title">
-       <string>Специальность</string>
+       <string>Специальность ср. мед. перс.</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="QLabel" name="lblDescription_2">
-         <property name="text">
-          <string>Мини описание</string>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="CTableView" name="tblItems_2"/>
        </item>
@@ -75,6 +71,67 @@
         <widget class="QLabel" name="label_2">
          <property name="text">
           <string>Всего</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblTab2Description">
+         <property name="text">
+          <string>Cпециальности которым разрешена неоднократная запись</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabCode13">
+      <attribute name="title">
+       <string>Основные должности</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="CTableView" name="tblItems_3"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_3">
+         <property name="text">
+          <string>Всего</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblTab3Description">
+         <property name="text">
+          <string>Перечень должностей к которым применяется основная логика записи</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabCode14">
+      <attribute name="title">
+       <string>Должности для МКЗ</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4">
+       <item>
+        <widget class="CTableView" name="tblItems_4"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>Всего</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblTab4Description">
+         <property name="text">
+          <string>Перечень должностей, к которым применяется только межкабинетная запись (не предусматривается запись через другие источники)</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
          </property>
         </widget>
        </item>

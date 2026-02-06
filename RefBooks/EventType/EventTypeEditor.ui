@@ -271,7 +271,7 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>1359</width>
+            <width>1360</width>
             <height>798</height>
            </rect>
           </property>
@@ -921,7 +921,7 @@
               </sizepolicy>
              </property>
              <property name="text">
-              <string>Порядок</string>
+              <string>Порядок по умолчанию</string>
              </property>
             </widget>
            </item>
@@ -1147,19 +1147,6 @@
              </property>
             </widget>
            </item>
-           <item row="23" column="3" colspan="5">
-            <spacer name="horizontalSpacer_17">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
            <item row="23" column="1" colspan="2">
             <widget class="CRBComboBox" name="cmbCounter">
              <property name="enabled">
@@ -1195,6 +1182,29 @@
               <bool>true</bool>
              </property>
             </widget>
+           </item>
+           <item row="23" column="3">
+            <widget class="QLabel" name="lblAvailableOrders">
+             <property name="text">
+              <string>Доступные порядки</string>
+             </property>
+            </widget>
+           </item>
+           <item row="23" column="5" colspan="3">
+            <spacer name="horizontalSpacer_17">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="23" column="4">
+            <widget class="CRecordMultivalueComboBox" name="cmbAvailableOrders"/>
            </item>
            <item row="12" column="5" colspan="2">
             <widget class="QCheckBox" name="chkShowButtonJobTickets">
@@ -2378,6 +2388,26 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabOrgStruct">
+      <attribute name="title">
+       <string>Подразделения</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <widget class="CInDocTableView" name="tblOrgStruct"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabPersons">
+      <attribute name="title">
+       <string>Сотрудники</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="CInDocTableView" name="tblPersons"/>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="tabActionType">
       <attribute name="title">
        <string>Обязательные мероприятия</string>
@@ -2451,6 +2481,11 @@
    <class>CPolyclinicComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRecordMultivalueComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/MultivalueComboBox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

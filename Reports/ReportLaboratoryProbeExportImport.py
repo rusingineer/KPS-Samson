@@ -49,8 +49,8 @@ def selectData(params):
 
     prefix = 'import' if type else 'export'
 
-    cond = [tableProbe[prefix+'Datetime'].dateGe(begDate),
-            tableProbe[prefix+'Datetime'].dateLe(endDate)]
+    cond = [tableProbe[prefix+'Datetime'].ge(begDate),
+            tableProbe[prefix+'Datetime'].lt(endDate.addDays(1))]
 
     fields = [tableTest['code'].alias('testCode'),
               tableTest['name'].alias('testName'),

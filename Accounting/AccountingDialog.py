@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -169,6 +169,7 @@ from Users.Rights                     import ( urAccessAccountInfo,
                                                urDeleteAccountsAtOnce,
                                                urDeleteRKEY,
                                                canRightForCreateAccounts,
+                                               urAccessChangeEventExpose
                                              )
 
 from Accounting.Ui_AccountingDialog    import Ui_AccountingDialog
@@ -237,6 +238,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.addModels('Accounts', CAccountsModel(self))
         self.addModels('AccountItems', CAccountItemsModel(self))
 
+        self.setupAccountsEconomicAnalisysMenu()
         self.setupAccountsMenu()
         self.setupAccountItemsMenu()
         self.setupBtnPrintMenu()
@@ -638,6 +640,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.addObject('actDeleteAccountItemsPersonalAccount', QtGui.QAction(u'Удалить персональный счет из реестра', self))
         self.addObject('actShowAccountItemInfo', QtGui.QAction(u'Свойства записи', self))
         self.addObject('actReportAccountTotal', QtGui.QAction(u'Счет итоговый', self))
+        self.addObject('actChangeEventExpose', QtGui.QAction(u'Снять отметку "Выставлять в счет"', self))
 
         self.mnuAccountItems.addAction(self.actEditClient)
         self.mnuAccountItems.addAction(self.actOpenEvent)
@@ -664,7 +667,45 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.mnuAccountItems.addSeparator()
         self.mnuAccountItems.addAction(self.actDeleteAccountItems)
         self.mnuAccountItems.addAction(self.actDeleteAccountItemsPersonalAccount)
+        self.mnuAccountItems.addAction(self.actChangeEventExpose)
 
+    def setupAccountsEconomicAnalisysMenu(self):
+        self.addObject('actAccountE1', QtGui.QAction(u'Э-1 Нагрузка на врача', self))
+        self.addObject('actAccountE2', QtGui.QAction(u'Э-2 Выполненные объемы услуг в разрезе диагнозов', self))
+        self.addObject('actAccountE3', QtGui.QAction(u'Э-3 Анализ нагрузки на врачей', self))
+        self.addObject('actAccountE4', QtGui.QAction(u'Э-4 Нагрузка на врачей по видам финансирования', self))
+        self.addObject('actAccountE5', QtGui.QAction(u'Э-5 Нагрузка на отделение в разрезе выполненных услуг', self))
+        self.addObject('actAccountE6', QtGui.QAction(u'Э-6 Анализ нагрузки на отделение по видам финансирования', self))
+        self.addObject('actAccountE7', QtGui.QAction(u'Э-7 Анализ нагрузки на подразделения', self))
+        self.addObject('actAccountE8',
+                       QtGui.QAction(u'Э-8 Анализ нагрузки на подразделения по видам финансирования', self))
+        self.addObject('actAccountE9', QtGui.QAction(u'Э-9 Сводка о выполненных медицинских услугах по врачам', self))
+        self.addObject('actAccountE10',
+                       QtGui.QAction(u'Э-10 Сводка о выполненных медицинских услугах по отделениям', self))
+        self.addObject('actAccountE11', QtGui.QAction(
+            u'Э-11 Сводка о выполненных медицинских услугах по видам финансирования в разрезе плательщиков', self))
+        self.addObject('actAccountE12',
+                       QtGui.QAction(u'Э-12 Отчет по введенным услугам, отсутствующим в договоре', self))
+        self.addObject('actAccountE13', QtGui.QAction(u'Э-13 Реестр счетов за пролеченных больных', self))
+        self.addObject('actAccountE14', QtGui.QAction(
+            u'Э-14 Отчет о пролеченных больных, застрахованных на территории Краснодарского края, в разрезе страховщиков',
+            self))
+        self.addObject('actAccountE15', QtGui.QAction(u'Э-15 Отчет о работе отделений в разрезе плательщиков', self))
+        self.addObject('actAccountE16', QtGui.QAction(u'Э-16 Отчет о работе врачей в разрезе плательщиков', self))
+        self.addObject('actAccountE17', QtGui.QAction(u'Э-17 Выполненные объемы услуг по врачам', self))
+        self.addObject('actAccountE19', QtGui.QAction(u'Э-19 Список услуг, оказанных пациентам', self))
+        self.addObject('actAccountE23',
+                       QtGui.QAction(u'Э-23 Выполненные объемы посещений в разрезе специальностей', self))
+        self.addObject('actAccountE24', QtGui.QAction(u'Э-24 Нагрузка на отделение в разрезе профилей коек', self))
+        self.addObject('actAccountE26', QtGui.QAction(
+            u'Э-26 Сведения о численности застрахованных лиц обратившихся в организацию для оказания медицинской помощи',
+            self))
+
+        self.addObject('mnuAccountEconomicAnalisys', QtGui.QMenu(self))
+        self.mnuAccountEconomicAnalisys.setTitle(u'Экономический анализ')
+        for idx in range(1, 27):
+            if hasattr(self, 'actAccountE%d' % idx):
+                self.mnuAccountEconomicAnalisys.addAction(getattr(self, 'actAccountE%d' % idx))
 
     def setupBtnPrintMenu(self):
         self.addObject('mnuBtnPrint', QtGui.QMenu(self))
@@ -701,6 +742,10 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         subMenu.addAction(self.actPrintStructureByService)
         subMenu.addAction(self.actPrintStructureByEvent)
 
+        # хотела добавить в конец меню, но всегда будет в списке до экшенов в основном меню
+        # тк все меню будет перерисовано функцией additionalCustomizePrintButton
+        self.mnuBtnPrint.insertMenu(self.mnuBtnPrint.actions()[len(self.mnuBtnPrint.actions()) - 1],
+                                    self.mnuAccountEconomicAnalisys)
 
     def resetAnalysisPage(self):
         yesterday = QDate.currentDate().addDays(-1)
@@ -721,6 +766,9 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.cmbAnalysisClientCodeType.setValue(None)
         self.chkAnalysisEventCode.setChecked(False)
         self.chkAnalysisService.setChecked(False)
+        self.chkAnalysisCreateDate.setChecked(False)
+        self.edtAnalysisCreateBegDate.setDate(firstYearDay(yesterday))
+        self.edtAnalysisCreateEndDate.setDate(lastYearDay(yesterday))
         self.edtAnalysisEventCode.setText('')
         self.cmbAnalysisEventCodeType.setCurrentIndex(0)
         self.cmbAnalysisService.setCurrentIndex(0)
@@ -837,6 +885,11 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                             if bool(filterService):
                                 tableEx = tableEx.leftJoin(tableRbService, tableRbService['id'].eq(tableAccountItem['service_id']))
                                 cond.append(tableRbService['id'].eq(filterService))
+
+                        if self.chkAnalysisCreateDate.isChecked():
+                            createDateBeg = self.edtAnalysisCreateBegDate.date()
+                            createDateEnd = self.edtAnalysisCreateEndDate.date()
+                            addDateInRange(cond, table['createDatetime'], createDateBeg, createDateEnd)
                 elif workIndex == 2:
                     begDate = self.edtHistoryBegDate.date()
                     endDate = self.edtHistoryEndDate.date()
@@ -1198,7 +1251,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.updateAccountItemsPanel(idList)
 
 
-    def form(self, contractIdList, begDate, endDate, orgStructureId, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID):
+    def form(self, contractIdList, begDate, endDate, orgStructureId, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS=False, exposeByOrgStruct=False):
         progressDialog = None
         self.resetBuilder()
         QtGui.qApp.setWaitCursor()
@@ -1212,9 +1265,17 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 progressDialog.setNumContracts(len(contractIdList))
                 progressDialog.show()
                 allAccountIdList = []
+                self.mapOrgStructToBookkeeper = dict()
+                if exposeByOrgStruct:
+                    db = QtGui.qApp.db
+                    stmt = "SELECT id, name, getBookkeeperId(id) as bookkeeperId FROM OrgStructure;"
+                    query = db.query(stmt)
+                    while query.next():
+                        record = query.record()
+                        self.mapOrgStructToBookkeeper[forceRef(record.value('id'))] = forceRef(record.value('bookkeeperId'))
                 for contractId in contractIdList:
                     accountIdList = self.formByContract(
-                        progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID)
+                        progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS)
                     allAccountIdList.extend(accountIdList)
                     accountId = accountIdList[-1] if accountIdList else None
                     self.updateFilterAccountsEtc(accountId, order=self.accountOrder)
@@ -1234,7 +1295,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 progressDialog.deleteLater()
 
 
-    def formByContract(self, progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID):
+    def formByContract(self, progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
         counterController = QtGui.qApp.counterController()
         if not counterController:
             QtGui.qApp.setCounterController(CCounterController(self))
@@ -1243,21 +1304,21 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         try:
             contractDescr = getContractDescr(contractId)
             progressDialog.setContractName(contractDescr.number+' '+forceString(contractDescr.date))
-            accountPool = CAccountPool(contractDescr, QtGui.qApp.currentOrgId(), orgStructureId, endDate, reexposeInSeparateAccount)
+            accountPool = CAccountPool(contractDescr, QtGui.qApp.currentOrgId(), orgStructureId, endDate, reexposeInSeparateAccount, self.mapOrgStructToBookkeeper)
             accountFactory = accountPool.getAccount
             
-            eventIdList = selectEvents(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID)
-            # mapServiceIdToVisitIdList = selectVisitsByActionServices(contractDescr, personIdList, nextDate, reexpose, onlyDispCOVID)
-            visitIdList = selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID)
-            actionIdList = selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID)
-            # actionPropertyIdList = selectHospitalBedActionProperties(contractDescr, personIdList, nextDate, reexpose, onlyDispCOVID)
+            eventIdList = selectEvents(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS)
+            # mapServiceIdToVisitIdList = selectVisitsByActionServices(contractDescr, personIdList, nextDate, reexpose, onlyDispCOVID, onlyTFOMS)
+            visitIdList = selectVisits(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS)
+            actionIdList = selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS)
+            # actionPropertyIdList = selectHospitalBedActionProperties(contractDescr, personIdList, nextDate, reexpose, onlyDispCOVID, onlyTFOMS)
             # eventIdServiceIdPairList = selectEventServicePairsForVisits(contractDescr, personIdList, nextDate) # пока невкурил как это перевыставлять(если это вообще используется)
-            csgIdList = selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID)
+            csgIdList = selectCsgs(contractDescr, personIdList, begDate, endDate, reexpose, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS)
             if reexpose and QtGui.qApp.defaultKLADR()[:2] != u'23':
                 reexposableIdList = selectReexposableAccountItems(contractDescr, endDate.addDays(1), onlyDispCOVID, onlyResearchOnCOVID)
                 reexposableEventIdList = []
             else:
-                reexposableEventIdList = selectReexposableEvents(contractDescr, begDate, endDate)
+                reexposableEventIdList = selectReexposableEvents(contractDescr, begDate, endDate, onlyTFOMS=onlyTFOMS)
                 reexposableIdList = []
 
             progressDialog.setNumContractSteps(len(eventIdList) +
@@ -1984,7 +2045,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         db = QtGui.qApp.db
         tableAccountItem = db.table('Account_Item')
         tableSARK = db.table('soc_Account_RowKeys')
-        table = tableAccountItem.leftJoin(tableSARK, db.joinAnd([tableAccountItem['event_id'].eq(tableSARK['event_id']), 'soc_Account_RowKeys.row_id = coalesce(Account_Item.action_id, Account_Item.visit_id, Account_Item.event_id)', tableSARK['typeFile'].eq('U')]))
+        table = tableAccountItem.leftJoin(tableSARK, db.joinAnd([tableAccountItem['event_id'].eq(tableSARK['event_id']), 'soc_Account_RowKeys.row_id = coalesce(Account_Item.action_id, Account_Item.visit_id, Account_Item.eventCSG_id, Account_Item.event_id)', tableSARK['typeFile'].eq('U')]))
         cond = [tableAccountItem['master_id'].inlist(self.tblAccounts.selectedItemIdList()), tableAccountItem['deleted'].eq(0), db.joinOr([tableSARK['key'].isNull(), tableSARK['key'].eq('')])]
         itemIdList = db.getIdList(table, idCol='Account_Item.id', where=cond)
         n = len(itemIdList)
@@ -2200,6 +2261,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.actDeleteAccountItems.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
         self.actDeleteAccountItemsPersonalAccount.setEnabled(itemPresent and ((QtGui.qApp.userHasAnyRight([urDeleteAccountItem]) and self.checkDeleteRights()) or QtGui.qApp.userHasRight(urAdmin)))
         self.actShowAccountItemInfo.setEnabled(itemPresent)
+        self.actChangeEventExpose.setEnabled(QtGui.qApp.userHasRight(urAccessChangeEventExpose))
 
 
     @pyqtSignature('')
@@ -2437,6 +2499,39 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                     self.updateFilterAccountsEtc(self.currentAccountId, order=self.accountOrder)
                 finally:
                     QtGui.qApp.restoreOverrideCursor()
+
+
+    @pyqtSignature('')
+    def on_actChangeEventExpose_triggered(self):
+        db = QtGui.qApp.db
+        table = db.table('Event')
+        selectedRowList = self.tblAccountItems.selectedRowList()
+        eventsIdToChange = [forceInt(self.tblAccountItems.model().getRecordByRow(row).value('event_id')) for row in selectedRowList]
+        eventsIdToChange = set(eventsIdToChange) # оставляем только уникальные event_id
+        n = len(eventsIdToChange)
+        message = u'Вы действительно хотите снять отметку "Выставлять в счет" для %s?' % formatNum1(n, (u'события', u'событий'))
+        message += u'\nВнимание! Случаи обслуживания без данной отметки не будут выставляться в счета. Вернуть отметку можно только отдельно из каждого случая вручную!'
+        if QtGui.QMessageBox.question(self,
+                                      u'Внимание!',
+                                      message,
+                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+            QtGui.qApp.setWaitCursor()
+            try:
+                for eventId in eventsIdToChange:
+                    try:
+                        db.transaction()
+                        cond = [table['id'].eq(eventId)]
+                        record = db.getRecordEx(table, 'id, expose', cond)
+                        record.setValue('expose', toVariant(0))
+                        db.updateRecord(table, record)
+                        db.commit()
+                    except:
+                        db.rollback()
+                        QtGui.qApp.logCurrentException()
+                        raise
+            finally:
+                QtGui.qApp.restoreOverrideCursor()
     
 
     @pyqtSignature('')
@@ -2529,11 +2624,13 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
 
     @pyqtSignature('')
     def on_btnForm_clicked(self):
+        QtGui.qApp._timeoutLogout.stop()
         contractIdList = self.getContractIdList(self.treeContracts.currentIndex())
         if not contractIdList:
             QtGui.QMessageBox().warning(self, u'Внимание!',
                                         u'Для формирования счёта необходимо выбрать договор',
                                         QtGui.QMessageBox.Close)
+            QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=QtGui.qApp.mainWindow.logoutAndLogin)
             return
         date = self.clnCalcCalendar.selectedDate()
         message = u'Подтвердите, что Вы действительно хотите сформировать счета\nпо %s %s' % \
@@ -2544,12 +2641,13 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         dialog = CExposeConfirmationDialog(self, foldText(message, [100]), orgStructureId, date)
         try:
             if dialog.exec_():
-                begDate, endDate, filterPaymentByOrgStructure, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID = dialog.options()
+                begDate, endDate, filterPaymentByOrgStructure, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS, exposeByOrgStruct = dialog.options()
                 if not filterPaymentByOrgStructure:
                     orgStructureId = None
-                self.form(contractIdList, begDate, endDate, orgStructureId, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID)
+                self.form(contractIdList, begDate, endDate, orgStructureId, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS, exposeByOrgStruct=exposeByOrgStruct)
         finally:
             dialog.deleteLater()
+            QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=QtGui.qApp.mainWindow.logoutAndLogin)
 
 
     @pyqtSignature('')
@@ -2815,6 +2913,110 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
     def on_actPrintStructureByEvent_triggered(self):
         CStructureByEventReport(self, self.tblAccounts.selectedItemIdList()).exec_()
 
+    @pyqtSignature('')
+    def on_actAccountE1_triggered(self):
+        from Reports.EconomicAnalisysE1 import CEconomicAnalisysE1Ex
+        CEconomicAnalisysE1Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE2_triggered(self):
+        from Reports.EconomicAnalisysE2 import CEconomicAnalisysE2Ex
+        CEconomicAnalisysE2Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE3_triggered(self):
+        from Reports.EconomicAnalisysE3 import CEconomicAnalisysE3Ex
+        CEconomicAnalisysE3Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE4_triggered(self):
+        from Reports.EconomicAnalisysE4 import CEconomicAnalisysE4Ex
+        CEconomicAnalisysE4Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE5_triggered(self):
+        from Reports.EconomicAnalisysE5 import CEconomicAnalisysE5Ex
+        CEconomicAnalisysE5Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE6_triggered(self):
+        from Reports.EconomicAnalisysE6 import CEconomicAnalisysE6Ex
+        CEconomicAnalisysE6Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE7_triggered(self):
+        from Reports.EconomicAnalisysE7 import CEconomicAnalisysE7Ex
+        CEconomicAnalisysE7Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE8_triggered(self):
+        from Reports.EconomicAnalisysE8 import CEconomicAnalisysE8Ex
+        CEconomicAnalisysE8Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE9_triggered(self):
+        from Reports.EconomicAnalisysE9 import CEconomicAnalisysE9Ex
+        CEconomicAnalisysE9Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE10_triggered(self):
+        from Reports.EconomicAnalisysE10 import CEconomicAnalisysE10Ex
+        CEconomicAnalisysE10Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE11_triggered(self):
+        from Reports.EconomicAnalisysE11 import CEconomicAnalisysE11Ex
+        CEconomicAnalisysE11Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE12_triggered(self):
+        from Reports.EconomicAnalisysE12 import CEconomicAnalisysE12Ex
+        CEconomicAnalisysE12Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE13_triggered(self):
+        from Reports.EconomicAnalisysE13 import CEconomicAnalisysE13Ex
+        CEconomicAnalisysE13Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE14_triggered(self):
+        from Reports.EconomicAnalisysE14 import CEconomicAnalisysE14Ex
+        CEconomicAnalisysE14Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE15_triggered(self):
+        from Reports.EconomicAnalisysE15 import CEconomicAnalisysE15Ex
+        CEconomicAnalisysE15Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE16_triggered(self):
+        from Reports.EconomicAnalisysE16 import CEconomicAnalisysE16Ex
+        CEconomicAnalisysE16Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE17_triggered(self):
+        from Reports.EconomicAnalisysE17 import CEconomicAnalisysE17Ex
+        CEconomicAnalisysE17Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE19_triggered(self):
+        from Reports.EconomicAnalisysE19 import CEconomicAnalisysE19Ex
+        CEconomicAnalisysE19Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE23_triggered(self):
+        from Reports.EconomicAnalisysE23 import CEconomicAnalisysE23Ex
+        CEconomicAnalisysE23Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE24_triggered(self):
+        from Reports.EconomicAnalisysE24 import CEconomicAnalisysE24Ex
+        CEconomicAnalisysE24Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
+
+    @pyqtSignature('')
+    def on_actAccountE26_triggered(self):
+        from Reports.EconomicAnalisysE26 import CEconomicAnalisysE26Ex
+        CEconomicAnalisysE26Ex(self).exec_(accountIdList=self.tblAccounts.selectedItemIdList())
 
 class CInsurerFilterDialog(QtGui.QDialog, Ui_InsurerFilterDialog):
     def __init__(self, parent, strict):

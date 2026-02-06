@@ -15,10 +15,10 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant, pyqtSignature, SIGNAL, QDate, QDateTime
-
+from library.ClientRecordProperties import CRecordProperties
 from library.crbcombobox        import CRBComboBox
 from library.HierarchicalItemsListDialog import CHierarchicalItemsListDialog
-from library.InDocTable         import CInDocTableModel, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol, CTimeInDocTableCol, CIntInDocTableCol, CBoolInDocTableCol
+from library.InDocTable         import CInDocTableModel, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol, CTimeInDocTableCol, CIntInDocTableCol, CBoolInDocTableCol, CRBSearchInDocTableCol
 from library.interchange        import getCheckBoxValue, getComboBoxValue, getLineEditValue, getRBComboBoxValue, getSpinBoxValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, setSpinBoxValue, getTextEditValue, setTextEditValue
 from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
 from library.naturalSort        import naturalSorted
@@ -84,6 +84,9 @@ class COrgStructureList(CHierarchicalItemsListDialog):
         self.treeItems.setDragDropMode(QtGui.QAbstractItemView.InternalMove)
         # tree popup menu
         self.treeItems.createPopupMenu([self.actDelete])
+        self.addObject('actShowRecordInfo', QtGui.QAction(u'Свойства записи', self))
+        self.tblItems.addPopupAction(self.actShowRecordInfo)
+        self.connect(self.actShowRecordInfo, SIGNAL('triggered()'), self.on_actShowRecordInfo_triggered)
         self.connect(self.treeItems.popupMenu(), SIGNAL('aboutToShow()'), self.popupMenuAboutToShow)
         self.connect(self.tblItems.popupMenu(), SIGNAL('aboutToShow()'), self.popupTableMenuAboutToShow)
         #self.connect(self.modelTree, SIGNAL('modelAboutToBeReset()'),  self.treeModelAboutToBeReset)
@@ -235,6 +238,38 @@ class COrgStructureList(CHierarchicalItemsListDialog):
                 self.renewListAndSetTo()
                 self.restoreExpandedState()
                 self.treeItems.setCurrentIndex(idx)
+
+    @pyqtSignature('')
+    def on_actShowRecordInfo_triggered(self):
+        row = self.tblItems.currentRow()
+        if 0 <= row < self.modelTable.rowCount():
+            recId = self.tblItems.currentItemId()
+            CContingentRecordProperties(self, 'OrgStructure', recId).exec_()
+
+
+class CContingentRecordProperties(CRecordProperties):
+    def loadInfo(self):
+        if self.recordId is None:
+            return u''
+        db = QtGui.qApp.db
+        fields = [
+            'createPerson_id',
+            'modifyPerson_id',
+            'createDatetime',
+            'modifyDatetime',
+        ]
+        record = db.getRecord(self.table, fields, self.recordId)
+        createPersonId = forceRef(record.value('createPerson_id'))
+        modifyPersonId = forceRef(record.value('modifyPerson_id'))
+        createPerson = db.translate('vrbPersonWithSpeciality', 'id', createPersonId, 'name')
+        modifyPerson = db.translate('vrbPersonWithSpeciality', 'id', modifyPersonId, 'name')
+        return u'\n'.join([
+            u'Идентификатор: ' + forceString(self.recordId),
+            u'Создатель записи: ' + forceString(createPerson),
+            u'Дата создания записи: ' + forceString(record.value('createDatetime')),
+            u'Редактор записи: ' + forceString(modifyPerson),
+            u'Дата редактирования записи: ' + forceString(record.value('modifyDatetime')),
+        ])
 
 
 class COrgStructureEditor(Ui_ItemEditorDialog, CItemEditorDialogWithIdentification):
@@ -1150,7 +1185,7 @@ class CEventTypesModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'OrgStructure_EventType', 'id', 'master_id', parent)
         self.addCol(CEnumInDocTableCol(u'Первичность', 'isPrimary', 20, [u'Не задано', u'Первичный', u'Повторный', u'Актив']))
-        self.addCol(CRBInDocTableCol(u'Тип', 'eventType_id', 20, 'EventType', filter="deleted=0 AND isActive = 1"))
+        self.addCol(CRBSearchInDocTableCol(u'Тип', 'eventType_id', 20, 'EventType', filter="deleted=0 AND isActive = 1"))
 
 
 class CActionTypesModel(CInDocTableModel):

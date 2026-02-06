@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Events\EventMesPage.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Events\EventMesPage.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -68,6 +68,7 @@ class Ui_EventMesPageWidget(object):
         self.tblCSGs = CInDocTableView(self.splitter)
         self.tblCSGs.setObjectName(_fromUtf8("tblCSGs"))
         self.tblCSGSubItems = CInDocTableView(self.splitter)
+        self.tblCSGSubItems.setEnabled(False)
         self.tblCSGSubItems.setObjectName(_fromUtf8("tblCSGSubItems"))
         self.verticalLayout.addWidget(self.splitter)
         self.gridLayout.addWidget(self.grpCSG, 5, 0, 1, 3)

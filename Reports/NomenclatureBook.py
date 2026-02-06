@@ -243,8 +243,8 @@ class CNomenclatureBook(CReport):
         tableOrg = db.table('Organisation')
 
         cond = [
-            tableStockMotion['date'].dateGe(begDate),
-            tableStockMotion['date'].dateLe(endDate),
+            tableStockMotion['date'].ge(begDate),
+            tableStockMotion['date'].lt(endDate.addDays(1)),
             tableStockMotion['type'].eq(0),
             tableStockMotion['deleted'].eq(0)
         ]
@@ -295,8 +295,8 @@ class CNomenclatureBook(CReport):
             debCond.append(tableStockTrans['debNomenclature_id'].eq(nomenclatureId))
             creCond.append(tableStockTrans['creNomenclature_id'].eq(nomenclatureId))
         if begDate:
-            debCond.append(tableStockTrans['date'].dateLe(begDate))
-            creCond.append(tableStockTrans['date'].dateLe(begDate))
+            debCond.append(tableStockTrans['date'].lt(begDate.addDays(1)))
+            creCond.append(tableStockTrans['date'].ge(begDate))
         if orgStructureId:
             debCond.append(tableStockTrans['debOrgStructure_id'].eq(orgStructureId))
             creCond.append(tableStockTrans['creOrgStructure_id'].eq(orgStructureId))

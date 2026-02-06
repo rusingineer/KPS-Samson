@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,11 +11,13 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+import platform
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QEvent, QAbstractItemModel, SIGNAL
 from library.PreferencesMixin import CDialogPreferencesMixin
 from library.DateEdit import CDateEdit
+from library.database import CSqlRecord
 
 
 class CConstructHelperMixin:
@@ -63,6 +65,14 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
 
     def __init__(self, parent):
         QtGui.QDialog.__init__(self, parent)
+        # TT 3632 "Отсутствие кнопок масштабирования в Альте"
+        if 'alt' in platform.uname()[2]:
+            self.setWindowFlags(Qt.Window
+                                | Qt.WindowTitleHint
+                                | Qt.WindowMinMaxButtonsHint
+                                | Qt.WindowSystemMenuHint
+                                | Qt.WindowCloseButtonHint)
+            self.setWindowModality(Qt.ApplicationModal)
         self.__isDirty  = False # данные диалога изменены
         self.__readOnly = False # данные диалога не требуется сохранять.
         self.__title = ''
@@ -119,6 +129,9 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
     def setIsDirty(self, dirty=True):
         self.__isDirty = dirty
         self.setWindowModified(dirty)
+        if hasattr(self, "_record"):
+            if type(self._record) == CSqlRecord:
+                self._record._dirty = dirty
 
 
     def saveData(self):
@@ -222,6 +235,17 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
     def checkInputMessage(self, message, skipable, widget, row=None, column=None):
         return self.checkValueMessage(u'Необходимо указать %s' % message, skipable, widget, row, column)
 
+    def checkValueMessageIgnore(self, message, skipable, widget, row=None, column=None):
+        messageBox = QtGui.QMessageBox(self)
+        messageBox.setWindowTitle(u'Внимание!')
+        messageBox.setText(message)
+        messageBox.addButton(QtGui.QPushButton(u'ОК'), QtGui.QMessageBox.ActionRole)
+        if skipable:
+            messageBox.addButton(QtGui.QPushButton(u'Игнорировать'), QtGui.QMessageBox.ActionRole)
+        res = messageBox.exec_()
+        if res == 0:
+            self.setFocusToWidget(widget, row, column)
+        return res
 
     def checkValueMessageIgnoreAll(self, message, skipable, widget, row=None, column=None, detailWdiget=None):
         messageBox = QtGui.QMessageBox()
@@ -273,7 +297,7 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
         if scd == self.cdDiscard or (scd == self.cdSave and self.saveData()):
             self.saveDialogPreferences()
             if result < 0:
-               result = 1 if scd == self.cdSave else 0
+                result = 1 if scd == self.cdSave else 0
             QtGui.QDialog.done(self, result)
 
     def discardData(self):
@@ -341,8 +365,14 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
     def on_abstractdataModelDataChanged(self, topLeft,  bottomRight):
         self.setIsDirty()
 
+    def on_abstractdataModelRowsRemoved(self):
+        self.setIsDirty()
+
     def setupDirtyCatherForObject(self, obj, exclude):
         if obj in exclude:
+            return
+        # Чтобы изменения фильтров в Мед карте не помечали события измененным
+        if obj.objectName() == 'tabAmbCard':
             return
         for child in obj.children():
             if isinstance(child, QtGui.QLabel) or child in exclude:
@@ -363,6 +393,7 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
                 self.connect(child, SIGNAL('valueChanged(int)'), self.on_spinBoxChanged)
             elif isinstance(child, QAbstractItemModel):
                 self.connect(child, SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self.on_abstractdataModelDataChanged)
+                self.connect(child, SIGNAL('removeRows()'), self.on_abstractdataModelRowsRemoved)
             else:
                 self.setupDirtyCatherForObject(child, exclude)
 

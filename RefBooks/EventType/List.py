@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,21 +16,28 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import QFont
-from PyQt4.QtCore import Qt, QAbstractTableModel, QByteArray, QEvent, QMimeData, QModelIndex, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QAbstractTableModel, QByteArray, QEvent, QMimeData, QModelIndex, QVariant, pyqtSignature, \
+    SIGNAL, QDate
 
 from Orgs.OrgComboBox import CPolyclinicComboBox
+from Orgs.OrgStructureCol import COrgStructureInDocTableCol
 from Orgs.Orgs import selectOrganisation
 from Events.Action import CActionTypeCache
+from Orgs.PersonComboBoxEx import CPersonFindInDocTableCol
 from library.AgeSelector              import composeAgeSelector, parseAgeSelector
 from library.AmountToWords            import amountToWords
+from library.ICDMulti import CMultiICDInDocTableCol
+from library.MultivalueComboBox import CRBMultivalueComboBox
 from library.crbcombobox              import CRBModelDataCache, CRBPopupView, CRBComboBox
 from library.IdentificationModel      import CIdentificationModel, checkIdentification
 from library.InDocTable               import CInDocTableModel, CBoolInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol
-from library.interchange              import getCheckBoxValue, getComboBoxValue, getLineEditValue, getRBComboBoxValue, getSpinBoxValue, getTextEditValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, setSpinBoxValue, setTextEditValue
+from library.interchange              import getCheckBoxValue, getComboBoxValue, getLineEditValue, getRBComboBoxValue, getSpinBoxValue, \
+    getTextEditValue, setCheckBoxValue, setComboBoxValue, setLineEditValue, setRBComboBoxValue, setSpinBoxValue, \
+    setTextEditValue, setRBMultivalueComboBoxValue, getRBMultivalueComboBoxValue
 
 from library.ItemsListDialog          import CItemsListDialog, CItemEditorBaseDialog
 from library.TableModel               import CBoolCol, CEnumCol, CNumCol, CRefBookCol, CTextCol
-from library.Utils                    import forceInt, forceRef, forceString, forceStringEx, toVariant, trim, forceBool, addDotsEx
+from library.Utils import forceInt, forceRef, forceString, forceStringEx, toVariant, trim, forceBool, addDotsEx, forceDate, ActionTypeServiceMixin
 
 from Events.Action                    import CActionTypeCache
 from Events.ActionTypeComboBox        import CActionTypeTableCol
@@ -406,6 +413,15 @@ class CActionsControl(CInDocTableModel):
 
 
 class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
+    orders = (
+        u'Плановый',
+        u'Экстренный',
+        u'Самотёком',
+        u'Принудительный',
+        u'Внутренний перевод',
+        u'Неотложная'
+    )
+    
     def __init__(self,  parent):
         CItemEditorBaseDialog.__init__(self, parent, 'EventType')
 
@@ -417,6 +433,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.addModels('ActionsControl',    CActionsControl(self))
         self.addModels('EventType',         CEventTypeModel(self))
         self.addModels('Identification',    CIdentificationModel(self, 'EventType_Identification', 'EventType'))
+        self.addModels('OrgStruct',         COrgStructModel(self))
+        self.addModels('Persons',           CPersonsModel(self))
         self.addModels('ActionType',        CActionTypeModel(self, None))
         self.addModels('ActionType_status', CActionTypeModel(self, 0))
         self.addModels('ActionType_diagnostic', CActionTypeModel(self, 1))
@@ -441,6 +459,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         for formCode, formDescr in getEventFormList():
             self.cmbForm.addItem(formDescr, toVariant(formCode))
         self.cmbScene.setTable('rbScene', True)
+        self.cmbAvailableOrders.setItems(CEventTypeEditor.orders)
 
         self.setModels(self.tblDiagnostics, self.modelDiagnostics, self.selectionModelDiagnostics)
         self.setModels(self.tblStatusActions, self.modelStatusActions, self.selectionModelStatusActions)
@@ -450,6 +469,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.setModels(self.tblActionsControl, self.modelActionsControl, self.selectionModelActionsControl)
         self.setModels(self.tblEventType, self.modelEventType, self.selectionModelEventType)
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
+        self.setModels(self.tblOrgStruct, self.modelOrgStruct, self.selectionModelOrgStruct)
+        self.setModels(self.tblPersons, self.modelPersons, self.selectionModelPersons)
         self.setModels(self.tblActionType_status, self.modelActionType_status, self.selectionModelActionType_status)
         self.setModels(self.tblActionType_diagnostic, self.modelActionType_diagnostic, self.selectionModelActionType_diagnostic)
         self.setModels(self.tblActionType_cure, self.modelActionType_cure, self.selectionModelActionType_cure)
@@ -457,11 +478,12 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
         for tbl in (self.tblDiagnostics, self.tblStatusActions, self.tblDiagnosticActions, self.tblCureActions,
                     self.tblMiscActions, self.tblEventType, self.tblActionType_status, self.tblActionType_diagnostic,
-                    self.tblActionType_cure, self.tblActionType_other):
+                    self.tblActionType_cure, self.tblActionType_other, self.tblOrgStruct, self.tblPersons):
             tbl.addMoveRow()
             tbl.addPopupDelRow()
         
         for mdl in (self.modelStatusActions, self.modelDiagnosticActions, self.modelCureActions, self.modelMiscActions,
+                    self.modelOrgStruct, self.modelPersons,
                     self.modelActionType_status, self.modelActionType_diagnostic, self.modelActionType_cure, self.modelActionType_other):
             mdl.cols()[0].setSortable(True)
             
@@ -479,8 +501,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.oldFormValue = forceString(self.cmbForm.itemData(self.cmbForm.currentIndex()))
         self.edtVisitServiceFilter.setToolTip(u'Пример: \n2,4 \nгде 2-начало среза, 4-длина среза(не обязателен)')
         self.modelEventType.setFilter('EventType.deleted = 0')
-
-
+        
+        
     def setRecord(self, record):
         id = self.itemId()
         filterPrevEventTypeId = u'id != %d'%(id)
@@ -565,6 +587,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         setComboBoxValue(   self.cmbSetPerson,                         record, 'setPerson')
         setComboBoxValue(   self.cmbRequiredCondition,                 record, 'requiredCondition')
         setCheckBoxValue(   self.chkAutoFillingExpertise,              record, 'isAutoFillingExpertise')
+        setRBMultivalueComboBoxValue(self.cmbAvailableOrders,          record, 'availableOrders')
         setComboBoxValue(   self.cmbOrder,                             record, 'order')
         setCheckBoxValue(   self.chkIncludeActionTypesWithoutService,  record, 'showActionTypesWithoutService')
         setCheckBoxValue(   self.chkKeepVisitParity,                   record, 'keepVisitParity')
@@ -616,6 +639,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.modelActionsControl.loadItems(id)
         self.modelEventType.loadItems(id)
         self.modelIdentification.loadItems(self.itemId())
+        self.modelOrgStruct.loadItems(id)
+        self.modelPersons.loadItems(id)
         self.modelActionType_status.loadItems(id)
         self.modelActionType_diagnostic.loadItems(id)
         self.modelActionType_cure.loadItems(id)
@@ -702,6 +727,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         getComboBoxValue(   self.cmbRequiredCondition,                 record, 'requiredCondition')
         getCheckBoxValue(   self.chkAutoFillingExpertise,              record, 'isAutoFillingExpertise')
         getComboBoxValue(   self.cmbOrder,                             record, 'order')
+        getRBMultivalueComboBoxValue(self.cmbAvailableOrders,          record, 'availableOrders')
         getCheckBoxValue(   self.chkIncludeActionTypesWithoutService,  record, 'showActionTypesWithoutService')
         getCheckBoxValue(   self.chkKeepVisitParity,                   record, 'keepVisitParity')
         getCheckBoxValue(   self.chkRestrictVisitTypeAgeSex,           record, 'isRestrictVisitTypeAgeSex')
@@ -750,6 +776,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.modelActionsControl.saveItems(id)
         self.modelEventType.saveItems(id)
         self.modelIdentification.saveItems(id)
+        self.modelOrgStruct.saveItems(id)
+        self.modelPersons.saveItems(id)
         self.modelActionType_status.saveItems(id)
         self.modelActionType_diagnostic.saveItems(id)
         self.modelActionType_cure.saveItems(id)
@@ -777,7 +805,16 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         result = result and self.modelActionType_other.checkValues(self.tblActionType_other)
         result = result and self.modelEventType.checkValues()
         result = result and checkIdentification(self, self.tblIdentification)
+        result = result and self.checkOrders()
         return result
+    
+    
+    def checkOrders(self):
+        if not self.cmbAvailableOrders.checkedValueList():
+            return self.checkValueMessage(u'Должен быть выбран минимум один доступный порядок', False, self.cmbAvailableOrders, None, None)
+        if self.cmbOrder.currentIndex() < 0:
+            return self.checkValueMessage(u'Должен быть выбран порядок по умолчанию', False, self.cmbOrder, None, None)
+        return True
 
 
     def checkVisitServiceFilter(self):
@@ -822,6 +859,22 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
             self.modelEventType.clearItems()
         self.oldFormValue = forceString(self.cmbForm.itemData(index))
         self.cmbVoucherCounter.setEnabled(forceString(self.cmbForm.itemData(self.cmbForm.currentIndex())) == u'072')
+    
+    
+    @pyqtSignature('QString')
+    def on_cmbAvailableOrders_editTextChanged(self, value):
+        checkedList = self.cmbAvailableOrders.checkedValueList()
+        checkedDict = self.cmbAvailableOrders.getCheckedDict()
+        for key, value in checkedDict.items():
+            self.cmbOrder.model().item(forceInt(key)).setEnabled(value)
+        if forceString(self.cmbOrder.currentText()) not in checkedList:
+            if checkedList:
+                item = self.cmbOrder.model().item(self.cmbOrder.currentIndex())
+                if item:
+                    item.setEnabled(False)
+                self.cmbOrder.setCurrentIndex(forceInt(self.cmbAvailableOrders.getIndex(checkedList[0])))
+            else:
+                self.cmbOrder.setCurrentIndex(-1)
 
 
     @pyqtSignature('QString')
@@ -1229,9 +1282,10 @@ class CDiagnosticsModel(CInDocTableModel):
             editor.resize(editor.width(), 12*editor.height())
 
 
-class CActionsModel(CInDocTableModel):
+class CActionsModel(CInDocTableModel, ActionTypeServiceMixin):
     def __init__(self, parent, actionTypeClass):
         CInDocTableModel.__init__(self, 'EventType_Action', 'id', 'eventType_id', parent)
+        ActionTypeServiceMixin.__init__(self)
         self._parent = parent
         self.addCol(CActionTypeFindInDocTableCol(u'Наименование',   'actionType_id',20, 'ActionType', actionTypeClass))
         self.addCol(CRBInDocTableCol(   u'Специальность',  'speciality_id', 20, 'rbSpeciality'))
@@ -1249,7 +1303,7 @@ class CActionsModel(CInDocTableModel):
         self.actionTypeIdList = getActionTypeIdListByClass(actionTypeClass)
         db = QtGui.qApp.db
         table = db.table('EventType_Action')
-        self.setFilter( table['actionType_id'].inlist(self.actionTypeIdList) )
+        self.setFilter(table['actionType_id'].inlist(self.actionTypeIdList))
 
 
     def afterUpdateEditorGeometry(self, editor, index):
@@ -1353,8 +1407,12 @@ class CActionsModel(CInDocTableModel):
                 if actionType_id != 0:
                     actionTypeCache = CActionTypeCache.getById(actionType_id)
                     showInForm = actionTypeCache.showInForm
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
                     if showInForm == 0:
                         return u"Не разрешается выбор данного типа действия в формах ввода событий"
+                    elif not self.checkActionTypeService(actionType_id, code, numService):
+                        return u"Услуга в типе действия не является актуальной"
                     else:
                         return u""
 
@@ -1363,8 +1421,14 @@ class CActionsModel(CInDocTableModel):
                 if actionType_id != 0:
                     actionTypeCache = CActionTypeCache.getById(actionType_id)
                     showInForm = actionTypeCache.showInForm
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
                     font = QFont()
                     if showInForm == 0:
+                        font.setItalic(True)
+                        font.setBold(True)
+                        return font
+                    elif not self.checkActionTypeService(actionType_id, code, numService):
                         font.setItalic(True)
                         font.setBold(True)
                         return font
@@ -1377,8 +1441,10 @@ class CActionsModel(CInDocTableModel):
 class CActionTypeModel(CInDocTableModel):
     def __init__(self, parent, actionTypeClass):
         CInDocTableModel.__init__(self, 'EventType_RequireAction', 'id', 'eventType_id', parent)
-        self.addCol(CActionTypeFindInDocTableCol(u'Наименование', 'actionType_id', 10,'ActionType',  actionTypeClass=actionTypeClass)).setSortable(True)
-        self.addCol(CBoolInDocTableCol(u'Обязательность', 'required', 5))
+        self.addCol(CActionTypeFindInDocTableCol(u'Наименование', 'actionType_id', 30,'ActionType',  actionTypeClass=actionTypeClass)).setSortable(True)
+        self.addCol(CRBMultiInDocTableCol(u'Специальность', 'speciality_id', 30, 'rbSpeciality'))
+        self.addCol(CMultiICDInDocTableCol(u'МКБ', 'mkb', 30))
+        self.addCol(CIntInDocTableCol(u'Группа выбора', 'selectionGroup', 15))
 
         self.classesVisible = True
         self.actionTypeClass = actionTypeClass
@@ -1399,3 +1465,50 @@ class CActionTypeModel(CInDocTableModel):
             if not id:
                 return self._parent.checkInputMessage(u'тип действия', False, widget, num, self.getColIndex('actionType_id'))
         return True
+
+
+class COrgStructModel(CInDocTableModel):
+    def __init__(self, parent):
+        CInDocTableModel.__init__(self, 'EventType_OrgStruct', 'id', 'eventType_id', parent)
+        self.addCol(COrgStructureInDocTableCol(u'Подразделение', 'orgstruct_id', 20))
+
+
+class CPersonsModel(CInDocTableModel):
+    def __init__(self, parent):
+        CInDocTableModel.__init__(self, 'EventType_Persons', 'id', 'eventType_id', parent)
+        self.addCol(CPersonFindInDocTableCol(u'Врач', 'person_id', 20, 'vrbPersonWithSpeciality', parent=parent))
+
+class CRBMultiInDocTableCol(CRBInDocTableCol):
+    def __init__(self, title, fieldName, width, tableName, **params):
+        CRBInDocTableCol.__init__(self, title, fieldName, width, tableName, **params)
+
+    def toString(self, val, record):
+        if not val:
+            return toVariant('')
+
+        db = QtGui.qApp.db
+        table = db.table(self.tableName)
+        id_list = [id_str.strip() for id_str in forceString(val).split(',') if id_str.strip()]
+
+        if not id_list:
+            return toVariant('')
+
+        names = []
+        for id in id_list:
+            if id.isdigit():
+                record = db.getRecordEx(table, 'name', [table['id'].eq(int(id))])
+                if record:
+                    names.append(forceString(record.value('name')))
+
+        return toVariant(', '.join(names) if names else u'Неизвестно')
+
+    def createEditor(self, parent):
+        editor = CRBMultivalueComboBox(parent)
+        editor.setTable(self.tableName, addNone=False, filter=self.filter)
+        return editor
+
+    def setEditorData(self, editor, value, record):
+        editor.setValue(forceString(value))
+
+    def getEditorData(self, editor):
+        return toVariant(editor.value())

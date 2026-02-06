@@ -103,7 +103,7 @@ rbTraumaType                         = 'rbTraumaType'
 rbUnit                               = 'rbUnit'
 rbVaccinationResult                  = 'rbVaccinationResult'
 rbVisitType                          = 'rbVisitType'
-
+rbFmsUnit                            = 'rbFmsUnit'
 
 #WTF? Здесь искать эту строку не приходит в голову
 TempInvalidTypeList = (u'ВУТ', u'Инвалидность', u'Ограничение жизнедеятельности')

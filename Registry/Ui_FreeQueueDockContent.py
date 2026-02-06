@@ -27,8 +27,8 @@ class Ui_Form(object):
         Form.setObjectName(_fromUtf8("Form"))
         Form.resize(221, 741)
         self.gridLayout = QtGui.QGridLayout(Form)
-        self.gridLayout.setContentsMargins(1, 2, 1, 2)
         self.gridLayout.setSpacing(2)
+        self.gridLayout.setContentsMargins(1, 2, 1, 2)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.lblReservedOrder = QtGui.QLabel(Form)
         font = QtGui.QFont()
@@ -54,8 +54,8 @@ class Ui_Form(object):
         self.grpBox = QtGui.QWidget(Form)
         self.grpBox.setObjectName(_fromUtf8("grpBox"))
         self.verticalLayout = QtGui.QVBoxLayout(self.grpBox)
-        self.verticalLayout.setMargin(0)
         self.verticalLayout.setSpacing(0)
+        self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.splitter = QtGui.QSplitter(self.grpBox)
         self.splitter.setLineWidth(1)
@@ -87,8 +87,6 @@ class Ui_Form(object):
         self.tblAmbQueue.setObjectName(_fromUtf8("tblAmbQueue"))
         self.verticalLayout.addWidget(self.splitter)
         self.gridLayout.addWidget(self.grpBox, 8, 0, 1, 5)
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 2, 4, 1, 1)
         self.lblQueueItemsCount = QtGui.QLabel(Form)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -123,8 +121,8 @@ class Ui_Form(object):
         self.chkEnableTime.setSizePolicy(sizePolicy)
         self.chkEnableTime.setObjectName(_fromUtf8("chkEnableTime"))
         self.gridLayout.addWidget(self.chkEnableTime, 4, 0, 1, 1)
-        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem1, 9, 4, 1, 1)
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem, 9, 4, 1, 1)
         self.lblCountTickets = QtGui.QLabel(Form)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
@@ -189,6 +187,15 @@ class Ui_Form(object):
         self.cmbAppointmentType = CEnumComboBox(Form)
         self.cmbAppointmentType.setObjectName(_fromUtf8("cmbAppointmentType"))
         self.gridLayout.addWidget(self.cmbAppointmentType, 0, 1, 1, 4)
+        self.btnUpdateItems = QtGui.QToolButton(Form)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Ignored)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.btnUpdateItems.sizePolicy().hasHeightForWidth())
+        self.btnUpdateItems.setSizePolicy(sizePolicy)
+        self.btnUpdateItems.setText(_fromUtf8(""))
+        self.btnUpdateItems.setObjectName(_fromUtf8("btnUpdateItems"))
+        self.gridLayout.addWidget(self.btnUpdateItems, 2, 4, 1, 1)
         self.lblBegDate.setBuddy(self.edtBegDate)
         self.lblCountTickets.setBuddy(self.edtCountTickets)
         self.lblEndTime.setBuddy(self.edtEndTime)
@@ -225,19 +232,10 @@ class Ui_Form(object):
         self.lblEndTime.setText(_translate("Form", "&по", None))
         self.chkEnableAppointmentPurpose.setText(_translate("Form", "&Назначение", None))
         self.label.setText(_translate("Form", "&Тип приёма", None))
+        self.btnUpdateItems.setToolTip(_translate("Form", "Обновить список номерков", None))
 
 from FreeQueueTableView import CFreeQueueTableView
-from library.DateEdit import CDateEdit
-from library.ROComboBox import CEnumComboBox
 from library.TreeView import CTreeView
+from library.ROComboBox import CEnumComboBox
+from library.DateEdit import CDateEdit
 from library.crbcombobox import CRBComboBox
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    Form = QtGui.QWidget()
-    ui = Ui_Form()
-    ui.setupUi(Form)
-    Form.show()
-    sys.exit(app.exec_())
-

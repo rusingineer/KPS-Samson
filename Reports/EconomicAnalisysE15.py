@@ -7,8 +7,8 @@ from Reports.ReportBase import CReportBase
 
 from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
-from EconomicAnalisys import getStmt, colClient, colEvent, colPayerTitle, colOrgStructure, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM
-
+from EconomicAnalisys import getStmt, colClient, colEvent, colPayerTitle, colOrgStructure, colCSG, colPos, colObr, \
+    colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum
 
 
 class CEconomicAnalisysE15(CReport):
@@ -17,7 +17,8 @@ class CEconomicAnalisysE15(CReport):
         self.setTitle(u'Форма Э-15. Отчет о работе отделений в разрезе плательщиков.')
 
     def selectData(self, params):
-        cols = [colClient, colEvent, colPayerTitle, colOrgStructure, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM]
+        cols = [colClient, colEvent, colPayerTitle, colOrgStructure, colCSG, colPos, colObr, colSMP, colKD, colPD,
+                colUET, colAmount, colSUM, colExposedSum]
         colsStmt = u"""select colPayerTitle as osname,
         colOrgStructure as orgname,
         count(distinct colEvent) as cnt,
@@ -30,7 +31,8 @@ class CEconomicAnalisysE15(CReport):
         sum(colPD) as pd,
         sum(colSMP) as callambulance,
         sum(IF(colPos = 0 and colCSG = 0 and colSMP = 0 and colObr = 0, colAmount, 0)) as usl,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """
         groupCols = u'colPayerTitle, colOrgStructure'
         orderCols = u'colPayerTitle, colOrgStructure'
@@ -41,7 +43,9 @@ class CEconomicAnalisysE15(CReport):
 
 
     def build(self, description, params):
-        reportRowSize = 11
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 12 if needExposedSum else 11
         reportData = {}
 
         def processQuery(query):
@@ -58,6 +62,7 @@ class CEconomicAnalisysE15(CReport):
                 callambulance = forceInt(record.value('callambulance'))
                 uet = forceDouble(record.value('uet'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
 
                 key = (osname if osname else u'Не задан',  orgname if orgname else u'Не задан')
                 reportLine = reportData.setdefault(key, [0]*reportRowSize)
@@ -70,7 +75,8 @@ class CEconomicAnalisysE15(CReport):
                 reportLine[6] += usl
                 reportLine[7] += callambulance
                 reportLine[8] += sum
-
+                if needExposedSum:
+                    reportLine[9] += exposedSum
         query = self.selectData(params)
         processQuery(query)
 
@@ -95,9 +101,10 @@ class CEconomicAnalisysE15(CReport):
             ('5%',  [u'Кол-во УЕТ'], CReportBase.AlignRight),
             ('5%',  [u'Кол-во простых услуг'], CReportBase.AlignRight),
             ('5%',  [u'Кол-во вызовов СМП'], CReportBase.AlignRight),
-            ('25%',  [u'Сумма'], CReportBase.AlignRight)
+            ('13%',  [u'Сумма'], CReportBase.AlignRight)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('12%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         totalByOS = [0]*reportRowSize
         totalByReport = [0]*reportRowSize
@@ -122,7 +129,7 @@ class CEconomicAnalisysE15(CReport):
 
                 row = table.addRow()
                 table.setText(row, 0, u'Плательщик: %s' % osname,  CReportBase.TableHeader)
-                table.mergeCells(row, 0, 1, 10)
+                table.mergeCells(row, 0, 1, reportRowSize-1)
                 prevOs = osname
 
             row = table.addRow()
@@ -154,6 +161,7 @@ class CEconomicAnalisysE15Ex(CEconomicAnalisysE15):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

@@ -73,6 +73,7 @@ class Cimport():
         self.smo_ins={}
         self.tableClient=tbl('Client')
         self.tableClientPolicy=tbl('ClientPolicy')
+        self.tableClientIdentification=tbl('ClientIdentification')
         self.tableClientAddress=tbl('ClientAddress')
         self.tableClientAttach=tbl('ClientAttach')
         self.tableOrganisation=tbl('Organisation')

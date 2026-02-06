@@ -157,21 +157,8 @@
                 </property>
                </widget>
               </item>
-              <item row="2" column="1" colspan="2">
+              <item row="2" column="1" colspan="3">
                <widget class="CRBComboBox" name="cmbAnalysisPayRefuseType"/>
-              </item>
-              <item row="5" column="0">
-               <widget class="QCheckBox" name="chkAnalysisEventCode">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string>Код карточки</string>
-                </property>
-               </widget>
               </item>
               <item row="2" column="0">
                <widget class="QLabel" name="lblAnalysisPayRefuseType">
@@ -183,20 +170,7 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="2">
-               <widget class="CRBComboBox" name="cmbAnalysisClientCodeType">
-                <property name="enabled">
-                 <bool>false</bool>
-                </property>
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="2">
+              <item row="5" column="3">
                <widget class="QComboBox" name="cmbAnalysisEventCodeType">
                 <property name="enabled">
                  <bool>false</bool>
@@ -232,7 +206,33 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="0" colspan="3">
+              <item row="5" column="0">
+               <widget class="QCheckBox" name="chkAnalysisEventCode">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Код карточки</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="3">
+               <widget class="CRBComboBox" name="cmbAnalysisClientCodeType">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="0" colspan="4">
                <widget class="QComboBox" name="cmbAnalysisAccountItems">
                 <item>
                  <property name="text">
@@ -271,6 +271,12 @@
                 </item>
                </widget>
               </item>
+              <item row="1" column="1" colspan="3">
+               <widget class="QLineEdit" name="edtAnalysisDocument"/>
+              </item>
+              <item row="3" column="1" colspan="3">
+               <widget class="QLineEdit" name="edtAnalysisNote"/>
+              </item>
               <item row="5" column="1">
                <widget class="QLineEdit" name="edtAnalysisEventCode">
                 <property name="enabled">
@@ -297,11 +303,12 @@
                 </property>
                </widget>
               </item>
-              <item row="3" column="1" colspan="2">
-               <widget class="QLineEdit" name="edtAnalysisNote"/>
-              </item>
-              <item row="1" column="1" colspan="2">
-               <widget class="QLineEdit" name="edtAnalysisDocument"/>
+              <item row="6" column="1" colspan="3">
+               <widget class="CRBComboBox" name="cmbAnalysisService">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+               </widget>
               </item>
               <item row="1" column="0">
                <widget class="QLabel" name="lblAnalysisDocument">
@@ -320,9 +327,60 @@
                 </property>
                </widget>
               </item>
-              <item row="6" column="1" colspan="2">
-               <widget class="CRBComboBox" name="cmbAnalysisService">
+              <item row="7" column="0">
+               <widget class="QCheckBox" name="chkAnalysisCreateDate">
+                <property name="text">
+                 <string>Дата создания</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="1">
+               <widget class="CDateEdit" name="edtAnalysisCreateBegDate">
                 <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="2">
+               <widget class="QLabel" name="lblAnalysisEndDate_2">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>По</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+                <property name="buddy">
+                 <cstring>edtAnalysisEndDate</cstring>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="3">
+               <widget class="CDateEdit" name="edtAnalysisCreateEndDate">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="readOnly">
                  <bool>false</bool>
                 </property>
                </widget>
@@ -1562,6 +1620,38 @@
     <hint type="destinationlabel">
      <x>157</x>
      <y>537</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkAnalysisCreateDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtAnalysisCreateBegDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>61</x>
+     <y>707</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>154</x>
+     <y>707</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkAnalysisCreateDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtAnalysisCreateEndDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>61</x>
+     <y>707</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>259</x>
+     <y>707</y>
     </hint>
    </hints>
   </connection>

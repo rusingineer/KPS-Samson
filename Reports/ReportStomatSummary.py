@@ -49,8 +49,8 @@ def selectData(params):
     queryTable = queryTable.innerJoin(tableRBMedicalAidType, tableRBMedicalAidType['id'].eq(tableEventType['medicalAidType_id']))
     queryTable = queryTable.innerJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
 
-    cond = [tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+    cond = [tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableRBMedicalAidType['code'].like(u'9'),
             tableRBSpeciality['federalCode'].like(u'140101'),
             tableEventType['deleted'].eq(0),

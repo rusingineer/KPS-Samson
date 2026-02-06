@@ -159,9 +159,9 @@ class CReportNomenclaureMotions(CReport):
         financeId = params.get('financeId')
 
         if begDate:
-            cond.append(tableStockMotion['date'].dateGe(begDate))
+            cond.append(tableStockMotion['date'].ge(begDate))
         if endDate:
-            cond.append(tableStockMotion['date'].dateLe(endDate))
+            cond.append(tableStockMotion['date'].lt(endDate.addDays(1)))
         if nomenclatureId:
             cond.append(tableStockMotionItem['nomenclature_id'].eq(nomenclatureId))
         if supplierId:

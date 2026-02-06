@@ -4,6 +4,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, Qt, QObject, SIGNAL, pyqtSignature
 from PyQt4.QtGui import QAbstractItemView, QWidget, QAction
 
+from Registry.RegistryProphylaxisPlanning import setRegistryProphylaxisPlanningList
 from Registry.RegistryTable import CClientEvalCol
 from library.DialogBase import CConstructHelperMixin
 from library.Calendar import monthName
@@ -41,6 +42,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
         self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actDispAdd', QAction(u'Запланировать мероприятие', self))
         self.addObject('actDispDel', QAction(u'Удалить планирование', self))
+        self.addObject('actRegistryProphylaxisPlanning', QtGui.QAction(u'Зарегистрировать пациента в Журнале планирования профилактического наблюдения', self))
         self.setupUi(self)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.actDispAdd.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
@@ -81,6 +83,8 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
         self.currentFilters = {'year': None, 'month': None, 'kind': None}
         self.cmbSocStatusesType.setTable('rbSocStatusType', True)
         self.on_chkSocStatuses_toggled(self.chkSocStatuses.isChecked())
+        self.cmbExportedWithErrors.setVisible(False)
+        self.cmbExportedWithErrors.setTable(u'disp_ErrorTypes', ['id', 'name'])
 
 
     def contextMenuEvent(self, event):
@@ -91,6 +95,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
         selectedRows = self.getSelectedRows(self.tblClients)
         if len(selectedRows) == 1:
             self.menu.addAction(self.actEditClient)
+            self.menu.addAction(self.actRegistryProphylaxisPlanning)
         if self.currentFilters['year'] == year and self.currentFilters['month'] == month and self.currentFilters['kind'] == kind and (self.chkForPlanning.isChecked() or self.chkNotPlanned.isChecked()) and kind != 0 and month != 0:
             self.menu.addAction(self.actDispAdd)
         if self.chkExportedSuccessfully.isChecked() or self.chkExportedWithErrors.isChecked() or self.chkNotExported.isChecked():
@@ -148,6 +153,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                 CSSU.begDate as begDateU,
                 CSSU.endDate as endDateU,
                 AttachOrgStructure.name as attachName,
+                ifnull(SocAttachOrgStructure.id, 0) != ifnull(AttachOrgStructure.id, 0) as bold,
                 cast(EventStage1.execDate as date) as lastStage1,
                 cast(EventStage2.execDate as date) as lastStage2,
                 cast(EventProf.execDate as date) as lastProf,
@@ -192,6 +198,15 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                         and o.areaType > 0
                         and Attach.attachType_id in (%(attachTypeIds)s)
                 )
+                LEFT JOIN (
+                    SELECT soc_attachments.client_id,  OrgStructure.id orgStructure_id 
+                    FROM soc_attachments
+                    INNER JOIN OrgStructure ON OrgStructure.id = 
+                            (SELECT id FROM OrgStructure org WHERE org.deleted=0 
+                            AND getOMSCode(org.id)=soc_attachments.attach_mo 
+                            AND org.infisInternalCode=soc_attachments.attach_area  AND org.areaType > 0 limit 1)
+                    WHERE soc_attachments.serviceMethod = 0
+                ) SocAttach ON Client.id = SocAttach.client_id
                 LEFT JOIN ClientWork ON ClientWork.client_id = Client.id AND ClientWork.id = (
                     SELECT
                     MAX(CW.id)
@@ -242,6 +257,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                 left join disp_PlanExport as PlanExport on PlanExport.exportKind = 'ClientSocStatus' and PlanExport.row_id = CSS.id
                 left join disp_PlanExport as PlanExportU on PlanExportU.exportKind = 'ClientSocStatus' and PlanExportU.row_id = CSSU.id
                 left join OrgStructure as AttachOrgStructure on AttachOrgStructure.id = Attach.orgStructure_id
+                left join OrgStructure as SocAttachOrgStructure on SocAttachOrgStructure.id = SocAttach.orgStructure_id
                 left join Event as EventStage1 on EventStage1.id = (
                     select e.id
                     from Event as e
@@ -323,7 +339,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                 "startOfThisYear": startOfThisYear.toString('yyyy-MM-dd'),
                 "startOfNextYear": startOfNextYear.toString('yyyy-MM-dd'),
                 "attachTypeIds": ', '.join([str(id) for id in attachTypeIds]),
-                "policy": policy
+                "policy": policy,
             }
             where = [
                 'Client.deleted = 0'
@@ -357,7 +373,6 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                 if orgStructureId:
                     orgStructureIdList = getOrgStructureDescendants(orgStructureId)
                     tableClientAttach = db.table('ClientAttach').alias('Attach')
-                    # where.append(u"Attach.attachType_id = 2")
                     where.append(tableClientAttach['orgStructure_id'].inlist(orgStructureIdList))
 
             if self.chkFilterSex.isChecked():
@@ -551,14 +566,23 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                         dateTo=dateTo.toString('yyyy-MM-dd')
                     ))
                     statusFilter = []
+                    errorFilter = []
                     if self.chkNotExported.isChecked():
                         statusFilter.append("{planExportTable}.id is null".format(planExportTable=planExportTable))
                     if self.chkExportedSuccessfully.isChecked():
                         statusFilter.append("{planExportTable}.exportSuccess = 1".format(planExportTable=planExportTable))
+                    if  self.chkHideSuccess.isChecked():
+                        statusFilter.append(
+                            "ifnull({planExportTable}.exportSuccess, 0) != 1".format(planExportTable=planExportTable))
                     if self.chkExportedWithErrors.isChecked():
                         statusFilter.append("{planExportTable}.exportSuccess = 0".format(planExportTable=planExportTable))
+                        errorTypes = self.cmbExportedWithErrors.value()
+                        if errorTypes:
+                            errorFilter.append('EXISTS(SELECT disp_PlanExportErrors.id FROM disp_PlanExportErrors WHERE disp_PlanExportErrors.planExport_id = {}.id AND disp_PlanExportErrors.errorType_id in ({}))'.format(planExportTable, errorTypes))
                     if len(statusFilter) > 0:
                         groupFilter.append('(' + ' or '.join(statusFilter) + ')')
+                    if len(errorFilter) > 0:
+                        groupFilter.append('(' + ' or '.join(errorFilter) + ')')
                     kindGroupsFilter.append('(' + ' and '.join(groupFilter) + ')')
                 where.append('(' + ' or '.join(kindGroupsFilter) + ')')
                 if kind == 1:
@@ -733,6 +757,8 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
             statusLines.append(u'- запланированные, не отправленные')
         if self.chkExportedSuccessfully.isChecked():
             statusLines.append(u'- отправленные успешно')
+        if self.chkHideSuccess.isChecked():
+            statusLines.append(u'- скрывать успешно отправленные')
         if self.chkExportedWithErrors.isChecked():
             statusLines.append(u'- отправленные с ошибками')
         if len(statusLines) > 0 and len(statusLines) < 4:
@@ -763,6 +789,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
         self.chkNotExported.setChecked(True)
         self.chkExportedSuccessfully.setChecked(False)
         self.chkExportedWithErrors.setChecked(False)
+        self.chkHideSuccess.setChecked(False)
         year = self.sbYear.value()
         month = self.cmbMonth.currentIndex()
         kind = self.cmbKind.currentIndex()
@@ -864,7 +891,9 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
 
     @pyqtSignature('')
     def on_btnPutEvPlanDates_clicked(self):
-        CExportDispPlanDatesDialog(self).exec_()
+        dialog = CExportDispPlanDatesDialog(self)
+        if dialog.exec_():
+            dialog.savePreferences()
 
     @pyqtSignature('')
     def on_btnExportedPlan_clicked(self):
@@ -879,6 +908,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
             self.chkNotPlanned.setChecked(False)
             self.chkExportedSuccessfully.setChecked(False)
             self.chkExportedWithErrors.setChecked(False)
+            self.chkHideSuccess.setChecked(False)
 
     @pyqtSignature('')
     def on_chkNotPlanned_clicked(self):
@@ -887,6 +917,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
             self.chkNotExported.setChecked(False)
             self.chkExportedSuccessfully.setChecked(False)
             self.chkExportedWithErrors.setChecked(False)
+            self.chkHideSuccess.setChecked(False)
             self.cmbDispPassed.setDisabled(self.chkForPlanning.isChecked())
             self.chkHideUDEvents.setEnabled(self.chkForPlanning.isChecked() and self.cmbKind.currentIndex() in (5, 6))
 
@@ -903,6 +934,7 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
         if self.chkExportedSuccessfully.isChecked():
             self.chkForPlanning.setChecked(False)
             self.chkNotPlanned.setChecked(False)
+            self.chkHideSuccess.setChecked(False)
             self.cmbDispPassed.setDisabled(self.chkForPlanning.isChecked())
             self.chkHideUDEvents.setEnabled(self.chkForPlanning.isChecked() and self.cmbKind.currentIndex() in (5, 6))
 
@@ -951,6 +983,12 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
             finally:
                 if dialog:
                     dialog.deleteLater()
+
+    @pyqtSignature('')
+    def on_actRegistryProphylaxisPlanning_triggered(self):
+        clientId = self.tblClients.currentItemId()
+        if clientId:
+            setRegistryProphylaxisPlanningList(self, [clientId])
 
     @pyqtSignature('')
     def on_btnShowReport_clicked(self):
@@ -1041,6 +1079,17 @@ class CClientsModel(CTableModel):
         self.addColumn(CClientEvalCol(u'Контакты', ['id'], 'getClientContacts(id)', 30))
         self.addColumn(CClientEvalCol(u'Адрес проживания', ['id'], 'getClientLocAddress(id)', 30))
         self.setTable('Client')
+
+        self._boldFont = QtGui.QFont()
+        self._boldFont.setWeight(QtGui.QFont.Bold)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.FontRole:
+                clientId = self._idList[index.row()]
+                if forceInt(self.clientInfoDict.get(clientId).value('bold')):
+                    return toVariant(self._boldFont)
+        return CTableModel.data(self, index, role)
 
     def addDisp(self, rows, year=None, month=None, kind=None):
         db = QtGui.qApp.db

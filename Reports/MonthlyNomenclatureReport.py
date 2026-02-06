@@ -44,10 +44,10 @@ def _selectData(params):
     table = db.table('StockTrans')
 
     debCond = [
-        table['date'].dateLe(endDate)
+        table['date'].lt(endDate.addDays(1))
     ]
     creCond = [
-        table['date'].dateLe(endDate)
+        table['date'].lt(endDate.addDays(1))
     ]
 
     if orgStructureId:

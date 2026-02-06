@@ -158,6 +158,8 @@ class CActionExecutionPlanType(CExecutionPlanType):
 
 
     def addDaysToEP(self, daysCount, isNomenclatureExecution=False, quantityAdd=0, skipAfterLastDayCourse=0, isLastDayCourse=False):
+        if not self._executionPlan.items:
+            return []
         from .ExecutionPlan import CActionExecutionPlanItem
         if isNomenclatureExecution:
             return self.addDaysToEPNE(daysCount, quantityAdd=quantityAdd, skipAfterLastDayCourse=skipAfterLastDayCourse, isLastDayCourse=isLastDayCourse)

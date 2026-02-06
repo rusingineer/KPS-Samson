@@ -35,13 +35,13 @@ class ProlongCounterWorker(QObject):
         self.idList = set()
         self.db = None
 
-    def __del__(self):
-        if self.db:
-            connectionName = self.db.db.connectionName()
-            self.db.close()
-            QtSql.QSqlDatabase.removeDatabase(connectionName)
-        if self.timer:
-            self.timer.stop()
+    #def __del__(self): Будем полагаться на мусорщика и stop()
+    #    if self.db:
+    #        connectionName = self.db.db.connectionName()
+    #        self.db.close()
+    #        QtSql.QSqlDatabase.removeDatabase(connectionName)
+    #    if self.timer:
+    #        self.timer.stop()
 
     def getCounterValueCacheId(self, counterId, qvdate):
         if not self.db:
@@ -132,24 +132,34 @@ class CCounterController(QObject):
         self.stop.connect(self.worker.stop)
         self.addValueCacheId.connect(self.worker.addValueCacheId)
         self.removeValueCacheId.connect(self.worker.removeValueCacheId)
-        self.worker.finished.connect(self.thread.quit)
+        #self.worker.finished.connect(self.thread.quit)
         self.getCounterValueCacheId_signal.connect(self.worker.getCounterValueCacheId)
         self.worker.gotCounterValueCacheId_signal.connect(self.gotCounterValueCacheId)
         self.resetCounterValueCacheId_result = None
         self.worker.resetCounterValueCacheId_signal.connect(self.catchResetCounterValueCacheId)
         self.resetCounterValueCacheId_signal.connect(self.worker.resetCounterValueCacheId)
         self.thread.start()
+        self._ignoreSequence = False
 
     def __del__(self):
         if self.thread.isRunning():
+            self.stop.emit()
             self.thread.quit()
             self.thread.wait(5000)
+            if self.thread.isRunning():
+                self.thread.terminate()
 
     def gotCounterValueCacheId(self, value):
         self.counterValueCacheId = value
 
     def catchResetCounterValueCacheId(self, result):
         self.resetCounterValueCacheId_result = result
+    
+    def setIgnoreSequence(self, flag):
+        self._ignoreSequence = flag
+    
+    def getIgnoreSequence(self):
+        return self._ignoreSequence
 
     @hook
     def getCounterValueCacheId(self, counterId, date):
@@ -164,6 +174,7 @@ class CCounterController(QObject):
         self.getCounterValueCacheId_signal.emit(counterId, QVariant(date))
         timer.start()
         loop.exec_()
+        timer.timeout.disconnect(loop.quit) 
         self.worker.gotCounterValueCacheId_signal.disconnect(loop.quit)
         if self.counterValueCacheId:
             self.reservation.add(self.counterValueCacheId)
@@ -176,7 +187,10 @@ class CCounterController(QObject):
     @hook
     def getDocumentNumber(self, clientId, counterId, date=None):
         db = QtGui.qApp.db
-        sequenceFlag = forceInt(db.translate('rbCounter', 'id', counterId, 'sequenceFlag'))
+        if not self.getIgnoreSequence():
+            sequenceFlag = forceInt(db.translate('rbCounter', 'id', counterId, 'sequenceFlag'))
+        else:
+            sequenceFlag = None
         if sequenceFlag:
             counterValueCacheId = self.getCounterValueCacheId(counterId, date)
             counterValue = forceInt(db.translate('rbCounter_Value_Cache', 'id', counterValueCacheId, 'value'))
@@ -195,6 +209,7 @@ class CCounterController(QObject):
             self.delCounterValueCacheReservation(id)
         if self.thread.isRunning():
             self.stop.emit()
+            self.thread.quit()
 
     @hook
     def resetCounterValueCacheReservation(self, counterId):
@@ -217,11 +232,17 @@ class CCounterController(QObject):
 
     @hook
     def resetAllCounterValueIdReservation(self):
-        while self.reservation:
-            id = self.reservation.pop()
-            self.resetCounterValueCacheReservation(id)
+        ids = list(self.reservation)
+        self.reservation.clear()
+        for cacheId in ids:
+            try:
+                self.resetCounterValueCacheReservation(cacheId)
+            except Exception:
+                QtGui.qApp.logCurrentException()
+
         if self.thread.isRunning():
             self.stop.emit()
+            self.thread.quit()
 
 
     @pyqtSignature('')

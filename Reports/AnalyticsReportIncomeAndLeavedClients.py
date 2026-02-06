@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -163,32 +163,32 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tableQuotaType, tableQuotaType['id'].eq(tableClientQuoting['quotaType_id']))
 
     recievedCond = db.joinAnd([
-                               tableReceivedAction['endDate'].dateGe(begDate),
-                               tableReceivedAction['endDate'].dateLe(endDate),
+                               tableReceivedAction['endDate'].ge(begDate),
+                               tableReceivedAction['endDate'].le(endDate),
                                tableMovingOrgStructure['id'].isNull()
                               ])
 
     leavedCond   = db.joinAnd([
-                               tableActionMovingStaying['endDate'].dateLe(endDate),
-                               tableActionMovingStaying['endDate'].dateGe(begDate),
+                               tableActionMovingStaying['endDate'].le(endDate),
+                               tableActionMovingStaying['endDate'].ge(begDate),
                                tableMovingOrgStructure['id'].isNull()
                               ])
     transferCond   = db.joinAnd([
-                               tableActionMovingStaying['endDate'].dateLe(endDate),
-                               tableActionMovingStaying['endDate'].dateGe(begDate),
+                               tableActionMovingStaying['endDate'].le(endDate),
+                               tableActionMovingStaying['endDate'].ge(begDate),
                                tableMovingOrgStructure['id'].isNotNull()
                               ])
 
     existsBottomCond = db.joinAnd([
-                                   tableReceivedAction['endDate'].dateLt(begDate),
-                                   db.joinOr([tableActionMovingStaying['endDate'].dateGe(begDate),
+                                   tableReceivedAction['endDate'].lt(begDate),
+                                   db.joinOr([tableActionMovingStaying['endDate'].ge(begDate),
                                               tableActionMovingStaying['endDate'].isNull()]),
                                    tableMovingOrgStructure['id'].isNull()
                                   ])
 
     existsTopCond = db.joinAnd([
-                                tableReceivedAction['endDate'].dateLe(endDate),
-                                db.joinOr([tableActionMovingStaying['endDate'].dateGt(endDate),
+                                tableReceivedAction['endDate'].le(endDate),
+                                db.joinOr([tableActionMovingStaying['endDate'].gt(endDate),
                                            tableActionMovingStaying['endDate'].isNull()]),
                                 tableMovingOrgStructure['id'].isNull()
                                ])

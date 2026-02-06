@@ -93,6 +93,7 @@ class CTFUnifiedIdentService:
             result.snils = resp.get('snils', '')
             result.cv19Severity = resp.get('cv19Severity', '')
             result.SOC = resp.get('SOC', None)
+            result.ENP = resp.get('ENP', None)
             if any(resp.get('dd', None)):
                 result.dd = resp['dd']
             

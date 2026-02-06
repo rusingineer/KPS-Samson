@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import QTimer, SIGNAL, Qt, pyqtSignature, QVariant, QModelIndex
+from PyQt4.QtCore import QTimer, SIGNAL, Qt, pyqtSignature, QVariant, QModelIndex, QDate
 from PyQt4.QtGui import QDialog, QAction
 
 from library.DialogBase import CConstructHelperMixin
 from library.InDocTable import CRecordListModel, CInDocTableCol, CDateInDocTableCol, CBoolInDocTableCol, CDateTimeInDocTableCol
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.TableModel import CTableModel, CIntCol, CDesignationCol
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays, getNextWorkDay
-from library.Utils import exceptionToUnicode, forceString, toVariant, forceInt, forceRef, forceDate
+from library.Utils import exceptionToUnicode, forceDateTime, forceString, getPref, setPref, toVariant, forceInt, forceRef, forceDate
 
 import Exchange.AttachService as AttachService
 
@@ -19,10 +20,11 @@ class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPl
     def __init__(self, parent):
         QDialog.__init__(self, parent)
         self.addModels('PlanDates', CPlanDatesModel(self))
+        self.addModels('PlanDatesSort', CSortPlanDatesModel(self, self.modelPlanDates))
         self.addModels('PlanDateErrors', CPlanDateErrorsModel(self))
         self.addObject('actReplicate', QAction(u'Тиражировать', self))
         self.setupUi(self)
-        self.setModels(self.tblPlanDates, self.modelPlanDates, self.selectionModelPlanDates)
+        self.setModels(self.tblPlanDates, self.modelPlanDatesSort, self.selectionModelPlanDatesSort)
         self.setModels(self.tblPlanDateErrors, self.modelPlanDateErrors, self.selectionModelPlanDateErrors)
         self.tblPlanDates.addPopupDelRow()
         self.tblPlanDates.addPopupAction(self.actReplicate)
@@ -53,9 +55,23 @@ class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPl
         self.cmbOrgStructure.setOrder(u"bookkeeperCode, name")
         self.cmbOrgStructure.setAddNone(True, u'Не указано')
         self.cmbOrgStructure.setCurrentIndex(0)
+        self.loadPreferences()
         self.connect(self.tblPlanDates.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.sortByColumn)
         self.__sortColumn = None
         self.__sortAscending = False
+    
+    def loadPreferences(self):
+        preferences = getPref(QtGui.qApp.preferences.windowPrefs, self.objectName(), {})
+        date = getPref(preferences, 'ExportDispPlanDatesDialogDateFilter', None)
+        if date and type(date) == QDate and date.isValid():
+            self.edtDate.setDate(date)
+        else:
+            self.edtDate.setDate(QDate(QDate.currentDate().year(),1,1))
+
+    def savePreferences(self):
+        preferences = {}
+        setPref(preferences,'ExportDispPlanDatesDialogDateFilter', self.edtDate.date())
+        setPref(QtGui.qApp.preferences.windowPrefs, self.objectName(), preferences)
 
     def showEvent(self, event):
         QTimer.singleShot(0, self.updateList)
@@ -176,7 +192,8 @@ class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPl
             self.__sortAscending = True
         header.setSortIndicatorShown(True)
         header.setSortIndicator(column, Qt.AscendingOrder if self.__sortAscending else Qt.DescendingOrder)
-        self.modelPlanDates.sortData(column, self.__sortAscending)
+        # self.modelPlanDates.sortData(column, self.__sortAscending)
+        self.modelPlanDatesSort.sort(column, Qt.AscendingOrder if self.__sortAscending else Qt.DescendingOrder)
 
     @pyqtSignature('')
     def on_btnOK_clicked(self):
@@ -211,12 +228,25 @@ class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPl
     @pyqtSignature('int')
     def on_cmbOrgStructure_currentIndexChanged(self, index):
         self.modelPlanDates.setCodeMo(self.getSelectedCodeMo())
+    
+    @pyqtSignature('QDate')
+    def on_edtDate_dateChanged(self, date):
+        if date:
+            self.modelPlanDatesSort.setFilter('evdt', forceDateTime(date), CSortFilterProxyTableModel.MatchGreaterEqual) 
+        else:
+            self.modelPlanDatesSort.removeFilter('evdt') 
 
     @pyqtSignature('')
     def on_actReplicate_triggered(self):
         model = self.tblPlanDates.model()
-        row = self.tblPlanDates.currentIndex().row()
-        record = model.items()[row]
+        sort_index = self.tblPlanDates.currentIndex()
+        if not sort_index:
+            return
+        source_index = model.mapToSource(sort_index)
+        source_model = model.sourceModel()
+
+        row = source_index.row()
+        record = source_model.items()[row]
         if record.isNull('evdt'):
             return
         begDate = forceDate(record.value('evdt')).addDays(1)
@@ -224,7 +254,8 @@ class CExportDispPlanDatesDialog(QDialog, CConstructHelperMixin, Ui_ExportDispPl
         if dialog.exec_():
             numDays = dialog.numDays
             weekProfile = dialog.weekProfile
-            model.replicateRow(row, numDays, weekProfile)
+            source_model.replicateRow(row, numDays, weekProfile)
+            self.modelPlanDatesSort.invalidateFilter()
 
 
 class CDictInDocTableCol(CInDocTableCol):
@@ -321,6 +352,8 @@ class CPlanDatesModel(CRecordListModel):
         self.reset()
 
     def setData(self, index, value, role=Qt.EditRole):
+        if role == Qt.EditRole and self._cols[index.column()].fieldName() == 'evdt':
+            value = toVariant(forceDateTime(forceDate(value)))
         dataChanged = CRecordListModel.setData(self, index, value, role)
         if dataChanged:
             row = index.row()
@@ -367,6 +400,12 @@ class CPlanDatesModel(CRecordListModel):
         self.setItems(items)
         self.reset()
     
+    def setDate(self, date):
+        self.date = date
+        items = self.itemsByCodeMo.setdefault(self.codeMo, [])
+        self.setItems(items)
+        self.reset()
+    
     def replicateRow(self, row, numDays, weekProfile):
         sourceRecord = self.items()[row]
         newDate = getNextWorkDay(forceDate(sourceRecord.value('evdt')), weekProfile)
@@ -375,10 +414,35 @@ class CPlanDatesModel(CRecordListModel):
         for i in xrange(0, numDays):
             newRecord = QtSql.QSqlRecord(sourceRecord)
             newRecord.setValue('id', None)
-            newRecord.setValue('evdt', newDate)
+            newRecord.setValue('evdt', forceDateTime(newDate))
             self._items.insert(row + 1 + i, newRecord)
             newDate = getNextWorkDay(newDate, weekProfile)
         self.endInsertRows()
+
+
+class CSortPlanDatesModel(CSortFilterProxyTableModel): #нахардкодили тут codeMO, приходится выкручиваться
+    def createEditor(self, index, parent):
+        column = index.column()
+        if hasattr(self.model()._cols[column], 'setIndex'):
+            self.model()._cols[column].setIndex(index)
+        return self.model()._cols[column].createEditor(parent)
+
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        if sourceRow >= len(self.sourceModel().items()):
+            return True
+        return super(CSortPlanDatesModel, self).filterAcceptsRow(sourceRow, sourceParent)
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent is None:
+            parent = QModelIndex()
+        return super(CSortPlanDatesModel, self).rowCount(parent)
+
+
+    def __getattr__(self, name):
+        # добавил ф-ию, т.к. много ошибок валилось из-за того, что у этой модели нет методов source-модели
+        return getattr(self.sourceModel(), name)
+
 
 
 class CPlanDateErrorsModel(CTableModel):

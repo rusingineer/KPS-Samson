@@ -412,11 +412,11 @@ class CCookedActionInfo(CActionTypeInfo, CTemplatableInfoMixin):
         return self._action.getType().context if self._action.getType() else None
 
 
-    def getEventInfo(self):
+    def getEventInfo(self, infoClass=None):
         if not self._eventInfo:
             from Events.EventInfo import CEventInfo
             eventId = forceRef(self._record.value('event_id')) if self._record else None
-            self._eventInfo = self.getInstance(CEventInfo, eventId)
+            self._eventInfo = self.getInstance(infoClass if infoClass else CEventInfo, eventId)
         return self._eventInfo
 
 
@@ -1055,7 +1055,10 @@ class CLocActionPropertyActionsInfo(CInfo):
                 actionType = None
                 propertyIdList = []
                 propertyList = []
-                propertyItems = self._record.aboutMERProperties.getItems()
+                if hasattr(self._record, 'aboutMERProperties'):
+                    propertyItems = self._record.aboutMERProperties.getItems()
+                elif hasattr (self._record, 'aboutChildrenProperties'):
+                    propertyItems = self._record.aboutChildrenProperties.getItems()
                 for propertyItem in propertyItems:
                     propertyId = forceRef(propertyItem.value('actionProperty_id'))
                     if propertyId and propertyId not in propertyIdList:

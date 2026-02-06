@@ -183,12 +183,12 @@
            </property>
            <item>
             <property name="text">
-             <string>не определено</string>
+             <string>да</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>да</string>
+             <string>не определено</string>
             </property>
            </item>
            <item>

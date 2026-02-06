@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import QDate, QTime, QDateTime, pyqtSignature
+from PyQt4.QtCore import QDate, QTime, QDateTime, pyqtSignature, QVariant
 from PyQt4.QtGui import QDialog
 
-from library.Utils import forceRef, forceDate, firstMonthDay, lastMonthDay, forceString
+from library.Utils import forceRef, forceDate, firstMonthDay, lastMonthDay, forceString, forceBool, getPref, setPref
 from library.crbcombobox import CRBComboBox
 from Orgs.Utils import getOrgStructureDescendants
 from Ui_EconomicAnalisysSetupDialogEx import Ui_EconomicAnalisysSetupDialogEx
@@ -19,7 +19,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.cmbFinance.setTable('rbFinance', addNone=True)
         # self.cmbContract.setTable('Contract', "concat_ws(' | ', (select rbFinance.name from rbFinance where rbFinance.id = Contract.finance_id), Contract.resolution, Contract.number)")
         # self.cmbContract.setAddNone(True, u'не задано')
-        # self.cmbContract.setOrder('finance_id, resolution, number')
+        self.cmbContract.setMainDialog(self)
         self.cmbSpeciality.setTable('rbSpeciality', True)
         self.cmbProfileBed.setTable('rbHospitalBedProfile', True)
         self.cmbProfileBed.setShowFields(CRBComboBox.showCodeAndName)
@@ -31,6 +31,8 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.cmbPerson.addNotSetValue()
         self.setVisibilityProfileBed(False)
         self.setDetailToVisible(False)
+        self.setGroupByPersonSnilsVisible(False)
+        self.setMedicalTypeTotalsVisible(False)
         self.setuslVisible(False)
         self.settypePayVisible(False)
         self.setzVisible(True)
@@ -38,14 +40,31 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.setVisibleWidget('lblStepECO', False)
         self.setDetailVisible(False)
         self.setPrintAccNumberVisible(False)
+        self.launchedFromAccountingDialog(parent)
+        self.loadPrefs()
+
+
+    def loadPrefs(self):
+        prefs = QtGui.qApp.preferences
+        dlgGeometry = getPref(prefs.appPrefs, 'CEconomicAnalisysSetupDialog_geometry', QVariant()).toByteArray()
+        if dlgGeometry:
+            self.restoreGeometry(dlgGeometry)
+
+
+    def savePrefs(self):
+        prefs = QtGui.qApp.preferences
+        setPref(prefs.appPrefs, 'CEconomicAnalisysSetupDialog_geometry', QVariant(self.saveGeometry()))
+
+
+    def closeEvent(self, event):
+        self.savePrefs()
 
 
     def hideAll(self):
         for i in range(self.layout().count()):
             w = self.layout().itemAt(i).widget()
-            if w:
+            if w and w != self.scrollArea:
                 w.setVisible(False)
-        pass
 
     def setVisibleWidgets(self, *args):
         self.hideAll()
@@ -102,6 +121,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
     def setPersonVisible(self, value):
         self.lblPerson.setVisible(value)
         self.cmbPerson.setVisible(value)
+        self.chkPersonBySnils.setVisible(value)
 
     def setVidPomVisible(self, value):
         self.lblVidPom.setVisible(value)
@@ -139,6 +159,12 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
     def setDetailToVisible(self, value):
         self.lblDetailTo.setVisible(value)
         self.cmbDetailTo.setVisible(value)
+
+    def setGroupByPersonSnilsVisible(self, value):
+        self.chkGroupByPersonSnils.setVisible(value)
+
+    def setMedicalTypeTotalsVisible(self, value):
+        self.chkMedicalTypeTotals.setVisible(value)
 
     def setzVisible(self, value):
         self.grpdatetype.setFlat(value)
@@ -204,15 +230,22 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
             self.setSchetaEnabled(True)
         elif datetype == 3:
             self.setAccountTypeEnabled(True)
-            self.setDateEnabled(True)
-            self.setNoschetaEnabled(True)
             self.setSchetaEnabled(True)
+            if self.printOnlyByAccountIdList:
+                self.grpdatetype.setEnabled(False)
+                self.setDateEnabled(False)
+                self.setNoschetaEnabled(False)
+            else:
+                self.setDateEnabled(True)
+                self.setNoschetaEnabled(True)
 
     def setDateEnabled(self, enabled):
         self.lblBegDate.setEnabled(enabled)
         self.lblEndDate.setEnabled(enabled)
         self.edtBegDate.setEnabled(enabled)
         self.edtEndDate.setEnabled(enabled)
+        self.edtBegTime.setEnabled(enabled)
+        self.edtEndTime.setEnabled(enabled)
 
     def setAccountTypeEnabled(self, enabled):
         self.lblAccountType.setEnabled(enabled)
@@ -253,9 +286,10 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.chkPrintAccNumber.setChecked(params.get('printAccNumber', False))
         # self.chbOsnScheta.setChecked(params.get('osnScheta', False))
         self.cmbProfileBed.setValue(params.get('profileBed', None))
-        dataType = params.get('dataType', 1)
+        dataType = params.get('dataType', 1) if not self.printOnlyByAccountIdList else 3
         if dataType == 1:
             self.rbDatalech.setChecked(True)
+            self.cbOnlyNotExposed.setChecked(params.get('onlyNotExposed', False))
         if dataType == 2:
             self.rbSchetf.setChecked(True)
         if dataType == 3:
@@ -274,10 +308,16 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         else:
             self.cmbtypePay.setCurrentIndex(params['typePay'] + 1)
         self.cmbDetailTo.setCurrentIndex(params.get('detailTo', 0))
+        self.chkGroupByPersonSnils.setChecked(bool(params.get('groupByPersonSnils', 0)))
+        self.chkMedicalTypeTotals.setChecked(bool(params.get('medicalTypeTotals', 0)))
         #self.spnAge1.setValue(params.get('age1', 0))       #ymd
         #self.spnAge2.setValue(params.get('age2', 150))     #ymd
         self.cbCashPayments.setChecked(params.get('cashPayments', False))
         self.edtFilterClientId.setText(forceString(params.get('filterClientId', '')))
+
+        self.chkMKBFilter.setChecked(params.get('MKBFilter', 0))
+        self.edtMKBFrom.setText(params.get('MKBFrom', 'A00.00'))
+        self.edtMKBTo.setText(params.get('MKBTo', 'Z99.99'))
 
         self.updateContractFilter()
 
@@ -292,6 +332,13 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         for detailName in detailList:
             self.cmbDetailTo.addItem(detailName)
 
+    def launchedFromAccountingDialog(self, parentInstance):
+        from Accounting.AccountingDialog import CAccountingDialog
+        self.printOnlyByAccountIdList = False
+        if isinstance(parentInstance, CAccountingDialog):
+            self.printOnlyByAccountIdList = True
+
+
     def params(self):
         result = {}
         result['begDate'] = self.edtBegDate.date()
@@ -302,6 +349,26 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         result['orgStructureId'] = self.cmbOrgStructure.value()
         result['specialityId'] = self.cmbSpeciality.value()
         result['personId'] = self.cmbPerson.value()
+        result['personIdList'] = []
+        if self.cmbPerson.value():
+            if self.chkPersonBySnils.isChecked():
+                snils = forceString(QtGui.qApp.db.translate('Person', 'id', self.cmbPerson.value(), 'SNILS'))
+                if snils:
+                    tablePerson = QtGui.qApp.db.table('Person')
+                    cond = [tablePerson['SNILS'].eq(snils), tablePerson['deleted'].eq(0)]
+                    if self.cmbSpeciality.value():
+                        cond.append(tablePerson['speciality_id'].eq(self.cmbSpeciality.value()))
+                    if self.cmbOrgStructure.value():
+                        cond.append(tablePerson['orgStructure_id'].inlist(
+                            getOrgStructureDescendants(self.cmbOrgStructure.value())))
+                    if self.edtBegDate.date() and self.rbDatalech.isChecked():
+                        cond.append(QtGui.qApp.db.joinOr([
+                            tablePerson['retireDate'].isNull(),
+                            tablePerson['retireDate'].ge(self.edtBegDate.date())
+                        ]))
+                    result['personIdList'] = QtGui.qApp.db.getDistinctIdList(tablePerson, where=cond)
+                if not result['personIdList']:
+                    result['personIdList'] = [-1]
         result['financeId'] = self.cmbFinance.value()
         result['vidPom'] = self.cmbVidPom.value()
         if self.cmbRazrNas.isEnabled():
@@ -321,6 +388,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
             result['dataType'] = 1
             if self.rbDatalech.isChecked():
                 result['dataType'] = 1
+                result['onlyNotExposed'] = self.cbOnlyNotExposed.isChecked()
             if self.rbSchetf.isChecked():
                 result['dataType'] = 2
             if self.rbNomer.isChecked():
@@ -335,6 +403,8 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         #result['sex'] = self.cmbSex.currentIndex()   #ymd
         result['typePay'] = [None, 0, 1, 2][self.cmbtypePay.currentIndex()]
         result['detailTo'] = self.cmbDetailTo.currentIndex()
+        result['groupByPersonSnils'] = int(self.chkGroupByPersonSnils.isChecked())
+        result['medicalTypeTotals'] = int(self.chkMedicalTypeTotals.isChecked())
         #result['age1'] = self.spnAge1.value()      #ymd
         #result['age2'] = self.spnAge2.value()      #ymd
 #ymd st
@@ -357,6 +427,14 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         if self.edtFilterClientId.text():
             result['filterClientId'] = forceStringEx(self.edtFilterClientId.text())
         result['cashPayments'] = self.cbCashPayments.isChecked()
+
+        result['MKBFilter'] = True if self.chkMKBFilter.isChecked() else False
+        if result['MKBFilter']:
+            result['MKBFrom'] = unicode(self.edtMKBFrom.text()) if unicode(self.edtMKBFrom.text()) != '.' else u'A00.00'
+            result['MKBFrom'] = result['MKBFrom'] if result['MKBFrom'][-1] != '.' else result['MKBFrom'][:-1]
+            result['MKBTo'] = unicode(self.edtMKBTo.text()) if unicode(self.edtMKBTo.text()) != '.' else u'Z99.99'
+            result['MKBTo'] = result['MKBTo'] if result['MKBTo'][-1] != '.' else result['MKBTo'][:-1]
+
         return result
 
     def onStateChanged(self, state):
@@ -451,6 +529,18 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
             HospitalizationEvent.exec_()
             self.edtFilterClientId.setText(forceString(HospitalizationEvent.filterClientId))
 
+    @pyqtSignature('int')
+    def on_cmbPerson_currentIndexChanged(self, index):
+        self.chkPersonBySnils.setEnabled(self.cmbPerson.value() is not None)
+        if not self.chkPersonBySnils.isEnabled():
+            self.chkPersonBySnils.setChecked(False)
+
+
+    @pyqtSignature('QAbstractButton*')
+    def on_buttonBox_clicked(self, button):
+        self.savePrefs()
+
+
 def getusl(params):
     cond2 = []
     usl=params.get('without0usl', None)
@@ -483,6 +573,8 @@ def getCond(params):
             cond.append("Event.execDate >= {0}".format(db.formatDate(begDateTime)))
         if endDateTime:
             cond.append("Event.execDate <= {0}".format(db.formatDate(endDateTime)))
+        if params.get('onlyNotExposed', False):
+            cond.append("NOT EXISTS(SELECT NULL FROM Account_Item ai WHERE ai.event_id = Event.id AND ai.deleted = 0)")
         #cond.append("Account_Item.reexposeItem_id is null")
     
     # по договору
@@ -551,15 +643,21 @@ ELSE NULL END = {0:d}""".format(payerId))
 
     # по номеру счета
     if dataType == 3:
-        accountId = params.get('accountId')
-        if accountId:
-            cond.append("Account.id = {0:d}".format(accountId))
+        if params.get('accountIdList', None) is not None:
+            cond.append(db.table('Account')['id'].inlist(params['accountIdList']))
+        else:
+            accountId = params.get('accountId')
+            if accountId:
+                cond.append("Account.id = {0:d}".format(accountId))
 
     # по врачу или подразделению
     personId = params.get('personId', None)
+    personIdList = params.get('personIdList', [])
     orgStructureId = params.get('orgStructureId', None)
-    if personId:
+    if personId and not personIdList:
         cond.append("Person.id = {0:d}".format(personId))
+    elif personIdList:
+        cond.append(db.table("Person")['id'].inlist(personIdList))
     else:
         if orgStructureId:
             OrgStructure = db.table("OrgStructure")
@@ -636,6 +734,18 @@ ELSE NULL END = {0:d}""".format(payerId))
     filterClientId = params.get('filterClientId', None)
     if filterClientId:
         cond.append('Client.id = {0}'.format(filterClientId))
+
+    # МКБ
+    filterMKB = params.get('MKBFilter', False)
+    if filterMKB:
+        MKBFrom = params.get('MKBFrom', 'A00.00')
+        MKBTo = params.get('MKBTo', 'Z99.99')
+        if MKBFrom < MKBTo:
+            cond.append("d.MKB >= '{0}' AND d.MKB <= '{1}'".format(MKBFrom, MKBTo))
+        elif MKBFrom == MKBTo:
+            cond.append("d.MKB = '{0}'".format(MKBFrom))
+        else:
+            cond.append("d.MKB >= '{0}' AND d.MKB <= '{1}'".format(MKBTo, MKBFrom))
 
     ageCond = ''
 

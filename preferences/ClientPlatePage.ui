@@ -6,43 +6,42 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>651</width>
-    <height>592</height>
+    <width>766</width>
+    <height>541</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Сведения о пациенте</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>4</number>
-   </property>
-   <property name="topMargin">
-    <number>4</number>
-   </property>
-   <property name="rightMargin">
-    <number>4</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="4" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
+   <item row="9" column="1">
+    <widget class="QCheckBox" name="chkResearch">
+     <property name="text">
+      <string>Обследования</string>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>1</height>
-      </size>
-     </property>
-    </spacer>
+    </widget>
    </item>
-   <item row="0" column="1" colspan="2">
+   <item row="10" column="1">
+    <widget class="QCheckBox" name="chkIntoleranceMedicament">
+     <property name="text">
+      <string>Медикаментозная непереносимость</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <widget class="QCheckBox" name="chkLocAddress">
+     <property name="text">
+      <string>Адрес проживания</string>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="1">
     <widget class="QComboBox" name="cmbShowingInInfoBlockSocStatus">
      <item>
       <property name="text">
@@ -61,51 +60,253 @@
      </item>
     </widget>
    </item>
-   <item row="0" column="0">
+   <item row="12" column="0">
+    <widget class="QCheckBox" name="chkObservationStatus">
+     <property name="text">
+      <string>Статус наблюдения</string>
+     </property>
+    </widget>
+   </item>
+   <item row="18" column="0">
+    <widget class="QLabel" name="lblEpidCase">
+     <property name="text">
+      <string>ЭпидНаблюдение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="18" column="1">
+    <widget class="QComboBox" name="cmbEpidCase">
+     <item>
+      <property name="text">
+       <string>отображать последний</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>отображать все</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>не отображать</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QCheckBox" name="chkObservationGroup">
+     <property name="text">
+      <string>Группа наблюдения</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0">
+    <widget class="QCheckBox" name="chkDispanserySpecialities">
+     <property name="text">
+      <string>Д-учет</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QCheckBox" name="chkPhones">
+     <property name="text">
+      <string>Контакты</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QCheckBox" name="chkNotes">
+     <property name="text">
+      <string>Примечания</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QCheckBox" name="chkAttaches">
+     <property name="text">
+      <string>Прикрепление</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QCheckBox" name="chkVoluntaryPolicy">
+     <property name="text">
+      <string>Полис ДМС</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QCheckBox" name="chkWork">
+     <property name="text">
+      <string>Занятость</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="chkBirthPlace">
+     <property name="text">
+      <string>Место рождения</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QCheckBox" name="chkAllergy">
+     <property name="text">
+      <string>Аллергия</string>
+     </property>
+    </widget>
+   </item>
+   <item row="15" column="0">
+    <widget class="QCheckBox" name="chkNewLine">
+     <property name="text">
+      <string>Каждый блок с новой строки</string>
+     </property>
+    </widget>
+   </item>
+   <item row="17" column="0">
     <widget class="QLabel" name="lblShowingInInfoBlockSocStatus">
      <property name="text">
-      <string>Отображать &amp;Социальный статус пациента как</string>
+      <string>Отображать Социальный статус пациента как</string>
      </property>
      <property name="buddy">
       <cstring>cmbShowingInInfoBlockSocStatus</cstring>
      </property>
     </widget>
    </item>
+   <item row="2" column="0">
+    <widget class="QCheckBox" name="chkIdentification">
+     <property name="text">
+      <string>Идентификаторы</string>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="1">
+    <widget class="QComboBox" name="cmbClientContingent">
+     <item>
+      <property name="text">
+       <string>отображать приоритетный</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>отображать все</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>не отображать</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QCheckBox" name="chkDocument">
+     <property name="text">
+      <string>Документ</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QCheckBox" name="chkQuoting">
+     <property name="text">
+      <string>Квоты</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QCheckBox" name="chkHospitalBed">
+     <property name="text">
+      <string>Госпитализация</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="chkSocStatuses">
+     <property name="text">
+      <string>Соц. Статус</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QCheckBox" name="chkCompulsoryPolicy">
+     <property name="text">
+      <string>Полис ОМС</string>
+     </property>
+    </widget>
+   </item>
+   <item row="21" column="0" colspan="2">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="0">
+    <widget class="QCheckBox" name="chkFIO">
+     <property name="text">
+      <string>ФИО</string>
+     </property>
+    </widget>
+   </item>
    <item row="1" column="0">
+    <widget class="QCheckBox" name="chkConsents">
+     <property name="text">
+      <string>Согласия</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QCheckBox" name="chkRegAddress">
+     <property name="text">
+      <string>Адрес регистрации</string>
+     </property>
+    </widget>
+   </item>
+   <item row="16" column="0">
+    <widget class="QLabel" name="lblClientContingent">
+     <property name="text">
+      <string>Наблюдаемые контингенты</string>
+     </property>
+    </widget>
+   </item>
+   <item row="19" column="0">
     <widget class="QLabel" name="lblTFAccountingSystemId">
      <property name="text">
-      <string>Отображать идентификатор &amp;ТФОМС по справочнику</string>
+      <string>Отображать идентификатор ТФОМС по справочнику</string>
      </property>
      <property name="buddy">
       <cstring>cmbTFAccountingSystemId</cstring>
      </property>
     </widget>
    </item>
-   <item row="1" column="1" colspan="2">
+   <item row="19" column="1">
     <widget class="CRBComboBox" name="cmbTFAccountingSystemId"/>
    </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="lblShowingAttach">
+   <item row="8" column="1">
+    <widget class="QCheckBox" name="chkRelations">
      <property name="text">
-      <string>Отображать закрытое прикрепление</string>
+      <string>Связи</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbShowingAttach">
-     <property name="currentIndex">
-      <number>1</number>
+   <item row="15" column="1">
+    <widget class="QCheckBox" name="chkTFOMS">
+     <property name="text">
+      <string>Дата подтверждения ТФОМС</string>
      </property>
-     <item>
-      <property name="text">
-       <string>Нет</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Да</string>
-      </property>
-     </item>
+    </widget>
+   </item>
+   <item row="12" column="1">
+    <widget class="QCheckBox" name="chkProf">
+     <property name="text">
+      <string>Профилактические мероприятия</string>
+     </property>
     </widget>
    </item>
   </layout>
@@ -114,12 +315,9 @@
   <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
-   <header location="global">library/crbcombobox.h</header>
+   <header>library/crbcombobox.h</header>
   </customwidget>
  </customwidgets>
- <tabstops>
-  <tabstop>cmbShowingInInfoBlockSocStatus</tabstop>
- </tabstops>
  <resources/>
  <connections/>
 </ui>

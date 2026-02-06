@@ -122,6 +122,7 @@ class CEconomicAnalisysECOEx(CEconomicAnalisysECO):
                                     u'd-проведение I-III этапа ЭКО (стимуляция, получение, оплодотворение и культивирование) с последующей криоконсервацией эмбриона',
                                     u'e-полный цикл ЭКО без применения криоконсервации эмбрионов'])
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

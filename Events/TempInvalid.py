@@ -242,7 +242,7 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
 
     @pyqtSignature('QModelIndex')
     def on_tblTempInvalidPatronage_doubleClicked(self, index):
-        self.editTempInvalid(self.tblTempInvalidPatronage, 1)
+        self.editTempInvalid(self.tblTempInvalidPatronage, 1, True)
 
 
     def openTempInvalid(self, tempInvalidId):
@@ -265,13 +265,13 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
                 dialog.deleteLater()
 
 
-    def editTempInvalid(self, table, type = 0):
+    def editTempInvalid(self, table, type = 0, patronage = False):
         currentItem = table.currentItem()
         tempInvalidId = forceRef(currentItem.value('id')) if currentItem else None
-        self.getEditorTempInvalid(tempInvalidId, type)
+        self.getEditorTempInvalid(tempInvalidId, type, patronage)
 
 
-    def getEditorTempInvalid(self, tempInvalidId, type = 0):
+    def getEditorTempInvalid(self, tempInvalidId, type = 0, patronage = False):
         if tempInvalidId:
             self.openTempInvalid(tempInvalidId)
         else:
@@ -279,7 +279,7 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
             if openTempInvalidId:
                 self.getEditorTempInvalid(openTempInvalidId, type)
             else:
-                self.createTempInvalid(type)
+                self.createTempInvalid(type, patronage)
 
 
     def newTempInvalid(self):
@@ -287,7 +287,7 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
         self.getEditorTempInvalid(tempInvalidId)
 
 
-    def createTempInvalid(self, type = 0):
+    def createTempInvalid(self, type = 0, patronage = False):
         clientId = self.eventEditor.clientId
         eventId = self.eventEditor._id
         context = CInfoContext()
@@ -312,9 +312,18 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
                 execDate = None
                 execPersonId = None
             if eventMedicalAidType:
-                dialog.createTempInvalidDocument(MKB, type=type, execDate=execDate, execPersonId=execPersonId, begDateStationary=eventSetDateTime.date(), endDateStationary=self.eventEditor.eventDate)
+                begDateStationary = QDateTime() if patronage and eventInfo.eventType.form == '003' else eventSetDateTime.date()
+                endDateStationary = QDateTime() if patronage and eventInfo.eventType.form == '003' else self.eventEditor.eventDate
+                dialog.createTempInvalidDocument(MKB, type=type, execDate=execDate, execPersonId=execPersonId, begDateStationary=begDateStationary, endDateStationary = endDateStationary)
             else:
                 dialog.createTempInvalidDocument(MKB, type=type, execDate=execDate, execPersonId=execPersonId)
+            if patronage:
+                data = {'clientId': clientId, 
+                        'tempInvalidRegime_code': (2, u'стационарный') if eventInfo.eventType.form == '003' else (1, u'амбулаторный')}
+                if eventInfo.eventType.form == '003':
+                    data['begDate'] = self.eventEditor.edtBegDate.date()
+                    data['endDate'] = self.eventEditor.edtEndDate.date()
+                dialog.newPatronageRecord(data)
             try:
                 if dialog.exec_():
                    self.modelTempInvalidPrivate.loadItems(clientId)

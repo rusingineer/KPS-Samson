@@ -38,6 +38,7 @@ class CImportDispExportedPlanDialog(CDialogBase, Ui_ImportDispExportedPlanDialog
         header.setSortIndicatorShown(True)
         header.setSortIndicator(0, Qt.AscendingOrder)
         QObject.connect(header, SIGNAL('sectionClicked(int)'), self.setSort)
+        self.edit_fio.setText("")
         self.update()
 
     def disableControls(self, disabled = True):
@@ -59,9 +60,10 @@ class CImportDispExportedPlanDialog(CDialogBase, Ui_ImportDispExportedPlanDialog
         year = self.sbYear.value()
         month = self.cmbMonth.currentIndex() + 1
         kind = self.cmbKind.currentIndex()
+        name = forceString(self.edit_fio.text())
         self.disableControls()
         try:
-            self.modelExportedPlan.update(year, month, kind)
+            self.modelExportedPlan.update(year, month, kind, name)
             self.btnSyncMIS.setEnabled(self.modelExportedPlan.rowCount() > 0)
             self.updateCountLabel()
         finally:
@@ -78,10 +80,11 @@ class CImportDispExportedPlanDialog(CDialogBase, Ui_ImportDispExportedPlanDialog
         year = self.sbYear.value()
         month = self.cmbMonth.currentIndex() + 1
         kind = self.cmbKind.currentIndex()
+        name = forceString(self.edit_fio.text())
         self.disableControls()
         try:
             response = AttachService.updateExportedPlan(year, month)
-            self.modelExportedPlan.update(year, month, kind)
+            self.modelExportedPlan.update(year, month, kind, name)
             self.updateCountLabel()
         except Exception as e:
             QtGui.QMessageBox.critical(self, u'Произошла ошибка', exceptionToUnicode(e), QtGui.QMessageBox.Close)
@@ -462,6 +465,13 @@ class CImportDispExportedPlanDialog(CDialogBase, Ui_ImportDispExportedPlanDialog
     def on_cmbKind_currentIndexChanged(self, index):
         self.update()
 
+    @pyqtSignature('QString')
+    def on_edit_fio_textChanged(self, text):  # При вводе в текстовое поле сразу же формирует список по фамильно
+        year = self.sbYear.value()
+        month = self.cmbMonth.currentIndex() + 1
+        kind = self.cmbKind.currentIndex()
+        self.modelExportedPlan.update(year, month, kind, forceString(text))
+
     @pyqtSignature('')
     def on_btnSelectNotFound_clicked(self):
         self.modelExportedPlan.selectNotFound()
@@ -608,7 +618,7 @@ class CExportedPlanModel(CTableModel):
             CExportedPlanModel.CDeleteCol(u'Удалить', ['id'], 20, self.deleteIdSet),
             ], 'disp_ExportedPlan')
 
-    def update(self, year, month, kind):
+    def update(self, year, month, kind, name):
         db = QtGui.qApp.db
         startOfThisYear = QDate(year, 1, 1)
         startOfNextYear = QDate(year + 1, 1, 1)
@@ -619,6 +629,7 @@ class CExportedPlanModel(CTableModel):
         stage2EventTypeIds = db.getIdList('EventType', where="eventProfile_id in (%s)" % ', '.join([str(id) for id in stage2EventProfileIds]))
         profEventTypeIds = db.getIdList('EventType', where="eventProfile_id in (%s)" % ', '.join([str(id) for id in profEventProfileIds]))
         kindFilter = ""
+        nameFilter = ""
         if kind == 1:
             kindFilter = "and ExpPlan.kind = 1 and ExpPlan.category not in (101, 102, 111, 112, 113, 114, 121, 122)"
         elif kind == 2:
@@ -631,6 +642,17 @@ class CExportedPlanModel(CTableModel):
             kindFilter = "and ExpPlan.kind = 1 and ExpPlan.category = 121"
         elif kind == 6:
             kindFilter = "and ExpPlan.kind = 1 and ExpPlan.category = 122"
+        if len(name) > 0:
+            clientNames = name.split(u' ', 2)
+            if len(clientNames) == 3:
+                nameFilter = u''' AND Client.lastName like '{0}%' AND Client.firstName like '{1}%' AND Client.patrName like '{2}%' '''.format(
+                    clientNames[0],
+                    clientNames[1],
+                    clientNames[2].strip())
+            elif len(clientNames) == 2:
+                nameFilter = u''' AND Client.lastName like '{0}%' AND Client.firstName like '{1}%' '''.format(clientNames[0], clientNames[1])
+            else:
+                nameFilter = u''' AND Client.lastName like '{0}%' '''.format(clientNames[0])
         stmt = u"""
             select ExpPlan.id,
                 Client.id as client_id,
@@ -706,6 +728,7 @@ class CExportedPlanModel(CTableModel):
                 and ExpPlan.mnth = %(month)d
                 and ExpPlan.kind in (1, 2)
                 %(kindFilter)s
+                %(nameFilter)s
         """ % {
             "startOfThisYear": startOfThisYear.toString('yyyy-MM-dd'),
             "startOfNextYear": startOfNextYear.toString('yyyy-MM-dd'),
@@ -714,7 +737,8 @@ class CExportedPlanModel(CTableModel):
             "stage1EventTypeIds": ', '.join([str(id) for id in stage1EventTypeIds]) or 'null',
             "stage2EventTypeIds": ', '.join([str(id) for id in stage2EventTypeIds]) or 'null',
             "profEventTypeIds": ', '.join([str(id) for id in profEventTypeIds]) or 'null',
-            "kindFilter": kindFilter
+            "kindFilter": kindFilter,
+            "nameFilter": nameFilter,
         }
         orderColumnIndex, isAscending = self.order
         orderBy = self.orderByColumn[orderColumnIndex]

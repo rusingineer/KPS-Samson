@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,7 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate
 
-from library.Utils             import forceInt, forceString
+from library.Utils             import forceInt, forceString, getRetirementAge
 from library.MapCode           import createMapCodeToRowIdx
 from Reports.Report            import CReport, normalizeMKB
 from Reports.ReportBase        import CReportBase, createTable
@@ -121,7 +121,7 @@ SELECT
       LEFT JOIN Diagnostic dc ON dc.event_id = e.id
       LEFT JOIN Diagnosis ds ON ds.id = dc.diagnosis_id
       WHERE c.id = Client.id AND rbep.code IN ('8008', '8014') AND e.id != Event.id AND Diagnosis.MKB = ds.MKB
-      AND (DATE(e.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s)) AND dc.deleted = 0
+      AND (e.execDate >= %(begDate)s AND e.execDate < %(endDate)s) AND dc.deleted = 0
   ) AS hasInFirst,
 
     EXISTS(SELECT 1
@@ -159,10 +159,11 @@ LEFT JOIN rbService_Identification ON rbService_Identification.master_id = rbSer
 LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id = rbService_Identification.system_id
 LEFT JOIN rbEventProfile ON rbEventProfile.id = EventType.eventProfile_id
 WHERE Event.deleted = 0
-  AND (DATE(Event.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s))
+  AND (Event.execDate >= %(begDate)s AND Event.execDate < %(endDate)s)
   %(orgStructure)s
   AND Diagnostic.deleted = 0
   AND Diagnosis.deleted = 0
+  AND (Diagnosis.MKB BETWEEN 'A00' and 'T98.99')
   AND Client.deleted = 0
   AND EventType.deleted = 0
   AND rbService_Identification.deleted = 0
@@ -175,7 +176,7 @@ WHERE Event.deleted = 0
   GROUP BY Diagnostic.id
   ''' % {
         'begDate':      db.formatDate(begDate),
-        'endDate':      db.formatDate(endDate),
+        'endDate':      db.formatDate(endDate.addDays(1)),
         'orgStructure': orgStructure,
         'systemId':     systemId,
         'dispType':     dispTypeStr,
@@ -195,7 +196,9 @@ class CReportForm131_o_5000_2021(CReport):
         return result
 
 
-    def getReportData(self, query):
+    def getReportData(self, params, query):
+        begDate = params.get('begDate', QDate())
+        retirementAgeM, retirementAgeF = getRetirementAge(begDate)
         clients5001 = set()
         mapRows = createMapCodeToRowIdx( [row[2] for row in MainRows] )
         reportData = [ [0]*10 for row in MainRows ]
@@ -205,16 +208,16 @@ class CReportForm131_o_5000_2021(CReport):
 
         def isInWorkingAge(clientAge, clientSex):
             if clientSex == 1: # М
-                return 16 <= clientAge <= 60
+                return 16 <= clientAge < retirementAgeM
             if clientSex == 2: # Ж
-                return 16 <= clientAge <= 55
+                return 16 <= clientAge < retirementAgeF
             return False
 
         def isOlderWorkingAge(clientAge, clientSex):
             if clientSex == 1: # М
-                return clientAge > 60
+                return clientAge >= retirementAgeM
             if clientSex == 2: # Ж
-                return clientAge > 55
+                return clientAge >= retirementAgeF
             return False
 
         while query.next():
@@ -267,7 +270,7 @@ class CReportForm131_o_5000_2021(CReport):
 
     def build(self, params):
         query = selectData(params)
-        reportData, clients5001 = self.getReportData(query)
+        reportData, clients5001 = self.getReportData(params, query)
 
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)

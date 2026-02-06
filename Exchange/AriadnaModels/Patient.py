@@ -29,7 +29,7 @@ class Patient(AbstractObject):
         self.telecom = []
         self.additionalForm = None  # Array Objects Необязательно Карта пациента
         self.gender = ''  # String Обязательно Пол Допустимые значения: M-"Male" F-"Female" O-"Other" U-"Unknown"
-        self.birthDate = ''  # String Обязательно Дата рождения
+        self.birthDate = None  # String Обязательно Дата рождения
         self.born = None  # Object Необязательно Контейнер, в котором содержится информация о рождении
         self.workPlace = ''  # String Обязательно Место работы
         self.externalID = ''  # String Обязательно Внешний идентификатор пациента
@@ -62,7 +62,7 @@ class Patient(AbstractObject):
                    ("telecom", "telecom", ContactPoint, True, None, False),
                    ("additionalForm", "additionalForm", AdditionalForm, True, None, False),
                    ("gender", "gender", str, False, None, True),
-                   ("birthDate", "birthDate", str, False, None, True),
+                   ("birthDate", "birthDate", str, False, None, False),
                    ("born", "born", Born, False, None, False),
                    ("workPlace", "workPlace", str, False, None, True),
                    ("externalID", "externalID", str, False, None, True),

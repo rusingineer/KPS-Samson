@@ -7,7 +7,8 @@ from Reports.ReportBase import CReportBase
 
 from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
-from EconomicAnalisys import getStmt, colOrgStructureInfisName, colParentOrgStructureInfisName, colClient, colEvent, colKPK, colCSG, colKD, colPD, colAmount, colSUM
+from EconomicAnalisys import getStmt, colOrgStructureInfisName, colParentOrgStructureInfisName, colClient, colEvent, \
+    colKPK, colCSG, colKD, colPD, colAmount, colSUM, colExposedSum
 
 
 class CEconomicAnalisysE24(CReport):
@@ -16,7 +17,8 @@ class CEconomicAnalisysE24(CReport):
         self.setTitle(u'Э-24. Нагрузка на отделение в разрезе профилей коек')
 
     def selectData(self, params):
-        cols = [colOrgStructureInfisName, colParentOrgStructureInfisName, colClient, colEvent, colKPK, colCSG, colKD, colPD, colAmount, colSUM]
+        cols = [colOrgStructureInfisName, colParentOrgStructureInfisName, colClient, colEvent, colKPK, colCSG, colKD,
+                colPD, colAmount, colSUM, colExposedSum]
         colsStmt = u"""select colParentOrgStructureInfisName as podr_name,
         colOrgStructureInfisName as osname,
         colKPK as kpk,
@@ -26,7 +28,8 @@ class CEconomicAnalisysE24(CReport):
         sum(colKD) as kd,
         sum(colPD) as pd,
         sum(colAmount) as usl,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """
         groupCols = u'colParentOrgStructureInfisName, colOrgStructureInfisName, colKPK'
         orderCols = u'colParentOrgStructureInfisName, colOrgStructureInfisName, colKPK'
@@ -37,7 +40,9 @@ class CEconomicAnalisysE24(CReport):
         return db.query(stmt)
 
     def build(self, description, params):
-        reportRowSize = 8
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 9 if needExposedSum else 8
         colsShift = 1
         reportData = {}
 
@@ -54,6 +59,11 @@ class CEconomicAnalisysE24(CReport):
                 pd = forceInt(record.value('pd'))
                 usl = forceInt(record.value('usl'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
+
+                if needExposedSum and not mes:
+                    # форма по койкам. Убрать все, что не стационар
+                    continue
 
                 key = (podr_name, osname, kpk)
                 reportLine = reportData.setdefault(key, [0]*reportRowSize)
@@ -64,7 +74,8 @@ class CEconomicAnalisysE24(CReport):
                 reportLine[4] += pd
                 reportLine[5] += usl
                 reportLine[6] += sum
-
+                if needExposedSum:
+                    reportLine[7] += exposedSum
         query = self.selectData(params)
         processQuery(query)
 
@@ -87,9 +98,10 @@ class CEconomicAnalisysE24(CReport):
             ('7%',  [u'Кол-во койко-дней'], CReportBase.AlignRight),
             ('7%',  [u'Кол-во дней лечения'], CReportBase.AlignRight),
             ('7%',  [u'Кол-во простых услуг'], CReportBase.AlignRight),
-            ('15%',  [u'Сумма'], CReportBase.AlignRight)
+            ('8%',  [u'Сумма'], CReportBase.AlignRight)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('7%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         totalByOrgStructure = [0]*reportRowSize
         totalByReport = [0]*reportRowSize
@@ -161,6 +173,7 @@ class CEconomicAnalisysE24Ex(CEconomicAnalisysE24):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

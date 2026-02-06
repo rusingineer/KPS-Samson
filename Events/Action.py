@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -38,14 +38,15 @@ from Stock.Utils import (getNomenclatureUnitRatio, applyNomenclatureUnitRatio, f
                          getBatchShelfTimeFinanceQnt,
                          getRatio)
 from Users.Rights import urEditAfterInvoicingEvent, urEditOtherpeopleAction, urEditSubservientPeopleAction, \
-    urEditOtherPeopleActionSpecialityOnly, urDeleteNotOwnActions, urDeleteActionsWithJobTicket, urAdmin
+    urEditOtherPeopleActionSpecialityOnly, urDeleteNotOwnActions, urDeleteActionsWithJobTicket, urAdmin, \
+    urCanAttachFile
 from library.Attach.AttachedFile import CAttachedFilesLoader
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays, addWorkDays
 from library.DbEntityCache import CDbEntityCache
 from library.Utils import (forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString,
                            forceStringEx, formatNum1, toVariant)
 from library.calc import buildMapWhatdepends, buildExecutionPlan
-from library.database import CDocumentTable
+from library.database import CDocumentTable, CSqlRecord
 from library.exception import CException
 
 _RECIPE = 1
@@ -167,6 +168,7 @@ class CActionType(object):
         self.TestatorLoaded = False
         self.ExpansionLoaded = False
         self.NomenclatureLoaded = False
+        self.RelatedActionTypesLoaded = False
 
 
     def initByRecord(self, record, propertyTypeRecords=None):
@@ -215,6 +217,7 @@ class CActionType(object):
         self.hasAssistant = forceBool(record.value('hasAssistant'))
         self.requiredActionSpecification = forceBool(record.value('requiredActionSpecification'))
         self.propertyAssignedVisible = forceBool(record.value('propertyAssignedVisible'))
+        self.propertyAssignedRequired = forceBool(record.value('propertyAssignedRequired'))
         self.propertyUnitVisible = forceBool(record.value('propertyUnitVisible'))
         self.propertyNormVisible = forceBool(record.value('propertyNormVisible'))
         self.propertyEvaluationVisible = forceBool(record.value('propertyEvaluationVisible'))
@@ -236,6 +239,7 @@ class CActionType(object):
         self.editExecPers = forceBool(record.value('editExecPers'))
         self.editSetPerson = forceBool(record.value('editSetPerson'))
         self.editOrg = forceBool(record.value('editOrg'))
+        self.editOrgStructure = forceBool(record.value('editOrgStructure'))
 
         self._nomenclatureRecordList = None
         self._hasJobTicketPropertyType = False
@@ -321,9 +325,10 @@ class CActionType(object):
     
     
     def _loadRelatedActionTypes(self):
-        actionTypeList = QtGui.qApp.db.getRecordList('ActionType_Relations', 'related_id, isRequired', 'master_id=%d' % self.id)
+        actionTypeList = QtGui.qApp.db.getRecordList('ActionType_Relations', 'related_id, isRequired', 'master_id=%d and related_id IS NOT NULL' % self.id)
         for record in actionTypeList:
             self._relatedActionTypes[forceRef(record.value('related_id'))] = forceBool(record.value('isRequired'))
+        self.RelatedActionTypesLoaded = True
 
 
     def getNomenclatureOrgStructureId(self):
@@ -355,7 +360,7 @@ class CActionType(object):
     
     
     def getRelatedActionTypes(self):
-        if not self._relatedActionTypes:
+        if not self.RelatedActionTypesLoaded:
             self._loadRelatedActionTypes()
         return self._relatedActionTypes
 
@@ -459,7 +464,6 @@ class CActionType(object):
                                     message,
                                     QtGui.QMessageBox.Close)
         return False
-
 
 
 class CActionTypeCache(CDbEntityCache):
@@ -639,6 +643,7 @@ class CAction(object):
         self._financeId = None
         self._medicalAidKindId = None
         self._attachedFileItemList = []
+        self._attachedFileItemList_orig = []
         self.checkModifyDate = True
         self.nomenclatureExpensePreliminarySave = False
         self._actionTemplateId = None
@@ -649,6 +654,7 @@ class CAction(object):
         self.isJobTicketChange = False
         self.valuePropertyToTemplateItems = {}
         self.groupedNomenclature = False
+        self._changed = False
         if record:
             self.setRecord(record, propertyRecords, valueRecords, reservationId, executionPlanRecord, fileAttachRecords, specialityId)
 
@@ -770,6 +776,8 @@ class CAction(object):
             assert actionTypeId == self._actionType.id
         else:
             self._actionType = CActionTypeCache.getById(actionTypeId)
+        if type(record) != CSqlRecord:
+            record = CSqlRecord(record)
         self._record = record
         self._masterId = forceRef(record.value('master_id'))
 
@@ -862,6 +870,7 @@ class CAction(object):
             self.updateSpecifiedName()
             # прикреплённые файлы
             self._attachedFileItemList = []
+            self._attachedFileItemList_orig = []
             # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
             if hasattr(QtGui.qApp, 'webDAVInterface'):
                 storageInterface = QtGui.qApp.webDAVInterface
@@ -869,6 +878,7 @@ class CAction(object):
                     self._attachedFileItemList = CAttachedFilesLoader.loadItems(storageInterface, 'Action_FileAttach', actionId)
                 else:
                     self._attachedFileItemList = CAttachedFilesLoader.loadItemsFromRecords(storageInterface, fileAttachRecords)
+                self._attachedFileItemList_orig = self._attachedFileItemList[:]
 
 
     def getSpecialityId(self, personId):
@@ -1202,8 +1212,19 @@ class CAction(object):
             self.nomenclatureClientReservation.cancel()
             self.nomenclatureClientReservation = None
     
+    
+    def checkRecordChanged(self):
+        if type(self._record) == CSqlRecord:
+            return self._record.isDirty()
+        return False
+    
+    
     def setChanged(self, value):
         self._changed = value
+
+
+    def isChanged(self):
+        return self._changed
     
     
     def nomenclatureClientReservationCancel(self):
@@ -1211,9 +1232,23 @@ class CAction(object):
             self.nomenclatureClientReservation.cancel()
             self.nomenclatureClientReservation = None
 
+
     def save(self, eventId=None, idx=0, checkModifyDate = True):
+        self._changed = self._changed or self.checkRecordChanged()
         db = QtGui.qApp.db
         id = forceRef(self._record.value('id')) if self._record else None
+        
+        if self._record:
+            for property in self._propertiesById.itervalues():
+                if property._changed:
+                    self._changed = True
+                    self._record._dirty = True
+                    break
+            if checkFileAttachListChanged(self._attachedFileItemList, self._attachedFileItemList_orig):
+                self._changed = True
+                self._record._dirty = True
+        if id and not self._changed:
+            return id
 
         # попытка спасти затирающиеся ИБМ в выполнении работ
         if id and checkModifyDate and self.checkModifyDate and self.actionType().hasJobTicketPropertyType():
@@ -1235,6 +1270,7 @@ class CAction(object):
                         QtGui.qApp.log(u'Предупреждение ', u'Действие с id %i не сохранено, так как дата модификации записи отличается. Изменивший пользователь на момент открытия %i, на момент сохранения %i'
                                       % (id, forceInt(self._record.value('modifyPerson_id')), modPerson))
                     return id
+                
         if self._locked:
             # для заблокированной записи сохраняем только idx (позиция в списке на экране) и master_id из-за откреплений
             id = forceRef(self._record.value('id'))
@@ -1244,6 +1280,19 @@ class CAction(object):
             master_id = forceRef(self._record.value('master_id'))
             if master_id:
                 db.query('UPDATE Action SET master_id=%d WHERE id=%d' % (master_id, id))
+            if not self._isShort and QtGui.qApp.userHasRight(urCanAttachFile):
+                if hasattr(QtGui.qApp, 'webDAVInterface'):
+                    storageInterface = QtGui.qApp.webDAVInterface
+                    CAttachedFilesLoader.saveItems(storageInterface, 'Action_FileAttach', id,
+                                                   self._attachedFileItemList)
+            self._changed = False
+            if self._record:
+                self._record._dirty = False
+            for prop in self._propertiesById.itervalues():
+                prop._changed = False
+                if hasattr(prop, '_normChanged'):
+                    prop._normChanged = False
+                    
             return id
         else:
             # сохранить основную запись
@@ -1388,6 +1437,15 @@ class CAction(object):
                 if hasattr(QtGui.qApp, 'webDAVInterface'): # у скриптов типа labExchange нет таких штук, а попользоваться этими функциями хочется
                     storageInterface = QtGui.qApp.webDAVInterface
                     CAttachedFilesLoader.saveItems(storageInterface, 'Action_FileAttach', id, self._attachedFileItemList)
+            
+            self._changed = False
+            if self._record:
+                self._record._dirty = False
+            for prop in self._propertiesById.itervalues():
+                prop._changed = False
+                if hasattr(prop, '_normChanged'):
+                    prop._normChanged = False
+            
             return id
 
     def updateNomenclatureClientReservation(self):
@@ -1684,6 +1742,10 @@ class CAction(object):
         return self._properties[index]
 
 
+    def getIndexByProperty(self, property):
+        return self._properties.index(property)
+
+
     def _addProperty(self, propertyType):
         result = CActionProperty(self._actionType, type=propertyType, actionId=forceRef(self._record.value('id') if self._record else None))
         self._propertiesById[propertyType.id] = result
@@ -1891,6 +1953,8 @@ class CAction(object):
                     targetProperty.copy(sourceProperty)
                 if sourceProperty and sourceProperty not in canCopyPropertyList:
                     canCopyPropertyList.append(sourceProperty)
+        if canCopyPropertyList:
+            self.setChanged(True)
         return canCopyPropertyList
 
 

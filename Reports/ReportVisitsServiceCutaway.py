@@ -95,9 +95,9 @@ def selectData(params):
         fields.append(tableAssistant['patrName'].alias('assistantPatrName'))
         fields.append(tableSpecialityA['name'].alias('assistantSpecialityName'))
     if begDate:
-        cond.append(tableVisit['date'].dateGe(begDate))
+        cond.append(tableVisit['date'].ge(begDate))
     if endDate:
-        cond.append(tableVisit['date'].dateLe(endDate))
+        cond.append(tableVisit['date'].lt(endDate.addDays(1)))
     if eventTypeId:
         cond.append(tableEvent['eventType_id'].eq(eventTypeId))
     if sex:
@@ -106,13 +106,13 @@ def selectData(params):
         tableClientSocStatus = db.table('ClientSocStatus')
         if begDate:
             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                               tableClientSocStatus['endDate'].dateGe(begDate)
+                                               tableClientSocStatus['endDate'].ge(begDate)
                                               ]),
                                    tableClientSocStatus['endDate'].isNull()
                                   ]))
         if endDate:
             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                               tableClientSocStatus['begDate'].dateLe(endDate)
+                                               tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                               ]),
                                    tableClientSocStatus['begDate'].isNull()
                                   ]))

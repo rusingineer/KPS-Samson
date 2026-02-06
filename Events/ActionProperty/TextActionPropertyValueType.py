@@ -17,6 +17,7 @@ from PyQt4.QtCore import QVariant
 
 from library.Utils         import forceString
 from library.SpellCheck import CSpellCheckTextEdit
+from library.TextEditCompletionMixin import CTextEditCompletionMixin
 
 from ActionPropertyValueType       import CActionPropertyValueType
 from StringActionPropertyValueType import CStringActionPropertyValueType
@@ -29,9 +30,10 @@ class CTextActionPropertyValueType(CActionPropertyValueType):
     preferredHeightUnit = 1
     expandingHeight = True
 
-    class CPropEditor(CSpellCheckTextEdit):
+    class CPropEditor(CSpellCheckTextEdit, CTextEditCompletionMixin):
         def __init__(self, action, domain, parent, clientId, eventTypeId):
             CSpellCheckTextEdit.__init__(self, parent)
+            CTextEditCompletionMixin.__init__(self)
 
         def setValue(self, value):
             v = forceString(value)

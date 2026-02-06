@@ -111,6 +111,7 @@ class CRBAppointmentPurposeEditor(Ui_RBAppointmentPurposeEditorDialog, CItemEdit
         setRBComboBoxValue(self.cmbMedicalAidProfile,       record, 'medicalAidProfile_id')
         setRBComboBoxValue(self.cmbFinance,                 record, 'finance_id')
         self.modelServices.loadItems(self.itemId())
+        self.cmbFinance.setEnabled(False)
 
 
     def getRecord(self):

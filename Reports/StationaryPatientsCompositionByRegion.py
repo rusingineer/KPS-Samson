@@ -43,8 +43,8 @@ class CStationaryPatientsCompositionByRegion(CReport):
         db = QtGui.qApp.db
         tableEvent = db.table('Event')
         tableOrgStructure = db.table('OrgStructure')
-        cond = [tableEvent['execDate'].dateGe(begDate),
-                    tableEvent['execDate'].dateLe(endDate)]
+        cond = [tableEvent['execDate'].ge(begDate),
+                    tableEvent['execDate'].lt(endDate.addDays(1))]
         orgStructureCond = u'is not NULL'
         if orgStructureIdList:
             orgStructureCond = u'in (%s)'%','.join(map(str, orgStructureIdList))

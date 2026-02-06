@@ -84,6 +84,21 @@ class COrgStructureRootTreeItem(COrgStructureTreeItem):
         if self.filter:
             cond.append(self.filter)
 
+        # вылетает ошибка AssertionError, когда в структуре вообще
+        # нет ни одного подразделения, подходящего под фильтры
+        if self.purpose == COrgStructureTreePurpose.areaSelector:
+            count = db.getCount(table, '*', cond + [table['areaType'].ne(0)])
+            if count == 0:
+                cond = ['FALSE']
+        elif self.purpose == COrgStructureTreePurpose.storageSelector:
+            count = db.getCount(table, '*', cond + [table['hasStocks'].ne(0)])
+            if count == 0:
+                cond = ['FALSE']
+        elif self.purpose == COrgStructureTreePurpose.hospitalBedsSelector:
+            count = db.getCount(table, '*', cond + [table['hasHospitalBeds'].ne(0)])
+            if count == 0:
+                cond = ['FALSE']
+
         mapIdToNodes = { None:(self.emptyRootName, False, False, False) }
         mapParentIdToIdList = {}
         query = db.query(db.selectStmt(table, 'parent_id, id, code, areaType, hasStocks, hasHospitalBeds', where=cond, order='code'))

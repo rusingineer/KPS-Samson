@@ -91,8 +91,8 @@ def getClientId(params):
                                               tableClientContact['client_id'].eq(tableClient['id']))
     actionCond = '''
                     EXISTS (SELECT Action.`id` FROM Action WHERE %s AND %s AND %s AND Action.`event_id`=Event.`id`)
-                 ''' %(tableAction[actionDateTypeValue].dateGe(begDate),
-                       tableAction[actionDateTypeValue].dateLe(endDate),
+                 ''' %(tableAction[actionDateTypeValue].ge(begDate),
+                       tableAction[actionDateTypeValue].lt(endDate.addDays(1)),
                        tableAction['deleted'].eq(0))
 
     cond = [actionCond, tableEvent['deleted'].eq(0)]
@@ -232,8 +232,8 @@ def selectData2(params, clientId = None):
         if needJoinContact:
             queryTable = queryTable.innerJoin(tableClientContact,
                                               tableClientContact['client_id'].eq(tableClient['id']))
-    cond = [tableAction[actionDateTypeValue].dateGe(begDate),
-            tableAction[actionDateTypeValue].dateLe(endDate),
+    cond = [tableAction[actionDateTypeValue].ge(begDate),
+            tableAction[actionDateTypeValue].lt(endDate.addDays(1)),
             tableAction['deleted'].eq(0),
             tableEvent['deleted'].eq(0)
            ]
@@ -1045,8 +1045,8 @@ class CReportClientSubsidiarySetupDialog(QtGui.QDialog, Ui_ReportClientSubsidiar
             queryTable = queryTable.innerJoin(tableEventLocalContract, tableEventLocalContract['master_id'].eq(tableEvent['id']))
             actionCond = '''
                             EXISTS (SELECT Action.`id` FROM Action WHERE %s AND %s AND %s AND Action.`event_id`=Event.`id`)
-                         ''' %(tableAction[actionDateTypeValue].dateGe(begDate),
-                               tableAction[actionDateTypeValue].dateLe(endDate),
+                         ''' %(tableAction[actionDateTypeValue].ge(begDate),
+                               tableAction[actionDateTypeValue].lt(endDate.addDays(1)),
                                tableAction['deleted'].eq(0))
             cond = [actionCond, tableEvent['deleted'].eq(0)]
             cond.append(tableEventLocalContract['org_id'].isNotNull())
@@ -1082,8 +1082,8 @@ class CReportClientSubsidiarySetupDialog(QtGui.QDialog, Ui_ReportClientSubsidiar
             queryTable = queryTable.innerJoin(tableDiagnosis, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
             queryTable = queryTable.innerJoin(tableRBDiagnosisType, tableDiagnostic['diagnosisType_id'].eq(tableRBDiagnosisType['id']))
             actionCond = '''EXISTS (SELECT Action.`id` FROM Action WHERE %s AND %s AND %s AND Action.`event_id`=Event.`id`)
-                         ''' %(tableAction[actionDateTypeValue].dateGe(begDate),
-                               tableAction[actionDateTypeValue].dateLe(endDate),
+                         ''' %(tableAction[actionDateTypeValue].ge(begDate),
+                               tableAction[actionDateTypeValue].lt(endDate.addDays(1)),
                                tableAction['deleted'].eq(0))
             cond = [actionCond, tableEvent['deleted'].eq(0)]
             if contractIdList or financeId:

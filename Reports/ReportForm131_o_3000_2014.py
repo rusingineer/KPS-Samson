@@ -52,8 +52,8 @@ def selectData(params):
 
     cond = [db.joinOr([tableEvent['deleted'].eq(0), tableEvent['deleted'].isNull()]),
             tableEvent['prevEvent_id'].isNotNull(),
-            db.joinOr([tableEvent['execDate'].dateGe(begDate), tableEvent['execDate'].isNull()]),
-            db.joinOr([tableEvent['setDate'].dateLe(endDate), db.joinAnd([tableEvent['setDate'].isNull(), tableEvent['id'].isNull()])]),
+            db.joinOr([tableEvent['execDate'].ge(begDate), tableEvent['execDate'].isNull()]),
+            db.joinOr([tableEvent['setDate'].lt(endDate.addDays(1)), db.joinAnd([tableEvent['setDate'].isNull(), tableEvent['id'].isNull()])]),
             tableMESGroup['code'].eq(u'ДиспанС'),
             db.joinOr([tableAction['endDate'].isNotNull(), tableAction['id'].isNull()]),
             db.joinOr([tableAction['deleted'].eq(0), tableAction['id'].isNull()]),

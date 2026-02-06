@@ -127,7 +127,7 @@ def addAttachCond(cond, orgCond, attachCategory, attachTypeId, attachBegDate=QDa
        LEFT JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
        WHERE ClientAttach.deleted=0
        AND %s
-       AND ClientAttach.id = (SELECT MAX(CA2.id)
+       AND ClientAttach.id in (SELECT MAX(CA2.id)
                    FROM ClientAttach AS CA2
                    LEFT JOIN rbAttachType AS rbAttachType2 ON rbAttachType2.id = CA2.attachType_id
                    WHERE CA2.deleted=0 AND %s))'''

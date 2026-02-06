@@ -2798,6 +2798,8 @@ class CFHIRExchange:
         serviceCodeList = [val.code for val in action._action.getPropertyByShortName(u'orderService').getInfo(context)]
         height = action._action.getPropertyByShortName(u'height')
         weight = action._action.getPropertyByShortName(u'weight')
+        pregweek = action._action.getPropertyByShortName(u'pregWeek')
+        cycleday = action._action.getPropertyByShortName(u'cycleDay')
         specimenId = action._action.getPropertyByShortName(u'biomaterial').getValue()
         isNeonatal = True if action._action.getType().code == 'NNC' else False
         if isNeonatal:
@@ -2905,6 +2907,12 @@ class CFHIRExchange:
                 observationReferenceList.append(self.addBundleEntry(bundle, observation))
             if weight and weight.getValue() and weight.getValue() > 0:
                 observation = self.newOrderObservation(self.orderParamUrn, '2', weight.getValue())
+                observationReferenceList.append(self.addBundleEntry(bundle, observation))
+            if pregweek and pregweek.getValue() and pregweek.getValue() > 0:
+                observation = self.newOrderObservation(self.orderParamUrn, '3', pregweek.getValue())
+                observationReferenceList.append(self.addBundleEntry(bundle, observation))
+            if cycleday and cycleday.getValue() and cycleday.getValue() > 0:
+                observation = self.newOrderObservation(self.orderParamUrn, '4', cycleday.getValue())
                 observationReferenceList.append(self.addBundleEntry(bundle, observation))
 
         fhirId = getOrganizationIdentification('urn:odliExternalLabGUID', serviceProviderOrgId)

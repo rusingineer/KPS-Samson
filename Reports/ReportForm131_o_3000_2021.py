@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -71,8 +71,7 @@ SELECT
     LEFT JOIN rbEventProfile EPC ON EPC.id = ETC.eventProfile_id AND EPC.code IN ('8009', '8015')
     LEFT JOIN rbResult RC ON EC.result_id = RC.id
     WHERE CC.id = Client.id AND EC.id != Event.id AND rbEventProfile.code IN ('8008', '8014') AND rbResult.regionalCode IN ('353', '357', '358')
-    AND (DATE(EC.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s))
-    AND (EPC.code NOT IN ('8009', '8015') OR (EPC.code IN ('8009', '8015') AND EC.execDate IS NULL)) 
+    AND (EC.execDate >= %(begDate)s AND EC.execDate < %(endDate)s AND EPC.code NOT IN ('8009', '8015') OR EPC.code IN ('8009', '8015') AND EC.execDate IS NULL)
     ) AS isCancelDisp,
     IF(rbResult.regionalCode IN ('353', '357', '358'),1,0) AS isRegCode,
 
@@ -179,7 +178,7 @@ LEFT JOIN rbService_Identification ON rbService_Identification.master_id = rbSer
 LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id=rbService_Identification.system_id   
 LEFT JOIN rbMesSpecification ON Event.mesSpecification_id = rbMesSpecification.id
 WHERE Event.deleted = 0
-  AND (DATE(Event.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s))
+  AND (Event.execDate >= %(begDate)s AND Event.execDate < %(endDate)s)
     %(orgStructure)s
     %(mesDispans)s
     AND Action.deleted = 0
@@ -191,7 +190,7 @@ WHERE Event.deleted = 0
     GROUP BY Action.id
 ''' % { 'orgStructure':orgStructure,
         'begDate': db.formatDate(begDate),
-        'endDate': db.formatDate(endDate),
+        'endDate': db.formatDate(endDate.addDays(1)),
         'mesDispans' : mesDispans,
       }
     return db.query(stmt)
@@ -215,6 +214,7 @@ class CReportForm131_o_3000_2021(CReport):
             'A06.09.001.07': 6,
             'A06.09.008.001.08': 7,
             'A12.09.002.003': 8,
+            'A12.09.001': 8,
             'B01.001.01': 9,
             'B01.028.01': 10,
             'B01.029.01': 11,

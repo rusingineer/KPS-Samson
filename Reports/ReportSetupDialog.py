@@ -65,6 +65,7 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
         self.setSpecialityVisible(False)
         self.setPersonVisible(False)
         self.setPersonListVisible(False)
+        self.setSetPersonVisible(False)
         self.setMedicalAidProfileVisible(False)
         self.setMedicalAidTypeVisible(False)
         self.setFinanceVisible(False)
@@ -202,6 +203,11 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
         self.personListVisible = value
         self.lblPersonList.setVisible(value)
         self.btnPersonList.setVisible(value)
+
+    def setSetPersonVisible(self, value):
+        self.isSetPersonVisible = value
+        self.lblSetPerson.setVisible(value)
+        self.cmbSetPerson.setVisible(value)
 
 
     def setMedicalAidProfileVisible(self, value):
@@ -423,6 +429,8 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
                 self.lblMesDispansList.setText(u','.join(name for name in nameList if name))
             else:
                 self.lblMesDispansList.setText(u'не задано')
+        if self.isSetPersonVisible:
+            self.cmbSetPerson.setValue(params.get('setPersonId', None))
 
 
     def params(self):
@@ -509,6 +517,8 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
         if self.isOrderAddress:
             result['isOrderAddress'] = self.chkOrderAddress.isChecked()
         result['groupOrganisation'] = self.chkGroupOrganisation.isChecked()
+        if self.isSetPersonVisible:
+            result['setPersonId'] = self.cmbSetPerson.value()
         return result
 
 
@@ -580,7 +590,7 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
         tableMES = db.table('mes.MES')
         tableMESGroup = db.table('mes.mrbMESGroup')
         filter = [tableMESGroup['code'].eq(u'ДиспанС'),
-                  db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].dateGe(self.edtBegDate.date())])
+                  db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].ge(self.edtBegDate.date())])
                   ]
         self.mesDispansIdList, nameList = getMesDispansList(self, filter)
         if self.mesDispansIdList and nameList:

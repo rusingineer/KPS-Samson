@@ -170,8 +170,8 @@ def selectData(params, byPersons=False):
             ]
 
     if begDate and endDate:
-        cond.append(tableAction['begDate'].dateGe(begDate))
-        cond.append(tableAction['begDate'].dateLe(endDate))
+        cond.append(tableAction['begDate'].ge(begDate))
+        cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
 
     if financeId:
         cond.append(db.joinOr([tableAction['finance_id'].eq(financeId),
@@ -420,8 +420,8 @@ def selectActionData(params):
             ]
 
     if begDate and endDate:
-        cond.append(tableAction['begDate'].dateGe(begDate))
-        cond.append(tableAction['begDate'].dateLe(endDate))
+        cond.append(tableAction['begDate'].ge(begDate))
+        cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
 
     if financeId:
         cond.append(db.joinOr([tableAction['finance_id'].eq(financeId),
@@ -661,8 +661,8 @@ def selectGroupingData(params, byPersons=False):
             cols.append(tableClient['patrName'])
 
     if begDate and endDate:
-        cond.append(tableAction['begDate'].dateGe(begDate))
-        cond.append(tableAction['begDate'].dateLe(endDate))
+        cond.append(tableAction['begDate'].ge(begDate))
+        cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
 
     if financeId:
         cond.append(db.joinOr([tableAction['finance_id'].eq(financeId),

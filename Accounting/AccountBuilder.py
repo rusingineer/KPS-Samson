@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -149,17 +149,19 @@ class CAccountPool:
                            'batch',
                            'client',
                            'event',
-                           'oncology'
+                           'oncology',
+                           'bookkeeperId'
                          )
                      )
 
 
-    def __init__(self, contractDescr, orgId, orgStructureId, settleDate, reexposeInSeparateAccount):
+    def __init__(self, contractDescr, orgId, orgStructureId, settleDate, reexposeInSeparateAccount, mapOrgStructToBookkeeper):
         self.contractDescr = contractDescr
         self.orgId = orgId
         self.orgStructureId = orgStructureId
         self.settleDate = settleDate
         self.reexposeInSeparateAccount = reexposeInSeparateAccount
+        self.mapOrgStructToBookkeeper = mapOrgStructToBookkeeper
         self.mapKeyExToDetails = {}
         self.mapEventIdToExternalIdAndSeqNumber = {}
         self.mapInsurerIdToKey = {}
@@ -291,15 +293,15 @@ class CAccountPool:
         return self.baseAccountNumber
 
 
-    def createAccount(self, reexpose, payerId=None):
-        return CAccountDetails(self.contractDescr, self.orgId, self.orgStructureId, self.settleDate, reexpose, payerId)
+    def createAccount(self, reexpose, payerId=None, bookkeeperId=None):
+        return CAccountDetails(self.contractDescr, self.orgId, bookkeeperId if bookkeeperId else self.orgStructureId, self.settleDate, reexpose, payerId)
 
 
     def _getAccount(self, key, reexpose):
         reexpose = bool(self.reexposeInSeparateAccount and reexpose)
         result = self.mapKeyExToDetails.get((key, reexpose), None)
         if result is None:
-            result = self.createAccount(reexpose, key.payerId)
+            result = self.createAccount(reexpose, key.payerId, key.bookkeeperId)
             self.mapKeyExToDetails[(key, reexpose)] = result
         return result
 
@@ -521,7 +523,7 @@ class CAccountPool:
         return hasObr
 
 
-    def getKey(self, clientId, date, eventId, groupAccountType, batch, reexpose):
+    def getKey(self, clientId, date, eventId, groupAccountType, batch, reexpose, personOrgStructId):
         # policyDate = date
         execDate = date
         # if QtGui.qApp.defaultKLADR()[:2] == u'23':
@@ -558,6 +560,10 @@ class CAccountPool:
 
         accountTypeId = self.getAccountTypeId(groupAccountType, self.orgStructureId, payerId, execDate, reexpose) if self.contractDescr.exposeByAccountType else None
         
+        bookkeeperId = self.mapOrgStructToBookkeeper.get(personOrgStructId) if personOrgStructId else None
+
+        accountTypeId = self.getAccountTypeId(groupAccountType, bookkeeperId if bookkeeperId else self.orgStructureId, payerId, execDate, reexpose) if self.contractDescr.exposeByAccountType else None
+        
         key = CAccountPool.CKey(
                 date = firstMonthDay(date).toPyDate() if self.exposeByMonth else None,
                 payerId = payerId,
@@ -569,12 +575,13 @@ class CAccountPool:
                 client = clientId if self.exposeByClient else None,
                 event = self.getTransformedEventId(eventId) if self.exposeByEvent else None,
                 oncology  = self.getOncologySign(eventId)          if self.exposeByOncology  else None,
+                bookkeeperId = bookkeeperId
               )
         return key
 
 
-    def getAccount(self, clientId, date, eventId, groupAccountType, batch, reexpose=False):
-        return self._getAccount(self.getKey(clientId, date, eventId, groupAccountType, batch, reexpose), reexpose)
+    def getAccount(self, clientId, date, eventId, groupAccountType, batch, reexpose=False, personOrgStructId=None):
+        return self._getAccount(self.getKey(clientId, date, eventId, groupAccountType, batch, reexpose, personOrgStructId), reexpose)
 
 
     def addAccountIfEmpty(self, reexpose=False):
@@ -966,7 +973,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                 left join Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id is null and Account_Item.action_id is null
                 and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0
                 LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id''',
-                'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.cureMethod_id, Event.result_id, Event.client_id,  Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId',
+                'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.cureMethod_id, Event.result_id, Event.client_id,  Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId, Person.orgStructure_id',
             eventId)
         if record:
             eventTypeId  = forceRef(record.value('eventType_id'))
@@ -977,6 +984,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
             tariffList = contractDescr.tariffByEventType.get(eventTypeId, None)
             serviceId = getEventServiceId(eventTypeId)
+            personOrgStructId = forceRef(record.value('orgStructure_id'))
 
             if tariffList:
                 for tariff in tariffList:
@@ -1002,7 +1010,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             if self.isOncology(eventId):
                                 groupAccountType = 9 if groupAccountType == 1 else 10
 
-                        account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose)
+                        account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose, personOrgStructId)
                             
                         tableAccountItem = db.table('Account_Item')
                         accountItem = tableAccountItem.newRecord()
@@ -1041,7 +1049,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         left join Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id is null and Account_Item.action_id is null \
         and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0 \
         LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id",
-        'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId',
+        'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId, Person.orgStructure_id',
             eventId)
         if record:
             eventTypeId  = forceRef(record.value('eventType_id'))
@@ -1053,6 +1061,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             resultId     = forceRef(record.value('result_id'))
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
             tariffList = contractDescr.tariffByCoupleVisitEventType.get(eventTypeId, None)
+            personOrgStructId = forceRef(record.value('orgStructure_id'))
             if tariffList:
                 for tariff in tariffList:
                     if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, eventEndDate):
@@ -1078,7 +1087,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             if self.isOncology(eventId):
                                 groupAccountType = 9 if groupAccountType == 1 else 10
 
-                        account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose)
+                        account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose, personOrgStructId)
 
                         tableAccountItem = db.table('Account_Item')
                         accountItem = tableAccountItem.newRecord()
@@ -1116,7 +1125,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         left join Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id is null and Account_Item.action_id is null \
         and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0\
         LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id",
-            'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.cureMethod_id, Event.result_id, Event.client_id, Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId',
+            'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.cureMethod_id, Event.result_id, Event.client_id, Person.tariffCategory_id, rbMesSpecification.level, Account_Item.id as oldAccId, Person.orgStructure_id',
                               eventId)
         if record:
             eventTypeId  = forceRef(record.value('eventType_id'))
@@ -1127,6 +1136,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             cureMethodId = forceRef(record.value('cureMethod_id'))
             resultId     = forceRef(record.value('result_id'))
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
+            personOrgStructId = forceRef(record.value('orgStructure_id'))
             if eventBegDate and eventEndDate and eventBegDate<=eventEndDate:
                 tariffList = contractDescr.tariffByHospitalBedDay.get(eventTypeId, None)
                 if tariffList:
@@ -1150,7 +1160,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 if self.isOncology(eventId):
                                     groupAccountType = 9 if groupAccountType == 1 else 10
 
-                            account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose)
+                            account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose, personOrgStructId)
                                 
                             tableAccountItem = db.table('Account_Item')
                             accountItem = tableAccountItem.newRecord()
@@ -1189,7 +1199,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0\
             LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id",
             """Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Person.tariffCategory_id, rbMesSpecification.level,
-            Account_Item.id as oldAccId""",
+            Account_Item.id as oldAccId, Person.orgStructure_id""",
             eventId)
         eventTypeId  = forceRef(record.value('eventType_id'))
         eventBegDate = forceDate(record.value('setDate'))
@@ -1200,6 +1210,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         resultId     = forceRef(record.value('result_id'))
         serviceId = self.getMesService(mesId)
         tariffCategoryId = forceRef(record.value('tariffCategory_id'))
+        personOrgStructId = forceRef(record.value('orgStructure_id'))
         tariffList = contractDescr.tariffVisitsByMES.get((eventTypeId, serviceId), None)
         if tariffList and mesId:
             for tariff in tariffList:
@@ -1221,7 +1232,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     if not reexpose:
                         reexpose = forceBool(record.value('reexpose'))
                         self.reexposeEventIdDict[eventId] = reexpose
-                    account = accountFactory(clientId, eventEndDate, eventId, tariff.batch, reexpose)
+                    account = accountFactory(clientId, eventEndDate, eventId, tariff.batch, reexpose, personOrgStructId)
                         
                     tableAccountItem = db.table('Account_Item')
                     accountItem = tableAccountItem.newRecord()
@@ -1264,7 +1275,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id is null and Account_Item.action_id is null \
         and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0",
             """Event.eventType_id, Event.cureMethod_id, Event.result_id, Event.client_id, Event.setDate, Event.execDate, Event.MES_id, Person.tariffCategory_id, rbMesSpecification.level, 
-            Account_Item.id as oldAccId, Event.relative_id""",
+            Account_Item.id as oldAccId, Event.relative_id, Person.orgStructure_id""",
             eventId)
         eventTypeId  = forceRef(record.value('eventType_id'))
         cureMethodId = forceRef(record.value('cureMethod_id'))
@@ -1277,6 +1288,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         serviceId = self.getMesService(mesId)
         coeff = None
         tariffCategoryId = forceRef(record.value('tariffCategory_id'))
+        personOrgStructId = forceRef(record.value('orgStructure_id'))
         tariffList = contractDescr.tariffEventByMES.get((eventTypeId, serviceId), None)
         if tariffList is None and QtGui.qApp.defaultKLADR()[:2] == u'23':
             tariffList = contractDescr.tariffEventByMES.get((None, serviceId), None)
@@ -1334,7 +1346,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         if self.isOncology(eventId):
                             groupAccountType = 2 if groupAccountType == 1 else 4
 
-                    account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose)
+                    account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] == u'23' else None, tariff.batch, reexpose, personOrgStructId)
 
                     unitId = tariff.unitId
                     # if QtGui.qApp.defaultKLADR()[:2] == u'23':
@@ -1379,7 +1391,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         left join Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id = Visit.id and Account_Item.action_id is null \
         and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0\
         LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id",
-                              'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Visit.id, Visit.event_id, Visit.date, Person.tariffCategory_id, rbMesSpecification.level',
+                              'Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Visit.id, Visit.event_id, Visit.date, Person.tariffCategory_id, rbMesSpecification.level, Person.orgStructure_id',
                              visitId)
         tariffList = contractDescr.tariffVisitByActionService.get(serviceId, None)
         if tariffList:
@@ -1453,7 +1465,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0 \
             LEFT JOIN rbMesSpecification ON rbMesSpecification.id = Event.mesSpecification_id",
             """Event.eventType_id, Event.setDate, Event.execDate, Event.MES_id, Event.client_id, Event.cureMethod_id, Event.result_id, Visit.id, Visit.event_id, Visit.date, Visit.service_id, Person.tariffCategory_id, rbMesSpecification.level,
-            Account_Item.id as oldAccId""",
+            Account_Item.id as oldAccId, Person.orgStructure_id""",
             visitId)
         serviceId = forceRef(record.value('service_id'))
         tariffList = contractDescr.tariffByVisitService.get(serviceId, None)
@@ -1468,6 +1480,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             resultId     = forceRef(record.value('result_id'))
             visitDate    = forceDate(record.value('date'))
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
+            personOrgStructId = forceRef(record.value('orgStructure_id'))
 
             for tariff in tariffList:
                 if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, visitDate):
@@ -1494,7 +1507,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         if self.isOncology(eventId):
                             groupAccountType = 2 if groupAccountType == 1 else 4
 
-                    account = accountFactory(clientId, eventEndDate if QtGui.qApp.defaultKLADR()[:2] == u'23' else visitDate, eventId, groupAccountType, tariff.batch, reexpose)
+                    account = accountFactory(clientId, eventEndDate if QtGui.qApp.defaultKLADR()[:2] == u'23' else visitDate, eventId, groupAccountType, tariff.batch, reexpose, personOrgStructId)
 
                     if eventEndDate >= QDate(2020, 1, 1) and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262'] and self.getServiceInfis(serviceId) in self.complexVisitList:
                         eventWeekProfile = wpFiveDays
@@ -1506,12 +1519,12 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
 
                         # В случае проведения мобильными медицинскими бригадами полного комплекса мероприятий
                         # в рамках профилактических осмотров, включая диспансеризацию
-                        if eventEndDate >= QDate(2023, 1, 1):
+                        if QDate(2023, 1, 1) <= eventEndDate < QDate(2025, 2, 1):
                             value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
                             if value is None:
                                 value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
                                 self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
-                            if value in ['mob', 'mob_p', 'mob_r']:
+                            if value in ['mob']:
                                 price = round(round(price, 2) * 1.2, 2)
                                 sum = price * amount
 
@@ -1558,7 +1571,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                 and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0""",
             """Event.id as eventId, Event.setDate, Event.result_id, Event.eventType_id, Event.client_id, vAction.id, vAction.actionType_id, Event.eventType_id, 
             vAction.event_id, vAction.exposeDate, vAction.amount, vAction.MKB, Person.tariffCategory_id, Event.execDate, 
-            Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbSpeciality.regionalCode as specCode""",
+            Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbSpeciality.regionalCode as specCode, vAction.endDate as actionEndDate, Person.orgStructure_id""",
             actionId)
         if record:
             serviceIdList = self.getActionTypeServiceIdList(forceRef(record.value('actionType_id')), contractDescr.financeId)
@@ -1586,6 +1599,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     MKB = forceString(record.value('MKB'))
                     tariffCategoryId = forceRef(record.value('tariffCategory_id'))
                     specialityCode = forceString(record.value('specCode'))
+                    personOrgStructId = forceRef(record.value('orgStructure_id'))
 
                     groupAccountType, medicalAidTypeCode, eventProfileRegionalCode = self.getGroupAccountType(eventTypeId)
                     # для группировки счетов по онкологии в стационарах в отдельные реестры
@@ -1620,7 +1634,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             oldAccId = forceRef(record.value('oldAccId'))
                             reexpose = eventId in reexposableEventIdList
                             orgCode = None
-                            account = accountFactory(clientId, eventEndDate if QtGui.qApp.defaultKLADR()[:2] == u'23' else exposeDate, eventId,  groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose)
+                            account = accountFactory(clientId, eventEndDate if QtGui.qApp.defaultKLADR()[:2] == u'23' else exposeDate, eventId,  groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose, personOrgStructId)
                             if orgId:
                                 orgCode = self.mapOrgIdToInfis.get(lpuId, None)
                                 if orgCode is None:
@@ -1635,9 +1649,18 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 # по маммографии с ии должен быть TARU - с ценой, SUMM - 0
                                 if self.getServiceInfis(serviceId) == 'A06.30.002.017':
                                     sum = 0
+                                #Скорая помощь vp in (801, 802) OKATO_OMS == '03000' KUSL like 'B01.044%' должен быть TARU - с ценой, SUMM - 0 с 01.01.2025
+                                elif medicalAidTypeCode in ('801', '802') and self.getServiceInfis(serviceId).startswith('B01.044') and eventEndDate >= QDate(2025, 2, 1):
+                                    from Registry.Utils import getClientCompulsoryPolicy
+                                    record = getClientCompulsoryPolicy(clientId, eventEndDate, eventId)
+                                    if forceString(db.translate('Organisation', 'id', forceRef(record.value('insurer_id')), "OKATO")) == '03000':
+                                        sum = 0
                                 # тарификация услуг обращения/посещения для поликлиники
-                                elif eventEndDate >= QDate(2019, 3, 1) and medicalAidTypeCode in ['21', '22'] and self.getServiceInfis(serviceId)[:3] in ['B01', 'B02', 'B04', 'B05']\
-                                        and serviceId not in self.ObrServiceIdList and self.serviceHasObr(eventId, self.getServiceInfis(serviceId)[4:7]):
+                                elif (eventEndDate >= QDate(2019, 3, 1) and medicalAidTypeCode in ['21', '22'] and self.getServiceInfis(serviceId)[:3] in ['B01', 'B02', 'B04', 'B05']\
+                                        and serviceId not in self.ObrServiceIdList and self.serviceHasObr(eventId, self.getServiceInfis(serviceId)[4:7])
+                                        and self.getServiceInfis(serviceId) not in ['B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
+                                                                         'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
+                                                                         'B05.070.010', 'B05.070.011', 'B05.070.012']):
                                     price, sum = 0, 0
                                 # обнуление услуг по реабилитации
                                 elif eventEndDate >= QDate(2022, 10, 1) and medicalAidTypeCode == '21' \
@@ -1690,18 +1713,25 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                     eventWeekProfile = wpFiveDays
                                     # В случае проведения мероприятий в рамках профилактических осмотров,
                                     # включая диспансеризацию в выходные дни
-                                    if countWorkDays(eventEndDate, eventEndDate, eventWeekProfile) == 0:
-                                        price = round(round(price, 2) * 1.03, 2)
-                                        sum = price * amount
+                                    if eventEndDate >= QDate(2025, 1, 1) and medicalAidTypeCode == '244':
+                                        #  В репродуктивной применяется только к приёмам в выходной день
+                                        actionEndDate = forceDate(record.value('actionEndDate'))
+                                        if countWorkDays(actionEndDate, actionEndDate, eventWeekProfile) == 0 and "B04" in self.getServiceInfis(serviceId):
+                                            price = round(round(price, 2) * 1.03, 2)
+                                            sum = price * amount
+                                    else:
+                                        if countWorkDays(eventEndDate, eventEndDate, eventWeekProfile) == 0:
+                                            price = round(round(price, 2) * 1.03, 2)
+                                            sum = price * amount
 
                                     # В случае проведения мобильными медицинскими бригадами полного комплекса мероприятий
                                     # в рамках профилактических осмотров, включая диспансеризацию
-                                    if eventEndDate >= QDate(2023, 1, 1):
+                                    if QDate(2023, 1, 1) <= eventEndDate < QDate(2025, 2, 1):
                                         value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
                                         if value is None:
                                             value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
                                             self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
-                                        if value in ['mob', 'mob_p', 'mob_r']:
+                                        if value in ['mob']:
                                             price = round(round(price, 2) * 1.2, 2)
                                             sum = price * amount
 
@@ -1894,6 +1924,38 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
 
 
     def exposeCsg23(self, contractDescr, accountFactory, csgId, reexposableEventIdList):
+
+        def getOperationCount(eventId, serviceId, eventEndDate):
+            tableKSG = db.table('rbService')
+            tableMKB = db.table('Diagnosis')
+            tableS69 = db.table('soc_spr69')
+            tableS82 = db.table('soc_spr82')
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            tableRBService = db.table('rbService').alias('s18')
+
+            table = tableKSG.leftJoin(tableMKB, 'Diagnosis.id = getEventDiagnosis(%d)' % eventId)
+            table = table.leftJoin(tableS69, u"""rbService.infis = soc_spr69.ksgkusl 
+                    and (soc_spr69.mkb = Diagnosis.MKB or soc_spr69.mkb is null or (soc_spr69.mkb = 'C.' and substr(Diagnosis.MKB, 1, 1) = 'C') 
+                    or (soc_spr69.mkb = 'I.' and substr(Diagnosis.MKB, 1, 1) = 'I')
+                    or (soc_spr69.mkb = 'C00-C80' and Diagnosis.MKB between 'C00' and 'C80.9')) and soc_spr69.kusl is not null""")
+            table = table.leftJoin(tableAction, 'Action.event_id = %d' % eventId)
+            table = table.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            table = table.leftJoin(tableRBService, tableRBService['id'].eq(tableActionType['nomenclativeService_id']))
+            cond = [tableKSG['id'].eq(serviceId),
+                    tableAction['deleted'].eq(0),
+                    tableAction['status'].eq(2),
+                    tableAction['event_id'].eq(eventId),
+                    tableRBService['infis'].eq(tableS69['kusl']),
+                    "s18.id is not null"
+                    ]
+            table = table.leftJoin(tableS82, tableS82['CODE'].eq(tableS69['ksgkusl']))
+            cond.append(tableS82['DATN'].dateLe(eventEndDate))
+            cond.append(db.joinOr([tableS82['DATO'].dateGe(eventEndDate), tableS82['DATO'].isNull()]))
+            cond.append(tableS82['CODE'].isNotNull())
+            result = db.getCount(table, where=cond)
+            return result
+
         db = QtGui.qApp.db
         record = db.getRecordEx('''Event_CSG
                                 INNER JOIN Event ON Event.id = Event_CSG.master_id
@@ -1906,7 +1968,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 '''Event.execDate, Event.cureMethod_id, Event.result_id, Event.eventType_id,
                                  Event.client_id, Event_CSG.CSGCode, Event_CSG.begDate, Event_CSG.endDate, Event_CSG.MKB, 
                                  Person.tariffCategory_id, rbMesSpecification.level, Event.relative_id,
-                                 rbService.id AS service_id, Event.id AS event_id, Account_Item.id as oldAccId''',
+                                 rbService.id AS service_id, Event.id AS event_id, Account_Item.id as oldAccId, Event_CSG.krit, Person.orgStructure_id''',
                                 db.table('Event_CSG')['id'].eq(csgId),
                                 'Action.id')
         serviceId = forceRef(record.value('service_id'))
@@ -1928,6 +1990,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             cureMethodId = forceRef(record.value('cureMethod_id'))
             resultId     = forceRef(record.value('result_id'))
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
+            csgKritId = forceRef(record.value('krit'))
+            personOrgStructId = forceRef(record.value('orgStructure_id'))
 
             for tariff in tariffList:
                 if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, csgEndDate):
@@ -1941,24 +2005,28 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         if self.isOncology(eventId):
                             groupAccountType = 9 if groupAccountType == 1 else 10
 
-                    if medicalAidTypeCode in ('11', '12', '301', '302') and csgCode[3:] in ['st36.013', 'st36.014', 'st36.015'] and eventEndDate >= QDate(2024, 11, 1):
+                    if medicalAidTypeCode in ('11', '12', '301', '302') and csgCode[3:] in ['st36.013', 'st36.014', 'st36.015'] and QDate(2024, 11, 1) <= eventEndDate < QDate(2026, 1, 1):
                         minDuration = 0
-                        stmt = u"""SELECT ss.code
-                        FROM Action A
-                        INNER JOIN ActionType AT ON A.actionType_id = AT.id
-                        LEFT JOIN ActionProperty ap ON ap.action_id = A.id AND ap.deleted = 0
-                        LEFT JOIN ActionPropertyType apt ON ap.type_id = apt.id AND apt.deleted = 0
-                        LEFT JOIN ActionProperty_Integer api ON ap.id = api.id
-                        LEFT JOIN soc_spr80 ss ON ss.id = api.value
-                        WHERE A.event_id = {0} AND A.deleted = 0 AND AT.flatCode  = 'KRIT'
-                            AND apt.typeName = 'Доп. классиф. критерий'  AND ss.code like 'amt%'""".format(eventId)
-                        query = db.query(stmt)
-                        if query.first():
-                            amtCode = forceString(query.value(0))
-                            if amtCode in ['amt02', 'amt04','amt05','amt07','amt08','amt09','amt10','amt12','amt13','amt14','amt15']:
-                                minDuration = 5
-                            elif amtCode in ['amt01', 'amt03','amt06','amt11']:
-                                minDuration = 10
+                        amtCode = None
+                        if csgKritId:
+                            amtCode = forceString(db.translate('soc_spr80', 'id', csgKritId, 'code'))
+                        else:
+                            stmt = u"""SELECT ss.code
+                            FROM Action A
+                            INNER JOIN ActionType AT ON A.actionType_id = AT.id
+                            LEFT JOIN ActionProperty ap ON ap.action_id = A.id AND ap.deleted = 0
+                            LEFT JOIN ActionPropertyType apt ON ap.type_id = apt.id AND apt.deleted = 0
+                            LEFT JOIN ActionProperty_Integer api ON ap.id = api.id
+                            LEFT JOIN soc_spr80 ss ON ss.id = api.value
+                            WHERE A.event_id = {0} AND A.deleted = 0 AND AT.flatCode  = 'KRIT' AND A.begDate >= {1} AND A.endDate <= {2}
+                                AND apt.typeName = 'Доп. классиф. критерий'  AND ss.code like 'amt%'""".format(eventId, db.formatDate(csgBegDate), db.formatDate(csgEndDate))
+                            query = db.query(stmt)
+                            if query.first():
+                                amtCode = forceString(query.value(0))
+                        if amtCode in ['amt02', 'amt04','amt05','amt07','amt08','amt09','amt10','amt12','amt13','amt14','amt15']:
+                            minDuration = 5
+                        elif amtCode in ['amt01', 'amt03','amt06','amt11']:
+                            minDuration = 10
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
                         if duration < minDuration:
@@ -1967,6 +2035,42 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             else:
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
+                    elif csgCode[3:] in ['st02.003', 'st02.004'] and eventEndDate >= QDate(2025, 6, 1):
+                        ishodOb = isInterruptedCase(eventId)
+                        minDuration = 1
+                        eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
+                        duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
+
+                        if (minDuration > 1 and duration <= minDuration
+                                or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                                or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                                or (eventEndDate >= QDate(2025, 6, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                            if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate], 2)
+                            else:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
+                        # оплата прерванных случаев свыше 3-х дней
+                        elif (duration > minDuration and ishodOb and minDuration > 1
+                              or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                              or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                              or (eventEndDate >= QDate(2025, 6, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                            if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate], 2)
+                            else:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate], 2)
+
                     sum = round(price*amount*coefficient, 2)
                     if usedCoeffDict:
                         coeffList = []
@@ -1974,7 +2078,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             coeffList.append('{0}({1});'.format(c, usedCoeffDict[c]))
                             usedCoefficients = ''.join(coeffList)
 
-                    account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose)
+                    account = accountFactory(clientId, eventEndDate, eventId, groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose, personOrgStructId)
                     tableAccountItem = db.table('Account_Item')
                     accountItem = tableAccountItem.newRecord()
                     accountItem.setValue('master_id',        account.id)
@@ -2989,6 +3093,7 @@ def evalPriceForKrasnodarA13(contractDescr,
         table = tableKSG.leftJoin(tableMKB,  'Diagnosis.id = getEventDiagnosis(%d)' % eventId)
         table = table.leftJoin(tableS69,  u"""rbService.infis = soc_spr69.ksgkusl 
                 and (soc_spr69.mkb = Diagnosis.MKB or soc_spr69.mkb is null or (soc_spr69.mkb = 'C.' and substr(Diagnosis.MKB, 1, 1) = 'C') 
+                or (soc_spr69.mkb = 'I.' and substr(Diagnosis.MKB, 1, 1) = 'I')
                 or (soc_spr69.mkb = 'C00-C80' and Diagnosis.MKB between 'C00' and 'C80.9')) and soc_spr69.kusl is not null""")
         table = table.leftJoin(tableAction,  'Action.event_id = %d' % eventId)
         table = table.leftJoin(tableActionType,   tableActionType['id'].eq(tableAction['actionType_id']))
@@ -3076,6 +3181,30 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
         result = query.size()
         return result
 
+    def hasRehabilitation(eventId):
+        stmt = u"""select Action.id 
+FROM Action
+  LEFT JOIN ActionType at ON at.id = Action.actionType_id 
+    AND at.deleted = 0
+where Action.deleted = 0 
+  AND Action.event_id = {aEvent_id}
+  AND at.flatCode = 'rehabilitation'
+  AND Action.status = 2;""".format(aEvent_id=eventId)
+        query = db.query(stmt)
+        result = query.size()
+        return result
+
+    def hasKSLPDetiCancelation(eventId):
+        stmt = u"""
+        SELECT NULL 
+        FROM Event 
+        WHERE Event.id = {aEvent_id}
+          AND Event.mesSpecification_id = (SELECT id FROM rbMesSpecification ms WHERE ms.code = 'kslp_deti' LIMIT 1);
+        """.format(aEvent_id=eventId)
+        query = db.query(stmt)
+        result = query.size()
+        return result
+
     price = tariff.price
     
     minDuration = tariff.frags[-2][0] if len(tariff.frags) >= 3 else 3
@@ -3103,7 +3232,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
             if hasCancerHemaBloodProfile(eventId):
                 coeff += childGemOnkoCoef
                 usedCoeffDict['2'] = childGemOnkoCoef
-            else:
+            elif eventEndDate < QDate(2025, 1, 1) or not (hasKSLPDetiCancelation(eventId) > 0 and eventEndDate >= QDate(2025, 1, 1)):
                 coeff += childCoef
                 usedCoeffDict['1'] = childCoef
         # Сложность лечения пациента, связанная с возрастом (лица старше 75 лет)
@@ -3186,6 +3315,12 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
             coeff += testingCovidCoef
             usedCoeffDict['14'] = testingCovidCoef
 
+        # проведение 1 этапа медицинской реабилитации
+        if eventEndDate >= QDate(2025, 1, 1) and hasRehabilitation(eventId) > 0:
+            rehabilitationCoef = contractDescr.coefficients[0, 0][u'реабилР'][eventEndDate]
+            coeff += rehabilitationCoef
+            usedCoeffDict['11'] = rehabilitationCoef
+
     elif VP in ['41']:
         # Проведение сопроводительной лекарственной терапии при злокачественных новообразованиях у взрослых в условиях дневного стационара в соответствии с клиническими рекомендациями*
         if eventEndDate >= QDate(2023, 2, 1) and eventEndDate < QDate(2024, 1, 1) and age >= 18 and (
@@ -3229,9 +3364,12 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
             or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
                 and minDuration == 1 and duration <= 3
                 and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
-            or (eventEndDate >= QDate(2025, 1, 1)
+            or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
                 and minDuration == 1 and duration <= 3
-                and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])):
+                and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
+            or (eventEndDate >= QDate(2025, 6, 1)
+                and minDuration == 1 and duration <= 3
+                and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
         if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
             price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate], 2)
         else:
@@ -3241,9 +3379,12 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
           or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
               and minDuration == 1
               and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
-          or (eventEndDate >= QDate(2025, 1, 1)
+          or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
               and minDuration == 1
-              and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])):
+              and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
+          or (eventEndDate >= QDate(2025, 6, 1)
+              and minDuration == 1
+              and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
         if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
             price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate], 2)
         else:
@@ -3642,7 +3783,7 @@ def evalPriceEventCSGForKrasnodar(contractDescr,
     price = tariff.price
     VP = getEventAidTypeRegionalCode(eventTypeId)
 
-    if VP in ('11', '12', '301', '302') and serviceInfis[3:] in ['st36.013', 'st36.014', 'st36.015'] and csgEndDate >= QDate(2024, 11, 1):
+    if VP in ('11', '12', '301', '302') and serviceInfis[3:] in ['st36.013', 'st36.014', 'st36.015'] and QDate(2024, 11, 1) <= csgEndDate < QDate(2026, 1, 1):
         minDuration = 0
         stmt = u"""SELECT ss.code
         FROM Action A
@@ -3657,9 +3798,9 @@ def evalPriceEventCSGForKrasnodar(contractDescr,
         if query.first():
             amtCode = forceString(query.value(0))
             if amtCode in ['amt02', 'amt04','amt05','amt07','amt08','amt09','amt10','amt12','amt13','amt14','amt15']:
-                minDuration = 5
+                minDuration = 4
             elif amtCode in ['amt01', 'amt03','amt06','amt11']:
-                minDuration = 10
+                minDuration = 9
         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
         if duration < minDuration:
@@ -3674,7 +3815,7 @@ def evalPriceEventCSGForKrasnodar(contractDescr,
 def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOMS,
                                  medicalAidTypeCode, eventProfileRegionalCode, eventTypeIdentification, eventBegDate, eventEndDate,
                                  exposeDate, serviceInfis, amount, price, summa,
-                                 serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted, isDispCompleted):
+                                 serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted, isDispCompleted, actionEndDate):
 
     # по маммографии с ИИ должен быть TARU - с ценой, SUMM - 0
     if serviceInfis == 'A06.30.002.017':
@@ -3683,7 +3824,13 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
     elif (medicalAidTypeCode in ['21', '22']
           and serviceInfis[:3] in ['B01', 'B02', 'B04', 'B05']
           and not serviceIsObr
-          and serviceHasObr):
+          and serviceHasObr
+          and serviceInfis not in ['B05.015.002.010', 'B05.015.002.011',
+                                   'B05.015.002.012', 'B05.023.002.012',
+                                   'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019',
+                                   'B05.050.004.020', 'B05.050.004.021', 'B05.070.010',
+                                   'B05.070.011', 'B05.070.012']
+    ):
         price, summa = 0, 0
     # обнуление услуг по реабилитации
     elif (medicalAidTypeCode == '21' and eventHasReab
@@ -3736,13 +3883,19 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
         eventWeekProfile = wpFiveDays
         # В случае проведения мероприятий в рамках профилактических осмотров,
         # включая диспансеризацию в выходные дни
-        if countWorkDays(eventEndDate, eventEndDate, eventWeekProfile) == 0:
-            price = round(round(price, 2) * 1.03, 2)
-            summa = price
+        if eventEndDate >= QDate(2025, 1, 1) and medicalAidTypeCode == '244':
+            #  В репродуктивной применяется только к приёмам в выходной день
+            if countWorkDays(actionEndDate, actionEndDate, eventWeekProfile) == 0 and "B04" in serviceInfis:
+                price = round(round(price, 2) * 1.03, 2)
+                summa = price
+        else:
+            if countWorkDays(eventEndDate, eventEndDate, eventWeekProfile) == 0:
+                price = round(round(price, 2) * 1.03, 2)
+                summa = price
 
         # В случае проведения мобильными медицинскими бригадами полного комплекса мероприятий
         # в рамках профилактических осмотров, включая диспансеризацию
-        if eventEndDate >= QDate(2023, 1, 1) and eventTypeIdentification in ['mob', 'mob_p', 'mob_r']:
+        if QDate(2023, 1, 1) <= eventEndDate < QDate(2025, 2, 1) and eventTypeIdentification in ['mob']:
             price = round(round(price, 2) * 1.2, 2)
             summa = price
 

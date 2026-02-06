@@ -97,8 +97,8 @@ def selectData(params):
              tableOrgStructure['deleted'].eq(0),
              tableActionType['flatCode'].inlist(actionsGroups.keys()),
              tableAction['finance_id'].inlist([1, 2, 4]),
-             tableAction['endDate'].dateGe(begDate),
-             tableAction['endDate'].dateLe(endDate),
+             tableAction['endDate'].ge(begDate),
+             tableAction['endDate'].lt(endDate.addDays(1)),
            ]
 
     cols = [ tableAction['finance_id'].alias('financeId'),

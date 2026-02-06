@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Events\ActionsPage.ui'
+# Form implementation generated from reading ui file '/work/kmivc-arch/Samson/client_test/Events/ActionsPage.ui'
 #
-# Created: Thu Nov 07 14:41:37 2024
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.12.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -42,8 +41,8 @@ class Ui_ActionsPageWidget(object):
         self.frameAP.setFrameShadow(QtGui.QFrame.Sunken)
         self.frameAP.setObjectName(_fromUtf8("frameAP"))
         self.verticalLayout = QtGui.QVBoxLayout(self.frameAP)
-        self.verticalLayout.setSpacing(4)
         self.verticalLayout.setMargin(0)
+        self.verticalLayout.setSpacing(4)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.frmWidgets = QtGui.QFrame(self.frameAP)
         self.frmWidgets.setFrameShape(QtGui.QFrame.StyledPanel)
@@ -64,8 +63,8 @@ class Ui_ActionsPageWidget(object):
         self.frmTop = QtGui.QWidget(self.frmWidgets)
         self.frmTop.setObjectName(_fromUtf8("frmTop"))
         self.horizontalLayout_38 = QtGui.QHBoxLayout(self.frmTop)
-        self.horizontalLayout_38.setSpacing(6)
         self.horizontalLayout_38.setMargin(0)
+        self.horizontalLayout_38.setSpacing(6)
         self.horizontalLayout_38.setObjectName(_fromUtf8("horizontalLayout_38"))
         self.frmAPDirectionDateTime = QtGui.QFrame(self.frmTop)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
@@ -77,8 +76,8 @@ class Ui_ActionsPageWidget(object):
         self.frmAPDirectionDateTime.setFrameShadow(QtGui.QFrame.Plain)
         self.frmAPDirectionDateTime.setObjectName(_fromUtf8("frmAPDirectionDateTime"))
         self.horizontalLayout_39 = QtGui.QHBoxLayout(self.frmAPDirectionDateTime)
-        self.horizontalLayout_39.setSpacing(4)
         self.horizontalLayout_39.setMargin(0)
+        self.horizontalLayout_39.setSpacing(4)
         self.horizontalLayout_39.setObjectName(_fromUtf8("horizontalLayout_39"))
         self.edtAPDirectionDate = CDateEdit(self.frmAPDirectionDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
@@ -144,8 +143,8 @@ class Ui_ActionsPageWidget(object):
         self.frmAPPlannedEndDateTime.setFrameShadow(QtGui.QFrame.Plain)
         self.frmAPPlannedEndDateTime.setObjectName(_fromUtf8("frmAPPlannedEndDateTime"))
         self.horizontalLayout_37 = QtGui.QHBoxLayout(self.frmAPPlannedEndDateTime)
-        self.horizontalLayout_37.setSpacing(4)
         self.horizontalLayout_37.setMargin(0)
+        self.horizontalLayout_37.setSpacing(4)
         self.horizontalLayout_37.setObjectName(_fromUtf8("horizontalLayout_37"))
         self.edtAPPlannedEndDate = CDateEdit(self.frmAPPlannedEndDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
@@ -206,8 +205,8 @@ class Ui_ActionsPageWidget(object):
         self.frmAPBegDateTime.setFrameShadow(QtGui.QFrame.Plain)
         self.frmAPBegDateTime.setObjectName(_fromUtf8("frmAPBegDateTime"))
         self.horizontalLayout_42 = QtGui.QHBoxLayout(self.frmAPBegDateTime)
-        self.horizontalLayout_42.setSpacing(4)
         self.horizontalLayout_42.setMargin(0)
+        self.horizontalLayout_42.setSpacing(4)
         self.horizontalLayout_42.setObjectName(_fromUtf8("horizontalLayout_42"))
         self.lblAPBegDate = QtGui.QLabel(self.frmAPBegDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
@@ -246,8 +245,8 @@ class Ui_ActionsPageWidget(object):
         self.frmAPEndDateTime.setFrameShadow(QtGui.QFrame.Plain)
         self.frmAPEndDateTime.setObjectName(_fromUtf8("frmAPEndDateTime"))
         self.horizontalLayout_43 = QtGui.QHBoxLayout(self.frmAPEndDateTime)
-        self.horizontalLayout_43.setSpacing(4)
         self.horizontalLayout_43.setMargin(0)
+        self.horizontalLayout_43.setSpacing(4)
         self.horizontalLayout_43.setObjectName(_fromUtf8("horizontalLayout_43"))
         self.lblAPEndDate = QtGui.QLabel(self.frmAPEndDateTime)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
@@ -671,21 +670,58 @@ class Ui_ActionsPageWidget(object):
         self.btnCloseWidgets.setArrowType(QtCore.Qt.NoArrow)
         self.btnCloseWidgets.setObjectName(_fromUtf8("btnCloseWidgets"))
         self.verticalLayout.addWidget(self.btnCloseWidgets)
-        self.tblAPProps = CActionPropertiesTableView(self.frameAP)
+        self.splitter = QtGui.QSplitter(self.frameAP)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.splitter.sizePolicy().hasHeightForWidth())
+        self.splitter.setSizePolicy(sizePolicy)
+        self.splitter.setOrientation(QtCore.Qt.Horizontal)
+        self.splitter.setObjectName(_fromUtf8("splitter"))
+        self.tblAPProps = CActionPropertiesTableView(self.splitter)
         self.tblAPProps.setEnabled(False)
         self.tblAPProps.setAutoScroll(True)
         self.tblAPProps.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
         self.tblAPProps.setHorizontalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
         self.tblAPProps.setObjectName(_fromUtf8("tblAPProps"))
-        self.verticalLayout.addWidget(self.tblAPProps)
+        self.wgtUserDictionary = QtGui.QWidget(self.splitter)
+        self.wgtUserDictionary.setObjectName(_fromUtf8("wgtUserDictionary"))
+        self.gridLayout_3 = QtGui.QGridLayout(self.wgtUserDictionary)
+        self.gridLayout_3.setMargin(0)
+        self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
+        self.btnEditUserDictionary = QtGui.QPushButton(self.wgtUserDictionary)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.btnEditUserDictionary.sizePolicy().hasHeightForWidth())
+        self.btnEditUserDictionary.setSizePolicy(sizePolicy)
+        self.btnEditUserDictionary.setObjectName(_fromUtf8("btnEditUserDictionary"))
+        self.gridLayout_3.addWidget(self.btnEditUserDictionary, 0, 1, 1, 1)
+        self.lvUserDictionary = CUserDictionaryListView(self.wgtUserDictionary)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lvUserDictionary.sizePolicy().hasHeightForWidth())
+        self.lvUserDictionary.setSizePolicy(sizePolicy)
+        self.lvUserDictionary.setFocusPolicy(QtCore.Qt.ClickFocus)
+        self.lvUserDictionary.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.lvUserDictionary.setAlternatingRowColors(True)
+        self.lvUserDictionary.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+        self.lvUserDictionary.setWordWrap(True)
+        self.lvUserDictionary.setObjectName(_fromUtf8("lvUserDictionary"))
+        self.gridLayout_3.addWidget(self.lvUserDictionary, 1, 0, 1, 2)
+        self.edtUserDictionarySearch = QtGui.QLineEdit(self.wgtUserDictionary)
+        self.edtUserDictionarySearch.setObjectName(_fromUtf8("edtUserDictionarySearch"))
+        self.gridLayout_3.addWidget(self.edtUserDictionarySearch, 0, 0, 1, 1)
+        self.verticalLayout.addWidget(self.splitter)
         self.frmAPButtonsBar = QtGui.QFrame(self.frameAP)
         self.frmAPButtonsBar.setFrameShape(QtGui.QFrame.NoFrame)
         self.frmAPButtonsBar.setFrameShadow(QtGui.QFrame.Plain)
         self.frmAPButtonsBar.setLineWidth(0)
         self.frmAPButtonsBar.setObjectName(_fromUtf8("frmAPButtonsBar"))
         self.horizontalLayout_4 = QtGui.QHBoxLayout(self.frmAPButtonsBar)
-        self.horizontalLayout_4.setSpacing(4)
         self.horizontalLayout_4.setMargin(0)
+        self.horizontalLayout_4.setSpacing(4)
         self.horizontalLayout_4.setObjectName(_fromUtf8("horizontalLayout_4"))
         self.btnAPHospitalOrderSelect = QtGui.QPushButton(self.frmAPButtonsBar)
         self.btnAPHospitalOrderSelect.setObjectName(_fromUtf8("btnAPHospitalOrderSelect"))
@@ -797,6 +833,8 @@ class Ui_ActionsPageWidget(object):
         self.edtAPCoordTime.setDisplayFormat(_translate("ActionsPageWidget", "HH:mm", None))
         self.lblCSG.setText(_translate("ActionsPageWidget", "КСГ", None))
         self.btnCloseWidgets.setText(_translate("ActionsPageWidget", "...", None))
+        self.btnEditUserDictionary.setText(_translate("ActionsPageWidget", "Редактировать", None))
+        self.edtUserDictionarySearch.setPlaceholderText(_translate("ActionsPageWidget", "Поиск по словарю...", None))
         self.btnAPHospitalOrderSelect.setText(_translate("ActionsPageWidget", "Госпитализация", None))
         self.btnAPPrint.setText(_translate("ActionsPageWidget", "Печать", None))
         self.btnAPLoadTemplate.setText(_translate("ActionsPageWidget", "Загрузить шаблон", None))
@@ -804,19 +842,20 @@ class Ui_ActionsPageWidget(object):
         self.btnAPLoadPrevAction.setText(_translate("ActionsPageWidget", "Копировать из предыдущего", None))
         self.btnAPAttachedFiles.setText(_translate("ActionsPageWidget", "Прикреплённые файлы", None))
 
+from Events.ActionPropertiesTable import CActionPropertiesTableView
+from Events.ActionStatus import CActionStatusComboBox
+from Events.ActionTemplateChoose import CActionTemplateSelectButton
+from Events.ActionsTable import CActionsTableView
+from Events.UserDictionaryList import CUserDictionaryListView
+from Events.Utils import CActionCSGComboBox, CActionWidgetVisibilityButton
 from Orgs.OrgComboBox import CPolyclinicComboBox
-from library.crbcombobox import CRBComboBox
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Orgs.PersonComboBoxEx import CPersonWithOrgListComboBoxEx
+from library.Attach.AttachButton import CAttachButton
+from library.DateEdit import CDateEdit
+from library.ICDCodeEdit import CICDCodeEditEx
 from library.ICDMorphologyCodeEdit import CICDMorphologyCodeEditEx
 from library.MKBExSubclassComboBox import CMKBExSubclassComboBox
-from Orgs.PersonComboBoxEx import CPersonWithOrgListComboBoxEx
-from Events.ActionPropertiesTable import CActionPropertiesTableView
-from Events.ActionTemplateChoose import CActionTemplateSelectButton
-from library.Attach.AttachButton import CAttachButton
 from library.PrintTemplates import CPrintButton
-from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from Events.ActionsTable import CActionsTableView
 from library.TimeEdit import CTimeEdit
-from Events.ActionStatus import CActionStatusComboBox
-from library.ICDCodeEdit import CICDCodeEditEx
-from library.DateEdit import CDateEdit
-from Events.Utils import CActionCSGComboBox, CActionWidgetVisibilityButton
+from library.crbcombobox import CRBComboBox

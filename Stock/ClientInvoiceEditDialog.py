@@ -22,7 +22,7 @@ from library.ItemsListDialog import CItemEditorBaseDialog
 from library.PrintInfo           import CInfoContext
 from library.PrintTemplates import applyTemplate, CPrintAction, CPrintButton, getPrintTemplates
 from library.Utils                  import forceDouble, forceRef, forceString, toVariant, forceDate, pyDate
-from Registry.Utils               import getClientInfo, formatClientBanner, getClientString
+from Registry.Utils               import getClientInfo, getClientString, getClientBanner
 from Reports.ReportBase     import CReportBase, createTable
 from Reports.ReportView     import CReportViewDialog
 from Stock.NomenclatureComboBox import CNomenclatureInDocTableCol
@@ -306,7 +306,7 @@ class CClientInvoiceEditDialog(CStockMotionBaseDialog, Ui_ClientInvoiceDialog):
         if not self._clientInfo and self._clientId:
             self._clientInfo = getClientInfo(self._clientId, date=self.edtDate.date())
         if self._clientInfo:
-            self.txtClientInfoBrowser.setHtml(formatClientBanner(self._clientInfo))
+            self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDate.date()))
 
 
     def setStockMotionItems(self, items):

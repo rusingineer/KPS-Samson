@@ -51,6 +51,10 @@ class CMedicalAidProfileActionPropertyValueType(CActionPropertyValueType):
                     cond = [tableOrganisation['deleted'].eq(0),
                             tableOMAP['medicalAidProfile_id'].isNotNull()
                             ]
+                    if action.actionType().flatCode == u'researchDirection':
+                        filterList.append(tableRBMAP['federalCode'].inlist([85, 86, 87, 88]))
+                    else:
+                        filterList.append(tableRBMAP['federalCode'].notInlist([85, 86, 87, 88]))
                     if propertyValue:
                         cond.append(tableOMAP['master_id'].eq(propertyValue))
                     if directionDate:

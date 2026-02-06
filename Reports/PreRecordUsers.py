@@ -79,13 +79,14 @@ def selectData(params):
              Schedule.appointmentType,
              Schedule_Item.recordClass,
              Schedule_Item.recordPerson_id AS person_id,
+             Schedule_Item.appointmentPurpose_id AS 'appointCode',
              IF(Schedule_Item.recordClass = 2, Schedule_Item.note, RP.name) AS name,
              (Schedule.person_id <=> Schedule_Item.recordPerson_id) AS samePerson,
              EXISTS(SELECT 1 FROM vVisitExt
                                    WHERE vVisitExt.client_id = Schedule_Item.client_id
                                    AND Person.speciality_id=vVisitExt.speciality_id
                                    AND DATE(vVisitExt.date) = Schedule.date
-                   ) AS visited, Schedule_Item.note
+                   ) AS visited, Schedule_Item.note,  Schedule_Item.system_guid as 'sysGuid'
             FROM
             Schedule_Item
             LEFT JOIN Schedule     ON Schedule.id = Schedule_Item.master_id
@@ -94,7 +95,7 @@ def selectData(params):
             LEFT JOIN vrbPersonWithSpeciality AS RP ON RP.id = Schedule_Item.recordPerson_id
             WHERE %s
             GROUP BY person_id, name, appointmentType, samePerson,
-                      recordClass, visited
+                      recordClass, visited, appointCode, sysGuid
             %s'''
     return db.query(stmt % (db.joinAnd(cond), orderBy))
 
@@ -168,6 +169,8 @@ class CPreRecordUsers(CReport):
         mapATtoCol = { CSchedule.atAmbulance:1, CSchedule.atHome:4 }
         reportData = []
         reportDict = {}
+        appointCodeDB = None
+        appointCodeDB = forceInt(QtGui.qApp.db.getRecordEx('rbAppointmentPurpose', 'id', where="code = 'Service_UO'").value('id'))
 
         while query.next():
             record = query.record()
@@ -179,6 +182,8 @@ class CPreRecordUsers(CReport):
             visited         = forceBool(record.value('visited'))
             cnt             = forceInt(record.value('cnt'))
             recordNote      = forceString(record.value('note'))
+            appointCode     =   forceInt(record.value('appointCode'))
+            sysGuid         = forceString(record.value('sysGuid'))
             column = mapATtoCol.get(appointmentType, -1)
             if column>=0:
                 if recordClass == 1: # Инфомат
@@ -190,6 +195,50 @@ class CPreRecordUsers(CReport):
                         key = (2, u'Call-центр')
                 elif recordClass in (3, 5, 6, 7):  # интернет
                     key = (2, u'Интернет')
+                    rowDataExtension = reportDict.get((2.1, u"из них Портал госуслуг"), None)
+                    if not rowDataExtension:
+                        rowDataExtension = [0] * 7
+                        reportDict[(2.1, u"из них Портал госуслуг")] = rowDataExtension
+                    rowDataExtension_2 = reportDict.get((2.2, u"из них кубань онлайн"), None)
+                    if not rowDataExtension_2:
+                        rowDataExtension_2 = [0] * 7
+                        reportDict[(2.2, u"из них кубань онлайн")] = rowDataExtension_2
+                    rowDataExtension_3 = reportDict.get((2.3, u"из них мессенджер MAX"), None)
+                    if not rowDataExtension_3:
+                        rowDataExtension_3 = [0] * 7
+                        reportDict[(2.3, u"из них мессенджер MAX")] = rowDataExtension_3
+                    rowDataExtension_4 = reportDict.get((2.4, u"из них Сервис УО"), None)
+                    if not rowDataExtension_4:
+                        rowDataExtension_4 = [0] * 7
+                        reportDict[(2.4, u"из них Сервис УО")] = rowDataExtension_4
+
+                    if sysGuid in (u'075AEF71-C1C6-46B7-BE97-931037F03E2A', u'4001E5F6-E96D-4742-8561-C81C838E9064', u'D127D963-EB51-4624-8778-F0508CE67648' ):
+                        if sysGuid == u'075AEF71-C1C6-46B7-BE97-931037F03E2A':
+                            rowDataExtension_3[column] += cnt
+                            if visited:
+                                rowDataExtension_3[column + 1] += cnt  # выполнено
+                            if samePerson:
+                                rowDataExtension_3[column + 2] += cnt  # актив
+                        elif sysGuid == u'4001E5F6-E96D-4742-8561-C81C838E9064':
+                            rowDataExtension[column] += cnt
+                            if visited:
+                                rowDataExtension[column + 1] += cnt  # выполнено
+                            if samePerson:
+                                rowDataExtension[column + 2] += cnt  # актив
+                        elif sysGuid == u'D127D963-EB51-4624-8778-F0508CE67648':
+                            rowDataExtension_2[column] += cnt
+                            if visited:
+                                rowDataExtension_2[column + 1] += cnt  # выполнено
+                            if samePerson:
+                                rowDataExtension_2[column + 2] += cnt  # актив
+                    elif (appointCode == appointCodeDB):
+                        rowDataExtension_4[column] += cnt
+                        if visited:
+                            rowDataExtension_4[column + 1] += cnt
+                        if samePerson:
+                            rowDataExtension_4[column + 2] += cnt
+
+                            # reportDict[(2.2, u"из них кубань онлайн")] += cnt
                 else: #
                     if personId:
                         key = (0, name)
@@ -241,7 +290,8 @@ class CPreRecordUsers(CReport):
             table.setText(i, 1, rowData[0][1])
             for column in range(6):
                 table.setText(i, column+2, rowData[column+1])
-                total[column]+=rowData[column+1]
+                if rowData[0][0] not in (2.1, 2.2, 2.3):
+                    total[column]+=rowData[column+1]
             n += 1
 
         i = table.addRow()

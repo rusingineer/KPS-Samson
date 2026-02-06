@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -45,7 +45,8 @@ actionTypeFields = (
         'serviceType', 'actualAppointmentDuration', 'ticketDuration',
         'closeEvent', 'addVisit', 'exposeDateSelector', 'expirationDate', 'isRestrictExpirationDate', 'generateAfterEventExecDate',
         'isPlannedEndDateRequired', 'showBegDate', 'editStatus', 'editBegDate', 'editEndDate', 'editNote', 'editExecPers', 'begDate', 'endDate',
-        'isDoesNotInvolveExecutionCourse', 'isExecPersonRequired', 'isMKBRequired', 'duplication', 'ignoreVisibleRights'
+        'isDoesNotInvolveExecutionCourse', 'isExecPersonRequired', 'isMKBRequired', 'duplication', 'ignoreVisibleRights',
+        'editSetPerson', 'editOrg', 'editOrgStructure'
     )
 
 actionPropertyTypeFields = (

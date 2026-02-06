@@ -59,11 +59,11 @@ def selectData(params):
     queryTable = queryTable.innerJoin(tableActionPropertyType, tableActionPropertyType['id'].eq(tableActionProperty['type_id']))
     queryTable = queryTable.innerJoin(tableActionPropertyString, tableActionPropertyString['id'].eq(tableActionProperty['id']))
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableActionType['deleted'].eq(0),
             tableMESGroup['code'].eq(u'ДиспанС'),
-            db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].dateGe(begDate)]),
+            db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].ge(begDate)]),
             tableAction['deleted'].eq(0),
             tableActionProperty['deleted'].eq(0),
             tableActionPropertyType['deleted'].eq(0)

@@ -154,7 +154,7 @@ class CClientNomenclatureActionReport(CReport):
             tableNomenclature['name'].isNotNull(),
             tableEvent['execDate' if datePeriod else 'setDate'].dateGt(begDate),
             tableStockMotion['deleted'].eq(0), 
-            db.joinOr([tableEvent['execDate' if datePeriod else 'setDate'].dateLe(endDate), tableEvent['execDate' if datePeriod else 'setDate'].isNull()])
+            db.joinOr([tableEvent['execDate' if datePeriod else 'setDate'].lt(endDate.addDays(1)), tableEvent['execDate' if datePeriod else 'setDate'].isNull()])
         ]
 
         groupAndOrder = u'Event.id, Action.actionType_id, Action.plannedEndDate, Action.directionDate, rbNomenclature.id ORDER BY Client.lastName , Event.setDate , rbNomenclature.name'

@@ -7,7 +7,9 @@ from Reports.ReportBase import CReportBase
 
 from library.Utils import forceString, forceInt, forceDate, forceDouble, formatSex, forceRef
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
-from EconomicAnalisys import getStmt, colEvent, colClient, colClientName, colClientSex, colClientBirthDate, colRegAddress, colLocRegAddress, colWorkAddress, colOrgStructureInfis,colEventSetDate, colEventExecDate, colServiceInfis, colServiceName,colServiceBegDate, colServiceEndDate, colMKBCode, colAmount, colSUM
+from EconomicAnalisys import getStmt, colEvent, colClient, colClientName, colClientSex, colClientBirthDate, \
+    colRegAddress, colLocRegAddress, colWorkAddress, colOrgStructureInfis, colEventSetDate, colEventExecDate, \
+    colServiceInfis, colServiceName, colServiceBegDate, colServiceEndDate, colMKBCode, colAmount, colSUM, colExposedSum
 
 
 class CEconomicAnalisysE13(CReport):
@@ -20,7 +22,7 @@ class CEconomicAnalisysE13(CReport):
             # colRegAddress, colLocRegAddress, colWorkAddress,
             colOrgStructureInfis,
             colEventSetDate, colEventExecDate, colServiceInfis, colServiceName,
-            colServiceBegDate, colServiceEndDate, colMKBCode, colAmount, colSUM]
+            colServiceBegDate, colServiceEndDate, colMKBCode, colAmount, colSUM, colExposedSum]
         colsStmt = u"""select colEvent as eventId,
         colClient as clientId,
         colClientName as person,
@@ -38,7 +40,8 @@ class CEconomicAnalisysE13(CReport):
         colServiceEndDate as enddat,
         colMKBCode as mkb,
         colAmount as amount,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """
         groupCols = u'colClient, colServiceInfis, colServiceBegDate, colServiceEndDate'
         orderCols = u'colClient, colServiceBegDate, colServiceEndDate, colServiceInfis'
@@ -63,6 +66,8 @@ class CEconomicAnalisysE13(CReport):
 
 
     def build(self, description, params):
+        needExposedSum = params.get('dataType', None) == 3
+
         reportData = {}
         clientData = {}
         clientIdSet = set()
@@ -94,6 +99,7 @@ class CEconomicAnalisysE13(CReport):
                     'mkb': forceString(record.value('mkb')),
                     'amount': forceInt(record.value('amount')),
                     'sum': forceDouble(record.value('sum')),
+                    'exposedSum': forceDouble(record.value('exposedSum')),
 
                 })
 
@@ -138,7 +144,8 @@ class CEconomicAnalisysE13(CReport):
             ('5%', [u'Дата начала лечения'], CReportBase.AlignCenter),
             ('5%', [u'Дата окончания лечения'], CReportBase.AlignCenter)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('5%',  [u''], CReportBase.AlignCenter))
         table = createTable(cursor, tableColumns)
         keys = reportData.keys()
         keys.sort()
@@ -167,8 +174,11 @@ class CEconomicAnalisysE13(CReport):
             table.setText(row, 8, u'Код МКБ', CReportBase.TableHeader)
             table.setText(row, 9, u'Кол-во услуг', CReportBase.TableHeader)
             table.setText(row, 10, u'Сумма', CReportBase.TableHeader)
+            if needExposedSum:
+                table.setText(row, 11, u'Выставленная сумма', CReportBase.TableHeader)
             row = table.addRow()
             sum = 0
+            exposedSum = 0
             amount = 0
             b = row-1
             a = 2
@@ -181,16 +191,21 @@ class CEconomicAnalisysE13(CReport):
                 table.setText(row, 8, "%s" % (usl['mkb']))
                 table.setText(row, 9, "%s" % (usl['amount']))
                 table.setText(row, 10, usl['sum'])
+                if needExposedSum:
+                    table.setText(row, 11, usl['exposedSum'])
                 sum += usl['sum']
+                exposedSum += usl['exposedSum']
                 amount += usl['amount']
                 a+=1
             row = table.addRow()
-            table.mergeCells(b, 1, a, 4)
+            table.mergeCells(b, 1, a, 5 if needExposedSum else 4)
             table.setText(row, 8, u'Итого:', CReportBase.TableHeader)
-            table.mergeCells(row, 5, 1, 3)
+            table.mergeCells(row, 5, 1, 4 if needExposedSum else 3)
             table.mergeCells(b, 0, a, 1)
             table.setText(row, 9, amount)
             table.setText(row, 10, sum)
+            if needExposedSum:
+                table.setText(row, 11, exposedSum)
         return doc
 
 
@@ -205,6 +220,7 @@ class CEconomicAnalisysE13Ex(CEconomicAnalisysE13):
         result.cbPrice.setChecked(False)
         result.cbPrice.setEnabled(False)
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

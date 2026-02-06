@@ -250,9 +250,9 @@ class CAnaliticReportsStationary(CReport):
                 ]
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
         joinOr1 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNull()])
-        joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].dateGe(begDateTime), tableAction['begDate'].dateLe(endDateTime)])
-        joinOr3 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNotNull(), tableAction['endDate'].dateGe(begDateTime)])
-        joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].dateLe(begDateTime), db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].dateGe(begDateTime)])])
+        joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].ge(begDateTime), tableAction['begDate'].lt(endDateTime.addDays(1))])
+        joinOr3 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNotNull(), tableAction['endDate'].ge(begDateTime)])
+        joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].lt(begDateTime.addDays(1)), db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].ge(begDateTime)])])
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
         if orgStructureIdList:
             cond.append(getDataOrgStructure(u'Направлен в отделение', orgStructureIdList))

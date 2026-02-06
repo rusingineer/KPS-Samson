@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client\Reports\Attach_SEMD_IEMK.ui'
+# Form implementation generated from reading ui file './Attach_SEMD_IEMK.ui'
 #
-# Created: Wed Jan 29 15:17:22 2025
+# Created: Mon Feb 24 15:09:50 2025
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -152,14 +152,14 @@ class Ui_Attach_SEMD_IEMK_Dialog(object):
         self.chkFilterDateExecActionBegDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterDateExecActionBegDate.setObjectName(_fromUtf8("chkFilterDateExecActionBegDate"))
         self.horizontalLayout_6.addWidget(self.chkFilterDateExecActionBegDate)
-        self.edtFilterDateExecActionBegDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterDateExecActionBegDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterDateExecActionBegDate.setCalendarPopup(True)
         self.edtFilterDateExecActionBegDate.setObjectName(_fromUtf8("edtFilterDateExecActionBegDate"))
         self.horizontalLayout_6.addWidget(self.edtFilterDateExecActionBegDate)
         self.chkFilterDateExecActionEndDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterDateExecActionEndDate.setObjectName(_fromUtf8("chkFilterDateExecActionEndDate"))
         self.horizontalLayout_6.addWidget(self.chkFilterDateExecActionEndDate)
-        self.edtFilterDateExecActionEndDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterDateExecActionEndDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterDateExecActionEndDate.setCalendarPopup(True)
         self.edtFilterDateExecActionEndDate.setObjectName(_fromUtf8("edtFilterDateExecActionEndDate"))
         self.horizontalLayout_6.addWidget(self.edtFilterDateExecActionEndDate)
@@ -173,14 +173,14 @@ class Ui_Attach_SEMD_IEMK_Dialog(object):
         self.chkFilterEventBegDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterEventBegDate.setObjectName(_fromUtf8("chkFilterEventBegDate"))
         self.horizontalLayout_5.addWidget(self.chkFilterEventBegDate)
-        self.edtFilterEventBegDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterEventBegDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterEventBegDate.setCalendarPopup(True)
         self.edtFilterEventBegDate.setObjectName(_fromUtf8("edtFilterEventBegDate"))
         self.horizontalLayout_5.addWidget(self.edtFilterEventBegDate)
         self.chkFilterEventEndDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterEventEndDate.setObjectName(_fromUtf8("chkFilterEventEndDate"))
         self.horizontalLayout_5.addWidget(self.chkFilterEventEndDate)
-        self.edtFilterEventEndDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterEventEndDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterEventEndDate.setCalendarPopup(True)
         self.edtFilterEventEndDate.setObjectName(_fromUtf8("edtFilterEventEndDate"))
         self.horizontalLayout_5.addWidget(self.edtFilterEventEndDate)
@@ -194,14 +194,14 @@ class Ui_Attach_SEMD_IEMK_Dialog(object):
         self.chkFilterAttachFileBegDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterAttachFileBegDate.setObjectName(_fromUtf8("chkFilterAttachFileBegDate"))
         self.horizontalLayout_7.addWidget(self.chkFilterAttachFileBegDate)
-        self.edtFilterAttachFileBegDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterAttachFileBegDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterAttachFileBegDate.setCalendarPopup(True)
         self.edtFilterAttachFileBegDate.setObjectName(_fromUtf8("edtFilterAttachFileBegDate"))
         self.horizontalLayout_7.addWidget(self.edtFilterAttachFileBegDate)
         self.chkFilterAttachFileEndDate = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterAttachFileEndDate.setObjectName(_fromUtf8("chkFilterAttachFileEndDate"))
         self.horizontalLayout_7.addWidget(self.chkFilterAttachFileEndDate)
-        self.edtFilterAttachFileEndDate = QtGui.QDateEdit(self.scrollAreaWidgetContents)
+        self.edtFilterAttachFileEndDate = CDateEdit(self.scrollAreaWidgetContents)
         self.edtFilterAttachFileEndDate.setCalendarPopup(True)
         self.edtFilterAttachFileEndDate.setObjectName(_fromUtf8("edtFilterAttachFileEndDate"))
         self.horizontalLayout_7.addWidget(self.edtFilterAttachFileEndDate)
@@ -209,7 +209,7 @@ class Ui_Attach_SEMD_IEMK_Dialog(object):
         self.chkFilterIdentify = QtGui.QCheckBox(self.scrollAreaWidgetContents)
         self.chkFilterIdentify.setObjectName(_fromUtf8("chkFilterIdentify"))
         self.verticalLayout.addWidget(self.chkFilterIdentify)
-        self.cmbFilterIdentify = CMultivalueComboBox(self.scrollAreaWidgetContents)
+        self.cmbFilterIdentify = CRecordMultivalueComboBox(self.scrollAreaWidgetContents)
         self.cmbFilterIdentify.setEnabled(False)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -316,7 +316,7 @@ class Ui_Attach_SEMD_IEMK_Dialog(object):
         self.cmbFilterIsFile.setItemText(1, _translate("Attach_SEMD_IEMK_Dialog", "Отсутствуют", None))
         self.lblFilterFileType.setText(_translate("Attach_SEMD_IEMK_Dialog", "Тип файлов", None))
         self.cmbFilterFileType.setItemText(0, _translate("Attach_SEMD_IEMK_Dialog", "Есть xml", None))
-        self.cmbFilterFileType.setItemText(1, _translate("Attach_SEMD_IEMK_Dialog", "Есть только пдф", None))
+        self.cmbFilterFileType.setItemText(1, _translate("Attach_SEMD_IEMK_Dialog", "Есть только pdf", None))
         self.btnFilterApply.setText(_translate("Attach_SEMD_IEMK_Dialog", "Применить", None))
         self.btnFilterReset.setText(_translate("Attach_SEMD_IEMK_Dialog", "Сбросить", None))
         self.lblCount.setText(_translate("Attach_SEMD_IEMK_Dialog", "Записей в списке: 0", None))
@@ -330,4 +330,6 @@ from library.Attach.AttachButton import CAttachButton
 from library.PrintTemplates import CPrintButton
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from library.TableView import CTableView
-from library.MultivalueComboBox import CRBMultivalueComboBox, CMultivalueComboBox
+from library.MultivalueComboBox import CRBMultivalueComboBox, CRecordMultivalueComboBox
+from library.DateEdit import CDateEdit
+

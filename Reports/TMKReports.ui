@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>944</width>
+    <width>942</width>
     <height>698</height>
    </rect>
   </property>
@@ -20,10 +20,38 @@
    <string>TestWindow</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QTableWidget" name="tableWidget"/>
+   <item row="1" column="0">
+    <layout class="QHBoxLayout" name="hrzLay_3">
+     <item>
+      <widget class="QLabel" name="lblNumRec">
+       <property name="text">
+        <string>Всего записей: 0</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="hrzSpc">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnPrint">
+       <property name="text">
+        <string>Печать</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
-   <item row="0" column="1">
+   <item row="0" column="1" rowspan="2">
     <widget class="QGroupBox" name="groupBoxFilters">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -48,7 +76,7 @@
        <number>2</number>
       </property>
       <item row="0" column="0">
-       <layout class="QVBoxLayout" name="verticalLayout">
+       <layout class="QVBoxLayout" name="vrtLay">
         <item>
          <widget class="QLabel" name="lblTemplatesId">
           <property name="text">
@@ -60,16 +88,16 @@
          <widget class="QComboBox" name="cmbTemplatesId"/>
         </item>
         <item>
-         <widget class="QLabel" name="lblTimeCreateApplication">
+         <widget class="QLabel" name="lblCreateDate">
           <property name="text">
            <string>Время создания заявки </string>
           </property>
          </widget>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
+         <layout class="QHBoxLayout" name="hrzLay">
           <item>
-           <widget class="QCheckBox" name="chkCreateApplicationBegDate">
+           <widget class="QCheckBox" name="chkBegDate">
             <property name="text">
              <string>С</string>
             </property>
@@ -79,7 +107,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QDateEdit" name="edtCreateApplicationBegDate">
+           <widget class="QDateEdit" name="edtBegDate">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -89,14 +117,14 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="chkCreateApplicationEndDate">
+           <widget class="QCheckBox" name="chkEndDate">
             <property name="text">
              <string>по</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QDateEdit" name="edtCreateApplicationEndDate">
+           <widget class="QDateEdit" name="edtEndDate">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -108,27 +136,60 @@
          </layout>
         </item>
         <item>
-         <widget class="QLabel" name="lblTimeCreateApplication_2">
+         <widget class="QLabel" name="lblDirections">
           <property name="text">
-           <string>Спрятать колонки</string>
+           <string>Направления</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="CMultivalueComboBox" name="cmbFilterI">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
+         <widget class="QComboBox" name="cmbDirections">
+          <item>
+           <property name="text">
+            <string>Все</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Входящие</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Исходящие</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="lblStatusName">
+          <property name="text">
+           <string>Статус заявки</string>
           </property>
          </widget>
         </item>
         <item>
-         <spacer name="verticalSpacer_2">
+         <widget class="CMultivalueComboBox" name="cmbStatusName"/>
+        </item>
+        <item>
+         <widget class="QLabel" name="lblOrganisation">
+          <property name="text">
+           <string>Целевая организация</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="CMultivalueComboBox" name="cmbOrganisation"/>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="chkGetData">
+          <property name="text">
+           <string>Загрузить данные с сервера</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="vrtSpc_2">
           <property name="orientation">
            <enum>Qt::Vertical</enum>
           </property>
@@ -141,14 +202,7 @@
          </spacer>
         </item>
         <item>
-         <widget class="QCheckBox" name="chkGetData">
-          <property name="text">
-           <string>Получать данные с сервера </string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <layout class="QHBoxLayout" name="hrzLay_2">
           <item>
            <widget class="QPushButton" name="btnFilterApply">
             <property name="text">
@@ -170,9 +224,17 @@
      </layout>
     </widget>
    </item>
+   <item row="0" column="0">
+    <widget class="CTableView" name="tblReport"/>
+   </item>
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
   <customwidget>
    <class>CMultivalueComboBox</class>
    <extends>QComboBox</extends>
@@ -182,9 +244,9 @@
  <resources/>
  <connections>
   <connection>
-   <sender>chkCreateApplicationBegDate</sender>
+   <sender>chkBegDate</sender>
    <signal>toggled(bool)</signal>
-   <receiver>edtCreateApplicationBegDate</receiver>
+   <receiver>edtBegDate</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -198,9 +260,9 @@
    </hints>
   </connection>
   <connection>
-   <sender>chkCreateApplicationEndDate</sender>
+   <sender>chkEndDate</sender>
    <signal>toggled(bool)</signal>
-   <receiver>edtCreateApplicationEndDate</receiver>
+   <receiver>edtEndDate</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">

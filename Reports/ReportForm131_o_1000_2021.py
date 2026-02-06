@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -79,8 +79,8 @@ def selectData(params):
         tableAttachType = db.table('rbAttachType')
         cond = [tableClientAttach['deleted'].eq(0),
                 tableAttachType['temporary'].eq(0),
-                db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].dateLe(endDate)]),
-                db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].dateGe(begDate)])
+                db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].lt(endDate.addDays(1))]),
+                db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].ge(begDate)])
                 ]
         if orgId:
             cond.append(tableClientAttach['LPU_id'].eq(orgId))
@@ -108,7 +108,7 @@ def selectData(params):
           LEFT JOIN rbEventProfile ON rbEventProfile.id = EventType.eventProfile_id
           WHERE Event.deleted = 0
             AND rbEventProfile.code IN (8008, 8009, 8011, 8014, 8015)
-            AND DATE(Event.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s)
+            AND (Event.execDate >= %(begDate)s AND Event.execDate < %(endDate)s)
 
             %(condAttach)s
             %(condOrgStructure)s
@@ -118,7 +118,7 @@ def selectData(params):
         LEFT JOIN ClientSocStatus ON ClientSocStatus.client_id = Client.id
         LEFT JOIN rbSocStatusClass ON rbSocStatusClass.id = ClientSocStatus.socStatusClass_id
     GROUP BY E.id''' % dict(begDate = db.formatDate(begDate),
-                                 endDate = db.formatDate(endDate),
+                                 endDate = db.formatDate(endDate.addDays(1)),
                                  condAttach = (u'AND ' + condAttach) if condAttach else u'',
                                  condOrgStructure = condOrgStructure,
                                  mesDispans = mesDispans)
@@ -375,10 +375,11 @@ class CReportForm131_o_1000_2021(CReport):
         #     contingentTypeCond.append(db.joinAnd(appendClientToContingentTypeCond(contingentTypeId)))
         # cond = [ db.joinOr(contingentTypeCond) ]
         cond = [tableRbSocStatusClass['code'].eq('profilac'),
-                db.joinOr([tableClientSocStatus['begDate'].isNull(), tableClientSocStatus['begDate'].dateLe(endDate)]),
-                db.joinOr([tableClientSocStatus['endDate'].isNull(), tableClientSocStatus['endDate'].dateGe(begDate)]),
+                db.joinOr([tableClientSocStatus['begDate'].isNull(), tableClientSocStatus['begDate'].lt(endDate.addDays(1))]),
+                db.joinOr([tableClientSocStatus['endDate'].isNull(), tableClientSocStatus['endDate'].ge(begDate)]),
                 ]
         cond.append(tableClient['deleted'].eq(0))
+        cond.append(tableClientSocStatus['deleted'].eq(0))
         if isAttache:
             # cond.append('SUBSTR(AddressHouse.`KLADRCode`, 1, 2)=\'%s\''%QtGui.qApp.defaultKLADR()[0:2])
             tableClientAddress = db.table('ClientAddress')

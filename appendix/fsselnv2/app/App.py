@@ -41,7 +41,7 @@ from Exchange.FSSv2.zsiUtils                import (
 #                                                     serializeAndRestore,
                                                    )
 from library.BaseApp                        import CBaseApp
-from library.HttpsConnection                import CHttpsConnection
+from library.HttpsConnection                import getConnectionClass
 from library.MSCAPI                         import MSCApi
 from library.Utils                          import (
 #                                                     calcAgeInMonths,
@@ -781,7 +781,7 @@ class CApp(CBaseApp):
         locator = FileOperationsLnServiceLocator()
         port    = locator.getFileOperationsLnPort(serviceUrl,
                                                   nsdict    = nsdict,
-                                                  transport = CHttpsConnection,
+                                                  transport = getConnectionClass(serviceUrl),
                                                   transdict = { 'proxy': self.getProxyPreferences()
                                                               }
 #                                                  tracefile = log,

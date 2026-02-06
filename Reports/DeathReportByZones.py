@@ -71,7 +71,7 @@ class CDeathReportByZones(CReport):
         tableParentOS = tableOS.alias('ParentOS')
         table = tableOS.leftJoin(tablePerson, db.joinAnd([tablePerson['orgStructure_id'].eq(tableOS['id']),
                                                           db.joinOr([tablePerson['retireDate'].isNull(),
-                                                                     tablePerson['retireDate'].dateGe(endDate)])
+                                                                     tablePerson['retireDate'].ge(endDate)])
             ]))
         table = table.leftJoin(tableParentOS, tableParentOS['id'].eq(tableOS['parent_id']))
 
@@ -157,8 +157,8 @@ class CDeathReportByZones(CReport):
         #количество умерших клиентов на участке
         #cond0 = cond[:]
         condDeath = [
-            tableClient['deathDate'].dateGe(begDate),
-            tableClient['deathDate'].dateLe(endDate)]
+            tableClient['deathDate'].ge(begDate),
+            tableClient['deathDate'].lt(endDate.addDays(1))]
         #cond0.insert(1, db.joinAnd(condDeath))
         stmt = db.selectStmtGroupBy(table, cols, condDeath, tableOS['id'].name())
         query = db.query(stmt)
@@ -194,8 +194,8 @@ class CDeathReportByZones(CReport):
 
         cols = ['count(DISTINCT Event.id)', tableOS['id']]
         condEvent = [db.joinOr([tableMedicalAidType['code'].eq('4'), tableMedicalAidType['code'].eq('5')]),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate)
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1))
             ]
 
         stmt = db.selectStmtGroupBy(table, cols, condEvent, tableOS['id'].name())
@@ -212,8 +212,8 @@ class CDeathReportByZones(CReport):
         #количество событий "Констатация смерти" среди пациентов участка
         table2 = table.leftJoin(tablePurpose, tableEventType['purpose_id'].eq(tablePurpose['id']))
         condEvent = [tablePurpose['code'].eq('5'),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate)]
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1))]
 
         stmt = db.selectStmtGroupBy(table2, cols, condEvent, tableOS['id'].name())
         query = db.query(stmt)
@@ -342,7 +342,7 @@ class CDetailedDeathReportByZones(CReport):
 
         cond = [tableOS['areaType'].eq(1),
                 db.joinOr([tablePerson['retireDate'].isNull(),
-                           tablePerson['retireDate'].dateGe(endDate)])]
+                           tablePerson['retireDate'].ge(endDate)])]
         if orgStructureIdList:
             cond.append(tableOS['id'].inlist(orgStructureIdList))
         stmt = db.selectStmtGroupBy(table, cols, cond, [tableOS['id'].name(), u'CAST(OrgStructure.name AS SIGNED)', u"'Doctor'" , u'parentName'])
@@ -435,8 +435,8 @@ class CDetailedDeathReportByZones(CReport):
         #количество умерших клиентов на участке
         #cond0 = cond[:]
         condDeath = [
-            tableClient['deathDate'].dateGe(begDate),
-            tableClient['deathDate'].dateLe(endDate),
+            tableClient['deathDate'].ge(begDate),
+            tableClient['deathDate'].lt(endDate.addDays(1)),
             tableEventType['form'].like(u'106'),
             tableEventType['deleted'].eq(0),
             tableEvent['deleted'].eq(0),
@@ -582,8 +582,8 @@ AND DC.event_id = Event.id))))''')
         if orgStructureIdList:
             cond1.append(tableOS['id'].inlist(orgStructureIdList))
         condEvent = [
-                     tableEvent['execDate'].dateGe(begDate),
-                     tableEvent['execDate'].dateLe(endDate)
+                     tableEvent['execDate'].ge(begDate),
+                     tableEvent['execDate'].lt(endDate.addDays(1))
                     ]
         cond1.insert(1, db.joinAnd(condEvent))
         cond1.append('''(rbDiagnosisType.code = '1'

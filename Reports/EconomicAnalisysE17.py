@@ -7,7 +7,8 @@ from Reports.ReportBase import CReportBase
 
 from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
-from EconomicAnalisys import getStmt, colClient, colEvent, colPerson, colServiceInfis, colServiceName, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM
+from EconomicAnalisys import getStmt, colClient, colEvent, colPerson, colServiceInfis, colServiceName, colCSG, colPos, \
+    colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum
 
 
 class CEconomicAnalisysE17(CReport):
@@ -17,7 +18,8 @@ class CEconomicAnalisysE17(CReport):
 
 
     def selectData(self, params):
-        cols = [colClient, colEvent, colPerson, colServiceInfis, colServiceName, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM]
+        cols = [colClient, colEvent, colPerson, colServiceInfis, colServiceName, colCSG, colPos, colObr, colSMP, colKD,
+                colPD, colUET, colAmount, colSUM, colExposedSum]
         colsStmt = u"""select colPerson as person,
         colServiceInfis as infis,
         colServiceName as name,
@@ -32,7 +34,8 @@ class CEconomicAnalisysE17(CReport):
         sum(colPD) as pd,
         sum(colSMP) as callambulance,
         sum(IF(colPos = 0 and colCSG = 0 and colSMP = 0 and colObr = 0, colAmount, 0)) as usl,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """
         groupCols = u'colPerson, colServiceInfis, colServiceName'
         orderCols = u'colPerson, colServiceInfis, colServiceName'
@@ -43,7 +46,9 @@ class CEconomicAnalisysE17(CReport):
         
 
     def build(self, description, params):
-        reportRowSize = 15
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 21 if needExposedSum else 15
         reportData = {}
 
         def processQuery(query):
@@ -57,12 +62,14 @@ class CEconomicAnalisysE17(CReport):
                 pd = forceInt(record.value('pd'))
                 uet = forceDouble(record.value('uet'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
                 mes = forceInt(record.value('mes'))
                 pos = forceInt(record.value('pos'))
                 obr = forceInt(record.value('obr'))
                 usl = forceInt(record.value('usl'))
                 callambulance = forceInt(record.value('callambulance'))
 
+                shiftExposedSum = 1 if needExposedSum else 0
                 key = (person if person else u'Не задано', infis,   name)
                 reportLine = reportData.setdefault(key, [0]*reportRowSize)
                 reportLine[0] += amount
@@ -70,21 +77,43 @@ class CEconomicAnalisysE17(CReport):
                 reportLine[2] += pd
                 reportLine[3] += uet
                 reportLine[4] += sum
-                reportLine[5] += mes
-                reportLine[6] += pos
-                reportLine[7] += obr
-                reportLine[8] += usl
-                reportLine[9] += callambulance
+                if needExposedSum:
+                    reportLine[5] += exposedSum
+                reportLine[5+shiftExposedSum] += mes
+                reportLine[6+shiftExposedSum] += pos
+                reportLine[7+shiftExposedSum] += obr
+                reportLine[8+shiftExposedSum] += usl
+                reportLine[9+shiftExposedSum] += callambulance
                 if mes > 0:
-                    reportLine[10] += sum
+                    if needExposedSum:
+                        reportLine[11] += sum
+                        reportLine[12] += exposedSum
+                    else:
+                        reportLine[10] += sum
                 if pos > 0:
-                    reportLine[11] += sum
+                    if needExposedSum:
+                        reportLine[13] += sum
+                        reportLine[14] += exposedSum
+                    else:
+                        reportLine[11] += sum
                 if obr > 0:
-                    reportLine[12] += sum
+                    if needExposedSum:
+                        reportLine[15] += sum
+                        reportLine[16] += exposedSum
+                    else:
+                        reportLine[12] += sum
                 if usl > 0:
-                    reportLine[13] += sum
+                    if needExposedSum:
+                        reportLine[17] += sum
+                        reportLine[18] += exposedSum
+                    else:
+                        reportLine[13] += sum
                 if callambulance > 0:
-                    reportLine[14] += sum
+                    if needExposedSum:
+                        reportLine[19] += sum
+                        reportLine[20] += exposedSum
+                    else:
+                        reportLine[14] += sum
 
         query = self.selectData(params)
         processQuery(query)
@@ -107,12 +136,13 @@ class CEconomicAnalisysE17(CReport):
             ('10%',  [u'Кол-во койко-дней'], CReportBase.AlignRight),
             ('10%',  [u'Кол-во дней лечения'], CReportBase.AlignRight),
             ('10%',  [u'Кол-во УЕТ'], CReportBase.AlignRight),
-            ('10%',  [u'Сумма'], CReportBase.AlignRight),
+            ('5%',  [u'Сумма'], CReportBase.AlignRight),
             ]
-
+        if needExposedSum:
+            tableColumns.append(('5%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 1, 2)
-        table.mergeCells(1, 2, 1, 10)
+        table.mergeCells(1, 2, 1, reportRowSize-5)
         totalByPerson = [0]*reportRowSize
         totalByReport = [0]*reportRowSize
         colsShift = 2
@@ -124,29 +154,50 @@ class CEconomicAnalisysE17(CReport):
 
         # чтобы не повторять кусок кода, надо будет улучшить
         def drawTotal(table,  totalByPerson):
-
+            shiftExposedSum = 1 if needExposedSum else 0
             row = table.addRow()
 
             table.setText(row, 1, u'кол-во КСГ', CReportBase.TableHeader,  CReportBase.AlignRight)
-            table.setText(row, 2, totalByPerson[5],  CReportBase.TableHeader,  CReportBase.AlignLeft)
-            table.setText(row, 6, totalByPerson[10],  CReportBase.TableHeader)
+            table.setText(row, 2, totalByPerson[5+shiftExposedSum],  CReportBase.TableHeader,  CReportBase.AlignLeft)
+            if needExposedSum:
+                table.setText(row, 6, totalByPerson[11], CReportBase.TableHeader)
+                table.setText(row, 7, totalByPerson[12], CReportBase.TableHeader)
+            else:
+                table.setText(row, 6, totalByPerson[10],  CReportBase.TableHeader)
             row = table.addRow()
             table.setText(row, 1, u'кол-во посещений', CReportBase.TableHeader,  CReportBase.AlignRight)
-            table.setText(row, 2, totalByPerson[6],  CReportBase.TableHeader,  CReportBase.AlignLeft)
-            table.setText(row, 6, totalByPerson[11],  CReportBase.TableHeader)
+            table.setText(row, 2, totalByPerson[6+shiftExposedSum],  CReportBase.TableHeader,  CReportBase.AlignLeft)
+            if needExposedSum:
+                table.setText(row, 6, totalByPerson[13], CReportBase.TableHeader)
+                table.setText(row, 7, totalByPerson[14], CReportBase.TableHeader)
+            else:
+                table.setText(row, 6, totalByPerson[11],  CReportBase.TableHeader)
             row = table.addRow()
             table.setText(row, 1, u'кол-во обращений', CReportBase.TableHeader,  CReportBase.AlignRight)
-            table.setText(row, 2, totalByPerson[7],  CReportBase.TableHeader,  CReportBase.AlignLeft)
-            table.setText(row, 6, totalByPerson[12],  CReportBase.TableHeader)
+            table.setText(row, 2, totalByPerson[7+shiftExposedSum],  CReportBase.TableHeader,  CReportBase.AlignLeft)
+            if needExposedSum:
+                table.setText(row, 6, totalByPerson[15], CReportBase.TableHeader)
+                table.setText(row, 7, totalByPerson[16], CReportBase.TableHeader)
+            else:
+                table.setText(row, 6, totalByPerson[12],  CReportBase.TableHeader)
             row = table.addRow()
             table.setText(row, 1, u'кол-во простых услуг', CReportBase.TableHeader,  CReportBase.AlignRight)
-            table.setText(row, 2, totalByPerson[8],  CReportBase.TableHeader,  CReportBase.AlignLeft)
-            table.setText(row, 6, totalByPerson[13],  CReportBase.TableHeader)
+            table.setText(row, 2, totalByPerson[8+shiftExposedSum],  CReportBase.TableHeader,  CReportBase.AlignLeft)
+            if needExposedSum:
+                table.setText(row, 6, totalByPerson[17], CReportBase.TableHeader)
+                table.setText(row, 7, totalByPerson[18], CReportBase.TableHeader)
+            else:
+                table.setText(row, 6, totalByPerson[13],  CReportBase.TableHeader)
             row = table.addRow()
             table.setText(row, 1, u'кол-во вызовов СМП', CReportBase.TableHeader,  CReportBase.AlignRight)
-            table.setText(row, 2, totalByPerson[9],  CReportBase.TableHeader,  CReportBase.AlignLeft)
-            table.setText(row, 6, totalByPerson[14],  CReportBase.TableHeader)
+            table.setText(row, 2, totalByPerson[9+shiftExposedSum],  CReportBase.TableHeader,  CReportBase.AlignLeft)
+            if needExposedSum:
+                table.setText(row, 6, totalByPerson[19], CReportBase.TableHeader)
+                table.setText(row, 7, totalByPerson[20], CReportBase.TableHeader)
+            else:
+                table.setText(row, 6, totalByPerson[14],  CReportBase.TableHeader)
 
+        colLessThan = 6 if needExposedSum else 5
         for key in keys:
             person = key[0]
             uslugaKod = key[1]
@@ -157,7 +208,7 @@ class CEconomicAnalisysE17(CReport):
                     row = table.addRow()
                     table.setText(row, 0, u'Итого по врачу %s' % prevPerson)
                     for col in xrange(reportRowSize):
-                        if col < 5:
+                        if col < colLessThan:
                             table.setText(row, col + colsShift, totalByPerson[col])
                         totalByReport[col] = totalByReport[col] + totalByPerson[col]
                     drawTotal(table,  totalByPerson)
@@ -165,7 +216,7 @@ class CEconomicAnalisysE17(CReport):
 
                 row = table.addRow()
                 table.setText(row, 0, u'Врач: %s' % person,  CReportBase.TableHeader)
-                table.mergeCells(row, 0, 1, 7)
+                table.mergeCells(row, 0, 1, 8 if needExposedSum else 7)
                 prevPerson = person
 
             row = table.addRow()
@@ -173,7 +224,7 @@ class CEconomicAnalisysE17(CReport):
             table.setText(row, 1, usluga)
             reportLine = reportData[key]
             for col in xrange(reportRowSize):
-                if col < 5:
+                if col < colLessThan:
                     table.setText(row, col + colsShift, reportLine[col])
                 totalByPerson[col] = totalByPerson[col] + reportLine[col]
         if prevPerson != person:
@@ -181,7 +232,7 @@ class CEconomicAnalisysE17(CReport):
                 row = table.addRow()
                 table.setText(row, 0, u'Итого по врачу %s' % prevPerson)
                 for col in xrange(reportRowSize):
-                    if col < 5:
+                    if col < colLessThan:
                         table.setText(row, col + colsShift, totalByPerson[col])
                     totalByReport[col] = totalByReport[col] + totalByPerson[col]
 
@@ -189,14 +240,14 @@ class CEconomicAnalisysE17(CReport):
             row = table.addRow()
             table.setText(row, 0, u'Итого по врачу %s' % prevPerson)
             for col in xrange(reportRowSize):
-                if col < 5:
+                if col < colLessThan:
                     table.setText(row, col + colsShift, totalByPerson[col])
                 totalByReport[col] = totalByReport[col] + totalByPerson[col]
             drawTotal(table,  totalByPerson)
         row = table.addRow()
         table.setText(row, 0, u'Итого')
         for col in xrange(reportRowSize):
-            if col < 5:
+            if col < colLessThan:
                 table.setText(row, col + colsShift, totalByReport[col])
         drawTotal(table, totalByReport)
         return doc
@@ -211,6 +262,7 @@ class CEconomicAnalisysE17Ex(CEconomicAnalisysE17):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

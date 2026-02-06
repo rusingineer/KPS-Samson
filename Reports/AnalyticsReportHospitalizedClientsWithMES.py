@@ -99,11 +99,11 @@ def selectData(params):
     tableAction = tableActionMoving
     orgStructurePropertyTypeName = u'Отделение пребывания'
     actionTypeIdList = db.getIdList('ActionType', 'id', 'flatCode LIKE \'moving%\' AND deleted=0')
-    actionJoinDateCond = [tableAction['begDate'].dateLe(endDate),
-                              tableAction['begDate'].dateGe(begDate),
+    actionJoinDateCond = [tableAction['begDate'].lt(endDate.addDays(1)),
+                              tableAction['begDate'].ge(begDate),
                               tableAction['deleted'].eq(0),
                               db.joinOr(
-                                        [tableAction['endDate'].dateGe(endDate),
+                                        [tableAction['endDate'].ge(endDate),
                                          tableAction['endDate'].isNull()
                                         ]
                                        )
@@ -116,9 +116,9 @@ def selectData(params):
         tableAction = tableActionLeaved
         orgStructurePropertyTypeName = u'Отделение'
         actionTypeIdList = db.getIdList('ActionType', 'id', 'flatCode LIKE \'leaved%\' AND deleted=0')
-        actionJoinDateCond = [tableAction['begDate'].dateLe(endDate),
-                              tableAction['begDate'].dateGe(begDate),
-                              tableAction['endDate'].dateLe(endDate),
+        actionJoinDateCond = [tableAction['begDate'].lt(endDate.addDays(1)),
+                              tableAction['begDate'].ge(begDate),
+                              tableAction['endDate'].lt(endDate.addDays(1)),
                               tableAction['endDate'].isNotNull(),
                               tableAction['deleted'].eq(0)
                              ]

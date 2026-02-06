@@ -289,7 +289,7 @@ class CAnaliticReportsSurgery(CReport):
             mapMainRows = createMapCodeToRowIdx( [row[2] for row in MainRows4000] )
             if isNomeclature:
                 rowSize = 28
-                reportMainData = [0]*rowSize
+                reportMainData = [0]*(rowSize-1)
                 reportMainData.append(0.0)
             doc = QtGui.QTextDocument()
             cursor = QtGui.QTextCursor(doc)
@@ -528,9 +528,9 @@ class CAnaliticReportsSurgery(CReport):
             if existFlatCode:
                 cond.append(tableActionType['flatCode'].ne(u''))
             if bool(begDateTime):
-                cond.append(tableAction['endDate'].dateGe(begDateTime))
+                cond.append(tableAction['endDate'].ge(begDateTime))
             if bool(endDateTime):
-                cond.append(tableAction['endDate'].dateLe(endDateTime))
+                cond.append(tableAction['endDate'].lt(endDateTime.addDays(1)))
             if selectType:
                 table = table.innerJoin(tablePerson, tableEvent['execPerson_id'].eq(tablePerson['id']))
             else:

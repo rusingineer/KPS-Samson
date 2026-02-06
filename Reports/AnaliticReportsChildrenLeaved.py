@@ -288,9 +288,9 @@ class CAnaliticReportsChildrenLeaved(CReport):
         if profileBedId:
             cond.append(getPropertyHospitalBedProfile(u'Профиль', profileBedId))
         if bool(begDate):
-            cond.append(tableAction['endDate'].dateGe(begDate))
+            cond.append(tableAction['endDate'].ge(begDate))
         if bool(endDate):
-            cond.append(tableAction['endDate'].dateLe(endDate))
+            cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         table = table.innerJoin(tableDiagnostic, tableEvent['id'].eq(tableDiagnostic['event_id']))
         table = table.innerJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
         table = table.innerJoin(tableDiagnosisType, tableDiagnosisType['id'].eq(tableDiagnostic['diagnosisType_id']))

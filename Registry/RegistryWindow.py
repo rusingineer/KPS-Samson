@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -20,7 +20,7 @@ import json
 from PyQt4         import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QMetaObject, QObject, QRegExp, QVariant, pyqtSignature, SIGNAL, QTime, QByteArray
 
-from Surveillance.SurveillanceDialog import CSurveillanceDialog, CConsistsDiagnosisModel, CRemoveDiagnosisModel
+from Surveillance.SurveillanceDialog import CSurveillanceDialog, isSurveillanceActive
 from Events.ActionsSelector import selectActionTypes
 from library.Attach.AttachedFile import CAttachedFilesModel
 from library.Counter import CCounterController
@@ -62,6 +62,7 @@ from F088.F0882022EditDialog                import CF0882022EditDialog
 from F088.F088CreateDialog                  import CF088CreateDialog
 from F090.F090CreateDialog                  import createF090
 from F090.F090EditDialog                    import CF090EditDialog
+from F111.F111EditDialog                    import CF111EditDialog
 from Events.ActionInfo import CLocActionInfoList, CActionTypeInfo, CActionInfo
 from Events.ActionPropertiesTable           import CActionPropertiesTableModel
 from Events.ActionTypeDialog                import CActionTypeDialogTableModel
@@ -71,20 +72,20 @@ from Events.EventInfo import CEmergencyEventInfoList, CVisitInfoListEx, CVisitIn
 from RefBooks.Service.Info                  import CServiceInfo
 from Events.TempInvalidEditDialog           import CTempInvalidEditDialog, CTempInvalidCreateDialog, getEventListByDates, getTempInvalidIdOpen
 from Events.TempInvalidInfo                 import CTempInvalidInfo, CTempInvalidAllInfoList
-from Events.Utils                           import (checkTissueJournalStatusByActions,
-                                                    getActionTypeDescendants,
-                                                    getActionTypeIdListByFlatCode,
-                                                    getEventContext,
-                                                    getEventName,
-                                                    getEventPrevEventTypeId,
-                                                    getEventPurposeId,
-                                                    getPayStatusMaskByCode,
-                                                    getPayStatusValueByCode,
-                                                    getPrevEventIdByEventTypeId,
-                                                    getWorkEventTypeFilter,
-                                                    payStatusText,
-                                                    sendTempInvalidDocuments
-                                                   )
+from Events.Utils import (checkTissueJournalStatusByActions,
+                          getActionTypeDescendants,
+                          getActionTypeIdListByFlatCode,
+                          getEventContext, getEventCounterId,
+                          getEventName,
+                          getEventPrevEventTypeId,
+                          getEventPurposeId,
+                          getPayStatusMaskByCode,
+                          getPayStatusValueByCode,
+                          getPrevEventIdByEventTypeId,
+                          getWorkEventTypeFilter,
+                          payStatusText,
+                          sendTempInvalidDocuments
+                          )
 from Exchange.ExchangeScanPromobot import scanning
 from KLADR.Utils                            import getLikeMaskForRegion
 from Notifications.NotificationRule import CNotificationRule
@@ -224,6 +225,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addModels('ActionsMisc', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ActionsMiscProperties', CActionPropertiesTableModel(self))
         self.addModels('ActionsMiscAttachedDocuments', CAttachedFilesModel(self))
+        self.addModels('ActionsAll', CActionsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
+        self.addModels('ActionsAllProperties', CActionPropertiesTableModel(self))
+        self.addModels('ActionsAllAttachedDocuments', CAttachedFilesModel(self))
         self.addModels('ExpertTempInvalid', CExpertTempInvalidTableModel(self, self.modelClients.recordCache()))
         self.addModels('ExpertTempInvalidRelation', CExpertTempInvalidTableModel(self, self.modelClients.recordCache()))
         self.addModels('ExpertTempInvalidPeriods',    CExpertTempInvalidPeriodsTableModel(self))
@@ -269,6 +273,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actEditStatusObservationClient', QtGui.QAction(u'Изменить статус наблюдения пациента', self))
         self.addObject('actSurveillancePlanningClients', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
         self.actEditStatusObservationClient.setShortcut('Shift+F5')
+        self.addObject('actUpdateF111', QtGui.QAction(u'Открыть карту беременной и родильницы', self))
         self.addObject('actShowContingentsClient', QtGui.QAction(u'Показать все наблюдаемые контингенты', self))
         self.addObject('actCheckClientAttach', QtGui.QAction(u'Проверить прикрепление', self))
         self.addObject('actPortal_Doctor', QtGui.QAction(u'Перейти на портал врача', self))
@@ -289,6 +294,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actCreateRelatedAction', QtGui.QAction(u'Создать связанное действие', self))
         self.addObject('actEditActionEvent',  QtGui.QAction(u'Редактировать обращение', self))
         self.addObject('actAddActionEvent',  QtGui.QAction(u'Добавить действие', self))
+        self.actAddActionEvent.setShortcut('Shift+F8')
         self.addObject('actJobTicketsEvent',  QtGui.QAction(u'Работы', self))
         self.addObject('actEditVisitEvent',  QtGui.QAction(u'Редактировать обращение', self))
         self.addObject('actEditExpertMCEvent', QtGui.QAction(u'Редактировать обращение', self))
@@ -332,7 +338,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actAmbCreateEvent',              QtGui.QAction(u'Новое обращение', self))
         self.addObject('actAmbDeleteOrder',              QtGui.QAction(u'Удалить из очереди', self))
         self.addObject('actAmbChangeNotes',              QtGui.QAction(u'Изменить жалобы', self))
-        self.addObject('actAmbPrintOrder',               QtGui.QAction(u'Напечатать направление', self))
+        self.addObject('actAmbPrintOrder', getPrintAction(self, 'orderAmb', u'Напечатать направление', False))   #QtGui.QAction(u'Напечатать направление', self))
+        self.addObject('actAmbHomePrintOrder', getPrintAction(self, 'orderHome', u'Напечатать направление (вызов на дом)', False))
         self.addObject('actJumpQueuePosition',  QtGui.QAction(u'Перейти в график', self))
         self.addObject('actPrintBeforeRecords',  QtGui.QAction(u'Печать предварительной записи', self))
         self.addObject('actShowPreRecordInfo', QtGui.QAction(u'Свойства записи', self))
@@ -343,11 +350,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addObject('actUpdateEventTypeByEvent',  QtGui.QAction(u'Изменить тип события', self))
         self.addObject('actUndoExpertise', QtGui.QAction(u'Отменить экспертизу', self))
         self.addObject('actOpenAccountingByAction', QtGui.QAction(u'Перейти к счетам', self))
-        self.addObject('actOpenAccountingBySingleActionStatus', QtGui.QAction(u'Перейти к счетам', self))
+        self.addObject('actOpenAccountingBySingleAction', QtGui.QAction(u'Перейти к счетам', self))
         self.addObject('actOpenAccountingBySingleVisits', QtGui.QAction(u'Перейти к счетам', self))
-        self.addObject('actOpenAccountingBySingleActionDiagnostic', QtGui.QAction(u'Перейти к счетам', self))
-        self.addObject('actOpenAccountingBySingleActionCure', QtGui.QAction(u'Перейти к счетам', self))
-        self.addObject('actOpenAccountingBySingleActionMisc', QtGui.QAction(u'Перейти к счетам', self))
         self.addObject('actOpenAccountingByVisit',  QtGui.QAction(u'Перейти к счетам', self))
         self.addObject('actConcatEvents',  QtGui.QAction(u'Объединить события', self))
         self.addObject('actMakePersonalAccount',  QtGui.QAction(u'Сформировать индивидуальный счет', self))
@@ -382,10 +386,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.clientsSortingDest = 'ASC'
 
         self.setupUi(self.internal)
-
-        self.number_lisn_index_tabMain = []
-        for i in xrange(self.tabMain.count()):
-            self.number_lisn_index_tabMain.append(i)
+        self.tabMain.saveTabInfo()
 
         self.setWindowTitle(self.internal.windowTitle())
         self.setWidgetResizable(True)
@@ -521,6 +522,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setModels(self.tblActionsMisc, self.modelActionsMisc, self.selectionModelActionsMisc)
         self.setModels(self.tblActionsMiscProperties, self.modelActionsMiscProperties, self.selectionModelActionsMiscProperties)
         self.setModels(self.tblActionsMiscAttachedDocuments, self.modelActionsMiscAttachedDocuments, self.selectionModelActionsMiscAttachedDocuments)
+        self.setModels(self.tblActionsAll, self.modelActionsAll, self.selectionModelActionsAll)
+        self.setModels(self.tblActionsAllProperties, self.modelActionsAllProperties, self.selectionModelActionsAllProperties)
+        self.setModels(self.tblActionsAllAttachedDocuments, self.modelActionsAllAttachedDocuments, self.selectionModelActionsAllAttachedDocuments)
         self.setModels(self.tblExpertTempInvalid, self.modelExpertTempInvalid, self.selectionModelExpertTempInvalid)
         self.setModels(self.tblExpertTempInvalidRelation, self.modelExpertTempInvalidRelation, self.selectionModelExpertTempInvalidRelation)
         self.setModels(self.tblExpertTempInvalidPeriods, self.modelExpertTempInvalidPeriods, self.selectionModelExpertTempInvalidPeriods)
@@ -550,27 +554,26 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setModels(self.tblExpertMSIProperties, self.modelExpertMSIProperties, self.selectionModelExpertMSIProperties)
         self.setModels(self.tblVisits, self.modelVisits, self.selectionModelVisits)
         self.setModels(self.tblExternalNotification, self.modelExternalNotification, None)
-        self.cmbFilterDocumentType.setTable('rbDocumentType', True, 'group_id IN (SELECT id FROM rbDocumentTypeGroup WHERE code=\'1\')')
+        # self.cmbFilterDocumentType.setTable('rbDocumentType', True, 'group_id IN (SELECT id FROM rbDocumentTypeGroup WHERE code=\'1\')')
         self.edtFilterPolicyActualData.setDate(QDate.currentDate())
-        self.cmbFilterPolicyType.setTable('rbPolicyType', True, specialValues=((-1, u'ОМС', u'ОМС'), ))
-        self.cmbFilterPolicyKind.setTable('rbPolicyKind', True)
+        # self.cmbFilterPolicyType.setTable('rbPolicyType', True, specialValues=((-1, u'ОМС', u'ОМС'), ))
+        # self.cmbFilterPolicyKind.setTable('rbPolicyKind', True)
         self.cmbFilterAttachType.setTable('rbAttachType', True)
-        self.cmbSocStatusesType.setTable('rbSocStatusType', True)
-        self.cmbFilterVisitScene.setTable('rbScene', True)
-        self.cmbFilterVisitType.setTable('rbVisitType', True)
+        # self.cmbFilterVisitScene.setTable('rbScene', True)
+        # self.cmbFilterVisitType.setTable('rbVisitType', True)
         self.cmbFilterVisitProfile.setTable('rbService', True)
         self.cmbFilterServiceVisit.setTable('rbService', True)
-        self.cmbFilterSceneVisit.setTable('rbScene', True)
-        self.edtFilterEventFinance.setTable('rbFinance', True)
-        self.cmbFilterDocumentTypeForTracking.setTable('rbDocumentTypeForTracking', True)
+        # self.cmbFilterSceneVisit.setTable('rbScene', True)
+        # self.edtFilterEventFinance.setTable('rbFinance', True)
+        # self.cmbFilterDocumentTypeForTracking.setTable('rbDocumentTypeForTracking', True)
         # self.edtFilterDocumentTypeForTrackingNumber.setValidator(QtGui.QIntValidator())
-        self.cmbFilterDocumentLocation.setTable('rbDocumentTypeLocation', True)
-        self.cmbFilterStatusObservationType.setTable('rbStatusObservationClientType', True)
-        self.cmbFilterVaccinationCalendar.setTable('rbVaccinationCalendar', addNone=True)
-        self.cmbFilterMedicalExemptionType.setTable('rbMedicalExemptionType', addNone=True)
-        self.cmbFilterClientConsentType.setTable('rbClientConsentType', addNone=True)
-        self.cmbFilterContingentType.setTable('rbContingentType', addNone=True)
-        self.cmbFilterContingentSpeciality.setTable('rbSpeciality', True)
+        # self.cmbFilterDocumentLocation.setTable('rbDocumentTypeLocation', True)
+        # self.cmbFilterStatusObservationType.setTable('rbStatusObservationClientType', True)
+        # self.cmbFilterVaccinationCalendar.setTable('rbVaccinationCalendar', addNone=True)
+        # self.cmbFilterMedicalExemptionType.setTable('rbMedicalExemptionType', addNone=True)
+        # self.cmbFilterClientConsentType.setTable('rbClientConsentType', addNone=True)
+        # self.cmbFilterContingentType.setTable('rbContingentType', addNone=True)
+        # self.cmbFilterContingentSpeciality.setTable('rbSpeciality', True)
         self.edtFilterClientConsentBegDate.setDate(QDate())
         self.edtFilterClientConsentEndDate.setDate(QDate())
         self.edtFilterClientConsentDate1.setDate(QDate())
@@ -578,7 +581,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.edtExternalNotificationBegDate.setDate(QDate.currentDate().addDays(-7))
         self.edtExternalNotificationEndDate.setDate(QDate.currentDate())
         self.edtExternalNotificationEndDate.setTime(QTime(23, 59, 59))
-        self.cmbFilterClientResearchKind.setTable('rbClientResearchKind', addNone=True)
+        # self.cmbFilterClientResearchKind.setTable('rbClientResearchKind', addNone=True)
         self.cmbFilterEventDispanser.setTable('rbDispanser', True)
         self.edtFilterClientResearchBegDate.setDate(QDate())
         self.edtFilterClientResearchEndDate.setDate(QDate())
@@ -643,6 +646,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                                                    self.lblFilterAddressHouse, self.edtFilterAddressHouse,
                                                    self.chkFilterAddressCorpus, self.edtFilterAddressCorpus,
                                                    self.lblFilterAddressFlat, self.edtFilterAddressFlat]),
+            (self.chkResident,                    [self.cmbResident]),
             (self.chkFilterAddressCorpus,         [self.edtFilterAddressCorpus]),
             (self.chkFilterAddressOrgStructure,   [self.cmbFilterAddressOrgStructureType,
                                                    self.cmbFilterAddressOrgStructure]),
@@ -676,14 +680,15 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterClientNote,            [self.edtFilterClientNote]),
             (self.chkClientMKB, [self.edtClientMKBFrom, self.edtClientMKBTo]),
             (self.chkFilterExternalNotification, [self.lblENbegDate, self.lblENendDate, self.edtExternalNotificationBegDate, self.edtExternalNotificationEndDate]),
-            (self.chkFilterClientResearch, [self.cmbFilterClientResearchKind, self.lblCRBegDate, self.lblCREndDate, self.edtFilterClientResearchBegDate, self.edtFilterClientResearchEndDate]),
-            (self.chkFilterIdentification,        [self.cmbFilterIdentification])
+            (self.chkFilterClientResearch, [self.chkFilterClientNoResearch, self.cmbFilterClientResearchKind, self.lblCRBegDate, self.lblCREndDate, self.edtFilterClientResearchBegDate, self.edtFilterClientResearchEndDate]),
+            (self.chkFilterClientNoResearch, []),
             ]
 
         self.tblActionsStatus.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblActionsDiagnostic.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblActionsCure.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblActionsMisc.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.tblActionsAll.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
 
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkSocStatuses, False)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterDocumentLocation, False)
@@ -743,10 +748,10 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.edtFilterEventId.setValidator(self.idValidator)
         self.edtFilterJobTicketId.setValidator(self.idValidator)
         self.edtFilterActionJobTicketId.setValidator(self.idValidator)
-        self.cmbFilterEventPurpose.setTable('rbEventTypePurpose', False, filter='code != \'0\'')
+        # self.cmbFilterEventPurpose.setTable('rbEventTypePurpose', False, filter='code != \'0\'')
         self.cmbFilterEventType.setTable('EventType', False, filter=getWorkEventTypeFilter(isApplyActive=True))
-        self.cmbFilterEventSpeciality.setTable('rbSpeciality', False)
-        self.cmbFilterEventDisease.setTable('rbDiseaseCharacter', False)
+        # self.cmbFilterEventSpeciality.setTable('rbSpeciality', False)
+        # self.cmbFilterEventDisease.setTable('rbDiseaseCharacter', False)
         self.cmbFilterEventPerson.setOrgId(None)
 
         self.cmbFilterEventPerson.setAddNone(False)
@@ -754,12 +759,13 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.cmbFilterEventCreatePerson.setSpecialityPresent(False)
         self.cmbFilterEventModifyPerson.setSpecialityPresent(False)
 
-        self.cmbFilterAccountingSystem.setTable('rbAccountingSystem',  True, 'domain = \'client\'')
-        self.cmbFilterAccountingSystem.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystem', 0)))
         self.edtFilterVaccinationBegDate.canBeEmpty(False)
         self.edtFilterVaccinationEndDate.canBeEmpty(False)
         self.cmbFilterIdentification.setTable('rbAccountingSystem', True, 'domain = \'client\'')
         self.cmbFilterIdentification.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystemClient', 0)))
+        self.cmbFilterEventActions.setClassesPopupVisible(True)
+        self.cmbFilterEventActions.setClasses([0, 1, 2, 3])
+        self.cmbFilterEventActions.setOrgStructure(None)
 
         self.chkListOnEventsPage = [
             (self.chkFilterEventPurpose, [self.cmbFilterEventPurpose]),
@@ -804,12 +810,14 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterEventExpertId, [self.cmbFilterEventExpertId]),
             (self.chkFilterEventExpertiseDate, [self.edtFilterEventBegExpertiseDate, self.edtFilterEventEndExpertiseDate]),
             (self.chkFilterEventExport, [self.cmbFilterEventExportStatus, self.cmbFilterEventExportSystem]),
-            (self.chkFilterPayStatus, [self.chkFilterVisitPayStatus, self.chkFilterCSGPayStatus, self.chkFilterEventPayer, self.chkFilterEventFinance, self.chkFilterEventContract])
+            (self.chkFilterPayStatus, [self.chkFilterVisitPayStatus, self.chkFilterCSGPayStatus, self.chkFilterEventPayer, self.chkFilterEventFinance, self.chkFilterEventContract]),
+            (self.chkFilterEventActions, [self.cmbFilterEventActions, self.chkFilterEventActionsExclude])
             ]
 
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkMKB, False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterVisits, False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterPayStatus, False)
+        self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventActions, False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventSetDate, False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventExecDate, False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventNextDate, False)
@@ -855,18 +863,18 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.cmbFilterActionType.setClass(0)
         self.cmbFilterActionType.setClassesPopup([0])
         self.cmbFilterActionType.setOrgStructure(None)
-        self.cmbFilterActionSetSpeciality.setTable('rbSpeciality', False)
-        self.cmbFilterActionExecSetSpeciality.setTable('rbSpeciality', False)
-        self.cmbFilterEventExportSystem.setTable('rbExternalSystem', True)
+        # self.cmbFilterActionSetSpeciality.setTable('rbSpeciality', False)
+        # self.cmbFilterActionExecSetSpeciality.setTable('rbSpeciality', False)
+        # self.cmbFilterEventExportSystem.setTable('rbExternalSystem', True)
         self.cmbFilterActionSetPerson.setOrgId(None)
-        self.cmbFilterActionSetPerson.setAddNone(False)
+        self.cmbFilterActionSetPerson.setAddNone(True)
         self.cmbFilterActionExecSetPerson.setOrgId(None)
         self.cmbFilterActionExecSetPerson.setAddNone(True)
         self.cmbFilterActionExecSetPerson.addNotSetValue()
         self.cmbFilterActionAssistant.addNotSetValue()
         self.cmbFilterActionCreatePerson.setSpecialityPresent(False)
         self.cmbFilterActionModifyPerson.setSpecialityPresent(False)
-        self.cmbFilterActionFinance.setTable('rbFinance', addNone=True)
+        # self.cmbFilterActionFinance.setTable('rbFinance', addNone=True)
 
         self.__filterActionContractId = None
         self.chkListOnActionsPage = [
@@ -877,12 +885,12 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterActionSetDate,    [self.edtFilterActionBegSetDate, self.edtFilterActionEndSetDate]),
             (self.chkFilterActionSetOrgStructure, [self.cmbFilterActionSetOrgStructure]),
             (self.chkFilterActionSetSpeciality, [self.cmbFilterActionSetSpeciality]),
-            (self.chkFilterActionSetPerson, [self.cmbFilterActionSetPerson]),
+            (self.chkFilterActionSetPerson, [self.cmbFilterActionSetPerson, self.chkFilterActionSNILSSetPerson]),
             (self.chkFilterActionIsUrgent, []),
             (self.chkFilterActionPlannedEndDate, [self.edtFilterActionBegPlannedEndDate, self.edtFilterActionEndPlannedEndDate]),
             (self.chkFilterActionBegDate, [self.edtFilterActionBegBegDate, self.edtFilterActionBegBegTime, self.edtFilterActionEndBegDate, self.edtFilterActionEndBegTime]),
             (self.chkFilterActionExecDate, [self.edtFilterActionBegExecDate, self.edtFilterActionBegExecTime, self.edtFilterActionEndExecDate, self.edtFilterActionEndExecTime]),
-            (self.chkFilterActionExecSetPerson, [self.cmbFilterActionExecSetPerson]),
+            (self.chkFilterActionExecSetPerson, [self.cmbFilterActionExecSetPerson, self.chkFilterActionSNILSExecSetPerson]),
             (self.chkFilterActionExecSetOrgStructure, [self.cmbFilterActionExecSetOrgStructure]),
             (self.chkFilterActionExecSetSpeciality, [self.cmbFilterActionExecSetSpeciality]),
             (self.chkFilterActionAssistant, [self.cmbFilterActionAssistant]),
@@ -905,15 +913,15 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterActionContract, [self.edtFilterActionContract, self.btnFilterActionContract]),
             (self.chkFilterActionExport, [self.cmbFilterActionExportStatus, self.cmbFilterActionExportSystem]),
             (self.chkFilterActionAttachedFiles, [self.cmbFilterActionAttachedFiles, self.cmbFilterActionTypeDoc, self.cmbFilterActionSigned, self.lblActionTypeDoc, self.lblActionSigned,
-                                                 self.chkFilterActionFileAttach, self.edtFilterActionFileAttach]),
-            (self.chkFilterActionAwaitingSigningForOrganisation, []),
-            (self.chkFilterActionFileAttach, [self.edtFilterActionFileAttach]),
+                                                 self.chkFilterActionFileAttachId, self.edtFilterActionFileAttachId, self.chkFilterActionExportSuitable]),
+            (self.chkFilterActionFileAttachId, [self.edtFilterActionFileAttachId]),
             ]
 
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetDate, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetOrgStructure, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetSpeciality, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetPerson, False)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSNILSSetPerson, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionPlannedEndDate, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionStatus, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionBegDate, False)
@@ -921,6 +929,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExecSetOrgStructure, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExecSetSpeciality, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExecSetPerson, False)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSNILSExecSetPerson, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionAssistant, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionJobTicketId, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionMKB, False)
@@ -936,14 +945,14 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionContract, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExport, False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionAttachedFiles, False)
-        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, False)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttachId, False)
         
         self.__actionTypeIdListByClassPage = [None] * 4
 
-        self.cmbFilterVisitsType.setTable('rbVisitType', False)
-        self.cmbFilterExecSetSpecialityVisit.setTable('rbSpeciality', False)
-        self.cmbFilterVisitFinance.setTable('rbFinance', True)
-        self.cmbFilterActionExportSystem.setTable('rbExternalSystem', True)
+        # self.cmbFilterVisitsType.setTable('rbVisitType', False)
+        # self.cmbFilterExecSetSpecialityVisit.setTable('rbSpeciality', False)
+        # self.cmbFilterVisitFinance.setTable('rbFinance', True)
+        # self.cmbFilterActionExportSystem.setTable('rbExternalSystem', True)
         self.cmbFilterExecSetPersonVisit.setOrgId(None)
         self.cmbFilterExecSetPersonVisit.setAddNone(True)
         self.cmbFilterExecSetPersonVisit.addNotSetValue()
@@ -1039,6 +1048,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblActionsDiagnosticProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblActionsCureProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblActionsMiscProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.tblActionsAllProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblExpertDirectionsPropertiesMC.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblExpertProtocolsPropertiesMC.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.tblExpertMSIProperties.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
@@ -1055,7 +1065,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             self.tblActionsStatusAttachedDocuments, 
             self.tblActionsDiagnosticAttachedDocuments, 
             self.tblActionsCureAttachedDocuments,
-            self.tblActionsMiscAttachedDocuments
+            self.tblActionsMiscAttachedDocuments,
+            self.tblActionsAllAttachedDocuments,
             ]
         
         for tab in attachedDocsTables:
@@ -1070,6 +1081,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tabActionsDiagnosticAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
         self.tabActionsCureAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
         self.tabActionsMiscAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
+        self.tabActionsAllAttachedDocuments.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urCanOpenOwnAttachedFile, urCanOpenAnyAttachedFile]))
         
         self.__filter = {}
         self.__filterEventContractId = None
@@ -1080,6 +1092,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.txtClientInfoBrowser.actions.append(self.actEditStatusObservationClient)
         self.txtClientInfoBrowser.actions.append(self.actShowContingentsClient)
         self.txtClientInfoBrowser.actions.append(self.actSurveillancePlanningClients)
+        self.txtClientInfoBrowser.actions.append(self.actUpdateF111)
         self.txtClientInfoBrowser.actions.append(self.actCheckClientAttach)
         self.txtClientInfoBrowser.actions.append(self.actPortal_Doctor)
         self.txtClientInfoBrowserEvents.actions.append(self.actEventEditClient)
@@ -1087,6 +1100,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.txtClientInfoBrowserEvents.actions.append(self.actEventOpenClientVaccinationCard)
         self.txtClientInfoBrowserEvents.actions.append(self.actStatusObservationClientBrowserByEvent)
         self.txtClientInfoBrowserEvents.actions.append(self.actSurveillancePlanningClients)
+        self.txtClientInfoBrowserEvents.actions.append(self.actUpdateF111)
         self.addObject('qshcStatusObservationClientBrowserEvents', QtGui.QShortcut('Shift+F5', self.txtClientInfoBrowserEvents, self.on_actStatusObservationClientBrowserByEvent_triggered))
         self.qshcStatusObservationClientBrowserEvents.setContext(Qt.WidgetShortcut)
         self.txtClientInfoBrowserEvents.actions.append(self.actCheckClientAttach)
@@ -1147,18 +1161,20 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         if forceString(QtGui.qApp.getGlobalPreference('useServiceGISOMS')) == u'да':
             self.tblEvents.addPopupAction(self.actSendEventFPUMP)
         self.tblEvents.addPopupDelRow()
+        self.addObject('qshcAddActionEvent', QtGui.QShortcut('Shift+F8', self.tblEvents, self.on_actAddActionEvent_triggered))
+        self.tblEvents.installEventFilter(self)
+        self.qshcAddActionEvent.setContext(Qt.WidgetShortcut)
+
+
         self.tblEventActions.addPopupAction(self.actOpenAccountingByAction)
         self.tblEventVisits.addPopupAction(self.actOpenAccountingByVisit)
-        self.tblActionsStatus.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
-        self.tblActionsStatus.addPopupAction(self.actOpenAccountingBySingleActionStatus)
+        self.tblActionsStatus.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign, self.actOpenAccountingBySingleAction])
         self.tblVisits.createPopupMenu([self.actEditVisitEvent])
         self.tblVisits.addPopupAction(self.actOpenAccountingBySingleVisits)
-        self.tblActionsDiagnostic.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
-        self.tblActionsDiagnostic.addPopupAction(self.actOpenAccountingBySingleActionDiagnostic)
-        self.tblActionsCure.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
-        self.tblActionsCure.addPopupAction(self.actOpenAccountingBySingleActionCure)
-        self.tblActionsMisc.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign])
-        self.tblActionsMisc.addPopupAction(self.actOpenAccountingBySingleActionMisc)
+        self.tblActionsDiagnostic.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign, self.actOpenAccountingBySingleAction])
+        self.tblActionsCure.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign, self.actOpenAccountingBySingleAction])
+        self.tblActionsMisc.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign, self.actOpenAccountingBySingleAction])
+        self.tblActionsAll.createPopupMenu([self.actEditActionEvent, self.actNotifyFromTabActions, self.actActionGroupSign, self.actOpenAccountingBySingleAction])
         self.tblExpertTempInvalid.createPopupMenu([self.actExpertTempInvalidChangeToOpen, '-', self.actExpertTempInvalidNext, self.actExpertTempInvalidPrev, '-', self.actExpertTempInvalidDelete])
         self.tblExpertTempInvalidRelation.createPopupMenu([self.actExpertTempInvalidNext, self.actExpertTempInvalidPrev, '-', self.actExpertTempInvalidDelete])
         self.tblExpertDisability.createPopupMenu([self.actExpertDisabilityNext, self.actExpertDisabilityPrev, '-', self.actExpertDisabilityDelete])
@@ -1172,7 +1188,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblActionsDiagnostic.addPopupRecordProperies()
         self.tblActionsCure.addPopupRecordProperies()
         self.tblActionsMisc.addPopupRecordProperies()
-        self.tblSchedules.createPopupMenu([self.actAmbCreateEvent, self.actAmbDeleteOrder, self.actAmbChangeNotes, self.actAmbPrintOrder, self.actJumpQueuePosition, self.actPrintBeforeRecords, self.actShowPreRecordInfo])
+        self.tblActionsAll.addPopupRecordProperies()
+        self.tblSchedules.createPopupMenu([self.actAmbCreateEvent, self.actAmbDeleteOrder, self.actAmbChangeNotes, self.actAmbPrintOrder, self.actAmbHomePrintOrder, self.actJumpQueuePosition, self.actPrintBeforeRecords, self.actShowPreRecordInfo])
         self.tblVisitsBySchedules.createPopupMenu([self.actShowPreRecordInfoVisitBySchedule])
         self.tblCanceledSchedules.createPopupMenu([self.actShowPreRecordInfoCanceledSchedules])
         self.connect(self.tblEvents.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setEventsOrderByColumn)
@@ -1188,6 +1205,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.connect(self.tblActionsDiagnostic.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblActionsCure.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblActionsMisc.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
+        self.connect(self.tblActionsAll.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblExpertDirectionsMC.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setMedicalCommissionActionsOrderByColumn)
         self.connect(self.tblExpertProtocolsMC.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setMedicalCommissionActionsOrderByColumn)
         self.connect(self.tblExpertMedicalSocialInspection.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setMedicalCommissionActionsOrderByColumn)
@@ -1207,7 +1225,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.cmbFilterAddressCity.setCode(QtGui.qApp.defaultKLADR())
         self.personInfo = CRBModel(self)
         self.personInfo.setTable('vrbPersonWithSpeciality')
-        self.connect(QtGui.qApp, SIGNAL('currentClientInfoChanged()'), self.updateQueue)
+        self.connect(QtGui.qApp, SIGNAL('currentClientInfoChanged()'), self.updateCurrentClientInfo)
         self.tabRegistry.addAction(self.actClientIdBarcodeScan)
         self.tabRegistry.addAction(self.actBatchRegLocatCard)
         self.tabRegistry.addAction(self.actStatusObservationClient)
@@ -1269,6 +1287,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblActionsDiagnostic.enableColsMove()
         self.tblActionsCure.enableColsMove()
         self.tblActionsMisc.enableColsMove()
+        self.tblActionsAll.enableColsHide()
+        self.tblActionsAll.enableColsMove()
         self.tblVisits.enableColsHide()
         self.tblVisits.enableColsMove()
         self.tblExpertTempInvalid.enableColsHide()
@@ -1402,12 +1422,14 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.loadElementsFromTab(self.tabMain.indexOf(self.tabEvents))
         self.tabAmbCardContent.updateAmbCardMonitoring(self.currentClientId())
         self.loadDialogPreferences()
-        self.tabIndex = 1
-        self.userTabWidgetRights(urRegTabReadEvents)  # отображение вкладки "Обращение"
-        self.userTabWidgetRights(urRegTabReadAmbCard)  # отображение вкладки "Мед.карта"
-        self.userTabWidgetRights(urRegTabReadActions)  # отображение вкладки "Обслуживание"
-        self.userTabWidgetRights(urRegTabReadExpert)  # отображение вкладки "КЭР"
-        self.userTabWidgetRights(urRegTabReadVisits)  # отображение вкладки "Визиты"
+        self.userTabWidgetRights(urRegTabReadEvents, self.tabEvents)  # отображение вкладки "Обращение"
+        self.userTabWidgetRights(urRegTabReadAmbCard, self.tabAmbCard)  # отображение вкладки "Мед.карта"
+        self.userTabWidgetRights(urRegTabReadActions, self.tabActions)  # отображение вкладки "Обслуживание"
+        self.userTabWidgetRights(urRegTabReadExpert, self.tabExpert)  # отображение вкладки "КЭР"
+        self.userTabWidgetRights(urRegTabReadVisits, self.tabVisits)  # отображение вкладки "Визиты"
+        self.tabMain.setTabVisible(self.tabMyDoctorArea, QtGui.qApp.visibleMyDoctorArea)  # отображение вкладки "Мой участок"
+        self.tabMain.setTabVisible(self.tabNotifications, QtGui.qApp.visibleNotifications)  # отображение вкладки "Уведомления"
+        self.tabNotifications.setTabWidget(self.tabMain)
 # тут переделать наши права на питерскую систему#
 #        self.tabWidgetActionsClassesIndex = 0
 #
@@ -1448,8 +1470,6 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.actionsMiscCount = ''
         self.tabFilter.setCurrentIndex(1)
         self.tabFilter.setCurrentIndex(0)
-        if not QtGui.qApp.visibleMyDoctorArea:
-            self.tabMain.removeTab(self.tabMain.indexOf(self.tabMyDoctorArea))
         if forceBool(QtGui.qApp.preferences.appPrefs.get('ScanPromobotEnable')):
             self.createScanButton()
 
@@ -1461,14 +1481,11 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.buttonBoxClient.addButton(self.btnScan, QtGui.QDialogButtonBox.ActionRole)
         self.connect(self.btnScan, SIGNAL('clicked()'), self.on_btnScan_clicked)
 
-
+    
     # Проверка на доступ к отображению вкладок
-    def userTabWidgetRights(self, right):
-        if not QtGui.qApp.userHasRight(right):
-            self.tabMain.removeTab(self.tabIndex)
-            self.number_lisn_index_tabMain.pop(self.tabIndex)
-        else:
-            self.tabIndex += 1
+    def userTabWidgetRights(self, right, tab):
+        visible = QtGui.qApp.userHasRight(right)
+        self.tabMain.setTabVisible(tab, visible)
 
     def userTabWidgetActionsClassesRights(self, right):
         if not QtGui.qApp.userHasRight(right):
@@ -1505,16 +1522,52 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         surPlanningShow.surveillancePlanningShow(clientId)
 
 
-    def getDispanserIdList(self, clientId):
-        diagList = CConsistsDiagnosisModel(self)
-        diagnosisIdList = diagList.getDiagnosisIdList(clientId, {'begDate': QDate.currentDate()})
-        if not diagnosisIdList:
-            diagList = CRemoveDiagnosisModel(self)
-            diagnosisIdList = diagList.getDiagnosisIdList(clientId, {})
-        if diagnosisIdList:
-            return True
-        return False
-
+    @pyqtSignature('')
+    def on_actUpdateF111_triggered(self):
+        clientId = self.currentClientId()
+        if clientId:
+            clientSex, clientAge = getClientSexAge(clientId)
+            if clientSex == 2:
+                db = QtGui.qApp.db
+                tableEvent = db.table('Event')
+                tableEventType = db.table('EventType')
+                queryTable = tableEvent.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+                cond = [tableEventType['code'].like(u'KBiR%'),
+                        tableEvent['execDate'].isNull(),
+                        tableEvent['client_id'].eq(clientId),
+                        tableEvent['deleted'].eq(0),
+                        tableEventType['deleted'].eq(0),
+                        ]
+                recordEvent = db.getRecordEx(queryTable, [tableEvent['id']], cond, u'Event.id DESC')
+                eventId = forceRef(recordEvent.value('id')) if recordEvent else None
+                if eventId:
+                    actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(u'111/y-20')
+                    if actionTypeIdListByKBiR:
+                        tableAction = db.table('Action')
+                        cond = [tableAction['event_id'].eq(eventId),
+                                tableAction['deleted'].eq(0),
+                                tableAction['actionType_id'].inlist(actionTypeIdListByKBiR),
+                                tableAction['endDate'].isNull()
+                                ]
+                        record = db.getRecordEx(tableAction, [tableAction['id']], cond, u'Action.begDate')
+                        actionId = forceRef(record.value('id')) if record else None
+                        if actionId:
+                            dialog = CF111EditDialog(self)
+                            try:
+                                dialog.load(actionId)
+                                if dialog.exec_():
+                                    pass
+                            finally:
+                                dialog.deleteLater()
+            self.actUpdateF111.setVisible(clientSex == 2)
+            if self.actUpdateF111.isVisible():
+                self.actUpdateF111.setEnabled(self.setIsUpdateF111Enable(clientId) and clientSex == 2)
+    
+    @pyqtSignature('')
+    def on_actSurveillancePlanningClientsByEvent_triggered(self):
+        clientId = self.currentClientId()
+        surPlanningShow = CSurveillanceDialog(self, isFake=True)
+        surPlanningShow.surveillancePlanningShow(clientId, eventId=self.currentEventId())
 
     def switchMainTabToSpecifiedTabByIndex(self,  tabIndex=0):
         self.tabMain.setCurrentIndex(tabIndex)
@@ -1785,7 +1838,11 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 self.edtFilterPolicyNumber.setText(identCard.policy.number)
                 #self.cmbFilterPolicyInsurer.setValue(insurerId)
                 self.cmbFilterPolicyInsurer.setValue(None)
+                if not self.cmbFilterPolicyType.hasTable():
+                    self.cmbFilterPolicyType.setTable('rbPolicyType', True, specialValues=((-1, u'ОМС', u'ОМС'),))
                 self.cmbFilterPolicyType.setCode(u'ОМС') # ОМС
+                if not self.cmbFilterPolicyKind.hasTable():
+                    self.cmbFilterPolicyKind.setTable('rbPolicyKind', True)
                 self.cmbFilterPolicyKind.setCode('4')
                 self.chkFilterPolicy.setChecked(False)
             self.identCard = identCard
@@ -2109,6 +2166,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         def addAttachCond(cond, orgCond, attachCategory, attachTypeId, attachBegDate=QDate(), attachEndDate=QDate(), isStatement=0, isNotAttachOrganisation=False):
             outerCond = []
             innerCond = ['CA2.client_id = Client.id']
+            noEndAttach = ''
             if isStatement:
                 outerCond.append('ClientAttach.isStatement = %d' % (isStatement-1))
             if attachBegDate and attachEndDate:
@@ -2160,6 +2218,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             else:
                 if attachCategory == 1:
                     innerCond.append('rbAttachType2.temporary=0')
+                    noEndAttach = ''' AND (ClientAttach.endDate > NOW() or ClientAttach.endDate IS NULL )'''
                 elif attachCategory == 2:
                     innerCond.append('rbAttachType2.temporary')
                 elif attachCategory == 3:
@@ -2172,11 +2231,12 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                LEFT JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
                WHERE ClientAttach.deleted=0
                AND %s
+               %s
                AND ClientAttach.id = (SELECT MAX(CA2.id)
                            FROM ClientAttach AS CA2
                            LEFT JOIN rbAttachType AS rbAttachType2 ON rbAttachType2.id = CA2.attachType_id
                            WHERE CA2.deleted=0 AND %s))'''.format('NOT ' if isNotAttachOrganisation else '')
-            cond.append(stmt % (db.joinAnd(outerCond), db.joinAnd(innerCond)))
+            cond.append(stmt % (db.joinAnd(outerCond),noEndAttach, db.joinAnd(innerCond)))
 
         try:
             QtGui.QApplication.setOverrideCursor(QtGui.QCursor(Qt.WaitCursor))
@@ -2553,6 +2613,19 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             statusObservationType = filter.get('statusObservationType', None)
             if statusObservationType:
                 cond.append('((SELECT Client_StatusObservation.statusObservationType_id FROM Client_StatusObservation WHERE Client_StatusObservation.deleted = 0 AND Client_StatusObservation.master_id = Client.id ORDER BY Client_StatusObservation.createDatetime DESC LIMIT 1) = %d)'%(statusObservationType))
+
+            resident = filter.get('resident', None)
+            if resident != None:
+                tableClientAddress = db.table('ClientAddress').alias('CliAddRes')
+                table = table.leftJoin(tableClientAddress, tableClientAddress['client_id'].eq(tableClient['id']))
+                cond.append('CliAddRes.id in (select max(ca.id) from ClientAddress ca where ca.deleted = 0 and ca.type = 1 and ca.client_id = Client.`id`)')
+                if resident == 0:
+                    cond.append(tableClientAddress['resident'].isNull())
+                elif resident == 1:
+                    cond.append(tableClientAddress['resident'].eq(0))
+                elif resident == 2:
+                    cond.append(tableClientAddress['resident'].eq(1))
+
             address = filter.get('address', None)
             if address:
                 addrType, addrRelation, KLADRCode, Okato, KLADRStreetCode, KLADRStreetCodeList, house, chkCorpus, corpus, flat = address
@@ -2563,7 +2636,6 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 table = table.leftJoin(tableAddress, tableAddress['id'].eq(tableClientAddress['address_id']))
                 table = table.leftJoin(tableAddressHouse, tableAddressHouse['id'].eq(tableAddress['house_id']))
                 addrTypeCond = '' if addrType == 2 else "CA.type=%d AND " % addrType
-
                 cond.append('''ClientAddress.id IN (SELECT MAX(CA.id) FROM ClientAddress AS CA WHERE {0} CA.deleted=0 AND CA.client_id=Client.id {1})'''.format(addrTypeCond, 'GROUP BY CA.type' if addrType == 2 else ''))
                 if KLADRStreetCode:
                     cond.append(tableAddressHouse['KLADRStreetCode'].eq(KLADRStreetCode))
@@ -2713,8 +2785,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 else:
                     cond.append(db.existsStmt(tableCC, condClientConsent))
 
-            if 'clientResearchKind' in filter:
+            if 'clientResearchKind' in filter or 'clientNoResearch' in filter:
                 tableCR = db.table('ClientResearch')
+                clientNoResearch = filter.get('clientNoResearch', None)
                 condClientResearch = [tableCR['client_id'].eq(tableClient['id']), tableCR['deleted'].eq(0)]
                 clientResearchKind = filter.get('clientResearchKind', None)
                 if clientResearchKind:
@@ -2725,7 +2798,10 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 clientResearchEndDate = filter.get('clientResearchEndDate', None)
                 if clientResearchEndDate:
                     condClientResearch.append(tableCR['begDate'].dateLe(clientResearchEndDate))
-                cond.append(db.existsStmt(tableCR, condClientResearch))
+                if clientNoResearch:
+                    cond.append(db.notExistsStmt(tableCR, condClientResearch))
+                else:
+                    cond.append(db.existsStmt(tableCR, condClientResearch))
 
             self.appendVaccinationClientCond(filter, cond)
   
@@ -2840,7 +2916,11 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             self.edtFilterPolicySerial.setText('')
             self.edtFilterPolicyNumber.setText('')
             self.cmbFilterPolicyInsurer.setValue(None)
+            if not self.cmbFilterPolicyType.hasTable():
+                self.cmbFilterPolicyType.setTable('rbPolicyType', True, specialValues=((-1, u'ОМС', u'ОМС'),))
             self.cmbFilterPolicyType.setCode(None)
+            if not self.cmbFilterPolicyKind.hasTable():
+                self.cmbFilterPolicyKind.setTable('rbPolicyKind', True)
             self.cmbFilterPolicyKind.setCode(None)
 
 
@@ -3333,10 +3413,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         u"""
             показ информации о пациенте в панели наверху
         """
-        if id:
-            self.txtClientInfoBrowser.setHtml(getClientBanner(id, aDateAttaches=QDate.currentDate()))
-        else:
-            self.txtClientInfoBrowser.setText('')
+        self.updateClientInfo(id)
         self.actEditClient.setEnabled(bool(id))
         self.actRelationsClient.setEnabled(bool(id))
         self.actOpenClientDocumentTrackingHistory.setEnabled(bool(id) and QtGui.qApp.userHasAnyRight([urRegTabReadLocationCard, urEditLocationCard]))
@@ -3344,8 +3421,41 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.actShowContingentsClient.setEnabled(bool(id))
         self.actCheckClientAttach.setEnabled(bool(id))
         self.actPortal_Doctor.setEnabled(bool(id))
-        self.actSurveillancePlanningClients.setEnabled(bool(self.getDispanserIdList(id)))
+        self.actSurveillancePlanningClients.setEnabled(bool(isSurveillanceActive(id, {}, {'begDate': QDate.currentDate()})))
         QtGui.qApp.setCurrentClientId(id)
+
+
+    def setIsUpdateF111Enable(self, clientId):
+        isUpdateF111Enable = False
+        actionId = None
+        if clientId:
+            clientSex, clientAge = getClientSexAge(clientId)
+            if clientSex == 2:
+                db = QtGui.qApp.db
+                tableEvent = db.table('Event')
+                tableEventType = db.table('EventType')
+                queryTable = tableEvent.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+                cond = [tableEventType['code'].like(u'KBiR%'),
+                        tableEvent['execDate'].isNull(),
+                        tableEvent['client_id'].eq(clientId),
+                        tableEvent['deleted'].eq(0),
+                        tableEventType['deleted'].eq(0),
+                        ]
+                recordEvent = db.getRecordEx(queryTable, [tableEvent['id']], cond, u'Event.id DESC')
+                eventId = forceRef(recordEvent.value('id')) if recordEvent else None
+                if eventId:
+                    actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(u'111/y-20')
+                    if actionTypeIdListByKBiR:
+                        tableAction = db.table('Action')
+                        cond = [tableAction['event_id'].eq(eventId),
+                                tableAction['deleted'].eq(0),
+                                tableAction['actionType_id'].inlist(actionTypeIdListByKBiR),
+                                tableAction['endDate'].isNull()
+                                ]
+                        record = db.getRecordEx(tableAction, [tableAction['id']], cond, u'Action.begDate DESC')
+                        actionId = forceRef(record.value('id')) if record else None
+                isUpdateF111Enable = forceBool(actionId)
+        return isUpdateF111Enable
 
 
     def clientId(self, index):
@@ -3572,6 +3682,10 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             if self.chkFilterAddressCorpus.isChecked():
                 dialogInfo['regCorpus'] = self.edtFilterAddressCorpus.text()
             dialogInfo['regFlat'] = self.edtFilterAddressFlat.text()
+        if self.chkResident.isChecked():
+            dialogInfo['resident'] = self.cmbResident.currentIndex()
+        else:
+            dialogInfo['resident'] = forceInt(QtGui.qApp.preferences.appPrefs.get('resident', 0))
         return dialogInfo
 
 
@@ -3579,6 +3693,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         if QtGui.qApp.userHasAnyRight([urRegTabNewWriteRegistry]):
             dialog = CClientEditDialog(self)
             dialogInfo = self.getParamsDialogFilter()
+            dialog.modelSocStatuses.loadItems(None)
             if dialogInfo:
                 dialogInfo['identCard'] = self.identCard if hasattr(self, 'identCard') else None
                 dialog.setClientDialogInfo(dialogInfo)
@@ -3744,7 +3859,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             filter = 'EventType.isActive = 1 AND EventType.purpose_id =%d' % eventPurposeId
         else:
             filter = getWorkEventTypeFilter(isApplyActive=True)
-        self.cmbFilterEventType.setFilter(filter)
+        self.cmbFilterEventType.setTable('EventType', False, filter=filter)
 
 
     def addEqCond(self, cond, table, fieldName, filter, name):
@@ -3786,6 +3901,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         if self.tabMain.currentIndex() == 1:
             self.updateEventsList(self.__eventFilter, eventId)
         QtGui.qApp.emitCurrentClientInfoChanged()
+        self.showClientInfo(QtGui.qApp.currentClientId())
 
 
     def _setEventsOrderByColumn(self, column):
@@ -3924,7 +4040,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         if eventPurposeId:
             cond.append(table['eventType_id'].name()+' IN (SELECT id FROM EventType WHERE EventType.purpose_id=%d)' % eventPurposeId)
         if 'eventTypeId' in filter:
-            cond.append(table['eventType_id'].eq(filter['eventTypeId']))
+            cond.append(table['eventType_id'].inlist(filter['eventTypeId'].split(', ')))
         elif not eventPurposeId:
             cond.append(table['eventType_id'].name()+' IN (SELECT id FROM EventType WHERE'+getWorkEventTypeFilter(False)+')')
         if 'personId' in filter:
@@ -4116,6 +4232,8 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         if 'notExposedByOms' in filter and filter['notExposedByOms']:
             queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(table['contract_id']))
             cond.append("Contract.finance_id = 2 and NOT EXISTS(SELECT id FROM Account_Item WHERE event_id = Event.id limit 1)")
+        if 'notExposed' in filter and filter['notExposed']:
+            cond.append("Event.expose = 0")
         if 'begDate' and 'endDate' in filter:
             cond.append("Event.execDate >= '%s'" % filter['begDate'].toString('yyyy-MM-dd'))
             cond.append("Event.execDate < '%s'" % filter['endDate'].addDays(1).toString('yyyy-MM-dd'))
@@ -4123,6 +4241,18 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             cond.append('''EXISTS(SELECT Diagnosis.id
             FROM Diagnosis INNER JOIN Diagnostic ON Diagnostic.diagnosis_id=Diagnosis.id
             WHERE Diagnostic.event_id = Event.id AND Diagnosis.deleted = 0 AND Diagnostic.deleted = 0 AND Diagnostic.character_id = {})'''.format(filter['diseaseCharacter']))
+        
+        if 'eventActions' in filter:
+            tableAction = db.table('Action')
+            subCond = [tableAction['deleted'].eq(0),
+                       tableAction['event_id'].eq(table['id']),
+                       tableAction['actionType_id'].inlist(getActionTypeDescendants(filter['eventActions']))
+                       ]
+            if self.chkFilterEventActionsExclude.isChecked():
+                cond.append(db.notExistsStmt(tableAction, subCond))
+            else:
+                cond.append(db.existsStmt(tableAction, subCond))
+
         
         visibleCond = []
         clientIds = filter.get('clientIds', None)
@@ -4386,11 +4516,9 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
 
         if not clientId:
             clientId = self.selectedClientId()
+        self.updateClientInfo(clientId)
         if clientId:
-            self.txtClientInfoBrowserEvents.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
-            self.actSurveillancePlanningClients.setEnabled(bool(self.getDispanserIdList(clientId)))
-        else:
-            self.txtClientInfoBrowserEvents.setText('')
+            self.actSurveillancePlanningClients.setEnabled(bool(isSurveillanceActive(clientId, {}, {'begDate': QDate.currentDate()})))
         self.actEventEditClient.setEnabled(bool(clientId))
         self.actEventOpenClientVaccinationCard.setEnabled(bool(clientId) and QtGui.qApp.userHasAnyRight([urCanReadClientVaccination, urCanEditClientVaccination]))
         self.actCheckClientAttach.setEnabled(bool(clientId))
@@ -4465,11 +4593,8 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
     def updateAmbCardInfo(self):
         clientId = self.currentClientId()
         if clientId:
-            self.txtClientInfoBrowserAmbCard.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
             clientSex, clientAge = getClientSexAge(clientId)
             self.tabAmbCardContent.setClientId(clientId, clientSex, clientAge)
-        else:
-            self.txtClientInfoBrowserAmbCard.setText('')
         self.actCheckClientAttach.setEnabled(bool(clientId))
         self.actPortal_Doctor.setEnabled(bool(clientId))
         self.actAmbCardEditClient.setEnabled(bool(clientId))
@@ -4558,11 +4683,11 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         self.addDateCond(cond, tableAction, 'plannedEndDate', filter, 'begPlannedEndDate', 'endPlannedEndDate')
         self.addDateTimeCond(cond, tableAction, 'begDate', filter, 'begBegDateTime', 'endBegDateTime')
         self.addDateTimeCond(cond, tableAction, 'endDate', filter, 'begExecDateTime', 'endExecDateTime')
-        actionClass = self.tabWidgetActionsClasses.currentIndex()
+        actionClass = self.getActionClassByTabIndex()
         if 'actionTypeId' in filter:
             actionTypeIdList = getActionTypeDescendants(filter['actionTypeId'], actionClass)
             cond.append(tableAction['actionType_id'].inlist(actionTypeIdList))
-        elif 'actionId' not in filter:
+        if actionClass is not None and 'actionId' not in filter:
             cond.append(tableAction['actionType_id'].name()+' IN (SELECT ActionType.id FROM ActionType WHERE ActionType.class=%d)' % actionClass)
 # сделано без учета значений value в таблицах ActionProperty_Double, ActionProperty_Action и т.п., учитывается наличие записи в ActionProperty, т.к. считается, что при не заполнении не создается запись в ActionProperty.
         takenTissueJournal = filter.get('takenTissueJournal')
@@ -4669,7 +4794,16 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         addTableSetPerson = False
         addTableExecPerson = False
         if 'setPersonId' in filter:
-            cond.append(tableAction['setPerson_id'].eq(filter['setPersonId']))
+            if 'setPersonSNILS' in filter:
+                if not addTableSetPerson:
+                    addTableSetPerson = True
+                    tablePerson = db.table('Person')
+                    queryTable = queryTable.join(tablePerson, tablePerson['id'].eq(tableAction['setPerson_id']))
+                rec = db.getRecordEx(tablePerson, [tablePerson['SNILS']], [tablePerson['id'].eq(filter['setPersonId'])])
+                setPersonSNILS = forceString(rec.value('SNILS')) if rec else None
+                cond.append(tablePerson['SNILS'].eq(setPersonSNILS))
+            else:
+                cond.append(tableAction['setPerson_id'].eq(filter['setPersonId']))
         else:
             if 'setSpecialityId' in filter:
                 if not addTableSetPerson:
@@ -4693,7 +4827,18 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             if execPersonId == -1:
                 cond.append(tableAction['person_id'].isNull())
             else:
-                cond.append(tableAction['person_id'].eq(execPersonId))
+                if 'execPersonSNILS' in filter:
+                    if not addTableExecPerson:
+                        addTableExecPerson = True
+                        tablePersonExec = db.table('Person').alias('PersonExec')
+                        queryTable = queryTable.join(tablePersonExec,
+                                                     tablePersonExec['id'].eq(tableAction['person_id']))
+                    rec = db.getRecordEx(tablePersonExec, [tablePersonExec['SNILS']],
+                                         [tablePersonExec['id'].eq(filter['execPersonId'])])
+                    execPersonSNILS = forceString(rec.value('SNILS')) if rec else None
+                    cond.append(tablePersonExec['SNILS'].eq(execPersonSNILS))
+                else:
+                    cond.append(tableAction['person_id'].eq(execPersonId))
         else:
             if 'execSetOrgStructureId' in filter:
                     if not addTableExecPerson:
@@ -4771,7 +4916,6 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
                 cond.append(tableAction['contract_id'].eq(contractId))
             else:
                 cond.append(tableAction['contract_id'].isNull())
-        # orderBY = u'execDate DESC, id'
 
         if 'actionExportStatus' in filter:
             actionExportStatus = filter.get('actionExportStatus', None)
@@ -4792,86 +4936,50 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         
         if 'attachedFile' in filter:
             tableActionFileAttach = db.table('Action_FileAttach')
-            queryTable = queryTable.leftJoin(tableActionFileAttach, tableActionFileAttach['master_id'].eq(tableAction['id']))
-            cond.append('''Action_FileAttach.id IS {}NULL'''.format("" if filter.get('attachedFile', None) != 1 else "NOT "))
-            if 'typeDoc' in filter:
-                typeDoc = filter.get('typeDoc', None)
-                if typeDoc != u'Все':
-                    if typeDoc == u'Прочие':
-                        cond.append("Action_FileAttach.path NOT LIKE '%.pdf' AND path NOT LIKE '%.xml' AND path NOT LIKE '%.sms'")
-                    else:
-                        cond.append("Action_FileAttach.path LIKE '%.{0}'".format(typeDoc))
-            if 'signed' in filter:
-                signedIndex = filter.get('signed', 0)
-                if signedIndex == 1:
-                    cond.append(tableActionFileAttach['respSignatureBytes'].isNull())
-                elif signedIndex == 2:
-                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNull())
-                elif signedIndex == 3:
-                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNotNull())
-                elif signedIndex == 4:
-                    cond.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
-                    cond.append(tableActionFileAttach['orgSignatureBytes'].isNull())
-                elif signedIndex == 5:
-                    cond.append(db.joinOr([tableActionFileAttach['respSignatureBytes'].isNull(),
-                                        tableActionFileAttach['orgSignatureBytes'].isNull()]))
-                elif signedIndex == 6:
-                    cond.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
-            if 'ActionFileAttach_id' in filter:
-                attach_file_id = filter.get('ActionFileAttach_id',0) 
-                cond.append(tableActionFileAttach['id'].eq(attach_file_id))
-        # for key, value in self.getCurrentActionsTable().model().headerSortingCol.items():
-        #     if value:
-        #         ASC = u'ASC'
-        #     else:
-        #         ASC = u'DESC'
-        #     if key == 0:
-        #         orderBY = u'(select concat(lastName,firstName,patrName) from Client where id = Event.client_id) %s' % ASC
-        #     elif key == 1:
-        #         orderBY = u'(select birthDate from Client where id = Event.client_id) %s' % ASC
-        #     elif key == 2:
-        #         orderBY = u'(select sex from Client where id = Event.client_id) %s' % ASC
-        #     elif key == 3:
-        #         orderBY = u'Action.directionDate %s' % ASC
-        #     elif key == 4:
-        #         orderBY = u'(select name from ActionType where id = Action.actionType_id) %s' % ASC
-        #     elif key == 5:
-        #         orderBY = u'Action.amount %s' % ASC
-        #     elif key == 6:
-        #         orderBY = u'Action.uet %s' % ASC
-        #     elif key == 7:
-        #         orderBY = u'Action.isUrgent %s' % ASC
-        #     elif key == 8:
-        #         orderBY = u'Action.status %s' % ASC
-        #     elif key == 9:
-        #         orderBY = u'Action.plannedEndDate %s' % ASC
-        #     elif key == 10:
-        #         orderBY = u'Action.begDate %s' % ASC
-        #     elif key == 11:
-        #         orderBY = u'Action.endDate %s' % ASC
-        #     elif key == 12:
-        #         orderBY = u'Action.MKB %s' % ASC
-        #     elif key == 13:
-        #         orderBY = u'(select name from vrbPersonWithSpeciality where id = Action.setPerson_id) %s' % ASC
-        #     elif key == 14:
-        #         orderBY = u'(select name from vrbPersonWithSpeciality where id = Action.person_id) %s' % ASC
-        #     elif key == 15:
-        #         orderBY = u'Action.office %s' % ASC
-        #     elif key == 16:
-        #         orderBY = u'Action.note %s' % ASC
-        #     elif key == 17:
-        #         orderBY = u'Event.externalId %s' % ASC
-        #     elif key == 18:
-        #         orderBY = u'(select name from rbFinance where id = Action.finance_id) %s' % ASC
-        #     elif key == 19:
-        #         orderBY = u'(select code from vrbContract where id = Action.contract_id) %s' % ASC
+            queryTable = queryTable.leftJoin(tableActionFileAttach, (tableActionFileAttach['master_id'].eq(tableAction['id']), tableActionFileAttach['deleted'].eq(0)))
 
-        if filter.get('awaitingSigningForOrganisation'):
-            tableActionFileAttach = db.table('Action_FileAttach')
-            queryTable = queryTable.innerJoin(tableActionFileAttach, tableActionFileAttach['master_id'].eq(tableAction['id']))
-            cond.append(tableActionFileAttach['deleted'].eq(0))
-            cond.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
-            cond.append(tableActionFileAttach['orgSignatureBytes'].isNull())
+            if 'ActionFileAttach_id' in filter:
+                attach_file_id = filter.get('ActionFileAttach_id',0)
+                cond.append(tableActionFileAttach['id'].eq(attach_file_id))
+            else:
+                attachedFile = filter.get('attachedFile', None)
+                cond.append('''Action_FileAttach.id IS {}NULL'''.format("" if attachedFile != 0 else "NOT "))
+
+                if 'typeDoc' in filter:
+                    typeDoc = filter.get('typeDoc', None)
+                    if attachedFile == 0:
+                        if typeDoc == u'Есть xml':
+                            cond.append("Action_FileAttach.path LIKE '%.xml'")
+                        elif typeDoc == u'Есть только pdf':
+                            cond.append("Action_FileAttach.path LIKE '%.pdf'")
+                            cond.append("NOT EXISTS(SELECT NULL FROM Action_FileAttach afa WHERE afa.master_id = Action.id and afa.deleted = 0 and afa.path like '%.xml')")
+
+                if 'signed' in filter:
+                    signedIndex = filter.get('signed', 0)
+                    if signedIndex == 1:
+                        cond.append(tableActionFileAttach['respSigner_id'].isNull())
+                    elif signedIndex == 2:
+                        cond.append(tableActionFileAttach['orgSigner_id'].isNull())
+                    elif signedIndex == 3:
+                        cond.append(tableActionFileAttach['orgSigner_id'].isNotNull())
+                    elif signedIndex == 4:
+                        cond.append(tableActionFileAttach['respSigner_id'].isNotNull())
+                        cond.append(tableActionFileAttach['orgSigner_id'].isNull())
+                    elif signedIndex == 5:
+                        cond.append(db.joinOr([tableActionFileAttach['respSigner_id'].isNull(),
+                                               tableActionFileAttach['orgSigner_id'].isNull()]))
+                    elif signedIndex == 6:
+                        cond.append(tableActionFileAttach['respSigner_id'].isNotNull())
+
+                if 'exportSuitable' in filter:
+                    tableActionTypeIT = db.table('ActionType').alias('ActionTypeIT')
+                    tableActionTypeIdent = db.table('ActionType_Identification')
+                    tableAccountingSystem = db.table('rbAccountingSystem')
+                    queryTable = queryTable.innerJoin(tableActionTypeIT, tableActionTypeIT['id'].eq(tableAction['actionType_id']))
+                    queryTable = queryTable.innerJoin(tableActionTypeIdent, tableActionTypeIdent['master_id'].eq(tableActionTypeIT['id']))
+                    queryTable = queryTable.innerJoin(tableAccountingSystem, tableAccountingSystem['id'].eq(tableActionTypeIdent['system_id']))
+                    cond.append(tableActionTypeIdent['deleted'].eq(0))
+                    cond.append(tableAccountingSystem['code'].contain('n3.medDocumentType.'))
 
         if 'Client' in order:
             tableClient = db.table('Client')
@@ -4967,7 +5075,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         tableMC = self.getCurrentExpertMedicalCommissionTable()
         table.setIdList(idList, posToId)
         hideClientInfo = 'clientIds' in filter and len(filter['clientIds']) == 1
-        for i in xrange(3):
+        for i in range(3):
             table.setColumnHidden(i, hideClientInfo)
             tableMC.setColumnHidden(i, hideClientInfo)
         self.updateClientsListRequest = self.updateClientsListRequest or not hideClientInfo
@@ -5070,7 +5178,20 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
 
     def getCurrentActionsTable(self):
         index = self.tabWidgetActionsClasses.currentIndex()
+        if index == 4:
+            # вкладка со всеми типами действия - не отдельный класс,
+            # поэтому ей не место в getActionsTableByClass
+            return self.tblActionsAll
         return self.getActionsTableByClass(index)
+
+
+    def getActionClassByTabIndex(self):
+        """Определяет класс типа действия по текущей вкладке в Обслуживании"""
+        # type: () -> Optional[int]
+        index = self.tabWidgetActionsClasses.currentIndex()
+        if index == 4: # вкладке "все", не является классом
+            return None
+        return index
 
 
     def getActionsTableByClass(self, class_):
@@ -5120,10 +5241,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
 
         if not clientId:
             clientId = self.selectedClientId()
-        if clientId:
-            self.txtClientInfoBrowserActions.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
-        else:
-            self.txtClientInfoBrowserActions.setText('')
+        self.updateClientInfo(clientId)
         self.actActionEditClient.setEnabled(bool(clientId))
         self.actActionOpenClientVaccinationCard.setEnabled(bool(clientId) and QtGui.qApp.userHasAnyRight([urCanReadClientVaccination, urCanEditClientVaccination]))
         self.actCheckClientAttach.setEnabled(bool(clientId))
@@ -5159,10 +5277,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             clientId = None
         if not clientId:
             clientId = self.selectedClientId()
-        if clientId:
-            self.txtClientInfoBrowserActions.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
-        else:
-            self.txtClientInfoBrowserActions.setText('')
+        self.updateClientInfo(clientId)
         QtGui.qApp.setCurrentClientId(clientId)
         clientSex, clientAge = getClientSexAge(clientId)
         self.tabAmbCardContent.setClientId(clientId, clientSex, clientAge)
@@ -5181,10 +5296,7 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
             clientId       = None
 #        if not clientId:
 #            clientId = self.selectedClientId()
-        if clientId:
-            self.txtClientInfoBrowserVisits.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
-        else:
-            self.txtClientInfoBrowserVisits.setText('')
+        self.updateClientInfo(clientId)
         self.actCheckClientAttach.setEnabled(bool(clientId))
         self.actPortal_Doctor.setEnabled(bool(clientId))
         self.actActionEditClient.setEnabled(bool(clientId))
@@ -6342,7 +6454,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('int')
     def on_tabMain_currentChanged(self, index):
-        index = self.number_lisn_index_tabMain[index]
+        index = self.tabMain.originalIndex(self.tabMain.currentWidget())
         keyboardModifiers = QtGui.qApp.keyboardModifiers()
         if index == 0:  # реестр
             db = QtGui.qApp.db
@@ -6357,7 +6469,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                     self.tblClients.setCurrentItemId(clientId)
                 if self.updateClientsListRequest:
                     self.updateClientsList(self.__filter)
-            self.actSurveillancePlanningClients.setEnabled(bool(self.getDispanserIdList(clientId)))
+            self.actSurveillancePlanningClients.setEnabled(bool(isSurveillanceActive(clientId, {}, {'begDate': QDate.currentDate()})))
             self.currentClientFromEvent = False
             self.currentClientFromAction = False
             self.currentClientFromExpert = False
@@ -6581,6 +6693,36 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.modelExternalNotification.loadData(clientId)
 
 
+    def updateCurrentClientInfo(self):
+        self.updateClientInfo(QtGui.qApp.currentClientId())
+        self.updateQueue()
+
+
+    def updateClientInfo(self, clientId):
+        # обновляем текст во всех шильдиках сразу,
+        # чтобы при переключении между вкладками
+        # текст был синхронизирован
+        txtInfoList = [
+            self.txtClientInfoBrowser,  # картотека
+            self.txtClientInfoBrowserEvents,  # обращение
+            self.txtClientInfoBrowserAmbCard,  # мед карта
+            self.txtClientInfoBrowserActions,  # обслуживание
+            self.txtClientInfoBrowserExpert,  # кэр
+            self.txtClientInfoBrowserVisits,  # визиты
+        ]
+        bannerHtml = getClientBanner(clientId) if clientId else ''
+        for txtInfo in txtInfoList:
+            txtInfo.setHtml(bannerHtml)
+        self.setUpdateF111Enabled(clientId)
+    
+    
+    def setUpdateF111Enabled(self, clientId):
+        clientSex, clientAge = getClientSexAge(clientId)
+        self.actUpdateF111.setVisible(clientSex == 2)
+        if self.actUpdateF111.isVisible():
+            self.actUpdateF111.setEnabled(self.setIsUpdateF111Enable(clientId) and clientSex == 2)
+
+
     @pyqtSignature('QModelIndex')
     def on_tblClients_doubleClicked(self, index):
         self.editCurrentClient()
@@ -6599,7 +6741,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         elif QtGui.qApp.doubleClickQueueClient() == 2:
                 self.on_actAmbChangeNotes_triggered()
         elif QtGui.qApp.doubleClickQueueClient() == 3:
-               self.on_actAmbPrintOrder_triggered()
+               self.on_actAmbPrintOrder_clicked()
         elif QtGui.qApp.doubleClickQueueClient() == 4:
                 self.on_actJumpQueuePosition_triggered()
 
@@ -6825,8 +6967,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('')
     def on_actNotifyFromTabActions_triggered(self):
         try:
-            currentTabIndex = self.tabWidgetActionsClasses.currentIndex()
-            currentTabName = unicode(self.tabWidgetActionsClasses.tabText(currentTabIndex))
+            currentTab = self.tabWidgetActionsClasses.currentWidget()
             db = QtGui.qApp.db
             systemId = forceRef(db.translate('rbExternalSystem', 'code', 'SamsonExtNotification', 'id'))
             tableAction = db.table('Action')
@@ -6838,14 +6979,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                                                                  ]
                                                                 )
                                   )
-            if currentTabIndex == 0 and currentTabName == u'Статус':
+            if currentTab == self.tabActionsStatus:  # Статус
                 actionIdList = self.tblActionsStatus.selectedItemIdList()
-            elif currentTabIndex == 1 and currentTabName == u'Диагностика':
+            elif currentTab == self.tabActionsDiagnostic:  # Диагностика
                 actionIdList = self.tblActionsDiagnostic.selectedItemIdList()
-            elif currentTabIndex == 2 and currentTabName == u'Лечение':
+            elif currentTab == self.tabActionsCure:  # Лечение
                 actionIdList = self.tblActionsCure.selectedItemIdList()
-            elif currentTabIndex == 3 and currentTabName == u'Мероприятия':
+            elif currentTab == self.tabActionsMisc:  # Мероприятия
                 actionIdList = self.tblActionsMisc.selectedItemIdList()
+            elif currentTab == self.tabActionsAll:  # Все
+                actionIdList = self.tblActionsAll.selectedItemIdList()
             else:
                 raise Exception(u'Неизвестная таблица действий для оповещения')
             cond = [tableAction['id'].inlist(actionIdList), tableActionExport['id'].isNull(), tableAction['status'].eq(2)]
@@ -6878,16 +7021,18 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('')
     def on_actActionGroupSign_triggered(self):
-        currentTabIndex = self.tabWidgetActionsClasses.currentIndex()
+        currentTab = self.tabWidgetActionsClasses.currentWidget()
         actionIdList = []
-        if currentTabIndex == 0:
+        if currentTab == self.tabActionsStatus:  # Статус
             actionIdList = self.modelActionsStatus.idList()
-        elif currentTabIndex == 1:
+        elif currentTab == self.tabActionsDiagnostic:  # Диагностика
             actionIdList = self.modelActionsDiagnostic.idList()
-        elif currentTabIndex == 2:
+        elif currentTab == self.tabActionsCure:  # Лечение
             actionIdList = self.modelActionsCure.idList()
-        elif currentTabIndex == 3:
+        elif currentTab == self.tabActionsMisc:  # Мероприятия
             actionIdList = self.modelActionsMisc.idList()
+        elif currentTab == self.tabActionsAll:  # Все
+            actionIdList = self.modelActionsAll.idList()
         else:
             QtGui.QMessageBox.critical(self, u'Ошибка', u'Выбрана неизвестная вкладка с Действиями')
 
@@ -7023,6 +7168,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterVaccinationCalendar_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterVaccinationCalendar.hasTable():
+                self.cmbFilterVaccinationCalendar.setTable('rbVaccinationCalendar', addNone=True)
             self.on_cmbFilterVaccinationCalendar_currentIndexChanged(self.cmbFilterVaccinationCalendar.currentIndex())
         else:
             self.modelFilterInfection.setFilter('')
@@ -7063,6 +7210,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterMedicalExemptionType_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterMedicalExemptionType.hasTable():
+                self.cmbFilterMedicalExemptionType.setTable('rbMedicalExemptionType', addNone=True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterMedicalExemptionType, checked)
         self.onChkFilterToggled(self.sender(), checked)
     
@@ -7079,6 +7228,10 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterId_toggled(self, checked):
         self.onChkFilterToggled(self.chkFilterId, checked)
         if checked:
+            if not self.cmbFilterAccountingSystem.hasTable():
+                self.cmbFilterAccountingSystem.setTable('rbAccountingSystem', True, 'domain = \'client\'')
+                self.cmbFilterAccountingSystem.setValue(
+                    forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystem', 0)))
             for chk in (self.chkFilterLastName,
                         self.chkFilterFirstName,
                         self.chkFilterPatrName,
@@ -7117,6 +7270,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                         self.chkFilterAttachType,
                         self.chkFilterExternalNotification,
                         self.chkFilterClientResearch,
+                        self.chkFilterClientNoResearch,
                         self.chkFilterAttachNonBase,
                         self.chkFilterTempInvalid,
                         self.chkFilterTFUnconfirmed,
@@ -7232,6 +7386,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterDocument_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterDocumentType.hasTable():
+                self.cmbFilterDocumentType.setTable('rbDocumentType', True,
+                                                    'group_id IN (SELECT id FROM rbDocumentTypeGroup WHERE code=\'1\')')
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterDocument, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7241,6 +7398,10 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         if checked:
             self.chkFilterId.setChecked(False)
             self.chkInsurerDescendents.setEnabled(True)
+            if not self.cmbFilterPolicyType.hasTable():
+                self.cmbFilterPolicyType.setTable('rbPolicyType', True, specialValues=((-1, u'ОМС', u'ОМС'),))
+            if not self.cmbFilterPolicyKind.hasTable():
+                self.cmbFilterPolicyKind.setTable('rbPolicyKind', True)
         else:
             self.chkInsurerDescendents.setEnabled(False)
             self.chkInsurerDescendents.setChecked(False)
@@ -7290,6 +7451,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkSocStatuses_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbSocStatusesType.hasTable():
+                self.cmbSocStatusesType.setTable('rbSocStatusType', True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkSocStatuses, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7298,6 +7461,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterDocumentLocation_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterDocumentLocation.hasTable():
+                self.cmbFilterDocumentLocation.setTable('rbDocumentTypeLocation', True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterDocumentLocation, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7305,6 +7470,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterDocumentTypeForTracking_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterDocumentTypeForTracking.hasTable():
+                self.cmbFilterDocumentTypeForTracking.setTable('rbDocumentTypeForTracking', True)
         self.onChkFilterToggled(self.sender(), checked)
 
 
@@ -7319,6 +7486,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterStatusObservationType_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterStatusObservationType.hasTable():
+                self.cmbFilterStatusObservationType.setTable('rbStatusObservationClientType', True)
         self.onChkFilterToggled(self.sender(), checked)
 
 
@@ -7326,6 +7495,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterContingentType_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterContingentType.hasTable():
+                self.cmbFilterContingentType.setTable('rbContingentType', addNone=True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterContingentType, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7334,6 +7505,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterContingentSpeciality_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterContingentSpeciality.hasTable():
+                self.cmbFilterContingentSpeciality.setTable('rbSpeciality', True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterContingentSpeciality, checked)
         self.onChkFilterToggled(self.sender(), checked)
         
@@ -7425,6 +7598,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.onChkFilterToggled(self.sender(), checked)
         self.edtFilterAddressCorpus.setEnabled(self.chkFilterAddressCorpus.isChecked() and checked)
 
+    @pyqtSignature('bool')
+    def on_chkResident_toggled(self, checked):
+        self.cmbResident.setEnabled(self.chkResident.isChecked())
 
     @pyqtSignature('bool')
     def on_chkFilterAddressCorpus_toggled(self, checked):
@@ -7548,6 +7724,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterClientResearch_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterClientResearchKind.hasTable():
+                self.cmbFilterClientResearchKind.setTable('rbClientResearchKind', addNone=True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterClientResearch, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7595,6 +7773,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterClientConsent_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterClientConsentType.hasTable():
+                self.cmbFilterClientConsentType.setTable('rbClientConsentType', addNone=True)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterClientConsent, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -7619,6 +7799,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterIdentification_toggled(self, checked):
         if checked:
             self.chkFilterId.setChecked(False)
+            if not self.cmbFilterIdentification.hasTable():
+                self.cmbFilterIdentification.setTable('rbAccountingSystem', True, 'domain = \'client\'')
+                self.cmbFilterIdentification.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystemClient', 0)))
         self.onChkFilterToggled(self.sender(), checked)
 
 
@@ -7632,9 +7815,12 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.identCard = None
 
     @pyqtSignature('bool')
-    def on_chkFilterActionFileAttach_toggled(self, checked):
-        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, checked)
-        self.edtFilterActionFileAttach.setEnabled(checked)
+    def on_chkFilterActionFileAttachId_toggled(self, checked):
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttachId, checked)
+        self.edtFilterActionFileAttachId.setEnabled(checked)
+        self.cmbFilterActionAttachedFiles.setEnabled(not checked)
+        self.cmbFilterActionTypeDoc.setEnabled(not checked)
+        self.cmbFilterActionSigned.setEnabled(not checked)
 
         
 
@@ -7713,6 +7899,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['policy'] = (onlyPolicyActual, policyActualData, policyType, policyKind, insurerIdList, serial, number)
         if self.chkFilterRegionSMO.isChecked():
             filter['regionSMO'] = (self.cmbFilterRegionTypeSMO.currentIndex(), self.cmbFilterRegionSMO.code())
+        if self.chkResident.isChecked():
+            filter['resident'] = self.cmbResident.currentIndex()
         if self.chkFilterWorkOrganisation.isChecked():
             filter['orgId'] = self.cmbWorkOrganisation.value()
         filter['socStatuses'] = self.chkSocStatuses.isChecked()
@@ -7844,6 +8032,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['clientResearchKind'] = self.cmbFilterClientResearchKind.value()
             filter['clientResearchBegDate'] = self.edtFilterClientResearchBegDate.date()
             filter['clientResearchEndDate'] = self.edtFilterClientResearchEndDate.date()
+        if self.chkFilterClientNoResearch.isChecked():
+            filter['clientNoResearch'] = self.chkFilterClientNoResearch.isChecked()
         if self.chkFilterIdentification.isChecked():
             filter['identification'] = self.cmbFilterIdentification.value()
 
@@ -8036,55 +8226,6 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             openClientVaccinationCard(self, clientId)
 
 
-        db = QtGui.qApp.db
-        tableEvent = db.table('Event')
-        tableContract = db.table('Contract')
-        tableFinance = db.table('rbFinance')
-        table = tableEvent.leftJoin(tableContract, tableEvent['contract_id'].eq(tableContract['id']))
-        table = table.leftJoin(tableFinance, tableContract['finance_id'].eq(tableFinance['id']))
-        record = db.getRecordList(table, [tableEvent['execDate'], tableFinance['code']], tableEvent['id'].eq(self.currentEventId()))
-        endDate = forceDate(record[0].value(0))
-        financeCode = forceString(record[0].value(1))
-        curDate = QDate.currentDate()
-        monthAgoDate = QDate(curDate.year(), curDate.month() - 1, curDate.day())
-        if financeCode != '2' or endDate is None:
-            note = u''
-            if financeCode != '2':
-                note += u'Выгрузке подлежат только события по ОМС!'
-            if endDate is None:
-                if len(note):
-                    note += u'\n'
-                note += u'Выгрузке подлежат только завершённые события!'
-            QtGui.QMessageBox.critical(self, u'Ошибка!', note, QtGui.QMessageBox.Ok)
-        else:
-            import requests
-            url = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
-            url = (url + u'api/personalized_accounting') if url[-1] == u'/' else (url + u'/api/personalized_accounting')
-            url += '/$export_specific_event?event_id={0}'.format(self.currentEventId())
-            resp = requests.get(url=url)
-            if resp:
-                result = json.loads(resp.content)
-                if result.get('success_events') and len(result.get('success_events')):
-                    success_result = result['success_events'][0]
-                    if success_result['type_action'] == u'update':
-                        message_text = anyToUnicode(u'Обновление СЭФД на событие произведено успешно!')
-                    else:
-                        message_text = anyToUnicode(u'Создание СЭФД на событие произведено успешно!')
-                    message_text += anyToUnicode(u'\nИдентификатор СЭФД в ФПУМП: ') + success_result['id_fpump']
-                    message_text += anyToUnicode(u'.\nВерсия СЭФД в ФПУМП: ') + success_result['version_revision'] + u'.'
-                    QtGui.QMessageBox.information(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
-                else:
-                    if result.get('errors'):
-                        message_text = anyToUnicode(u'При выгрузке произошла ошибка:\n') + forceString(result['errors'][0]['error'])
-                    elif result.get('error'):
-                        message_text = forceString(result['error'])
-                    else:
-                        message_text = anyToUnicode(u'При выгрузке произошла ошибка!')
-                    QtGui.QMessageBox.warning(self, u'Внимание!', message_text, QtGui.QMessageBox.Ok)
-            else:
-                QtGui.QMessageBox.critical(self, u'Внимание!', u'Ошибка выгрузки события!', QtGui.QMessageBox.Ok)
-
-
     @pyqtSignature('')
     def on_actCreateRelatedAction_triggered(self):
         db = QtGui.qApp.db
@@ -8252,7 +8393,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_btnEventEdit_clicked(self):
         eventId = self.currentEventId()
         if eventId:
-            if self.getEventTypeIdF090(eventId):
+            actionF111 = self.getEventTypeIdF111(eventId)
+            if actionF111:
+                dialog = CF111EditDialog(self)
+                try:
+                    dialog.load(actionF111)
+                    if dialog.exec_():
+                        pass
+                finally:
+                    dialog.deleteLater()
+            elif self.getEventTypeIdF090(eventId):
                 actionId = self.getF090ActionIdToEventId(eventId)
                 if actionId and canChangePayStatusAdditional(self, 'Action', actionId) and canEditOtherpeopleAction(self, actionId):
                     if forceBool(self.getF090ActionTypeId(actionId)):
@@ -8281,6 +8431,31 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         record = db.getRecordEx(queryTable, [tableEvent['eventType_id'].alias('eventTypeId')], cond)
         return forceRef(record.value('eventTypeId')) if record else None
 
+    
+    def getEventTypeIdF111(self, eventId):
+        actionId = None
+        db = QtGui.qApp.db
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        queryTable = tableEvent.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+        cond = [tableEventType['code'].like(u'KBiR%'),
+                tableEvent['id'].eq(eventId),
+                tableEvent['deleted'].eq(0),
+                tableEventType['deleted'].eq(0),
+                ]
+        recordEvent = db.getRecordEx(queryTable, [tableEvent['id']], cond, u'Event.id DESC')
+        eventId = forceRef(recordEvent.value('id')) if recordEvent else None
+        if eventId:
+            actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(u'111/y-20')
+            if actionTypeIdListByKBiR:
+                tableAction = db.table('Action')
+                cond = [tableAction['event_id'].eq(eventId),
+                        tableAction['deleted'].eq(0),
+                        tableAction['actionType_id'].inlist(actionTypeIdListByKBiR)
+                        ]
+                record = db.getRecordEx(tableAction, [tableAction['id']], cond, u'Action.begDate')
+                actionId = forceRef(record.value('id')) if record else None
+        return actionId
 
     def getF090ActionIdToEventId(self, eventId):
         if eventId:
@@ -8516,6 +8691,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterEventPurpose_toggled(self, checked):
         if checked:
+            if not self.cmbFilterEventPurpose.hasTable():
+                self.cmbFilterEventPurpose.setTable('rbEventTypePurpose', False, filter='code != \'0\'')
             self.chkFilterEventId.setChecked(False)
             self.updateFilterEventResultTable()
             self.setCmbFilterEventTypeFilter(self.cmbFilterEventPurpose.value())
@@ -8548,6 +8725,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterEventSpeciality_toggled(self, checked):
         if checked:
             self.chkFilterEventId.setChecked(False)
+            if not self.cmbFilterEventSpeciality.hasTable():
+                self.cmbFilterEventSpeciality.setTable('rbSpeciality', False)
         self.onChkFilterToggled(self.sender(), checked)
         if checked:
             self.cmbFilterEventPerson.setSpecialityId(self.cmbFilterEventSpeciality.value())
@@ -8689,6 +8868,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_chkFilterEventDisease_toggled(self, checked):
         if checked:
             self.chkFilterEventId.setChecked(False)
+            if not self.cmbFilterEventDisease.hasTable():
+                self.cmbFilterEventDisease.setTable('rbDiseaseCharacter', False)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventDisease, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
@@ -8738,11 +8919,11 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('bool')
-    def on_chkFilterPayStatus_toggled(self, checked):
+    def on_chkFilterEventActions_toggled(self, checked):
         self.onCheckEventToggled(checked)
-        self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterPayStatus, checked)
+        self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventActions, checked)
         for row in self.chkListOnEventsPage:
-            if row[0] == self.chkFilterPayStatus:
+            if row[0] == self.chkFilterEventActions:
                 for element in row[1]:
                     self.setChildElementsVisible(self.chkListOnEventsPage, element, checked)
 
@@ -8762,6 +8943,11 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterVisits_toggled(self, checked):
         self.onCheckEventToggled(checked)
+        if checked:
+            if not self.cmbFilterVisitScene.hasTable():
+                self.cmbFilterVisitScene.setTable('rbScene', True)
+            if not self.cmbFilterVisitType.hasTable():
+                self.cmbFilterVisitType.setTable('rbVisitType', True)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterVisits, checked)
 
 
@@ -8792,6 +8978,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.onCheckEventToggled(checked)
         if checked and self.chkFilterEventContract.isChecked():
             self.chkFilterEventContract.setChecked(not checked)
+        if checked and not self.edtFilterEventFinance.hasTable():
+            self.edtFilterEventFinance.setTable('rbFinance', True)
 
 
     @pyqtSignature('bool')
@@ -8808,6 +8996,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('bool')
     def on_chkFilterEventExport_toggled(self, checked):
+        if checked and not self.cmbFilterEventExportSystem.hasTable():
+            self.cmbFilterEventExportSystem.setTable('rbExternalSystem', True)
         self.setChildElementsVisible(self.chkListOnEventsPage, self.chkFilterEventExport, checked)
         self.onCheckEventToggled(checked)
 
@@ -8984,7 +9174,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         if self.chkFilterEventOrder.isChecked():
             filter['order'] = self.cmbFilterEventOrder.currentIndex()+1
         if self.chkFilterEventType.isChecked():
-            filter['eventTypeId'] = self.cmbFilterEventType.value()
+            if self.cmbFilterEventType.value():
+                filter['eventTypeId'] = self.cmbFilterEventType.value()
         if self.chkFilterEventOrgStructure.isChecked():
             filter['orgStructureId'] = self.cmbFilterEventOrgStructure.value()
         if self.chkFilterEventSpeciality.isChecked():
@@ -9098,6 +9289,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['clientIds'] = self.modelClients.idList()
         filter['filterEventByClient'] = filterEventByClient
         filter['notExposedByOms'] = self.chkNotExposedByOms.isChecked()
+        filter['notExposed'] = self.chkNotExposed.isChecked()
+        if self.chkFilterEventActions.isChecked():
+            filter['eventActions'] = self.cmbFilterEventActions.value()
         self.updateEventsList(filter)
         self.focusEvents()
 
@@ -9139,9 +9333,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('int')
     def on_tabWidgetActionsClasses_currentChanged(self, index):
-        self.cmbFilterActionType.setClassesPopup([index])
-        self.cmbFilterActionType.setClass(index)
-        self.cmbFilterActionType.setValue(self.__actionTypeIdListByClassPage[index])
+        actionClass = self.getActionClassByTabIndex()
+        if actionClass is not None:
+            self.cmbFilterActionType.setClassesPopup([actionClass])
+            self.cmbFilterActionType.setClass(actionClass)
+            self.cmbFilterActionType.setValue(self.__actionTypeIdListByClassPage[actionClass])
+            self.cmbFilterActionType.setClassesPopupVisible(False)
+        else:
+            self.cmbFilterActionType.setClassesPopup(range(4))
+            self.cmbFilterActionType.setClass(None)
+            self.cmbFilterActionType.setClassesPopupVisible(True)
         self.on_buttonBoxAction_apply()
 
 
@@ -9184,13 +9385,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
+    def on_selectionModelActionsAll_currentRowChanged(self, current, previous):
+        actionId = self.tblActionsAll.currentItemId()
+        self.updateActionInfo(actionId)
+        self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblActionsAllProperties, previous)
+        self.tabAmbCardContent.updateAmbCardAttachedFiles(current, self.tblActionsAllAttachedDocuments, previous)
+
+
+    @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelExpertDirectionsMC_currentRowChanged(self, current, previous):
         actionId = self.tblExpertDirectionsMC.currentItemId()
-
-        record = self.tblExpertDirectionsMC.currentItem()
-        event_id = forceString(record.value('event_id'))
-        self.txtClientInfoBrowserExpert.setHtml(getClientBanner(self.getClientId(event_id), aDateAttaches=QDate.currentDate()))
-
         self.updateMedicalCommissionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblExpertDirectionsPropertiesMC, previous)
 
@@ -9198,11 +9402,6 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelExpertProtocolsMC_currentRowChanged(self, current, previous):
         actionId = self.tblExpertProtocolsMC.currentItemId()
-
-        record = self.tblExpertProtocolsMC.currentItem()
-        event_id = forceString(record.value('event_id'))
-        self.txtClientInfoBrowserExpert.setHtml(getClientBanner(self.getClientId(event_id), aDateAttaches=QDate.currentDate()))
-
         self.updateMedicalCommissionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblExpertProtocolsPropertiesMC, previous)
 
@@ -9210,11 +9409,6 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelExpertMedicalSocialInspection_currentRowChanged(self, current, previous):
         actionId = self.tblExpertMedicalSocialInspection.currentItemId()
-
-        record = self.tblExpertMedicalSocialInspection.currentItem()
-        event_id = forceString(record.value('event_id'))
-        self.txtClientInfoBrowserExpert.setHtml(getClientBanner(self.getClientId(event_id), aDateAttaches=QDate.currentDate()))
-
         self.updateMedicalCommissionInfo(actionId)
         self.tabAmbCardContent.updateAmbCardPropertiesTable(current, self.tblExpertMSIProperties, previous)
 
@@ -9248,29 +9442,23 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.lblExpertMedicalSocialInspectionCount.setText(formatRecordsCount(count))
 
 
-    # кол-во пациентов и событий для статусной строки на вкладке обслуживание
-    def getClientCountInfoByActions(self, model):
-        labelText = u''
-        clientCount = model.getClientCount()
-        eventCount  = model.getEventCount()
-        labelText += ', %d %s' % (eventCount, agreeNumberAndWord(eventCount, (u'событие', u'события', u'событий')))
-        labelText += ', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
-        if labelText:
-            return labelText
-        return u''
-
-
     @pyqtSignature('int')
     def on_modelActionsStatus_itemsCountChanged(self, count):
         labelText = formatRecordsCount(count)
-        labelText += self.getClientCountInfoByActions(self.modelActionsStatus)
+        
+        actionsTotal = self.modelActionsStatus.getActionsTotal()
+        clientCount = actionsTotal["clientsCount"]
+        amount = actionsTotal["amount"]
+        uet = actionsTotal["uet"]
+
+        infoClients = ''
+        if clientCount:
+            infoClients = u', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
+        labelText += infoClients
+        
         self.lblActionsStatusCount.setText(labelText)
         self.actionsStatusCount = labelText
-#        if count<=100000:
-        amount, uet = self.modelActionsStatus.getTotalAmountAndUet()
         self.lblActionsStatusAmountSum.setText(u'Количество: %.2f УЕТ: %.2f'% (amount, uet))
-#        else:
-#            self.lblActionsStatusAmountSum.setText(u'')
 
 
     @pyqtSignature('int')
@@ -9282,40 +9470,76 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('int')
     def on_modelActionsDiagnostic_itemsCountChanged(self, count):
         labelText = formatRecordsCount(count)
-        labelText += self.getClientCountInfoByActions(self.modelActionsDiagnostic)
+        
+        actionsTotal = self.modelActionsDiagnostic.getActionsTotal()
+        clientCount = actionsTotal["clientsCount"]
+        amount = actionsTotal["amount"]
+        uet = actionsTotal["uet"]
+
+        infoClients = ''
+        if clientCount:
+            infoClients = u', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
+        labelText += infoClients
+        
         self.lblActionsDiagnosticCount.setText(labelText)
         self.actionsDiagnosticCount = labelText
-#        if count<=100000:
-        amount, uet = self.modelActionsDiagnostic.getTotalAmountAndUet()
         self.lblActionsDiagnosticAmountSum.setText(u'Количество: %.2f УЕТ: %.2f'% (amount, uet))
-#        else:
-#            self.lblActionsDiagnosticAmountSum.setText(u'')
 
 
     @pyqtSignature('int')
     def on_modelActionsCure_itemsCountChanged(self, count):
         labelText = formatRecordsCount(count)
-        labelText += self.getClientCountInfoByActions(self.modelActionsCure)
+        
+        actionsTotal = self.modelActionsCure.getActionsTotal()
+        clientCount = actionsTotal["clientsCount"]
+        amount = actionsTotal["amount"]
+        uet = actionsTotal["uet"]
+
+        infoClients = ''
+        if clientCount:
+            infoClients = u', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
+        labelText += infoClients
+        
         self.lblActionsCureCount.setText(labelText)
         self.actionsCureCount = labelText
-#        if count<=100000:
-        amount, uet = self.modelActionsCure.getTotalAmountAndUet()
         self.lblActionsCureAmountSum.setText(u'Количество: %.2f УЕТ: %.2f'% (amount, uet))
-#        else:
-#            self.lblActionsCureAmountSum.setText(u'')
 
 
     @pyqtSignature('int')
     def on_modelActionsMisc_itemsCountChanged(self, count):
         labelText = formatRecordsCount(count)
-        labelText += self.getClientCountInfoByActions(self.modelActionsMisc)
+        
+        actionsTotal = self.modelActionsMisc.getActionsTotal()
+        clientCount = actionsTotal["clientsCount"]
+        amount = actionsTotal["amount"]
+        uet = actionsTotal["uet"]
+
+        infoClients = ''
+        if clientCount:
+            infoClients = u', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
+        labelText += infoClients
+        
         self.lblActionsMiscCount.setText(labelText)
         self.actionsMiscCount = labelText
-#        if count<=100000:
-        amount, uet = self.modelActionsMisc.getTotalAmountAndUet()
         self.lblActionsMiscAmountSum.setText(u'Количество: %.2f УЕТ: %.2f'% (amount, uet))
-#        else:
-#            self.lblActionsMiscAmountSum.setText(u'')
+
+
+    @pyqtSignature('int')
+    def on_modelActionsAll_itemsCountChanged(self, count):
+        labelText = formatRecordsCount(count)
+        
+        actionsTotal = self.modelActionsAll.getActionsTotal()
+        clientCount = actionsTotal["clientsCount"]
+        amount = actionsTotal["amount"]
+        uet = actionsTotal["uet"]
+
+        infoClients = ''
+        if clientCount:
+            infoClients = u', %d %s' % (clientCount, agreeNumberAndWord(clientCount, (u'пациент', u'пациента', u'пациентов')))
+        labelText += infoClients
+        
+        self.lblActionsAllCount.setText(labelText)
+        self.lblActionsAllAmountSum.setText(u'Количество: %.2f УЕТ: %.2f'% (amount, uet))
 
 
     @pyqtSignature('QModelIndex')
@@ -9335,6 +9559,11 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('QModelIndex')
     def on_tblActionsMisc_doubleClicked(self, index):
+        self.on_btnActionEdit_clicked()
+
+
+    @pyqtSignature('QModelIndex')
+    def on_tblActionsAll_doubleClicked(self, index):
         self.on_btnActionEdit_clicked()
 
 
@@ -9422,6 +9651,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             eventTypeId = forceRef(record.value('eventType_id')) if record else None
             oldPrevEventId = forceRef(record.value('prevEvent_id')) if record else None
             clientId    = forceRef(record.value('client_id')) if record else None
+            date = forceDate(record.value('execDate')) if record else None
+            setDate = forceDate(record.value('setDate')) if record else None
+            orgId = forceInt(record.value('org_id')) if record else None
             if eventTypeId:
                 tableETE = db.table('EventType_Event')
                 cols = [tableETE['eventType_id']
@@ -9430,12 +9662,37 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                         ]
                 eventTypeIdList = db.getDistinctIdList(tableETE, cols, cond, 'EventType_Event.id')
                 if eventTypeIdList:
-                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId)
+                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId, date, orgId, forceInt(clientId), setDate, eventId)
                     try:
                         if dialog.exec_():
                             newEventTypeId = dialog.getNewEventTypeId()
                             if newEventTypeId:
+                                order = dialog.getOrder()
+                                contractId = dialog.getContractId()
+                                # eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
+                                # if eventTypeRecord:
+                                #     changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
+                                # else:
+                                #     changeExternalId = False
+                                # if changeExternalId:
+                                #     counterId = getEventCounterId(newEventTypeId)
+                                #     if counterId:
+                                #         try:
+                                #             externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
+                                #             record.setValue('externalId', externalId)
+                                #         except Exception as e:
+                                #             QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                #                                     u'Внимание!',
+                                #                                     u'Произошла ошибка при получении значения счетчика\n%s' % e,
+                                #                                     QtGui.QMessageBox.Ok)
+                                #             return False
+                                #     else:
+                                #         record.setValue('externalId', '')
                                 record.setValue('eventType_id', toVariant(newEventTypeId))
+                                if order > -1:
+                                    record.setValue('order', toVariant(order+1))
+                                if contractId:
+                                    record.setValue('contract_id', toVariant(contractId))
                                 idList = set([])
                                 idListParents = set(db.getTheseAndParents(tableET, 'prevEvent_id', [eventId if eventId else self.prevEventId]))
                                 idList ^= idListParents
@@ -9493,8 +9750,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('')
-    def on_actOpenAccountingBySingleActionStatus_triggered(self):
-        actionId = self.tblActionsStatus.currentItemId()
+    def on_actOpenAccountingBySingleAction_triggered(self):
+        actionId = self.getCurrentActionsTable().currentItemId()
         self.showAccountingDialog(None, actionId)
 
 
@@ -9502,22 +9759,6 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_actOpenAccountingBySingleVisits_triggered(self):
         visitId = self.tblVisits.currentItemId()
         self.showAccountingDialog(None, None, visitId)
-
-
-    @pyqtSignature('')
-    def on_actOpenAccountingBySingleActionDiagnostic_triggered(self):
-        actionId = self.tblActionsDiagnostic.currentItemId()
-        self.showAccountingDialog(None, actionId)
-
-    @pyqtSignature('')
-    def on_actOpenAccountingBySingleActionCure_triggered(self):
-        actionId = self.tblActionsCure.currentItemId()
-        self.showAccountingDialog(None, actionId)
-
-    @pyqtSignature('')
-    def on_actOpenAccountingBySingleActionMisc_triggered(self):
-        actionId = self.tblActionsMisc.currentItemId()
-        self.showAccountingDialog(None, actionId)
 
 
     @pyqtSignature('')
@@ -9960,7 +10201,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                         tablePropertyType = db.table(tableName).alias(tableName + str(row))
                         tableActionProperty = db.table('ActionProperty').alias('ActionProperty' + str(row))
                         property = model.action.getPropertyById(propertyType.id)
-                        value = forceString(property.getValue())
+                        value = property.getValue()
                         if isinstance(value, basestring):
                             optionQueryTableList.append(((tablePropertyType, tableActionProperty, optionPropertyId), [tablePropertyType['id'].eq(tableActionProperty['id']), tablePropertyType['value'].like(value) if value else tablePropertyType['value'].isNull()]))
                         else:
@@ -10016,8 +10257,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('int')
     def on_cmbFilterActionType_currentIndexChanged(self, index):
-        index = self.tabWidgetActionsClasses.currentIndex()
-        self.__actionTypeIdListByClassPage[index] = self.cmbFilterActionType.value()
+        actionClass = self.getActionClassByTabIndex()
+        if actionClass:
+            self.__actionTypeIdListByClassPage[actionClass] = self.cmbFilterActionType.value()
         actionTypeId = forceRef(self.cmbFilterActionType.value())
         self.chkFilledProperty.setEnabled(bool(actionTypeId) and self.chkTakeIntoAccountProperty.isChecked())
         self.enabledOptionProperty((self.chkFilledProperty.isEnabled() and self.chkFilledProperty.isChecked()), actionTypeId)
@@ -10051,27 +10293,37 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterActionExport_toggled(self, checked):
         if checked:
+            if not self.cmbFilterActionExportSystem.hasTable():
+                self.cmbFilterActionExportSystem.setTable('rbExternalSystem', True)
             self.chkFilterActionId.setChecked(False)
             self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExport, checked)
         self.onChkFilterToggled(self.sender(), checked)
-    
-    
+
+
     @pyqtSignature('bool')
     def on_chkFilterActionAttachedFiles_toggled(self, checked):
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionAttachedFiles, checked)
         self.cmbFilterActionAttachedFiles.setEnabled(checked)
-        self.chkFilterActionFileAttach.setEnabled(checked)
-        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttach, checked & self.chkFilterActionFileAttach.isChecked())
-        if self.cmbFilterActionAttachedFiles.isEnabled() and self.cmbFilterActionAttachedFiles.currentIndex() == 1:
-            self.cmbFilterActionTypeDoc.setEnabled(True)
-            self.cmbFilterActionSigned.setEnabled(True)
-            self.chkFilterActionFileAttach.setEnabled(True)
+        self.chkFilterActionFileAttachId.setEnabled(checked)
+        self.chkFilterActionExportSuitable.setEnabled(checked)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionFileAttachId, checked & self.chkFilterActionFileAttachId.isChecked())
+        if self.cmbFilterActionAttachedFiles.isEnabled():
+            if self.cmbFilterActionAttachedFiles.currentIndex() == 0:
+                self.cmbFilterActionTypeDoc.setEnabled(True)
+                self.cmbFilterActionSigned.setEnabled(True)
+                self.lblActionTypeDoc.setEnabled(True)
+                self.lblActionSigned.setEnabled(True)
+            else:
+                self.cmbFilterActionTypeDoc.setEnabled(False)
+                self.cmbFilterActionSigned.setEnabled(False)
+                self.lblActionTypeDoc.setEnabled(False)
+                self.lblActionSigned.setEnabled(False)
         else:
             self.cmbFilterActionTypeDoc.setEnabled(False)
             self.cmbFilterActionSigned.setEnabled(False)
-            self.chkFilterActionFileAttach.setEnabled(False)
-            self.chkFilterActionFileAttach.setChecked(False)
+            self.lblActionTypeDoc.setEnabled(False)
+            self.lblActionSigned.setEnabled(False)
 
     @pyqtSignature('')
     def on_btnFilterActionContract_clicked(self):
@@ -10092,6 +10344,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterActionSetSpeciality_toggled(self, checked):
         if checked:
+            if not self.cmbFilterActionSetSpeciality.hasTable():
+                self.cmbFilterActionSetSpeciality.setTable('rbSpeciality', False)
             self.chkFilterActionId.setChecked(False)
             self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetSpeciality, checked)
@@ -10138,6 +10392,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterActionExecSetSpeciality_toggled(self, checked):
         if checked:
+            if not self.cmbFilterActionExecSetSpeciality.hasTable():
+                self.cmbFilterActionExecSetSpeciality.setTable('rbSpeciality', False)
             self.chkFilterActionId.setChecked(False)
             self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExecSetSpeciality, checked)
@@ -10161,37 +10417,55 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     
     @pyqtSignature('int')
     def on_cmbFilterActionAttachedFiles_currentIndexChanged(self, index):
-        active = True if index == 1 else False
+        active = True if index == 0 else False
         self.cmbFilterActionTypeDoc.setEnabled(active)
         self.cmbFilterActionSigned.setEnabled(active)
-        self.chkFilterActionFileAttach.setEnabled(active)
-        if not self.chkFilterActionFileAttach.isEnabled():
-            self.chkFilterActionFileAttach.setChecked(False)
-        self.edtFilterActionFileAttach.setEnabled(active)
-        self.setChildElementsVisible(self.chkListOnActionsPage , self.edtFilterActionFileAttach, active)
+        if not self.chkFilterActionExportSuitable.isEnabled():
+            self.chkFilterActionExportSuitable.setChecked(False)
+        self.setChildElementsVisible(self.chkListOnActionsPage , self.edtFilterActionFileAttachId, active)
 
 
     @pyqtSignature('bool')
     def on_chkFilterActionSetPerson_toggled(self, checked):
-        if checked:
-            self.chkFilterActionId.setChecked(False)
-            self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSetPerson, checked)
-        self.onChkFilterToggled(self.sender(), checked)
+        self.cmbFilterActionSetPerson.setEnabled(checked)
+        if self.cmbFilterActionSetPerson.currentIndex() == 0:
+            self.chkFilterActionSNILSSetPerson.setEnabled(False)
+        else:
+            self.chkFilterActionSNILSSetPerson.setEnabled(True)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSNILSSetPerson, checked & self.chkFilterActionSNILSSetPerson.isChecked())
         self.chkFilterActionSetOrgStructure.setChecked(False)
         self.chkFilterActionSetSpeciality.setChecked(False)
 
+    @pyqtSignature('int')
+    def on_cmbFilterActionSetPerson_currentIndexChanged(self):
+        if self.cmbFilterActionSetPerson.currentIndex() == 0:
+            self.chkFilterActionSNILSSetPerson.setEnabled(False)
+        else:
+            self.chkFilterActionSNILSSetPerson.setEnabled(True)
+        if not self.chkFilterActionSNILSSetPerson.isEnabled():
+            self.chkFilterActionSNILSSetPerson.setChecked(False)
 
     @pyqtSignature('bool')
     def on_chkFilterActionExecSetPerson_toggled(self, checked):
-        if checked:
-            self.chkFilterActionId.setChecked(False)
-            self.edtFilterActionId.setEnabled(False)
         self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionExecSetPerson, checked)
-        self.onChkFilterToggled(self.sender(), checked)
-        self.chkFilterActionExecSetOrgStructure.setChecked(False)
-        self.chkFilterActionExecSetSpeciality.setChecked(False)
+        self.cmbFilterActionExecSetPerson.setEnabled(checked)
+        if self.cmbFilterActionExecSetPerson.currentIndex() == 0 or not self.cmbFilterActionExecSetPerson.value():
+            self.chkFilterActionSNILSExecSetPerson.setEnabled(False)
+        else:
+            self.chkFilterActionSNILSExecSetPerson.setEnabled(True)
+        self.setChildElementsVisible(self.chkListOnActionsPage, self.chkFilterActionSNILSExecSetPerson, checked & self.chkFilterActionSNILSExecSetPerson.isChecked())
+        self.chkFilterActionSetOrgStructure.setChecked(False)
+        self.chkFilterActionSetSpeciality.setChecked(False)
 
+    @pyqtSignature('int')
+    def on_cmbFilterActionExecSetPerson_currentIndexChanged(self):
+        if self.cmbFilterActionExecSetPerson.currentIndex() == 0:
+            self.chkFilterActionSNILSExecSetPerson.setEnabled(False)
+        else:
+            self.chkFilterActionSNILSExecSetPerson.setEnabled(True)
+        if not self.chkFilterActionSNILSExecSetPerson.isEnabled():
+            self.chkFilterActionSNILSExecSetPerson.setChecked(False)
 
     @pyqtSignature('bool')
     def on_chkFilterActionAssistant_toggled(self, checked):
@@ -10205,6 +10479,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     @pyqtSignature('bool')
     def on_chkFilterActionFinance_toggled(self, checked):
         if checked:
+            if not self.cmbFilterActionFinance.hasTable():
+                self.cmbFilterActionFinance.setTable('rbFinance', addNone=True)
             self.chkFilterActionId.setChecked(False)
             self.edtFilterActionId.setEnabled(False)
         self.onChkFilterToggled(self.sender(), checked)
@@ -10326,6 +10602,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.chkFilterActionSetOrgStructure.setChecked(False)
             self.chkFilterActionSetSpeciality.setChecked(False)
             self.chkFilterActionSetPerson.setChecked(False)
+            self.chkFilterActionSNILSSetPerson.setChecked(False)
             self.chkFilterActionPlannedEndDate.setChecked(False)
             self.chkFilterActionStatus.setChecked(False)
             self.chkFilterActionOrg.setChecked(False)
@@ -10333,6 +10610,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.chkFilterActionExecSetOrgStructure.setChecked(False)
             self.chkFilterActionExecSetSpeciality.setChecked(False)
             self.chkFilterActionExecSetPerson.setChecked(False)
+            self.chkFilterActionSNILSExecSetPerson.setChecked(False)
             self.chkFilterActionAssistant.setChecked(False)
             self.chkFilterActionUncoordinated.setChecked(False)
             self.chkFilterActionJobTicketId.setChecked(False)
@@ -10351,7 +10629,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.chkFilterActionContract.setChecked(False)
             self.chkFilterActionExport.setChecked(False)
             self.chkFilterActionAttachedFiles.setChecked(False)
-            self.chkFilterActionFileAttach.setChecked(False)
+            self.chkFilterActionFileAttachId.setChecked(False)
+            self.chkFilterActionExportSuitable.setChecked(False)
         self.onChkFilterToggled(self.chkFilterActionId, checked)
 
 
@@ -10396,10 +10675,14 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['execSetOrgStructureId'] = self.cmbFilterActionExecSetOrgStructure.value()
         if self.chkFilterActionSetPerson.isChecked():
             filter['setPersonId'] = self.cmbFilterActionSetPerson.value()
+            if self.chkFilterActionSNILSSetPerson.isChecked() and self.chkFilterActionSNILSSetPerson.isEnabled():
+                filter['setPersonSNILS'] = True
         if self.chkFilterActionExecSetSpeciality.isChecked():
             filter['execSpecialityId'] = self.cmbFilterActionExecSetSpeciality.value()
         if self.chkFilterActionExecSetPerson.isChecked():
             filter['execPersonId'] = self.cmbFilterActionExecSetPerson.value()
+            if self.chkFilterActionSNILSExecSetPerson.isChecked() and self.chkFilterActionSNILSExecSetPerson.isEnabled():
+                filter['execPersonSNILS'] = True
         if self.chkFilterActionAssistant.isChecked():
             filter['assistantId'] = self.cmbFilterActionAssistant.value()
         if self.chkFilterActionFinance.isChecked():
@@ -10471,15 +10754,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['indexFilledProperty'] = self.cmbFilledProperty.currentIndex()
         if self.chkThresholdPenaltyGrade.isChecked():
             filter['thresholdPenaltyGrade'] = self.edtThresholdPenaltyGrade.text()
-        filter['awaitingSigningForOrganisation'] = self.chkFilterActionAwaitingSigningForOrganisation.isChecked()
         if self.chkFilterActionAttachedFiles.isChecked():
             filter['attachedFile'] = self.cmbFilterActionAttachedFiles.currentIndex()
             if self.cmbFilterActionTypeDoc.isEnabled():
                 filter['typeDoc'] = forceString(self.cmbFilterActionTypeDoc.currentText())
             if self.cmbFilterActionSigned.isEnabled():
                 filter['signed'] = self.cmbFilterActionSigned.currentIndex()
-            if self.chkFilterActionFileAttach.isChecked():
-                filter['ActionFileAttach_id'] = forceInt(self.edtFilterActionFileAttach.text())
+            if self.chkFilterActionFileAttachId.isChecked():
+                filter['ActionFileAttach_id'] = forceInt(self.edtFilterActionFileAttachId.text())
+            if self.chkFilterActionExportSuitable.isChecked():
+                filter['exportSuitable'] = True
         self.updateActionsList(filter)
         self.focusEvents()
 
@@ -10555,8 +10839,10 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.visibleFilterExpertExportFSS()
         if index == self.tabWidgetTempInvalidTypes.indexOf(self.tabExpertMedicalCommission):
             self.stwExpertFilter.setCurrentWidget(self.tabMedicalCommissionExpertFilter)
-            self.cmbFilterExpertSpecialityMC.setTable('rbSpeciality', True)
-            self.cmbFilterExpertIntegratedISMC.setTable('rbExternalSystem', True)
+            if not self.cmbFilterExpertSpecialityMC.hasTable():
+                self.cmbFilterExpertSpecialityMC.setTable('rbSpeciality', True)
+            if not self.cmbFilterExpertIntegratedISMC.hasTable():
+                self.cmbFilterExpertIntegratedISMC.setTable('rbExternalSystem', True)
             self.on_buttonBoxExpertMC_apply()
             self.setBtnExpertEnabled()
         else:
@@ -10682,10 +10968,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             clientId = forceRef(record.value('client_id')) if record else None
         if not clientId:
             clientId = self.selectedClientId()
-        if clientId:
-            self.txtClientInfoBrowserExpert.setHtml(getClientBanner(clientId, aDateAttaches=QDate.currentDate()))
-        else:
-            self.txtClientInfoBrowserExpert.setText('')
+        self.updateClientInfo(clientId)
         self.actCheckClientAttach.setEnabled(bool(clientId))
         self.actPortal_Doctor.setEnabled(bool(clientId))
         self.actExpertEditClient.setEnabled(bool(clientId))
@@ -10866,7 +11149,17 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.actAmbCreateEvent.setEnabled(notEmpty and QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteEvents]))
         self.actAmbDeleteOrder.setEnabled(notEmpty)
         self.actAmbChangeNotes.setEnabled(notEmpty)
-        self.actAmbPrintOrder.setEnabled(notEmpty)
+        index = self.tblSchedules.currentIndex()
+        ambOrderPrint = 1
+        if index.isValid():
+            row = index.row()
+            item = self.modelSchedules.items()[row]
+            scheduleItemId = forceRef(item.value('id'))
+            db = QtGui.qApp.db
+            record = db.getRecord('vScheduleItem', '*', scheduleItemId)
+            ambOrderPrint = forceInt(record.value('appointmentType')) 
+        self.actAmbPrintOrder.setEnabled(notEmpty and ambOrderPrint != CSchedule.atHome)
+        self.actAmbHomePrintOrder.setEnabled(notEmpty and ambOrderPrint == CSchedule.atHome)
         self.actPrintBeforeRecords.setEnabled(notEmpty)
         self.actShowPreRecordInfo.setEnabled(notEmpty)
 
@@ -10967,13 +11260,22 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('')
-    def on_actAmbPrintOrder_triggered(self):
+    def on_actAmbPrintOrder_clicked(self, templateId = None):
         index = self.tblSchedules.currentIndex()
         if index.isValid():
             row = index.row()
             item = self.modelSchedules.items()[row]
             scheduleItemId = forceRef(item.value('id'))
-            printOrderByScheduleItem(self, scheduleItemId, self.currentClientId())
+            printOrderByScheduleItem(self, scheduleItemId, self.currentClientId(), templateId)
+    
+    @pyqtSignature('int')
+    def on_actAmbPrintOrder_printByTemplate(self, templateId):
+        self.on_actAmbPrintOrder_clicked(templateId)
+    
+    
+    @pyqtSignature('int')
+    def on_actAmbHomePrintOrder_printByTemplate(self, templateId):
+        self.on_actAmbPrintOrder_clicked(templateId)
 
 
     @pyqtSignature('')
@@ -12509,6 +12811,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('bool')
     def on_chkFilterVisitType_toggled(self, checked):
+        if checked and not self.cmbFilterVisitsType.hasTable():
+            self.cmbFilterVisitsType.setTable('rbVisitType', False)
         self.onChkFilterToggled(self.sender(), checked)
 
 
@@ -12538,6 +12842,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.setChildElementsVisible(self.chkListOnVisitsPage, self.chkFilterExecSetSpecialityVisit, checked)
         self.onChkFilterToggled(self.sender(), checked)
         if checked:
+            if not self.cmbFilterExecSetSpecialityVisit.hasTable():
+                self.cmbFilterExecSetSpecialityVisit.setTable('rbSpeciality', False)
             self.chkFilterExecSetPersonVisit.setChecked(False)
             self.cmbFilterExecSetPersonVisit.setSpecialityId(self.cmbFilterExecSetSpecialityVisit.value())
         else:
@@ -12571,12 +12877,16 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
     @pyqtSignature('bool')
     def on_chkFilterSceneVisit_toggled(self, checked):
+        if checked and not self.cmbFilterSceneVisit.hasTable():
+            self.cmbFilterSceneVisit.setTable('rbScene', True)
         self.setChildElementsVisible(self.chkListOnVisitsPage, self.chkFilterSceneVisit, checked)
         self.onChkFilterToggled(self.sender(), checked)
 
 
     @pyqtSignature('bool')
     def on_chkFilterVisitFinance_toggled(self, checked):
+        if checked and not self.cmbFilterVisitFinance.hasTable():
+            self.cmbFilterVisitFinance.setTable('rbFinance', True)
         self.setChildElementsVisible(self.chkListOnVisitsPage, self.chkFilterVisitFinance, checked)
         self.onChkFilterToggled(self.sender(), checked)
 

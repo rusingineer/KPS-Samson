@@ -75,7 +75,7 @@ class CDocumentLocationTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['rbDocumentTypeLocation.code', 'rbDocumentTypeLocation.name']
+        self._fieldNames = ['rbDocumentTypeLocation.id', 'rbDocumentTypeLocation.code', 'rbDocumentTypeLocation.name']
         self.setTable('rbDocumentTypeLocation')
 
 

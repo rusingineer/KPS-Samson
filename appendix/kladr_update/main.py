@@ -7,6 +7,13 @@ import codecs
 from os.path import *
 from optparse import OptionParser
 
+import os
+import platform
+
+if platform.system() != 'Windows':
+    pathtail = '/appendix/kladr_update/main.py'
+    sys.path.insert(0, os.path.realpath(__file__).replace(pathtail, ''))
+
 from Exchange.Utils import insertTableDataFromDbf
 #from library.DialogBase  import CDialogBase
 from library.database    import CDatabase

@@ -8,7 +8,8 @@ from Reports.ReportBase import CReportBase
 from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
 from EconomicAnalisys import getStmt, colClient, colEvent, colOrgStructure, colMedicalType, colEventType, \
-    colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colPersonWithSpeciality
+    colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colPersonWithSpeciality, colExposedSum, \
+    colPersonSNILS, colPersonFIO
 
 
 class CEconomicAnalisysE3(CReport):
@@ -18,6 +19,8 @@ class CEconomicAnalisysE3(CReport):
         self.detailList = [u'отделениям', u'условиям ОМП', u'типам событий']
         self.detailColTitle = [u'Отделение', u'Условие ОМП', u'Тип события']
         self.detailId = 0
+        self.groupByPersonSnils = 0
+        self.medicalTypeTotals = 0
 
     def selectData(self, params):
         self.detailId = params.get('detailTo', 0)
@@ -33,11 +36,25 @@ class CEconomicAnalisysE3(CReport):
         else:
             detailCol = colOrgStructure
             detailColName = u"colOrgStructure"
+        self.groupByPersonSnils = params.get('groupByPersonSnils', 0)
+        self.medicalTypeTotals = params.get('medicalTypeTotals', 0) and not self.detailId
 
-        cols = [colClient, colEvent, detailCol, colPersonWithSpeciality, colCSG, colPos, colObr, colSMP, colKD, colPD,
-                colUET, colAmount, colSUM]
+        mtCol = None
+        mtColName = u'NULL'
+        if self.medicalTypeTotals:
+            mtCol = colMedicalType
+            mtColName = u'colMedicalType'
+
+        cols = [colClient, colEvent, detailCol, colPersonSNILS, colPersonFIO, colPersonWithSpeciality,
+                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum]
+        if mtCol:
+            cols.append(colMedicalType)
+
         colsStmt = u"""select %s as osname,
-        colPersonWithSpeciality as person,
+        colPersonFIO as person,
+        colPersonSNILS as personSNILS,
+        colPersonWithSpeciality as personWithSpeciality,
+        %s as mt,
         count(distinct colEvent) as cnt,
         count(distinct colClient) as fl,
         sum(colCSG) as mes,
@@ -48,26 +65,40 @@ class CEconomicAnalisysE3(CReport):
         sum(colPD) as pd,
         sum(colSMP) as callambulance,
         sum(IF(colPos = 0 and colCSG = 0 and colSMP = 0 and colObr = 0, colAmount, 0)) as usl,
-        round(sum(colSUM), 2) as sum
-        """ % detailColName
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
+        """ % (detailColName, mtColName)
 
-        groupCols = u'%s, colPersonWithSpeciality' % detailColName
-        orderCols = u'%s, colPersonWithSpeciality' % detailColName
-        
+        groupCols = u'colPersonSNILS, ' if self.groupByPersonSnils else ''
+        orderCols = u'colPersonSNILS, ' if self.groupByPersonSnils else ''
+
+        groupCols += u'%s, colPersonWithSpeciality' % detailColName
+        orderCols += u'%s, colPersonWithSpeciality' % detailColName
+
+        if self.medicalTypeTotals:
+            groupCols += u', colMedicalType'
+            orderCols += u', colMedicalType'
+
         stmt = getStmt(colsStmt, cols, groupCols, orderCols, params)
 
         return QtGui.qApp.db.query(stmt)
         
 
     def build(self, description, params):
-        reportRowSize = 13
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 14 if needExposedSum else 13
         reportData = {}
+        reportDataMedicalTypeTotals = {}
 
         def processQuery(query):
             while query.next():
                 record = query.record()
                 osname = forceString(record.value('osname'))
-                person = forceString(record.value('person'))
+                person = forceString(record.value('person')) if self.groupByPersonSnils else ''
+                personSNILS = forceString(record.value('personSNILS')) if self.groupByPersonSnils else ''
+                personWithSpeciality = forceString(record.value('personWithSpeciality'))
+                mt = forceString(record.value('mt')).lower()
                 cnt = forceInt(record.value('cnt'))
                 fl = forceInt(record.value('fl'))
                 mes = forceInt(record.value('mes'))
@@ -79,20 +110,28 @@ class CEconomicAnalisysE3(CReport):
                 callambulance = forceInt(record.value('callambulance'))
                 uet = forceDouble(record.value('uet'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
 
-                key = (person, osname if osname else u'Без подразделения')
-                reportLine = reportData.setdefault(key, [0]*reportRowSize)
-                reportLine[0] += cnt
-                reportLine[1] += fl
-                reportLine[2] += mes
-                reportLine[3] += kd
-                reportLine[4] += pd
-                reportLine[5] += pos
-                reportLine[6] += obr
-                reportLine[7] += uet
-                reportLine[8] += usl
-                reportLine[9] += callambulance
-                reportLine[10] += sum
+                key = ((person, personSNILS), personWithSpeciality, osname if osname else u'Без подразделения')
+
+                for idx in range(0, self.medicalTypeTotals+1):
+                    if idx > 0:
+                        reportLine = reportDataMedicalTypeTotals.setdefault(key, {}).setdefault(mt, [0] * reportRowSize)
+                    else:
+                        reportLine = reportData.setdefault(key, [0]*reportRowSize)
+                    reportLine[0] += cnt
+                    reportLine[1] += fl
+                    reportLine[2] += mes
+                    reportLine[3] += kd
+                    reportLine[4] += pd
+                    reportLine[5] += pos
+                    reportLine[6] += obr
+                    reportLine[7] += uet
+                    reportLine[8] += usl
+                    reportLine[9] += callambulance
+                    reportLine[10] += sum
+                    if needExposedSum:
+                        reportLine[11] += exposedSum
 
         query = self.selectData(params)
         processQuery(query)
@@ -122,34 +161,79 @@ class CEconomicAnalisysE3(CReport):
             ('5%', [u'Кол-во УЕТ'], CReportBase.AlignRight),
             ('5%', [u'Кол-во простых услуг'], CReportBase.AlignRight),
             ('5%', [u'Кол-во вызовов СМП'], CReportBase.AlignRight),
-            ('15%', [u'Сумма'], CReportBase.AlignRight)
+            ('8%', [u'Сумма'], CReportBase.AlignRight)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('7%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
+        totalByReport = [0] * reportRowSize
         totalByFinance = [0]*reportRowSize
-        totalByReport = [0]*reportRowSize
+        totalByPersonSNILS = [0] * reportRowSize
+        totalMedicalTypesByReport = {}
+        totalMedicalTypesByFinance = {}
+        totalMedicalTypesByPersonSNILS = {}
         colsShift = 1
-        prevPerson = None
+        prevPersonWithSpeciality = None
+        personWithSpeciality = None
         person = None
-
+        prevPerson = None
         keys = reportData.keys()
         keys.sort()
         for key in keys:
             person = key[0]
-            otdName = key[1]
-            if prevPerson != person:
-                if prevPerson is not None:
+            personWithSpeciality = key[1]
+            otdName = key[2]
+
+            if prevPersonWithSpeciality != personWithSpeciality:
+                if prevPersonWithSpeciality is not None:
                     row = table.addRow()
-                    table.setText(row, 0, u'Итого по %s' % prevPerson)
+                    table.setText(row, 0, u'Итого по %s' % prevPersonWithSpeciality)
                     for col in xrange(reportRowSize-2):
                         table.setText(row, col + colsShift, totalByFinance[col])
                         totalByReport[col] = totalByReport[col] + totalByFinance[col]
                     totalByFinance = [0]*reportRowSize
 
+                if self.medicalTypeTotals:
+                    keysMt = totalMedicalTypesByFinance.keys()
+                    keysMt.sort()
+                    for k in keysMt:
+                        row = table.addRow()
+                        table.setText(row, 0, u'    - %s' % k)
+                        for col in xrange(reportRowSize - 2):
+                            table.setText(row, col + colsShift, totalMedicalTypesByFinance[k][col])
+                    totalMedicalTypesByFinance = {}
+
+            if self.groupByPersonSnils:
+                if prevPerson != person:
+                    if prevPerson is not None:
+                        row = table.addRow()
+                        table.setText(row, 0, u'Итого по %s' % prevPerson[0], CReportBase.TableHeader)
+                        for col in xrange(reportRowSize-2):
+                            table.setText(row, col + colsShift, totalByPersonSNILS[col])
+                        totalByPersonSNILS = [0]*reportRowSize
+
+                        if self.medicalTypeTotals:
+                            keysMt = totalMedicalTypesByPersonSNILS.keys()
+                            keysMt.sort()
+                            for k in keysMt:
+                                row = table.addRow()
+                                table.setText(row, 0, u'    - %s' % k)
+                                for col in xrange(reportRowSize - 2):
+                                    table.setText(row, col + colsShift, totalMedicalTypesByPersonSNILS[k][col])
+                            totalMedicalTypesByPersonSNILS = {}
+
+            if self.groupByPersonSnils:
+                if prevPerson != person:
+                    row = table.addRow()
+                    table.setText(row, 0, person[0],  CReportBase.TableHeader)
+                    table.mergeCells(row, 0, 1, reportRowSize-1)
+                    prevPerson = person
+
+            if prevPersonWithSpeciality != personWithSpeciality:
                 row = table.addRow()
-                table.setText(row, 0, person,  CReportBase.TableHeader)
-                table.mergeCells(row, 0, 1, 12)
-                prevPerson = person
+                table.setText(row, 0, personWithSpeciality,  CReportBase.TableHeader)
+                table.mergeCells(row, 0, 1, reportRowSize-1)
+                prevPersonWithSpeciality = personWithSpeciality
 
             row = table.addRow()
             table.setText(row, 0, otdName)
@@ -158,17 +242,68 @@ class CEconomicAnalisysE3(CReport):
             for col in xrange(reportRowSize-2):
                 table.setText(row, col + colsShift, reportLine[col])
                 totalByFinance[col] = totalByFinance[col] + reportLine[col]
-        if person is not None:
+                if self.groupByPersonSnils:
+                    totalByPersonSNILS[col] += reportLine[col]
+
+            if self.medicalTypeTotals:
+                reportDataMedicalType = reportDataMedicalTypeTotals.get(key, {})
+                keysMt = reportDataMedicalType.keys()
+                keysMt.sort()
+                for k in keysMt:
+                    row = table.addRow()
+                    table.setText(row, 0, u'    - %s' % k)
+                    for col in xrange(reportRowSize - 2):
+                        table.setText(row, col + colsShift, reportDataMedicalType[k][col])
+                        totalMedicalTypesLine = totalMedicalTypesByFinance.setdefault(k, [0] * reportRowSize)
+                        totalMedicalTypesLine[col] += reportDataMedicalType[k][col]
+                        totalMedicalTypesLine = totalMedicalTypesByPersonSNILS.setdefault(k, [0] * reportRowSize)
+                        totalMedicalTypesLine[col] += reportDataMedicalType[k][col]
+                        totalMedicalTypesLine = totalMedicalTypesByReport.setdefault(k, [0] * reportRowSize)
+                        totalMedicalTypesLine[col] += reportDataMedicalType[k][col]
+
+        if personWithSpeciality is not None:
             row = table.addRow()
-            table.setText(row, 0, u'Итого по %s' % person)
+            table.setText(row, 0, u'Итого по %s' % personWithSpeciality)
             for col in xrange(reportRowSize-2):
                 table.setText(row, col + colsShift, totalByFinance[col])
                 totalByReport[col] = totalByReport[col] + totalByFinance[col]
+
+            if self.medicalTypeTotals:
+                keysMt = totalMedicalTypesByFinance.keys()
+                keysMt.sort()
+                for k in keysMt:
+                    row = table.addRow()
+                    table.setText(row, 0, u'    - %s' % k)
+                    for col in xrange(reportRowSize - 2):
+                        table.setText(row, col + colsShift, totalMedicalTypesByFinance[k][col])
+        if self.groupByPersonSnils:
+            if person is not None:
+                row = table.addRow()
+                table.setText(row, 0, u'Итого по %s' % person[0], CReportBase.TableHeader)
+                for col in xrange(reportRowSize-2):
+                    table.setText(row, col + colsShift, totalByPersonSNILS[col])
+
+                if self.medicalTypeTotals:
+                    keysMt = totalMedicalTypesByPersonSNILS.keys()
+                    keysMt.sort()
+                    for k in keysMt:
+                        row = table.addRow()
+                        table.setText(row, 0, u'    - %s' % k)
+                        for col in xrange(reportRowSize - 2):
+                            table.setText(row, col + colsShift, totalMedicalTypesByPersonSNILS[k][col])
+
         row = table.addRow()
         table.setText(row, 0, u'Итого')
         for col in xrange(reportRowSize-2):
             table.setText(row, col + colsShift, totalByReport[col])
-
+        if self.medicalTypeTotals:
+            keysMt = totalMedicalTypesByReport.keys()
+            keysMt.sort()
+            for k in keysMt:
+                row = table.addRow()
+                table.setText(row, 0, u'    - %s' % k)
+                for col in xrange(reportRowSize - 2):
+                    table.setText(row, col + colsShift, totalMedicalTypesByReport[k][col])
         return doc
 
 
@@ -181,8 +316,11 @@ class CEconomicAnalisysE3Ex(CEconomicAnalisysE3):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.setDetailToVisible(True)
+        result.setGroupByPersonSnilsVisible(True)
+        result.setMedicalTypeTotalsVisible(True)
         result.setListDetailTo(self.detailList)
         result.shrink()
+        result.loadPrefs()
         return result
     
     def build(self, params):

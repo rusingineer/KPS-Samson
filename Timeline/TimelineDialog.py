@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,7 +18,7 @@
 
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, QObject, QTime, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QDate, QObject, QTime, QVariant, pyqtSignature, pyqtSlot, SIGNAL
 
 from library.Calendar                    import monthName, monthNameGC
 from library.DialogBase                  import CDialogBase
@@ -125,7 +125,6 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         self.connect(self.tblPersonnel.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setPersonnelOrderByColumn)
 
         self.setModels(self.tblTimeTable, self.modelTimeTable, self.selectionModelTimeTable)
-        self.tblTimeTable.horizontalHeader().moveSection(10, 1)
         self.tblTimeTable.addPopupActions([
                                            '-',
                                            self.actFillByTemplate,
@@ -169,6 +168,14 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         if QtGui.qApp.userHasRight(urAccessEditTimeLine):
             QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.saveData)
         return result
+
+
+    @pyqtSlot(str)
+    def on_edtFilterPersonnel_textChanged(self, text):
+        if self.activityListIsShown:
+            self.updatePersonListForActivity()
+        else:
+            self.updatePersonListForOrgStructure()
 
     # геттеры
 
@@ -232,6 +239,7 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
     # утилиты
 
     def getPersonIdListForActivity(self, date, activityIdList):
+        lastNameFilter = forceString(self.edtFilterPersonnel.text())
         if activityIdList is not None:
             db = QtGui.qApp.db
             table = db.table('Person')
@@ -247,11 +255,13 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
                      table['speciality_id'].isNotNull(),
                      table['isHideSchedule'].eq(0)
                    ]
-            withoutActivity = activityIdList == []
+            withoutActivity = len(activityIdList) == 0
             if withoutActivity:
                 cond.append(tablePersonActivity['activity_id'].isNull())
             else:
                 cond.append(tablePersonActivity['activity_id'].inlist(activityIdList))
+            if lastNameFilter:
+                cond.append(table['lastName'].like('%' + lastNameFilter + '%'))
             curOrder = self.tblPersonnel.order()
             if not curOrder:
                 curOrder='lastName, firstName, patrName'
@@ -271,6 +281,7 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
 
 
     def getPersonIdListForOrgStructure(self, date, orgStructureIdList):
+        lastNameFilter = forceString(self.edtFilterPersonnel.text())
         if orgStructureIdList:
             db = QtGui.qApp.db
             table = db.table('Person')
@@ -282,6 +293,8 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
                      table['orgStructure_id'].inlist(orgStructureIdList),
                      table['isHideSchedule'].eq(0)
                    ]
+            if lastNameFilter:
+                cond.append(table['lastName'].like('%' + lastNameFilter + '%'))
             curOrder = self.tblPersonnel.order()
             if not curOrder:
                 curOrder='lastName, firstName, patrName'
@@ -428,7 +441,7 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         try:
             dialog.setPersonId(currentPersonId)
             dialog.setDateRange(begDate, endDate)
-            if dialog.exec_():
+            if not dialog.modelTimeTable.overlapInTemplate and dialog.exec_():
                 QtGui.qApp.callWithWaitCursor(self,
                                               self.modelTimeTable.setWorkPlan,
                                               dialog.getDateRange(),

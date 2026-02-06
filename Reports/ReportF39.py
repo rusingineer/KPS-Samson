@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -25,6 +25,7 @@ from Orgs.OrgStructComboBoxes import COrgStructureModel
 from Reports.Report     import CReport
 from Reports.ReportBase import CReportBase, createTable
 from Reports.ReportView import CPageFormat
+from Reports.Utils import getRetireeAges
 
 # Комбобокс "Местность"
 ADDRESS_TYPE_NOT_SET = 0
@@ -196,7 +197,7 @@ class CReportF39(CReport):
         result.setAdditionalFieldsVisible(self.additionalFields)
         return result
 
-    def calculateReportDataIfDetailaChildren(self, record, reportData, forceKeyVal, rowSize, financeIndexes):
+    def calculateReportDataIfDetailaChildren(self, record, reportData, forceKeyVal, rowSize, financeIndexes, seniorAges):
         rowKey    = forceKeyVal(record.value('rowKey'))
         cnt       = forceInt(record.value('cnt'))
         atAmbulance = forceBool(record.value('atAmbulance'))
@@ -233,7 +234,7 @@ class CReportF39(CReport):
                 row[2] += cnt
             elif age>=15 and age<=17:
                 row[3] += cnt
-            elif (age>=60 and sex==1) or (age>=55 and sex==2):
+            elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                 row[5] += cnt
             if cure:
                 row[6] += cnt
@@ -244,7 +245,7 @@ class CReportF39(CReport):
                     row[7] += cnt
                 elif age>=15 and age<=17:
                     row[8] += cnt
-                elif age>=60:
+                elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                     row[10] += cnt
             elif prophylaxy:
                 row[11] += cnt
@@ -259,7 +260,7 @@ class CReportF39(CReport):
                     row[14] += cnt
                 elif age>=15 and age<=17:
                     row[15] += cnt
-                elif (age>=60 and sex==1) or (age>=55 and sex==2):
+                elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                     row[17] += cnt
             elif prophylaxy:
                 if age<=14:
@@ -272,7 +273,7 @@ class CReportF39(CReport):
         row[21+financeIndexes[financeId]] += cnt
 
 
-    def calculateReportData(self, record, reportData, forceKeyVal, rowSize, financeIndexes):
+    def calculateReportData(self, record, reportData, forceKeyVal, rowSize, financeIndexes, seniorAges):
         rowKey    = forceKeyVal(record.value('rowKey'))
         cnt       = forceInt(record.value('cnt'))
         atAmbulance = forceBool(record.value('atAmbulance'))
@@ -307,7 +308,7 @@ class CReportF39(CReport):
                 row[3] += cnt
             elif age<=17:
                 row[2] += cnt
-            elif (age>=60 and sex==1) or (age>=55 and sex==2):
+            elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                 row[4] += cnt
             if cure:
                 row[5] += cnt
@@ -316,7 +317,7 @@ class CReportF39(CReport):
                     row[7] += cnt
                 elif age<=17:
                     row[6] += cnt
-                elif (age>=60 and sex==1) or (age>=55 and sex==2):
+                elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                     row[8] += cnt
             elif prophylaxy:
                 row[9] += cnt
@@ -329,7 +330,7 @@ class CReportF39(CReport):
                     row[13] += cnt
                 elif age<=17:
                     row[12] += cnt
-                elif age>=60:
+                elif (age >= seniorAges[0] and sex == 1) or (age >= seniorAges[1] and sex == 2):
                     row[14] += cnt
             elif prophylaxy:
                 if age<=17:
@@ -346,6 +347,7 @@ class CReportF39(CReport):
         orgStructureId = params.get('orgStructureId', None)
         scene = params.get('sceneId',  None) if self.additionalFields else None
         visitPayStatus -= 1
+        seniorAges = getRetireeAges(params.get('begDate', QDate()))
         if rowGrouping == 5: # by post_id
             forceKeyVal = forceRef
             keyValToString = lambda postId: forceString(QtGui.qApp.db.translate('rbPost', 'id', postId, 'name'))
@@ -394,7 +396,7 @@ class CReportF39(CReport):
         calculate = self.calculateReportDataIfDetailaChildren if detailChildren else self.calculateReportData
         while query.next():
             record = query.record()
-            calculate(record, reportData, forceKeyVal, rowSize, financeIndexes)
+            calculate(record, reportData, forceKeyVal, rowSize, financeIndexes, seniorAges)
 
         # now text
         doc = QtGui.QTextDocument()

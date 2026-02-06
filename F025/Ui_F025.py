@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\F025\F025.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\F025\F025.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -364,7 +364,7 @@ class Ui_Dialog(object):
         self.gridLayout_5.setMargin(4)
         self.gridLayout_5.setSpacing(4)
         self.gridLayout_5.setObjectName(_fromUtf8("gridLayout_5"))
-        self.tblInspections = CInDocTableView(self.grpInspections)
+        self.tblInspections = CF025DiagnosticsInDocTableView(self.grpInspections)
         self.tblInspections.setObjectName(_fromUtf8("tblInspections"))
         self.gridLayout_5.addWidget(self.tblInspections, 0, 0, 1, 1)
         self.grpActions = QtGui.QGroupBox(self.splitter)
@@ -649,6 +649,7 @@ from Events.EventMedicalDiagnosisPage import CEventMedicalDiagnosisPage
 from Events.EventMesPage import CEventMesPage
 from Events.EventNotesPage import CEventNotesPage
 from Events.TempInvalid import CTempInvalid
+from F025.F025DiagnosticsInDocTableView import CF025DiagnosticsInDocTableView
 from Orgs.OrgComboBox import CContractComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit

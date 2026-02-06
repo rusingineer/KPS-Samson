@@ -53,6 +53,7 @@ class CReportOperationalMonitoring(CReport):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):
@@ -85,32 +86,49 @@ class CReportOperationalMonitoring(CReport):
 в том числе усыновленных (удочеренных), принятых под опеку (попечительство), в приемную или патронажную семью""", [u'комплексное посещение']),
             (8,  u"Диспансеризация определенных групп взрослого населения", [u'комплексное посещение']),
             (9,  u"Углубленная диспансеризация", [u'комплексное посещение']),
-            (10, u"Профилактические медицинские осмотры несовершеннолетних", [u'комплексное посещение']),
-            (11, u"Профилактические медицинские осмотры взрослых", [u'комплексное посещение']),
-            (12, u"Посещение с профилактическими и иными целями, в том числе:", [u'посещение']),
-            (13, u" - разовые посещения по заболеванию", [u'посещение']),
-            (14, u" - диспансерное наблюдение несовершеннолетних", [u'посещение']),
-            (15, u" - диспансерное наблюдение взрослых", [u'посещение']),
-            (16, u" - исследования на ОРВИ и грипп", [u'посещение']),
-            (17, u" - комплексное исследование больных с хроническими гепатитами В и С", [u'посещение']),
-            (18, u" - комплексное исследование пренатальной диагностики", [u'посещение']),
-            (19, u" - школа сахарного диабета", [u'посещение']),
-            (20, u"Обращения в связи с заболеваниями", [u'обращение', u'посещение']),
-            (21, u"Поликлиника (прикрепленное население)", [u'человек']),
-            (22, u"Фельдшерско-акушерские пункты", [u'обращение', u'посещение', u'человек']),
-            (23, u"Неотложная помощь", [u'посещение']),
-            (24, u"Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:", [u'услуга']),
-            (25, u" - магнитно-резонансная томография", [u'услуга']),
-            (26, u" - компьютерная томография", [u'услуга']),
-            (27, u" - ультразвуковое исследование сердечно-сосудистой системы", [u'услуга']),
-            (28, u" - эндоскопические диагностические исследования", [u'услуга']),
-            (29, u" - молекулярно-генетические исследования с целью выявления онкологических заболеваний", [u'услуга']),
-            (30, u" - гистологические исследования с целью выявления онкологических заболеваний", [u'услуга']),
-            (31, u" - исследования на COVID-19", [u'услуга']),
-            (32, u"Стоматология (посещение с профилактическими и иными целями)", [u'посещение', u'УЕТ']),
-            (33, u"в том числе разовые посещения по заболеванию", [u'посещение', u'УЕТ']),
-            (34, u"Стоматология (обращения в связи с заболеваниями)", [u'обращение', u'посещение', u'УЕТ']),
-            (35, u"Стоматология", [u'УЕТ'])
+            (10, u"Диспансеризация граждан репродуктивного возраста", [u'комплексное посещение']),
+            (11, u"Профилактические медицинские осмотры несовершеннолетних", [u'комплексное посещение']),
+            (12, u"Профилактические медицинские осмотры взрослых", [u'комплексное посещение']),
+            (13, u"Посещение с профилактическими и иными целями, в том числе:", [u'посещение']),
+            (14, u" - разовые посещения по заболеванию", [u'посещение']),
+            (15, u" - диспансерное наблюдение несовершеннолетних", [u'посещение']),
+            (16, u"    - онкологических заболеваний", [u'посещение']),
+            (17, u"    - сахарного диабета", [u'посещение']),
+            (18, u"    - болезней системы кровообращения", [u'посещение']),
+            (19, u"    - прочие", [u'посещение']),
+            (20, u" - диспансерное наблюдение взрослых", [u'посещение']),
+            (21, u"    - онкологических заболеваний", [u'посещение']),
+            (22, u"    - сахарного диабета", [u'посещение']),
+            (23, u"    - болезней системы кровообращения", [u'посещение']),
+            (24, u"    - прочие", [u'посещение']),
+            (25, u" - исследования на ОРВИ и грипп", [u'посещение']),
+            (26, u" - комплексное исследование больных с хроническими гепатитами В и С", [u'посещение']),
+            (27, u" - комплексное исследование пренатальной диагностики", [u'посещение']),
+            (28, u" - школа сахарного диабета", [u'посещение']),
+            (29, u" - школа для больных с артериальной гипертензией", [u'посещение']),
+            (30, u" - школа для больных с сердечной недостаточностью", [u'посещение']),
+            (31, u" - школа для пациентов с хронической болезнью почек", [u'посещение']),
+            (32, u" - школа для больных с бронхиальной астмой", [u'посещение']),
+            (33, u" - школа для эндокринологических больных с ожирением", [u'посещение']),
+            (34, u" - школа обучения пациентов по профилактике остеопороза и его осложнений", [u'посещение']),
+            (35, u" - школа для пациентов с избыточной массой тела и ожирением", [u'посещение']),
+            (36, u"Обращения в связи с заболеваниями", [u'обращение', u'посещение']),
+            (37, u"Поликлиника (прикрепленное население)", [u'человек']),
+            (38, u"Фельдшерско-акушерские пункты", [u'обращение', u'посещение', u'человек']),
+            (39, u"Неотложная помощь", [u'посещение']),
+            (40, u"Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:", [u'услуга']),
+            (41, u" - магнитно-резонансная томография", [u'услуга']),
+            (42, u" - компьютерная томография", [u'услуга']),
+            (43, u" - ультразвуковое исследование сердечно-сосудистой системы", [u'услуга']),
+            (44, u" - эндоскопические диагностические исследования", [u'услуга']),
+            (45, u" - молекулярно-генетические исследования с целью выявления онкологических заболеваний", [u'услуга']),
+            (46, u" - гистологические исследования с целью выявления онкологических заболеваний", [u'услуга']),
+            (47, u" - исследования на COVID-19", [u'услуга']),
+            (48, u"Стоматология (посещение с профилактическими и иными целями)", [u'посещение', u'УЕТ']),
+            (49, u"в том числе разовые посещения по заболеванию", [u'посещение', u'УЕТ']),
+            (50, u"Стоматология (обращения в связи с заболеваниями)", [u'обращение', u'посещение', u'УЕТ']),
+            (51, u"Стоматология", [u'УЕТ']),
+            (52, u"Патологоанатомическое вскрытие", [u'услуга'])
         ]
 
         def processQuery(queryObj):
@@ -121,7 +139,7 @@ class CReportOperationalMonitoring(CReport):
 FROM EventType et
 LEFT JOIN EventType_Identification eti ON et.id = eti.master_id AND eti.deleted = 0
 LEFT JOIN rbAccountingSystem `as` ON eti.system_id = `as`.id
-WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'au', 'ae', 'ag', 'ah', 'av')"""
+WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'au', 'ae', 'ag', 'ah', 'av', 'ap')"""
             etQuery = db.query(stmt)
             while etQuery.next():
                 record = etQuery.record()
@@ -218,7 +236,8 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                 29: 'e',  # диспансеризация детей остав-ся без попечения родит,
                 30: 'ap',  # по патологоанатомическим вскрытиям
                 31: 'a6',  # дисп. для оценки репрод. здоровья I этап
-                32: 'a7'  # дисп. для оценки репрод. здоровья II этап
+                32: 'a7',  # дисп. для оценки репрод. здоровья II этап
+                33: 'ad' # по диспансерному наблюдению на рабочих местах
             }
 
             reportData.setdefault('total', [0] * 3)
@@ -267,7 +286,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                     elif eventProfileCode == '8021':
                         groupAccountType = 32
                 elif groupAccountType in [3, 7]:
-                    newGroupAccountType = {'ak': 16, 'am': 17, 'au': 18, 'ae': 19, 'ag': 20, 'ah': 21, 'ao': 22, 'av': 23}.get(identifier, None)
+                    newGroupAccountType = {'ak': 16, 'am': 17, 'au': 18, 'ae': 19, 'ag': 20, 'ah': 21, 'ao': 22, 'av': 23, 'ap': 30, 'dnwork': 33, 'dneducate': 33}.get(identifier, None)
                     groupAccountType = newGroupAccountType if newGroupAccountType else groupAccountType
                 elif groupAccountType == 6:
                     if VP == '232':  # Диспансеризация детей-сирот
@@ -324,7 +343,12 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                 lineData[1] += exposedSumma
 
                 # Стационар
-                if VP in ['11', '12', '301', '302', '401', '402']:
+                if identifier == 'ap' and code_usl == 'A08.30.019':
+                    lineData = reportData.setdefault(52, [0] * 5)
+                    lineData[0] += summa
+                    lineData[1] += exposedSumma
+                    lineData[2] += amount
+                elif VP in ['11', '12', '301', '302', '401', '402']:
                     lineData = reportData.setdefault(1, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
@@ -381,7 +405,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                 # Диспансеризация определенных групп взрослого населения
-                elif VP in ['211', '244']:
+                elif VP in ['211']:
                     lineData = reportData.setdefault(8, [0] * 5)
                     if summa:
                         lineData[0] += summa
@@ -394,72 +418,79 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
+                # Диспансеризация граждан репродуктивного возраста
+                elif VP in ['244']:
+                    lineData = reportData.setdefault(10, [0] * 5)
+                    if summa:
+                        lineData[0] += summa
+                        lineData[1] += exposedSumma
+                        lineData[2] += amount
                 # Профилактические медицинские осмотры несовершеннолетних
                 elif VP in ['262']:
-                    lineData = reportData.setdefault(10, [0] * 5)
+                    lineData = reportData.setdefault(11, [0] * 5)
                     if summa:
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                 # Профилактические медицинские осмотры взрослых
                 elif VP in ['261']:
-                    lineData = reportData.setdefault(11, [0] * 5)
+                    lineData = reportData.setdefault(12, [0] * 5)
                     if summa:
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                 # Неотложная помощь
                 elif VP in ['111', '112', '241', '242']:
-                    lineData = reportData.setdefault(23, [0] * 5)
+                    lineData = reportData.setdefault(39, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     if isPos:
                         lineData[2] += amount
                 # Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные)
                 elif (VP == '80' or identifier) and summa > 0:
-                    lineData = reportData.setdefault(24, [0] * 5)
+                    lineData = reportData.setdefault(40, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     lineData[2] += amount
                     # магнитно-резонансная томография
                     if identifier == 'am':
-                        lineData = reportData.setdefault(25, [0] * 5)
+                        lineData = reportData.setdefault(41, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # компьютерная томография
                     elif identifier == 'ak':
-                        lineData = reportData.setdefault(26, [0] * 5)
+                        lineData = reportData.setdefault(42, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # ультразвуковое исследование сердечно-сосудистой системы
                     elif identifier == 'au':
-                        lineData = reportData.setdefault(27, [0] * 5)
+                        lineData = reportData.setdefault(43, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # эндоскопические диагностические исследования
                     elif identifier == 'ae':
-                        lineData = reportData.setdefault(28, [0] * 5)
+                        lineData = reportData.setdefault(44, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # молекулярно-генетические исследования с целью выявления онкологических заболеваний
                     elif identifier == 'ae':
-                        lineData = reportData.setdefault(29, [0] * 5)
+                        lineData = reportData.setdefault(45, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # гистологические исследования с целью выявления онкологических заболеваний
                     elif identifier == 'ag':
-                        lineData = reportData.setdefault(30, [0] * 5)
+                        lineData = reportData.setdefault(46, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # Исследования на COVID-19
                     elif identifier == 'av':
-                        lineData = reportData.setdefault(31, [0] * 5)
+                        lineData = reportData.setdefault(47, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
@@ -471,28 +502,28 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                     if isFAP:
                         clientSet.add(clientId)
                         if isObr:
-                            lineData = reportData.setdefault(22, [0] * 5)
+                            lineData = reportData.setdefault(38, [0] * 5)
                             lineData[2] += amount
                         elif isPos:
-                            lineData = reportData.setdefault(22, [0] * 5)
+                            lineData = reportData.setdefault(38, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[3] += amount
                     # Обращения в связи с заболеваниями
                     elif isObr:
-                        lineData = reportData.setdefault(20, [0] * 5)
+                        lineData = reportData.setdefault(36, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     elif eventId in eventsWithObr:
                         if isPos:
-                            lineData = reportData.setdefault(20, [0] * 5)
+                            lineData = reportData.setdefault(36, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[3] += amount
                     else:
                         # Посещение с профилактическими и иными целями
-                        lineData = reportData.setdefault(12, [0] * 5)
+                        lineData = reportData.setdefault(13, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         if isPos or code_usl in ['A26.30.157.001', 'A26.08.013.003', 'A26.08.013.004', 'B03.014.018', 'B03.032.002']:
@@ -511,61 +542,143 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                                         'B04.050.001', 'B04.053.001', 'B04.057.001', 'B04.058.005']:
                             # несовершеннолетних
                             if VP in ['22', '272']:
-                                lineData = reportData.setdefault(14, [0] * 5)
-                                lineData[0] += summa
-                                lineData[1] += exposedSumma
-                                lineData[2] += amount
-                            # взрослых
-                            elif VP in ['21', '271']:
                                 lineData = reportData.setdefault(15, [0] * 5)
                                 lineData[0] += summa
                                 lineData[1] += exposedSumma
                                 lineData[2] += amount
+                                if mkb[:1] == 'C' or ('D00' <= mkb[:3] <= 'D48'):
+                                    lineData = reportData.setdefault(16, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                elif 'E10' <= mkb[:3] <= 'E14':
+                                    lineData = reportData.setdefault(17, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                elif mkb[:1] == 'I':
+                                    lineData = reportData.setdefault(18, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                else:
+                                    lineData = reportData.setdefault(19, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                            # взрослых
+                            elif VP in ['21', '271']:
+                                lineData = reportData.setdefault(20, [0] * 5)
+                                lineData[0] += summa
+                                lineData[1] += exposedSumma
+                                lineData[2] += amount
+                                if mkb[:1] == 'C':
+                                    lineData = reportData.setdefault(21, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                elif 'E10' <= mkb[:3] <= 'E14':
+                                    lineData = reportData.setdefault(22, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                elif mkb[:1] == 'I':
+                                    lineData = reportData.setdefault(23, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
+                                else:
+                                    lineData = reportData.setdefault(24, [0] * 5)
+                                    lineData[0] += summa
+                                    lineData[1] += exposedSumma
+                                    lineData[2] += amount
                         # в том числе разовые посещения по заболеванию
                         elif mkb[:1] != 'Z' and isPos and code_usl[:3] in ['B01', 'B02'] and code_usl not in pregnancyServices:
-                            lineData = reportData.setdefault(13, [0] * 5)
+                            lineData = reportData.setdefault(14, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
 
                         # Исследования на ОРВИ и грипп
                         if code_usl in ['A26.30.157.001', 'A26.08.013.003', 'A26.08.013.004']:
-                            lineData = reportData.setdefault(16, [0] * 5)
+                            lineData = reportData.setdefault(25, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                         # Комплексное исследование больных с хроническими гепатитами В и С
                         elif code_usl in ['B03.014.018']:
-                            lineData = reportData.setdefault(17, [0] * 5)
+                            lineData = reportData.setdefault(26, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                         # комплексное исследование пренатальной диагностики
                         elif code_usl in ['B03.032.002']:
-                            lineData = reportData.setdefault(18, [0] * 5)
+                            lineData = reportData.setdefault(27, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                         # Школа сахарного диабета
                         elif code_usl in ['B04.012.001.010', 'B04.012.001.011', 'B04.012.001.012']:
-                            lineData = reportData.setdefault(19, [0] * 5)
+                            lineData = reportData.setdefault(28, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с артериальной гипертензией
+                        elif code_usl in ['B04.015.001']:
+                            lineData = reportData.setdefault(29, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с сердечной недостаточностью
+                        elif code_usl in ['B04.015.002']:
+                            lineData = reportData.setdefault(30, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для пациентов с хронической болезнью почек
+                        elif code_usl in ['B04.025.004']:
+                            lineData = reportData.setdefault(31, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с бронхиальной астмой
+                        elif code_usl in ['B04.037.003']:
+                            lineData = reportData.setdefault(32, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для эндокринологических больных с ожирением
+                        elif code_usl in ['B04.058.001.001']:
+                            lineData = reportData.setdefault(33, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа обучения пациентов по профилактике остеопороза и его осложнений
+                        elif code_usl in ['B04.058.010']:
+                            lineData = reportData.setdefault(34, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для пациентов с избыточной массой тела и ожирением
+                        elif code_usl in ['B05.069.008']:
+                            lineData = reportData.setdefault(35, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                 elif VP in ['31', '32']:
                     # Стоматология
-                    lineData = reportData.setdefault(35, [0] * 5)
+                    lineData = reportData.setdefault(51, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     lineData[2] += uet
                     # Стоматология (обращения в связи с заболеваниями)
                     if isObr:
-                        lineData = reportData.setdefault(34, [0] * 5)
+                        lineData = reportData.setdefault(50, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     elif eventId in eventsWithObr:
-                        lineData = reportData.setdefault(34, [0] * 5)
+                        lineData = reportData.setdefault(50, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         if isPos:
@@ -573,7 +686,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[4] += uet
                     else:
                         # Стоматология (посещение с профилактическими и иными целями)
-                        lineData = reportData.setdefault(32, [0] * 5)
+                        lineData = reportData.setdefault(48, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         if isPos:
@@ -581,14 +694,14 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[3] += uet
                         # в том числе разовые посещения по заболеванию
                         if mkb[:1] != 'Z':
-                            lineData = reportData.setdefault(33, [0] * 5)
+                            lineData = reportData.setdefault(49, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             if isPos:
                                 lineData[2] += amount
                             lineData[3] += uet
 
-            lineData = reportData.setdefault(22, [0] * 5)
+            lineData = reportData.setdefault(38, [0] * 5)
             lineData[4] += len(clientSet)
 
         query = self.selectData(params)

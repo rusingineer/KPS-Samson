@@ -17,7 +17,7 @@ from PyQt4 import QtGui
 
 from PyQt4.QtCore import QDir, QSettings, QVariant
 
-from library.Utils import setPref, toVariant
+from library.Utils import exceptionToUnicode, setPref, toVariant
 
 from Users.DirtyCrypt import encryptPassword, decryptPassword
 from Users.Tables  import demoUserName
@@ -195,7 +195,11 @@ class CPreferences(object):
                 setPref(self.appPrefs, unicode(group), self.loadProp(settings, group))
             settings.endGroup()
         except:
-            pass
+            QtGui.qApp.logCurrentException()
+            QtGui.QMessageBox.critical( self,
+                                        u'',
+                                        exceptionToUnicode(e),
+                                        QtGui.QMessageBox.Close)
 
 
     def loadProp(self, settings, propName):

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -77,14 +77,18 @@ class CGroupActionTypeEditor(CDialogBase, Ui_GroupActionTypeEditorDialog):
         setCheckBoxValue(   self.chkIgnoreVisibleRights,       record, 'ignoreVisibleRights')
         setCheckBoxValue(self.chkEditSetPerson,                record, 'editSetPerson')
         setCheckBoxValue(self.chkEditOrg,                      record, 'editOrg')
+        setCheckBoxValue(   self.chkEditOrgStructure,          record, 'editOrgStructure')
         setSpinBoxValue(    self.edtAmount,                    record, 'amount')
         setSpinBoxValue(    self.edtMaxOccursInEvent,          record, 'maxOccursInEvent')
         setRBComboBoxValue( self.cmbServiceType,               record, 'serviceType')
         setComboBoxValue(   self.cmbExposeDateSelector,        record, 'exposeDateSelector')
         setCheckBoxValue(   self.chkPropertyAssignedVisible,   record, 'propertyAssignedVisible')
+        self.chkPropertyAssignedRequired.setVisible(self.chkPropertyAssignedVisible.isChecked())
+        setCheckBoxValue(   self.chkPropertyAssignedRequired,  record, 'propertyAssignedRequired')
         setCheckBoxValue(   self.chkPropertyUnitVisible,       record, 'propertyUnitVisible')
         setCheckBoxValue(   self.chkPropertyNormVisible,       record, 'propertyNormVisible')
         setCheckBoxValue(   self.chkPropertyEvaluationVisible, record, 'propertyEvaluationVisible')
+        setCheckBoxValue(   self.chkPropertyCommentVisible,    record, 'propertyCommentVisible')
         setDateEditValue(   self.edtBegDate,                   record, 'begDate')
         setDateEditValue(   self.endEndDate,                   record, 'endDate')
         setCheckBoxValue(   self.chkAddVisit,                  record, 'addVisit')
@@ -134,6 +138,8 @@ class CGroupActionTypeEditor(CDialogBase, Ui_GroupActionTypeEditorDialog):
             fields['editSetPerson'] = self.chkEditSetPerson.isChecked()
         if self.chkChkEditOrg.isChecked():
             fields['editOrg'] = self.chkEditOrg.isChecked()
+        if self.chkChkEditOrgStructure.isChecked():
+            fields['editOrgStructure'] = self.chkEditOrgStructure.isChecked()
         if self.chkMaxOccursInEvent.isChecked():
             fields['maxOccursInEvent'] = self.edtMaxOccursInEvent.value()
         if self.chkServiceType.isChecked():
@@ -183,9 +189,11 @@ class CGroupActionTypeEditor(CDialogBase, Ui_GroupActionTypeEditorDialog):
             fields['addVisitType_id'] = self.cmbAddVisitType.value()
         if self.grpPropertiesFields.isChecked():
             fields['propertyAssignedVisible'] = self.chkPropertyAssignedVisible.isChecked()
+            fields['propertyAssignedRequired'] = self.chkPropertyAssignedRequired.isChecked()
             fields['propertyUnitVisible'] = self.chkPropertyUnitVisible.isChecked()
             fields['propertyNormVisible'] = self.chkPropertyNormVisible.isChecked()
             fields['propertyEvaluationVisible'] = self.chkPropertyEvaluationVisible.isChecked()
+            fields['propertyCommentVisible'] = self.chkPropertyCommentVisible.isChecked()
         record = self._table.newRecord(fields.keys())
         for key, value in fields.items():
             record.setValue(key, toVariant(value))

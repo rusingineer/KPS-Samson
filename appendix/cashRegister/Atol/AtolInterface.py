@@ -22,12 +22,14 @@ from AtolErrors import EAtolError
 
 class CAtolInterface:
     tagPayerContact  = 1008 # Электронный адрес / телефон получателя
-    tagPayerName     = 1227 # Наименование получателя
+    tagPayerName     = 1227 # Наименование покупателя (плательщика) для ФФД < 1.2: реквизит чека, для ФФД ≥ 1.2: входит в 1256
+    tagPayerInfo     = 1256 # Сведения о покупателе (плательщике), ФФД ≥ 1.2
 
     #tagAddress       = 1009
     tagOperatorName  = 1021
     tagOperatorVatin = 1203
 
+    tagFfdVersion    = 1209 # Номер версии ФФД (int) IFptr.LIBFPTR_FFD_UNKNOWN = 0, IFptr.LIBFPTR_FFD_1_0 = 100, IFptr.LIBFPTR_FFD_1_0_5 = 105, IFptr.LIBFPTR_FFD_1_1 = 110, IFptr.LIBFPTR_FFD_1_2 = 120
     tagPaymentObject = 1212 # Признак предмета расчета (тег 1212)
     tagPaymentMethod = 1214 # Признак способа рaсчета (тег 1214)
 
@@ -45,14 +47,22 @@ class CAtolInterface:
     ptCash           = IFptr.LIBFPTR_PT_CASH
     ptCard           = IFptr.LIBFPTR_PT_ELECTRONICALLY
 
-    # Признак предмета расчета (тег 1212)
+
+    # версии ффд (определяем по тегу 1209)
+    ffdUnknown = IFptr.LIBFPTR_FFD_UNKNOWN # = 0
+    ffd100     = IFptr.LIBFPTR_FFD_1_0   # = 100
+    ffd105     = IFptr.LIBFPTR_FFD_1_0_5 # = 105
+    ffd110     = IFptr.LIBFPTR_FFD_1_1   # = 110
+    ffd120     = IFptr.LIBFPTR_FFD_1_2   # = 120
+
+    # Признак предмета расчета (передаём в теге 1212)
     poCommodity      = 1 # «ТОВАР»
 #    poExcise         = 2 # «ПОДАКЦИЗНЫЙ ТОВАР»
 #    poJob            = 3 # «РАБОТА»
     poService        = 4 # «УСЛУГА»
     # Этих признаков много - 26 разных кодов, но нам достаточно услуги.
 
-    # Признак способа рaсчета (тег 1214)
+    # Признак способа рaсчета (передаём в теге 1214)
     pmFullPrepayment = 1 # Полная предварительная оплата до момента передачи предмета расчета. «ПРЕДОПЛАТА 100%»
     pmPrepayment     = 2 # Частичная предварительная оплата до момента передачи предмета расчета. «ПРЕДОПЛАТА»
     pmAdvance        = 3 # Аванс. «АВАНС»
@@ -68,17 +78,18 @@ class CAtolInterface:
         except:
             self.fptr = None
 
-        self.operatorName  = '' # ФИО оператора
-        self.operatorVatin = '' # ИНН оператора
-        self.vatTaxPayer   = False
+        self._operatorName  = '' # ФИО оператора
+        self._operatorVatin = '' # ИНН оператора
+        self._vatTaxPayer   = False
+        self._ffdVersion    = None
 
 
     def setOperatorName(self, name):
-        self.operatorName = name
+        self._operatorName = name
 
 
     def setOperatorVatin(self, vatin):
-        self.operatorVatin = vatin
+        self._operatorVatin = vatin
 
 
     def __checkError(self, rc):
@@ -115,7 +126,7 @@ class CAtolInterface:
 
 
     def __encodeVat(self, valPercent):
-        if self.vatTaxPayer:
+        if self._vatTaxPayer:
             v = int(round(valPercent))
             if v == 20:
                 return IFptr.LIBFPTR_TAX_VAT120
@@ -131,16 +142,24 @@ class CAtolInterface:
 
 
     def __operatorLogin(self):
-        if self.operatorName or self.operatorVatin:
-            if self.operatorName:
-                self.fptr.setParam(self.tagOperatorName, self.operatorName)
-            if self.operatorVatin:
-                self.fptr.setParam(self.tagOperatorVatin, self.operatorVatin)
+        if self._operatorName or self._operatorVatin:
+            if self._operatorName:
+                self.fptr.setParam(self.tagOperatorName, self._operatorName)
+            if self._operatorVatin:
+                self.fptr.setParam(self.tagOperatorVatin, self._operatorVatin)
             self.__checkError(self.fptr.operatorLogin())
 
 
+    def __queryRegistrationInfo(self):
+        self.fptr.setParam(IFptr.LIBFPTR_PARAM_FN_DATA_TYPE, IFptr.LIBFPTR_FNDT_REG_INFO)
+        self.fptr.fnQueryData()
+
+#        self._taxationTypes  = self.fptr.getParamInt(1062)
+        self._ffdVersion  = self.fptr.getParamInt(self.tagFfdVersion)
+
+
     def setup(self, options):
-        self.vatTaxPayer = forceBool(options.get('vatTaxPayer', False))
+        self._vatTaxPayer = forceBool(options.get('vatTaxPayer', False))
         link = forceString(options.get('link'))
         settings = {}
         settings[IFptr.LIBFPTR_SETTING_MODEL] = IFptr.LIBFPTR_MODEL_ATOL_AUTO
@@ -236,6 +255,7 @@ class CAtolInterface:
 #        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TEXT, text)
         self.__checkError(self.fptr.openShift())
         self.__checkDocumentClosed()
+        self.__queryRegistrationInfo()
 
 #        self.fptr.setParam(IFptr.LIBFPTR_PARAM_TEXT, text)
 #        self.fptr.printText()
@@ -290,7 +310,14 @@ class CAtolInterface:
         else:
             customAttr = None
         if payerName:
-            self.fptr.setParam(self.tagPayerName, payerName)
+            if self._ffdVersion == self.ffd120:
+                self.fptr.setParam(self.tagPayerName, payerName)
+                # self.fptr.setParam(self.tagPayerInn, int(payerInn))
+                self.fptr.utilFormTlv()
+                payerInfo = self.fptr.getParamByteArray(IFptr.LIBFPTR_PARAM_TAG_VALUE)
+                self.fptr.setParam(self.tagPayerInfo, payerInfo)
+            else:
+                self.fptr.setParam(self.tagPayerName, payerName)
         if payerEmail:
             self.fptr.setParam(self.tagPayerContact, payerEmail)
         if not printReceipt:

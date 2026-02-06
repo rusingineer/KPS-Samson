@@ -94,15 +94,16 @@ class CPageFormat(object):
 
 
     def setupPrinter(self, printer):
-        printerInfo = QtGui.QPrinterInfo(printer)
-        if self.pageSize == QtGui.QPrinter.Custom:
-            printer.setPaperSize(self.pageRect, QtGui.QPrinter.Millimeter)
-        elif self.pageSize in printerInfo.supportedPaperSizes():
-            printer.setPaperSize(self.pageSize)
-        else:
-            paperRect = self.getPaperRect(self.pageSize)
-            printer.setPaperSize(paperRect, QtGui.QPrinter.Millimeter)
-        printer.setOrientation(self.orientation)
+        if printer:
+            # printerInfo = QtGui.QPrinterInfo(printer)
+            if self.pageSize == QtGui.QPrinter.Custom:
+                printer.setPaperSize(self.pageRect, QtGui.QPrinter.Millimeter)
+            elif self.pageSize in [QtGui.QPrinter.A4]: #  printerInfo.supportedPaperSizes():
+                printer.setPaperSize(self.pageSize)
+            else:
+                paperRect = self.getPaperRect(self.pageSize)
+                printer.setPaperSize(paperRect, QtGui.QPrinter.Millimeter)
+            printer.setOrientation(self.orientation)
 
 
     def updateFromPrinter(self, printer):

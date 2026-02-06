@@ -257,11 +257,13 @@ class CTariffInfo(CInfo):
                             left join rbEventProfile ep on ep.id = EventType.eventProfile_id",
                           """Event.id as eventId, Event.setDate, Event.result_id, Event.eventType_id, Event.client_id, vAction.id, vAction.actionType_id, Event.eventType_id, 
                           vAction.event_id, vAction.exposeDate, vAction.amount, vAction.MKB, Person.tariffCategory_id, Event.execDate, 
-                          Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbMedicalAidType.regionalCode as matCode, ep.regionalCode as eventProfile""", actionId)
+                          Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbMedicalAidType.regionalCode as matCode, ep.regionalCode as eventProfile
+                          , vAction.endDate as actionEndDate""", actionId)
                     orgId = forceRef(record.value('org_id'))
                     exposeDate = forceDate(record.value('exposeDate'))
                     eventEndDate = forceDate(record.value('execDate'))
                     eventBegDate = forceDate(record.value('setDate'))
+                    actionEndDate = forceDate(record.value('actionEndDate'))
                     eventTypeId = forceRef(record.value('eventType_id'))
                     eventId = forceRef(record.value('eventId'))
                     serviceRecord = db.getRecord('rbService', ['infis', u"name like 'Обращен%' AS isObr"], self._serviceId)
@@ -376,7 +378,7 @@ class CTariffInfo(CInfo):
                                                  eventProfileRegionalCode, eventTypeIdentification, eventBegDate,
                                                  eventEndDate, exposeDate, serviceInfis, amount, price, summa,
                                                  serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted,
-                                                 isDispCompleted)
+                                                 isDispCompleted, actionEndDate)
                     return summa
                 else:
                     return self._price * amount

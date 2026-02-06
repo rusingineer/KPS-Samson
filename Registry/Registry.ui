@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Обслуживание пациентов</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_23">
+  <layout class="QVBoxLayout" name="verticalLayout_23" stretch="0">
    <property name="spacing">
     <number>4</number>
    </property>
@@ -21,7 +21,7 @@
     <number>4</number>
    </property>
    <item>
-    <widget class="QTabWidget" name="tabMain">
+    <widget class="CTabWidget" name="tabMain">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -73,7 +73,7 @@
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -303,8 +303,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>317</width>
-                   <height>1152</height>
+                   <width>321</width>
+                   <height>1051</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_18">
@@ -983,6 +983,39 @@ p, li { white-space: pre-wrap; }
                      </layout>
                     </item>
                     <item>
+                     <layout class="QHBoxLayout" name="horizontalLayout_8">
+                      <item>
+                       <widget class="QCheckBox" name="chkResident">
+                        <property name="text">
+                         <string>Житель</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QComboBox" name="cmbResident">
+                        <property name="enabled">
+                         <bool>false</bool>
+                        </property>
+                        <item>
+                         <property name="text">
+                          <string>Не задано</string>
+                         </property>
+                        </item>
+                        <item>
+                         <property name="text">
+                          <string>Городской</string>
+                         </property>
+                        </item>
+                        <item>
+                         <property name="text">
+                          <string>Сельский</string>
+                         </property>
+                        </item>
+                       </widget>
+                      </item>
+                     </layout>
+                    </item>
+                    <item>
                      <layout class="QHBoxLayout" name="horizontalLayout_47" stretch="2,3,1">
                       <item>
                        <widget class="QCheckBox" name="chkFilterWorkOrganisation">
@@ -1612,8 +1645,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>359</width>
-                   <height>1232</height>
+                   <width>312</width>
+                   <height>1102</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_17">
@@ -2877,29 +2910,40 @@ p, li { white-space: pre-wrap; }
                      </layout>
                     </item>
                     <item>
-                     <widget class="QCheckBox" name="chkFilterClientResearch">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
-                      </property>
-                      <property name="minimumSize">
-                       <size>
-                        <width>0</width>
-                        <height>0</height>
-                       </size>
-                      </property>
-                      <property name="maximumSize">
-                       <size>
-                        <width>16777215</width>
-                        <height>16777215</height>
-                       </size>
-                      </property>
-                      <property name="text">
-                       <string>Обследования</string>
-                      </property>
-                     </widget>
+                     <layout class="QHBoxLayout" name="horizontalLayout_93">
+                      <item>
+                       <widget class="QCheckBox" name="chkFilterClientResearch">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="maximumSize">
+                         <size>
+                          <width>16777215</width>
+                          <height>16777215</height>
+                         </size>
+                        </property>
+                        <property name="text">
+                         <string>Обследования</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QCheckBox" name="chkFilterClientNoResearch">
+                        <property name="text">
+                         <string>Не имеет обследования</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
                     </item>
                     <item>
                      <widget class="CRBComboBox" name="cmbFilterClientResearchKind"/>
@@ -2996,8 +3040,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>194</width>
-                   <height>537</height>
+                   <width>170</width>
+                   <height>464</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -3284,7 +3328,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -3408,8 +3452,8 @@ p, li { white-space: pre-wrap; }
                     <rect>
                      <x>0</x>
                      <y>0</y>
-                     <width>238</width>
-                     <height>272</height>
+                     <width>205</width>
+                     <height>236</height>
                     </rect>
                    </property>
                    <layout class="QGridLayout" name="gridLayout">
@@ -3873,8 +3917,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>319</width>
-                   <height>890</height>
+                   <width>323</width>
+                   <height>793</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_23">
@@ -4568,8 +4612,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>219</width>
-                   <height>1086</height>
+                   <width>191</width>
+                   <height>1040</height>
                   </rect>
                  </property>
                  <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -5395,6 +5439,30 @@ p, li { white-space: pre-wrap; }
                    </widget>
                   </item>
                   <item>
+                   <widget class="QCheckBox" name="chkNotExposed">
+                    <property name="text">
+                     <string>Не выставляется в счет</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QCheckBox" name="chkFilterEventActions">
+                    <property name="text">
+                     <string>Мероприятия</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="CActionTypeComboBoxEx" name="cmbFilterEventActions"/>
+                  </item>
+                  <item>
+                   <widget class="QCheckBox" name="chkFilterEventActionsExclude">
+                    <property name="text">
+                     <string>Отсутствуют</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
                    <spacer>
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -5430,7 +5498,7 @@ p, li { white-space: pre-wrap; }
            </widget>
           </item>
           <item row="3" column="0">
-           <widget class="CRBComboBox" name="cmbFilterEventType">
+           <widget class="CRBMultivalueComboBox" name="cmbFilterEventType">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -5520,7 +5588,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -5574,7 +5642,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -5919,6 +5987,106 @@ p, li { white-space: pre-wrap; }
                </item>
               </layout>
              </widget>
+             
+             <widget class="QWidget" name="tabActionsAll">
+              <attribute name="title">
+               <string>Все</string>
+              </attribute>
+              <layout class="QGridLayout" name="gridLayout_67">
+               <property name="leftMargin">
+                <number>4</number>
+               </property>
+               <property name="topMargin">
+                <number>4</number>
+               </property>
+               <property name="rightMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <item row="1" column="0">
+                <widget class="QLabel" name="lblActionsAllCount">
+                 <property name="text">
+                  <string>Список пуст</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QLabel" name="lblActionsAllAmountSum">
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="0" colspan="2">
+                <widget class="QSplitter" name="splitter_33">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <widget class="CRegistryActionsTableView" name="tblActionsAll"/>
+                 <widget class="QTabWidget" name="tabWidgetActionsAll">
+                  <property name="currentIndex">
+                   <number>0</number>
+                  </property>
+                  <widget class="QWidget" name="tabActionsAllProperties">
+                   <attribute name="title">
+                    <string>Свойства</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_37">
+                    <property name="leftMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="CActionPropertiesTableView" name="tblActionsAllProperties"/>
+                    </item>
+                   </layout>
+                  </widget>
+                  <widget class="QWidget" name="tabActionsAllAttachedDocuments">
+                   <attribute name="title">
+                    <string>Прикрепленные документы</string>
+                   </attribute>
+                   <layout class="QGridLayout" name="gridLayout_64">
+                    <property name="leftMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>4</number>
+                    </property>
+                    <property name="spacing">
+                     <number>4</number>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="CAttachFilesTable" name="tblActionsAllAttachedDocuments"/>
+                    </item>
+                   </layout>
+                  </widget>
+                 </widget>
+                </widget>
+               </item>
+              </layout>
+             </widget>
             </widget>
            </item>
            <item row="1" column="0">
@@ -6082,8 +6250,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>267</width>
-                   <height>778</height>
+                   <width>233</width>
+                   <height>709</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_8">
@@ -6102,104 +6270,10 @@ p, li { white-space: pre-wrap; }
                   <property name="spacing">
                    <number>1</number>
                   </property>
-                  <item row="14" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionOrg">
-                    <property name="text">
-                     <string>Место выполнения</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="11" column="1">
-                   <widget class="CDateEdit" name="edtFilterActionEndPlannedEndDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="2" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionSetOrgStructure">
-                    <property name="text">
-                     <string>Подразделение назначившего</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="7" column="0" colspan="2">
-                   <widget class="CPersonComboBoxEx" name="cmbFilterActionSetPerson">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="30" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionAssistant">
-                    <property name="text">
-                     <string>Ассистент</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="23" column="1">
-                   <widget class="QTimeEdit" name="edtFilterActionEndExecTime">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="time">
-                     <time>
-                      <hour>23</hour>
-                      <minute>59</minute>
-                      <second>59</second>
-                     </time>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="13" column="0" colspan="2">
-                   <widget class="CActionStatusComboBox" name="cmbFilterActionStatus">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="10" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionPlannedEndDate">
-                    <property name="text">
-                     <string>Плановая дата выполнения</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="6" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionSetPerson">
-                    <property name="text">
-                     <string>Назначил</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="32" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionUncoordinated">
-                    <property name="text">
-                     <string>Несогласованные</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="33" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionJobTicketId">
-                    <property name="text">
-                     <string>Код работы</string>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="0" column="0" colspan="2">
                    <widget class="QCheckBox" name="chkFilterActionSetDate">
                     <property name="text">
                      <string>Дата назначения</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="12" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionStatus">
-                    <property name="text">
-                     <string>Состояние</string>
                     </property>
                    </widget>
                   </item>
@@ -6210,12 +6284,32 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="12" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionStatus">
+                    <property name="text">
+                     <string>Состояние</string>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="22" column="1">
                    <widget class="QTimeEdit" name="edtFilterActionBegExecTime">
                     <property name="enabled">
                      <bool>false</bool>
                     </property>
                    </widget>
+                  </item>
+                  <item row="41" column="0">
+                   <spacer name="verticalSpacer_5">
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>40</height>
+                     </size>
+                    </property>
+                   </spacer>
                   </item>
                   <item row="22" column="0">
                    <widget class="CDateEdit" name="edtFilterActionBegExecDate">
@@ -6236,7 +6330,7 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="34" column="0" colspan="2">
+                  <item row="35" column="0" colspan="2">
                    <widget class="QLineEdit" name="edtFilterActionJobTicketId">
                     <property name="enabled">
                      <bool>false</bool>
@@ -6285,13 +6379,6 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="24" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionExecSetOrgStructure">
-                    <property name="text">
-                     <string>Подразделение исполнителя</string>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="1" column="0">
                    <widget class="CDateEdit" name="edtFilterActionBegSetDate">
                     <property name="enabled">
@@ -6323,25 +6410,19 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="5" column="0" colspan="2">
+                   <widget class="CRBComboBox" name="cmbFilterActionSetSpeciality">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="4" column="0" colspan="2">
                    <widget class="QCheckBox" name="chkFilterActionSetSpeciality">
                     <property name="text">
                      <string>Специальность назначившего</string>
                     </property>
                    </widget>
-                  </item>
-                  <item row="41" column="0">
-                   <spacer name="verticalSpacer_5">
-                    <property name="orientation">
-                     <enum>Qt::Vertical</enum>
-                    </property>
-                    <property name="sizeHint" stdset="0">
-                     <size>
-                      <width>20</width>
-                      <height>40</height>
-                     </size>
-                    </property>
-                   </spacer>
                   </item>
                   <item row="29" column="0" colspan="2">
                    <widget class="CPersonComboBoxEx" name="cmbFilterActionExecSetPerson">
@@ -6350,10 +6431,90 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="5" column="0" colspan="2">
-                   <widget class="CRBComboBox" name="cmbFilterActionSetSpeciality">
+                  <item row="24" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionExecSetOrgStructure">
+                    <property name="text">
+                     <string>Подразделение исполнителя</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="2" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionSetOrgStructure">
+                    <property name="text">
+                     <string>Подразделение назначившего</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="14" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionOrg">
+                    <property name="text">
+                     <string>Место выполнения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0" colspan="2">
+                   <widget class="CPersonComboBoxEx" name="cmbFilterActionSetPerson">
                     <property name="enabled">
                      <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="11" column="1">
+                   <widget class="CDateEdit" name="edtFilterActionEndPlannedEndDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionPlannedEndDate">
+                    <property name="text">
+                     <string>Плановая дата выполнения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="13" column="0" colspan="2">
+                   <widget class="CActionStatusComboBox" name="cmbFilterActionStatus">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="23" column="1">
+                   <widget class="QTimeEdit" name="edtFilterActionEndExecTime">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="time">
+                     <time>
+                      <hour>23</hour>
+                      <minute>59</minute>
+                      <second>59</second>
+                     </time>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="31" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionAssistant">
+                    <property name="text">
+                     <string>Ассистент</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="6" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionSetPerson">
+                    <property name="text">
+                     <string>Назначил</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="33" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionUncoordinated">
+                    <property name="text">
+                     <string>Несогласованные</string>
                     </property>
                    </widget>
                   </item>
@@ -6364,10 +6525,10 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="31" column="0" colspan="2">
-                   <widget class="CPersonComboBoxEx" name="cmbFilterActionAssistant">
-                    <property name="enabled">
-                     <bool>false</bool>
+                  <item row="34" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionJobTicketId">
+                    <property name="text">
+                     <string>Код работы</string>
                     </property>
                    </widget>
                   </item>
@@ -6375,13 +6536,6 @@ p, li { white-space: pre-wrap; }
                    <widget class="CRBComboBox" name="cmbFilterActionExecSetSpeciality">
                     <property name="enabled">
                      <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="26" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionExecSetSpeciality">
-                    <property name="text">
-                     <string>Специальность исполнителя</string>
                     </property>
                    </widget>
                   </item>
@@ -6407,21 +6561,28 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="3" column="0" colspan="2">
-                   <widget class="COrgStructureComboBox" name="cmbFilterActionSetOrgStructure">
+                  <item row="26" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionExecSetSpeciality">
+                    <property name="text">
+                     <string>Специальность исполнителя</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="32" column="0" colspan="2">
+                   <widget class="CPersonComboBoxEx" name="cmbFilterActionAssistant">
                     <property name="enabled">
                      <bool>false</bool>
                     </property>
                    </widget>
                   </item>
-                  <item row="35" column="0" colspan="2">
-                   <layout class="QHBoxLayout" name="horizontalLayout_14">
-                    <property name="spacing">
-                     <number>0</number>
+                  <item row="39" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionTakenTissueJournal">
+                    <property name="text">
+                     <string>Забор б/м</string>
                     </property>
-                   </layout>
+                   </widget>
                   </item>
-                  <item row="37" column="0" colspan="2">
+                  <item row="38" column="0" colspan="2">
                    <layout class="QGridLayout" name="gridLayout_30">
                     <item row="2" column="0">
                      <widget class="QLineEdit" name="edtFilterActionMKBFrom">
@@ -6451,14 +6612,35 @@ p, li { white-space: pre-wrap; }
                     </item>
                    </layout>
                   </item>
-                  <item row="38" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionTakenTissueJournal">
-                    <property name="text">
-                     <string>Забор б/м</string>
+                  <item row="36" column="0" colspan="2">
+                   <layout class="QHBoxLayout" name="horizontalLayout_14">
+                    <property name="spacing">
+                     <number>0</number>
+                    </property>
+                   </layout>
+                  </item>
+                  <item row="3" column="0" colspan="2">
+                   <widget class="COrgStructureComboBox" name="cmbFilterActionSetOrgStructure">
+                    <property name="enabled">
+                     <bool>false</bool>
                     </property>
                    </widget>
                   </item>
-                  <item row="38" column="1">
+                  <item row="15" column="0" colspan="2">
+                   <widget class="CPolyclinicComboBox" name="cmbFilterActionOrg">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="37" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionMKB">
+                    <property name="text">
+                     <string>Коды диагнозов по МКБ</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="39" column="1">
                    <widget class="QComboBox" name="cmbFilterActionTakenTissueJournal">
                     <property name="enabled">
                      <bool>false</bool>
@@ -6473,41 +6655,6 @@ p, li { white-space: pre-wrap; }
                       <string>Нет</string>
                      </property>
                     </item>
-                   </widget>
-                  </item>
-                  <item row="36" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionMKB">
-                    <property name="text">
-                     <string>Коды диагнозов по МКБ</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="15" column="0" colspan="2">
-                   <widget class="CPolyclinicComboBox" name="cmbFilterActionOrg">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="39" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionAwaitingSigningForOrganisation">
-                    <property name="text">
-                     <string>Ожидает подписания за организацию</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="17" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionBegDate">
-                    <property name="text">
-                     <string>Дата начала</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="21" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionExecDate">
-                    <property name="text">
-                     <string>Дата выполнения</string>
-                    </property>
                    </widget>
                   </item>
                   <item row="18" column="0">
@@ -6529,6 +6676,40 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="19" column="0">
+                   <widget class="CDateEdit" name="edtFilterActionEndBegDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="displayFormat">
+                     <string>dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionExecDate">
+                    <property name="text">
+                     <string>Дата выполнения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="18" column="1">
+                   <widget class="QTimeEdit" name="edtFilterActionBegBegTime">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="17" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionBegDate">
+                    <property name="text">
+                     <string>Дата начала</string>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="19" column="1">
                    <widget class="QTimeEdit" name="edtFilterActionEndBegTime">
                     <property name="enabled">
@@ -6543,23 +6724,17 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="19" column="0">
-                   <widget class="CDateEdit" name="edtFilterActionEndBegDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="displayFormat">
-                     <string>dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>false</bool>
+                  <item row="8" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionSNILSSetPerson">
+                    <property name="text">
+                     <string>Искать по СНИЛС</string>
                     </property>
                    </widget>
                   </item>
-                  <item row="18" column="1">
-                   <widget class="QTimeEdit" name="edtFilterActionBegBegTime">
-                    <property name="enabled">
-                     <bool>false</bool>
+                  <item row="30" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionSNILSExecSetPerson">
+                    <property name="text">
+                     <string>Искать по СНИЛС</string>
                     </property>
                    </widget>
                   </item>
@@ -6590,8 +6765,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>291</width>
-                   <height>874</height>
+                   <width>296</width>
+                   <height>816</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_24">
@@ -6695,34 +6870,6 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="10" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkTakeIntoAccountProperty">
-                    <property name="text">
-                     <string>Учитывать свойства</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="18" column="1" colspan="2">
-                   <widget class="CRBComboBox" name="cmbFilterActionFinance">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="19" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkFilterActionPayer">
-                    <property name="text">
-                     <string>Плательщик по договору</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="20" column="0" colspan="2">
-                   <widget class="COrgComboBox" name="cmbFilterActionPayer">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="1" column="0" colspan="3">
                    <widget class="QLineEdit" name="edtFilterActionId">
                     <property name="enabled">
@@ -6733,6 +6880,13 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="19" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkFilterActionPayer">
+                    <property name="text">
+                     <string>Плательщик по договору</string>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="2" column="0" colspan="2">
                    <widget class="QCheckBox" name="chkFilterActionCreatePerson">
                     <property name="text">
@@ -6740,10 +6894,31 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="4" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionCreateDate">
+                  <item row="18" column="1" colspan="2">
+                   <widget class="CRBComboBox" name="cmbFilterActionFinance">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="20" column="0" colspan="2">
+                   <widget class="COrgComboBox" name="cmbFilterActionPayer">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="10" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkTakeIntoAccountProperty">
                     <property name="text">
-                     <string>Дата создания</string>
+                     <string>Учитывать свойства</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="7" column="0" colspan="3">
+                   <widget class="CPersonComboBoxEx" name="cmbFilterActionModifyPerson">
+                    <property name="enabled">
+                     <bool>false</bool>
                     </property>
                    </widget>
                   </item>
@@ -6785,42 +6960,10 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="7" column="0" colspan="3">
-                   <widget class="CPersonComboBoxEx" name="cmbFilterActionModifyPerson">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="5" column="1" colspan="2">
-                   <widget class="CDateEdit" name="edtFilterActionEndCreateDate">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="maximumSize">
-                     <size>
-                      <width>16777215</width>
-                      <height>16777215</height>
-                     </size>
-                    </property>
-                    <property name="displayFormat">
-                     <string notr="true">dd.MM.yyyy</string>
-                    </property>
-                    <property name="calendarPopup">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="0" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionId">
+                  <item row="4" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionCreateDate">
                     <property name="text">
-                     <string>Идентификатор</string>
+                     <string>Дата создания</string>
                     </property>
                    </widget>
                   </item>
@@ -6828,6 +6971,13 @@ p, li { white-space: pre-wrap; }
                    <widget class="QCheckBox" name="chkFilterActionModifyDate">
                     <property name="text">
                      <string>Дата последнего изменения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="0" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionId">
+                    <property name="text">
+                     <string>Идентификатор</string>
                     </property>
                    </widget>
                   </item>
@@ -6863,6 +7013,31 @@ p, li { white-space: pre-wrap; }
                     </property>
                     <property name="text">
                      <string>Заполнено</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="5" column="1" colspan="2">
+                   <widget class="CDateEdit" name="edtFilterActionEndCreateDate">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="minimumSize">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>16777215</height>
+                     </size>
+                    </property>
+                    <property name="displayFormat">
+                     <string notr="true">dd.MM.yyyy</string>
+                    </property>
+                    <property name="calendarPopup">
+                     <bool>true</bool>
                     </property>
                    </widget>
                   </item>
@@ -6934,6 +7109,16 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
+                  <item row="12" column="0">
+                   <widget class="QLabel" name="lblListProperty">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="text">
+                     <string>Список свойств по</string>
+                    </property>
+                   </widget>
+                  </item>
                   <item row="15" column="1" colspan="2">
                    <widget class="QLineEdit" name="edtThresholdPenaltyGrade">
                     <property name="enabled">
@@ -6985,16 +7170,6 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="12" column="0">
-                   <widget class="QLabel" name="lblListProperty">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="text">
-                     <string>Список свойств по</string>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="20" column="2">
                    <widget class="QToolButton" name="btnFilterActionSelectPayer">
                     <property name="enabled">
@@ -7011,7 +7186,7 @@ p, li { white-space: pre-wrap; }
                     </property>
                    </widget>
                   </item>
-                  <item row="39" column="0" colspan="2">
+                  <item row="40" column="0" colspan="2">
                    <spacer>
                     <property name="orientation">
                      <enum>Qt::Vertical</enum>
@@ -7023,20 +7198,6 @@ p, li { white-space: pre-wrap; }
                      </size>
                     </property>
                    </spacer>
-                  </item>
-                  <item row="24" column="0" colspan="3">
-                   <widget class="QCheckBox" name="chkFilterActionExport">
-                    <property name="text">
-                     <string>Экспортировано во внешние ИС</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="21" column="0">
-                   <widget class="QCheckBox" name="chkFilterActionContract">
-                    <property name="text">
-                     <string>Договор</string>
-                    </property>
-                   </widget>
                   </item>
                   <item row="23" column="2">
                    <widget class="QToolButton" name="btnFilterActionContract">
@@ -7061,6 +7222,33 @@ p, li { white-space: pre-wrap; }
                     </property>
                     <property name="readOnly">
                      <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="21" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionContract">
+                    <property name="text">
+                     <string>Договор</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="24" column="0" colspan="3">
+                   <widget class="QCheckBox" name="chkFilterActionExport">
+                    <property name="text">
+                     <string>Экспортировано во внешние ИС</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="39" column="0" colspan="3">
+                   <widget class="QLineEdit" name="edtFilterActionFileAttachId">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
                     </property>
                    </widget>
                   </item>
@@ -7098,97 +7286,11 @@ p, li { white-space: pre-wrap; }
                     </item>
                    </layout>
                   </item>
-                  <item row="38" column="0" colspan="3">
-                   <widget class="QLineEdit" name="edtFilterActionFileAttach">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                   </widget>
-                  </item>
                   <item row="26" column="0">
                    <widget class="QCheckBox" name="chkFilterActionAttachedFiles">
                     <property name="text">
                      <string>Прикрепленные файлы</string>
                     </property>
-                   </widget>
-                  </item>
-                  <item row="28" column="0" colspan="3">
-                   <widget class="QComboBox" name="cmbFilterActionAttachedFiles">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>не задано</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>присутствуют</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>отсутствуют</string>
-                     </property>
-                    </item>
-                   </widget>
-                  </item>
-                  <item row="30" column="0">
-                   <widget class="QLabel" name="lblActionTypeDoc">
-                    <property name="text">
-                     <string>Вид документа</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item row="31" column="0" colspan="3">
-                   <widget class="QComboBox" name="cmbFilterActionTypeDoc">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <item>
-                     <property name="text">
-                      <string>Все</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>xml</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>pdf</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>sms</string>
-                     </property>
-                    </item>
-                    <item>
-                     <property name="text">
-                      <string>Прочие</string>
-                     </property>
-                    </item>
                    </widget>
                   </item>
                   <item row="33" column="0">
@@ -7246,10 +7348,75 @@ p, li { white-space: pre-wrap; }
                     </item>
                    </widget>
                   </item>
-                  <item row="36" column="0" colspan="2">
-                   <widget class="QCheckBox" name="chkFilterActionFileAttach">
+                  <item row="28" column="0" colspan="3">
+                   <widget class="QComboBox" name="cmbFilterActionAttachedFiles">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>присутствуют</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>отсутствуют</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="31" column="0" colspan="3">
+                   <widget class="QComboBox" name="cmbFilterActionTypeDoc">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <item>
+                     <property name="text">
+                      <string>Все</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Есть xml</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>Есть только pdf</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                  <item row="30" column="0">
+                   <widget class="QLabel" name="lblActionTypeDoc">
+                    <property name="text">
+                     <string>Тип документа</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="37" column="0" colspan="2">
+                   <widget class="QCheckBox" name="chkFilterActionFileAttachId">
                     <property name="text">
                      <string>Идентификатор прикрепленного файла</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="36" column="0">
+                   <widget class="QCheckBox" name="chkFilterActionExportSuitable">
+                    <property name="text">
+                     <string>Подлежат выгрузке в РЭМД, ВИМИС</string>
                     </property>
                    </widget>
                   </item>
@@ -7348,7 +7515,7 @@ p, li { white-space: pre-wrap; }
            <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:7.5pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;&lt;br /&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
           </property>
           <property name="textInteractionFlags">
@@ -8282,8 +8449,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>250</width>
-                       <height>634</height>
+                       <width>228</width>
+                       <height>567</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_2">
@@ -8848,8 +9015,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>202</width>
-                       <height>178</height>
+                       <width>174</width>
+                       <height>158</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_26">
@@ -9249,8 +9416,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>235</width>
-                       <height>628</height>
+                       <width>217</width>
+                       <height>560</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_57">
@@ -9713,8 +9880,8 @@ p, li { white-space: pre-wrap; }
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>202</width>
-                       <height>178</height>
+                       <width>174</width>
+                       <height>158</height>
                       </rect>
                      </property>
                      <layout class="QGridLayout" name="gridLayout_59">
@@ -10058,8 +10225,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>199</width>
-                   <height>377</height>
+                   <width>173</width>
+                   <height>335</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_15">
@@ -10267,8 +10434,8 @@ p, li { white-space: pre-wrap; }
                   <rect>
                    <x>0</x>
                    <y>0</y>
-                   <width>202</width>
-                   <height>222</height>
+                   <width>174</width>
+                   <height>197</height>
                   </rect>
                  </property>
                  <layout class="QGridLayout" name="gridLayout_27">
@@ -10603,6 +10770,11 @@ p, li { white-space: pre-wrap; }
        </item>
       </layout>
      </widget>
+     <widget class="CRegistryNotificationPage" name="tabNotifications">
+      <attribute name="title">
+       <string>Уведомления</string>
+      </attribute>
+     </widget>
     </widget>
    </item>
   </layout>
@@ -10784,6 +10956,18 @@ p, li { white-space: pre-wrap; }
    <class>CAttachFilesTable</class>
    <extends>QTableView</extends>
    <header>library/Attach/AttachFilesTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRegistryNotificationPage</class>
+   <extends>QWidget</extends>
+   <header>RegistryNotificationPage</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CTabWidget</class>
+   <extends>QTabWidget</extends>
+   <header>library/TabWidget</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

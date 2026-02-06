@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -23,7 +23,7 @@ from Registry.Utils             import CCheckNetMixin
 
 
 class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
-    def __init__(self, parent, clientId = None, eventId = None, directionInfo = [], isHealthResort = False):
+    def __init__(self, parent, clientId = None, eventId = None, directionInfo = [], isHealthResort = False, planningActionId = None):
         CDialogBase.__init__(self, parent)
         CCheckNetMixin.__init__(self)
         self.clientId = clientId
@@ -31,6 +31,7 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
         self.directionInfo = directionInfo
         self.isHealthResort = isHealthResort
         self.newEventId = None
+        self.planningActionId = planningActionId
 
 
     def requestNewEvent(self):
@@ -280,6 +281,8 @@ class CHospitalizationFromQueue(CDialogBase, CCheckNetMixin):
                     tableEventType['deleted'].eq(0),
                     tableAction['event_id'].eq(eventId)
                     ]
+            if self.planningActionId:
+                cond.append(tableAction['id'].eq(self.planningActionId))
             record = db.getRecordEx(queryTable, cols, cond, 'bedId, Action.plannedEndDate')
             if record:
                 actionId = forceRef(record.value('id'))
@@ -337,6 +340,8 @@ LIMIT 1) AS relegateOrg_id""")
                     tableEventType['deleted'].eq(0),
                     tableAPT['deleted'].eq(0)
                     ]
+            if self.planningActionId:
+                cond.append(tableAction['id'].eq(self.planningActionId))
             queryNoBed = tableActionType.innerJoin(tableAction, tableActionType['id'].eq(tableAction['actionType_id']))
             queryNoBed = queryNoBed.innerJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
             queryNoBed = queryNoBed.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))

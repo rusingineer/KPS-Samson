@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>374</width>
-    <height>70</height>
+    <height>83</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,16 +17,39 @@
    <bool>false</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="0" column="1">
-    <widget class="CRBComboBox" name="cmbEventType"/>
+   <item row="0" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Тип события</string>
+     </property>
+    </widget>
    </item>
-   <item row="1" column="0">
+   <item row="3" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
     <spacer>
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -39,21 +62,51 @@
      </property>
     </spacer>
    </item>
-   <item row="2" column="0" colspan="2">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   <item row="0" column="1">
+    <widget class="CRBComboBox" name="cmbEventType"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblOrder">
+     <property name="text">
+      <string>Порядок</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Тип события</string>
+   <item row="1" column="1">
+    <widget class="QComboBox" name="cmbOrder">
+     <property name="enabled">
+      <bool>false</bool>
      </property>
+     <item>
+      <property name="text">
+       <string>Плановый</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Экстренный</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Самотёком</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Принудительный</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Внутренний перевод</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Неотложная</string>
+      </property>
+     </item>
     </widget>
    </item>
   </layout>

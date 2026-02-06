@@ -26,6 +26,7 @@ from library.Attach.AttachAction     import getAttachAction
 from library.Attach.AttachButton     import CAttachButton
 from library.Calendar                import wpFiveDays, wpSixDays, wpSevenDays
 from library.Counter                 import CCounterController
+from library.database import CSqlRecord
 from library.InDocTable              import (CInDocTableModel,
                                              CDateInDocTableCol,
                                              CIntInDocTableCol,
@@ -107,7 +108,7 @@ from Orgs.OrgComboBox                import COrgInDocTableColEx
 from Orgs.OrgStructureCol            import COrgStructureInDocTableCol
 from Registry.AmbCardMixin           import getClientActions
 from Registry.ClientEditDialog       import CClientEditDialog
-from Registry.Utils import formatClientBanner, getClientInfo, preFillingActionRecordMSI, getClientSexAge
+from Registry.Utils import getClientBanner, getClientInfo, preFillingActionRecordMSI
 from Orgs.Utils                      import getOrgStructurePersonIdList
 from Users.Rights                    import (
                                               urAdmin,
@@ -231,6 +232,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnLoadPrevAction, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnAttachedFiles, QtGui.QDialogButtonBox.ActionRole)
+        self.btnAttachedFiles.changed.connect(self.setIsDirty)
         self.setModels(self.tblTempInvalidYear, self.modelTempInvalidYear, self.selectionModelTempInvalidYear)
         self.setModels(self.tblMembersMSIPerson, self.modelMembersMSIPerson, self.selectionModelMembersMSIPerson)
         self.setModels(self.tblDiagnosisDisease_31_1, self.modelDiagnosisDisease_31_1, self.selectionModelDiagnosisDisease_31_1)
@@ -339,6 +341,12 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         self._timeoutLogout = CTimeoutLogout(self)
         if QtGui.qApp.getEventTimeout() != 0 and bool(self.itemId()):
             self._timeoutLogout.setup(QtGui.qApp.getEventTimeout() * 60000, u'обращение')
+
+
+    def setIsDirty(self, dirty=True):
+        CItemEditorBaseDialog.setIsDirty(self, dirty)
+        if self.recordEvent:
+            self.recordEvent._dirty = dirty
 
 
     def createApplyButton(self):
@@ -945,6 +953,8 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
             self.modelAboutMedicalExaminationsRequiredProperties.reset()
             self.updateAboutMedicalExaminationsRequiredActionProperties(self.modelAboutMedicalExaminationsRequiredAction.index(0, 0), self.tblAboutMedicalExaminationsRequiredProperties, actionId=currentActionId)
         self.updateAmbCardPrintDiagnosticActions_30Table()
+        if self.modelAmbCardDiagnosticActionProperties_30.includeRows.items():
+            self.modelAmbCardDiagnosticActionProperties_30.includeRows.clear()
 
 
     def on_actionAmountChanged(self, value):
@@ -1311,7 +1321,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
             cond.append(tableAction['endDate'].ge(begDate))
         endDate = filter.get('endDate', None)
         if endDate:
-            cond.append(tableAction['endDate'].le(endDate))
+            cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         actionGroupId = filter.get('actionGroupId', None)
         if actionGroupId:
             cond.append(tableAction['actionType_id'].inlist(self.getActionTypeClassListDescendants(actionGroupId, classCodeList)))
@@ -2279,6 +2289,8 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
                                 isPrimary = 1
                 eventRecord.setValue('isPrimary', QVariant(isPrimary))
                 eventRecord.setValue('order', QVariant(1))  # порядок события всегда плановый
+                if type(eventRecord) == CSqlRecord:
+                    eventRecord.setIsDirty(True)
                 db.updateRecord('Event', eventRecord)
 
             self.tabNotes.saveAttachedFiles(self.eventId)
@@ -2324,7 +2336,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
     def updateClientInfo(self):
         db = QtGui.qApp.db
         self.clientInfo = getClientInfo(self.clientId, date=self.edtDirectionDate.date())
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDirectionDate.date()))
         table  = db.table('Client')
         record = db.getRecord(table, '*', self.clientId)
         if record:

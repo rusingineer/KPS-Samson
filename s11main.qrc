@@ -6,7 +6,7 @@
     <file>icons/redBullet.svg</file>
     <file>icons/greenBullet.svg</file>
     <file>icons/redAndGreenBullet.svg</file>
-	  <file>icons/blueBullet.svg</file>
+    <file>icons/blueBullet.svg</file>
     <file>icons/lightblueBullet.svg</file>
     <file>s11main_ru.qm</file>
     <file>icons/znak_16x16.png</file>
@@ -18,5 +18,7 @@
     <file>icons/bell_1.png</file>
     <file>icons/bell_2.png</file>
     <file>icons/bell_3.png</file>
+    <file>icons/visiblePassword.png</file>
+    <file>icons/invisiblePassword.png</file>
   </qresource>
 </RCC>

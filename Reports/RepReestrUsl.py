@@ -439,6 +439,7 @@ class CRepReestrUslEx(CRepReestrUsl):
         result.setuslVisible(True)
         result.settypePayVisible(True)
         result.setPriceVisible(False)
+        result.loadPrefs()
         return result
 
     def build(self, params):

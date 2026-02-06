@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -37,7 +37,8 @@ from library.TableModel import (
                                         )
 from library.TableView           import CTableView, CExtendedSelectionTableView
 from library.Utils import (forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString, forceStringEx,
-                           formatName, formatSex, formatShortNameInt, formatSNILS, toVariant, formatNameInt, )
+                           formatName, formatSex, formatShortNameInt, formatSNILS, toVariant, formatNameInt,
+                           getPrefInt, setPref, getListChunks)
 from library.TNMS.TNMSComboBox   import convertTNMSDictToDigest, convertTNMSStringToDict
 from Accounting.Utils     import unpackExposeDiscipline
 from Events.Action        import CActionTypeCache, CAction
@@ -88,20 +89,30 @@ class CClientEvalCol(CTextCol):
     def __init__(self, title, fields, expr, defaultWidth, alignment='l'):
         CTextCol.__init__(self, title, fields, defaultWidth, alignment)
         self.expr = expr
-        self.cache = {}
+        self.cache = CRecordCache(capacity=500)
 
 
     def format(self, values):
-        clientId = values[0]
+        clientId = forceInt(values[0])
         output = self.cache.get(clientId)
         if output is None:
             output = QtGui.qApp.db.translate('Client', 'id', clientId, self.expr)
-            self.cache[clientId] = output
+            self.cache.put(clientId, output)
         return output
+
+    def weakFetch(self, listId):
+        listId = [i for i in listId if not self.cache.has_key(i)]
+        if listId:
+            db = QtGui.qApp.db
+            table = db.table('Client')
+            query = db.query(db.selectStmt(table, ['id', self.expr], table['id'].inlist(listId)))
+            while query.next():
+                record = query.record()
+                self.cache.put(forceInt(record.value('id')), record.value(self.expr))
 
 
     def invalidateRecordsCache(self):
-        self.cache.clear()
+        self.cache.invalidate()
 
 
 #class CClientEvalExCol(CTextCol):
@@ -185,6 +196,12 @@ class CClientsTableModel(CTableModel):
         row    = index.row()
         if role == Qt.DisplayRole: ### or role == Qt.EditRole:
             (col, values) = self.getRecordValues(column, row)
+            if column in (6, 7, 8, 9, 10, 11, 12):
+                recordId = self.idList()[row]
+                if not col.cache.has_key(recordId):
+                    listId = self.idList()[max(0, row-self.fetchSize):(row+50)]
+                    if listId:
+                        col.weakFetch(listId)
             return col.format(values)
         elif role == Qt.TextAlignmentRole:
            col = self._cols[column]
@@ -935,6 +952,8 @@ class CEventDiagnosticsTableModel(CTableModel):
             col.setToolTip(u'Морфология диагноза МКБ')
         if QtGui.qApp.isTNMSVisible():
             self.addColumn(CTNMSTextCol(u'TNM-Ст', ['TNMS'],  10))
+        if QtGui.qApp.isClinicalGroupDiagnosticVisible():
+            self.addColumn(CEnumCol(u'КГ', ['clinicalGroup'], (u'', u'1а - подозрение', u'1б - предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению'), 30)).setToolTip(u'Клиническая группа')
         col = self.addColumn(CRefBookCol(u'Хар', ['character_id'], 'rbDiseaseCharacter', 6))
         col.setToolTip(u'Характер')
         col = self.addColumn(CRefBookCol(u'Фаза', ['phase_id'], 'rbDiseasePhases', 6))
@@ -1162,6 +1181,8 @@ class CAmbCardDiagnosticsTableModel(CTableModel):
         col.setToolTip(u'Группа здоровья')
         self.addColumn(CDiagnosisCol(u'Диагноз', ['MKB', 'MKBEx'], 6))
         self.addColumn(CTNMSTextCol(u'TNM-Ст', ['TNMS'],  10))
+        if QtGui.qApp.isClinicalGroupDiagnosticVisible():
+            self.addColumn(CEnumCol(u'КГ', ['clinicalGroup'], (u'', u'1а - подозрение', u'1б - предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению'), 30)).setToolTip(u'Клиническая группа')
         if QtGui.qApp.isExSubclassMKBVisible():
             col = self.addColumn(CTextCol(u'РСК', ['exSubclassMKB'], 6))
             col.setToolTip(u'Расширенная субклассификация МКБ')
@@ -1193,6 +1214,28 @@ class CAmbCardDiagnosticsTableModel(CTableModel):
         queryTable = tableDiagnostic.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
         self.setTable(queryTable)
         self.headerSortingCol = {}
+        self._mapColumnToOrder = {u'diagnosisType_id': u'rbDiagnosisType.name', 
+                                 u'healthGroup_id': u'rbHealthGroup.code', 
+                                 u'MKB': u'Diagnosis.MKB',
+                                 u'MKBEx': u'Diagnosis.MKBEx',
+                                 u'TNMS': u'Diagnosis.TNMS',
+                                 u'exSubclassMKB': u'Diagnosis.exSubclassMKB',
+                                 u'character_id': u'rbDiseaseCharacter.name',
+                                 u'endDate': u'Diagnostic.endDate', 
+                                 u'phase_id': u'rbDiseasePhases.name',
+                                 u'person_id': u'vrbPerson.name', 
+                                 u'stage_id': u'rbDiseaseStage.name',
+                                 u'dispanser_id': u'rbDispanser.code',
+                                 u'hospital': u'Diagnostic.hospital',
+                                 u'speciality_id': u'rbSpeciality.name',
+                                 u'traumaType_id': u'rbTraumaType.code',
+                                 u'toxicSubstances_id': u'rbToxicSubstances.name',
+                                 u'result_id': u'rbDiagnosticResult.name',
+                                 u'notes': u'Diagnostic.notes',
+                                 u'freeInput': u'Diagnostic.freeInput',
+                                 u'clinicalGroup': u'Diagnostic.clinicalGroup'
+                                 }
+
 
 
 class CAmbCardDiagnosticsVisitsTableModel(CTableModel):
@@ -1331,34 +1374,87 @@ class CAmbCardAttachedFilesTableModel(CAttachedFilesModel):
         CAttachedFilesModel.__init__(self, parent)
         self.setInterface(QtGui.qApp.webDAVInterface)
 
-
-    def loadItems(self, clientId):
+    def loadItems(self, clientId, filterFiles={u'docTableName': u'All'}):
         db = QtGui.qApp.db
-        items = CAttachedFilesLoader.loadItems(self.interface, 'Client_FileAttach', clientId)
-        tableEvent = db.table('Event')
-        tableAction = db.table('Action')
-        for eventId in db.getIdList(tableEvent,
-                                    'id',
-                                    where=['deleted=0',
-                                           tableEvent['client_id'].eq(clientId),
-                                          ]
-                                   ):
-            items.extend(CAttachedFilesLoader.loadItems(self.interface, 'Event_FileAttach', eventId))
-            for actionId in db.getIdList(tableAction,
-                                         'id',
-                                         where=['deleted=0',
-                                                tableAction['event_id'].eq(eventId),
-                                               ]
-                                        ):
-                items.extend(CAttachedFilesLoader.loadItems(self.interface, 'Action_FileAttach', actionId))
+        # items = CAttachedFilesLoader.loadtems(self.interface, 'Client_FileAttach', clientId)
+        # tableEvent = db.table('Event')
+        # tableAction = db.table('Action')
+        # for eventId in db.getIdList(tableEvent,
+        #                             'id',
+        #                             where=['deleted=0',
+        #                                    tableEvent['client_id'].eq(clientId),
+        #                                   ]
+        #                            ):
+        #     items.extend(CAttachedFilesLoader.loadItems(self.interface, 'Event_FileAttach', eventId))
+        #     for actionId in db.getIdList(tableAction,
+        #                                  'id',
+        #                                  where=['deleted=0',
+        #                                         tableAction['event_id'].eq(eventId),
+        #                                        ]
+        #                                 ):
+        #         items.extend(CAttachedFilesLoader.loadItems(self.interface, 'Action_FileAttach', actionId))
 
-        self.items = items
+        # была жалоба на скорость. Я подумал так быстрее
+        items = CAttachedFilesLoader.loadAllItems(self.interface, clientId, filterFiles)
+        eventsToActionsMap = {}
+        actionIdList = []
+        eventIdList = []
+        for item in items:
+            record = item.getRecord(None)
+            objTable = forceString(record.value('objectTableName'))
+            if objTable == 'Action':
+                actionIdList.append(forceRef(record.value('master_id')))
+            elif objTable == 'Event':
+                eventIdList.append(forceRef(record.value('master_id')))
+        if actionIdList:
+            tableAction = db.table('Action')
+            records = db.getRecordList(tableAction, [tableAction['id'], tableAction['event_id']], [tableAction['deleted'].eq(0), tableAction['id'].inlist(actionIdList)])
+            for rec in records:
+                eventsToActionsMap[forceRef(rec.value('id'))] = forceRef(rec.value('event_id'))
+        # Получаем список event.id в которых есть запрещённые к показу диагнозы (Mantis 0015028)
+        eventIdList.extend(list(eventsToActionsMap.values()))
+        # restrictedEventIdList = getRestrictedEventIdList(eventIdList, True)
+        restrictedEventIdList = []
+        viewItems = []
+        # Фильтруем первоначальный список файлов, убираем те, которые относятся к запрещённым к показу событиям и действиям
+        for item in items:
+            record = item.getRecord(None)
+            objTable = forceString(record.value('objectTableName'))
+            if objTable == 'Action':
+                if eventsToActionsMap[forceRef(record.value('master_id'))] not in restrictedEventIdList:
+                    viewItems.append(item)
+            elif objTable == 'Event':
+                if forceRef(record.value('master_id')) not in restrictedEventIdList:
+                    viewItems.append(item)
+            else:
+                if forceRef(record.value('master_id')) not in restrictedEventIdList:
+                    viewItems.append(item)
+
+        self.items = viewItems
+        column, order = self._getOrderFromPrefs()
+        self.sort(column, order)
         self.reset()
-
 
     def saveItems(self, masterId):
         pass
 
+    def setItems(self, items):
+        self.items = items
+        column, order = self._getOrderFromPrefs()
+        self.sort(column, order)
+
+    def _getOrderFromPrefs(self):
+        column = getPrefInt(QtGui.qApp.preferences.appPrefs, 'CAmbCardAttachedFilesTableModel_orderColumn', 3)
+        order = getPrefInt(QtGui.qApp.preferences.appPrefs, 'CAmbCardAttachedFilesTableModel_order', 1)
+        return column, Qt.AscendingOrder if order == 0 else Qt.DescendingOrder
+
+    def _setOrderToPrefs(self, column, order):
+        setPref(QtGui.qApp.preferences.appPrefs, u'CAmbCardAttachedFilesTableModel_orderColumn', column)
+        setPref(QtGui.qApp.preferences.appPrefs, u'CAmbCardAttachedFilesTableModel_order', forceInt(order))
+
+    def sort(self, column, order=Qt.AscendingOrder):
+        CAttachedFilesModel.sort(self, column, order)
+        self._setOrderToPrefs(column, order)
 
 
 # ##################################3
@@ -1411,6 +1507,10 @@ class CRegistryActionsTableView(CTableView):
         _showMask = [ not self.isColumnHidden(iCol) if v is None else v
                       for iCol, v in enumerate(showMask)
                     ]
+        for idx, elem in enumerate(cols):
+            if u''.join(forceString(elem.title().toString()).upper().split('.')) == u'ФИО':
+                _showMask[idx] = True
+
         QtGui.qApp.startProgressBar(model.rowCount())
         try:
             doc = QtGui.QTextDocument()
@@ -1432,19 +1532,17 @@ class CRegistryActionsTableView(CTableView):
             cursor.insertBlock()
 
             colWidths  = [ self.columnWidth(i) for i in xrange(len(cols)+1) ]
-            colWidths.insert(0,10)
+            colWidths[0]= 10
             totalWidth = sum(colWidths)
             tableColumns = []
             for iCol, colWidth in enumerate(colWidths):
                 widthInPercents = str(max(1, colWidth*90/totalWidth))+'%'
                 if iCol == 0:
                     tableColumns.append((widthInPercents, [u'№'], CReportBase.AlignRight))
-                elif iCol == 1:
-                    tableColumns.append((widthInPercents, [u'ФИО'], CReportBase.AlignLeft))
                 else:
-                    if not _showMask[iCol-2]:
+                    if not _showMask[iCol-1]:
                         continue
-                    col = cols[iCol-2]
+                    col = cols[iCol-1]
                     colAlingment = Qt.AlignHorizontal_Mask & forceInt(col.alignment())
                     format = QtGui.QTextBlockFormat()
                     format.setAlignment(Qt.AlignmentFlag(colAlingment))
@@ -1458,7 +1556,7 @@ class CRegistryActionsTableView(CTableView):
                 table.setText(iTableRow, 0, iModelRow+1)
                 headerData = model.headerData(iTableRow-1, Qt.Vertical)
                 table.setText(iTableRow, 1, forceString(headerData))
-                iTableCol = 2
+                iTableCol = 1
                 for iModelCol in xrange(len(cols)):
                     if not _showMask[iModelCol]:
                         continue
@@ -1723,20 +1821,59 @@ class CActionsTableModel(CTableModel):
 #        return CTableModel.headerData(self, section, orientation, role)
 
 
-    def getTotalAmountAndUet(self):
+    def getActionsTotal(self):
+        """Возвращает статистику по действиям модели"""
+        # type: () -> dict[str, Union[int, float]]
+        amount = 0.0
+        uet = 0.0
+        clients = set() # type: set[int]
         if self.idList():
+            # Got a packet bigger than 'max_allowed_packet' bytes.
+            # чтобы не получать такую ошибку из-за длинного idList,
+            # разбиваем на куски по 300 штук
             db = QtGui.qApp.db
-            table = db.table('Action')
+            tableA = db.table("Action")
+            tableE = db.table('Event')
+            table = tableA.innerJoin(tableE, tableA['event_id'].eq(tableE['id']))
+            cols = [
+                tableE["client_id"],
+                tableA["uet"],
+                tableA["amount"],
+            ]
 
-            record = db.getRecordEx(table,
-                                    'SUM(amount) as amount, SUM(uet) as uet',
-                                    table['id'].inlist(self.idList())
-                                   )
-            if record:
-                return ( forceDouble(record.value('amount')),
-                         forceDouble(record.value('uet'))
-                       )
-        return 0.0, 0.0
+            def _getActionsTotal(idListChunk):
+                amount = 0.0
+                uet = 0.0
+                clients = set() # type: set[int]
+                record = db.getRecordEx(table, cols, tableA["id"].inlist(idListChunk))
+                if record:
+                    amount += forceDouble(record.value("amount"))
+                    uet += forceDouble(record.value("uet"))
+                    clients.add(forceInt(record.value("client_id")))
+                return {
+                    "amount": amount,
+                    "uet": uet,
+                    "clients": clients,
+                }
+
+            result = QtGui.qApp.callWithProgressBar(
+                None,
+                _getActionsTotal,
+                list(getListChunks(self.idList(), 300)),
+            )
+            if result is not None:
+                # совмещаем результаты
+                for x in result:
+                    amount += x["amount"]
+                    uet += x["uet"]
+                    clients.update(x["clients"])
+
+        # TODO: возвращать dataclass вместо словаря?
+        return {
+            "amount": amount,
+            "uet": uet,
+            "clientsCount": len(clients),
+        }
     
     
     def getClientCount(self):
@@ -1745,10 +1882,15 @@ class CActionsTableModel(CTableModel):
             tableAction = db.table('Action')
             tableEvent  = db.table('Event')
             tableAction = tableAction.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
-            clientCount = db.getDistinctCount(tableAction,
-                                                'client_id',
-                                                tableAction['id'].inlist(self._idList)
-                                               )
+
+            # Got a packet bigger than 'max_allowed_packet' bytes.
+            # чтобы не получать такую ошибку из-за длинного actionIdList,
+            # разбиваем на куски по 100 штук
+            clients = set() # type: set[int]
+            for idList in getListChunks(self._idList, 100):
+                clients.update(db.getIdList(tableAction, tableEvent['client_id'], tableAction['id'].inlist(idList)))
+
+            clientCount = len(clients)
             return clientCount
         return 0
     

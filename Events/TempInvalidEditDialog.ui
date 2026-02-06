@@ -44,7 +44,7 @@
         <x>0</x>
         <y>0</y>
         <width>881</width>
-        <height>856</height>
+        <height>882</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_8">
@@ -78,6 +78,88 @@
           <property name="bottomMargin">
            <number>1</number>
           </property>
+          <item row="3" column="1" colspan="3">
+           <widget class="CRBComboBox" name="cmbExtraReason">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="1">
+           <widget class="CICDCodeEditEx" name="edtDiagnosis">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="1" colspan="3">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="CDateEdit" name="edtBegDatePermit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="displayFormat">
+               <string>dd.MM.yyyy</string>
+              </property>
+              <property name="calendarPopup">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="CDateEdit" name="edtEndDatePermit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="displayFormat">
+               <string>dd.MM.yyyy</string>
+              </property>
+              <property name="calendarPopup">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="edtNumberPermit">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="inputMask">
+               <string>9999999; </string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="lblExtraReason">
+            <property name="text">
+             <string>Доп.причина</string>
+            </property>
+            <property name="buddy">
+             <cstring>cmbExtraReason</cstring>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="0">
            <widget class="QLabel" name="lblDoctype">
             <property name="text">
@@ -161,88 +243,6 @@
             </property>
             <property name="buddy">
              <cstring>edtInfContact</cstring>
-            </property>
-           </widget>
-          </item>
-          <item row="9" column="1" colspan="3">
-           <layout class="QHBoxLayout" name="horizontalLayout_3">
-            <item>
-             <widget class="CDateEdit" name="edtBegDatePermit">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="displayFormat">
-               <string>dd.MM.yyyy</string>
-              </property>
-              <property name="calendarPopup">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="CDateEdit" name="edtEndDatePermit">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="displayFormat">
-               <string>dd.MM.yyyy</string>
-              </property>
-              <property name="calendarPopup">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="edtNumberPermit">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="inputMask">
-               <string>9999999; </string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item row="7" column="1">
-           <widget class="CICDCodeEditEx" name="edtDiagnosis">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1" colspan="3">
-           <widget class="CRBComboBox" name="cmbExtraReason">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="lblExtraReason">
-            <property name="text">
-             <string>Доп.причина</string>
-            </property>
-            <property name="buddy">
-             <cstring>cmbExtraReason</cstring>
             </property>
            </widget>
           </item>
@@ -559,6 +559,16 @@
             </property>
            </widget>
           </item>
+          <item row="21" column="1" colspan="3">
+           <widget class="CRBComboBox" name="cmbResult">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+           </widget>
+          </item>
           <item row="17" column="1" colspan="3">
            <widget class="CRBComboBox" name="cmbDisability">
             <property name="sizePolicy">
@@ -576,17 +586,17 @@
             </property>
            </widget>
           </item>
-          <item row="19" column="1" colspan="3">
-           <widget class="CRBComboBox" name="cmbResult">
+          <item row="12" column="1" colspan="3">
+           <widget class="QLabel" name="lblOrganisationOGRN">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
            </widget>
           </item>
-          <item row="20" column="1" colspan="3">
+          <item row="22" column="1" colspan="3">
            <layout class="QHBoxLayout" name="horizontalLayout_5">
             <item>
              <widget class="CDateEdit" name="edtResultDate">
@@ -659,16 +669,6 @@
             </item>
            </layout>
           </item>
-          <item row="10" column="0">
-           <widget class="QLabel" name="lblOGRN">
-            <property name="text">
-             <string>ОГРН</string>
-            </property>
-            <property name="buddy">
-             <cstring>edtOGRN</cstring>
-            </property>
-           </widget>
-          </item>
           <item row="10" column="1" colspan="2">
            <widget class="QLineEdit" name="edtOGRN">
             <property name="sizePolicy">
@@ -682,13 +682,23 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="1" colspan="3">
-           <widget class="QLabel" name="lblOrganisationOGRN">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+          <item row="10" column="0">
+           <widget class="QLabel" name="lblOGRN">
+            <property name="text">
+             <string>ОГРН</string>
+            </property>
+            <property name="buddy">
+             <cstring>edtOGRN</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="21" column="0">
+           <widget class="QLabel" name="lblResult">
+            <property name="text">
+             <string>Результат</string>
+            </property>
+            <property name="buddy">
+             <cstring>cmbResult</cstring>
             </property>
            </widget>
           </item>
@@ -702,20 +712,13 @@
             </property>
            </widget>
           </item>
-          <item row="12" column="0">
-           <widget class="QLabel" name="lblOrganisation">
-            <property name="text">
-             <string>Организация</string>
-            </property>
-           </widget>
-          </item>
-          <item row="19" column="0">
-           <widget class="QLabel" name="lblResult">
-            <property name="text">
-             <string>Результат</string>
-            </property>
-            <property name="buddy">
-             <cstring>cmbResult</cstring>
+          <item row="7" column="2" colspan="2">
+           <widget class="CRBComboBox" name="cmbDiseaseCharacter">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
            </widget>
           </item>
@@ -726,13 +729,10 @@
             </property>
            </widget>
           </item>
-          <item row="7" column="2" colspan="2">
-           <widget class="CRBComboBox" name="cmbDiseaseCharacter">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+          <item row="12" column="0">
+           <widget class="QLabel" name="lblOrganisation">
+            <property name="text">
+             <string>Организация</string>
             </property>
            </widget>
           </item>
@@ -795,6 +795,26 @@
             </property>
            </widget>
           </item>
+          <item row="22" column="0">
+           <widget class="QLabel" name="lblResultDate">
+            <property name="text">
+             <string>К работе</string>
+            </property>
+            <property name="buddy">
+             <cstring>edtResultDate</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="lblChangedReason">
+            <property name="text">
+             <string>Изм. причина</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1" colspan="3">
+           <widget class="CRBComboBox" name="cmbChangedReason"/>
+          </item>
           <item row="15" column="0">
            <widget class="QLabel" name="lblTempInvalidBreak">
             <property name="text">
@@ -805,27 +825,17 @@
             </property>
            </widget>
           </item>
-          <item row="20" column="0">
-           <widget class="QLabel" name="lblResultDate">
-            <property name="text">
-             <string>К работе</string>
-            </property>
-            <property name="buddy">
-             <cstring>edtResultDate</cstring>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1" colspan="3">
-           <widget class="CRBComboBox" name="cmbChangedReason"/>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="lblChangedReason">
-            <property name="text">
-             <string>Изм. причина</string>
+          <item row="5" column="1" colspan="3">
+           <widget class="CRBComboBox" name="cmbTypeEducationalInstitution">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
            </widget>
           </item>
-          <item row="21" column="0">
+          <item row="23" column="0">
            <widget class="QCheckBox" name="chkUserCert">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -838,7 +848,7 @@
             </property>
            </widget>
           </item>
-          <item row="21" column="1" colspan="3">
+          <item row="23" column="1" colspan="3">
            <widget class="CCertComboBox" name="cmbUserCert">
             <property name="enabled">
              <bool>false</bool>
@@ -861,16 +871,6 @@
             </property>
             <property name="buddy">
              <cstring>cmbTypeEducationalInstitution</cstring>
-            </property>
-           </widget>
-          </item>
-          <item row="5" column="1" colspan="3">
-           <widget class="CRBComboBox" name="cmbTypeEducationalInstitution">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
             </property>
            </widget>
           </item>
@@ -907,6 +907,32 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+           </widget>
+          </item>
+          <item row="19" column="0">
+           <widget class="QLabel" name="lblMseDate">
+            <property name="text">
+             <string>Дата направления на МСЭ</string>
+            </property>
+            <property name="buddy">
+             <cstring>edtBegDateStationary</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="19" column="1">
+           <widget class="CDateEdit" name="edtMseDate">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="displayFormat">
+             <string>dd.MM.yyyy</string>
+            </property>
+            <property name="calendarPopup">
+             <bool>true</bool>
             </property>
            </widget>
           </item>

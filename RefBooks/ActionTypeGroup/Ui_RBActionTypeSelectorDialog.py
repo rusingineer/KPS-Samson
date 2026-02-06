@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_pre_release\RefBooks\ActionTypeGroup\RBActionTypeSelectorDialog.ui'
+# Form implementation generated from reading ui file 'C:\Projects\Samson\UP_s11\client_test\RefBooks\ActionTypeGroup\RBActionTypeSelectorDialog.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Aug 14 14:39:12 2025
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -37,6 +38,7 @@ class Ui_ActionTypeSelectorDialog(object):
         self.verticalLayoutWidget.setObjectName(_fromUtf8("verticalLayoutWidget"))
         self.verticalLayout = QtGui.QVBoxLayout(self.verticalLayoutWidget)
         self.verticalLayout.setSizeConstraint(QtGui.QLayout.SetDefaultConstraint)
+        self.verticalLayout.setMargin(0)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.treeItems = CTreeView(self.verticalLayoutWidget)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
@@ -126,6 +128,7 @@ class Ui_ActionTypeSelectorDialog(object):
         self.layoutWidget = QtGui.QWidget(self.splitter)
         self.layoutWidget.setObjectName(_fromUtf8("layoutWidget"))
         self.gridLayout = QtGui.QGridLayout(self.layoutWidget)
+        self.gridLayout.setMargin(0)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.tblItems = CTableView(self.layoutWidget)
         self.tblItems.setObjectName(_fromUtf8("tblItems"))
@@ -144,6 +147,7 @@ class Ui_ActionTypeSelectorDialog(object):
         self.layoutWidget1.setObjectName(_fromUtf8("layoutWidget1"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.layoutWidget1)
         self.verticalLayout_2.setSizeConstraint(QtGui.QLayout.SetMaximumSize)
+        self.verticalLayout_2.setMargin(0)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.label = QtGui.QLabel(self.layoutWidget1)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
@@ -188,7 +192,6 @@ class Ui_ActionTypeSelectorDialog(object):
         self.btnNew.setObjectName(_fromUtf8("btnNew"))
         self.horizontalLayout_2.addWidget(self.btnNew)
         self.verticalLayout_3.addLayout(self.horizontalLayout_2)
-        self.splitter.raise_()
         self.lblService.setBuddy(self.cmbService)
         self.lblQuotaType.setBuddy(self.cmbQuotaType)
         self.lblTissueType.setBuddy(self.cmbTissueType)
@@ -224,8 +227,8 @@ class Ui_ActionTypeSelectorDialog(object):
         self.cmbIsPreferable.setItemText(1, _translate("ActionTypeSelectorDialog", "да", None))
         self.cmbIsPreferable.setItemText(2, _translate("ActionTypeSelectorDialog", "нет", None))
         self.lblShowInForm.setText(_translate("ActionTypeSelectorDialog", "Разрешается выбор в формах ввода событий", None))
-        self.cmbShowInForm.setItemText(0, _translate("ActionTypeSelectorDialog", "не определено", None))
-        self.cmbShowInForm.setItemText(1, _translate("ActionTypeSelectorDialog", "да", None))
+        self.cmbShowInForm.setItemText(0, _translate("ActionTypeSelectorDialog", "да", None))
+        self.cmbShowInForm.setItemText(1, _translate("ActionTypeSelectorDialog", "не определено", None))
         self.cmbShowInForm.setItemText(2, _translate("ActionTypeSelectorDialog", "нет", None))
         self.label.setText(_translate("ActionTypeSelectorDialog", "Выбранные:", None))
         self.btnFind.setText(_translate("ActionTypeSelectorDialog", "Поиск", None))
@@ -236,8 +239,8 @@ class Ui_ActionTypeSelectorDialog(object):
         self.btnEdit.setText(_translate("ActionTypeSelectorDialog", "Правка F4", None))
         self.btnNew.setText(_translate("ActionTypeSelectorDialog", "Вставка F9", None))
 
-from Events.ActionServiceType import CActionServiceTypeComboBox
-from RefBooks.ActionTypeGroup.ComboBoxWithEventHandler import CComboBoxWithKeyEventHandler
-from library.TableView import CTableView
 from library.TreeView import CTreeView
 from library.crbcombobox import CRBComboBox
+from RefBooks.ActionTypeGroup.ComboBoxWithEventHandler import CComboBoxWithKeyEventHandler
+from library.TableView import CTableView
+from Events.ActionServiceType import CActionServiceTypeComboBox

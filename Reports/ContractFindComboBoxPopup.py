@@ -28,7 +28,7 @@ class CIndependentContractFindComboBoxPopup(QtGui.QFrame, Ui_ContractFindComboBo
                       )
     def __init__(self, parent = None, filter={}):
         QtGui.QFrame.__init__(self, parent, Qt.Popup)
-        self.parent = parent.parent
+        self.mainDialog = parent.mainDialog
         self.setFrameShape(QtGui.QFrame.StyledPanel)
         self.setAttribute(Qt.WA_WindowPropagation)
         self.filter = filter
@@ -117,7 +117,7 @@ class CIndependentContractFindComboBoxPopup(QtGui.QFrame, Ui_ContractFindComboBo
 
     def initFilret(self):
         # self.cmbFinance.setValue(self.filter.get('financeId', None))
-        self.cmbFinance.setValue(self.filter.get('financeId', self.parent.cmbFinance.value()))
+        self.cmbFinance.setValue(self.filter.get('financeId', self.mainDialog.cmbFinance.value()))
         self.cmbPayer.setValue(self.filter.get('payerId', None))
         self.cmbPayerAccount.setValue(self.filter.get('payerAccountId', None))
         self.edtNumber.setText(self.filter.get('number', ''))
@@ -130,15 +130,15 @@ class CIndependentContractFindComboBoxPopup(QtGui.QFrame, Ui_ContractFindComboBo
         currentDate = QDate.currentDate()
         # self.edtBegDate.setDate(self.filter.get('begDate', QDate(currentDate.year(), 1, 1)))
         # self.edtEndDate.setDate(self.filter.get('endDate', QDate(currentDate.year(), 12, 31)))
-        self.edtBegDate.setDate(self.filter.get('begDate', self.parent.edtBegDate.date()))
-        self.edtEndDate.setDate(self.filter.get('endDate', self.parent.edtEndDate.date()))
+        self.edtBegDate.setDate(self.filter.get('begDate', self.mainDialog.edtBegDate.date()))
+        self.edtEndDate.setDate(self.filter.get('endDate', self.mainDialog.edtEndDate.date()))
         self.cmbEnableInAccounts.setCurrentIndex(self.filter.get('enableInAccounts', 0))
 
 
     def on_buttonBox_reset(self):
         self.filter = {}
         currentDate = QDate.currentDate()
-        self.cmbFinance.setValue(self.parent.cmbFinance.value())
+        self.cmbFinance.setValue(self.mainDialog.cmbFinance.value())
         self.cmbPayer.setValue(0)
         self.cmbPayerAccount.setValue(0)
         self.edtNumber.setText('')
@@ -148,8 +148,8 @@ class CIndependentContractFindComboBoxPopup(QtGui.QFrame, Ui_ContractFindComboBo
         self.edtPayerOGRN.setText('')
         self.edtPayerKBK.setText('')
         self.edtPayerBank.setText('')
-        self.edtBegDate.setDate(self.parent.edtBegDate.date())
-        self.edtEndDate.setDate(self.parent.edtEndDate.date())
+        self.edtBegDate.setDate(self.mainDialog.edtBegDate.date())
+        self.edtEndDate.setDate(self.mainDialog.edtEndDate.date())
         self.cmbEnableInAccounts.setCurrentIndex(0)
         self.tblContractFind.setModel(None)
         self.tableModel = None
@@ -159,9 +159,9 @@ class CIndependentContractFindComboBoxPopup(QtGui.QFrame, Ui_ContractFindComboBo
 
 
     def on_buttonBox_apply(self, id=None):
-        self.parent.cmbFinance.setValue(self.cmbFinance.value())
-        self.parent.edtBegDate.setDate(self.edtBegDate.date())
-        self.parent.edtEndDate.setDate(self.edtEndDate.date())
+        self.mainDialog.cmbFinance.setValue(self.cmbFinance.value())
+        self.mainDialog.edtBegDate.setDate(self.edtBegDate.date())
+        self.mainDialog.edtEndDate.setDate(self.edtEndDate.date())
         self.filter = {}
         self.filter['financeId'] = self.cmbFinance.value()
         self.filter['payerId'] = self.cmbPayer.value()

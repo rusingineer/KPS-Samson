@@ -173,6 +173,24 @@ class CTextCol(CCol):
         CCol.__init__(self, title, fields, defaultWidth, alignment)
 
 
+class CTextListCol(CTextCol):
+    """
+      Multiple fields as string with separator
+    """
+    def __init__(self, title, fields, defaultWidth, alignment='l'):
+        self._separator = ' '
+        CTextCol.__init__(self, title, fields, defaultWidth, alignment)
+
+    def setSeparator(self, separator):
+        self._separator = toVariant(separator)
+
+    def separator(self):
+        return self._separator
+
+    def format(self, values):
+        return self._separator.join([forceString(value) for value in values[:-1]])
+
+
 class CIntCol(CCol):
     """
       General int column
@@ -431,11 +449,14 @@ class CEnumCol(CCol):
 class CFileNameCol(CCol):
     def __init__(self, title, fields, defaultWidth):
         CCol.__init__(self, title, fields, defaultWidth, 'l')
+        self.caches = {}
 
     def format(self, values):
+        self.caches = {}
         fileAttachExportId  = forceRef(values[0])
         fileAttach = QtGui.qApp.db.translate('Action_FileAttach', 'id', fileAttachExportId, 'path')
         if fileAttach:
+            self.caches[fileAttachExportId] = forceString(fileAttach).split('/')[-1]
             return toVariant(forceString(fileAttach).split('/')[-1])
         return CCol.invalid
 
@@ -443,9 +464,12 @@ class CFileNameCol(CCol):
 class CActionNameCol(CCol):
     def __init__(self, title, fields, defaultWidth):
         CCol.__init__(self, title, fields, defaultWidth, 'l')
+        self.caches = {}
 
     def format(self, values):
         fileAttachExportId  = forceRef(values[0])
+        if self.caches.has_key(fileAttachExportId):
+            return toVariant(self.caches.get(fileAttachExportId, None))
         actionName = None
         stmt = """SELECT at.title, date(a.endDate) AS dat FROM Action_FileAttach afa
   LEFT JOIN Action a ON afa.master_id = a.id
@@ -457,6 +481,7 @@ class CActionNameCol(CCol):
             actionName = forceString(record.value('title'))
             actionEndDate = forceDate(record.value('dat')).toString('dd.MM.yyyy')
         if actionName:
+            self.caches[fileAttachExportId] = forceString(actionName + u' от ' + actionEndDate)
             return toVariant(forceString(actionName + u' от ' + actionEndDate))
         return CCol.invalid
 
@@ -464,9 +489,12 @@ class CActionNameCol(CCol):
 class CStatusREMD_FileAttachCol(CCol):
     def __init__(self, title, fields, defaultWidth):
         CCol.__init__(self, title, fields, defaultWidth, 'l')
+        self.caches = {}
 
     def format(self, values):
         fileAttachExportId  = forceRef(values[0])
+        if self.caches.has_key(fileAttachExportId):
+            return toVariant(self.caches.get(fileAttachExportId, None))
         status = None
         stmt = """  SELECT status,Message AS msg, RemdRegNumber FROM Information_Messages
     WHERE id = (SELECT MAX(id) FROM Information_Messages  WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id =%s
@@ -484,8 +512,10 @@ ORDER BY status DESC limit 1 """ %(fileAttachExportId,fileAttachExportId)
                 temp_message = u'Успех - ' + msg
             else:
                 temp_message = u'Ожидается валидация документа на федеральном уровне'
+            self.caches[fileAttachExportId] = forceString(u'Ошибка - ' + msg if status == 'Failed' else temp_message)
             return toVariant(forceString(u'Ошибка - ' + msg if status == 'Failed' else temp_message))
         else:
+            self.caches[fileAttachExportId] = u'Информация еще не получена'
             return toVariant(u'Информация еще не получена')
         return CCol.invalid
 
@@ -854,6 +884,134 @@ class CTableModel(QAbstractTableModel):
         for col, value in self.headerSortingCol.items():
             self.idList().sort(key=lambda recordId: self.getRecordValueByIdCol(col, recordId), reverse=value)
         self.reset()
+
+
+class CQueryModel(QAbstractTableModel):
+#    Модель для хранения списка QSqlRecord
+    def __init__(self, parent, cols=None):
+        QAbstractTableModel.__init__(self, parent)
+        self._cols = []
+        if cols:
+            self._cols.extend(cols)
+        self._records = []
+        self._orderColumn = None
+        self._orderDesc = False
+
+
+    def addColumn(self, col):
+        self._cols.append(col)
+        return col
+
+
+    def cols(self):
+        return self._cols
+
+
+    def setRecords(self, records):
+        self._records = records
+        self.reset()
+
+
+    def records(self):
+        return self._records
+
+
+    def recordByIndex(self, index):
+        return self._records[index.row()] if index.isValid() else None
+
+
+    def getRecordValues(self, column, row):
+        col = self._cols[column]
+        record = self._records[row]
+        values = col.extractValuesFromRecord(record)
+        return (col, values)
+
+
+    def columnCount(self, index = None):
+        return len(self._cols)
+
+
+    def rowCount(self, index = None):
+        return len(self._records)
+
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        column = index.column()
+        row    = index.row()
+        if role == Qt.DisplayRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.format(values)
+        elif role == Qt.TextAlignmentRole:
+            col = self._cols[column]
+            return col.alignment()
+        elif role == Qt.CheckStateRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.checked(values)
+        elif role == Qt.ForegroundRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.getForegroundColor(values)
+        elif role == Qt.BackgroundRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.getBackgroundColor(values)
+        return QVariant()
+
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                if section < len(self._cols):
+                    return self._cols[section].title()
+            if role == Qt.ToolTipRole:
+                return self._cols[section].toolTip()
+            if role == Qt.WhatsThisRole:
+                return self._cols[section].whatsThis()
+        return QVariant()
+    
+
+    def setOrder(self, fieldName, orderDesc=False):
+        column = self.columnIndexByFieldName(fieldName)
+        if column is None:
+            self._orderColumn = None
+            self._orderDesc = False
+        else:
+            self._orderColumn = column
+            self._orderDesc = orderDesc
+    
+
+    def columnIndexByFieldName(self, fieldName):
+        for index, col in enumerate(self.cols()):
+            if col.fields()[0] == fieldName:
+                return index
+
+
+    def toggleOrder(self, orderColumn):
+        if orderColumn == self._orderColumn:
+            self._orderDesc = not self._orderDesc
+        else:
+            self._orderColumn = orderColumn
+            self._orderDesc = False
+    
+
+    def formatOrderBy(self, orderFields):
+        if self._orderColumn is not None:
+            orderCol = self.cols()[self._orderColumn]
+            fieldName = forceString(orderCol.fields()[0])
+            orderFields = orderFields.get(fieldName)
+            if orderFields:
+                if not isinstance(orderFields, (list, tuple)):
+                    orderFields = [orderFields]
+                return ', '.join([str(orderField) + (' desc' if self._orderDesc else ' asc') for orderField in orderFields])
+        return None
+
+
+    def orderColumn(self):
+        return self._orderColumn
+
+
+    def sortIndicator(self):
+        return Qt.DescendingOrder if self._orderDesc else Qt.AscendingOrder
 
 
 def sortDateTimeModel(model):

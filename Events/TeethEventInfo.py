@@ -176,7 +176,7 @@ class CTeethEventInfo(CEventInfo):
                 self._action_stomat = self.context.getInstance(CStomatActionInfo, act._record, act._action)
             if act.flatCode == 'parodentInsp':
                 self._action_parodent = self.context.getInstance(CParodentActionInfo, act._record, act._action)
-        return self._action_stomat and self._action_parodent
+        return bool(self._action_stomat and self._action_parodent)
 
 
     def getStomatTable(self, newForm=True, adult=True):

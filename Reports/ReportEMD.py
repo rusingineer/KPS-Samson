@@ -88,9 +88,9 @@ def selectData(params):
            ]
 
     if begDate:
-        cond.append(tableAction['endDate'].dateGe(begDate))
+        cond.append(tableAction['endDate'].ge(begDate))
     if endDate:
-        cond.append(tableAction['endDate'].dateLe(endDate))
+        cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
     if financeId:
         cond.append(tableFinance['id'].eq(financeId))
     if eventTypeId:

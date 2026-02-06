@@ -71,9 +71,9 @@ ORDER BY EventType.code, EventType.name, personName, eventTypeId, execPerson_id,
             tableContract['deleted'].eq(0)
             ]
     if endDate:
-        cond.append(tableEvent['setDate'].dateLe(endDate))
+        cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
     if begDate:
-        cond.append(tableEvent['setDate'].dateGe(begDate))
+        cond.append(tableEvent['setDate'].ge(begDate))
     if eventTypeIdList:
         cond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
@@ -327,7 +327,7 @@ class CEventTypeTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код', ['code'], 5))
         self.addColumn(CTextCol(   u'Наименование',     ['name'], 40))
-        self._fieldNames = ['EventType.code', 'EventType.name']
+        self._fieldNames = ['EventType.id', 'EventType.code', 'EventType.name']
         self.setTable('EventType')
 
 

@@ -100,6 +100,12 @@ class CJobsOperatingDialog(CDialogBase, CRecordLockMixin, Ui_JobsOperatingDialog
         self.addObject('actActionPrint', getPrintAction(self, None, u'Печать мероприятия'))
         self.addObject('btnPrint', QtGui.QPushButton(u'Печать', self))
         self.addObject('mnuBtnPrint', QtGui.QMenu(self))
+        self.addObject('actPrintClientNumberTicket', QtGui.QAction(u'Напечатать этикетку', self))
+        printer = QtGui.qApp.labelPrinter()
+        if bool(printer) and QtGui.qApp.db.getRecordEx(u'rbPrintTemplate', u'id', u"deleted = 0 and  context like 'barcodeProbe' "  ):
+            self.mnuBtnPrint.addAction(self.actPrintClientNumberTicket)
+            self.mnuBtnPrint.addSeparator()
+
         self.mnuBtnPrint.addAction(self.actMainPrint)
         self.mnuBtnPrint.addAction(self.actMainPrint_v2)
         self.mnuBtnPrint.addSeparator()
@@ -1625,6 +1631,25 @@ class CJobsOperatingDialog(CDialogBase, CRecordLockMixin, Ui_JobsOperatingDialog
     @pyqtSignature('QModelIndex')
     def on_tblJobTickets_doubleClicked(self, index):
         self.editCurrentJobTicket()
+
+
+    @pyqtSignature('')
+    def on_actPrintClientNumberTicket_triggered(self):
+
+        index = self.tblJobTickets.currentIndex()
+        if not index.isValid():
+            return
+        row = index.row()
+        context = CInfoContext()
+        actionId = self.modelJobTickets.getActionId(row)
+        actionInfo = context.getInstance(CActionInfo, actionId)
+        data = {'action': actionInfo }
+        templateRecord = QtGui.qApp.db.getRecordEx(u'rbPrintTemplate', u'id', u"deleted = 0 and  context like 'barcodeProbe' "  )
+        templateId = forceInt(templateRecord.value('id')) if templateRecord else None
+        if templateId:
+            applyTemplate(self, templateId, data)
+
+
 
     @pyqtSignature('')
     def on_actMainPrint_triggered(self):

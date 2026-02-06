@@ -124,8 +124,8 @@ class CActionPropertiesTestsReport(CReport):
         ]))
 
 
-        cond = [tableAction['endDate'].dateGe(begDate),
-                tableAction['endDate'].dateLe(endDate),
+        cond = [tableAction['endDate'].ge(begDate),
+                tableAction['endDate'].lt(endDate.addDays(1)),
                 tableEquipmentTest['equipment_id'].eq(equipmentId),
                 tableTest['id'].isNotNull(),
                 tableAction['deleted'].eq(0),

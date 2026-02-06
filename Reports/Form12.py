@@ -19,7 +19,7 @@ from Orgs.Utils import getOrgStructureFullName
 from Reports.Form11 import CForm11SetupDialog
 from Reports.Utils import dateRangeAsStr, splitTitle
 from library.MapCodeWithExSubClass import createMapCodeToRowIdx, normalizeMKB
-from library.Utils import forceBool, forceInt, forceString, forceRef
+from library.Utils import forceBool, forceInt, forceString, forceRef, getRetirementAge
 
 from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
@@ -100,6 +100,7 @@ class CForm12(CReport):
         endDateTime = None
         ageFrom = params.get('ageFrom', 0)
         ageTo = params.get('ageTo', 0)
+        isRetirementAge = params.get('isRetirementAge', False)
         typeDN = params.get('typeDN', -1)
 
         if not endDate:
@@ -121,14 +122,14 @@ class CForm12(CReport):
             condOrgstruct = 'AND ' + db.table('Person').alias('p')['orgStructure_id'].inlist(orgStructureIdList)
         else:
             condOrgstruct = ''
-        if ageFrom <= ageTo:
-            if ageFrom == 55:
-                ageCond = """AND (age(c.birthDate, {endDate}) between {ageMaleFrom} and {ageTo} AND c.sex = 1 
-                OR age(c.birthDate, {endDate}) between {ageFrom} and {ageTo} AND c.sex = 2)""".format(
-                    endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo, ageMaleFrom=ageFrom+5)
-            else:
-                ageCond = 'AND age(c.birthDate, {endDate}) between {ageFrom} and {ageTo}'.format(
-                    endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo)
+        if isRetirementAge and ageTo > 0:
+            ageFromM, ageFromF = getRetirementAge(endDate)
+            ageCond = """AND (age(c.birthDate, {endDate}) between {ageFromM} and {ageTo} AND c.sex = 1 
+            OR age(c.birthDate, {endDate}) between {ageFromF} and {ageTo} AND c.sex = 2)""".format(
+                endDate=db.formatDate(endDateTime), ageFromM=ageFromM, ageFromF=ageFromF, ageTo=ageTo)
+        elif ageFrom <= ageTo:
+            ageCond = 'AND age(c.birthDate, {endDate}) between {ageFrom} and {ageTo}'.format(
+                endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo)
 
         if typeDN:
             stmt = u"""SELECT c.id as client_id,
@@ -213,6 +214,7 @@ class CForm12(CReport):
         endDateTime = None
         ageFrom = params.get('ageFrom', 0)
         ageTo = params.get('ageTo', 0)
+        isRetirementAge = params.get('isRetirementAge', False)
         if not endDate:
             endDate = QDate.currentDate()
         if endDate:
@@ -232,14 +234,14 @@ class CForm12(CReport):
             condOrgstruct = 'AND ' + db.table('Person').alias('p')['orgStructure_id'].inlist(orgStructureIdList)
         else:
             condOrgstruct = ''
-        if ageFrom <= ageTo:
-            if ageFrom == 55:
-                ageCond = """AND (age(Client.birthDate, {endDate}) between {ageMaleFrom} and {ageTo} AND Client.sex = 1 
-                OR age(Client.birthDate, {endDate}) between {ageFrom} and {ageTo} AND Client.sex = 2)""".format(
-                    endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo, ageMaleFrom=ageFrom + 5)
-            else:
-                ageCond = 'AND age(Client.birthDate, {endDate}) between {ageFrom} and {ageTo}'.format(
-                    endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo)
+        if isRetirementAge and ageTo > 0:
+            ageFromM, ageFromF = getRetirementAge(endDate)
+            ageCond = """AND (age(Client.birthDate, {endDate}) between {ageFromM} and {ageTo} AND Client.sex = 1 
+            OR age(Client.birthDate, {endDate}) between {ageFromF} and {ageTo} AND Client.sex = 2)""".format(
+                endDate=db.formatDate(endDateTime), ageFromM=ageFromM, ageFromF=ageFromF, ageTo=ageTo)
+        elif ageFrom <= ageTo:
+            ageCond = 'AND age(Client.birthDate, {endDate}) between {ageFrom} and {ageTo}'.format(
+                endDate=db.formatDate(endDateTime), ageFrom=ageFrom, ageTo=ageTo)
         stmt = u"""
     SELECT
        Event.id,
@@ -1849,6 +1851,7 @@ class CForm12_4000_4100(CForm12):
         (2, u'муковисцидоз', u'5.15', u'E84', u'E84'),
         (1, u'психические расстройства и расстройства поведения', u'6.0', u'F01, F03-F99', u'F01; F03-F99'),
         (2, u'из них:\nпсихические расстройства и расстройства поведения, связанные с употреблением психоактивных веществ', u'6.1', u'F10-F19', u'F10-F19'),
+        (2, u'невротические, связанные со стрессом и соматоформные расстройства', u'6.2', u'F40-F48', u'F40-F48'),
         (1, u'болезни нервной системы', u'7.0', u'G00-G98', u'G00-G98'),
         (2, u'из них:\nвоспалительные болезни центральной нервной системы', u'7.1', u'G00-G09', u'G00-G09'),
         (3, u'из них:\n бактериальный менингит', u'7.1.1', u'G00', u'G00'),
@@ -2019,7 +2022,7 @@ class CForm12_4000_4100(CForm12):
 
     def __init__(self, parent):
         CForm12.__init__(self, parent)
-        self.setTitle(u'Форма N 12 5. Взрослые старше трудоспособного возраста (с 55 лет у женщин и с 60 лет у мужчин)')
+        self.setTitle(u'Форма N 12 5. Взрослые старше трудоспособного возраста')
 
     def build(self, params):
         mapMainRows = createMapCodeToRowIdx([row[4] for row in self.MainRows])
@@ -2032,7 +2035,7 @@ class CForm12_4000_4100(CForm12):
         registeredAll = 0
         registeredFirst = 0
         consistsByEnd = [0, 0, 0]
-        params['ageFrom'] = 55
+        params['isRetirementAge'] = True
         params['ageTo'] = 150
         query = self.selectData(params)
         while query.next():
@@ -2090,7 +2093,7 @@ class CForm12_4000_4100(CForm12):
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
         cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'5. Взрослые старше трудоспособного возраста (с 55 лет у женщин и с 60 лет у мужчин)')
+        cursor.insertText(u'5. Взрослые старше трудоспособного возраста')
         cursor.insertBlock()
         self.dumpParams(cursor, params)
         cursor.insertBlock()

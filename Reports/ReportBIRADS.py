@@ -43,9 +43,9 @@ def selectData(params):
     if eventTypeId:
         cond.append(tableEvent['eventType_id'].eq(eventTypeId))
     if begDate:
-        cond.append(tableAction['endDate'].dateGe(begDate))
+        cond.append(tableAction['endDate'].ge(begDate))
     if endDate:
-        cond.append(tableAction['endDate'].dateLe(endDate))
+        cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
     if organisationId:
         cond.append(tableVRBPerson['org_id'].eq(organisationId))
     if orgStructureId:
@@ -53,7 +53,8 @@ def selectData(params):
     if personId:
         cond.append(tableAction['person_id'].eq(personId))
     if actionTypeId:
-        cond.append(tableActionType['id'].inlist(getActionTypeDescendants(actionTypeId)))
+        actionClass = forceInt(db.translate("ActionType", "id", actionTypeId, "class"))
+        cond.append(tableActionType['id'].inlist(getActionTypeDescendants(actionTypeId, actionClass)))
     cond.append(u'''TRIM(%s) IN ('0-2','3','4-5','6')'''%getStringPropertyValue(u'BIRADS'))
 
     if isClientDetail:

@@ -18,19 +18,32 @@ def iniExportEvent(self):
 
     self.modelExport_FileAttach.addColumn(CActionNameCol(u'Наименование действия', ('master_id',), 20, ))
     self.modelExport_FileAttach.addColumn(CFileNameCol(u'Наименование документа', ('master_id',), 20, ))
-    self.modelExport_FileAttach.addColumn(CDesignationCol(u'Дата подписания документа врачем', ['master_id'],
+    self.modelExport_FileAttach.addColumn(CDesignationCol(u'Дата подписания документа врачом', ['master_id'],
                                                           ('Action_FileAttach', 'respSigningDatetime'), 20, ))
     self.modelExport_FileAttach.addColumn(
         CDesignationCol(u'Дата подписания документа подписью организации', ['master_id'],
                         ('Action_FileAttach', 'orgSigningDatetime'), 20, ))
     self.modelExport_FileAttach.addColumn(CDateTimeCol(u'Дата и время экспорта', ['dateTime'], 15))
 
-    stmt = u"""IF(success, 'успех', IF((SELECT status FROM Information_Messages WHERE id = (SELECT MAX(id) FROM 
-    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
-    AND ((status = 'Success' AND IdFedRequest IS NOT NULL ) OR (status = 'Failed'))) OR id = (SELECT MAX(id) FROM 
-    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
-    AND (status = 'Success' AND IdFedRequest IS NOT NULL AND RemdRegNumber !='')) 
-    ORDER BY status DESC LIMIT 1)="Success", 'успех', 'ошибка'))"""
+    #stmt = u"""IF(success, 'успех', IF((SELECT status FROM Information_Messages WHERE id = (SELECT MAX(id) FROM 
+    #Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
+    #AND ((status = 'Success' AND IdFedRequest IS NOT NULL ) OR (status = 'Failed'))) OR id = (SELECT MAX(id) FROM 
+    #Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = Action_FileAttach_Export.master_id 
+    #AND (status = 'Success' AND IdFedRequest IS NOT NULL AND RemdRegNumber !='')) 
+    #ORDER BY status DESC LIMIT 1)="Success", 'успех', 'ошибка'))"""
+    stmt = u""" CASE WHEN Action_FileAttach_Export.success THEN 'успех'
+    WHEN (SELECT im.status
+          FROM Information_Messages im
+          WHERE im.typeMessages = 'REMDStatus'
+            AND im.IdMedDocumentMis_id = Action_FileAttach_Export.master_id
+            AND ((im.status = 'Success' AND im.IdFedRequest IS NOT NULL)
+            OR im.status = 'Failed'
+            OR (im.status = 'Success' AND im.IdFedRequest IS NOT NULL AND im.RemdRegNumber !=''))
+        ORDER BY im.id DESC
+        LIMIT 1) = 'Success' THEN 'успех'
+    ELSE 'ошибка'
+    END As result
+    """
     self.modelExport_FileAttach.addColumn(CDesignationCol(u'отправка в Региональный РЭМД', ['id'],
                                                           ('Action_FileAttach_Export', stmt), 15))
 

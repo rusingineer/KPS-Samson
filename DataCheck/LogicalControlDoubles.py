@@ -629,8 +629,10 @@ class CControlDoubles(QtGui.QDialog, CConstructHelperMixin, Ui_LogicalControlDou
             self.edtBirthDateFilterTo.setEnabled(False)
             self.chkLimitFilter.setEnabled(False)
             self.edtLimitFilter.setEnabled(False)
+            QtGui.qApp._timeoutLogout.stop()
             self.loadDataDiagnosis()
             self.booleanNewTuning = False
+            QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=QtGui.qApp.mainWindow.logoutAndLogin)
 
     
     @pyqtSignature('bool')

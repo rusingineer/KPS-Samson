@@ -1,0 +1,167 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Reports\HospDirReportSetupDialog.ui'
+#
+# Created by: PyQt4 UI code generator 4.11.4
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+try:
+    _fromUtf8 = QtCore.QString.fromUtf8
+except AttributeError:
+    def _fromUtf8(s):
+        return s
+
+try:
+    _encoding = QtGui.QApplication.UnicodeUTF8
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+except AttributeError:
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig)
+
+class Ui_HospDirReportSetupDialog(object):
+    def setupUi(self, HospDirReportSetupDialog):
+        HospDirReportSetupDialog.setObjectName(_fromUtf8("HospDirReportSetupDialog"))
+        HospDirReportSetupDialog.setWindowModality(QtCore.Qt.ApplicationModal)
+        HospDirReportSetupDialog.resize(671, 245)
+        HospDirReportSetupDialog.setWindowTitle(_fromUtf8(""))
+        HospDirReportSetupDialog.setSizeGripEnabled(True)
+        self.gridLayout = QtGui.QGridLayout(HospDirReportSetupDialog)
+        self.gridLayout.setMargin(4)
+        self.gridLayout.setSpacing(4)
+        self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
+        self.lblSchedule = QtGui.QLabel(HospDirReportSetupDialog)
+        self.lblSchedule.setObjectName(_fromUtf8("lblSchedule"))
+        self.gridLayout.addWidget(self.lblSchedule, 7, 0, 1, 1)
+        self.buttonBox = QtGui.QDialogButtonBox(HospDirReportSetupDialog)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
+        self.gridLayout.addWidget(self.buttonBox, 10, 1, 1, 1)
+        self.label = QtGui.QLabel(HospDirReportSetupDialog)
+        self.label.setObjectName(_fromUtf8("label"))
+        self.gridLayout.addWidget(self.label, 3, 0, 1, 1)
+        self.lblEndDate = QtGui.QLabel(HospDirReportSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lblEndDate.sizePolicy().hasHeightForWidth())
+        self.lblEndDate.setSizePolicy(sizePolicy)
+        self.lblEndDate.setObjectName(_fromUtf8("lblEndDate"))
+        self.gridLayout.addWidget(self.lblEndDate, 1, 0, 1, 1)
+        self.cmbOrganisation = CPolyclinicComboBox(HospDirReportSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmbOrganisation.sizePolicy().hasHeightForWidth())
+        self.cmbOrganisation.setSizePolicy(sizePolicy)
+        self.cmbOrganisation.setObjectName(_fromUtf8("cmbOrganisation"))
+        self.gridLayout.addWidget(self.cmbOrganisation, 5, 1, 1, 1)
+        spacerItem = QtGui.QSpacerItem(129, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridLayout.addItem(spacerItem, 9, 0, 1, 1)
+        self.label_2 = QtGui.QLabel(HospDirReportSetupDialog)
+        self.label_2.setObjectName(_fromUtf8("label_2"))
+        self.gridLayout.addWidget(self.label_2, 5, 0, 1, 1)
+        self.btnSelectOrganisation = QtGui.QToolButton(HospDirReportSetupDialog)
+        self.btnSelectOrganisation.setObjectName(_fromUtf8("btnSelectOrganisation"))
+        self.gridLayout.addWidget(self.btnSelectOrganisation, 5, 2, 1, 1)
+        self.lblBegDate = QtGui.QLabel(HospDirReportSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.lblBegDate.sizePolicy().hasHeightForWidth())
+        self.lblBegDate.setSizePolicy(sizePolicy)
+        self.lblBegDate.setObjectName(_fromUtf8("lblBegDate"))
+        self.gridLayout.addWidget(self.lblBegDate, 0, 0, 1, 1)
+        self.lblOrgStructure = QtGui.QLabel(HospDirReportSetupDialog)
+        self.lblOrgStructure.setObjectName(_fromUtf8("lblOrgStructure"))
+        self.gridLayout.addWidget(self.lblOrgStructure, 2, 0, 1, 1)
+        self.cmbPerson = CPersonComboBoxEx(HospDirReportSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmbPerson.sizePolicy().hasHeightForWidth())
+        self.cmbPerson.setSizePolicy(sizePolicy)
+        self.cmbPerson.setObjectName(_fromUtf8("cmbPerson"))
+        self.gridLayout.addWidget(self.cmbPerson, 3, 1, 1, 2)
+        self.cmbOrgStructure = COrgStructureComboBox(HospDirReportSetupDialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmbOrgStructure.sizePolicy().hasHeightForWidth())
+        self.cmbOrgStructure.setSizePolicy(sizePolicy)
+        self.cmbOrgStructure.setObjectName(_fromUtf8("cmbOrgStructure"))
+        self.gridLayout.addWidget(self.cmbOrgStructure, 2, 1, 1, 2)
+        self.edtBegDate = CDateEdit(HospDirReportSetupDialog)
+        self.edtBegDate.setDate(QtCore.QDate(2000, 1, 1))
+        self.edtBegDate.setCalendarPopup(True)
+        self.edtBegDate.setObjectName(_fromUtf8("edtBegDate"))
+        self.gridLayout.addWidget(self.edtBegDate, 0, 1, 1, 2)
+        self.cmbSchedule = QtGui.QComboBox(HospDirReportSetupDialog)
+        self.cmbSchedule.setObjectName(_fromUtf8("cmbSchedule"))
+        self.cmbSchedule.addItem(_fromUtf8(""))
+        self.cmbSchedule.addItem(_fromUtf8(""))
+        self.cmbSchedule.addItem(_fromUtf8(""))
+        self.gridLayout.addWidget(self.cmbSchedule, 7, 1, 1, 2)
+        self.edtEndDate = CDateEdit(HospDirReportSetupDialog)
+        self.edtEndDate.setCalendarPopup(True)
+        self.edtEndDate.setObjectName(_fromUtf8("edtEndDate"))
+        self.gridLayout.addWidget(self.edtEndDate, 1, 1, 1, 2)
+        self.frmAge = QtGui.QFrame(HospDirReportSetupDialog)
+        self.frmAge.setFrameShape(QtGui.QFrame.NoFrame)
+        self.frmAge.setFrameShadow(QtGui.QFrame.Raised)
+        self.frmAge.setObjectName(_fromUtf8("frmAge"))
+        self._2 = QtGui.QHBoxLayout(self.frmAge)
+        self._2.setMargin(0)
+        self._2.setSpacing(4)
+        self._2.setObjectName(_fromUtf8("_2"))
+        self.gridLayout.addWidget(self.frmAge, 4, 1, 1, 1)
+        self.lblOrder = QtGui.QLabel(HospDirReportSetupDialog)
+        self.lblOrder.setObjectName(_fromUtf8("lblOrder"))
+        self.gridLayout.addWidget(self.lblOrder, 8, 0, 1, 1)
+        self.cmbOrder = QtGui.QComboBox(HospDirReportSetupDialog)
+        self.cmbOrder.setObjectName(_fromUtf8("cmbOrder"))
+        self.cmbOrder.addItem(_fromUtf8(""))
+        self.cmbOrder.setItemText(0, _fromUtf8(""))
+        self.cmbOrder.addItem(_fromUtf8(""))
+        self.cmbOrder.addItem(_fromUtf8(""))
+        self.gridLayout.addWidget(self.cmbOrder, 8, 1, 1, 2)
+        self.lblEndDate.setBuddy(self.edtEndDate)
+        self.lblBegDate.setBuddy(self.edtBegDate)
+        self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
+
+        self.retranslateUi(HospDirReportSetupDialog)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), HospDirReportSetupDialog.accept)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), HospDirReportSetupDialog.reject)
+        QtCore.QMetaObject.connectSlotsByName(HospDirReportSetupDialog)
+        HospDirReportSetupDialog.setTabOrder(self.edtBegDate, self.edtEndDate)
+        HospDirReportSetupDialog.setTabOrder(self.edtEndDate, self.cmbOrgStructure)
+        HospDirReportSetupDialog.setTabOrder(self.cmbOrgStructure, self.cmbPerson)
+        HospDirReportSetupDialog.setTabOrder(self.cmbPerson, self.cmbOrganisation)
+        HospDirReportSetupDialog.setTabOrder(self.cmbOrganisation, self.btnSelectOrganisation)
+        HospDirReportSetupDialog.setTabOrder(self.btnSelectOrganisation, self.cmbSchedule)
+        HospDirReportSetupDialog.setTabOrder(self.cmbSchedule, self.cmbOrder)
+        HospDirReportSetupDialog.setTabOrder(self.cmbOrder, self.buttonBox)
+
+    def retranslateUi(self, HospDirReportSetupDialog):
+        self.lblSchedule.setText(_translate("HospDirReportSetupDialog", "Профиль коек", None))
+        self.label.setText(_translate("HospDirReportSetupDialog", "Врач (направитель)", None))
+        self.lblEndDate.setText(_translate("HospDirReportSetupDialog", "по", None))
+        self.label_2.setText(_translate("HospDirReportSetupDialog", "Целевая МО", None))
+        self.btnSelectOrganisation.setText(_translate("HospDirReportSetupDialog", "...", None))
+        self.lblBegDate.setText(_translate("HospDirReportSetupDialog", "Дата создания направления с", None))
+        self.lblOrgStructure.setText(_translate("HospDirReportSetupDialog", "Подразделение (направитель)", None))
+        self.cmbSchedule.setItemText(0, _translate("HospDirReportSetupDialog", "Не учитывать", None))
+        self.cmbSchedule.setItemText(1, _translate("HospDirReportSetupDialog", "Круглосуточный", None))
+        self.cmbSchedule.setItemText(2, _translate("HospDirReportSetupDialog", "Дневной", None))
+        self.lblOrder.setText(_translate("HospDirReportSetupDialog", "Порядок направления на госпитализацию", None))
+        self.cmbOrder.setItemText(1, _translate("HospDirReportSetupDialog", "планово", None))
+        self.cmbOrder.setItemText(2, _translate("HospDirReportSetupDialog", "неотложно", None))
+
+from Orgs.OrgComboBox import CPolyclinicComboBox
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
+from library.DateEdit import CDateEdit

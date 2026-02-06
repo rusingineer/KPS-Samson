@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -22,8 +22,9 @@ import sys
 import traceback
 import types
 
+import requests
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, QDateTime, QString, QTime, QVariant
+from PyQt4.QtCore import Qt, QDate, QDateTime, QString, QTime, QVariant, QByteArray, QObject, QEvent
 
 
 # WTF?
@@ -217,9 +218,26 @@ def nameCase(s):
                 r += c
     return r
 
-
-def isNameValid(name):
-    return not re.search(r'''[0-9a-zA-Z`~!@#$%^&*_=+\\|{}[\];:'"<>?/]''', forceStringEx(name))
+def isNameValid(name, isLastName = False):
+    symbolsPattern = ur'''[^а-яА-ЯёЁ\- .A-Z',()]+.*'''
+    termsPattern = ur'(^([^а-яА-ЯёЁ\w])|([^а-яА-ЯёЁ\w\.])$)|([.,\'\-][^а-яА-ЯёЁ\w\s])|([^а-яА-ЯёЁ\w\s][.,\'\-])|([.,\'\-]{2,})|(^[A-Z])'
+    if isLastName:
+        termsPattern = termsPattern.replace(ur'|([^а-яА-ЯёЁ\w\.])$)|', ur'|([^а-яА-ЯёЁ\w])$)|')
+    if not re.search(symbolsPattern, forceStringEx(name)) and not re.search(termsPattern, forceStringEx(name)):
+        counter = 0
+        for symbol in name:
+            if symbol == '(':
+                counter += 1
+            elif symbol == ')':
+                counter -= 1
+            if counter < 0:
+                return False
+        if counter == 0:
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
 def splitDocSerial(serial):
@@ -554,6 +572,11 @@ def fixSNILS(SNILS):
     return (raw+'0'*11)[:9] + calcSNILSCheckCode(raw)
 
 
+def checkDocCode(code):
+    pattern = '^(\d{3}[- ]{1}\d{3})?$'
+    return re.match(pattern, code) is not None
+
+
 def agreeNumberAndWord(num, words):
     u"""
         Согласовать число и слово:
@@ -773,6 +796,32 @@ def calcAge(birthDay, today=None):
     return formatAgeTuple(ageTuple, bd, td)
 
 
+def getRetirementAge(date):
+    # получить нетрудоспособный возраст (М, Ж) на определенную дату
+    if isinstance(date, QDateTime):
+        date = date.date()
+    if not date or not date.isValid():
+        return (60, 55)
+    year = date.year()
+    if year <= 2020:
+        return (60, 55)
+    elif year == 2021:
+        return (61, 56)
+    elif year in (2022, 2023):
+        return (62, 57)
+    elif year in (2024, 2025):
+        return (63, 58)
+    elif year in (2026, 2027):
+        return (64, 59)
+    elif year >= 2028:
+        return (65, 60)
+
+
+def isRetirementAge(sex, age, date):
+    ageM, ageF = getRetirementAge(date)
+    return (sex == 1 and age >= ageM) or (sex == 2 and age >= ageF)
+
+
 def firstWeekDay(date):
 #    return date.addDays(-(date.dayOfWeek()-1))
     return date.addDays(1-date.dayOfWeek())
@@ -847,6 +896,26 @@ def oops(widget=None):
                                 QtGui.QMessageBox.Ok,
                                 QtGui.QMessageBox.Ok
                                 )
+
+def getListChunks(lst, n):
+    """
+        Разбивает один длинный список на несколько равных частей длиной `n`.
+        Например:
+        ```
+        idList = [1, 2, 3, 4, 5, 6]
+        lst1 = list(getListChunks(idList, 1)))
+        lst2 = list(getListChunks(idList, 2)))
+        lst3 = list(getListChunks(idList, 3)))
+        lst4 = list(getListChunks(idList, 4)))
+        assert lst1 == [[1], [2], [3], [4], [5], [6]]
+        assert lst2 == [[1, 2], [3, 4], [5, 6]]
+        assert lst3 == [[1, 2, 3], [4, 5, 6]]
+        assert lst4 == [[1, 2, 3, 4], [5, 6]]
+        ```
+    """
+    assert n > 0, u"размер чанка не может быть нулевой"
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 # WFT?
 def get_date(d):
@@ -1259,3 +1328,117 @@ def getOrgStructureIdList(treeIndex):
         return treeItem.getItemIdList() if treeItem else []
     else:
         return []
+
+
+def savePatientDocuments(model, rootDirectory):
+    items = model.selectedItems()
+    interface = model.model().interface
+    nameDoc = {u'Client': u'Пациент',
+               u'Event': u'Обращение',
+               u'Action': u'Мероприятие',
+               u'ProphylaxisPlanning': u'Контрольная карта ДН', }
+    for item in items:
+        if not item.isLost:
+            docName = nameDoc[forceString(item._record.value('objectTableName'))]
+            docDir = os.path.join(rootDirectory, docName)
+            if not os.path.exists(docDir):
+                os.makedirs(docDir)
+            docPath = unicode(os.path.join(docDir, item.newName))
+            if not os.path.isfile(docPath):
+                url = interface.getUrl(item)
+                result = requests.get(url)
+                with open(docPath, "wb") as code:
+                    code.write(result.content)
+    QtGui.QMessageBox.information(None,
+                                  u'Внимание',
+                                  u'Выбранные файлы успешно сохранены в каталог \n%s' % rootDirectory,
+                                  QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+
+def getPersonIdList(personId):
+    tablePerson = QtGui.qApp.db.table('Person')
+    SNILS = forceString(QtGui.qApp.db.translate('Person', 'id', personId, 'SNILS'))
+    currentLastName = forceString(QtGui.qApp.db.translate('Person', 'id', personId, 'lastName'))
+    return QtGui.qApp.db.getRecordList(tablePerson,
+                                       cols=[tablePerson['id'], tablePerson['code'],
+                                             tablePerson['lastName'],
+                                             tablePerson['firstName'],
+                                             tablePerson['patrName']],
+                                       where=[#tablePerson['id'].ne(personId),
+                                              tablePerson['SNILS'].eq(unformatSNILS(SNILS)),
+                                              tablePerson['deleted'].eq(0),
+                                              tablePerson['lastName'].eq(currentLastName)])
+
+
+class CReadOnlyFilter(QObject):
+    def __init__(self, parent=None):
+        QObject.__init__(self, parent)
+
+    def eventFilter(self, obj, event):
+        if isinstance(obj, QtGui.QLineEdit):
+            t = event.type()
+            if t in (QEvent.MouseButtonPress, QEvent.MouseButtonRelease,
+                     QEvent.MouseButtonDblClick, QEvent.MouseMove, QEvent.Wheel):
+                return False
+
+            if t in (QEvent.KeyPress, QEvent.KeyRelease):
+                key = event.key()
+                mods = event.modifiers()
+                navigation_keys = {
+                    Qt.Key_Left, Qt.Key_Right, Qt.Key_Home, Qt.Key_End,
+                    Qt.Key_Up, Qt.Key_Down, Qt.Key_PageUp, Qt.Key_PageDown
+                }
+                if key in navigation_keys:
+                    return False
+                if (mods & Qt.ControlModifier) and (key in (Qt.Key_C, Qt.Key_A)):
+                    return False
+                return True
+            return False
+
+        if event.type() in (QEvent.KeyPress, 
+                            QEvent.KeyRelease,
+                            QEvent.MouseButtonPress, 
+                            QEvent.MouseButtonRelease,
+                            QEvent.MouseButtonDblClick, 
+                            QEvent.MouseMove,
+                            QEvent.Wheel, 
+                            QEvent.ContextMenu,
+                            QEvent.DragEnter, 
+                            QEvent.Drop):
+            return True
+        return False
+
+
+class ActionTypeServiceMixin:
+    def __init__(self, *args, **kwargs):
+        self.actionTypeActualCache = {}
+
+    def checkActionTypeService(self, actionTypeId, code, serviceId):
+        if actionTypeId in self.actionTypeActualCache:
+            return self.actionTypeActualCache[actionTypeId]
+
+        db = QtGui.qApp.db
+        tableATS = db.table('ActionType_Service')
+        tableService = db.table('rbService')
+        table = tableATS.leftJoin(tableService, tableATS['service_id'].eq(tableService['id']))
+
+        records = db.getRecordList(table,
+                                   [tableService['endDate']],
+                                   where=tableATS['master_id'].eq(actionTypeId))
+
+        isActual = True
+
+        if not records and code and serviceId:
+            serviceRecord = db.getRecordEx(tableService, [tableService['code']], tableService['id'].eq(serviceId))
+            if serviceRecord and forceString(serviceRecord.value('code')) == code:
+                isActual = False
+        else:
+            for record in records:
+                endDate = forceDate(record.value('endDate'))
+                if endDate and endDate <= QDate.currentDate():
+                    isActual = False
+                    break
+
+        self.actionTypeActualCache[actionTypeId] = isActual
+        return isActual
+

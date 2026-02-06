@@ -55,9 +55,9 @@ def selectData(params):
                             %((u'DATE(%s) <= ' % db.formatDate(begDate)) if begDate else u'', (u' <= DATE(%s)'%db.formatDate(endDate) if endDate else u'')))
     elif not byPeriodIssueDate:
         if begDate:
-            cond.append(tableAction['begDate'].dateGe(begDate))
+            cond.append(tableAction['begDate'].ge(begDate))
         if endDate:
-            cond.append(tableAction['begDate'].dateLe(endDate))
+            cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
 
     condSTR = db.joinAnd(cond)
     stmt = u"""

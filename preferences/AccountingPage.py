@@ -35,8 +35,10 @@ class CAccountingPage(Ui_accountingPage, QtGui.QWidget):
     def setProps(self, props):
         self.edtCachBox.setText(forceString(props.get('cashBox',  '')))
         self.chkFilterPaymentByOrgStructure.setChecked(forceBool(props.get('filterPaymentByOrgStructure', False)))
+        self.edtPositionInvoice.setText(forceString(props.get('positionInvoice',  '')))
 
 
     def getProps(self, props):
         props['cashBox']  = toVariant(self.edtCachBox.text())
         props['filterPaymentByOrgStructure'] = toVariant(bool(self.chkFilterPaymentByOrgStructure.isChecked()))
+        props['positionInvoice']  = toVariant(self.edtPositionInvoice.text())

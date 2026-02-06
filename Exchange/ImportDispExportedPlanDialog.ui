@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>726</width>
+    <width>821</width>
     <height>548</height>
    </rect>
   </property>
@@ -228,6 +228,16 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="lbl_fio">
+       <property name="text">
+        <string>ФИО пациента</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="edit_fio"/>
+     </item>
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">

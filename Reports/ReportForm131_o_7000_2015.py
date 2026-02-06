@@ -70,11 +70,11 @@ def selectData(params):
         db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNull(), tableClientSocStatus['endDate'].isNull()]),
                    db.joinAnd([
 
-                              db.joinOr([tableClientSocStatus['endDate'].isNull(), db.joinAnd([tableClientSocStatus['endDate'].dateGe(begDate),
-                                                                                               tableClientSocStatus['endDate'].dateLe(endDate)])]),
+                              db.joinOr([tableClientSocStatus['endDate'].isNull(), db.joinAnd([tableClientSocStatus['endDate'].ge(begDate),
+                                                                                               tableClientSocStatus['endDate'].lt(endDate.addDays(1))])]),
 
                               db.joinOr([tableClientSocStatus['begDate'].isNull(),
-                                         tableClientSocStatus['begDate'].dateLe(endDate)])
+                                         tableClientSocStatus['begDate'].lt(endDate.addDays(1))])
                               ])
                    ])]))
     queryTable = queryTable.leftJoin(tableClientSocStatusClass, tableClientSocStatusClass['id'].eq(tableClientSocStatus['socStatusClass_id']))
@@ -84,16 +84,16 @@ def selectData(params):
                                      tableClientConsent['deleted'].eq(0),
         db.joinOr([db.joinAnd([tableClientConsent['date'].isNull(), tableClientConsent['endDate'].isNull()]),
                    db.joinAnd([
-                              db.joinOr([tableClientConsent['endDate'].isNull(), db.joinAnd([tableClientConsent['endDate'].dateGe(begDate),
-                                                                                             tableClientConsent['endDate'].dateLe(endDate)])]),
+                              db.joinOr([tableClientConsent['endDate'].isNull(), db.joinAnd([tableClientConsent['endDate'].ge(begDate),
+                                                                                             tableClientConsent['endDate'].lt(endDate.addDays(1))])]),
                               db.joinOr([tableClientConsent['date'].isNull(),
-                                         tableClientConsent['date'].dateLe(endDate)])
+                                         tableClientConsent['date'].lt(endDate.addDays(1))])
                               ])
                    ])]))
     queryTable = queryTable.leftJoin(tableClientConsentType, tableClientConsentType['id'].eq(tableClientConsent['clientConsentType_id']))
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableRbEventProfile['regionalCode'].inlist(['8008', '8009'])
             ]
     if orgStructureId:
@@ -104,9 +104,9 @@ def selectData(params):
         accountQueryTable = tableAccount.innerJoin(tableAccountItem, tableAccountItem['master_id'].eq(tableAccount['id']))
         onlyPayedEventsCond = [tableAccountItem['event_id'].eq(tableEvent['id'])]
         if begPayDate:
-            onlyPayedEventsCond.append(tableAccount['date'].dateGe(begPayDate))
+            onlyPayedEventsCond.append(tableAccount['date'].ge(begPayDate))
         if endPayDate:
-            onlyPayedEventsCond.append(tableAccount['date'].dateLe(endPayDate))
+            onlyPayedEventsCond.append(tableAccount['date'].lt(endPayDate.addDays(1)))
         cond.append(db.existsStmt(accountQueryTable, onlyPayedEventsCond))
     fields = [tableEvent['id'].alias('eventId'),
               'age(Client.`birthDate`, %s) AS clientAge' % db.formatDate(lastYearDay(endDate)),

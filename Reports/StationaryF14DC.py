@@ -345,8 +345,8 @@ class CReportStationary(CReport):
             if financeId:
                 cond.append(tableContract['finance_id'].eq(financeId))
             cond.append(tableEvent['execDate'].isNotNull())
-            cond.append(tableEvent['execDate'].dateGe(begDate))
-            cond.append(tableEvent['setDate'].dateLe(endDate))
+            cond.append(tableEvent['execDate'].ge(begDate))
+            cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
             cond.append(tableRBMedicalAidType['code'].eq(7))
             socStatusClassId = self.params.get('socStatusClassId', None)
             socStatusTypeId  = self.params.get('socStatusTypeId', None)
@@ -354,13 +354,13 @@ class CReportStationary(CReport):
                 tableClientSocStatus = db.table('ClientSocStatus')
                 if begDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                       tableClientSocStatus['endDate'].dateGe(begDate)
+                                                       tableClientSocStatus['endDate'].ge(begDate)
                                                       ]),
                                            tableClientSocStatus['endDate'].isNull()
                                           ]))
                 if endDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                       tableClientSocStatus['begDate'].dateLe(endDate)
+                                                       tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                       ]),
                                            tableClientSocStatus['begDate'].isNull()
                                           ]))
@@ -477,13 +477,13 @@ class CReportStationary(CReport):
                             tableClientSocStatus = db.table('ClientSocStatus')
                             if begDate:
                                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                                   tableClientSocStatus['endDate'].dateGe(begDate)
+                                                                   tableClientSocStatus['endDate'].ge(begDate)
                                                                   ]),
                                                        tableClientSocStatus['endDate'].isNull()
                                                       ]))
                             if endDate:
                                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                                   tableClientSocStatus['begDate'].dateLe(endDate)
+                                                                   tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                                   ]),
                                                        tableClientSocStatus['begDate'].isNull()
                                                       ]))
@@ -727,8 +727,8 @@ class CReportStationary(CReport):
             if financeId:
                 cond.append(tableContract['finance_id'].eq(financeId))
             cond.append(tableEvent['execDate'].isNotNull())
-            cond.append(tableEvent['execDate'].dateGe(begDate))
-            cond.append(tableEvent['setDate'].dateLe(endDate))
+            cond.append(tableEvent['execDate'].ge(begDate))
+            cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
             cond.append(tableRBMedicalAidType['code'].eq(7))
             socStatusClassId = self.params.get('socStatusClassId', None)
             socStatusTypeId  = self.params.get('socStatusTypeId', None)
@@ -736,13 +736,13 @@ class CReportStationary(CReport):
                 tableClientSocStatus = db.table('ClientSocStatus')
                 if begDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                       tableClientSocStatus['endDate'].dateGe(begDate)
+                                                       tableClientSocStatus['endDate'].ge(begDate)
                                                       ]),
                                            tableClientSocStatus['endDate'].isNull()
                                           ]))
                 if endDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                       tableClientSocStatus['begDate'].dateLe(endDate)
+                                                       tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                       ]),
                                            tableClientSocStatus['begDate'].isNull()
                                           ]))
@@ -862,13 +862,13 @@ WHERE Diagnostic.deleted = 0 AND rbHealthGroup.code = 1 LIMIT 1) AS healthGroup'
                         tableClientSocStatus = db.table('ClientSocStatus')
                         if begDate:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                               tableClientSocStatus['endDate'].dateGe(begDate)
+                                                               tableClientSocStatus['endDate'].ge(begDate)
                                                               ]),
                                                    tableClientSocStatus['endDate'].isNull()
                                                   ]))
                         if endDate:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                               tableClientSocStatus['begDate'].dateLe(endDate)
+                                                               tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                               ]),
                                                    tableClientSocStatus['begDate'].isNull()
                                                   ]))
@@ -930,13 +930,13 @@ WHERE Diagnostic.deleted = 0 AND rbHealthGroup.code = 1 LIMIT 1) AS healthGroup'
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDate:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDate)
+                                                   tableClientSocStatus['endDate'].ge(begDate)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDate:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDate)
+                                                   tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -946,8 +946,8 @@ WHERE Diagnostic.deleted = 0 AND rbHealthGroup.code = 1 LIMIT 1) AS healthGroup'
             if socStatusTypeId:
                 cond.append(tableClientSocStatus['socStatusType_id'].eq(socStatusTypeId))
             cond.append(tableClientSocStatus['deleted'].eq(0))
-        cond.append(tableEvent['execDate'].dateGe(begDate))
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
         cond.append(tableRBMedicalAidType['code'].eq(7))
         cond.append(tableOS['deleted'].eq(0))
         cond.append(tablePerson['orgStructure_id'].inlist(orgStructureTypeIdList))
@@ -1019,13 +1019,13 @@ ORDER BY Event.id, Visit.date ASC'''%((u'''(SELECT COUNT(A.id) FROM Action AS A 
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -3731,13 +3731,13 @@ class CStationaryTypePaymentF14DC(CReportStationary): #actTypePaymentF14DC
                 tableClientSocStatus = db.table('ClientSocStatus')
                 if begDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                       tableClientSocStatus['endDate'].dateGe(begDate)
+                                                       tableClientSocStatus['endDate'].ge(begDate)
                                                       ]),
                                            tableClientSocStatus['endDate'].isNull()
                                           ]))
                 if endDate:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                       tableClientSocStatus['begDate'].dateLe(endDate)
+                                                       tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                       ]),
                                            tableClientSocStatus['begDate'].isNull()
                                           ]))

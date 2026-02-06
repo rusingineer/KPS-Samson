@@ -34,9 +34,11 @@ class CActionPage(Ui_actionPage, QtGui.QWidget):
     def setProps(self, props):
         self.chkOrgStructurePriorityForAddActions.setChecked(forceBool(props.get('orgStructurePriorityForAddActions', False)))
         self.cmbActionTemplatePriorityLoad.setCurrentIndex(forceBool(props.get('actionTemplatePriorityLoad', 1)))
+        self.chkEnableUserDictionary.setChecked(forceBool(props.get('enableUserDictionary', False)))
 
 
     def getProps(self, props):
         props['orgStructurePriorityForAddActions'] = toVariant(bool(self.chkOrgStructurePriorityForAddActions.isChecked()))
         props['actionTemplatePriorityLoad'] = toVariant(bool(self.cmbActionTemplatePriorityLoad.currentIndex()))
+        props['enableUserDictionary'] = toVariant(bool(self.chkEnableUserDictionary.isChecked()))
 

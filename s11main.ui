@@ -149,6 +149,7 @@
      <addaction name="separator"/>
      <addaction name="menuExportRB"/>
      <addaction name="actExportRbPrintTemplate"/>
+     <addaction name="actExportVMPCases"/>
     </widget>
     <widget class="QMenu" name="mnuImport">
      <property name="title">
@@ -206,6 +207,8 @@
      <addaction name="separator"/>
      <addaction name="menu_7"/>
      <addaction name="actImportRbPrintTemplate"/>
+     <addaction name="actImportSPR"/>
+     <addaction name="actImportVMPCases"/>
     </widget>
     <addaction name="mnuImport"/>
     <addaction name="mnuExport"/>
@@ -277,6 +280,7 @@
      </property>
      <addaction name="actTMKAdmin"/>
      <addaction name="actTMKListDirections"/>
+     <addaction name="actTMKReports"/>
     </widget>
     <addaction name="mnuCheck"/>
     <addaction name="actCreateAttachClientsForArea"/>
@@ -305,6 +309,7 @@
     <addaction name="actAttachOnlineService"/>
     <addaction name="actUO"/>
     <addaction name="actPersonSubstitutionService"/>
+    <addaction name="actDistantMonitoring"/>
     <addaction name="separator"/>
     <addaction name="mnuUnlockDialog"/>
    </widget>
@@ -517,6 +522,7 @@
      <addaction name="actRBVaccinationCalendar"/>
      <addaction name="actRBVaccinationProbe"/>
      <addaction name="actRBMedicalExemptionType"/>
+     <addaction name="actRBMedicalExemptionReason"/>
      <addaction name="actRBVaccinationResult"/>
     </widget>
     <widget class="QMenu" name="menu_6">
@@ -568,6 +574,7 @@
      <addaction name="actRBPolicyKind"/>
      <addaction name="actRBDocumentTypeGroup"/>
      <addaction name="actRBDocumentType"/>
+     <addaction name="actRBFmsUnit"/>
      <addaction name="actRBContactType"/>
      <addaction name="actRecativeClient"/>
      <addaction name="actRBDocumentTypeForTracking"/>
@@ -684,6 +691,8 @@
      <addaction name="actReportRegistryCardFullness"/>
      <addaction name="actAddressFound"/>
      <addaction name="menu_28"/>
+     <addaction name="actForm13dChildPopulation"/>
+     <addaction name="actForm25dNumberChildrenByAgeAndSocStatus"/>
     </widget>
     <widget class="QMenu" name="mnuDispObservation">
      <property name="enabled">
@@ -788,6 +797,7 @@
      <addaction name="actEmergencySize"/>
      <addaction name="actReportEmergencyCallList"/>
      <addaction name="menu_30"/>
+     <addaction name="actReportSMPDockList"/>
     </widget>
     <widget class="QMenu" name="mnuStationary">
      <property name="title">
@@ -1010,11 +1020,35 @@
       <addaction name="actFormaF016ForPeriod"/>
       <addaction name="actForma016_530n"/>
      </widget>
+     <widget class="QMenu" name="menu_29">
+      <property name="title">
+       <string>форма 14 КК</string>
+      </property>
+      <widget class="QMenu" name="menu2025">
+       <property name="title">
+        <string>2025</string>
+       </property>
+       <widget class="QMenu" name="menu_2000">
+        <property name="title">
+         <string>(2000) Состав пациентов в стационаре, сроки и исходы лечения</string>
+        </property>
+        <addaction name="actStationaryF14KK2000Adult"/>
+        <addaction name="actStationaryF14KK2000Senior"/>
+        <addaction name="actStationaryF14KK2000Children"/>
+       </widget>
+       <addaction name="menu_2000"/>
+       <addaction name="actStationaryF14KK4000"/>
+       <addaction name="actStationaryF14KK4001"/>
+       <addaction name="actStationaryF14KK4100"/>
+      </widget>
+      <addaction name="menu2025"/>
+     </widget>
      <addaction name="menu_007"/>
      <addaction name="menu_18"/>
      <addaction name="menu_14"/>
      <addaction name="menu_14_2016"/>
      <addaction name="menuFormaF016"/>
+     <addaction name="menu_29"/>
      <addaction name="menu_24"/>
      <addaction name="menu_014"/>
      <addaction name="menu_31"/>
@@ -1024,6 +1058,7 @@
      <addaction name="menu_19"/>
      <addaction name="actReportSurgeryPlanDay"/>
      <addaction name="actSvedVipis"/>
+     <addaction name="actReportDrugAtitumorCure"/>
     </widget>
     <widget class="QMenu" name="mnuAccountingAnalysis">
      <property name="title">
@@ -1070,6 +1105,7 @@
        <string>Предварительный расчет</string>
       </property>
       <addaction name="actReportDoctorPreCalc"/>
+      <addaction name="actReportStomPersonSalary"/>
      </widget>
      <widget class="QMenu" name="menu_62">
       <property name="title">
@@ -1114,6 +1150,7 @@
       <addaction name="actOutgoingDirectionsReport"/>
       <addaction name="actRepJournalNapr"/>
       <addaction name="actReportIncomingDirections"/>
+      <addaction name="actReportHospDir"/>
       <addaction name="actReportDoctor"/>
       <addaction name="actReportDirectionActions"/>
       <addaction name="actReportBIRADS"/>
@@ -1308,6 +1345,7 @@
      <addaction name="mnuRecipes"/>
      <addaction name="mnuExternal_Export"/>
      <addaction name="menuCrazy"/>
+     <addaction name="actReportActivityMO"/>
     </widget>
     <widget class="QMenu" name="mnuReportsBuMorbidity">
      <property name="title">
@@ -1320,6 +1358,7 @@
       <addaction name="actStatReportF12Children0_1_2022"/>
       <addaction name="actStatReportF12Children0_14_2022"/>
       <addaction name="actStatReportF12Teenagers_2022"/>
+      <addaction name="actStatReportF12Students_2025"/>
       <addaction name="actStatReportF12Adults_2022"/>
       <addaction name="actStatReportF12Seniors_2022"/>
      </widget>
@@ -1340,7 +1379,6 @@
       <addaction name="actSickRateAbort"/>
       <addaction name="actSickRateAbort_1000"/>
       <addaction name="actSickRateAbort_2000"/>
-      <addaction name="actSickRateAbort_3000"/>
      </widget>
      <widget class="QMenu" name="mnuStatReportF9">
       <property name="title">
@@ -1374,6 +1412,7 @@
      <addaction name="menu_21"/>
      <addaction name="mnuStatReportF9"/>
      <addaction name="actRep060Y"/>
+     <addaction name="actReportOnkoByStages"/>
     </widget>
     <widget class="QMenu" name="mnuReportsByVisits">
      <property name="title">
@@ -1415,6 +1454,7 @@
      <addaction name="actRepPos"/>
      <addaction name="actRepPlatUsl"/>
      <addaction name="actReportSummaryClientNotApply"/>
+     <addaction name="actRepNoProfsChild"/>
     </widget>
     <widget class="QMenu" name="mnuTimelineReports">
      <property name="title">
@@ -1500,17 +1540,6 @@
       <addaction name="actStatReport1DD2000"/>
       <addaction name="actStatReport1DD3000"/>
      </widget>
-     <widget class="QMenu" name="mnuEED_2">
-      <property name="title">
-       <string>Отчёт по ЭЭД</string>
-      </property>
-      <addaction name="actStatReportEEDMonth"/>
-      <addaction name="actStatReportEEDYear"/>
-      <addaction name="actStatReportEEDPeriod"/>
-      <addaction name="actStatReportEEDMonthSummary"/>
-      <addaction name="actStatReportEEDYearSummary"/>
-      <addaction name="actStatReportEEDPeriodSummary"/>
-     </widget>
      <widget class="QMenu" name="mnuDispansMO">
       <property name="title">
        <string>Диспансеризация. Отчет МО</string>
@@ -1535,13 +1564,6 @@
       <addaction name="actStomatReport039"/>
       <addaction name="actReportF39_3y"/>
       <addaction name="actStomatReportDay"/>
-     </widget>
-     <widget class="QMenu" name="menu_131_2020">
-      <property name="title">
-       <string>Форма 131/о (2019)</string>
-      </property>
-      <addaction name="actReportForm131_o_2000_2019"/>
-      <addaction name="actReportForm131_o_3000_2019"/>
      </widget>
      <widget class="QMenu" name="menu_131_2021">
       <property name="title">
@@ -1647,14 +1669,13 @@
      <addaction name="mnu1DD"/>
      <addaction name="mnu1MUOMSOF"/>
      <addaction name="actReportF14App3ksg"/>
-     <addaction name="mnuEED_2"/>
      <addaction name="menu_22"/>
-     <addaction name="menu_131_2020"/>
      <addaction name="menu_131_2021"/>
      <addaction name="mnuDispansMO"/>
      <addaction name="mnuPsychiatry"/>
      <addaction name="mnuNarcology"/>
      <addaction name="mnuForm19"/>
+     <addaction name="actForm030po17"/>
     </widget>
     <widget class="QMenu" name="mnuReportTrauma">
      <property name="title">
@@ -4698,17 +4719,12 @@
   </action>
   <action name="actSickRateAbort_1000">
    <property name="text">
-    <string>&amp;I. Беременность с абортивным исходом в срок до 12 недель (1000)</string>
+    <string>&amp;II. Прерывание беременности в срок до 12 недель (1000)</string>
    </property>
   </action>
   <action name="actSickRateAbort_2000">
    <property name="text">
-    <string>II. Беременность с абортивным исходом в срок с &amp;12 до 22 недель (2000)</string>
-   </property>
-  </action>
-  <action name="actSickRateAbort_3000">
-   <property name="text">
-    <string>III. Структура смертности от беременности с абортивным исходом (&amp;3000)</string>
+    <string>III. Прерывание беременности в срок с 12 до 22 недель (2000)</string>
    </property>
   </action>
   <action name="actActionPropertiesTestsReport">
@@ -6440,14 +6456,19 @@
     <string>Импорт данных из санаторной программы</string>
    </property>
   </action>
+  <action name="actPersonSubstitutionService">
+   <property name="text">
+    <string>Замещение сотрудников</string>
+   </property>
+  </action>
   <action name="actRBContingentKindRemoval">
    <property name="text">
     <string>Причины снятия контингента</string>
    </property>
   </action>
-  <action name="actPersonSubstitutionService">
+  <action name="actImportSPR">
    <property name="text">
-    <string>Замещение сотрудников</string>
+    <string>Импорт справочников ТФОМС КК</string>
    </property>
   </action>
   <action name="actCentralizedAccounting">
@@ -6496,9 +6517,125 @@
     <string>Пациенты с болезнями системы кровообращения (отчет для ТФОМС)</string>
    </property>
   </action>
+  <action name="actRepNoProfsChild">
+   <property name="text">
+    <string>Отчет по пациентам, не прошедшим профилактические мероприятия (0-17)</string>
+   </property>
+  </action>
   <action name="actReportF30KK_2100">
    <property name="text">
     <string>Ф.30 (2100) КК</string>
+   </property>
+  </action>
+  <action name="actStatReportF12Students_2025">
+   <property name="text">
+    <string>Дошкольники и школьники (3-17 лет)</string>
+   </property>
+  </action>
+  <action name="actReportHospDir">
+   <property name="text">
+    <string>Отчет по созданным направлениям на госпитализацию</string>
+   </property>
+  </action>
+  <action name="actRBFmsUnit">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Место выдачи документа</string>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actForm13dChildPopulation">
+   <property name="text">
+    <string>Характеристика детского населения Ф-13д (приписанное население и обслуживаемые организации)</string>
+   </property>
+  </action>
+  <action name="actForm25dNumberChildrenByAgeAndSocStatus">
+   <property name="text">
+    <string>Численность детского населения по возрастному составу в разрезе социального положения Ф-25д</string>
+   </property>
+  </action>
+  <action name="actForm030po17">
+   <property name="text">
+    <string>Форма 030-ПО/о-17</string>
+   </property>
+  </action>
+  <action name="actReportSMPDockList">
+   <property name="text">
+    <string>Отчёт о количестве вызовов СМП/НМП</string>
+   </property>
+  </action>
+  <action name="actDistantMonitoring">
+   <property name="text">
+    <string>Сервис дистанционного наблюдения</string>
+   </property>
+  </action>
+  <action name="actReportStomPersonSalary">
+   <property name="text">
+    <string>Отчет для заработной платы</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK2000Adult">
+   <property name="text">
+    <string>Взрослые (18 лет и более)</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK2000Senior">
+   <property name="text">
+    <string>Взрослые старше трудоспособного возраста</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK2000Children">
+   <property name="text">
+    <string>Дети (в возрасте 0-17 лет включительно)</string>
+   </property>
+  </action>
+  <action name="actRBMedicalExemptionReason">
+   <property name="text">
+    <string>Причины медотводов</string>
+   </property>
+  </action>
+  <action name="actReportDrugAtitumorCure">
+   <property name="text">
+    <string>Сведения о проведенном лекарственном противоопухолевом лечении</string>
+   </property>
+  </action>
+  <action name="actReportOnkoByStages">
+   <property name="text">
+    <string>Выявленные онкологические заболевания</string>
+   </property>
+  </action>
+  <action name="actReportActivityMO">
+   <property name="text">
+    <string>Деятельность МО (оперативный отчет)</string>
+   </property>
+  </action>
+  <action name="actImportVMPCases">
+   <property name="text">
+    <string>Импорт талонов ВМП</string>
+   </property>
+  </action>
+  <action name="actExportVMPCases">
+   <property name="text">
+    <string>Экспорт талонов ВМП</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK4000">
+   <property name="text">
+    <string>(4000) Хирургическая работа организации</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK4001">
+   <property name="text">
+    <string>(4001) Хирургическая работа организации (лица старше трудоспособного возраста)</string>
+   </property>
+  </action>
+  <action name="actStationaryF14KK4100">
+   <property name="text">
+    <string>(4100)</string>
    </property>
   </action>
  </widget>

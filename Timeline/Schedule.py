@@ -391,7 +391,10 @@ def getScheduleItemIdListForClient(clientId, specialityId, date=None, appointmen
             tableScheduleItem['client_id'].eq(clientId),
             # tableSchedule['date'].ge(date if date else QDate.currentDate()),
            ]
-    cond.append(' Schedule.date >= ADDDATE(current_date, 1) ')
+    if date and date == QDate.currentDate():
+        cond.append(' Schedule.date = current_date ')
+    else:
+        cond.append(' Schedule.date >= ADDDATE(current_date, 1) ')
     cond.append(tableSchedule['appointmentType'].eq(appointmentType))
     OKSOCode = forceString(db.translate('rbSpeciality', 'id', specialityId, 'OKSOCode'))
     OKSOCodeList = ('040122', '040819', '040110')

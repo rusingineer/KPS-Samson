@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Registry\DispExchangeDiagnosisPage.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Registry\DispExchangeDiagnosisPage.ui'
 #
-# Created: Wed Dec 20 11:54:44 2023
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +27,8 @@ class Ui_DispExchangeDiagnosisPage(object):
         DispExchangeDiagnosisPage.setObjectName(_fromUtf8("DispExchangeDiagnosisPage"))
         DispExchangeDiagnosisPage.resize(1117, 806)
         self.horizontalLayout = QtGui.QHBoxLayout(DispExchangeDiagnosisPage)
-        self.horizontalLayout.setSpacing(4)
         self.horizontalLayout.setMargin(4)
+        self.horizontalLayout.setSpacing(4)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.scrollArea = QtGui.QScrollArea(DispExchangeDiagnosisPage)
         self.scrollArea.setWidgetResizable(True)
@@ -57,7 +56,6 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.layoutWidget = QtGui.QWidget(self.splitter)
         self.layoutWidget.setObjectName(_fromUtf8("layoutWidget"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.layoutWidget)
-        self.verticalLayout_2.setMargin(0)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.tabWidget = QtGui.QTabWidget(self.layoutWidget)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -91,8 +89,8 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.groupBox.setMinimumSize(QtCore.QSize(300, 0))
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
         self.verticalLayout_6 = QtGui.QVBoxLayout(self.groupBox)
-        self.verticalLayout_6.setSpacing(4)
         self.verticalLayout_6.setMargin(4)
+        self.verticalLayout_6.setSpacing(4)
         self.verticalLayout_6.setObjectName(_fromUtf8("verticalLayout_6"))
         self.gridLayout = QtGui.QGridLayout()
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
@@ -386,6 +384,15 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.chkExportedWithErrors.setChecked(False)
         self.chkExportedWithErrors.setObjectName(_fromUtf8("chkExportedWithErrors"))
         self.verticalLayout_6.addWidget(self.chkExportedWithErrors)
+        self.cmbExportedWithErrors = CRecordMultivalueComboBox(self.groupBox)
+        self.cmbExportedWithErrors.setObjectName(_fromUtf8("cmbExportedWithErrors"))
+        self.verticalLayout_6.addWidget(self.cmbExportedWithErrors)
+        self.chkHideSuccess = QtGui.QCheckBox(self.groupBox)
+        self.chkHideSuccess.setObjectName(_fromUtf8("chkHideSuccess"))
+        self.verticalLayout_6.addWidget(self.chkHideSuccess)
+        self.chkFilterIsExport = QtGui.QCheckBox(self.groupBox)
+        self.chkFilterIsExport.setObjectName(_fromUtf8("chkFilterIsExport"))
+        self.verticalLayout_6.addWidget(self.chkFilterIsExport)
         self.horizontalLayout_3 = QtGui.QHBoxLayout()
         self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
         self.btnResetFilter = QtGui.QPushButton(self.groupBox)
@@ -415,7 +422,50 @@ class Ui_DispExchangeDiagnosisPage(object):
 
         self.retranslateUi(DispExchangeDiagnosisPage)
         self.tabWidget.setCurrentIndex(0)
+        QtCore.QObject.connect(self.chkExportedWithErrors, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbExportedWithErrors.setVisible)
         QtCore.QMetaObject.connectSlotsByName(DispExchangeDiagnosisPage)
+        DispExchangeDiagnosisPage.setTabOrder(self.scrollArea, self.tblDiagnosisDispansPlaned)
+        DispExchangeDiagnosisPage.setTabOrder(self.tblDiagnosisDispansPlaned, self.tabWidget)
+        DispExchangeDiagnosisPage.setTabOrder(self.tabWidget, self.tblPlanExportErrors)
+        DispExchangeDiagnosisPage.setTabOrder(self.tblPlanExportErrors, self.sbYear)
+        DispExchangeDiagnosisPage.setTabOrder(self.sbYear, self.cmbMonth)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbMonth, self.chkFilterLastName)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterLastName, self.edtFilterLastName)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterLastName, self.chkFilterFirstName)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterFirstName, self.edtFilterFirstName)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterFirstName, self.chkFilterPatrName)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterPatrName, self.edtFilterPatrName)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterPatrName, self.chkFilterBirthDay)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterBirthDay, self.edtFilterBirthDay)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterBirthDay, self.chkFilterEndBirthDay)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterEndBirthDay, self.edtFilterEndBirthDay)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterEndBirthDay, self.chkFilterAddressOrgStructure)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterAddressOrgStructure, self.cmbFilterAddressOrgStructure)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbFilterAddressOrgStructure, self.chkFilterSex)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterSex, self.cmbFilterSex)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbFilterSex, self.cmbBusyness)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbBusyness, self.chkSocStatuses)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkSocStatuses, self.chkSocStatusesCondition)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkSocStatusesCondition, self.edtFilterSocStatusesBegDate)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterSocStatusesBegDate, self.edtFilterSocStatusesEndDate)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterSocStatusesEndDate, self.cmbSocStatusesClass)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbSocStatusesClass, self.cmbSocStatusesType)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbSocStatusesType, self.chkFilterPerson)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterPerson, self.cmbFilterPerson)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbFilterPerson, self.chkFilterMKB)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterMKB, self.edtFilterMKBFrom)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterMKBFrom, self.edtFilterMKBTo)
+        DispExchangeDiagnosisPage.setTabOrder(self.edtFilterMKBTo, self.chkNotExported)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkNotExported, self.chkExportedSuccessfully)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkExportedSuccessfully, self.chkExportedWithErrors)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkExportedWithErrors, self.cmbExportedWithErrors)
+        DispExchangeDiagnosisPage.setTabOrder(self.cmbExportedWithErrors, self.chkHideSuccess)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkHideSuccess, self.chkFilterIsExport)
+        DispExchangeDiagnosisPage.setTabOrder(self.chkFilterIsExport, self.btnResetFilter)
+        DispExchangeDiagnosisPage.setTabOrder(self.btnResetFilter, self.btnApplyFilter)
+        DispExchangeDiagnosisPage.setTabOrder(self.btnApplyFilter, self.btnShowReport)
+        DispExchangeDiagnosisPage.setTabOrder(self.btnShowReport, self.btnPutEvPlanList)
+        DispExchangeDiagnosisPage.setTabOrder(self.btnPutEvPlanList, self.btnExportedPlan)
 
     def retranslateUi(self, DispExchangeDiagnosisPage):
         DispExchangeDiagnosisPage.setWindowTitle(_translate("DispExchangeDiagnosisPage", "Диспансерные осмотры", None))
@@ -463,16 +513,19 @@ class Ui_DispExchangeDiagnosisPage(object):
         self.chkNotExported.setText(_translate("DispExchangeDiagnosisPage", "Запланированные, не отправленные", None))
         self.chkExportedSuccessfully.setText(_translate("DispExchangeDiagnosisPage", "Отправленные успешно", None))
         self.chkExportedWithErrors.setText(_translate("DispExchangeDiagnosisPage", "Отправленные с ошибками", None))
+        self.chkHideSuccess.setText(_translate("DispExchangeDiagnosisPage", "Скрывать успешно отправленные", None))
+        self.chkFilterIsExport.setText(_translate("DispExchangeDiagnosisPage", "Не подлежит экспорту", None))
         self.btnResetFilter.setText(_translate("DispExchangeDiagnosisPage", "Сбросить", None))
         self.btnApplyFilter.setText(_translate("DispExchangeDiagnosisPage", "Применить", None))
         self.btnShowReport.setText(_translate("DispExchangeDiagnosisPage", "Печать списка", None))
         self.btnPutEvPlanList.setText(_translate("DispExchangeDiagnosisPage", "Экспорт плана диспансерных осмотров", None))
         self.btnExportedPlan.setText(_translate("DispExchangeDiagnosisPage", "Список запланированных в ТФОМС", None))
 
-from library.crbcombobox import CRBComboBox
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from library.ICDCodeEdit import CICDCodeEdit
-from library.TableView import CTableView
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from Registry.SocStatusComboBox import CSocStatusComboBox
 from library.DateEdit import CDateEdit
+from library.ICDCodeEdit import CICDCodeEdit
+from library.MultivalueComboBox import CRecordMultivalueComboBox
+from library.TableView import CTableView
+from library.crbcombobox import CRBComboBox

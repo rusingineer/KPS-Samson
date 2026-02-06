@@ -248,9 +248,9 @@ class CReportsBeingInStationary(CReport):
         if actionTypeList:
             cond.append(tableActionType['id'].inlist(actionTypeList))
         if bool(begDate):
-            cond.append(tableEvent['execDate'].dateGe(begDate))
+            cond.append(tableEvent['execDate'].ge(begDate))
         if bool(endDate):
-            cond.append(tableEvent['execDate'].dateLe(endDate))
+            cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
         if selectType:
             table = table.innerJoin(tablePerson, tableEvent['execPerson_id'].eq(tablePerson['id']))
         else:

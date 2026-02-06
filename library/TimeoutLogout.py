@@ -61,6 +61,10 @@ class CTimeoutLogout(QObject):
 
 
     def stop(self):
+        try:
+            self.__timer.timeout.disconnect()
+        except:
+            pass
         self.__timer.stop()
 
 

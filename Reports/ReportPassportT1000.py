@@ -95,6 +95,7 @@ def selectData(params):
                 LEFT JOIN rbFinance F ON F.id = AT.finance_id
             WHERE
                 CA.client_id = Client.id
+                AND CA.id = getClientAttachId(Client.id,0)
                 AND CA.deleted = 0
                 AND CA.orgStructure_id = {orgStructureId}
                 AND (DATE(CA.endDate) > {endDate}
@@ -326,13 +327,13 @@ class CReportPassportT1000(CReport):
                 reportLine = reportData[key]
                 reportLine[0].add(clientId)
 
-                if className == u'льгота':
-                    if benefitName == u'федеральная':
-                        reportLine[1].add(clientId)
-                    elif benefitName == u'региональная':
-                        reportLine[2].add(clientId)
-                    elif benefitName == u'муниципальная':
-                        reportLine[3].add(clientId)
+
+                if className == u'федеральный':
+                    reportLine[1].add(clientId)
+                if className == u'субъект рф':
+                    reportLine[2].add(clientId)
+                if className == u'муниципальный':
+                    reportLine[3].add(clientId)
 
                 if typeCode == '081':  # инвалид I
                     reportLine[4].add(clientId)

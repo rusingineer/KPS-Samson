@@ -58,8 +58,8 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tableSecondEvent, tableSecondEvent['prevEvent_id'].eq(tableEvent['id']))
 
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableMESGroup['code'].eq(u'ДиспанС'),
             tableDiagnostic['diagnosisType_id'].eq(forceRef(db.translate('rbDiagnosisType', 'code', '1', 'id'))),
             'ClientWork.`id`=(SELECT MAX(CW.`id`) FROM ClientWork AS CW WHERE CW.`client_id`=ClientWork.`client_id` AND CW.`deleted`=0) OR ClientWork.`id` IS NULL'
@@ -72,9 +72,9 @@ def selectData(params):
         accountQueryTable = tableAccount.innerJoin(tableAccountItem, tableAccountItem['master_id'].eq(tableAccount['id']))
         onlyPayedEventsCond = [tableAccountItem['event_id'].eq(tableEvent['id'])]
         if begPayDate:
-            onlyPayedEventsCond.append(tableAccount['date'].dateGe(begPayDate))
+            onlyPayedEventsCond.append(tableAccount['date'].ge(begPayDate))
         if endPayDate:
-            onlyPayedEventsCond.append(tableAccount['date'].dateLe(endPayDate))
+            onlyPayedEventsCond.append(tableAccount['date'].le(endPayDate))
         cond.append(db.existsStmt(accountQueryTable, onlyPayedEventsCond))
 
     fields = [tableEvent['id'].alias('eventId'),

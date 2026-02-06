@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\kmivc\Samson\UP_s11\client\Exchange\ExportDispPlanDatesDialog.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Exchange\ExportDispPlanDatesDialog.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -45,6 +45,17 @@ class Ui_ExportDispPlanDatesDialog(object):
         self.btnExport.setObjectName(_fromUtf8("btnExport"))
         self.horizontalLayout.addWidget(self.btnExport)
         self.verticalLayout.addLayout(self.horizontalLayout)
+        self.horizontalLayout_3 = QtGui.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName(_fromUtf8("horizontalLayout_3"))
+        self.label_3 = QtGui.QLabel(ExportDispPlanDatesDialog)
+        self.label_3.setObjectName(_fromUtf8("label_3"))
+        self.horizontalLayout_3.addWidget(self.label_3)
+        self.edtDate = CDateEdit(ExportDispPlanDatesDialog)
+        self.edtDate.setObjectName(_fromUtf8("edtDate"))
+        self.horizontalLayout_3.addWidget(self.edtDate)
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout_3.addItem(spacerItem)
+        self.verticalLayout.addLayout(self.horizontalLayout_3)
         self.tblPlanDates = CInDocTableView(ExportDispPlanDatesDialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
@@ -66,8 +77,8 @@ class Ui_ExportDispPlanDatesDialog(object):
         self.verticalLayout.addWidget(self.tblPlanDateErrors)
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.horizontalLayout_2.addItem(spacerItem)
+        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.horizontalLayout_2.addItem(spacerItem1)
         self.btnOK = QtGui.QPushButton(ExportDispPlanDatesDialog)
         self.btnOK.setObjectName(_fromUtf8("btnOK"))
         self.horizontalLayout_2.addWidget(self.btnOK)
@@ -86,11 +97,13 @@ class Ui_ExportDispPlanDatesDialog(object):
         ExportDispPlanDatesDialog.setWindowTitle(_translate("ExportDispPlanDatesDialog", "Даты запланированных мероприятий", None))
         self.label_2.setText(_translate("ExportDispPlanDatesDialog", "Подразделение:", None))
         self.btnExport.setText(_translate("ExportDispPlanDatesDialog", "Отправить", None))
+        self.label_3.setText(_translate("ExportDispPlanDatesDialog", "С даты:", None))
         self.label.setText(_translate("ExportDispPlanDatesDialog", "Ошибки при экспорте:", None))
         self.btnOK.setText(_translate("ExportDispPlanDatesDialog", "OK", None))
         self.btnCancel.setText(_translate("ExportDispPlanDatesDialog", "Отмена", None))
         self.btnApply.setText(_translate("ExportDispPlanDatesDialog", "Применить", None))
 
+from library.DateEdit import CDateEdit
 from library.DbComboBox import CDbComboBox
 from library.InDocTable import CInDocTableView
 from library.TableView import CTableView

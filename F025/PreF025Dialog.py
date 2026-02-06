@@ -39,13 +39,13 @@ from F025.Ui_PreF025            import Ui_PreF025Dialog
 
 
 class CPreF025DagnosticAndActionPresets:
-    def __init__(self, clientId, eventTypeId, eventDate, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
+    def __init__(self, clientId, eventTypeId, eventDate, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = [], maxOccursLimitActionTypes = []):
         self.unconditionalDiagnosticList = []
         self.unconditionalActionList = []
         self.disabledActionTypeIdList = []
         self.setEventDate = None
         self.setClientInfo(clientId, eventDate)
-        self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
+        self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -66,10 +66,10 @@ class CPreF025DagnosticAndActionPresets:
         self.setEventDate = date
 
 
-    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
+    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = [], maxOccursLimitActionTypes = []):
         self.eventTypeId = eventTypeId
         self.prepareDiagnositics(eventTypeId, specialityId)
-        self.prepareActions(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
+        self.prepareActions(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def prepareDiagnositics(self, eventTypeId, specialityId):
@@ -89,7 +89,7 @@ class CPreF025DagnosticAndActionPresets:
                     break
 
 
-    def prepareActions(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = []):
+    def prepareActions(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = [], maxOccursLimitActionTypes = []):
         wholeEventForCash = getEventFinanceCode(eventTypeId) == 4
         db = QtGui.qApp.db
         table = db.table('EventType_Action')
@@ -101,6 +101,8 @@ class CPreF025DagnosticAndActionPresets:
             cond.append(db.joinOr( [ table['speciality_id'].eq(specialityId),  table['speciality_id'].isNull()] ))
         if presentActionTypes:
             cond.append('''(IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes)))
+        if maxOccursLimitActionTypes:
+            cond.append('ActionType.id not in ({})'.format(', '.join(maxOccursLimitActionTypes)))
         records = QtGui.qApp.db.getRecordList(join, 'EventType_Action.*', cond, 'ActionType.class, idx, id')
         for record in records:
             actionTypeId = forceRef(record.value('actionType_id'))
@@ -184,7 +186,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
     def prepare(self, clientId, eventTypeId, eventDate, personId, specialityId, tariffCategoryId,
                 flagHospitalization = False, addActionTypeId = None, tissueTypeId=None, typeQueue = -1,
                 docNum=None, relegateInfo=[], plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, eventId = None,
-                presentActionTypes = []):
+                presentActionTypes = [], maxOccursLimitActionTypes = []):
         self.showPrice = getEventCanHavePayableActions(eventTypeId)
         self.wholeEventForCash = getEventFinanceCode(eventTypeId) == 4
         self.personId = personId
@@ -196,7 +198,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             self.setDefaultCash()
             self.grpContract.setVisible(True)
             self.tariffCategoryId = tariffCategoryId
-            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes)
+            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             orgId = QtGui.qApp.currentOrgId()
             self.cmbContract.setOrgId(orgId)
             self.cmbContract.setEventTypeId(eventTypeId)
@@ -206,7 +208,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             self.cmbContract.setCurrentIndex(0)
         else:
             self.grpContract.setVisible(False)
-            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId, presentActionTypes = presentActionTypes)
+            self.setEventTypeId(eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -227,7 +229,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
                 self.clientAge = (0, 0, 0, 0)
 
 
-    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = []):
+    def setEventTypeId(self, eventTypeId, specialityId, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = [], maxOccursLimitActionTypes = []):
         self.eventTypeId = eventTypeId
         eventTypeName  = getEventName(eventTypeId)
         self.eventTypeForm = getEventTypeForm(eventTypeId)
@@ -242,7 +244,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             self.modelDiagnostics._cols[2].setDefaultHidden(True)
             self.tblDiagnostics.horizontalHeader().setSectionHidden(1, True)
         self.prepareDiagnositics(eventTypeId, specialityId)
-        self.prepareActions(eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId, presentActionTypes)
+        self.prepareActions(eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId, presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def prepareDiagnositics(self, eventTypeId, specialityId):
@@ -390,7 +392,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
         self.modelDiagnostics.reset()
 
 
-    def prepareActions(self, eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = []):
+    def prepareActions(self, eventTypeId, specialityId, showFlags, flagHospitalization, addActionTypeId, eventId = None, presentActionTypes = [], maxOccursLimitActionTypes = []):
         includedGroups = set()
         db = QtGui.qApp.db
 
@@ -405,6 +407,11 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
             presentAction = '''AND (IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes))
         else:
             presentAction = ''
+        
+        if maxOccursLimitActionTypes:
+            maxOccursLimitAction = 'AND ActionType.id not in ({})'.format(', '.join(maxOccursLimitActionTypes))
+        else:
+            maxOccursLimitAction = ''
 
         if eventId:
             event = '''(SELECT 1 FROM Event e LEFT JOIN Action a ON e.id = a.event_id 
@@ -430,6 +437,8 @@ AND (ActionType.`deleted` = 0)
 
 %(presentAction)s
 
+%(maxOccursLimitAction)s
+
 %(having)s
 
 ORDER BY ActionType.class, idx, id'''% {'event': event,
@@ -437,6 +446,7 @@ ORDER BY ActionType.class, idx, id'''% {'event': event,
                   'eventTypeId': eventTypeId,
                   'speciality': speciality,
                   'presentAction': presentAction,
+                  'maxOccursLimitAction': maxOccursLimitAction
                   }
 
         db = QtGui.qApp.db

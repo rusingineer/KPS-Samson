@@ -120,7 +120,7 @@ SELECT distinct
     IF(co.code = 2 ,sum(IF(Account_Item.refuseType_id IS NULL AND co.code = 1, 1, Account_Item.refuseType_id IS not NULL AND co.code = 2)), sum(Account_Item.amount)) as amount,
    -- IF(IF(co.name='Возврат', Event_Payment.sum, 0) = 0, IF(SUM(Account_Item.payedSum)=0,Account_Item.sum,SUM(Account_Item.payedSum)), ABS(Event_Payment.sum))    AS sum,
       IF(sum(IF (Account_Item.refuseType_id IS not NULL AND co.code = 2, Account_Item.sum, 0))=0, sum(Account_Item.sum), sum(IF (Account_Item.refuseType_id IS not NULL AND co.code = 2, Account_Item.sum, 0)))   AS sum,
-    ifnull(Event_Payment.date, Account_Item.date) as date,
+    ifnull(Event_Payment.dateTime, Account_Item.date) as date,
     IF(co.code = 1 AND Event_Payment.typePayment = 0 ,'Наличная оплата',IF(co.code = 1 AND Event_Payment.typePayment = 1,'Электронная оплата',IF(co.code = 2 AND Event_Payment.typePayment = 0 ,'Наличный возврат',IF(co.code = 2 AND Event_Payment.typePayment = 1,'Электронный возврат','1')))) as PaymentType,
     case when co.code = 1 then 'оплата' else 'возврат' end as typeCash,
     ifnull(laboratory.name, '---') as lab,
@@ -168,7 +168,7 @@ where Event_Payment.deleted=0  and co.code in (1,2) and {cond}
             ][reportType]
 
         cond = []
-        cond.append(u'ifnull(Event_Payment.date, Account_Item.date) between "%s" and "%s"' %
+        cond.append(u'ifnull(Event_Payment.dateTime, Account_Item.date) between "%s" and "%s"' %
                     (params['begDate'].toString('yyyy-MM-dd'), params['endDate'].toString('yyyy-MM-dd'))
                     )
         if params.get('eventTypeId', False):

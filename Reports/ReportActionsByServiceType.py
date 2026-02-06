@@ -63,10 +63,10 @@ def selectData(params):
             tableEvent['deleted'].eq(0)]
     if begDate:
 #        c = db.joinOr([tableAction['endDate'].dateGe(begDate), tableAction['endDate'].isNull()])
-        cond.append(tableAction['endDate'].dateGe(begDate))
+        cond.append(tableAction['endDate'].ge(begDate))
     if endDate:
 #        c = db.joinOr([tableAction['begDate'].dateLe(endDate), tableAction['begDate'].isNull()])
-        cond.append(tableAction['begDate'].dateLe(endDate))
+        cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
     if eventTypeId:
         cond.append(tableEvent['eventType_id'].eq(eventTypeId))
     if orgStructureId:
@@ -90,9 +90,9 @@ def selectData(params):
             cond.append(tableAccountItem['refuseType_id'].isNotNull())
 
         if confirmationBegDate:
-            cond.append(tableAccountItem['date'].dateGe(confirmationBegDate))
+            cond.append(tableAccountItem['date'].ge(confirmationBegDate))
         if confirmationEndDate:
-            cond.append(tableAccountItem['date'].dateLe(confirmationEndDate))
+            cond.append(tableAccountItem['date'].lt(confirmationEndDate.addDays(1)))
 
     fields = [
               tableAction['id'].alias('actionId'),

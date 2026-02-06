@@ -17,15 +17,18 @@
 
 from PyQt4 import QtGui
 
-from library.Utils import forceBool, toVariant, forceInt
+from library.Utils import forceBool, toVariant
 
 from Ui_HospitalBedsPage import Ui_HospitalBedsPage
 
+from Orgs.CheckedTreeWidgetOrgStructure import CCheckedTreeWidgetOrgStructure
 
 class CHospitalBedsPage(Ui_HospitalBedsPage, QtGui.QWidget):
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
+        self.treeOrgStructure = CCheckedTreeWidgetOrgStructure(self)
         self.setupUi(self)
+        self.gridLayout_4.addWidget(self.treeOrgStructure)
 
     def setProps(self, props):
         self.chkTabDeath.setChecked(forceBool(props.get('showingHospitalBedsTabDeath', True)))
@@ -39,8 +42,10 @@ class CHospitalBedsPage(Ui_HospitalBedsPage, QtGui.QWidget):
         self.chkTabReceived.setChecked(forceBool(props.get('showingHospitalBedsTabReceived', True)))
         self.chkTabRenunciation.setChecked(forceBool(props.get('showingHospitalBedsTabRenunciation', True)))
         self.chkTabTransfer.setChecked(forceBool(props.get('showingHospitalBedsTabTransfer', True)))
+        self.treeOrgStructure.setupTree(props.get('HospitalBedsOrgStructureCheckedNames'))
 
     def getProps(self, props):
+        props['HospitalBedsOrgStructureCheckedNames'] = toVariant(self.treeOrgStructure.makeReportsToHideInsertValues())
         props['showingHospitalBedsTabDeath'] = toVariant(self.chkTabDeath.isChecked())
         props['showingHospitalBedsTabEmergency'] = toVariant(self.chkTabEmergency.isChecked())
         props['showingHospitalBedsTabFund'] = toVariant(self.chkTabFund.isChecked())

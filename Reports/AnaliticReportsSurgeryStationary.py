@@ -481,9 +481,9 @@ class CAnaliticReportsSurgeryStationary(CReport):
             if existFlatCode:
                 cond.append(tableActionType['flatCode'].ne(u''))
             if bool(begDate):
-                cond.append(tableAction['endDate'].dateGe(begDate))
+                cond.append(tableAction['endDate'].ge(begDate))
             if bool(endDate):
-                cond.append(tableAction['endDate'].dateLe(endDate))
+                cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
             if orgStructureIdList:
                 cond.append(getDataOrgStructure(nameProperty, orgStructureIdList, stationaryOnly = False))
             if selectActionType in [3, 4] and profileList:
@@ -603,7 +603,7 @@ class CAnaliticReportsSurgeryStationary(CReport):
                                tableA_E['event_id'].eq(tableEvent_P['id']),
                                tableA_E['endDate'].isNotNull(),
                                tableAT_E['deleted'].eq(0),
-                               tableA_E['endDate'].dateLe(tableAction['endDate']),
+                               tableA_E['endDate'].lt(tableAction['endDate'].addDays(1)),
                                u'DATE(A_E.begDate) >= DATE(('+unicode(stmtJOINA)+u'))'
                                ]
                     tableAE = tableA_E.innerJoin(tableAT_E, tableAT_E['id'].eq(tableA_E['actionType_id']))
@@ -626,7 +626,7 @@ class CAnaliticReportsSurgeryStationary(CReport):
                                       tableAction_P['endDate'].isNotNull(),
                                       tableAction_P['deleted'].eq(0),
                                       tableEvent_P['deleted'].eq(0),
-                                      tableAction_P['endDate'].dateLe(tableAction['endDate']),
+                                      tableAction_P['endDate'].lt(tableAction['endDate'].addDays(1)),
                                       u'DATE(Action_P.begDate) >= DATE(('+unicode(stmtJOINA)+u'))'
                                       ]
                     if personId:
@@ -719,9 +719,9 @@ class CAnaliticReportsSurgeryStationary(CReport):
             if existFlatCode:
                 cond.append(tableActionType['flatCode'].ne(u''))
             if bool(begDate):
-                cond.append(tableAction['endDate'].dateGe(begDate))
+                cond.append(tableAction['endDate'].ge(begDate))
             if bool(endDate):
-                cond.append(tableAction['endDate'].dateLe(endDate))
+                cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
             cols = [tableAction['id'].alias('actionId'),
                     tableAction['amount'].alias('countSurgery'),
                     tableEvent['order'],

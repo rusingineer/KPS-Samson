@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4                  import QtGui
-from PyQt4.QtCore           import QVariant, QString
+from PyQt4.QtCore import QVariant, QDate
 
 from library.CustomComboBoxLike import CCustomComboBoxLike
 from library.TNMS.TNMSPopup import CTNMSPopup
@@ -39,13 +39,19 @@ class CTNMSComboBox(CCustomComboBoxLike):
             self._popup = self.createPopup()
         self._popup.installEventFilter(self)
         adjustPopupToWidget(self, self._popup)
-        self._popup.setEndDate(self.endDate)
-        self._popup.setTempValue(CCustomComboBoxLike.getValue(self))
-        self._popup.updateItemsComboBoxes(self.MKB, self.isTest)
+        self.updatePopupBeforeShow()
         self.updateValueFromPopup()
         self._popup.show()
         self._popup.setFocus()
 
+    def updatePopupBeforeShow(self):
+        # вынесено в отдельную функцию для использования в проверке заполнения TNMS в обращении
+        self._popup.setEndDate(self.endDate)
+        self._popup.setTempValue(CCustomComboBoxLike.getValue(self))
+        mkbO = None
+        if self.endDate and self.endDate >= QDate(2025, 7, 1):
+            mkbO = forceString(QtGui.qApp.db.translate('soc_M002', 'mkb10', self.MKB, 'mkbO'))
+        self._popup.updateItemsComboBoxes(mkbO if mkbO else self.MKB, self.isTest)
 
     def setIsTest(self, value):
         self.isTest = value
@@ -89,7 +95,7 @@ class CTNMSComboBox(CCustomComboBoxLike):
 
 def convertTNMSStringToDict(s):
     result = {}
-    mode = 0 # 0: initial, 1: prefix entered, 2: arg code entered
+    mode = 0  # 0: initial, 1: prefix entered, 2: arg code entered
     prefix = ''
     param = ''
     value = ''
@@ -114,15 +120,26 @@ def convertTNMSStringToDict(s):
                 mode = 3
         if mode == 2:
             if c.isspace():
-                result[prefix+param] = value
-                mode = 0
+                mode = 4
             else:
                 value += c
+            continue
 
         if mode == 3:
-           if c.isspace():
-               mode = 0
-               continue
+            if c.isspace():
+                mode = 0
+                continue
+
+        if mode == 4:
+            if c in 'cp':
+                result[prefix + param] = value
+                prefix = c
+                mode = 1
+                continue
+            else:
+                mode = 2
+                value += ' ' + c
+                continue
 
     if mode == 2:
         result[prefix+param] = value

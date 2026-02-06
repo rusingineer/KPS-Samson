@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,10 +14,11 @@
 import datetime
 import hashlib
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, QObject, pyqtSignature, SIGNAL, QVariant
+from PyQt4.QtCore import Qt, QDate, QObject, pyqtSignature, SIGNAL, QVariant, QRegExp
+from PyQt4.QtGui import QAction
 
 from library.IdentificationModel import CIdentificationModel, checkIdentification
-from library.InDocTable          import CInDocTableModel, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
+from library.InDocTable          import CInDocTableModel, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol, CDateTimeInDocTableCol
 from library.interchange         import (
                                           getCheckBoxValue,
                                           getComboBoxValue,
@@ -59,6 +60,7 @@ from library.PrintTemplates      import (
 from library.PrintInfo           import CInfoContext
 from library.DialogBase          import CDialogBase
 from library.RecordLock          import CRecordLockMixin
+from library.database            import CTableRecordCache
 
 from Orgs.Utils                  import getOrgStructureDescendants, COrgStructureInfoList, CActivityInfo, COrgInfo
 from Orgs.PersonInfo             import CPersonInfoListEx
@@ -613,7 +615,6 @@ class CMultiplePersonEditor(Ui_MultiplePersonEditorDialog, CDialogBase, CRecordL
         for rec in recordList:
             isDoctor = isDoctor and rec.value('speciality_id').toBool()
         self.chkAvailableForExternal.setEnabled(isDoctor)
-        self.chkAvailableForSuspendedAppointment.setEnabled(isDoctor)
         self.chkLastAccessibleTimelineDate.setEnabled(isDoctor)
         self.chkPrimaryQuota.setEnabled(isDoctor)
         self.chkOwnQuota.setEnabled(isDoctor)
@@ -624,8 +625,8 @@ class CMultiplePersonEditor(Ui_MultiplePersonEditorDialog, CDialogBase, CRecordL
     def setRecord(self, record):
         setRBComboBoxValue(self.cmbUserRightsProfile,  record,  'userProfile_id')
         setComboBoxValue(self.cmbAvailableForExternal, record, 'availableForExternal')
-        setComboBoxValue(self.cmbAvailableForStand, record, 'availableForStand')
-        setComboBoxValue(self.cmbAvailableForSuspendedAppointment, record, 'availableForSuspendedAppointment')
+        setComboBoxValue(self.cmbIsHideQueue, record, 'isHideQueue')
+        setComboBoxValue(self.cmbIsHideSchedule, record, 'isHideSchedule')
         setDateEditValue(self.edtLastAccessibleTimelineDate, record, 'lastAccessibleTimelineDate')
         setSpinBoxValue(self.edtTimelineAccessibilityDays, record, 'timelineAccessibleDays')
         setSpinBoxValue(self.edtPrimaryQuota,     record, 'primaryQuota')
@@ -641,10 +642,10 @@ class CMultiplePersonEditor(Ui_MultiplePersonEditorDialog, CDialogBase, CRecordL
             getRBComboBoxValue(self.cmbUserRightsProfile, record,  'userProfile_id')
         if self.chkAvailableForExternal.isChecked():
             getComboBoxValue(self.cmbAvailableForExternal, record, 'availableForExternal')
-        if self.chkAvailableForStand.isChecked():
-            getComboBoxValue(self.cmbAvailableForStand, record, 'availableForStand')
-        if self.chkAvailableForSuspendedAppointment.isChecked():
-            getComboBoxValue(self.cmbAvailableForSuspendedAppointment, record, 'availableForSuspendedAppointment')
+        if self.chkIsHideQueue.isChecked():
+            getComboBoxValue(self.cmbIsHideQueue, record, 'isHideQueue')
+        if self.chkIsHideSchedule.isChecked():
+            getComboBoxValue(self.cmbIsHideSchedule, record, 'isHideSchedule')
         if self.chkLastAccessibleTimelineDate.isChecked():
             getDateEditValue(self.edtLastAccessibleTimelineDate, record, 'lastAccessibleTimelineDate')
         if self.chkTimelineAccessibilityDays.isChecked():
@@ -749,7 +750,10 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.setModels(self.tblPersonContacts, self.modelPersonContacts, self.selectionModelPersonContacts)
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
         self.setModels(self.tblCombinedArea,   self.modelCombinedArea, self.selectionModelCombinedArea)
-
+        
+        self.tblEducationDocs.addPopupDelRow()
+        self.tblEducationDocs.addPopupRecordProperies()
+        self.tblEducationDocs.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.tblPersonJobType.addPopupDelRow()
         self.tblPersonContacts.addPopupDelRow()
         self.tblIdentification.addPopupDelRow()
@@ -1164,6 +1168,11 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         # login = forceStringEx(self.edtLogin.text())
         result = result and (code or self.checkInputMessage(u'код', False, self.edtCode))
         result = result and (name or self.checkInputMessage(u'Фамилия', False, self.edtLastName))
+        result = result and (isNameValid(name, True) or self.checkInputMessage(u'допустимую фамилию', False, self.edtLastName))
+        result = result and (forceStringEx(self.edtFirstName.text()) or self.checkInputMessage(u'имя', False, self.edtFirstName))
+        result = result and (isNameValid(self.edtFirstName.text()) or self.checkInputMessage(u'допустимое имя', False, self.edtFirstName))
+        result = result and (forceStringEx(self.edtPatrName.text()) or self.checkInputMessage(u'отчество', True, self.edtPatrName))
+        result = result and (isNameValid(self.edtPatrName.text()) or self.checkInputMessage(u'допустимое отчество', False, self.edtPatrName))
         # result = result and (login or self.checkInputMessage(u'регистрационное имя', True, self.edtLogin))
         # if result and login:
         #     db = QtGui.qApp.db
@@ -1380,7 +1389,8 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
 class CEducationDocsModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Person_Education', 'id', 'master_id', parent)
-        self.setFilter('documentType_id IN (SELECT rbDocumentType.id FROM rbDocumentType LEFT JOIN rbDocumentTypeGroup ON rbDocumentTypeGroup.id = rbDocumentType.group_id WHERE rbDocumentTypeGroup.code=\'3\')')
+        # self.setFilter('documentType_id IN (SELECT rbDocumentType.id FROM rbDocumentType LEFT JOIN rbDocumentTypeGroup ON rbDocumentTypeGroup.id = rbDocumentType.group_id WHERE rbDocumentTypeGroup.code=\'3\')')
+        self.setFilter('deleted = 0')
         self.addCol(CDateInDocTableCol(u'Дата',  'date', 15, canBeEmpty=True))
         self.addCol(CRBInDocTableCol(u'Специальность', 'speciality_id', 30, 'rbSpeciality'))
         self.addCol(CInDocTableCol(u'Статус', 'status', 30))
@@ -1549,11 +1559,37 @@ class COrgStructureInDocTableCol(CInDocTableCol):
         return toVariant(editor.value())
 
 
+class CContactInDocTableCol(CInDocTableCol):
+    def __init__(self, title, fieldName, width, **params):
+        CInDocTableCol.__init__(self, title, fieldName, width, **params)
+        self.recordContactTypeCache = params.get('contactTypeCaches', [])
+        db = QtGui.qApp.db
+        table = db.table('rbContactType')
+        self._phoneNumberIdList = db.getDistinctIdList('rbContactType', 'id', [table['code'].inlist([1, 2, 3])])
+#        self._emailIdList = db.getDistinctIdList('rbContactType', 'id', [table['code'].inlist([4])])
+
+
+    def setEditorData(self, editor, value, record):
+        editor.setText(forceStringEx(value))
+        contactTypeId = forceRef(record.value('contactType_id'))
+        if contactTypeId and self.recordContactTypeCache:
+            contactTypeRecord = self.recordContactTypeCache.get(contactTypeId) if contactTypeId else None
+            if contactTypeRecord:
+                regExpValidator = forceString(contactTypeRecord.value('regExpValidator'))
+                if regExpValidator:
+                    if contactTypeId in self._phoneNumberIdList:
+                        editor.setInputMask(regExpValidator)
+                    else:
+                        editor.setValidator((QtGui.QRegExpValidator(QRegExp(regExpValidator), None)))
+
+
 class CPersonContactsModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Person_Contact', 'id', 'master_id', parent)
+        db = QtGui.qApp.db
+        contactTypeCaches = CTableRecordCache(db, db.forceTable('rbContactType'), u'*', capacity=None)
         self.addCol(CRBInDocTableCol(u'Тип', 'contactType_id', 30, 'rbContactType', addNone=False))
-        self.addCol(CInDocTableCol(u'Номер', 'contact', 30))
+        self.addCol(CContactInDocTableCol(u'Номер', 'contact', 30, contactTypeCaches=contactTypeCaches))
         self.addCol(CInDocTableCol(u'Примечание', 'notes', 30))
 
 
@@ -1646,3 +1682,20 @@ def selectLatestRecord(tableName, personId, filter=''):
 
 def getPersonContext():
     return ['personRefBooks']
+
+
+def getSamePersonIdList(personId):
+    # Получить список Person.id с таким же СНИЛС как у заданного, или только заданный Person.id, если СНИЛС не введен
+    stmt = '''
+    select Person2.id
+    from Person as Person1
+        inner join Person as Person2 on Person2.SNILS = Person1.SNILS
+    where Person1.id = %d and length(Person1.SNILS) = 11
+    ''' % personId
+    query = QtGui.qApp.db.query(stmt)
+    result = []
+    while query.next():
+        result.append(forceRef(query.value(0)))
+    if not result:
+        result.append(personId)
+    return result

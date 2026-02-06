@@ -184,8 +184,8 @@ def selectData2(params):
     or DATE(Action.endDate) >= Contract_Tariff.begDate and Contract_Tariff.endDate is null) 
   and Contract_Tariff.tariffType in (2,5))''')
 
-    cond = [tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+    cond = [tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableEvent['deleted'].eq(0),
             #tableEvent['execDate'].isNotNull(),
             tableAction['deleted'].eq(0),

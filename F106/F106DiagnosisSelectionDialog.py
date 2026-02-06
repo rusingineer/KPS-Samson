@@ -85,6 +85,11 @@ class CDiagnosisSelectionDialog(CDialogBase, Ui_DiagnosisSelectionDialog):
         
 
     def getDiagnosis(self):
+        if not self.MKBrecord:
+            index = self.selectionModelDiagnosises.currentIndex()
+            if index:
+                record = self.modelDiagnosises.items()[index.row()]
+                self.MKBrecord = record
         return self.MKBrecord
         
 

@@ -697,6 +697,16 @@
              </widget>
             </item>
             <item>
+             <widget class="CRecordMultivalueComboBox" name="cmbExportedWithErrors"/>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="chkHideSuccess">
+              <property name="text">
+               <string>Скрывать успешно отправленные</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QLabel" name="lblDispPassed">
               <property name="text">
                <string>Прохождение дисп./проф.</string>
@@ -845,6 +855,16 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRecordMultivalueComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/MultivalueComboBox.h</header>
+  </customwidget>
+  <customwidget>
    <class>COrgStructureComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgStructComboBoxes.h</header>
@@ -864,12 +884,76 @@
    <extends>QComboBox</extends>
    <header>Registry/SocStatusComboBox.h</header>
   </customwidget>
-  <customwidget>
-   <class>CRBComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/crbcombobox.h</header>
-  </customwidget>
  </customwidgets>
+ <tabstops>
+  <tabstop>scrollArea</tabstop>
+  <tabstop>tblClients</tabstop>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>tblPlanExportErrors</tabstop>
+  <tabstop>tblFactInfos</tabstop>
+  <tabstop>tblFactInvcs</tabstop>
+  <tabstop>cmbKind</tabstop>
+  <tabstop>sbYear</tabstop>
+  <tabstop>cmbMonth</tabstop>
+  <tabstop>chkFilterLastName</tabstop>
+  <tabstop>edtFilterLastName</tabstop>
+  <tabstop>chkFilterFirstName</tabstop>
+  <tabstop>edtFilterFirstName</tabstop>
+  <tabstop>chkFilterPatrName</tabstop>
+  <tabstop>edtFilterPatrName</tabstop>
+  <tabstop>chkFilterBirthDay</tabstop>
+  <tabstop>edtFilterBirthDay</tabstop>
+  <tabstop>chkFilterEndBirthDay</tabstop>
+  <tabstop>edtFilterEndBirthDay</tabstop>
+  <tabstop>chkFilterAddressOrgStructure</tabstop>
+  <tabstop>cmbFilterAddressOrgStructure</tabstop>
+  <tabstop>chkFilterSex</tabstop>
+  <tabstop>cmbFilterSex</tabstop>
+  <tabstop>cmbBusyness</tabstop>
+  <tabstop>chkSocStatuses</tabstop>
+  <tabstop>chkSocStatusesCondition</tabstop>
+  <tabstop>edtFilterSocStatusesBegDate</tabstop>
+  <tabstop>edtFilterSocStatusesEndDate</tabstop>
+  <tabstop>cmbSocStatusesClass</tabstop>
+  <tabstop>cmbSocStatusesType</tabstop>
+  <tabstop>chkForPlanning</tabstop>
+  <tabstop>chkHideUDEvents</tabstop>
+  <tabstop>chkNotPlanned</tabstop>
+  <tabstop>chkNotExported</tabstop>
+  <tabstop>chkExportedSuccessfully</tabstop>
+  <tabstop>chkExportedWithErrors</tabstop>
+  <tabstop>cmbExportedWithErrors</tabstop>
+  <tabstop>chkHideSuccess</tabstop>
+  <tabstop>cmbDispPassed</tabstop>
+  <tabstop>btnResetFilter</tabstop>
+  <tabstop>btnApplyFilter</tabstop>
+  <tabstop>btnShowReport</tabstop>
+  <tabstop>btnPlanningProfilactic</tabstop>
+  <tabstop>btnPutEvPlanList</tabstop>
+  <tabstop>btnGetEvFactInfos</tabstop>
+  <tabstop>btnGetEvFactInvcs</tabstop>
+  <tabstop>btnGetEvPlanQtys</tabstop>
+  <tabstop>btnPutEvContacts</tabstop>
+  <tabstop>btnPutEvPlanDates</tabstop>
+  <tabstop>btnExportedPlan</tabstop>
+ </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>chkExportedWithErrors</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbExportedWithErrors</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1312</x>
+     <y>605</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1312</x>
+     <y>627</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

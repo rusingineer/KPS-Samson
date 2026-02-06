@@ -130,7 +130,7 @@ class CTariff(object):
 
 
     def dateInRange(self, date):
-        return (not self.begDate or self.begDate<=date) and (not self.endDate1 or date<self.endDate1)
+        return (not self.begDate or self.begDate<=forceDate(date)) and (not self.endDate1 or forceDate(date)<self.endDate1) #forceDate, потому что date может быть QDateTime и неправильно будет работать сравнение
 
 
     def matchMKB(self, MKB):

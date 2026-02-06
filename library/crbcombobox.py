@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,7 +14,7 @@
 
 from random import randint
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QAbstractTableModel, QDateTime, QModelIndex, QString, QVariant
+from PyQt4.QtCore import Qt, QEvent, QAbstractTableModel, QDateTime, QModelIndex, QString, QVariant
 
 from library.DbEntityCache import CDbEntityCache
 from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
@@ -268,7 +268,6 @@ class CRBTestModelData(CRBModelData):
             return self.getFederalCode(index)
         else:
             return 'bad field %s' % showFields
-
 
 class CRBModelDataCache(CDbEntityCache):
     mapTableToData = {}
@@ -607,7 +606,12 @@ class CRBComboBox(QtGui.QComboBox):
         self.setModel(CRBModel(self))
         self.popupView.setFrameShape(QtGui.QFrame.NoFrame)
         self.readOnly = False
+        self.isWheel = True
         self.installEventFilter(self)
+
+
+    def setWheel(self, value=False):
+        self.isWheel = value
 
 
     def setReadOnly(self, value=False):
@@ -842,6 +846,14 @@ class CRBComboBox(QtGui.QComboBox):
             event.accept()
             return False
         return False
+
+
+    def event(self, event):
+        if event.type() == QEvent.Wheel: # QWheelEvent
+            if not self.isWheel:
+                event.ignore()
+                return False
+        return QtGui.QComboBox.event(self, event)
 
 
 class CRBTestComboBox(CRBComboBox):

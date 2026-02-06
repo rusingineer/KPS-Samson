@@ -52,21 +52,21 @@ def selectData(params):
             tableClientPolicy['deleted'].eq(0)]
 
     if begDate:
-        cond.append(db.joinOr([tableClientAttach['endDate'].dateGe(begDate),
+        cond.append(db.joinOr([tableClientAttach['endDate'].ge(begDate),
                                tableClientAttach['endDate'].isNull()])
                    )
     if endDate:
-        cond.append(tableClientAttach['begDate'].dateLe(endDate))
+        cond.append(tableClientAttach['begDate'].lt(endDate.addDays(1)))
     if attacheTypeTemporary:
         cond.append(tableAttachType['temporary'].eq(attacheTypeTemporary-1))
 
     pedc = [tableCP['endDate'].isNull()]
     if begDate:
-        pedc.append(tableCP['endDate'].dateGe(begDate))
+        pedc.append(tableCP['endDate'].ge(begDate))
 
     pbdc = [tableCP['begDate'].isNull()]
     if endDate:
-        pbdc.append(tableCP['begDate'].dateLe(endDate))
+        pbdc.append(tableCP['begDate'].lt(endDate.addDays(1)))
 
     datePolicyCond = db.joinAnd( [ db.joinOr(pedc), db.joinOr(pbdc) ] )
 
@@ -96,8 +96,8 @@ def selectData(params):
         cond.append(tableClient['sex'].eq(sex))
 
     if (begAge, endAge) != (0, 150):
-        cond.append(tableClient['birthDate'].dateLe(locCalcBirthDate(begAge)))
-        cond.append(tableClient['birthDate'].dateGe(locCalcBirthDate(endAge)))
+        cond.append(tableClient['birthDate'].lt(locCalcBirthDate(begAge).addDays(1)))
+        cond.append(tableClient['birthDate'].ge(locCalcBirthDate(endAge)))
 
     if orgStructureIdList:
         cond.append(tableClientAttach['orgStructure_id'].inlist(orgStructureIdList))
@@ -160,7 +160,7 @@ class CReportAttachingMotion(CReport):
         if (begAge, endAge) != (0, 150):
             rows.append(u'Возраст: от %d до %d' % (begAge, endAge))
         if sex:
-            rows.append(u'Пол: %s' % (u'М' if 1 else u'Ж'))
+            rows.append(u'Пол: %s' % (u'М' if sex==1 else u'Ж'))
 
         return rows
 

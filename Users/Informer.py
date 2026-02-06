@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,7 +17,8 @@ from PyQt4.QtCore import Qt, QDate, QDateTime, pyqtSignature, SIGNAL, QString
 
 from library.database        import CTableRecordCache
 from library.DialogBase      import CDialogBase
-from library.interchange     import setLineEditValue, getLineEditValue, setTextEditHTML, getTextEditHTML
+from library.interchange import setLineEditValue, getLineEditValue, setTextEditHTML, getTextEditHTML, setCheckBoxValue, \
+    getCheckBoxValue
 from library.ItemsListDialog import CItemsListDialog, CItemEditorBaseDialog
 from library.TableModel      import CTableModel, CCol, CTextCol, CDateTimeCol, CRefBookCol, CDesignationCol
 from library.Utils           import toVariant, forceString, forceDateTime, forceRef, formatSex, formatShortNameInt, forceStringEx
@@ -82,7 +83,8 @@ class CInformerList(CItemsListDialog):
             cond.append(table['subject'].contain(props.get('subject', '')))
         if props.get('chkRevisionInfo', False):
             cond.append(table['isRevisionInfo'].eq(1 if props.get('revisionInfo', 0)==0 else 0))
-
+        if props.get('chkConstant', False):
+            cond.append(table['isConstant'].eq(1 if props.get('constant', 0)==0 else 0))
         return QtGui.qApp.db.getIdList(table.name(), self.idFieldName, cond, self.order)
 
 
@@ -94,6 +96,8 @@ class CInformerFilterClass(CDialogBase, Ui_InformerFilterDialog):
 
 
     def setProps(self, props):
+        self.chkConstant.setChecked(props.get('chkConstant', False))
+        self.cmbConstant.setCurrentIndex(props.get('constant', 0))
         self.chkRevisionInfo.setChecked(props.get('chkRevisionInfo', False))
         self.cmbRevisionInfo.setCurrentIndex(props.get('revisionInfo', 0))
         self.chkSubject.setChecked(props.get('chkSubject', False))
@@ -110,6 +114,8 @@ class CInformerFilterClass(CDialogBase, Ui_InformerFilterDialog):
         result['chkAuthor'] = self.chkAuthor.isChecked()
         result['chkRevisionInfo'] = self.chkRevisionInfo.isChecked()
         result['revisionInfo'] = self.cmbRevisionInfo.currentIndex()
+        result['chkConstant'] = self.chkConstant.isChecked()
+        result['constant'] = self.cmbConstant.currentIndex()
         result['chkSubject'] = self.chkSubject.isChecked()
         result['subject'] = self.edtSubject.text()
         result['author'] = self.cmbAuthor.value()
@@ -135,6 +141,7 @@ class CInformerEditor(CItemEditorBaseDialog, Ui_InformerMessageEditorDialog):
         CItemEditorBaseDialog.setRecord(self, record)
         setLineEditValue( self.edtSubject, record, 'subject')
         setTextEditHTML(  self.edtText,    record, 'text')
+        setCheckBoxValue(self.chkIsConstant, record, 'isConstant')
         self.setIsDirty(False)
 
 
@@ -142,6 +149,7 @@ class CInformerEditor(CItemEditorBaseDialog, Ui_InformerMessageEditorDialog):
         record = CItemEditorBaseDialog.getRecord(self)
         getLineEditValue( self.edtSubject, record, 'subject')
         getTextEditHTML(  self.edtText,    record, 'text')
+        getCheckBoxValue(self.chkIsConstant, record, 'isConstant')
         return record
 
 
@@ -385,7 +393,12 @@ class CInformer(CDialogBase, Ui_InformerPage):
         self.lblSystemCreateDatetimeValue.setText(createDateTime.toString(Qt.LocaleDate))
         self.lblSystemSubjectValue.setText(subject)
         self.edtSystemText.setHtml(text)
-        self.chkSystemMarkViewed.setChecked(self.markList[self.currentIndex]==False if (0 < len(self.markList) and self.currentIndex < len(self.markList)) else False)
+        if message.value('isConstant') == 1:
+            self.chkSystemMarkViewed.setEnabled(False)
+            self.chkSystemMarkViewed.setChecked(False)
+        else:
+            self.chkSystemMarkViewed.setEnabled(True)
+            self.chkSystemMarkViewed.setChecked(self.markList[self.currentIndex]==False if (0 < len(self.markList) and self.currentIndex < len(self.markList)) else False)
         if notLast:
             self.btnNext.setFocus(Qt.OtherFocusReason)
         else:

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -60,6 +60,7 @@ urSurReadClientInfo     = 'wSurReadClientInfo'  # право на чтение �
 # Запись/изменение
 urSurEditEvent          = 'wSurEditEvent'       # право на редактирование события в Диспансерном наблюдении
 urSurEditClientInfo     = 'wSurEditClientInfo'  # право редактировать карту пациента в Диспансерном наблюдении
+urSurvChangePerson      = 'wSurvChangePerson'   # право массово изменять врача по ДН в модуле Диспансерное наблюдение
 
 # Работа -> Журнал операций
 # Только чтение
@@ -187,10 +188,13 @@ urDeleteAccountTargeted = 'accDeleteAccountTargeted' # Расчеты: имее�
 urDeleteAccountsAtOnce = 'accDeleteAccountsAtOnce'  #  Расчеты: имеет право удалять все выделенные реестры без предупреждений
 urDeleteAccountItem    = 'accDeleteAccountItem'  # Расчёты: имеет право удалять позиции счёта
 urDeleteRKEY    = 'accDeleteRKEY'  # Расчёты: имеет право удалять загруженные RKEY
+urAccessChangeEventExpose = 'accChangeEventExpose' # Расчеты: имеет право снимать отметку "Выставлять в счет"
 
 urAccessContract       = 'accContract'        # имеет доступ к  договорам
 urAccessPriceCalculate = 'accPriceCalculate'  # имеет доступ к кнопке пересчета тарифов
 urAccessCashBook       = 'accCashBook'        # имеет доступ к журналу кассовых операций
+urAccessCashBookOnlyJournal = 'accCashJournal' # имеет доступ только к журналу кассовых операций
+
 # Справочники
 urAccessRefBooks          =       'ref'                # имеет доступ к справочнику
 
@@ -431,6 +435,7 @@ urEditCheckPeriodActions   = 'wEditCheckPeriodActions' # Имеет право �
 urCanUseNomenclatureButton = 'canUseNomenclatureButton'#Имеет право использовать кнопку "Списание ЛСИиМН"
 urUpdateEventTypeByEvent   = 'updateEventTypeByEvent'  #Имеет право изменять тип события
 urEditCoordinationAction   = 'editCoordinationAction'  # Имеет право редактировать данные о согласовании услуги в отдельном редакторе Действия и на вкладке "Оплата.Услуги" события.
+urDeleteEventCashPayments   = 'canDeleteEventCashPayments'  # Имеет право удалять строки в  блоке Расчет через кассу на вкладке "Оплата.Услуги" события.
 # urRegEditClientAttach      = 'regEditClientAttach'     # Имеет право редактировать данные на вкладке Прикрепление Регистрационной карточки пациента.
 urEditEventExpertise       = 'editEventExpertise'      #Имеет право редактировать сведений об Экспертизе случая
 urSendInternalNotifications = 'sendInternalNotifications' #Имеет право рассылать оповещения через Регистратуру

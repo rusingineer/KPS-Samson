@@ -18,6 +18,7 @@
 from PyQt4 import QtGui
 
 from library.Utils import forceInt, toVariant, forceBool
+from Registry.RegistryNotificationPage import UserNotificationsMode
 
 from Ui_RegistryPage import Ui_registryPage
 
@@ -34,6 +35,11 @@ class CRegistryPage(Ui_registryPage, QtGui.QWidget):
         self.edtClientsLimit.setValue(forceInt(props.get('clientsLimit', 10000)))
         self.chkExternalNotificationAuto.setChecked(forceBool(props.get('externalNotificationAuto', False)))
         self.chkExternalNotificationOnlyAttach.setChecked(forceBool(props.get('externalNotificationOnlyAttach', False)))
+        userNotificationsMode = forceInt(props.get('userNotificationsMode', UserNotificationsMode.Default))
+        if userNotificationsMode == UserNotificationsMode.Standard:
+            self.rbnUserNotificationsModeStandard.setChecked(True)
+        elif userNotificationsMode == UserNotificationsMode.Extended:
+            self.rbnUserNotificationsModeExtended.setChecked(True)
 
 
     def getProps(self, props):
@@ -42,3 +48,7 @@ class CRegistryPage(Ui_registryPage, QtGui.QWidget):
         props['clientsLimit'] = toVariant(self.edtClientsLimit.value())
         props['externalNotificationAuto'] = toVariant(self.chkExternalNotificationAuto.isChecked())
         props['externalNotificationOnlyAttach'] = toVariant(self.chkExternalNotificationOnlyAttach.isChecked())
+        if self.rbnUserNotificationsModeStandard.isChecked():
+            props['userNotificationsMode'] = toVariant(UserNotificationsMode.Standard)
+        elif self.rbnUserNotificationsModeExtended.isChecked():
+            props['userNotificationsMode'] = toVariant(UserNotificationsMode.Extended)

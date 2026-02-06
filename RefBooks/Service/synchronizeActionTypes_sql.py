@@ -82,8 +82,8 @@ SELECT concat(rbServiceType.section, rbServiceType.code, '.', rbServiceClass.cod
        rbServiceType.`class` as `class`
        FROM rbServiceType,
         rbServiceClass
-       where    (rbServiceType.section = 'А' or rbServiceType.section = 'В')
-         and (rbServiceClass.section = 'А' or rbServiceClass.section = 'В')
+       where    (rbServiceType.section = 'A' or rbServiceType.section = 'B')
+         and (rbServiceClass.section = 'A' or rbServiceClass.section = 'B')
          and exists (select * from tmpParents
                      where `level` = 3
                        and rbServiceType.section = left(tmpParents.parentCode, 1)
@@ -158,6 +158,7 @@ select 'Установление соответствий для добавле�
 update tmpService2ActionType
 left join ActionType on tmpService2ActionType.code = ActionType.code
                         and ActionType.`class` = tmpService2ActionType.`class`
+                        and ActionType.name = tmpService2ActionType.name
                         and (ActionType.deleted=0 or @compareDeleted)
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
@@ -227,7 +228,7 @@ select now() as createDatetime,
 from tmpService2ActionType
 left join ActionType AGroup on AGroup.`class` = tmpService2ActionType.`class`
                                and AGroup.code = tmpService2ActionType.parentCode
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 where tmpService2ActionType.`level` = 2
 and tmpService2ActionType.ActionType_type = 5;
 
@@ -241,6 +242,7 @@ left join ActionType AGroup on AGroup.`class` = tmpService2ActionType.`class`
 left join ActionType on ActionType.`class` = tmpService2ActionType.`class`
                         and ActionType.group_id = AGroup.id
                         and ActionType.code = tmpService2ActionType.code
+                        and ActionType.name = tmpService2ActionType.name
                         and (ActionType.deleted=0 or @compareDeleted)
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
@@ -256,6 +258,7 @@ left join ActionType AGroup on AGroup.`class` = 3
 left join ActionType on ActionType.`class` = 3
                         and ActionType.group_id = AGroup.id
                         and ActionType.code = tmpService2ActionType.code
+                        and ActionType.name = tmpService2ActionType.name
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
 where tmpService2ActionType.parentCode = '-'
@@ -307,7 +310,7 @@ select now() as createDatetime,
 from tmpService2ActionType
 left join tmpParents on tmpService2ActionType.parentCode = tmpParents.code
 left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 where tmpService2ActionType.`level` = 3
 and tmpService2ActionType.ActionType_type = 5;
 
@@ -320,6 +323,7 @@ left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
 left join ActionType on ActionType.`class` = tmpService2ActionType.`class`
                         and ActionType.group_id = AGroup.id
                         and ActionType.code = tmpService2ActionType.code
+                        and ActionType.name = tmpService2ActionType.name
                         and (ActionType.deleted = 0 or @compareDeleted)
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
@@ -370,7 +374,7 @@ select now() as createDatetime,
 from tmpService2ActionType
 left join tmpParents on tmpService2ActionType.parentCode = tmpParents.code
 left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 where tmpService2ActionType.`level` = 4
 and tmpService2ActionType.ActionType_type = 5;
 
@@ -383,6 +387,7 @@ left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
 left join ActionType on ActionType.`class` = tmpService2ActionType.`class`
                         and ActionType.group_id = AGroup.id
                         and ActionType.code = tmpService2ActionType.code
+                        and ActionType.name = tmpService2ActionType.name
                         and (ActionType.deleted = 0 or @compareDeleted)
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
@@ -432,7 +437,7 @@ select now() as createDatetime,
 from tmpService2ActionType
 left join tmpParents on tmpService2ActionType.parentCode = tmpParents.code
 left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 where tmpService2ActionType.`level` = 5
 and tmpService2ActionType.ActionType_type = 5;
 
@@ -446,6 +451,7 @@ left join ActionType AGroup on AGroup.id = tmpParents.ActionType_id
 left join ActionType on ActionType.`class` = tmpService2ActionType.`class`
                         and ActionType.group_id = AGroup.id
                         and ActionType.code = tmpService2ActionType.code
+                        and ActionType.name = tmpService2ActionType.name
                         and (ActionType.deleted = 0 or @compareDeleted)
 set tmpService2ActionType.ActionType_id = ActionType.id,
 tmpService2ActionType.ActionType_type = 2
@@ -468,7 +474,7 @@ and tmpService2ActionType.ActionType_Service_type = 0;
 select 'Добавление сведений об услуге по умолчанию для типов действий' as ' ';
 -- добавляем услуги для типов действий выше 2 уровня, у которых есть услуги
 update tmpService2ActionType
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 set ActionType_Service_type = 5
 where ActionType_type = 2
 and `level` >= 2
@@ -478,7 +484,7 @@ INSERT INTO ActionType_Service (master_id, idx, finance_id, service_id)
 SELECT ActionType.id, 99, NULL, rbService.id
 FROM tmpService2ActionType
 left join ActionType on tmpService2ActionType.ActionType_id = ActionType.id
-left join rbService on tmpService2ActionType.code = rbService.code
+left join rbService on tmpService2ActionType.code = rbService.code and tmpService2ActionType.name = rbService.name
 where ActionType.id IS NOT NULL AND rbService.id IS NOT NULL;
 
 

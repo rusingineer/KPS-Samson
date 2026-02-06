@@ -51,9 +51,9 @@ def selectData(params):
     cond = []
     if begDate:
         cond.append(db.joinOr([
-            tableAction['directionDate'].dateGe(begDate), tableAction['directionDate'].isNull()]))
+            tableAction['directionDate'].ge(begDate), tableAction['directionDate'].isNull()]))
     if endDate:
-        cond.append(tableAction['directionDate'].dateLe(endDate))
+        cond.append(tableAction['directionDate'].lt(endDate.addDays(1)))
     if eventTypeId:
         cond.append(tableEvent['eventType_id'].eq(eventTypeId))
     if sex:

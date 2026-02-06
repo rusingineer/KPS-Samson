@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,7 +11,7 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import QDate, QDateTime
 from Reports.Report import CReport
 from Reports.Utils import dateRangeAsStr
@@ -69,6 +69,8 @@ class CNaprGosp(CReport):
             personIdList = getOrgStructurePersonIdList(orgStructureId)
             if personIdList:
                 condOrgStructure = u''' AND p.id IN (%s)''' % (u','.join(str(personId) for personId in personIdList if personId))
+            else: #Если нет врачей, то нечего выгружать
+                return QtSql.QSqlQuery() #пустой QSqlQuery
         db = QtGui.qApp.db
         stmt = u'''SELECT date(Action.createDatetime) AS datvvod, date(Action.begDate) AS actionDate, date(Action_Export.dateTime) AS datvigr,
 count(Action.`id`) AS vsego,
@@ -130,6 +132,8 @@ ORDER BY %(order)s;
             personIdList = getOrgStructurePersonIdList(orgStructureId)
             if personIdList:
                 condOrgStructure = u''' AND p.id IN (%s)''' % (u','.join(str(personId) for personId in personIdList if personId))
+            else: #Если нет врачей, то нечего выгружать
+                return QtSql.QSqlQuery() #пустой QSqlQuery
         db = QtGui.qApp.db
         stmt = u'''SELECT q.externalId AS ev,c.id AS cl,c.lastName AS las,c.firstName AS fir,c.patrName AS pat,c.birthDate AS hap,et.name AS tip,
   CONCAT(q.datvvod,' / ',q.datvigr) AS dat,q.note AS osh 
@@ -205,6 +209,8 @@ WHERE q.oshib>0
             personIdList = getOrgStructurePersonIdList(orgStructureId)
             if personIdList:
                 condOrgStructure = u''' AND p.id IN (%s)''' % (u','.join(str(personId) for personId in personIdList if personId))
+            else: #Если нет врачей, то нечего выгружать
+                return QtSql.QSqlQuery() #пустой QSqlQuery
         db = QtGui.qApp.db
         stmt = u'''SELECT date(Action.createDatetime) AS datvvod, date(Action.begDate) AS actionDate, date(Action_Export.dateTime) AS datvigr,
 count(Action.`id`) AS vsego,

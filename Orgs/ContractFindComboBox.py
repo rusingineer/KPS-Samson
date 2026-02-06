@@ -305,6 +305,11 @@ class CARMSIndependentContractTreeFindComboBox(CIndependentContractTreeFindCombo
         self._prevValue = None
         self.contractId = None
         self.filter = filter
+        self.mainDialog = None
+        
+    
+    def setMainDialog(self, parent):
+        self.mainDialog = parent
 
 
     def setValue(self, value):

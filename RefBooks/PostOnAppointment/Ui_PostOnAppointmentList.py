@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\RefBooks\PostOnAppointment\PostOnAppointmentList.ui'
+# Form implementation generated from reading ui file 'C:\Projects\Samson\UP_s11\client_test\RefBooks\PostOnAppointment\PostOnAppointmentList.ui'
 #
-# Created: Mon Apr 08 14:39:32 2024
+# Created: Tue Jun 24 17:51:54 2025
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,7 +26,7 @@ except AttributeError:
 class Ui_PostOnAppointmentList(object):
     def setupUi(self, PostOnAppointmentList):
         PostOnAppointmentList.setObjectName(_fromUtf8("PostOnAppointmentList"))
-        PostOnAppointmentList.resize(582, 335)
+        PostOnAppointmentList.resize(709, 430)
         PostOnAppointmentList.setSizeGripEnabled(True)
         self.gridLayout = QtGui.QGridLayout(PostOnAppointmentList)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
@@ -41,30 +41,61 @@ class Ui_PostOnAppointmentList(object):
         self.tabCode12.setObjectName(_fromUtf8("tabCode12"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.tabCode12)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
-        self.lblDescription = QtGui.QLabel(self.tabCode12)
-        self.lblDescription.setObjectName(_fromUtf8("lblDescription"))
-        self.verticalLayout_2.addWidget(self.lblDescription)
         self.tblItems = CTableView(self.tabCode12)
         self.tblItems.setObjectName(_fromUtf8("tblItems"))
         self.verticalLayout_2.addWidget(self.tblItems)
         self.label = QtGui.QLabel(self.tabCode12)
         self.label.setObjectName(_fromUtf8("label"))
         self.verticalLayout_2.addWidget(self.label)
+        self.lblTab1Description = QtGui.QLabel(self.tabCode12)
+        self.lblTab1Description.setWordWrap(True)
+        self.lblTab1Description.setObjectName(_fromUtf8("lblTab1Description"))
+        self.verticalLayout_2.addWidget(self.lblTab1Description)
         self.tabWidget.addTab(self.tabCode12, _fromUtf8(""))
         self.tabCode11 = QtGui.QWidget()
         self.tabCode11.setObjectName(_fromUtf8("tabCode11"))
         self.verticalLayout = QtGui.QVBoxLayout(self.tabCode11)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
-        self.lblDescription_2 = QtGui.QLabel(self.tabCode11)
-        self.lblDescription_2.setObjectName(_fromUtf8("lblDescription_2"))
-        self.verticalLayout.addWidget(self.lblDescription_2)
         self.tblItems_2 = CTableView(self.tabCode11)
         self.tblItems_2.setObjectName(_fromUtf8("tblItems_2"))
         self.verticalLayout.addWidget(self.tblItems_2)
         self.label_2 = QtGui.QLabel(self.tabCode11)
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.verticalLayout.addWidget(self.label_2)
+        self.lblTab2Description = QtGui.QLabel(self.tabCode11)
+        self.lblTab2Description.setWordWrap(True)
+        self.lblTab2Description.setObjectName(_fromUtf8("lblTab2Description"))
+        self.verticalLayout.addWidget(self.lblTab2Description)
         self.tabWidget.addTab(self.tabCode11, _fromUtf8(""))
+        self.tabCode13 = QtGui.QWidget()
+        self.tabCode13.setObjectName(_fromUtf8("tabCode13"))
+        self.verticalLayout_3 = QtGui.QVBoxLayout(self.tabCode13)
+        self.verticalLayout_3.setObjectName(_fromUtf8("verticalLayout_3"))
+        self.tblItems_3 = CTableView(self.tabCode13)
+        self.tblItems_3.setObjectName(_fromUtf8("tblItems_3"))
+        self.verticalLayout_3.addWidget(self.tblItems_3)
+        self.label_3 = QtGui.QLabel(self.tabCode13)
+        self.label_3.setObjectName(_fromUtf8("label_3"))
+        self.verticalLayout_3.addWidget(self.label_3)
+        self.lblTab3Description = QtGui.QLabel(self.tabCode13)
+        self.lblTab3Description.setObjectName(_fromUtf8("lblTab3Description"))
+        self.verticalLayout_3.addWidget(self.lblTab3Description)
+        self.tabWidget.addTab(self.tabCode13, _fromUtf8(""))
+        self.tabCode14 = QtGui.QWidget()
+        self.tabCode14.setObjectName(_fromUtf8("tabCode14"))
+        self.verticalLayout_4 = QtGui.QVBoxLayout(self.tabCode14)
+        self.verticalLayout_4.setObjectName(_fromUtf8("verticalLayout_4"))
+        self.tblItems_4 = CTableView(self.tabCode14)
+        self.tblItems_4.setObjectName(_fromUtf8("tblItems_4"))
+        self.verticalLayout_4.addWidget(self.tblItems_4)
+        self.label_4 = QtGui.QLabel(self.tabCode14)
+        self.label_4.setObjectName(_fromUtf8("label_4"))
+        self.verticalLayout_4.addWidget(self.label_4)
+        self.lblTab4Description = QtGui.QLabel(self.tabCode14)
+        self.lblTab4Description.setWordWrap(True)
+        self.lblTab4Description.setObjectName(_fromUtf8("lblTab4Description"))
+        self.verticalLayout_4.addWidget(self.lblTab4Description)
+        self.tabWidget.addTab(self.tabCode14, _fromUtf8(""))
         self.gridLayout.addWidget(self.tabWidget, 0, 0, 1, 1)
 
         self.retranslateUi(PostOnAppointmentList)
@@ -76,11 +107,17 @@ class Ui_PostOnAppointmentList(object):
 
     def retranslateUi(self, PostOnAppointmentList):
         PostOnAppointmentList.setWindowTitle(_translate("PostOnAppointmentList", "Dialog", None))
-        self.lblDescription.setText(_translate("PostOnAppointmentList", "Мини описание", None))
         self.label.setText(_translate("PostOnAppointmentList", "Всего", None))
+        self.lblTab1Description.setText(_translate("PostOnAppointmentList", "Должности, анализируемые при передаче сведений о врачах и расписании на ЕПГУ. Если указанная должность отсутствует в данном списке, информация на ЕПГУ не будет выведена", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode12), _translate("PostOnAppointmentList", "Должность", None))
-        self.lblDescription_2.setText(_translate("PostOnAppointmentList", "Мини описание", None))
         self.label_2.setText(_translate("PostOnAppointmentList", "Всего", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode11), _translate("PostOnAppointmentList", "Специальность", None))
+        self.lblTab2Description.setText(_translate("PostOnAppointmentList", "Cпециальности которым разрешена неоднократная запись", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode11), _translate("PostOnAppointmentList", "Специальность ср. мед. перс.", None))
+        self.label_3.setText(_translate("PostOnAppointmentList", "Всего", None))
+        self.lblTab3Description.setText(_translate("PostOnAppointmentList", "Перечень должностей к которым применяется основная логика записи", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode13), _translate("PostOnAppointmentList", "Основные должности", None))
+        self.label_4.setText(_translate("PostOnAppointmentList", "Всего", None))
+        self.lblTab4Description.setText(_translate("PostOnAppointmentList", "Перечень должностей, к которым применяется только межкабинетная запись (не предусматривается запись через другие источники)", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode14), _translate("PostOnAppointmentList", "Должности для МКЗ", None))
 
 from library.TableView import CTableView

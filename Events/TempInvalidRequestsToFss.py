@@ -18,7 +18,7 @@ from PyQt4                      import QtGui, QtSql
 from PyQt4.QtCore               import Qt, QVariant
 
 from library.DialogBase         import CDialogBase
-from library.HttpsConnection    import CHttpsConnection
+from library.HttpsConnection    import getConnectionClass
 from library.InDocTable         import (
                                         CBoolInDocTableCol,
                                         CDateInDocTableCol,
@@ -283,7 +283,7 @@ def _getPort(api, actorUri, bodyId):
     locator = FileOperationsLnServiceLocator()
     port    = locator.getFileOperationsLnPort(serviceUrl,
                                               nsdict    = getCryptoNsDict(),
-                                              transport = CHttpsConnection,
+                                              transport=getConnectionClass(serviceUrl),
                                               transdict = { 'proxy': qApp.getFssProxyPreferences()
                                                           }
                                              )

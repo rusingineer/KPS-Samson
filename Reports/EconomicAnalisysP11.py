@@ -44,6 +44,7 @@ class CEconomicAnalisysP11(CReport):
             left join Organisation as Payer on Payer.id =
                 IFNULL((select max(id) from Organisation o where o.OGRN = Insurer.OGRN and o.deleted = 0 and o.isInsurer = 1
                 and o.OKATO = Insurer.OKATO and Insurer.OKATO = '03000' and o.head_id is null), Contract.payer_id)
+            LEFT JOIN rbFinance on rbFinance.id = COALESCE(Action.finance_id, Contract.finance_id)
             where
             Account.deleted = 0 and Account_Item.deleted = 0 and Event.deleted = 0 and
             Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null
@@ -162,6 +163,7 @@ class CEconomicAnalisysP11Ex(CEconomicAnalisysP11):
         result.cbPrice.hide()
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

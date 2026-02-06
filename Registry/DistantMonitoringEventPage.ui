@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DistantMonitoringEventPage</class>
+ <widget class="QWidget" name="DistantMonitoringEventPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1123</width>
+    <height>818</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Программы ДН</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="margin">
+    <number>2</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="grpTables" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <property name="margin">
+       <number>2</number>
+      </property>
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblRecordCount">
+        <property name="text">
+         <string>Список пуст</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="QSplitter" name="splitter">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <widget class="CTableView" name="tblEventList">
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+        </widget>
+        <widget class="QGroupBox" name="groupBox">
+         <property name="title">
+          <string>Перемещения оборудования</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="margin">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="CTableView" name="tblActionList">
+            <property name="selectionBehavior">
+             <enum>QAbstractItemView::SelectRows</enum>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpFilter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>350</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>350</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Фильтр</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="margin">
+       <number>4</number>
+      </property>
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <item row="8" column="1">
+       <widget class="QComboBox" name="cmbSex">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string/>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>М</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Ж</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="chkSex">
+        <property name="text">
+         <string>Пол</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QCheckBox" name="chkBirthDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>по</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="CDateEdit" name="edtBirthDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="18" column="0">
+       <widget class="QCheckBox" name="chkEventStatus">
+        <property name="text">
+         <string>Статус программы</string>
+        </property>
+       </widget>
+      </item>
+      <item row="18" column="1">
+       <widget class="QComboBox" name="cmbEventStatus">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Активна</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Закрыта</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="19" column="0">
+       <widget class="QCheckBox" name="chkObservationGroup">
+        <property name="text">
+         <string>Группа наблюдения</string>
+        </property>
+       </widget>
+      </item>
+      <item row="19" column="1">
+       <widget class="QComboBox" name="cmbObservationGroup">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>1. СД1И</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>2. СД2И</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>3. СД2Т</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="17" column="1">
+       <widget class="CDateEdit" name="edtEventExecDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0">
+       <widget class="QCheckBox" name="chkEventSetDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>по</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0" colspan="2">
+       <widget class="QCheckBox" name="chkFirstName">
+        <property name="text">
+         <string>Имя</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="QLineEdit" name="edtLastName">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="21" column="0">
+       <widget class="QCheckBox" name="chkSubscription">
+        <property name="text">
+         <string>Подписка</string>
+        </property>
+       </widget>
+      </item>
+      <item row="20" column="0">
+       <widget class="QCheckBox" name="chkActiveNotifications">
+        <property name="text">
+         <string>Активные оповещения</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="0">
+       <widget class="QCheckBox" name="chkEventSetDate">
+        <property name="text">
+         <string>Дата начала программы</string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0">
+       <widget class="QCheckBox" name="chkEventExecDate">
+        <property name="text">
+         <string>Дата окончания программы</string>
+        </property>
+       </widget>
+      </item>
+      <item row="23" column="0" colspan="2">
+       <widget class="CApplyResetDialogButtonBox" name="buttonBoxFilter">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="standardButtons">
+         <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QCheckBox" name="chkEquipmentType">
+        <property name="text">
+         <string>Модель оборудования</string>
+        </property>
+       </widget>
+      </item>
+      <item row="22" column="0" colspan="2">
+       <spacer name="verticalSpacer_8">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>591</width>
+          <height>316</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="QLineEdit" name="edtPatrName">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="QCheckBox" name="chkLastName">
+        <property name="text">
+         <string>Фамилия</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <widget class="QLineEdit" name="edtFirstName">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0" colspan="2">
+       <widget class="QCheckBox" name="chkPerson">
+        <property name="text">
+         <string>Лечащий врач</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="2">
+       <widget class="QCheckBox" name="chkPatrName">
+        <property name="text">
+         <string>Отчество</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0">
+       <widget class="QCheckBox" name="chkEquipmentClass">
+        <property name="text">
+         <string>Тип оборудования</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0" colspan="2">
+       <widget class="CPersonComboBoxEx" name="cmbPerson">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="1">
+       <widget class="CRBComboBox" name="cmbEquipmentClass">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="1">
+       <widget class="CDateEdit" name="edtEventSetDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="1">
+       <widget class="CRBComboBox" name="cmbEquipmentType">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="1">
+       <widget class="QComboBox" name="cmbEquipmentStatus">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Выдача</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Замена</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Возврат</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="13" column="0">
+       <widget class="QCheckBox" name="chkEquipmentStatus">
+        <property name="text">
+         <string>Статус оборудования</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="chkBirthDate">
+        <property name="text">
+         <string>Дата рождения</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="CDateEdit" name="edtBirthDate">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="1">
+       <widget class="CDateEdit" name="edtEventSetDate">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="20" column="1">
+       <widget class="QComboBox" name="cmbActiveNotifications">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Нет</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Есть</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="16" column="1">
+       <widget class="CDateEdit" name="edtEventExecDate">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="calendarPopup">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="17" column="0">
+       <widget class="QCheckBox" name="chkEventExecDateTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>по</string>
+        </property>
+       </widget>
+      </item>
+      <item row="21" column="1">
+       <widget class="QComboBox" name="cmbSubscription">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Неактивна</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Активна</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CApplyResetDialogButtonBox</class>
+   <extends>QDialogButtonBox</extends>
+   <header>library/DialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>tblEventList</tabstop>
+  <tabstop>buttonBoxFilter</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkLastName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtLastName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1115</x>
+     <y>36</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>58</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkFirstName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtFirstName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1115</x>
+     <y>77</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>99</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPatrName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtPatrName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1115</x>
+     <y>118</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>140</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkBirthDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtBirthDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>160</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>162</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkBirthDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkBirthDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>160</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>939</x>
+     <y>182</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkBirthDateTo</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtBirthDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>182</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>184</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSex</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSex</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>204</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>977</x>
+     <y>206</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPerson</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbPerson</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1115</x>
+     <y>225</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1115</x>
+     <y>247</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEquipmentClass</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbEquipmentClass</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>852</x>
+     <y>266</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>986</x>
+     <y>266</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEquipmentType</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbEquipmentType</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>838</x>
+     <y>284</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>992</x>
+     <y>290</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEquipmentStatus</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbEquipmentStatus</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>311</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1010</x>
+     <y>308</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventSetDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtEventSetDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>866</x>
+     <y>328</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>978</x>
+     <y>334</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventSetDateTo</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtEventSetDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>355</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>998</x>
+     <y>354</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventExecDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtEventExecDate</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>939</x>
+     <y>377</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>990</x>
+     <y>378</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventExecDateTo</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtEventExecDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>816</x>
+     <y>398</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>994</x>
+     <y>398</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventStatus</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbEventStatus</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>844</x>
+     <y>420</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>972</x>
+     <y>420</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkObservationGroup</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbObservationGroup</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>854</x>
+     <y>442</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>972</x>
+     <y>444</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkActiveNotifications</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbActiveNotifications</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>856</x>
+     <y>462</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>980</x>
+     <y>462</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSubscription</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSubscription</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>826</x>
+     <y>486</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>950</x>
+     <y>486</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventSetDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkEventSetDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>816</x>
+     <y>325</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>818</x>
+     <y>349</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkEventExecDate</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkEventExecDateTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>800</x>
+     <y>371</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>802</x>
+     <y>389</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -33,8 +33,8 @@ def selectData(params):
     tableEvent = db.table('Event')
 
     cond = [
-        tableDiagnosis['setDate'].dateGe(begDate),
-        tableDiagnosis['setDate'].dateLe(endDate),
+        tableDiagnosis['setDate'].ge(begDate),
+        tableDiagnosis['setDate'].lt(endDate.addDays(1)),
     ]
     if eventTypeId:
         cond.append(tableEvent['eventType_id'].eq(eventTypeId))

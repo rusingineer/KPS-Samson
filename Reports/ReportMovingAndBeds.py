@@ -1174,8 +1174,8 @@ class CReportMovingAndBeds(CStationaryF007):
                     cond = [
                         tableOSHB['profile_id'].inlist(profileIdList),
                         tableOSHB['master_id'].inlist(orgStructureIdList),
-                        tableOSHBI['begDate'].dateLe(endDateTime),
-                        tableOSHBI['endDate'].dateGe(begDateTime)
+                        tableOSHBI['begDate'].lt(endDateTime.addDays(1)),
+                        tableOSHBI['endDate'].ge(begDateTime)
                     ]
                     if financeTypeIdList:
                         cond.append(tableOSHB['finance_id'].inlist(financeTypeIdList))

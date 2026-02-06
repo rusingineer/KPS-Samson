@@ -89,7 +89,8 @@ def createInstantAccount(eventId, onlyCash = True):
                                        QtGui.qApp.currentOrgId(),
                                        QtGui.qApp.currentOrgStructureId(),
                                        today,
-                                       False)
+                                       False,
+                                       {})
             actionIdList = sorted(mapContractIdToActionIdList[contractId])
             builder.exposeByActions(None, contractDescr, accountPool.getAccount, actionIdList, [], today)
             accountPool.updateDetails()

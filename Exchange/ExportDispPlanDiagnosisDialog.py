@@ -7,7 +7,7 @@ from PyQt4.QtGui import QAction
 from library.Calendar import monthName
 from library.DialogBase import CDialogBase
 from library.TableModel import CTableModel, CCol, CTextCol, CIntCol, CDesignationCol
-from library.Utils import exceptionToUnicode, forceRef, forceString, forceInt, forceBool, forceDate
+from library.Utils import exceptionToUnicode, forceRef, forceString, forceInt, forceBool, forceDate, toVariant
 
 import Exchange.AttachService as AttachService
 
@@ -27,6 +27,7 @@ class CExportDispPlanDiagnosisDialog(CDialogBase, Ui_ExportDispPlanDiagnosisDial
         self.addObject('actEditClient', QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actDeletePlanExport', QAction(u'Удалить признак экспорта', self))
         self.setupUi(self)
+        self.modelDispPlan.setHideSuccess(parent.chkHideSuccess.isChecked())
         self.setWindowFlags(Qt.Window)
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblDispPlan.createPopupMenu([self.actEditClient, self.actDeletePlanExport])
@@ -104,7 +105,8 @@ class CExportDispPlanDiagnosisDialog(CDialogBase, Ui_ExportDispPlanDiagnosisDial
                 ids = self.exportableIdList[0:packageSize]
                 self.exportableIdList = self.exportableIdList[packageSize:]
                 QtGui.qApp.processEvents()
-                result = AttachService.putEvPlanList('DiagnosisDispansPlaned', ids)
+                result = AttachService.putEvPlanList('DiagnosisDispansPlaned', ids,
+                                                     useSocAttachments=int(self.chkUseSocAttachments.isChecked()))
                 successCount = successCount + result['successCount']
                 errorCount = errorCount + result['errorCount']
                 acceptedCount = successCount + errorCount
@@ -272,6 +274,7 @@ class CDispPlanModel(CTableModel):
 
     def __init__(self, parent):
         self.infoDict = {}
+        self.hideSuccess = False
         self.orderByColumn = [
             'Client.lastName',
             'Client.birthDate',
@@ -292,8 +295,25 @@ class CDispPlanModel(CTableModel):
         self.addColumn(self.CInfoCol(u'Врач', 'personName', self.infoDict, 15))
         self.setTable('DiagnosisDispansPlaned')
 
+        self._boldFont = QtGui.QFont()
+        self._boldFont.setWeight(QtGui.QFont.Bold)
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.FontRole:
+                planId = self._idList[index.row()]
+                if forceInt(self.infoDict.get(planId).value('bold')):
+                    return toVariant(self._boldFont)
+        return CTableModel.data(self, index, role)
+
+
+    def setHideSuccess(self, state):
+        self.hideSuccess = state
+
     def update(self, year, monthFrom, monthTo):
         db = QtGui.qApp.db
+
+        exportSuccess = u"ifnull(PlanExport.exportSuccess, 0) != 1" if self.hideSuccess else u"1"
 
         sql = u"""
         select DDP.id,
@@ -304,6 +324,7 @@ class CDispPlanModel(CTableModel):
             PlanExport.exportSuccess,
             PlanExport.id as planExport_id,
             AttachOrgStructure.name as attachName,
+            ifnull(SocAttachOrgStructure.id, 0) != ifnull(AttachOrgStructure.id, 0) as bold,
             Diagnosis.MKB,
             concat(Person.code, ' | ', formatPersonName(Person.id), ', ', rbSpeciality.name) as personName
         from DiagnosisDispansPlaned as DDP
@@ -319,19 +340,32 @@ class CDispPlanModel(CTableModel):
                     and Attach.endDate is null
                     and o.areaType > 0
             )
+            LEFT JOIN (
+                SELECT soc_attachments.client_id,  OrgStructure.id orgStructure_id 
+                FROM soc_attachments
+                INNER JOIN OrgStructure ON OrgStructure.id = 
+                        (SELECT id FROM OrgStructure org WHERE org.deleted=0 
+                        AND getOMSCode(org.id)=soc_attachments.attach_mo 
+                        AND org.infisInternalCode=soc_attachments.attach_area AND org.areaType > 0 limit 1)
+                WHERE soc_attachments.serviceMethod = 0
+            ) SocAttach ON Client.id = SocAttach.client_id 
             left join Diagnosis on Diagnosis.id = DDP.diagnosis_id
             left join Person on Person.id = DDP.person_id
             left join rbSpeciality on rbSpeciality.id = Person.speciality_id
             left join disp_PlanExport as PlanExport on PlanExport.exportKind = 'DiagnosisDispansPlaned' and PlanExport.row_id = DDP.id
             left join OrgStructure as AttachOrgStructure on AttachOrgStructure.id = Attach.orgStructure_id
+            left join OrgStructure as SocAttachOrgStructure on SocAttachOrgStructure.id = SocAttach.orgStructure_id
         where DDP.deleted = 0
             and Client.deleted = 0
             and DDP.year = %(year)d
             and DDP.month between %(monthFrom)d and %(monthTo)d
+            and DDP.isExport = 1
+            and %(exportSuccess)s
         """ % {
             "year": year,
             "monthFrom": monthFrom,
             "monthTo": monthTo,
+            "exportSuccess": exportSuccess
         }
         orderColumnIndex, isAscending = self.order
         orderBy = self.orderByColumn[orderColumnIndex]

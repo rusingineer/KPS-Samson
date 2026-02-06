@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -29,11 +29,27 @@ class CMultivalueComboBoxView(QtGui.QTableView):
         h = self.fontMetrics().height()
         self.verticalHeader().setDefaultSectionSize(3*h/2)
         self.verticalHeader().hide()
-        self.horizontalHeader().setStretchLastSection(True)
-        self.resizeColumnsToContents()
+        header = self.horizontalHeader()
+        header.setResizeMode(QtGui.QHeaderView.ResizeToContents)
+        header.setStretchLastSection(True)
+        self.setSelectionBehavior(QtGui.QTableView.SelectRows)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Left, Qt.Key_Right):
+            self.setCurrentIndex(self.model().index(self.currentIndex().row(), 0))
+        elif event.key() == Qt.Key_Up:
+            new_row = self.currentIndex().row() - 1 if self.currentIndex().row() else 0
+            self.setCurrentIndex(self.model().index(new_row, 0))
+        elif event.key() == Qt.Key_Down:
+            new_row = self.currentIndex().row() + 1 if self.currentIndex().row() < self.model().rowCount() else self.model().rowCount() - 1
+            self.setCurrentIndex(self.model().index(new_row, 0))
+        elif event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Select):
+            self.parent().keyPressEvent(event)
+        else:
+            QtGui.QTableView.keyPressEvent(self, event)
 
 
-class CMultivalueComboBoxModel(QAbstractTableModel):
+class CBaseMultivalueComboBoxModel(QAbstractTableModel):
     class CMultivalueItem():
         def __init__(self, value, code, name, isChecked=0):
             self._value = value
@@ -130,8 +146,8 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
         def flags(self, index=None):
             if index.isValid():
                 result = Qt.ItemIsEnabled | Qt.ItemIsSelectable
-                if forceStringEx(self.model().getDataColumnValue(index.row())):
-                    result |= Qt.ItemIsUserCheckable
+                # if forceStringEx(self.model().getDataColumnValue(index.row())):
+                #     result |= Qt.ItemIsUserCheckable
                 return result
             return Qt.NoItemFlags
 
@@ -142,10 +158,10 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
     def __init__(self, parent=None):
         QAbstractTableModel.__init__(self, parent)
         self._checkedColumnIsHidden = False
-        self._dataColumn = CMultivalueComboBoxModel.CMultivalueDataColumn(self)
-        self._dataColumnCode = CMultivalueComboBoxModel.CMultivalueDataColumnCode(self)
-        self._dataColumnName = CMultivalueComboBoxModel.CMultivalueDataColumnName(self)
-        self._checkedColumn = CMultivalueComboBoxModel.CMultivalueChekedColumn(self)
+        self._dataColumn = CBaseMultivalueComboBoxModel.CMultivalueDataColumn(self)
+        self._dataColumnCode = CBaseMultivalueComboBoxModel.CMultivalueDataColumnCode(self)
+        self._dataColumnName = CBaseMultivalueComboBoxModel.CMultivalueDataColumnName(self)
+        self._checkedColumn = CBaseMultivalueComboBoxModel.CMultivalueChekedColumn(self)
         self._columns = [self._checkedColumn, self._dataColumnCode, self._dataColumnName]
         self._items = []
         self._readOnly = False
@@ -207,19 +223,18 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
             self._proxyModel.setSourceModel(self)
             self._proxyModel.enableFilter(forceInt(not value))
 
-
     def isCheckedColumnIsHiden(self):
         return self._checkedColumnIsHidden
 
 
     def addItem(self, value):
-        self._items.append(CMultivalueComboBoxModel.CMultivalueItem(value, '', '', False))
+        self._items.append(CBaseMultivalueComboBoxModel.CMultivalueItem(value, '', '', False))
         self._columns = [self._checkedColumn, self._dataColumn]
         self.reset()
 
     def addList(self, value):
         import re
-        self._items.append(CMultivalueComboBoxModel.CMultivalueItem(re.sub(r"\s+", " ", value[0]), value[1], re.sub(r"\s+", " ", value[2]), value[3]))
+        self._items.append(CBaseMultivalueComboBoxModel.CMultivalueItem(re.sub(r"\s+", " ", value[0]), value[1], re.sub(r"\s+", " ", value[2]), value[3]))
         self._columns = [self._checkedColumn, self._dataColumnCode, self._dataColumnName]
         self.reset()
 
@@ -265,6 +280,9 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
             if row >= 0:
                 self.setData(self.index(row, self.getCheckedColumnIndex()), QVariant(Qt.Checked), role=Qt.CheckStateRole)
 
+    def setAllRowsChecked(self):
+        for row, item in enumerate(self._items):
+            self.setData(self.index(row, self.getCheckedColumnIndex()), QVariant(Qt.Checked), role=Qt.CheckStateRole)
 
     def clearItemChecked(self):
         rows = self.getCheckedRows()
@@ -300,6 +318,17 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
                 column = index.column()
                 if column == self.getCheckedColumnIndex():
                     return QVariant(self.isChecked(row, column))
+
+        elif role == Qt.BackgroundRole:
+            if self.isItemChecked(index.row()):
+                color = QtGui.QTableView().palette().highlight().color().name()
+                return QVariant(QtGui.QBrush(QtGui.QColor(color)))
+                # return QVariant(QtGui.QColor(Qt.cyan))
+
+        elif role == Qt.ForegroundRole and index.column() != 0:
+            if self.isItemChecked(index.row()):
+                color = QtGui.QTableView().palette().highlightedText().color().name()
+                return QVariant(QtGui.QBrush(QtGui.QColor(color)))
 
         return QVariant()
 
@@ -337,30 +366,52 @@ class CMultivalueComboBoxModel(QAbstractTableModel):
             return Qt.ItemIsEnabled
         return self._getCol(index.column()).flags(index)
 
+class CMultivalueComboBoxModel(CBaseMultivalueComboBoxModel):
+    def __init__(self, parent=None):
+        CBaseMultivalueComboBoxModel.__init__(self, parent)
+    
 
+    def setCheckedColumnIsHiden(self, value):
+        self._checkedColumnIsHidden = value
+        if hasattr(self, '_proxyModel'):
+            #костыль для обновления видимых столбцов в прокси. Должны быть варианты лучше
+            self._proxyModel.setSourceModel(self)
+            # self._proxyModel.enableFilter(forceInt(not value))
+            self._proxyModel.setFilterString(1,"")
+            self._proxyModel.setFilterString(2,"")
+        
 # ##############################################################
 
-
-class CMultivalueComboBoxPopup(QtGui.QFrame):
+class CBaseMultivalueComboBoxPopup(QtGui.QFrame):
     def __init__(self, parent=None):
         QtGui.QFrame.__init__(self, parent, Qt.Popup)
         self._parent = parent
         self.vLayout = QtGui.QVBoxLayout(self)
         self._view   = CMultivalueComboBoxView(self)
-        self._proxyModel = CMultivalueComboBoxProxyModel()
-        self._model  = CMultivalueComboBoxModel(self)
+        self._proxyModel = CBaseMultivalueComboBoxProxyModel()
+        self._model  = CBaseMultivalueComboBoxModel(self)
         self._model._proxyModel = self.proxyModel()
         self.proxyModel().setSourceModel(self._model)
-        self.proxyModel().enableFilter(1)
-
+        
         self._view.setModel(self._proxyModel)
         self.vLayout.addWidget(self._view)
         self.edtFilter = QtGui.QLineEdit(self)
-        self.edtFilter.setContentsMargins(1, 4, 1, 4)
         self.vLayout.addWidget(self.edtFilter)
         QtCore.QObject.connect(self.edtFilter, QtCore.SIGNAL("textChanged(QString)"),
                                self.proxyModel().setFilterFixedString)
-        self.vLayout.setContentsMargins(0, 0, 0, 0)
+        self.vLayout.setContentsMargins(1, 1, 1, 1)
+        
+        self.setFrameShape(QtGui.QFrame.Box)
+        self.setFrameShadow(QtGui.QFrame.Plain)
+        self.setLineWidth(1)
+        self.setMidLineWidth(0)
+        self.setObjectName("comboPopup")
+        self.setStyleSheet("""
+            QFrame#comboPopup {
+                border: 1px solid gray;
+                border-radius: 3px;
+            }
+        """)
         self.setLayout(self.vLayout)
 
         self.connect(self._view, SIGNAL('clicked(QModelIndex)'), self.on_viewClicked)
@@ -383,27 +434,45 @@ class CMultivalueComboBoxPopup(QtGui.QFrame):
     def view(self):
         return self._view
 
-    def on_viewClicked(self, proxyIndex):
+    
+
+    def on_viewClicked(self, proxyIndex, firstCall=True, clickCheckboxCol=False):
         if proxyIndex.isValid():
-            index = self.proxyModel().mapToSource(proxyIndex)
-            row = index.row()
-            if self._model.isColumnIndexCheckable(index) and self.getValueByRow(row):
-                pass
+            if Qt.ShiftModifier == QtGui.QApplication.keyboardModifiers() and firstCall:
+                selectedIndexes = self._view.selectionModel().selectedRows()
+                for index in selectedIndexes:
+                    self.on_viewClicked(index, False)
+                self.proxyModel().setSourceModel(self._model)
             else:
-                if self.isCheckedColumnIsHiden():
-                    self.setValue(self.getValueByRow(row))
-                else:
-                    if self.getValueByRow(row):
-                        value = QVariant(Qt.Unchecked) if self._model.isItemChecked(index.row()) else QVariant(Qt.Checked)
-                        self._model.setData(self._model.index(row, self._model.getCheckedColumnIndex()),
-                                            value,
-                                            role=Qt.CheckStateRole)
+                index = self.proxyModel().mapToSource(proxyIndex)
+                row = index.row()
+                if self._model.isColumnIndexCheckable(index) and self.getValueByRow(row) and firstCall:
+                    if self._model.isColumnIndexCheckable(index):
+                        self.on_viewClicked(self.proxyModel().index(proxyIndex.row(), 1), False, True)
+                        self._model.emit(SIGNAL('dataCheckedChanged(QString, bool)'), u'', 0)
+                        self.proxyModel().setSourceModel(self._model)
+                        self._view.selectRow(proxyIndex.row())
                     else:
-                        rows          = self.getCheckedRows()
-                        value         = QVariant(Qt.Unchecked)
-                        checkedColumn = self._model.getCheckedColumnIndex()
-                        for row in rows:
-                            self._model.setData(self._model.index(row, checkedColumn), value, role=Qt.CheckStateRole)
+                        pass
+                else:
+                    if self.isCheckedColumnIsHiden():
+                        self.setValue(self.getValueByRow(row))
+                    else:
+                        if self.getValueByRow(row):
+                            value = QVariant(Qt.Unchecked) if self._model.isItemChecked(index.row()) and (firstCall or clickCheckboxCol) else QVariant(Qt.Checked)
+                            self._model.setData(self._model.index(row, self._model.getCheckedColumnIndex()),
+                                                                        value,
+                                                                        role=Qt.CheckStateRole)
+                            if firstCall:
+                                self.proxyModel().setSourceModel(self._model)
+                                self._view.selectRow(proxyIndex.row())
+                        else:
+                            rows = self.getCheckedRows()
+                            value = QVariant(Qt.Unchecked)
+                            checkedColumn = self._model.getCheckedColumnIndex()
+                            for row in rows:
+                                self._model.setData(self._model.index(row, checkedColumn), value, role=Qt.CheckStateRole)
+            if self.isCheckedColumnIsHiden():
                 self.close()
 
 
@@ -437,12 +506,187 @@ class CMultivalueComboBoxPopup(QtGui.QFrame):
     def addList(self, item):
         self._model.addList(item)
 
+
+class CMultivalueComboBoxPopup(QtGui.QFrame):
+    def __init__(self, parent=None):
+        QtGui.QFrame.__init__(self, parent, Qt.Popup)
+        self._parent = parent
+        self.vLayout = QtGui.QVBoxLayout(self)
+        self._view   = CMultivalueComboBoxView(self)
+        self._proxyModel = CMultivalueComboBoxProxyModel()
+        self._model  = CMultivalueComboBoxModel(self)
+        self._model._proxyModel = self.proxyModel()
+        self.proxyModel().setSourceModel(self._model)
+        # self.proxyModel().enableFilter(1)
+        # self.proxyModel().enableFilter(2)
+
+        # Горизонтальный
+        self.hLayoutFilter = QtGui.QHBoxLayout()
+        self.lblFilterCode = QtGui.QLabel(self)
+        self.lblFilterName = QtGui.QLabel(self)
+        self.lblFilterCode.setText(u'Код')
+        self.lblFilterName.setText(u'Наименование')
+        self.edtFilterName = QtGui.QLineEdit(self)
+        self._view.setModel(self._proxyModel)
+        self.vLayout.addWidget(self._view)
+        self.edtFilter = QtGui.QLineEdit(self)
+        self.hLayoutFilter.addWidget(self.lblFilterCode)
+        self.hLayoutFilter.addWidget(self.edtFilter)
+        self.hLayoutFilter.addWidget(self.lblFilterName)
+        self.hLayoutFilter.addWidget(self.edtFilterName)
+        self.hLayoutFilter.setContentsMargins(1, 1, 1, 1)
+        self.vLayout.addLayout(self.hLayoutFilter)
+
+        self.hLayoutButtons = QtGui.QHBoxLayout()
+        self.btnClearAll = QtGui.QPushButton(self)
+        self.btnClearAll.setText(u"Очистить выбор")
+        # self.btnClearAll.setSize(100, 20)
+        self.btnCheckFiltered = QtGui.QPushButton(self)
+        self.btnCheckFiltered.setText(u"Выбрать всё")
+        self.hLayoutButtons.addWidget(self.btnClearAll)
+        self.hLayoutButtons.addWidget(self.btnCheckFiltered)
+        self.hLayoutButtons.setContentsMargins(1, 1, 1, 1)
+        self.vLayout.addLayout(self.hLayoutButtons)
+        # self.vLayout.addWidget(self.edtFilter)
+        # QtCore.QObject.connect(self.edtFilter, QtCore.SIGNAL("textChanged(QString)"),
+        #                        self.proxyModel().setFilterFixedString)
+        self.edtFilter.textChanged.connect(lambda text: self._proxyModel.setFilterString(1, text))
+        self.edtFilterName.textChanged.connect(lambda text: self._proxyModel.setFilterString(2, text))
+        self.vLayout.setContentsMargins(1, 1, 1, 1)
+        self.setFrameShape(QtGui.QFrame.Box)
+        self.setFrameShadow(QtGui.QFrame.Plain)
+        self.setLineWidth(1)
+        self.setMidLineWidth(0)
+        self.setObjectName("comboPopup")
+        self.setStyleSheet("""
+            QFrame#comboPopup {
+                border: 1px solid gray;
+                border-radius: 3px;
+            }
+        """)
+        self.setLayout(self.vLayout)
+
+        self.connect(self._view, SIGNAL('clicked(QModelIndex)'), self.on_viewClicked)
+        self.connect(self.btnClearAll, SIGNAL('clicked()'), self.on_btnClearAllClicked)
+        self.connect(self.btnCheckFiltered, SIGNAL('clicked()'), self.on_btnCheckFilteredClicked)
+
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Select):
+            # if event.key() != Qt.Key_Enter:
+            #     self.on_viewClicked(self._view.currentIndex())
+            # elif event.key() == Qt.Key_Enter:
+            self.setCheckedRows(self.getCheckedRows())
+            if not self.getCheckedRows():
+                self._model.emit(SIGNAL('dataCheckedChanged(QString, bool)'), u'', 0)
+            self.close()
+        else:
+            QtGui.QFrame.keyPressEvent(self, event)
+
+
+    def model(self):
+        return self._model
+
+    def proxyModel(self):
+        return self._proxyModel
+
+    def view(self):
+        return self._view
+
+    def on_viewClicked(self, proxyIndex, firstCall=True, clickCheckboxCol=False):
+        if proxyIndex.isValid():
+            if Qt.ShiftModifier == QtGui.QApplication.keyboardModifiers() and firstCall:
+                selectedIndexes = self._view.selectionModel().selectedRows()
+                for index in selectedIndexes:
+                    self.on_viewClicked(index, False)
+                self.proxyModel().setSourceModel(self._model)
+            else:
+                index = self.proxyModel().mapToSource(proxyIndex)
+                row = index.row()
+                if self._model.isColumnIndexCheckable(index) and self.getValueByRow(row) and firstCall:
+                    if self._model.isColumnIndexCheckable(index):
+                        self.on_viewClicked(self.proxyModel().index(proxyIndex.row(), 1), False, True)
+                        self._model.emit(SIGNAL('dataCheckedChanged(QString, bool)'), u'', 0)
+                        self.proxyModel().setSourceModel(self._model)
+                        self._view.selectRow(proxyIndex.row())
+                    else:
+                        pass
+                else:
+                    if self.isCheckedColumnIsHiden():
+                        self.setValue(self.getValueByRow(row))
+                    else:
+
+                        if self.getValueByRow(row):
+                            # value = QVariant(Qt.Unchecked) if self._proxyModel.isItemChecked(proxyIndex.row()) and firstCall else QVariant(Qt.Checked)
+                            value = QVariant(Qt.Unchecked) if self._model.isItemChecked(index.row()) and (firstCall or clickCheckboxCol) else QVariant(Qt.Checked)
+                            self._model.setData(self._model.index(row, self._model.getCheckedColumnIndex()),
+                                                                        value,
+                                                                        role=Qt.CheckStateRole)
+                            # self._proxyModel.setData(self._proxyModel.index(proxyIndex.row(), 0),
+                            #                     value,
+                            #                     role=Qt.CheckStateRole)
+                            if firstCall:
+                                self.proxyModel().setSourceModel(self._model)
+                                self._view.selectRow(proxyIndex.row())
+                        else:
+                            rows          = self.getCheckedRows()
+                            value         = QVariant(Qt.Unchecked)
+                            checkedColumn = self._model.getCheckedColumnIndex()
+                            for row in rows:
+                                self._model.setData(self._model.index(row, checkedColumn), value, role=Qt.CheckStateRole)
+
+
+    def getCheckedRows(self):
+        return self._model.getCheckedRows()
+
+
+    def setCheckedRows(self, rows):
+        self._model.setCheckedRows(rows)
+
+
+    def getValueByRow(self, row):
+        return forceStringEx(self._model.getDataColumnValue(row))
+
+
+    def setValue(self, value):
+        self.emit(SIGNAL('valueSetted(QString)'), QString(value))
+
+
+    def setCheckedColumnIsHiden(self, value):
+        self._model.setCheckedColumnIsHiden(value)
+
+
+    def isCheckedColumnIsHiden(self):
+        return self._model.isCheckedColumnIsHiden()
+
+
+    def addItem(self, item):
+        self._model.addItem(item)
+
+    def addList(self, item):
+        self._model.addList(item)
+
+    def on_btnCheckFilteredClicked(self):
+        for row in range(self.proxyModel().rowCount()):
+            model_index = self.proxyModel().mapToSource(self.proxyModel().index(row, 0))
+            model_row = model_index.row()
+            self.model().setItemChecked(model_row, 2)
+        # self.model().setAllRowsChecked()
+        self.proxyModel().setSourceModel(self.model())
+        self.model().emit(SIGNAL('dataCheckedChanged(QString, bool)'), u'', 0)
+
+    def on_btnClearAllClicked(self):
+        self.model().clearItemChecked()
+        self.proxyModel().setSourceModel(self.model())
+        self.model().emit(SIGNAL('dataCheckedChanged(QString, bool)'), u'', 0)
+        # self.close()
+    
 # ################################################################
 
 
 class CBaseMultivalue():
     def __init__(self, multivalue=True):
-        self._popupView = CMultivalueComboBoxPopup(self)
+        self._popupView = CBaseMultivalueComboBoxPopup(self)
         self._model = self._popupView.model()
         self.setModel(self._model)
         self.preferredWidth = 100
@@ -520,6 +764,7 @@ class CBaseMultivalue():
         else:
             newTextValue = u''
             self.setEditText(newTextValue)
+            self.setToolTip(newTextValue)
 
 
 #        data = trim(data)
@@ -537,6 +782,15 @@ class CBaseMultivalue():
 
     def checkedValueList(self):
         return self._model.checkedValueList()
+    
+    
+    def calculatePopupWidth(self, view):
+        header = view.horizontalHeader()
+        totalColWidth = header.length()
+        vs = view.verticalScrollBar()
+        scrollbarWidth = vs.isVisible() and vs.sizeHint().width() or 0
+        frame = view.frameWidth() * 2                            
+        return totalColWidth + scrollbarWidth + frame + 8
 
 
     def showPopup(self):
@@ -546,21 +800,28 @@ class CBaseMultivalue():
                 view = self._popupView.view()
                 view.clearSelection()
                 selectionModel = view.selectionModel()
-                command = QtGui.QItemSelectionModel.Select|QtGui.QItemSelectionModel.Current
+                proxyModel = self._popupView.proxyModel()
+                command = QtGui.QItemSelectionModel.Select|QtGui.QItemSelectionModel.Current|QtGui.QItemSelectionModel.Rows
                 if self.isCheckedColumnIsHiden():
                     row = max(0, self.currentIndex())
                     selectionModel.setCurrentIndex(self._model.index(row, 0), command)
                 else:
                     for row in self._model.getCheckedRows():
-                        selectionModel.setCurrentIndex(self._model.index(row, 0), command)
+                        proxyIndex = proxyModel.mapFromSource(self._model.index(row, 0))
+                        selectionModel.setCurrentIndex(proxyIndex, command)
                     if not selectionModel.hasSelection():
-                        selectionModel.setCurrentIndex(self._model.index(0, 0), command)
+                        selectionModel.setCurrentIndex(proxyModel.index(0, 0), command)
                 tblHeaderHeight = view.horizontalHeader().height()
                 maxVisibleItems = self.maxVisibleItems()
                 visibleItems = min(maxVisibleItems, totalItems)
+                cols = view.model().columnCount()
+                for col in range(cols):
+                    view.resizeColumnToContents(col)
+                popupWidth = self.calculatePopupWidth(view)
                 if visibleItems > 0:
-                    view.setFixedHeight(view.rowHeight(0) * visibleItems + tblHeaderHeight + 5)
-                adjustPopupToWidget(self, self._popupView, True, max(self.preferredWidth, view.width()+2), view.height() + 2)
+                    if self._popupView.proxyModel().rowCount() > 0:
+                        view.setFixedHeight(view.rowHeight(0) * visibleItems + tblHeaderHeight + 5)
+                adjustPopupToWidget(self, self._popupView, True, max(self.preferredWidth, popupWidth), view.height() + 2)
                 self._popupView.show()
                 view.setFocus()
                 view.horizontalScrollBar().setValue(0)
@@ -608,7 +869,14 @@ class CBaseMultivalue():
 class CMultivalueComboBox(CBaseMultivalue, QtGui.QComboBox):
     def __init__(self, parent=None):
         QtGui.QComboBox.__init__(self, parent)
-        CBaseMultivalue.__init__(self)
+        self._popupView = CMultivalueComboBoxPopup(self)
+        self._model = self._popupView.model()
+        self.setModel(self._model)
+        self.preferredWidth = 100
+        self.setMultivalueChecking(True)
+        self.connect(self._model, SIGNAL('dataCheckedChanged(QString, bool)'), self.on_dataCheckedChanged)
+        self.connect(self._popupView, SIGNAL('valueSetted(QString)'), self.on_valueSetted)
+        self.readOnly = False
 
 
     def text(self):
@@ -680,7 +948,7 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
             if idList:
                 value = [self._mapId2Shown[id] for id in idList]
                 if value:
-                    return u', '.join(value)
+                    return u'‚ '.join(value) # потом в setValue сплитить не получается
         return u''
 
 
@@ -767,13 +1035,76 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
         return self._translateShownValue2Value(CMultivalueComboBox.value(self))
 
 
-class CMultivalueComboBoxProxyModel(QSortFilterProxyModel):
+class CBaseMultivalueComboBoxProxyModel(QSortFilterProxyModel):
     def __init__(self,parent=None):
         QtGui.QProxyModel.__init__(self, parent)
+        self.filter_strings = {}
 
     def enableFilter(self, column):
         self.setFilterKeyColumn(column)
         self.setFilterCaseSensitivity(Qt.CaseInsensitive)
+
+    def getCheckedColumnIndex(self):
+        return self.sourceModel()._columns.index(self.sourceModel()._checkedColumn)
+
+    def setIsChecked(self, row, column, value):
+        self.sourceModel()._checkedColumn.setIsChecked(self.sourceModel()._items[row], value)
+
+    def isItemChecked(self, row):
+        return self.sourceModel()._checkedColumn.isChecked(self.sourceModel()._items[row])
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if not index.isValid():
+            return False
+
+        if role == Qt.CheckStateRole:
+            row = index.row()
+            column = index.column()
+            self.setIsChecked(row, column, forceInt(value))
+            self.emitDataCheckedChanged(row, forceBool(value))
+            self.emitDataChanged()
+            return True
+
+        return False
+
+    def emitDataChanged(self):
+        index1 = self.index(0, 0)
+        index2 = self.index(self.rowCount(), self.columnCount())
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index1, index2)
+
+
+    def emitDataCheckedChanged(self, row, added):
+        data = QString(self.getDataColumnValue(row))
+        self.emit(SIGNAL('dataCheckedChanged(QString, bool)'), data, added)
+
+    def getDataColumnValue(self, row):
+        return self.sourceModel()._dataColumn.data(self.sourceModel()._items[row])
+
+    # def setSourceModel(self, model):
+    #     QSortFilterProxyModel.setSourceModel(self, model)
+
+
+class CMultivalueComboBoxProxyModel(CBaseMultivalueComboBoxProxyModel):
+    def __init__(self,parent=None):
+        CBaseMultivalueComboBoxProxyModel.__init__(self, parent)
+        self.filter_strings = {}
+
+    def enableFilter(self, column):
+        pass
+
+    def setFilterString(self, column, filter_string):
+        self.filter_strings[column] = filter_string
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        source_model = self.sourceModel()
+        for column, filter_string in self.filter_strings.items():
+            if filter_string:
+                value = source_model.data(source_model.index(source_row, column), Qt.DisplayRole)
+                if forceString(filter_string).lower() not in forceString(value).lower():
+                    return False
+
+        return True
 
 
 if __name__ == '__main__':
@@ -791,4 +1122,158 @@ if __name__ == '__main__':
     cmb.show()
     app.exec_()
 
+
+class CRecordMultivalueComboBox(CMultivalueComboBox):
+    u"""Класс для работы с полями в таблице с множественным выбором из заранее определенного списка значений"""
+    def __init__(self, parent=None):
+        CMultivalueComboBox.__init__(self, parent)
+        self._mapShown2Id = {}
+        self._mapId2Shown = {}
+        self._checkedDict = {}
+        self._byDict = False
+        pv = self._popupView
+        for widget in (pv.lblFilterCode, pv.lblFilterName, pv.edtFilter, pv.edtFilterName):
+            widget.setVisible(False)
+
+    def enableFilter(self, enable):
+        pv = self._popupView
+        for widget in (pv.lblFilterCode, pv.lblFilterName, pv.edtFilter, pv.edtFilterName):
+            widget.setVisible(enable)
+        
+    def clearValue(self):
+        self.clearItemChecked()
+        self.setEditText(u'')
+    
+    
+    def setTable(self, tableName, cols):
+        from collections import OrderedDict
+        import re
+        cols = list(cols)
+        if len(cols) == 1:
+            cols.insert(0, 'id')
+        if len(cols) == 2:
+            values = OrderedDict()
+            db = QtGui.qApp.db
+            table = db.table(tableName)
+            records = db.getRecordList(table, cols, order=cols[0])
+            for record in records:
+                value = forceString(record.value(1))
+                key = forceString(record.value(0))
+                if '\n' in value:
+                    value = value.replace('\n', '').replace('\r', '') #для нестандартных значений...
+                    value = re.sub(r'\s+', ' ', value)
+                values[key] = value
+        self.setItems(values)
+
+        
+    
+    def setItems(self, values):
+        shownItems = []
+        if isinstance(values, (list, tuple)):
+            self._byDict = False
+            for id, value in enumerate(values):
+                items = [value, forceString(id+1), value, 0]
+                self._mapId2Shown[forceString(id+1)] = value 
+                self._mapShown2Id[value] = unicode(id+1)
+                shownItems.append(items)
+        elif isinstance(values, dict):
+            self._byDict = True
+            for id, value in values.items():
+                items = [value, id, value, 0]
+                self._mapId2Shown[id] = value 
+                self._mapShown2Id[value] = id
+                shownItems.append(items)
+        self.clear()
+        #self.addItems(values)
+        self.addList(shownItems)
+        self.setCheckedDict()
+        self._setHorisontalTable()
+
+
+    def _setHorisontalTable(self):
+        prefWidthCode = max(len(k) for k in self._mapId2Shown.keys())
+        prefWidthName = max(len(v) for v in self._mapId2Shown.values())
+        pv = self._popupView.view()
+        pv.setColumnWidth(0, 30)
+        pv.setColumnWidth(1, 80 + (prefWidthCode * 2))
+        pv.setColumnWidth(2, prefWidthName * 2)
+        pv.setMinimumWidth(int((20 + prefWidthName) * 2) * 2)
+        self.preferredWidth = (prefWidthCode + prefWidthName) * 2 
+
+
+    def _translateShownValue2Value(self, value):
+        value = u'‚ '.join(checkedVal for checkedVal in self._model.checkedValueList() if checkedVal)
+        if value:
+            shownItems = [trim(item) for item in value.split(u'‚')] # изменяю разделитель строки с простой запятой на "нижняя одиночная кавычка" http://htmlbook.ru/samhtml/tekst/spetssimvoly
+            if shownItems:
+                value = [self._mapShown2Id[shownItem] for shownItem in shownItems]
+                if value:
+                    return u', '.join(value)
+        return ''
+
+
+    def _translateValue2ShownValue(self, value):
+        if value:
+            if not isinstance(value, list):
+                idList = [trim(id.replace(' ', '')) for id in value.split(',')]
+            else:
+                idList = value
+            if idList:
+                value = [self._mapId2Shown[forceString(id)] for id in idList]
+                self.setCheckedDict(value, True)
+                if value:
+                    return u'‚ '.join(value) # потом в setValue сплитить не получается
+        return u''
+
+
+    def setText(self, value):
+        self.setValue(value)
+
+
+    def setValue(self, value):
+        CMultivalueComboBox.setValue(self, self._translateValue2ShownValue(value))
+
+
+    def text(self):
+        return self.value()
+
+
+    def value(self):
+        return self._translateShownValue2Value(CMultivalueComboBox.value(self))
+    
+    def getIndex(self, value):
+        if value:
+            if isinstance(value, list):
+                value = value[0]
+            if self._byDict:
+                return forceString(self._mapShown2Id[value])
+            else:
+                return forceString(forceInt(self._mapShown2Id[value])-1)
+        return -1
+    
+    def setCheckedDict(self, value=None, init=False):
+        if value:
+            checkedList = value
+        else:
+            checkedList = self.checkedValueList()
+        rows = []
+        for key, value in self._mapShown2Id.items():
+            if key in checkedList:
+                rows.append(self._model.findRowIndex(key))    
+                checked = True
+            else:
+                checked = False
+            if self._byDict:
+                self._checkedDict[forceString(value)] = checked
+            else:
+                self._checkedDict[forceString(forceInt(value)-1)] = checked
+        if init:
+            self.setCheckedRows(rows)
+    
+    def getCheckedDict(self):
+        return self._checkedDict
+    
+    def on_dataCheckedChanged(self, data, added):
+        self.setCheckedDict()
+        CMultivalueComboBox.on_dataCheckedChanged(self, data, added)
 

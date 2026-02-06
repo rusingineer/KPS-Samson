@@ -26,7 +26,7 @@ from Events.ActionInfo            import CActionInfo, CPropertyInfo
 from Events.Utils                 import checkTissueJournalStatusByActions
 
 from Registry.ClientEditDialog    import CClientEditDialog
-from Registry.Utils               import getClientInfo, formatClientBanner
+from Registry.Utils               import getClientInfo, getClientBanner
 
 from TissueJournal.TissueJournalModels import CActionEditorModel, CPropertiesEditorModel
 from TissueJournal.TissueStatus   import CTissueStatus
@@ -91,14 +91,14 @@ class CActionTableEditor(CDialogBase, Ui_ActionTableEditorDialog):
             clientInfo = self._mapIdToInfo.get(clientId, None)
             if not clientInfo:
                 self._mapIdToInfo[clientId] = clientInfo = getClientInfo(clientId)
-            clientBanner = formatClientBanner(clientInfo)
+            clientBanner = getClientBanner(self.currentClientId)
             self.txtClientInfoBrowser.setHtml(clientBanner)
             self.actEditClient.setEnabled(self.currentClientId and QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
 
 
     def updateClientInfo(self):
         self._mapIdToInfo[self.currentClientId] = clientInfo = getClientInfo(self.currentClientId)
-        clientBanner = formatClientBanner(clientInfo)
+        clientBanner = getClientBanner(self.currentClientId)
         self.txtClientInfoBrowser.setHtml(clientBanner)
 
 

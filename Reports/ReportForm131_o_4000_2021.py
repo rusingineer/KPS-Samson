@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -102,14 +102,14 @@ LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id = rbService_Identification
 LEFT JOIN EventType ON Event.eventType_id = EventType.id
 LEFT JOIN rbEventProfile ON rbEventProfile.id = EventType.eventProfile_id
 WHERE Event.deleted = 0
-    AND DATE(Event.execDate) BETWEEN DATE(%(begDate)s) AND DATE(%(endDate)s)
+  AND (Event.execDate >= %(begDate)s AND Event.execDate < %(endDate)s)
   AND Client.deleted = 0
   AND Diagnostic.deleted = 0
   AND Diagnosis.deleted = 0
   AND Event.prevEvent_id IS NULL
   %(orgStructure)s
   %(mesDispans)s
-  AND Diagnostic.setDate <= %(endDate)s
+  AND Diagnostic.setDate < %(endDate)s
   AND (Diagnostic.endDate >= %(begDate)s OR Diagnostic.endDate IS NULL)
   
   AND rbDiagnosisType.code IN ('1','2','4','3','98','9','10','11')
@@ -119,7 +119,7 @@ WHERE Event.deleted = 0
     GROUP BY Diagnostic.id
     ''' % {
         'begDate': db.formatDate(begDate),
-        'endDate': db.formatDate(endDate),
+        'endDate': db.formatDate(endDate.addDays(1)),
         'orgStructure': orgStructure,
         'mesDispans': mesDispans,
         'dispType': dispTypeStr,

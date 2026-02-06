@@ -732,7 +732,7 @@ p, li { white-space: pre-wrap; }
               <number>4</number>
              </property>
              <item row="0" column="0">
-              <widget class="CInDocTableView" name="tblInspections"/>
+              <widget class="CF025DiagnosticsInDocTableView" name="tblInspections"/>
              </item>
             </layout>
            </widget>
@@ -1095,6 +1095,11 @@ p, li { white-space: pre-wrap; }
    <class>CROComboBox</class>
    <extends>QComboBox</extends>
    <header>library/ROComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CF025DiagnosticsInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>F025/F025DiagnosticsInDocTableView.h</header>
   </customwidget>
   <customwidget>
    <class>CPersonComboBoxEx</class>

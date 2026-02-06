@@ -20,6 +20,8 @@ from Events.Action import CAction
 from Events.ActionInfo import CActionInfo
 from Exchange.AriadnaModels.AdditionalForm import AdditionalForm
 from Exchange.AriadnaModels.BirthCertificate import BirthCertificate
+from Exchange.AriadnaModels.BirthDate import BirthDate
+from Exchange.AriadnaModels.Born import Born
 from Exchange.AriadnaModels.Cellular import Cellular
 from Exchange.AriadnaModels.Certificate import Certificate
 from Exchange.AriadnaModels.Company import Company
@@ -95,7 +97,6 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.encoding = ''
         self.timeout = 60
         self.externalSystemId = None
-        self.mapTestIdToServices = {}
         if platform.system() != 'Windows':
             self.logDir = '/var/log/AriadnaExchange'
         else:
@@ -170,8 +171,6 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
         self.connectionName = forceString(self.preferences.appPrefs.get('connectionName', 'AriadnaExchange'))
         self.typeReports = forceInt(self.preferences.appPrefs.get('typeReports', 0))
-        url = forceString(self.preferences.appPrefs.get('WebDAVUrl', ''))
-        self.webDAVInterface.setWebDAVUrl(url)
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
@@ -213,11 +212,22 @@ class CAriadnaExchange(QtCore.QCoreApplication):
             self.openDatabase()
             if self.db:
                 self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AriadnaLIS', 'id'))
-                self.mappingTestToServices()
+
+                # Путь к файлохранилищу берем из глобальных настроек в БД
+                rec_glb = self.db.getRecordEx('GlobalPreferences', 'value', 'code = \'WebDAV\'')
+                if rec_glb:
+                    url = forceString(rec_glb.value(0))
+                    url = url.replace('${dbServerName}', QtGui.qApp.preferences.dbServerName)
+                    self.webDAVInterface.setWebDAVUrl(url)
+
                 self.loadUnitsByIdentification()
                 self.db.query('CALL getAppLock_prepare()')
                 if self.options.numberResult:
-                    self.getResults(number=self.options.numberResult, count=self.resultCount)
+                    i = 0
+                    resCount = self.resultCount
+                    while resCount == self.resultCount and i < 10: # ТТ 3299 Циклическая загрузка результатов
+                        resCount = self.getResults(number=self.options.numberResult, count=self.resultCount)
+                        i += 1
                 elif self.options.numberOrder:
                     if self.options.numberOrder != 'all':
                         referrals = []
@@ -232,7 +242,12 @@ class CAriadnaExchange(QtCore.QCoreApplication):
                 elif self.options.applyResult:
                     self.applyResults(self.options.applyResult)
                 else:
-                    self.getResults(count=self.resultCount)
+                    i = 0
+                    resCount = self.resultCount
+                    while resCount == self.resultCount and i < 10: # ТТ 3299 Циклическая загрузка результатов
+                        resCount = self.getResults(count=self.resultCount)
+                        i += 1
+
                     referrals = self.getReferrals()
                     for referral in referrals:
                         try:
@@ -241,20 +256,6 @@ class CAriadnaExchange(QtCore.QCoreApplication):
                             self.logCurrentException()
         self.closeDatabase()
 
-    def mappingTestToServices(self):
-        stmt = """SELECT t.id AS testId, st.baseServiceCode, st.testCode, st.serviceCode, st.serviceName
-  FROM soc_mapTestToService st
-  left JOIN rbTest t ON t.federalCode = st.testCode
-  WHERE st.typeLIS = 0"""
-        query = self.db.query(stmt)
-        while query.next():
-            record = query.record()
-            testId = forceRef(record.value('testId'))
-            testCode = forceString(record.value('testCode'))
-            baseServiceCode = forceString(record.value('baseServiceCode'))
-            serviceCode = forceString(record.value('serviceCode'))
-            serviceName = forceString(record.value('serviceName'))
-            self.mapTestIdToServices[(testId, baseServiceCode)] = _service(testCode, serviceCode, serviceName)
 
     def getReferrals(self):
         referrals = []
@@ -374,7 +375,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                     if client.document.date.date:
                         try:
                             identification.issueDate = fmtDate(client.document.date.date)
-                        except ValueError, e:
+                        except ValueError as e:
                             self.log('warning', '{0} client.document.date {1}'.format(client.id, anyToUnicode(e)), 2)
                     if client.document.origin:
                         identification.issuer = client.document.origin
@@ -403,7 +404,11 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
 
                 observation.patient.gender = formatSex(client.sexCode)
                 if client.birthDate.date:
-                    observation.patient.birthDate = fmtDate(client.birthDate.date)
+                    observation.patient.born = Born()
+                    observation.patient.born.birthDate = BirthDate()
+                    observation.patient.born.birthDate.bDate = fmtDateShort(client.birthDate.date)
+                    observation.patient.born.birthDate.bTime = client.birthTime.toString('HH:mm:ss:zzz')
+                    # observation.patient.birthDate = fmtDate(client.birthDate.date)
                 observation.patient.workPlace = client.work.__str__()
                 observation.patient.externalID = forceString(client.id)
                 observation.patient.markID = ''
@@ -451,7 +456,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 observation.order.id = forceString(action[u'Номер направления'])
                 observation.order.date = action.directionDate.toString(CAriadnaExchange.datetimeFormat)
                 observation.order.hisId = forceString(action.id)
-                observation.order.medHistory = eventInfo.externalId
+                observation.order.medHistory = eventInfo.externalId if eventInfo.externalId else forceString(client.id)
 
                 identifySpecimenTypes = action._action.getProperty(u'Биоматериал').getInfo(context).identify('urn:oid:1.2.643.5.1.13.13.11.1081')
                 if identifySpecimenTypes:
@@ -487,33 +492,26 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         observation.additionalForm = [additionalForm]
 
                 # заполняем услуги
-                services = {}
-                baseServiceCode = action.nomenclativeService.code if action.nomenclativeService else ''
+                services = set()
                 for prop in action._action.getProperties():
-                    if prop._type.testId:
-                        if not prop._type.isAssignable or (prop._type.isAssignable and prop._isAssigned):
-                            service = self.mapTestIdToServices.get((prop._type.testId, baseServiceCode),
-                                                                   (None, None, None))
-                            if service[0]:
-                                services[service.serviceCode] = service
-                for key in services:
-                    service = services[key]
+                    if prop.type().testId:
+                        if not prop.type().isAssignable or (prop.type().isAssignable and prop.isAssigned()):
+                            serviceCode = prop.type().descr
+                            if serviceCode:
+                                services.add(serviceCode)
+                for service in services:
                     order = OrderInfo()
-                    order.service.id = service.testCode
-                    order.service.name = service.serviceName
-                    order.service.code = service.serviceCode
+                    order.service.code = service
                     observation.orderInfo.append(order)
 
                 if not observation.orderInfo and action.nomenclativeService:
                     order = OrderInfo()
-                    order.service.id = forceString(action._actionType.id)
-                    order.service.name = action.nomenclativeService.name
                     order.service.code = action.nomenclativeService.code
                     observation.orderInfo.append(order)
 
                 if not observation.orderInfo:
                     self.log(u'В направлении отсутствуют коды услуг', observation.order.id, 2)
-                    return
+                    return None
 
                 person = action.setPerson
 
@@ -578,7 +576,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             add_url = '/reports/pdf'
         elif self.typeReports == 2:
             add_url = '/reports/semd'
-
+        resCount = 0
         if (not number or number == 'all') and count:
             params = {'count': forceString(count), 'order': order}
         if number and number != 'all' and self.typeReports == 0:
@@ -589,8 +587,11 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             url = self.url + add_url + ('/{id}'.format(id=referral.actionId) if referral.actionId else '')
         else:
             url = self.url + add_url
+
+        self.log(u'Загрузка результатов', url, 2)
         response = requests.get(url, headers=headers, params=params, timeout=self.timeout)
         jsonData = None
+
         self.log(u'Загрузка результатов response code', anyToUnicode(response.status_code), 2)
         self.log(u'Загрузка результатов response content', response.content.decode('utf-8'), 2)
 
@@ -600,10 +601,13 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             except Exception as e:
                 self.log('error', anyToUnicode(e), 2)
             if isinstance(jsonData, dict):
+                resCount = 1
                 self.saveResults(jsonData, referral)
             elif isinstance(jsonData, list):
+                resCount = len(jsonData)
                 for result in jsonData:
                     self.saveResults(result, referral)
+        return resCount
 
     def saveResults(self, jsonResult, referral):
         context = CInfoContext()
@@ -649,6 +653,12 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                 labGUID = ident.valueText
                                 break
 
+                        # ТТ 2884 При обмене в лис Ариадна необходимо импортировать доназначенные в лаборатории анализы в отдельное новое свойство
+                        prop = action.getPropertyByShortName(u'additional_research')
+                        if prop:
+                            # При загрузке результата повторно нужно очищать это свойство
+                            prop.setValue(None)
+
                         for rep in observation.reports:
                             for res in rep.results:
                                 testCode = res.measurement.code
@@ -677,9 +687,12 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                     i = 0
                                     for bacteria in res.bacteria:
                                         i += 1
-                                        if u'1,0E+' in bacteria.resultValue:
-                                            value = '10<sup>' + ('%d' % forceInt(bacteria.resultValue.replace(u'1,0E+', ''))) + '</sup>   ' + bacteria.unit
-                                        else:
+                                        try:
+                                            if u'1,0E+' in bacteria.resultValue:
+                                                value = '10<sup>' + ('%d' % forceInt(bacteria.resultValue.replace(u'1,0E+', ''))) + '</sup>   ' + bacteria.unit
+                                            else:
+                                                value = bacteria.resultValue
+                                        except ValueError:
                                             value = bacteria.resultValue
                                         htmlText += u'<tr><td style="font-size: 10pt;"><b>[{0}]</b> {1}<hr></td><td style="font-size: 10pt;">{2}<hr></td></tr>'.format(i, bacteria.name, value)
                                         if bacteria.antibiotics:
@@ -730,9 +743,10 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                     for identification in physician.resource.identifications:
                                                         if identification.documentType == 'SNILS':
                                                             verifierSNILS = identification.number
-                                    prop = action.getPropertyByShortName(u'results')
-                                    if prop:
-                                        prop.setValue(res.description)
+                                    # ТТ 3757 "Ариадна. МБИО. Внести корректировки в импорт результата, когда нет выявленных отклонений"
+                                    # prop = action.getPropertyByShortName(u'results')
+                                    # if prop:
+                                    #     prop.setValue(res.description)
                                 if res.notes:
                                     if isMicrobiology:
                                         testNotes.append(u'{notes}'.format(notes=res.notes))
@@ -828,45 +842,37 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                     '; shortName: ' + res.measurement.shortName if res.measurement.shortName else '',
                                                     '; srvdepCode: ' + res.srvdepCode if res.srvdepCode else ''), 2)
                                                 hasErrors = True
-                        if self.typeReports and hasattr(QtGui.qApp, 'webDAVInterface'):
+                        if self.typeReports in [1, 2] and hasattr(QtGui.qApp, 'webDAVInterface'):
                             storageInterface = QtGui.qApp.webDAVInterface
-                            isFindSameFile = False
-                            if observation.binary.pdf and self.typeReports == 1 and storageInterface:
-                                name = u'ProtocolAriadna_' + observation.order.id + u'.pdf'
-                                for attachedFile in action._attachedFileItemList:
-                                    if attachedFile.oldName == name:
-                                        if attachedFile.respSignature and attachedFile.respSignature.signatureBytes == observation.binary.practitioner.decode('base64'):
-                                            isFindSameFile = True
-                                if not isFindSameFile:
-                                    _file = storageInterface.uploadBytes(name, observation.binary.pdf.decode('base64'))
-                                    signerSNILS = observation.binary.signedDoctor.snils
-                                    if signerSNILS:
-                                        signerId = self.getVerifierId(labGUID, signerSNILS)
-                                        if signerId:
+                            if storageInterface:
+                                isFindSameFile = False
+                                if self.typeReports == 1:
+                                    binary = observation.binary.pdf
+                                    practitionerSig = observation.binary.practitioner
+                                    organizationSig = observation.binary.organization
+                                    signerSNILS = observation.binary.signedDoctor.snils if observation.binary.signedDoctor else ''
+                                    fileName = u'ProtocolAriadna_' + observation.order.id + u'.pdf'
+                                else:
+                                    binary = observation.semd.docData
+                                    practitionerSig = observation.semd.practitionerSig
+                                    organizationSig = observation.semd.organizationSig
+                                    signerSNILS = observation.semd.signedDoctor.snils if observation.semd.signedDoctor else ''
+                                    fileName = u'ProtocolAriadna_' + observation.order.id + u'.xml'
+
+                                if binary and practitionerSig and signerSNILS:
+                                    signerId = self.getVerifierId(labGUID, signerSNILS)
+                                    if signerId:
+                                        for attachedFile in action.getAttachedFileItemList():
+                                            if attachedFile.oldName == fileName:
+                                                if attachedFile.respSignature and attachedFile.respSignature.signatureBytes == practitionerSig.decode('base64'):
+                                                    isFindSameFile = True
+                                                    break
+                                        if not isFindSameFile:
+                                            _file = storageInterface.uploadBytes(fileName, binary.decode('base64'))
                                             _file.setAuthorId(signerId)
-                                            _file.setRespSignature(observation.binary.practitioner.decode('base64'),
-                                                                   signerId, QDateTime.currentDateTime())
-                                            _file.setOrgSignature(observation.binary.organization.decode('base64'),
-                                                                  signerId, QDateTime.currentDateTime())
-                                    action._attachedFileItemList.append(_file)
-                            elif observation.semd.docData and self.typeReports == 2 and storageInterface:
-                                name = u'ProtocolAriadna_' + observation.order.id + u'.xml'
-                                for attachedFile in action._attachedFileItemList:
-                                    if attachedFile.oldName == name:
-                                        if attachedFile.respSignature and attachedFile.respSignature.signatureBytes == observation.binary.practitioner.decode('base64'):
-                                            isFindSameFile = True
-                                if not isFindSameFile:
-                                    _file = storageInterface.uploadBytes(name, observation.semd.docData.decode('base64'))
-                                    signerSNILS = observation.semd.signedDoctor.snils
-                                    if signerSNILS:
-                                        signerId = self.getVerifierId(labGUID, signerSNILS)
-                                        if signerId:
-                                            _file.setAuthorId(signerId)
-                                            _file.setRespSignature(observation.semd.practitionerSig.decode('base64'),
-                                                                   signerId, QDateTime.currentDateTime())
-                                            _file.setOrgSignature(observation.binary.organizationSig.decode('base64'),
-                                                                  signerId, QDateTime.currentDateTime())
-                                    action._attachedFileItemList.append(_file)
+                                            _file.setRespSignature(practitionerSig.decode('base64'), signerId, QDateTime.currentDateTime())
+                                            _file.setOrgSignature(organizationSig.decode('base64'), signerId, QDateTime.currentDateTime())
+                                            action.getAttachedFileItemList().append(_file)
 
                         if finishDate:
                             if hasCancelingTest:
@@ -930,12 +936,13 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
     def getVerifierId(self, labGUID, snils):
         result = self.mapVerifiers.get((labGUID, snils), None)
         if not result and labGUID and snils:
-            stmt = """SELECT Person.id
+            stmt = u"""SELECT Person.id
 FROM Person
 LEFT JOIN OrgStructure os ON Person.orgStructure_id = os.id
 LEFT JOIN OrgStructure_Identification osi ON os.id = osi.master_id AND osi.deleted = 0
 LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id = osi.system_id
-WHERE Person.deleted = 0 AND osi.value = '{0}' AND rbAccountingSystem.urn = 'urn:oid:1.2.643.2.69.1.1.1.64' AND snils = '{1}';""".format(labGUID, snils)
+WHERE Person.deleted = 0 AND osi.value = '{0}' AND rbAccountingSystem.urn = 'urn:oid:1.2.643.2.69.1.1.1.64' AND Person.snils = '{1}'
+    AND os.deleted = 0 AND (Person.retireDate IS NULL OR Person.retireDate >= NOW());""".format(labGUID, snils)
             query = self.db.query(stmt)
             while query.next():
                 record = query.record()

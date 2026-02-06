@@ -48,8 +48,8 @@ def _selectData(params):
     ]
     cond = [tableSchedule['appointmentType'].inlist([1, 2, 3])]
     if begDate and endDate:
-        cond.append(tableSchedule['date'].dateGe(begDate))
-        cond.append(tableSchedule['date'].dateLe(endDate))
+        cond.append(tableSchedule['date'].ge(begDate))
+        cond.append(tableSchedule['date'].lt(endDate.addDays(1)))
     if orgStructureId:
         cond.append(tablePerson['orgStructure_id'].inlist(getOrgStructureDescendants(params['orgStructureId'])))
     if specialityId:

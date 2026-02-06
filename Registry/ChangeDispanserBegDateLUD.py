@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,11 +11,10 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-from PyQt4 import QtGui
 
 from library.interchange     import getDateEditValue, setDateEditValue
 from library.ItemsListDialog import CItemEditorBaseDialog
-from library.Utils           import forceDate, forceRef, forceString
+from library.Utils           import forceDate, toVariant
 
 from Ui_ChangeDispanserBegDateLUD import Ui_ChangeDispanserBegDateLUD
 
@@ -45,15 +44,13 @@ class CChangeDispanserBegDateLUD(CItemEditorBaseDialog, Ui_ChangeDispanserBegDat
         begDate = forceDate(self.edtBegDate.date())
         result = result and (begDate or self.checkInputMessage(u'дату постановки на диспансерный учет', True, self.edtBegDate))
         return result
-
-
-    def afterSave(self):
-        record = CItemEditorBaseDialog.getRecord(self)
-        db = QtGui.qApp.db
-        table = db.table('ProphylaxisPlanning')
-        db.updateRecords(table,
-                         table['takenDate'].eq(forceDate(record.value('dispanserBegDate'))),
-                         [table['MKB'].eq(forceString(record.value('MKB'))),
-                          table['client_id'].eq(forceRef(record.value('client_id'))),
-                          table['deleted'].eq(0)
-                          ])
+    
+    
+    def save(self):
+        if self.getRecord() and self._id:
+            return CItemEditorBaseDialog.save(self)
+        return True
+    
+    
+    def getDate(self):
+        return toVariant(self.edtBegDate.date())

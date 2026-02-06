@@ -10,27 +10,29 @@ import sys
 import traceback
 from logging.handlers import RotatingFileHandler
 from optparse import OptionParser
-# import socket
 
 from PyQt4.QtCore import QDir, QDateTime, QDate
 from PyQt4 import QtGui, QtCore
 
 from Events.ActionStatus import CActionStatus
-from Exchange.RISExchange.CHL7Client import CHl7Client
+from Exchange.RISExchange.CHL7Client import CGRPCClient, CMllpClient
 from library import database
 from library.Preferences import CPreferences
-from library.Utils import forceInt, toVariant, anyToUnicode
+from library.Utils import forceInt, toVariant, anyToUnicode, forceString, forceRef
 
 
 class CRISManageOrders(QtCore.QCoreApplication):
-    iniFileName = '/root/.config/samson-vista/RISExchange.ini'
+    _RIS_ORDER_CODES = ['XO', 'OC', 'SP/IP', 'RE', 'SC', 'IP']
 
+    iniFileName = '/root/.config/samson-vista/RISExchange.ini'
     def __init__(self, args):
         parser = OptionParser(usage="usage: %prog [options]")
         parser.add_option('-e', '--event', dest='idEvent', help='', metavar='idEvent', default='')
         parser.add_option('-a', '--action', dest='idAction', help='', metavar='idAction', default='')
+        parser.add_option('-m', '--reload-message', dest='idMessage', help='', metavar='idMessage', default='')
         parser.add_option('-c', '--config', dest='iniFile', help='custom .ini file name', metavar='iniFile',
                           default=CRISManageOrders.iniFileName)
+        parser.add_option('--SQL', dest='logSql', help='log sql queries', action='store_true', default=False)
         (options, _args) = parser.parse_args()
         parser.destroy()
 
@@ -42,6 +44,7 @@ class CRISManageOrders(QtCore.QCoreApplication):
         self.mainWindow = None
         self.userHasRight = lambda x: True
         self.connectionName = 'RISExchange'
+        self.logSql = self.options.logSql
         if self.options.iniFile:
             self.iniFileName = self.options.iniFile
         elif platform.system() != 'Windows':
@@ -58,8 +61,9 @@ class CRISManageOrders(QtCore.QCoreApplication):
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.RISExchange')
         self.initLogger()
 
-        self.Hl7Client = None
         self.days = 7
+        self.reloadLimit = 50
+        self.sendLimit = 50
 
     def openDatabase(self):
         self.db = None
@@ -71,7 +75,8 @@ class CRISManageOrders(QtCore.QCoreApplication):
                                                self.preferences.dbUserName,
                                                self.preferences.dbPassword,
                                                compressData=self.preferences.dbCompressData,
-                                               connectionName=self.connectionName)
+                                               connectionName=self.connectionName,
+                                               logger=logging.getLogger('DB') if self.logSql else None)
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
 
@@ -106,9 +111,13 @@ class CRISManageOrders(QtCore.QCoreApplication):
         self.logger = logger
 
     def loadPreferences(self):
+        QtGui.qApp.log(u'Путь к файлу конфигурации', self.iniFileName, level=1)
         self.preferences = CPreferences(self.iniFileName)
         self.preferences.load()
         self.days = forceInt(self.preferences.appPrefs.get('days', 7))
+        self.reloadLimit = forceInt(self.preferences.appPrefs.get('reloadLimit', 50))
+        self.sendLimit = forceInt(self.preferences.appPrefs.get('sendLimit', 50))
+        self.logLevel = forceInt(self.preferences.appPrefs.get('logLevel', 2))
 
     def log(self, title, message, level=2, stack=None):
         if level <= QtGui.qApp.logLevel:
@@ -137,21 +146,29 @@ class CRISManageOrders(QtCore.QCoreApplication):
             self.openDatabase()
             if self.db:
                 try:
-                    self.Hl7Client = CHl7Client()
-                    self.Hl7Client.initConnection()
+                    self.grpcClient = CGRPCClient()
+                    self.grpcClient.initConnection()
+                    self.mllpClient = CMllpClient()
                     self.manageOrders(actionId=self.options.idAction if self.options.idAction else None,
-                                      eventId=self.options.idEvent if self.options.idEvent else None)
+                                      eventId=self.options.idEvent if self.options.idEvent else None,
+                                      messageId=self.options.idMessage if self.options.idMessage else None)
                 except:
                     self.logCurrentException()
-
             self.closeDatabase()
 
 
 
-    def manageOrders(self, eventId=None, actionId=None):
-        self.createNewOrders(eventId, actionId)
-        self.sendOrders(eventId, actionId)
-        self.cancelOrders(eventId, actionId)
+    def manageOrders(self, eventId=None, actionId=None, messageId=None):
+        if eventId or actionId or messageId:
+            self.log(u'Ключи запуска',
+                     u'Event.id=%s, Action.id=%s, PacsMessages.id=%s' % (eventId, actionId, messageId), 2)
+        if messageId:
+            self.sendMessage(messageId)
+        else:
+            self.createNewOrders(eventId, actionId)
+            self.sendOrders(eventId, actionId)
+            self.cancelOrders(eventId, actionId)
+            self.reloadMessages(eventId, actionId)
         
     def createNewOrders(self, eventId=None, actionId=None):
         db = QtGui.qApp.db
@@ -163,6 +180,9 @@ class CRISManageOrders(QtCore.QCoreApplication):
         tableLR = tableLR.innerJoin(tableAS, tableAS['id'].eq(tableATI['system_id']))
         actionTypeIdLocalResultList = db.getDistinctIdList(tableLR, idCol=[tableAT['id']], where=[tableAS['code'].eq('ODII_export')])
 
+        # Исключаем из выборки ТД для внешних направлений
+        actionTypeIdOutDirectionList = db.getDistinctIdList(tableAT, idCol=[tableAT['id']], where=[tableAT['flatCode'].eq('ODII_outexportdirection')])
+
         tableEvent = db.table('Event')
         tableAction = db.table('Action')
         tableAP = db.table('ActionProperty')
@@ -173,7 +193,7 @@ class CRISManageOrders(QtCore.QCoreApplication):
         tableActionExport = db.table('Action_Export')
         tableExternalSystem = db.table('rbExternalSystem')
 
-        table = tableEvent.leftJoin(tableAction, tableEvent['id'].eq(tableAction['event_id']))
+        table = tableAction.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
         table = table.leftJoin(tableAP, tableAP['action_id'].eq(tableAction['id']))
         table = table.leftJoin(tableAPT, db.joinAnd([tableAPT['id'].eq(tableAP['type_id']),
                                                      tableAPT['shortName'].eq(u'researchKind')]))
@@ -186,11 +206,6 @@ class CRISManageOrders(QtCore.QCoreApplication):
         table = table.innerJoin(tableDS, tableDS['id'].eq(tableAPDS['value']))
         table = table.leftJoin(tablePacsOrder, tablePacsOrder['action_id'].eq(tableAction['id']))
 
-        cols = [
-            tableEvent['id'].alias('event_id'),
-            tableAction['id'].alias('action_id'),
-        ]
-
         cond = [
             tableEvent['deleted'].eq(0),
             tableAction['deleted'].eq(0),
@@ -199,26 +214,42 @@ class CRISManageOrders(QtCore.QCoreApplication):
             tableDS['deleted'].eq(0),
             tablePacsOrder['status'].isNull(),
             tableAction['actionType_id'].notInlist(actionTypeIdLocalResultList),
+            tableAction['actionType_id'].notInlist(actionTypeIdOutDirectionList),
             tableActionExport['id'].isNull()
         ]
         if not eventId and not actionId:
             cond.append(tableAction['status'].inlist([CActionStatus.started, CActionStatus.wait, CActionStatus.appointed]))
-            cond.append(tableAction['begDate'].lt(datetime.date.today() + datetime.timedelta(days=1)))
-            cond.append(tableAction['begDate'].ge(datetime.datetime.now() - datetime.timedelta(days=self.days)))
+            cond.append(db.joinOr([db.joinAnd([tableAction['plannedEndDate'].isNull(), tableAction['begDate'].lt(
+                datetime.date.today() + datetime.timedelta(days=1)), tableAction['begDate'].ge(
+                datetime.datetime.now() - datetime.timedelta(days=self.days))]), db.joinAnd(
+                [tableAction['plannedEndDate'].isNotNull(), tableAction['plannedEndDate'].ge(QDate.currentDate())])]))
 
         if eventId:
             cond.append(tableEvent['id'].eq(eventId))
         if actionId:
             cond.append(tableAction['id'].eq(actionId))
 
-        records = db.getDistinctRecordList(table, cols, cond)
+        # обход Using temporary, возникающее из-за distinct. Инцедент с ГБ Анапа
+        actionIdList = db.getIdList(table, [tableAction['id']], cond)
+        cols = [
+            tableAction['event_id'].alias('event_id'),
+            tableAction['id'].alias('action_id'),
+        ]
+        records = db.getRecordList(tableAction, cols, where=[tableAction['id'].inlist(actionIdList)])
+
+        self.log(u'Поиск исследований для создания новых заказов', u'Найдено записей %d' % len(records), 2)
         for record in records:
             recPacs = tablePacsOrder.newRecord()
             recPacs.setValue('event_id', record.value('event_id'))
             recPacs.setValue('action_id', record.value('action_id'))
             recPacs.setValue('status', toVariant(0))
-            db.insertRecord(tablePacsOrder, recPacs)
-
+            id = db.insertRecord(tablePacsOrder, recPacs)
+            if id:
+                self.log(u'     В таблицу PacsOrder добавлен новый заказ', u'PacsOrder.id=%d Action.id=%d Event.id=%d' % (
+                id, forceRef(recPacs.value('action_id')), forceRef(recPacs.value('event_id'))), 2)
+            else:
+                self.log(u'     Не удалось добавить новый заказ', u'Action.id=%d Event.id=%d' % (
+                    forceRef(recPacs.value('action_id')), forceRef(recPacs.value('event_id'))), 2)
 
     def sendOrders(self, eventId=None, actionId=None):
         db = QtGui.qApp.db
@@ -226,8 +257,8 @@ class CRISManageOrders(QtCore.QCoreApplication):
         tableAction = db.table('Action')
         tablePacsOrder = db.table('PacsOrder')
 
-        table = tablePacsOrder.leftJoin(tableAction, tablePacsOrder['action_id'].eq(tableAction['id']))
-        table = table.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
+        table = tablePacsOrder.innerJoin(tableAction, tablePacsOrder['action_id'].eq(tableAction['id']))
+        table = table.innerJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
 
         cond = [
             tablePacsOrder['deleted'].eq(0),
@@ -237,63 +268,94 @@ class CRISManageOrders(QtCore.QCoreApplication):
             cond.append(tableEvent['id'].eq(eventId))
         if actionId:
             cond.append(tableAction['id'].eq(actionId))
-            
-        records = db.getDistinctRecordList(table, [tablePacsOrder['id'].alias('order_id')], cond)
+
+        records = db.getRecordList(table, [tablePacsOrder['id'].alias('order_id'), tablePacsOrder['action_id'],
+                                                   tablePacsOrder['event_id']], cond, limit=self.sendLimit)
+        self.log(u'Поиск новых заказов для отправки в РИС', u'Найдено записей %d' % len(records), 2)
         for record in records:
-            self.Hl7Client.newOrder(forceInt(record.value('order_id')))
+            self.grpcClient.newOrder(forceInt(record.value('order_id')))
+            self.log(u'     Заказ отправлен в сервис hl7server (orderCode=NW)', u'Заказ PacsOrder.id=%d Action.id=%d Event.id=%d' % (
+            forceRef(record.value('order_id')), forceRef(record.value('action_id')),
+            forceRef(record.value('event_id'))), 2)
 
 
     def cancelOrders(self, eventId=None, actionId=None):
-        # Обработка удаленных действий (action.deleted=1)
+        # Обработка удаленных действий (action.deleted=1 or action.status==ActionStatus.cancelled)
         db = QtGui.qApp.db
-        tableEvent = db.table('Event')
         tableAction = db.table('Action')
-        tableAP = db.table('ActionProperty')
-        tableAPT = db.table('ActionPropertyType')
-        tableAPDS = db.table('ActionProperty_Integer')
-        tableDS = db.table('rbDiagnosticService')
         tablePacsOrder = db.table('PacsOrder')
+        table = tablePacsOrder.innerJoin(tableAction, tableAction['id'].eq(tablePacsOrder['action_id']))
 
-        table = tableEvent.leftJoin(tableAction, tableEvent['id'].eq(tableAction['event_id']))
-        table = table.leftJoin(tableAP, tableAP['action_id'].eq(tableAction['id']))
-        table = table.leftJoin(tableAPT, db.joinAnd(
-            [tableAPT['id'].eq(tableAP['type_id']), tableAPT['shortName'].eq(u'researchKind')]))
-        table = table.innerJoin(tableAPDS, tableAPDS['id'].eq(tableAP['id']))
-        table = table.innerJoin(tableDS, tableDS['id'].eq(tableAPDS['value']))
-        table = table.innerJoin(tablePacsOrder, tablePacsOrder['action_id'].eq(tableAction['id']))
-        colsActionId = [
-            tableAction['id'].alias('action_id'),
-        ]
-        condActionId = []
-        if eventId:
-            condActionId.append(tableEvent['id'].eq(eventId))
-        if actionId:
-            condActionId.append(tableAction['id'].eq(actionId))
-
-        cols = [tablePacsOrder['action_id'], tablePacsOrder['id'].alias('order_id')]
+        cols = [tablePacsOrder['action_id'], tablePacsOrder['id'].alias('order_id'), tablePacsOrder['event_id']]
         cond = [
-            tablePacsOrder['action_id'].notInlist(map(lambda x: forceInt(x.value('action_id')),
-                                                      db.getRecordList(table, colsActionId, condActionId))),
             tablePacsOrder['deleted'].eq(0),
-            tablePacsOrder['status'].ne(3),
+            tablePacsOrder['status'].eq(1),
+            db.joinOr([tableAction['status'].eq(CActionStatus.canceled), tableAction['deleted'].ne(0)]),
         ]
         if eventId:
             cond.append(tablePacsOrder['event_id'].eq(eventId))
         if actionId:
             cond.append(tablePacsOrder['action_id'].eq(actionId))
-        records = db.getDistinctRecordList(tablePacsOrder, cols, cond)
-
-        actionIdList = []
+        records = db.getRecordList(table, cols, cond)
+        self.log(u'Поиск удаленных (отмененных) заказов для отправки в РИС', u'Найдено записей %d' % len(records), 2)
         for record in records:
-            actionIdList.append(forceInt(record.value('action_id')))
-            self.Hl7Client.cancelOrder(forceInt(record.value('order_id')))
+            self.grpcClient.cancelOrder(forceInt(record.value('order_id')))
+            self.log(u'     Заказ отправлен в сервис hl7server (orderCode=CA)',  u'Заказ PacsOrder.id=%d Action.id=%d Event.id=%d' % (
+                forceRef(record.value('order_id')), forceRef(record.value('action_id')),
+                forceRef(record.value('event_id'))), 2)
 
-        #исторически заполняется
-        for item in actionIdList:
-            recHl7List = db.getRecordList(tablePacsOrder, '*', tablePacsOrder['action_id'].eq(item))
-            for recHl7 in recHl7List:
-                recHl7.setValue('deleted', toVariant(1))
-                db.updateRecord(tablePacsOrder, recHl7)
+    def reloadMessages(self, eventId=None, actionId=None):
+        db = QtGui.qApp.db
+        tableMessages = db.table('PacsMessages')
+        tablePacsOrder = db.table('PacsOrder')
+        tableMessagesInner = db.table('PacsMessages').alias('PacsMessagesInner')
+
+        table = tableMessages.innerJoin(tablePacsOrder, tablePacsOrder['id'].eq(tableMessages['pacsOrder_id']))
+
+        cond = [
+            tablePacsOrder['deleted'].eq(0),
+            tableMessages['deleted'].eq(0),
+            tableMessages['loaded'].eq(0),
+        ]
+        innerCond = tableMessages['id'].eqEx(
+            '(%s)' % db.selectStmt(tableMessagesInner, 'MAX(%s)' % tableMessagesInner['id'].name(),
+                                   [tableMessagesInner['pacsOrder_id'].eqEx(tableMessages['pacsOrder_id'].name()),
+                                    tableMessagesInner['deleted'].eq(0)]))
+        cond.append(innerCond)
+        if eventId:
+            cond.append(tablePacsOrder['event_id'].eq(eventId))
+        if actionId:
+            cond.append(tablePacsOrder['action_id'].eq(actionId))
+
+        cols = [
+            tableMessages['id'].alias('message_id'),
+            tableMessages['orderCode'],
+            tablePacsOrder['id'].alias('order_id'),
+            tablePacsOrder['action_id'],
+            tablePacsOrder['event_id'],
+        ]
+
+        records = db.getRecordList(table, cols, cond, limit=self.reloadLimit)
+        self.log(u'Поиск сообщений РИС, требующих повторной загрузки', u'Найдено записей %d' % len(records), 2)
+        for record in records:
+            self.sendMessage(forceInt(record.value('message_id')))
+            self.log(u'     ', u'Сообщение PacsMessages.id = %d (orderCode=%s) Заказ PacsOrder.id=%d Action.id=%d Event.id=%d' % (
+                forceRef(record.value('message_id')), forceString(record.value('orderCode')),
+                forceRef(record.value('order_id')), forceRef(record.value('action_id')),
+                forceRef(record.value('event_id'))), 2)
+
+    def sendMessage(self, idMessage):
+        tmpStr = u'Сообщение не найдено'
+        tableMessages = QtGui.qApp.db.table('PacsMessages')
+
+        rec = QtGui.qApp.db.getRecordEx(tableMessages, [tableMessages['orderCode'], tableMessages['request']],
+                                      tableMessages['id'].eq(idMessage))
+        if rec and forceString(rec.value('orderCode') in CRISManageOrders._RIS_ORDER_CODES):
+            msg = forceString(rec.value('request'))
+            if msg:
+                self.mllpClient.sendMessage(msg)
+                tmpStr = u'Сообщение отправлено в сервис hl7server'
+        self.log(u'     Поиск сообщения PacsMessages.id=%s' % idMessage, tmpStr, 2)
 
 def fmtDateShort(date):
     if isinstance(date, QDateTime):

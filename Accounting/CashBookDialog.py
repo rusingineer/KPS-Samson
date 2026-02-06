@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,51 +15,54 @@
 u'Расчёты: Журнал кассовых операций'
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDate, QLocale, pyqtSignature, SIGNAL, QObject, QString
+from PyQt4.QtCore import Qt, QDate, QLocale, pyqtSignature, SIGNAL, QObject, QString, QDateTime
 
 from Events.ContractTariffCache import CContractTariffCache
 from Resources.JobTypeActionsSelector import CFakeEventEditor
-from library.crbcombobox        import CRBComboBox
-from library.database           import CTableRecordCache
-from library.DialogBase         import CDialogBase
-from library.PrintInfo          import CInfoContext, CDateInfo, CInfoList, CInfo
-from library.PrintTemplates     import ( CPrintButton,
-                                         customizePrintButton,
-                                         getPrintAction,
-                                         applyTemplate,
-                                       )
+from library.crbcombobox import CRBComboBox
+from library.database import CTableRecordCache
+from library.DialogBase import CDialogBase
+from library.PrintInfo import CInfoContext, CDateInfo, CInfoList, CInfo
+from library.PrintTemplates import (CPrintButton,
+                                    customizePrintButton,
+                                    getPrintAction,
+                                    applyTemplate,
+                                    )
 
-from library.TableModel         import ( CTableModel,
-                                         CCol,
-                                         CDateCol,
-                                         CEnumCol,
-                                         CRefBookCol,
-                                         CSumCol,
-                                         CTextCol,
-                                       )
+from library.TableModel import (CTableModel,
+                                CCol,
+                                CDateCol,
+                                CEnumCol,
+                                CRefBookCol,
+                                CSumCol,
+                                CTextCol, 
+                                CDateTimeCol,
+                                )
 from library.Utils import (smartDict, forceDate, forceDouble, forceInt, forceRef, forceString, forceStringEx,
-                           formatName, formatSex, toVariant, forceBool, )
-from Accounting.CashDialog      import CashDialogEditor, printCashOrder
-from Events.EditDispatcher      import getEventFormClass
-from Events.EventInfo           import CEventInfo, CCashOperationInfo
-from Events.Utils               import ( getEventName,
-                                         getEventContext,
-                                         getEventTypeForm,
-                                         getWorkEventTypeFilter,
-                                         orderTexts,
-                                       )
-from Orgs.Utils                 import ( getOrgStructureDescendants,
-                                         getOrgStructureFullName,
-                                       )
+                           formatName, formatSex, toVariant, forceBool, forceDateTime)
+from Accounting.CashDialog import CashDialogEditor, printCashOrder
+from Events.EditDispatcher import getEventFormClass
+from Events.EventInfo import CEventInfo, CCashOperationInfo
+from Events.Utils import (getEventName,
+                          getEventContext,
+                          getEventTypeForm,
+                          getWorkEventTypeFilter,
+                          orderTexts,
+                          )
+from Orgs.Utils import (getOrgStructureDescendants,
+                        getOrgStructureFullName,
+                        )
 from Registry.ClientEditDialog  import CClientEditDialog
-from Registry.RegistryTable     import codeIsPrimary
-from Registry.Utils             import getClientBanner
-from Reports.Report             import convertFilterToString
-from Users.Rights               import ( urAdmin,
-                                         urRegTabWriteEvents,
-                                         urRegTabWriteRegistry,
-                                         urRegTabReadRegistry,
-                                       )
+from Registry.RegistryTable import codeIsPrimary
+from Registry.Utils import getClientBanner
+from Reports.Report import convertFilterToString
+from Users.Rights import (urAdmin,
+                          urRegTabWriteEvents,
+                          urRegTabWriteRegistry,
+                          urRegTabReadRegistry,
+                          urAccessCashBookOnlyJournal,
+                          urAccessCashBook
+                          )
 
 from Accounting.Ui_CashBookDialog import Ui_CashBookDialog
 
@@ -145,6 +148,14 @@ class CCashBookDialog(CDialogBase, Ui_CashBookDialog):
         self.paymentFilter = smartDict()
         self.reapplyFilterRequired = False
         self.lastAddedCashItemId = None
+        self.isEnabledTabCash()
+
+
+    def isEnabledTabCash(self):
+        if QtGui.qApp.userHasRight(urAccessCashBookOnlyJournal) and not QtGui.qApp.userHasAnyRight((urAccessCashBook, urAdmin)):
+            self.tabWidget.setTabEnabled(1, False)
+        else:
+            self.tabWidget.setTabEnabled(1, True)
 
 
     def setCashItemsSort(self, col):
@@ -241,10 +252,10 @@ class CCashBookDialog(CDialogBase, Ui_CashBookDialog):
 
         cond = [tableEvent['deleted'].eq(0),
                 table['deleted'].eq(0),
-                table['date'].ge(self.edtFilterBegDate.date()),
-                table['date'].le(self.edtFilterEndDate.date()),
+                table['dateTime'].ge(QDateTime(self.edtFilterBegDate.date())),
+                table['dateTime'].lt(QDateTime(self.edtFilterEndDate.date().addDays(1))),
                ]
-        cond.append('( Event_JournalOfPerson.id = ( SELECT MAX(id) FROM Event_JournalOfPerson AS ej WHERE Event_Payment.date>=date(ej.setDate) AND ej.master_id = Event.id) OR Event_JournalOfPerson.id IS NULL)')
+        cond.append('( Event_JournalOfPerson.id = ( SELECT MAX(id) FROM Event_JournalOfPerson AS ej WHERE Event_Payment.dateTime>=date(ej.setDate) AND ej.master_id = Event.id) OR Event_JournalOfPerson.id IS NULL)')
         if filter.cashBox:
             cond.append(table['cashBox'].eq(filter.cashBox))
         if filter.cashKeeperId:
@@ -268,7 +279,7 @@ class CCashBookDialog(CDialogBase, Ui_CashBookDialog):
             cond.append(tableEvent['assistant_id'].eq(filter.assistantId))
 
 
-        idList = db.getIdList(tableEx, idCol=table['id'], where=cond, order='Client.lastName, Client.firstName, Client.patrName, Event_Payment.date, Event_Payment.id') #tt1424
+        idList = db.getIdList(tableEx, idCol=table['id'], where=cond, order='Client.lastName, Client.firstName, Client.patrName, Event_Payment.dateTime, Event_Payment.id') #tt1424
         record = db.getRecordEx(tableEx, 'COUNT(*), SUM(IF(`sum`>0, `sum`,0)) AS `income`, SUM(IF(`sum`<0,`sum`,0)) AS `outcome`', where=cond)
         if record:
             itemCount = forceInt(record.value(0))
@@ -578,7 +589,7 @@ class CCashBookDialog(CDialogBase, Ui_CashBookDialog):
         printCashOrder(self,
                        templateId,
                        forceRef(record.value('master_id')),
-                       forceDate(record.value('date')),
+                       forceDateTime(record.value('dateTime')),
                        forceRef(record.value('cashOperation_id')),
                        forceDouble(record.value('sum')),
                        forceString(record.value('cashBox')))
@@ -689,19 +700,19 @@ class CCashItemsModel(CTableModel):
         eventTypeCol = CLocEventTypeColumn(  u'Обращение', ['master_id'], 20)
         eventSetDateCol = CLocEventSetDateColumn(  u'Назначено', ['master_id'], 20, eventTypeCol.eventCache)
         eventExecDateCol = CLocEventExecDateColumn(  u'Окончено', ['master_id'], 20, eventTypeCol.eventCache)
-        eventPersonCol = CLocEventPersonColumn(  u'Врач', ['master_id', 'date'], 20, eventTypeCol.eventCache)
+        eventPersonCol = CLocEventPersonColumn(  u'Врач', ['master_id', 'dateTime'], 20, eventTypeCol.eventCache)
         eventAssistantPersonCol = CLocEventAssistantPersonColumn(u'Ассистент', ['master_id'], 20, eventTypeCol.eventCache)
 
         clientCol = CLocClientColumn( u'Ф.И.О.', ['master_id'], 20, eventTypeCol.eventCache)
         clientBirthDateCol = CLocClientBirthDateColumn( u'Дата рожд.', ['master_id'], 10, eventTypeCol.eventCache, clientCol.clientCache)
         clientSexCol = CLocClientSexColumn(             u'Пол', ['master_id'], 3, eventTypeCol.eventCache, clientCol.clientCache)
         CTableModel.__init__(self, parent, [
-            CDateCol(u'Дата',        ['date'],    10),
-            CTextCol(u'Касса',       ['cashBox'], 20),
-            CRefBookCol(u'Кассир',   ['createPerson_id'], 'vrbPerson', 20),
+            CDateTimeCol(u'Дата и время',  ['dateTime'], 15),
+            CTextCol(u'Касса', ['cashBox'], 20),
+            CRefBookCol(u'Кассир', ['createPerson_id'], 'vrbPerson', 20),
             CRefBookCol(u'Операция', ['cashOperation_id'], 'rbCashOperation', 20),
-            CEnumCol(u'Тип оплаты',   ['typePayment'],  (u'Наличный', u'Безналичный', u'По реквизитам'), 20),
-            CSumCol(u'Сумма',        ['sum'],    10, 'r'),
+            CEnumCol(u'Тип оплаты', ['typePayment'], (u'Наличный', u'Безналичный', u'По реквизитам'), 20),
+            CSumCol(u'Сумма', ['sum'], 10, 'r'),
             CTextCol(u'Документ об оплате', ['documentPayment'], 50),
             clientCol,
             clientBirthDateCol,
@@ -806,12 +817,12 @@ class CLocEventPersonColumn(CRefBookCol):
 
                   FROM Event e 
                   LEFT JOIN Event_JournalOfPerson ejop ON e.id = ejop.master_id
-                  LEFT JOIN Event_Payment ep ON e.id = ep.master_id  AND ep.date >= ejop.setDate
+                  LEFT JOIN Event_Payment ep ON e.id = ep.master_id  AND ep.dateTime >= ejop.setDate
                   WHERE e.id = %(event)s  
                 AND
                   (ejop.id = ( SELECT MAX(id) FROM Event_JournalOfPerson 
-                  WHERE ep.date>=date(Event_JournalOfPerson.setDate)
-                  and ep.date = %(dat)s
+                  WHERE ep.dateTime>=date(Event_JournalOfPerson.setDate)
+                  and ep.dateTime = %(dat)s
                   AND Event_JournalOfPerson.master_id = %(event)s
                  ) OR ejop.id IS NULL)
                             """
@@ -964,7 +975,7 @@ class CCashBookInfo(CInfo):
         eventInfo = context.getInstance(CEventInfo, eventId)
         self._event = eventInfo
         self._client = eventInfo.client
-        self._date = CDateInfo(forceDate(record.value('date')))
+        self._date = CDateInfo(forceDate(record.value('dateTime')))
         cashOperationId = forceRef(record.value('cashOperation_id'))
         self._cashOperation = context.getInstance(CCashOperationInfo, cashOperationId)
         self._sum = forceDouble(record.value('sum'))

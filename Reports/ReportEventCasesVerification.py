@@ -58,9 +58,9 @@ def selectData(params):
              tablePerson['deleted'].eq(0),
            ]
     if begDate:
-        cond.append(tableEvent['setDate'].dateGe(begDate))
+        cond.append(tableEvent['setDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['setDate'].dateLe(endDate))
+        cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
     if onlyOMC:
         cond.append(tableFinance['code'].eq(2))
     if compareUsishCode:

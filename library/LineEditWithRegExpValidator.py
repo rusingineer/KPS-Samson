@@ -135,3 +135,43 @@ class CLineEditWithRegExpValidator(QtGui.QLineEdit):
             else:
                 return ''
         return char
+
+
+class CLineEditWithRegExpValidatorMasked(CLineEditWithRegExpValidator): # При использовании imputMask и CLineEditWithRegExpValidator одновременно, 
+    def __init__(self, *args, **kwargs):                                # есть проблема с удалением символов из-за того как работает qt
+        CLineEditWithRegExpValidator.__init__(self, *args, **kwargs)
+
+    def keyPressEvent(self, ev):
+        key = ev.key()
+        if key in (Qt.Key_Backspace, Qt.Key_Delete):
+            pos = self.cursorPosition()
+            txt = self.text()
+            raw = txt.replace(":", "").replace("_", "")
+
+            if key == Qt.Key_Backspace:
+                if pos == 0:
+                    return
+                rawIndex = pos - 1 if pos > 2 else pos - 1
+                raw = raw[:rawIndex] + raw[rawIndex+1:]
+                newPos = max(pos-1, 0)
+            else:
+                if pos >= len(txt):
+                    return
+                rawIndex = pos - 1 if pos > 2 else pos
+                if rawIndex < len(raw):
+                    raw = raw[:rawIndex] + raw[rawIndex+1:]
+                newPos = pos
+
+            oldMask = self.inputMask()
+            self.blockSignals(True)
+            self.setInputMask("")
+            self.setText(raw)
+            self.setInputMask(oldMask)
+            self.blockSignals(False)
+
+            if newPos == 1:
+                newPos = 2
+            self.setCursorPosition(newPos)
+            return
+        
+        return CLineEditWithRegExpValidator.keyPressEvent(self, ev)

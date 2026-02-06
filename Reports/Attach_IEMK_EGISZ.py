@@ -37,6 +37,7 @@ class CAttach_IEMK_EGISZ(CReport):
         result.setActionTypeVisible(True)
         result.setPersonVisible(True)
         result.setClientIdVisible(True)
+        result.setSetPersonVisible(True)
         result.lblClientId.setText(u'Код карточки')
         result.lblOrgStructure.setText(u'Подразделение (по исполнителю)')
         result.lblPerson.setText(u'Врач (исполнитель)')
@@ -96,6 +97,7 @@ class CAttach_IEMK_EGISZ(CReport):
         event_id = params.get('clientId', None)
         details = params.get('eventStatus', None)
         personId = params.get('personId', None)
+        setPersonId = params.get('setPersonId', None)
         db = QtGui.qApp.db
         if event_id:
             condpersonId = ''
@@ -103,6 +105,7 @@ class CAttach_IEMK_EGISZ(CReport):
             detail = u''
             details_event = u' and e.id in (%s)' % event_id
             dates = ''
+            condSetPersonId = ''
         else:
             details_event = ''
             dates = 'e.execDate BETWEEN DATE(%s) AND DATE(%s) AND' % (db.formatDate(begDate), db.formatDate(endDate))
@@ -123,6 +126,10 @@ class CAttach_IEMK_EGISZ(CReport):
                 condpersonId = ' and p.id = %d' % personId
             else:
                 condpersonId = ''
+            if setPersonId:
+                condSetPersonId = ' and a.setPerson_id = %d' % setPersonId
+            else:
+                condSetPersonId = ''
         if not endDate or endDate.isNull():
             return None
 
@@ -146,14 +153,17 @@ LEFT JOIN Action_FileAttach ON Action_FileAttach.master_id = a.id
 
   left JOIN Information_Messages im1 ON Action_FileAttach.id = im1.IdMedDocumentMis AND im1.id = (SELECT MAX(id) FROM Information_Messages 
   WHERE Information_Messages.IdMedDocumentMis_id=Action_FileAttach.id AND (status = 'Success' AND IdFedRequest IS NOT NULL  AND RemdRegNumber !='') )
-  
+  LEFT JOIN ActionType_Identification ati ON at.id = ati.master_id AND ati.deleted=0 AND ati.system_id IN (SELECT id FROM rbAccountingSystem WHERE rbAccountingSystem.code IN ('n3.medDocumentType.Pdf','n3.medDocumentType.Cda'))
+LEFT JOIN rbAccountingSystem `as` ON ati.system_id = `as`.id
+
 LEFT JOIN Action_FileAttach_Export afae ON Action_FileAttach.id = afae.master_id 
 LEFT JOIN OrgStructure os ON p.orgStructure_id = os.id
   WHERE %(dates)s Action_FileAttach.respSignatureBytes IS NOT NULL -- AND Action_FileAttach.orgSignatureBytes IS NOT NULL 
 AND Action_FileAttach.deleted=0
+AND ((ati.id IS NOT NULL AND IF(SUBSTRING(Action_FileAttach.path,-3)='pdf', `as`.code = 'n3.medDocumentType.Pdf', `as`.code = 'n3.medDocumentType.Cda')) )
   %(detail)s
 AND afae.id IS NOT NULL
-%(condpersonId)s  %(orgStructureList)s  %(details_event)s
+%(condpersonId)s  %(orgStructureList)s  %(details_event)s %(condSetPersonId)s
 -- AND afae.success=1
  GROUP BY os.name,Action_FileAttach.id, messages_id
 ORDER BY os.name,ee.dateTime;
@@ -161,7 +171,8 @@ ORDER BY os.name,ee.dateTime;
                   'condpersonId': condpersonId,
                   'orgStructureList': orgStructureList,
                   'detail': detail,
-                  'details_event': details_event
+                  'details_event': details_event,
+                  'condSetPersonId': condSetPersonId,
                   }
         db = QtGui.qApp.db
         return db.query(stmt)
@@ -172,6 +183,7 @@ ORDER BY os.name,ee.dateTime;
         endDate = params.get('endDate', QDate())
         chkActionTypeClass = params.get('chkActionTypeClass', False)
         personId = params.get('personId', None)
+        setPersonId = params.get('setPersonId', None)
         orgStructureId = params.get('orgStructureId', None)
         details = params.get('eventStatus', None)
         event_id = params.get('clientId', None)
@@ -185,6 +197,8 @@ ORDER BY os.name,ee.dateTime;
                 rows.append(u'по отделению: %s ' % (getOrgStructureName(orgStructureId)))
             if personId:
                 rows.append(u'по врачу: %s ' % forceString(db.translate('vrbPerson', 'id', personId, 'name')))
+            if setPersonId:
+                rows.append(u'по назаначившему врачу: %s ' % forceString(db.translate('vrbPerson', 'id', setPersonId, 'name')))
 
             if details != len(self.listDoc):
                 rows.append(self.listDoc[details][0])

@@ -54,9 +54,9 @@ def getDistinctEventIdList(params):
              tableScene['name'].like(u'поликлиника'),
            ]
     if begDate:
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
     if eventTypePurposeList:
         cond.append(tableEventType['purpose_id'].inlist(eventTypePurposeList))
 

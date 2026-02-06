@@ -134,14 +134,27 @@ ORDER BY %s
     cond.append(table['deleted'].eq(0))
     if isNoExternal:
         cond.append(tableTempInvalidDocument['isExternal'].eq(0))
-        colsIsExternalPrev = u'''    TempInvalid.endDate AS endDate'''
+        colsIsExternalPrev = u'''    TempInvalid.endDate AS endDate,
+                                    IF(TempInvalidDocument.isExternal = 0,
+                                    (SELECT TempInvalid_Period.endDate
+                                        FROM TempInvalid_Period
+                                        WHERE TempInvalid_Period.isExternal = 0 AND TempInvalid_Period.master_id = TempInvalid.id
+                                        ORDER BY TempInvalid_Period.endDate DESC
+                                        LIMIT 1), NULL) AS interEndDate'''
     else:
         colsIsExternalPrev = u'''   IF(TempInvalidDocument.isExternal = 1,
                                        (SELECT TempInvalid_Period.endDate
                                         FROM TempInvalid_Period
                                         WHERE TempInvalid_Period.isExternal > 0 AND TempInvalid_Period.master_id = TempInvalid.id
                                         ORDER BY TempInvalid_Period.endDate DESC
-                                        LIMIT 1), TempInvalid.endDate) AS endDate'''
+                                        LIMIT 1), TempInvalid.endDate) AS endDate,
+                                        
+                                        IF(TempInvalidDocument.isExternal = 0,
+                                        (SELECT TempInvalid_Period.endDate
+                                        FROM TempInvalid_Period
+                                        WHERE TempInvalid_Period.isExternal = 0 AND TempInvalid_Period.master_id = TempInvalid.id
+                                        ORDER BY TempInvalid_Period.endDate DESC
+                                        LIMIT 1), NULL) AS interEndDate'''
 
     if tempInvalidReasonId:
         cond.append(table['tempInvalidReason_id'].eq(tempInvalidReasonId))
@@ -254,20 +267,20 @@ class CTempInvalidBookF036(CReport):
             ('5%', [u'Дата выдачи', u'', u''], CReportBase.AlignLeft),
             ('9%', [u'Фамилия, имя, отчество получателя/больного', u'', u''], CReportBase.AlignLeft),
             ('3%', [u'Возраст', u'', u''], CReportBase.AlignCenter),
-            ('9%', [u'Адрес получателя/больного', u'', u''], CReportBase.AlignLeft),
+            ('8%', [u'Адрес получателя/больного', u'', u''], CReportBase.AlignLeft),
             ('5%', [u'Место работы и выполняемая работа', u'', u''], CReportBase.AlignLeft),
-            ('8%', [u'Диагноз', u'первичный', u''], CReportBase.AlignLeft),
-            ('8%', [u'', u'заключительный', u''], CReportBase.AlignLeft),
-            ('5%', [u'Фамилия врача', u'выдавшего листок нетрудоспособности', u''], CReportBase.AlignLeft),
-            ('5%', [u'', u'закончившего листок нетрудоспособности', u''], CReportBase.AlignLeft),
-            ('8%', [u'Освобожден от работы', u'с какого числа', u''], CReportBase.AlignCenter),
-            ('8%', [u'', u'по какое число', u''], CReportBase.AlignCenter),
-            ('5%', [u'Всего календарных дней освобождения от работы', u'', u''], CReportBase.AlignCenter),
-            ('5%', [u'Отметка о направлении больного в другие лечебные учреждения', u'', u''], CReportBase.AlignLeft),
-            ('5%', [u'Результат', u'', u''], CReportBase.AlignLeft),
+            ('6%', [u'Диагноз', u'первичный', u''], CReportBase.AlignLeft),
+            ('6%', [u'', u'заключительный', u''], CReportBase.AlignLeft),
+            ('6%', [u'Фамилия врача', u'выдавшего листок нетрудоспособности', u''], CReportBase.AlignLeft),
+            ('6%', [u'', u'закончившего листок нетрудоспособности', u''], CReportBase.AlignLeft),
+            ('6%', [u'Освобожден от работы', u'с какого числа', u''], CReportBase.AlignCenter),
+            ('6%', [u'', u'по какое число', u''], CReportBase.AlignCenter),
+            ('6%', [u'Всего календарных дней освобождения от работы', u'', u''], CReportBase.AlignCenter),
+            ('6%', [u'Отметка о направлении больного в другие лечебные учреждения', u'', u''], CReportBase.AlignLeft),
+            ('6%', [u'Результат', u'', u''], CReportBase.AlignLeft),
         ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
         table.mergeCells(0, 0, 2, 1)
         table.mergeCells(0, 1, 1, 2)
         table.mergeCells(0, 3, 1, 2)
@@ -326,6 +339,7 @@ class CTempInvalidBookF036(CReport):
                 MKB = forceString(record.value('MKB'))
                 DiagName = forceString(record.value('DiagName'))
                 endDateTempInvalid = forceDate(record.value('endDate'))
+                interEndDateTempInvalid = forceDate(record.value('interEndDate'))
                 begDate = forceDate(record.value('begDate'))
                 closedExternal = forceBool(record.value('closedExternal'))
                 duration = abs(endDateTempInvalid.toJulianDay() - (begDateAfterExternal if (isExternal and not isNoExternal) else begDate).toJulianDay()) + 1
@@ -399,7 +413,7 @@ class CTempInvalidBookF036(CReport):
                 table.setText(i, 12, begPersonName)
                 table.setText(i, 13, endPersonName if state !=CTempInvalidState.opened  else u'')
                 table.setText(i, 14, begDateAfterExternal.toString('dd.MM.yyyy') if begDateAfterExternal else u'')
-                table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
+                table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else (interEndDateTempInvalid.toString('dd.MM.yyyy') if interEndDateTempInvalid else u''))
                 table.setText(i, 16, duration)
                 table.setText(i, 17, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
                 table.setText(i, 18, CTempInvalidState.names[state])
@@ -446,6 +460,7 @@ class CTempInvalidBookF036(CReport):
                         MKB = forceString(record.value('MKB'))
                         DiagName = forceString(record.value('DiagName'))
                         endDateTempInvalid = forceDate(record.value('endDate'))
+                        interEndDateTempInvalid = forceDate(record.value('interEndDate'))
                         begDate = forceDate(record.value('begDate'))
                         closedExternal = forceBool(record.value('closedExternal'))
                         begPersonId = forceRef(record.value('begPersonId'))
@@ -469,7 +484,7 @@ class CTempInvalidBookF036(CReport):
                         table.setText(i, 12, begPersonName)
                         table.setText(i, 13, endPersonName if state else u'')
                         table.setText(i, 14, begDate.toString('dd.MM.yyyy') if begDate else u'')
-                        table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else u'')
+                        table.setText(i, 15, (endDateTempInvalid.toString('dd.MM.yyyy') if endDateTempInvalid else u'') if state else (interEndDateTempInvalid.toString('dd.MM.yyyy') if interEndDateTempInvalid else u''))
                         table.setText(i, 16, duration)
                         table.setText(i, 17, u'Направлен в другое лечебное учреждение' if closedExternal else u'')
                         table.setText(i, 18, CTempInvalidState.names[state])

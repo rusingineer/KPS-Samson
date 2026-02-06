@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -80,7 +80,7 @@ from Events.Action              import CAction
 from Events.ActionStatus        import CActionStatus
 from Events.ActionTypeComboBox  import CActionTypeTableCol
 from Events.EventEditDialog     import CEventEditDialog
-from Events.EventInfo import CEventInfoList, CEventInfo
+from Events.EventInfo import CEventInfoList
 from Events.MKBInfo             import CMKBInfo
 from Events.TempInvalidInfo     import (
                                         CTempInvalidInfo,
@@ -269,11 +269,39 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         self.documentsSignatureExternalR = False
         self.periodsSignaturesC = {}
         self.periodsSignaturesD = {}
+        self.edtMseDate.setDate(QDate())
+        self.onOpenEventId = None
+        self.cmbReceiver.setNeedSNILS(True)
         self.cmbReceiver.connect(self.cmbReceiver.lineEdit(), SIGNAL('textChanged(QString)'), self.on_cmbReceiver_textChanged)
         self.transfer_tempId_list = []
         self.chkUserCert.setEnabled(False)
+        self.connect(self.cmbEvent.lineEdit(), SIGNAL('textChanged(QString)'), self.on_cmbEvent_textChanged)
         if forceBool(QtGui.qApp.preferences.appPrefs.get('csp', '')):
             self.setCsp()
+
+
+    @pyqtSignature('QString')
+    def on_cmbEvent_textChanged(self):
+        if not self.edtMseDate.date():
+            event_id = self.cmbEvent.value()
+            if event_id:
+                if self.onOpenEventId == event_id:
+                    self.onOpenEventId = -1
+                    return
+                db = QtGui.qApp.db
+                tableAction = db.table('Action')
+                tableEvent = db.table('Event')
+                tableActionType = db.table('ActionType')
+                cond = [tableEvent['deleted'].eq(0),
+                         tableAction['deleted'].eq(0),
+                         tableActionType['deleted'].eq(0),
+                         tableActionType['flatCode'].eq('inspection_mse'),
+                         tableEvent['id'].eq(event_id)]
+                table = tableAction.leftJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
+                table = table.leftJoin(tableActionType, tableAction['actionType_id'].eq(tableActionType['id']))
+                record = db.getRecordEx(table, tableAction['endDate'], cond)
+                if record:
+                    self.edtMseDate.setDate(forceDate(record.value('endDate')))
 
     @pyqtSignature('QString')
     def on_edtDiagnosis_textChanged(self, text):
@@ -323,6 +351,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         setComboBoxValue(self.cmbOtherSex,  record, 'sex')
         setSpinBoxValue(self.edtOtherAge,   record, 'age')
         self.cmbReceiver.setValue(forceRef(record.value('client_id')))
+        setDateEditValue(self.edtMseDate, record, 'mseDate')
+        self.onOpenEventId = forceRef(record.value('event_id'))
         self.cmbEvent.setValue(forceRef(record.value('event_id')))
         self.edtCaseBegDate.setDate(forceDate(record.value('caseBegDate')))
         self.cmbAccountPregnancyTo12Weeks.setCurrentIndex(forceInt(record.value('accountPregnancyTo12Weeks')))
@@ -414,21 +444,9 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         if self.documentsSignatureR:
             isProtected = True
             isBreakProtected = True
-        #            isReasonProtected = True
         else:
             if self.documentsSignatureB:
                 isBreakProtected = True
-        #            if self.documentsSignatureExternalR:
-        #                isReasonProtected = self.getFssStatusToReason()
-        #            for periodSignaturesC in self.periodsSignaturesC.values():
-        #                if periodSignaturesC:
-        #                    isReasonProtected = True
-        #                    break
-        #            if not isReasonProtected:
-        #                for periodSignaturesD in self.periodsSignaturesD.values():
-        #                    if periodSignaturesD:
-        #                        isReasonProtected = True
-        #                        break
         isEditable = isProtected
         if hasattr(self, 'modelPeriods'):
             self.modelPeriods.setReadOnly(isProtected)
@@ -485,8 +503,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             self.edtEndDateStationary.setReadOnly(isEditable)
         if hasattr(self, 'cmbDisability'):
             self.cmbDisability.setReadOnly(isEditable)
-#        if hasattr(self, 'cmbResult'):
-#            self.cmbResult.setReadOnly(isEditable)
         if hasattr(self, 'chkInsuranceOfficeMark'):
             self.chkInsuranceOfficeMark.setEnabled(not isEditable)
         if hasattr(self, 'edtResultDate'):
@@ -696,16 +712,9 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             self.cmbReceiver.setReadOnly(not isReadOnlyReceiver)
         enabled = QtGui.qApp.userHasRight(urRegWriteInsurOfficeMark)
         otherPersonEnabled = requiredOtherPerson(self.cmbReason.value()) if self.type_ != CTempInvalidEditDialog.Disability else True
-#        receiverId = self.cmbReceiver.value()
         if not otherPersonEnabled or self.placeRegistry:
             if self.cmbReceiver.isReadOnly():
                 self.cmbReceiver.setValue(self.clientId)
-#        elif receiverId == self.clientId and not self.isReasonPrimary:
-#            self.cmbReceiver.setValue(None)
-#            self.cmbReceiver.setClientId(None)
-#            for item in self.modelDocuments.items():
-#                item.setValue('clientPrimum_id', toVariant(self.clientId))
-#            self.modelDocuments.reset()
         pregnancyAndBirthEnabled = requiredPregnancyAndBirth(self.cmbReason.value())
         diagnosisEnabled = requiredDiagnosis(self.cmbReason.value())
         self.lblDiagnosis.setVisible(diagnosisEnabled)
@@ -878,6 +887,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         getDateEditValue(self.edtResultDate, record, 'resultDate')
         getDateEditValue(self.edtResultOtherwiseDate, record, 'resultOtherwiseDate')
         record.setValue('client_id', toVariant(self.cmbReceiver.value()))
+        getDateEditValue(self.edtMseDate, record, 'mseDate')
         record.setValue('event_id', toVariant(self.cmbEvent.value()))
         getComboBoxValue(self.cmbOtherSex,  record, 'sex')
         getSpinBoxValue(self.edtOtherAge,   record, 'age')
@@ -960,8 +970,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             result = result and (ageClient >= 15 or self.checkValueMessage(u'Возраст Лица по уходу меньше 15 лет!', True, self.cmbReceiver))
             result = result and (self.cmbOtherSex.currentIndex() or self.checkInputMessage(u'пол', False, self.cmbOtherSex))
             result = result and (self.edtOtherAge.value() or self.checkInputMessage(u'возраст', False, self.edtOtherAge))
-        # if requiredPregnancyAndBirth(reasonId):
-        #     result = result and (self.cmbAccountPregnancyTo12Weeks.currentIndex() or self.checkInputMessage(u'учёт по беременности до 12 нед.', True, self.cmbAccountPregnancyTo12Weeks))
         items = self.modelPeriods.items()
         countPeriods = len(items)
         result = result and (countPeriods or self.checkInputMessage(u'период', False, self.tblPeriods, 0, 0))
@@ -1034,6 +1042,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         # result = result and self.checkTempInvalidPeriodsDateKAKEntered(reasonId)
         result = result and (len(self.modelDocuments.items()) or self.checkInputMessage(u'документ', False, self.tblDocuments, 0, 0))
         result = result and self.checkNumberOfDisabilityDocuments()
+        result = result and self.checkValidContinuation()
         result = result and self.checkNumberTempInvalidDocument()
         result = result and self.checkSerialNumberTempInvalidDocument()
         result = result and self.checkReason()
@@ -1147,9 +1156,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             self.checkValueMessage(u'Несовместимые значения причины и доп.причины нетрудоспособности.', False, self.cmbReason)
             return False
         if trim(self.edtNumberPermit.text()):
-#            if not trim(self.edtOGRN.text()):
-#                self.checkInputMessage(u'ОГРН', False, self.edtOGRN)
-#                return False
             if not self.edtBegDatePermit.date():
                 self.checkInputMessage(u'дату начала путёвки', False, self.edtBegDatePermit)
                 return False
@@ -1178,9 +1184,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             if not (self.edtBreakDate.date() >= self.modelPeriods.begDate() and self.edtBreakDate.date() <= self.modelPeriods.endDate()):
                 self.checkValueMessage(u'Дата нарушения режима не попадает в период временной нетрудоспособности.', False, self.edtBreakDate)
                 return False
-#        if self.cmbBreak.code() in [u'23', u'24', u'25'] and self.cmbResult.code() not in [u'36']:
-#            self.checkValueMessage(u'Несовместимые значения Нарушения режима и Результата.', False, self.cmbResult)
-#            return False
         if self.edtBreakDate.date() and not self.cmbBreak.value():
             self.checkInputMessage(u'значение Нарушения режима', False, self.cmbBreak)
             return False
@@ -1263,6 +1266,24 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                     self.checkValueMessage(u'В эпизоде ВУТ может быть только 1 внешний документ. Проверьте внесенные данные', False, self.tblDocuments, row, item.indexOf('isExternal'))
                     return False
         return True
+    
+    
+    def checkValidContinuation(self):
+        if self.cmbDoctype.value() == CTempInvalidEditDialog.Disability:
+            items = self.modelDocuments.items()
+            idxZero = None
+            idxOne = None
+            for row, item in enumerate(items):
+                if forceInt(item.value('idx')) == 0 and not idxZero:
+                    idxZero = item
+                elif forceInt(item.value('idx')) == 1:
+                    idxOne = item
+                    checkRow = row
+                if idxOne and idxZero:
+                    if not forceInt(idxOne.value('prevNumber')) and forceInt(idxOne.value('prevNumber')) != forceInt(idxZero.value('number')):
+                        self.checkValueMessage(u'В эпизоде ВУТ внутренний документ не является продолжением внешнего! Удалите внутренний документ и создайте его как продолжение внешнего', False, self.tblDocuments, checkRow, idxOne.indexOf('isExternal'))
+                        return False    
+        return True
 
 
     def checkNumberTempInvalidDocument(self):
@@ -1342,6 +1363,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                                     return False
         db = QtGui.qApp.db
         table = db.table('TempInvalidDocument')
+        tableTempInvalid = db.table('TempInvalid')
+        table = table.leftJoin(tableTempInvalid, tableTempInvalid['id'].eq(table['master_id']))
         for row, item in enumerate(items):
             documentId = forceRef(item.value('id'))
             serial = forceString(item.value('serial'))
@@ -1352,7 +1375,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                     cond = [table['deleted'].eq(0),
                             table['serial'].like(serial),
                             table['number'].like(number),
-                            table['duplicate'].eq(0)
+                            table['duplicate'].eq(0),
+                            tableTempInvalid['state'].ne(4)
                             ]
                     if documentId:
                         cond.append(table['id'].ne(documentId))
@@ -1516,10 +1540,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
     def checkPeriodDataEntered(self, prevPerionEndDate, isElectronicDocument, row, record):
         begDateIndex = record.indexOf('begDate')
         endDateIndex = record.indexOf('endDate')
-        # resultIndex  = record.indexOf('result_id')
         begDate = forceDate(record.value(begDateIndex))
         endDate = forceDate(record.value(endDateIndex))
-        # resultId = forceRef(record.value(resultIndex))
         result = True
         if result and not begDate:
             result = self.checkValueMessage(u'Не заполнена дата начала периода', False, self.tblPeriods, row, begDateIndex)
@@ -1546,16 +1568,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         return 0
 
 
-    # def getResultOtherwiseDate(self):
-    #     code = self.cmbResult.code()
-    #     return code in ['32', '33', '34', '36']
-    #
-    #
-    # def getTempInvalidException(self):
-    #     code = self.cmbResult.code()
-    #     return '31' <= code <= '37'
-
-
     # is date must be used?
     def mustHaveResultDate(self):
         code = self.cmbResult.code()
@@ -1571,11 +1583,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
     def mustHaveContinuation(self):
         code = self.cmbResult.code()
         return code in ('31', '37')
-
-
-    # def mustHaveBreach(self):
-    #     code = self.cmbResult.code()
-    #     return code == '36'
 
 
     def updateLength(self):
@@ -1731,7 +1738,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         try:
             if dialog.exec_():
                 pass
-#                newClientId = dialog.itemId()
         finally:
             dialog.deleteLater()
 
@@ -1842,7 +1848,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
     def getDuplicateAndParent(self):
         pass
-#        items = []
 
 
     def newTempInvalidDocuments(self, items):
@@ -1996,7 +2001,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             annulmentReasonId = forceRef(document.value('annulmentReason_Id'))
             if isExternal and number and not annulmentReasonId:
                 if isElectronic:
-#                    continuationNumber = '12345'
                     ok, continuationNumber = QtGui.qApp.call(None, acquireElectronicTempInvalidNumber)
                 else:
                     continuationNumber = ''
@@ -2098,7 +2102,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             self.modelPeriods.insertRecord(0, periodRecord)
             self.edtCaseBegDate.setDate(externalPeriod[0])
 
-#        print 'toImport', toImport
         if toImport:
             for period in toImport['period']:
                 periodRecord = self.modelPeriods.getEmptyRecord()
@@ -2106,7 +2109,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                 periodRecord.setValue('begDate', period['begDate'])
                 periodRecord.setValue('endDate', period['endDate'])
                 periodRecord.setValue('duration', period['begDate'].daysTo(period['endDate'])+1)
-#                periodRecord.setValue('begPerson_id', QtGui.qApp.userId) # doctorName
                 periodRecord.setValue('endPerson_id', self.tryGuessPerson(period['doctorName'], period['doctorPost']))
                 if period['chairmanName']:
                     periodRecord.setValue('chairPerson_id', self.tryGuessPerson(period['chairmanName']))
@@ -2223,7 +2225,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         return (     begDate
                  and endDate
                  and personId
-#                 and personId == QtGui.qApp.userId
                  and not document.signatures.present(periodSubject)
                  and (    period.idx == 0 and fssStatus == ''
                        or period.idx > 0  and fssStatus == 'P%d' % (period.idx-1)
@@ -2251,7 +2252,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         fssStatus = forceString(document.value('fssStatus'))
         chairmanId = period.chairPersonId
         return (     chairmanId
-#                 and chairmanId == QtGui.qApp.userId
                  and document.signatures.present(periodSubject)
                  and not document.signatures.present(fullPeriodSubject)
                  and (    period.idx == 0 and fssStatus == ''
@@ -2331,8 +2331,8 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                 return False
             maxEndDate = None
             for period in self.modelPeriods.items():
-                if not forceBool(period.value('isExternal')):
-                    return False
+                # if not forceBool(period.value('isExternal')):
+                #     return False
                 endDate = forceDate(period.value('endDate'))
                 maxEndDate = max(maxEndDate, endDate) if maxEndDate else endDate
             if not maxEndDate:
@@ -2346,14 +2346,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             if not self.modelDocuments.findNextDocumentNumber(number):
                 return False
         return not document.signatures.present(document.signatures.resultSubject())
-
-
-
-#    def externalDocumentResultSignatureCanBeRevoked(self, document):
-#        return (     document.signatures.present(document.signatures.resultSubject())
-#                 and forceString(document.value('fssStatus')).startswith(('P', 'M'))
-#               )
-
 
 
     def oldDocumentResultSignatureRequired(self, tempInvalidDocumentId):
@@ -2513,17 +2505,34 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
     def signExternalDocumentResult(self, api, cert, document, subject):
         number = forceString(document.value('number'))
+        lastId = forceRef(document.value('last_id'))
         code = self.cmbResult.code()
         resultDate = None
         otherStateCode = None if code in ['1', '30'] else code
         otherStateDate = None
         nextNumber = None
+        db = QtGui.qApp.db
+        tableTempInvalidDocument = db.table('TempInvalidDocument')
+        if lastId:
+            recordTD = db.getRecordEx(tableTempInvalidDocument, [tableTempInvalidDocument['number']], [tableTempInvalidDocument['id'].eq(lastId), tableTempInvalidDocument['deleted'].eq(0)])
+            nextNumber = forceString(recordTD.value('number')) if recordTD else None
+        if nextNumber is None:
+            nextNumber = self.modelDocuments.findNextDocumentNumber(number)
         if self.mustHaveResultDate():
             resultDate = self.edtResultDate.date()
+            maxEndDate = None
+            for period in self.modelPeriods.items():
+                if forceBool(period.value('isExternal')):
+                    endDate = forceDate(period.value('endDate'))
+                    maxEndDate = max(maxEndDate, endDate) if maxEndDate else endDate
+            if not self.mustHaveContinuation():
+                if maxEndDate and maxEndDate.addDays(1) != resultDate and (lastId or nextNumber is not None):
+                    resultDate = None
+                    otherStateCode = '31'
         if self.mustHaveOtherDate():
             otherStateDate = self.edtResultOtherwiseDate.date()
         if self.mustHaveContinuation():
-            nextNumber = self.modelDocuments.findNextDocumentNumber(number)
+            # nextNumber = self.modelDocuments.findNextDocumentNumber(number)
             assert nextNumber
             resultDate = None
             otherStateCode = '31'
@@ -2602,14 +2611,15 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                 prevDocumentId = forceRef(document.value('prev_id'))
                 if prevDocumentId and self.oldDocumentResultSignatureRequired(prevDocumentId):
                     prevDocument = db.getRecord('TempInvalidDocument', ['id, number, placeWork, master_id'], prevDocumentId)
-                    dlg.addDocumentPart(forceString(prevDocument.value('number')),
-                                        forceString(prevDocument.value('placeWork')).upper(),
-                                        u'Результат базового ЭЛН',
-                                        None,
-                                        None,
-                                        None,
-                                        lambda api, cert, prevDocument=prevDocument, number=number: self.signOldDocumentResult(api, cert, prevDocument, number)
-                                       )
+                    if not forceString(prevDocument.value('number')) in map(lambda x: forceString(x.value('number')), dlg.modelSingnatureSubjectSelector._items):
+                        dlg.addDocumentPart(forceString(prevDocument.value('number')),
+                                            forceString(prevDocument.value('placeWork')).upper(),
+                                            u'Результат внешнего ЭЛН',
+                                            None,
+                                            None,
+                                            None,
+                                            lambda api, cert, prevDocument=prevDocument, number=number: self.signOldDocumentResult(api, cert, prevDocument, number)
+                                            )
                 if isElectronic:
                     for period in self.convertInvalidPeriodsToSignaturePeriods(issueDate, self.modelPeriods.items(), duplicate):
                         partName = u'Врач за период №%d, с %s по %s' % ( period.idx+1,  forceString(period.begDate),  forceString(period.endDate))
@@ -2703,6 +2713,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
                 assert master  # silence pyflakes
                 for signFunc in dlg.getSignFuncsOfCheckedRecords():
                     signFunc(api, cert)
+                    document._dirty = True  # Документ теперь подписан, а значит изменился
         return
 
 
@@ -2728,7 +2739,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
 
     def revokeSignatures(self):
-#        db = QtGui.qApp.db
 
         if not self.checkDataEntered():
             return
@@ -2742,16 +2752,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             number    = forceString( document.value('number') )
             placeWork = forceString( document.value('placeWork') )
             duplicate = forceBool(document.value('duplicate'))
-#            prevDocumentId = forceRef(document.value('prev_id'))
-#            if prevDocumentId and self.oldDocumentResultSignatureRequired(prevDocumentId):
-#                prevDocument = db.getRecord('TempInvalidDocument', ['id, number, placeWork, master_id'], prevDocumentId)
-#                dlg.addDocumentPart(forceString(prevDocument.value('number')),
-#                                    forceString(prevDocument.value('placeWork')),
-#                                    u'Результат базового ЭЛН',
-#                                    None,
-#                                    None,
-#                                    lambda api, cert, prevDocument=prevDocument, number=number: self.signOldDocumentResult(api, cert, prevDocument, number)
-#                               )
 
             for period in self.convertInvalidPeriodsToSignaturePeriods(issueDate, self.modelPeriods.items(), duplicate):
                 partName = u'Врач за период №%d, с %s по %s' % ( period.idx+1,  forceString(period.begDate),  forceString(period.endDate))
@@ -3098,37 +3098,6 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         for documentItem in documentItems:
             if not forceBool(documentItem.value('isExternal')) and not forceRef(documentItem.value('annulmentReason_id')):
                 items.append(documentItem)
-        # newItems = []
-        # duplicatePresent = any(forceBool(item.value('duplicate'))
-        #                        for item in items
-        #                       )
-        # if duplicatePresent:
-        #     resItems = []
-        #     dialog = CTempInvalidDocumentProlongDialog(self, self.clientCache, items)
-        #     try:
-        #         if dialog.exec_():
-        #             resItems = dialog.getItems()
-        #     finally:
-        #         dialog.deleteLater()
-        #     includeItems = []
-        #     for includeItem in resItems:
-        #         if forceBool(includeItem.value('include')):
-        #             includeItems.append(includeItem)
-        #     if not includeItems:
-        #         if self.itemId():
-        #             try:
-        #                 db = QtGui.qApp.db
-        #                 db.transaction()
-        #                 table = db.table('TempInvalid')
-        #                 state = self.prevState if (self.prevState is not None) else CTempInvalidState.opened
-        #                 db.updateRecords(table, table['state'].eq(state), [table['deleted'].eq(0), table['id'].eq(self.itemId())])
-        #                 db.commit()
-        #             except:
-        #                 db.rollback()
-        #                 raise
-        #         return
-        #     newItems = self.newTempInvalidDocuments(includeItems)
-        # else:
         newItems = self.newTempInvalidDocuments(items)
         self.saveProlonging = True
         itemId = self.itemId()
@@ -3159,6 +3128,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         self.edtBegDateStationary.setDate(QDate())
         self.edtEndDateStationary.setDate(QDate())
         self.cmbDisability.setValue(None)
+        self.edtMseDate.setDate(QDate())
         self.cmbResult.setValue(None)
         self.edtResultDate.setDate(QDate())
         self.edtResultOtherwiseDate.setDate(QDate())
@@ -3413,7 +3383,6 @@ class CTempInvalidCreateDialog(CTempInvalidEditDialog):
             if not otherPersonEnabled or self.placeRegistry:
                 self.cmbReceiver.setValue(self.clientId)
             else:
-#                newRecord.setValue('clientPrimum_id', toVariant(self.clientId))
                 self.modelCare.setTempInvalidClientId(self.clientId)
             newRecord.setValue('issueDate', toVariant(execDate) if execDate else toVariant(QDate.currentDate()))
             newRecord.setValue('busyness', toVariant(1))
@@ -3427,7 +3396,6 @@ class CTempInvalidCreateDialog(CTempInvalidEditDialog):
                 if not otherPersonEnabled or self.placeRegistry:
                     self.cmbReceiver.setValue(self.clientId)
                 else:
-#                    newRecord.setValue('clientPrimum_id', toVariant(self.clientId))
                     self.modelCare.setTempInvalidClientId(self.clientId)
                 newRecord.setValue('issueDate', toVariant(execDate) if execDate else toVariant(QDate.currentDate()))
                 newRecord.setValue('busyness', toVariant(busyness))
@@ -3522,19 +3490,22 @@ class CTempInvalidCreateDialog(CTempInvalidEditDialog):
         record.setValue('state',  state)
         record.setValue('prev_id', toVariant(self.prevId))
         record.setValue('event_id', toVariant(self.cmbEvent.value()))
+        record.setValue('mseDate', toVariant(self.edtMseDate.date()))
         record.setValue('person_id', toVariant(self.modelPeriods.lastPerson()))
         if not self.edtCaseBegDate.date():
             self.edtCaseBegDate.setDate(self.modelPeriods.begDate())
         record.setValue('caseBegDate', toVariant(self.edtCaseBegDate.date()))
         record.setValue('accountPregnancyTo12Weeks', toVariant(self.cmbAccountPregnancyTo12Weeks.currentIndex()))
-#        db = QtGui.qApp.db
-#        table = db.table('TempInvalid')
         self.saveProlonging = False
         return record
 
 
     def getMKBs(self):
         return unicode(self.edtDiagnosis.text()), '', self.cmbDiseaseCharacter.value()
+    
+    
+    def newPatronageRecord(self, data):
+        self.modelCare.newRecord(data)
 
 
 def getEventListByDates(context, clientId, begDate, endDate):
@@ -3881,8 +3852,6 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
         if self.type == CTempInvalidEditDialog.Disability:
             self.cols()[CTempInvalidDocumentsModel.Col_Number].setInputMask('9'*64)
             self.cols()[CTempInvalidDocumentsModel.Col_Number].setMaxLength(64)
-#            self.cols()[CTempInvalidDocumentsModel.Col_ClientPrimumId].setTitle(u'Патрон')
-#            self.eventEditor.tblDocuments.enableColHide(CTempInvalidDocumentsModel.Col_ClientSecondId)
         else:
             if self.docCode == CTempInvalidEditDialog.InabilitySheet:
                 self.cols()[CTempInvalidDocumentsModel.Col_Number].setInputMask('999999999999;')
@@ -4066,6 +4035,7 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
 
         result = CInDocTableModel.setData(self, index, value, role)
         if result:
+            self.setValue(row, 'idx', row)
             isExternal = forceBool(self.value(row, 'isExternal'))
             if not isExternal:
                 if column == CTempInvalidDocumentsModel.Col_Electronic:
@@ -4139,6 +4109,8 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
 
     def saveItems(self, masterId, newProlonging = False):
         if self._items is not None:
+            for item in self._items:
+                item._dirty = True
             CInDocTableModel.saveItems(self, masterId)
             db = QtGui.qApp.db
             table = self._table
@@ -4252,15 +4224,17 @@ class CTempInvalidPeriodModel(CInDocTableModel):
 
 
     def cellReadOnly(self, index):
-        if self.documentsSignatureR:
-            return True
         column = index.column()
+        if self.documentsSignatureR and not (column == CTempInvalidPeriodModel.Col_ChairPersonId and self.chairUser):
+            return True
         row = index.row()
         if self.documentsSignatureExternalR:
             if 0 <= row < len(self._items):
                 record = self._items[row]
                 if forceBool(record.value('isExternal')):
                     return True
+                if self.chairUser and column == self.Col_ChairPersonId:
+                    return False
         if self.periodsSignaturesC:
             if 0 <= row < len(self._items):
                 if self.periodsSignaturesC.get(row, False):
@@ -4302,10 +4276,13 @@ class CTempInvalidPeriodModel(CInDocTableModel):
 
 
     def flags(self, index):
-        if self.readOnly:
+        column = index.column()
+        if self.readOnly and not (column == CTempInvalidPeriodModel.Col_ChairPersonId and self.chairUser):
             return Qt.ItemIsSelectable | Qt.ItemIsEnabled
         if self.cellReadOnly(index):
             return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+        elif column == CTempInvalidPeriodModel.Col_ChairPersonId and self.chairUser:
+            return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
         row = index.row()
         if self.type != CTempInvalidEditDialog.Disability:
             if self.isExternal:
@@ -4883,6 +4860,20 @@ class CTempInvalidDocumentCareModel(CInDocTableModel):
         if not self.isElectronic and row >= 2:
             return False
         return CInDocTableModel.setData(self, index, value, role)
+    
+    
+    def newRecord(self, data):
+        record = self.getEmptyRecord()
+        record.setValue('client_Id', data['clientId'])
+        db = QtGui.qApp.db
+        tempInvalidRegimeId = forceInt(db.getRecordEx(db.table('rbTempInvalidRegime'), 'id', u'code={} and name="{}"'.format(data['tempInvalidRegime_code'][0], data['tempInvalidRegime_code'][1])).value(0))
+        record.setValue('tempInvalidRegime_id', tempInvalidRegimeId)
+        if 'begDate' in data.keys():    
+            record.setValue('begDate', data['begDate'])
+            record.setValue('endDate', data['endDate'])
+        items = self.items()
+        items.append(record)
+        self.setItems(items)
 
 
     def getCaresInfo(self, context, masterId):

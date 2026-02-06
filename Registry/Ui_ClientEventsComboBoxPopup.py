@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\Registry\ClientEventsComboBoxPopup.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Registry\ClientEventsComboBoxPopup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -30,7 +30,7 @@ class Ui_ClientEventsComboBoxPopup(object):
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.tblClientEvents = CTableView(ClientEventsComboBoxPopup)
         self.tblClientEvents.setObjectName(_fromUtf8("tblClientEvents"))
-        self.gridLayout.addWidget(self.tblClientEvents, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.tblClientEvents, 0, 0, 1, 2)
 
         self.retranslateUi(ClientEventsComboBoxPopup)
         QtCore.QMetaObject.connectSlotsByName(ClientEventsComboBoxPopup)

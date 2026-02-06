@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -40,6 +40,12 @@ class CPrintActionsListDialog(CDialogBase, Ui_PrintActionsListDialog):
         self.tblActions.horizontalHeader().setStretchLastSection(True)
         self.tblActions.setItemDelegateForColumn(4, CTemplateComboBoxDelegate(self))
         self.updateAcceptButton()
+        edtBegDateBlockSignals = self.edtBegDate.blockSignals(True)
+        edtEndDateBlockSignals = self.edtEndDate.blockSignals(True)
+        self.edtBegDate.setDate(None)
+        self.edtEndDate.setDate(None)
+        self.edtBegDate.blockSignals(edtBegDateBlockSignals)
+        self.edtEndDate.blockSignals(edtEndDateBlockSignals)
 
 
     def printActions(self):
@@ -70,6 +76,20 @@ class CPrintActionsListDialog(CDialogBase, Ui_PrintActionsListDialog):
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_modelActions_dataChanged(self, leftTop, rightBottom):
         self.updateAcceptButton()
+        row = leftTop.row()
+        column = rightBottom.column()
+        if column == self.modelActions.colTemplate:
+            record = self.modelActions.items[row]
+            selectedTemplateIndex = record['selectedTemplateIndex']
+            context = record['context']
+            if QtGui.QMessageBox().question(self, 
+                                         u'Внимание!', 
+                                         u'Изменить шаблон для всех документов данного типа?', 
+                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                for item in self.modelActions.items:
+                    if item['context'] == context:
+                        item['selectedTemplateIndex'] = selectedTemplateIndex
 
 
     @pyqtSignature('')
@@ -116,6 +136,15 @@ class CPrintActionsListDialog(CDialogBase, Ui_PrintActionsListDialog):
         self.modelActions.selectItemsByClasses([])
 
 
+    @pyqtSignature('QDate')
+    def on_edtBegDate_dateChanged(self, date):
+        self.modelActions.setDates(date, self.edtEndDate.date())
+
+    @pyqtSignature('QDate')
+    def on_edtEndDate_dateChanged(self, date):
+        self.modelActions.setDates(self.edtBegDate.date(), date)
+
+
 
 class CTemplateComboBoxDelegate(QtGui.QItemDelegate):
     def createEditor(self, parent, option, index):
@@ -141,37 +170,15 @@ class CTemplateComboBoxDelegate(QtGui.QItemDelegate):
 
 class CPrintActionsModel(QAbstractTableModel):
     headers = [u'Печать', u'Действие', u'Дата начала', u'Дата окончания', u'Шаблон']
+    colTemplate = 4
 
     def __init__(self, parent, eventEditor):
         QAbstractTableModel.__init__(self, parent)
         self.eventEditor = eventEditor
         self.eventContextData = getEventContextData(eventEditor)
-        self.items = []
-        for index, rawItem in enumerate(self.eventContextData['event'].actions._rawItems):
-            record, action = rawItem
-            actionTypeId = forceRef(record.value('actionType_id'))
-            actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
-            context = actionType.context if actionType else ''
-            templates = getPrintTemplates(context)
-            selectedTemplateIndex = 0 if templates else None
-            names = []
-            if actionType:
-                names.append(actionType.name)
-            specifiedName = forceString(record.value('specifiedName'))
-            if specifiedName:
-                names.append(specifiedName)
-            self.items.append({
-                'printed': bool(templates),
-                'record': record,
-                'action': action,
-                'actionType': actionType,
-                'fullName': ' '.join(names),
-                'templates': templates,
-                'selectedTemplateIndex': selectedTemplateIndex,
-                'actionIndex': index,
-                'begDate': forceDate(record.value('begDate')),
-                'endDate': forceDate(record.value('endDate')),
-            })
+        self.begDate = None
+        self.endDate = None
+        self.selectItems()
 
 
     def columnCount(self, index = None):
@@ -257,6 +264,54 @@ class CPrintActionsModel(QAbstractTableModel):
     def selectItemsByClasses(self, classes):
         for item in self.items:
             item['printed'] = (item['templates'] and item['actionType'].class_ in classes)
+        topLeft = self.index(0, 0)
+        bottomRight = self.index(self.rowCount() - 1, 0)
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), topLeft, bottomRight)
+
+
+    def setDates(self, begDate, endDate):
+        self.begDate = begDate
+        self.endDate = endDate
+        self.selectItems()
+
+
+    def selectItems(self):
+        self.items = []
+        for index, rawItem in enumerate(self.eventContextData['event'].actions._rawItems):
+            record, action = rawItem
+            if self.begDate and not self.endDate:
+                if not forceDate(record.value('begDate')) >= self.begDate:
+                    continue
+            elif self.endDate and not self.begDate:
+                if not forceDate(record.value('begDate')) <= self.endDate:
+                    continue
+            elif self.begDate and self.endDate:
+                if not (self.begDate <= forceDate(record.value('begDate')) <= self.endDate):
+                    continue
+            actionTypeId = forceRef(record.value('actionType_id'))
+            actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
+            context = actionType.context if actionType else ''
+            templates = getPrintTemplates(context)
+            selectedTemplateIndex = 0 if templates else None
+            names = []
+            if actionType:
+                names.append(actionType.name)
+            specifiedName = forceString(record.value('specifiedName'))
+            if specifiedName:
+                names.append(specifiedName)
+            self.items.append({
+                'printed': bool(templates),
+                'record': record,
+                'action': action,
+                'actionType': actionType,
+                'fullName': ' '.join(names),
+                'templates': templates,
+                'selectedTemplateIndex': selectedTemplateIndex,
+                'actionIndex': index,
+                'begDate': forceDate(record.value('begDate')),
+                'endDate': forceDate(record.value('endDate')),
+                'context': context,
+            })
         topLeft = self.index(0, 0)
         bottomRight = self.index(self.rowCount() - 1, 0)
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), topLeft, bottomRight)

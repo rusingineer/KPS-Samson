@@ -15,6 +15,12 @@
 # WFT? если это отдельная утилита, она должа быть в appendix
 
 import sys
+import os
+import platform
+
+if platform.system() != 'Windows':
+    pathtail = '/Correct/Correct.py'
+    sys.path.insert(0, os.path.realpath(__file__).replace(pathtail, ''))
 
 from PyQt4        import QtGui, QtSql
 from PyQt4.QtCore import pyqtSignature, QVariant

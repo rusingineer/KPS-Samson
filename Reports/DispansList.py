@@ -28,11 +28,14 @@ def getQuery(params):
     tableDiagnosis = db.table('Diagnosis')
     tableClient = db.table('Client')
     tablePerson = db.table('vrbPersonWithSpeciality')
+    tableClientAttach = db.table('ClientAttach').alias('ca')
+
     date = params['date']
     personId = params['personId']
     MKBFilter = params.get('MKBFilter', 0)
     MKBFrom = params.get('MKBFrom', 'A00')
     MKBTo = params.get('MKBTo', 'Z99.9')
+    attachOrgStructureId = params.get('attachOrgStructureId', None)
 
     socStatusClassId = params.get('socStatusClassId', None)
     socStatusTypeId = params.get('socStatusTypeId', None)
@@ -81,6 +84,10 @@ def getQuery(params):
                   +'ClientSocStatus.socStatusClass_id=%d' % socStatusClassId)
         cond.append('EXISTS('+subStmt+')')
 
+    if attachOrgStructureId:
+        orgStructureList = getOrgStructureDescendants(attachOrgStructureId)
+        cond.append(tableClientAttach['orgStructure_id'].inlist(orgStructureList))
+
     stmt = u"""
 SELECT DISTINCT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) AS clientName,
        Client.birthDate AS clientBirthDate,
@@ -110,6 +117,11 @@ FROM Diagnosis
 LEFT JOIN Diagnostic ON Diagnostic.diagnosis_id = Diagnosis.id AND Diagnostic.deleted = 0
 LEFT JOIN rbDispanser ON rbDispanser.ID = Diagnostic.dispanser_id
 LEFT JOIN Client on Client.id = Diagnosis.client_id
+left JOIN ClientAttach ca ON ca.id = (SELECT MAX(ClientAttach.id) FROM ClientAttach
+                    INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
+                    WHERE client_id = Client.id
+                      AND ClientAttach.deleted = 0
+                      AND NOT rbAttachType.TEMPORARY)
 LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = Diagnosis.dispanserPerson_id
 WHERE {cond}
 ORDER BY clientName""".format(cond=db.joinAnd(cond))
@@ -133,8 +145,8 @@ class CDispansListDialog(QtGui.QDialog, Ui_DiagnosisDispansDialog):
             if not self.edtDate.date():
                 QtGui.QMessageBox.information(self, u'Внимание', u'Необходимо указать дату!')
                 return
-            if not self.cmbOrgStructure.value() and not self.cmbPerson.value():
-                QtGui.QMessageBox.information(self, u'Внимание', u'Необходимо выбрать подразделение или врача!')
+            if not self.cmbOrgStructure.value() and not self.cmbPerson.value()  and not self.cmbOrgStructureAttach.value():
+                QtGui.QMessageBox.information(self, u'Внимание', u'Необходимо выбрать подразделение или врача или прикрепление к участку!')
                 return
             QtGui.QDialog.accept(self)
         elif buttonCode == QtGui.QDialogButtonBox.Cancel:
@@ -154,6 +166,7 @@ class CDispansListDialog(QtGui.QDialog, Ui_DiagnosisDispansDialog):
         self.edtMKBTo.setText(params.get('MKBTo', 'Z99.9'))
         self.cmbSocStatusClass.setValue(params.get('socStatusClassId', None))
         self.cmbSocStatusType.setValue(params.get('socStatusTypeId', None))
+        self.cmbOrgStructureAttach.setValue(params.get('attachOrgStructureId', None))
 
     def params(self):
         result = {}
@@ -166,6 +179,7 @@ class CDispansListDialog(QtGui.QDialog, Ui_DiagnosisDispansDialog):
         result['MKBTo'] = unicode(self.edtMKBTo.text())
         result['socStatusClassId'] = self.cmbSocStatusClass.value()
         result['socStatusTypeId'] = self.cmbSocStatusType.value()
+        result['attachOrgStructureId'] =self.cmbOrgStructureAttach.value()
         return result
 
     @pyqtSignature('int')
@@ -221,6 +235,7 @@ class CDispansListReport(CReport):
         socStatusTypeId = params.get('socStatusTypeId', None)
         orgStructureId = params.get('orgStructureId', None)
         specialityId = params.get('specialityId', None)
+        attachOrgStructureId = params.get('attachOrgStructureId', None)
 
         description = [u'на дату %s' % forceString(date)]
         if orgStructureId:
@@ -241,6 +256,8 @@ class CDispansListReport(CReport):
             description.append(u'Тип соц.статуса: ' + forceString(db.translate('vrbSocStatusType', 'id', socStatusTypeId, 'name')))
         if socStatusClassId:
             description.append(u'Класс соц.статуса: ' + forceString(db.translate('rbSocStatusClass', 'id', socStatusClassId, 'name')))
+        if attachOrgStructureId:
+            description.append(u'Прикрепление к участку: ' + getOrgStructureFullName(attachOrgStructureId))
         columns = [('100%', [], CReportBase.AlignLeft)]
         table = createTable(cursor, columns, headerRowCount=len(description), border=0, cellPadding=2, cellSpacing=0)
         for i, row in enumerate(description):

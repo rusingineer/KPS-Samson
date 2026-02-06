@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -25,7 +25,7 @@ from cStringIO import StringIO
 
 import requests
 
-from Exchange.PyServices import getPyServices, getCdaCode
+from Exchange.PyServices import getPyServices, CSchematronService
 from PyQt4 import QtGui
 from PyQt4.QtCore import (
     Qt,
@@ -103,11 +103,8 @@ class CPageFormat(object):
 
     def setupPrinter(self, printer):
         if printer:
-            printerInfo = QtGui.QPrinterInfo(printer)
-            try:
-                supportedSizes = printerInfo.supportedPaperSizes()
-            except Exception as e:
-                supportedSizes = []
+            # printerInfo = QtGui.QPrinterInfo(printer)
+            supportedSizes = [QtGui.QPrinter.A4, QtGui.QPrinter.A5] #  printerInfo.supportedPaperSizes()
             if self.pageSize == QtGui.QPrinter.Custom:
                 printer.setPaperSize(self.pageRect, QtGui.QPrinter.Millimeter)
             elif self.pageSize in supportedSizes:
@@ -302,10 +299,11 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.btnPreview.clicked.connect(self.btnPreviewClicked)
         self.btnPrint.setFocus(Qt.OtherFocusReason)
         self._setFindVisible(False)
-        self.pyServices = getPyServices()
+        self.pyServices = getPyServices(CSchematronService)
         self.txtReport.actFind.triggered.connect(self.on_actFind_triggered)
         self.templateId = None
         self.templateData = None
+        self.signerPerson = None
 
     def on_lineEditInterval_textChanged(self):
         self.setText(self.textReport)
@@ -337,6 +335,9 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.btnPrintDebug.setStyleSheet("QPushButton { background-color: #fff3c4 }")
         self.buttonBox.addButton(self.btnPrintDebug, QtGui.QDialogButtonBox.ActionRole)
         self.btnPrintDebug.clicked.connect(self.startPrintFormDebug)
+    
+    def setSignerPerson(self, personId):
+        self.signerPerson = personId
 
 
     @pyqtSlot()
@@ -595,7 +596,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             printer.setCopyCount(1)
         self.setupPage(printer)
         self.previewDialog = QPrintPreviewDialog(printer, self)
-        self.previewDialog.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint)
+        self.previewDialog.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint | Qt.WindowMaximizeButtonHint)
         self.previewDialog.paintRequested.connect(self.printPreview)
         self.previewDialog.setWindowTitle(u'Предпросмотр')
         self.previewDialog.exec_()
@@ -737,7 +738,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             for name, supplement in self.supplements.iteritems():
                 if isinstance(supplement, unicode):
                     supplement = supplement.encode('utf-8')
-                self.cdaCode = getCdaCode(supplement)
+                self.cdaCode = self.pyServices.getCdaCode(supplement)
                 if self.cdaCode:
                     self.btnSchematronValidate.setVisible(True)
                     self.btnSchematronValidate.setEnabled(True)
@@ -898,11 +899,17 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
 
 
     def printReport(self, printer, docName):
+        shortenedDocName = docName
+        if len(docName) > 50: #tt3008 Будем обрезать слишком длинное название при печати
+            name, ext = os.path.splitext(docName)
+            name = name[:50 - len(ext)]
+            shortenedDocName = name + ext
+    
         mm = forceString(self.lineEditInterval.displayText())
         if self.checkBoxInterval.isChecked() and mm.isdigit() and int(mm) > 12 and int(mm) <= 420:
             if self.textToPrinter:
                 self.txtReport.setHtml(self.textToPrinter)
-        printTextDocument(self.txtReport.document(), docName, self.pageFormat, printer)
+        printTextDocument(self.txtReport.document(), shortenedDocName, self.pageFormat, printer)
 
 
 
@@ -1023,6 +1030,12 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                 snils = forceString(db.translate('Person', 'id', personId, 'SNILS'))
             else:
                 snils = 'empty'
+        if not templateId and self.templateId:
+            templateId = self.templateId
+        
+        if self.signerPerson:
+            db = QtGui.qApp.db
+            snils = forceString(db.translate('Person', 'id', self.signerPerson, 'SNILS'))
 
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
         printer.setOutputFormat(printer.PdfFormat)
@@ -1071,7 +1084,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         for name, supplement in self.supplements.iteritems():
             if isinstance(supplement, unicode):
                 supplement = supplement.encode('utf-8')
-            cdaCode = getCdaCode(supplement)
+            cdaCode = self.pyServices.getCdaCode(supplement)
             if cdaCode:
                 listCdaCodes = self.pyServices.listCdaCodes()
                 if cdaCode and listCdaCodes:
@@ -1148,27 +1161,31 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
 
 
 def printTextDocument(document, documentName, pageFormat, printer):
-    def uncolorCharFormat(charFormat):
-        foreground = charFormat.foreground()
-        background = charFormat.background()
-        foreground.setColor(QtGui.QColor(0, 0, 0))
-        background.setColor(QtGui.QColor(255, 255, 255))
-        charFormat.setForeground(foreground)
-        charFormat.setBackground(background)
 
     def uncolorDocument(document):
         cursor = QtGui.QTextCursor(document)
-        while not cursor.atEnd(): # заменяем все заливки на белые, а все тексты - на чёрные
-            charFormat = cursor.blockCharFormat()
-            uncolorCharFormat(charFormat)
-            cursor.setBlockCharFormat(charFormat)
-            while not cursor.atBlockEnd(): # заменяем все заливки на белые, а все тексты - на чёрные
-                cursor.movePosition(QtGui.QTextCursor.NextCharacter, QtGui.QTextCursor.KeepAnchor)
-                charFormat = cursor.charFormat()
-                uncolorCharFormat(charFormat)
-                cursor.setCharFormat(charFormat)
-                cursor.clearSelection()
-            cursor.movePosition(QtGui.QTextCursor.NextBlock)
+        cursor.beginEditBlock()
+        cursor.select(QtGui.QTextCursor.Document)
+        
+        charFmt = QtGui.QTextCharFormat()
+        charFmt.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))
+        if charFmt.hasProperty(QtGui.QTextFormat.BackgroundBrush):
+            charFmt.clearProperty(QtGui.QTextFormat.BackgroundBrush)
+        
+        cursor.mergeCharFormat(charFmt)
+        cursor.clearSelection()
+        block = document.begin()
+        while block.isValid():
+            fmt = block.blockFormat()
+            if fmt.hasProperty(QtGui.QTextFormat.BackgroundBrush):
+                fmt.clearProperty(QtGui.QTextFormat.BackgroundBrush)
+                
+                cursor.setPosition(block.position())
+                cursor.setBlockFormat(fmt)
+                
+            block = block.next()
+
+        cursor.endEditBlock()
 
     printer.setCreator('SAMSON')
     printer.setDocName(documentName)

@@ -129,19 +129,6 @@
      </layout>
     </widget>
    </item>
-   <item row="2" column="4">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
    <item row="9" column="0" colspan="3">
     <widget class="QLabel" name="lblQueueItemsCount">
      <property name="sizePolicy">
@@ -338,6 +325,22 @@
    </item>
    <item row="0" column="1" colspan="4">
     <widget class="CEnumComboBox" name="cmbAppointmentType"/>
+   </item>
+   <item row="2" column="4">
+    <widget class="QToolButton" name="btnUpdateItems">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>Обновить список номерков</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

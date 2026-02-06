@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -28,10 +28,10 @@ from Ui_ReportPersonSickListStationary import Ui_ReportPersonSickListStationary
 
 
 def selectData(begDateTime, endDateTime, orgStructureId, MKBFrom, MKBTo, typeHospytal):
-    stmt="""
+    stmt=u"""
 SELECT Action.begDate, Action.id,
 Event.id AS eventId, Event.externalId, Event.client_id, Event.setDate, Event.execDate,
-Client.lastName, Client.firstName, Client.patrName, Client.birthDate, Diagnosis.MKB,
+Client.lastName, Client.firstName, Client.patrName, case Client.sex when 1 then 'М' when 2 then 'Ж' end as sex, Client.birthDate, Diagnosis.MKB,
 getClientRegAddress(Client.id) as regAddress, getClientLocAddress(Client.id) as locAddress ,
 concat_ws(' ',dt.name, cd.serial, cd.number, date_format(cd.date, '%%d.%%m.%%Y'), cd.origin) as document
 FROM Action
@@ -166,14 +166,15 @@ class CReportPersonSickListStationary(CReport):
         tableColumns = [
             ('5%', [u'№'],                  CReportBase.AlignRight),
             ('12%',[u'ФИО пациента'],       CReportBase.AlignLeft),
-            ('8%', [u'дата рождения'],      CReportBase.AlignLeft),
+            ('3%',[u'Пол'],       CReportBase.AlignCenter),
+            ('7%', [u'дата рождения'],      CReportBase.AlignLeft),
             ('8%', [u'возраст'],            CReportBase.AlignLeft),
             ('8%', [u'внешний идентификатор/ внутренний идентификатор'], CReportBase.AlignLeft),
             ('10%', [u'Адрес регистрации'], CReportBase.AlignLeft),
             ('10%', [u'Адрес проживания'], CReportBase.AlignLeft),
             ('8%', [u'код по МКБ'],         CReportBase.AlignLeft),
-            ('8%', [u'поступил'],           CReportBase.AlignLeft),
-            ('8%', [u'выписался'],          CReportBase.AlignLeft),
+            ('7%', [u'поступил'],           CReportBase.AlignLeft),
+            ('7%', [u'выписался'],          CReportBase.AlignLeft),
             ('8%', [u'дней (койко дней)'],    CReportBase.AlignLeft),
             ('10%', [u'Документ'], CReportBase.AlignLeft),
             ]
@@ -197,6 +198,7 @@ class CReportPersonSickListStationary(CReport):
             regAddress = forceString(record.value('regAddress'))
             locAddress = forceString(record.value('locAddress'))
             document = forceString(record.value('document'))
+            sex = forceString(record.value('sex'))
             if not setDate:
                 setDate = QDate.currentDate()
             if not execDate:
@@ -212,16 +214,17 @@ class CReportPersonSickListStationary(CReport):
             cnt += 1
             table.setText(row, 0, cnt)
             table.setText(row, 1, clientName)
-            table.setText(row, 2, birthDate)
-            table.setText(row, 3, clientAge)
-            table.setText(row, 4, externalId + u'/' + eventId)
-            table.setText(row, 5, regAddress)
-            table.setText(row, 6, locAddress)
-            table.setText(row, 7, MKB)
-            table.setText(row, 8, setDateString)
-            table.setText(row, 9, execDateString)
-            table.setText(row, 10, bedDay)
-            table.setText(row, 11, document)
+            table.setText(row, 2, sex)
+            table.setText(row, 3, birthDate)
+            table.setText(row, 4, clientAge)
+            table.setText(row, 5, externalId + u'/' + eventId)
+            table.setText(row, 6, regAddress)
+            table.setText(row, 7, locAddress)
+            table.setText(row, 8, MKB)
+            table.setText(row, 9, setDateString)
+            table.setText(row, 10, execDateString)
+            table.setText(row, 11, bedDay)
+            table.setText(row, 12, document)
         return doc
 
 

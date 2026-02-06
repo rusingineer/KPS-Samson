@@ -201,13 +201,13 @@ class CEmergencySurgicalCare7Nosologies(CReport):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -218,8 +218,8 @@ class CEmergencySurgicalCare7Nosologies(CReport):
                 cond.append(tableClientSocStatus['socStatusType_id'].eq(socStatusTypeId))
             cond.append(tableClientSocStatus['deleted'].eq(0))
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
-        joinOr1 = db.joinOr([tableAction['begDate'].isNull(), tableAction['begDate'].dateGe(begDateTime)])
-        joinOr2 = db.joinOr([tableAction['begDate'].isNull(), tableAction['begDate'].dateLe(endDateTime)])
+        joinOr1 = db.joinOr([tableAction['begDate'].isNull(), tableAction['begDate'].ge(begDateTime)])
+        joinOr2 = db.joinOr([tableAction['begDate'].isNull(), tableAction['begDate'].lt(endDateTime.addDays(1))])
         cond.append(db.joinAnd([joinOr1, joinOr2]))
         if financeId:
             cond.append('''((Action.finance_id IS NOT NULL AND Action.deleted=0 AND Action.finance_id = %s) OR (Contract.id IS NOT NULL AND Contract.deleted=0 AND Contract.finance_id = %s))'''%(str(financeId), str(financeId)))

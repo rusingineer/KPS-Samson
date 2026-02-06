@@ -56,8 +56,8 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tableActionPropertyString, tableActionPropertyString['id'].eq(tableActionProperty['id']))
 
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableMESGroup['code'].eq(u'ДиспанС'),
             tableAction['deleted'].eq(0),
             tableAction['actionType_id'].inlist(getInterviewActionTypeIdList())

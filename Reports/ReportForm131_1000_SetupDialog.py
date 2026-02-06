@@ -83,7 +83,7 @@ class CReportForm131_1000_SetupDialog(QtGui.QDialog, Ui_Report131_1000SetupDialo
         tableMES = db.table('mes.MES')
         tableMESGroup = db.table('mes.mrbMESGroup')
         filter = [tableMESGroup['code'].eq(u'ДиспанС'),
-                  db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].dateGe(self.edtBegDate.date())])
+                  db.joinOr([tableMES['endDate'].isNull(), tableMES['endDate'].ge(self.edtBegDate.date())])
                   ]
         self.mesDispansIdList, nameList = getMesDispansList(self, filter)
         if self.mesDispansIdList and nameList:

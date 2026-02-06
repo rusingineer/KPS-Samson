@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,10 +17,10 @@ import pickle
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QByteArray, QLocale, QMimeData, QModelIndex, QObject, QTime, QVariant, SIGNAL
 
-from Timeline.TimeTable import checkDurationAndCapacity
+from Timeline.TimeTable import checkDurationAndCapacity, isShedulesOverlap
 from library.crbcombobox import CRBComboBox
 from library.InDocTable  import CRecordListModel, CInDocTableView, CInDocTableCol, CIntInDocTableCol, CRBLikeEnumInDocTableCol, CRBInDocTableCol, CNotCleanTimeInDocTableCol
-from library.Utils import forceInt, forceTime, toVariant
+from library.Utils import forceInt, forceTime, toVariant, forceString
 
 from Timeline.Schedule import CSchedule, CScheduleTemplate, getPeriodLength
 
@@ -39,6 +39,9 @@ class CPersonTimeTableModel(CRecordListModel):
         self.setEnableAppendLine(True)
         self.period = None
         self.customLength = 0
+        # костыль до того времени как придумаю другой способ
+        self.idToPaste = -1
+        self.overlapInTemplate = False
         self._parent = parent
 
 
@@ -108,6 +111,7 @@ class CPersonTimeTableModel(CRecordListModel):
 
 
     def loadItems(self, personId, period, customLength):
+        from Timeline.TemplateDialog import CTemplateDialog
         self.period = period
         self.customLength = customLength
 
@@ -122,10 +126,25 @@ class CPersonTimeTableModel(CRecordListModel):
             item = CScheduleTemplate(record)
             dayItems = groupByDay.setdefault(item.day, [])
             dayItems.append(item)
+        if isinstance(self._parent, CTemplateDialog):
+            for day in xrange(getPeriodLength(period, customLength)):
+                if self.overlapInTemplate:
+                    break
+                scheduleDayPeriods = groupByDay.get(day)
+                if len(scheduleDayPeriods) > 1:
+                    for schedulePeriod in scheduleDayPeriods:
+                        self.overlapInTemplate = isShedulesOverlap(schedulePeriod, scheduleDayPeriods, isUseScheduleItems=True)
+                        if self.overlapInTemplate:
+                            break
+        if self.overlapInTemplate:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов в шаблоне сотрудника,\nдля отображения шаблона перейдите в "График" сотрудника и исправьте пересечение!',
+                                          QtGui.QMessageBox.Ok)
         items = []
         for day in xrange(getPeriodLength(period, customLength)):
             dayItems = groupByDay.get(day)
-            if dayItems is None:
+            if dayItems is None or self.overlapInTemplate:
                 items.append(self.getEmptyItem(day))
             else:
                 items.extend(dayItems)
@@ -263,12 +282,26 @@ class CPersonTimeTableModel(CRecordListModel):
             dayItems.append(item)
 
         minDay = min(pasteByDay.iterkeys())
+        removedDays = []
         for day, pasteItems in pasteByDay.iteritems():
             actualDay = day-minDay+startDay
             if actualDay<periodLen:
-                for item in pasteItems:
+                for item in pasteItems[:]:
                     item.day = actualDay
+                    item.id = self.idToPaste
+                    self.idToPaste -= 1
+                    if isShedulesOverlap(item, pasteItems, isTemplate=True, isInesrtFromClipboard=True) or isShedulesOverlap(item, self._items, True, item.begTime, item.endTime):
+                        item.id = None
+                        removedDays.append(forceString(item.day+1)) if forceString(item.day+1) not in removedDays else None
+                        pasteItems.remove(item)
+                    else:
+                        item.id = None
                 groupByDay[actualDay] = mergeItems(groupByDay.get(actualDay, []), pasteItems)
+        if removedDays:
+            QtGui.QMessageBox.information(self._parent,
+                                          u'Внимание!',
+                                          u'Обнаружено пересечение периодов во вставляемых записях,\nотменены вставки в {1}: {0}!'.format(u', '.join(removedDays), u"дне" if len(removedDays)==1 else u"днях"),
+                                          QtGui.QMessageBox.Ok)
 
         newItems = items[:row]
         for day in range(startDay, periodLen):
@@ -281,29 +314,92 @@ class CPersonTimeTableModel(CRecordListModel):
         column = index.column()
         if column in (3, 4, 5, 6): # время, период и план
             row = index.row()
-            schedule = self._items[row]
-            if column == 3:
-                begTime = forceTime(value)
-                if begTime != schedule.begTime:
-                    if schedule.capacity != 0:
-                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, begTime, schedule.endTime)
-                        if checkCapacity:
-                            schedule.capacity = checkCapacity
-            if column == 4:
-                endTime = forceTime(value)
-                if endTime != schedule.endTime:
-                    if schedule.capacity != 0:
-                        checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, True, schedule.begTime, endTime)
-                        if checkCapacity:
-                            schedule.capacity = checkCapacity
-            if column == 5:
-                checkValue = checkDurationAndCapacity(value, self._parent)
-                if checkValue:
-                    value = checkValue
-            if column == 6:
-                checkValue = checkDurationAndCapacity(value, self._parent, True, schedule.begTime, schedule.endTime)
-                if checkValue:
-                    value = checkValue
+            if row < len(self._items):
+                schedule = self._items[row]
+                if column == 3:
+                    begTime = forceTime(value)
+                    if begTime != schedule.begTime:
+                        if isShedulesOverlap(schedule, self._items, isTemplate=True, begTime=begTime):
+                            QtGui.QMessageBox.information(self._parent,
+                                                          u'Внимание!',
+                                                          u'Обнаружено пересечение периодов в рамках выбранного дня,\nвремя начала будет возвращено к прежнему значению!',
+                                                          QtGui.QMessageBox.Ok)
+                            value = schedule.begTime
+                        else:
+                            if schedule.capacity != 0:
+                                checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, begTime, schedule.endTime)
+                                if checkCapacity:
+                                    schedule.capacity = checkCapacity
+                if column == 4:
+                    endTime = forceTime(value)
+                    if endTime != schedule.endTime:
+                        if isShedulesOverlap(schedule, self._items, isTemplate=True, endTime=endTime):
+                            QtGui.QMessageBox.information(self._parent,
+                                                          u'Внимание!',
+                                                          u'Обнаружено пересечение периодов в рамках выбранного дня,\nвремя окончания будет возвращено к прежнему значению!',
+                                                          QtGui.QMessageBox.Ok)
+                            value = schedule.endTime
+                        else:
+                            if schedule.capacity != 0:
+                                checkCapacity = checkDurationAndCapacity(schedule.capacity, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, schedule.begTime, endTime)
+                                if checkCapacity:
+                                    schedule.capacity = checkCapacity
+                if column == 5:
+                    checkValue = checkDurationAndCapacity(value, self._parent, schedule.appointmentPurposeId, schedule.appointmentType)
+                    if checkValue:
+                        value = checkValue
+                if column == 6:
+                    checkValue = checkDurationAndCapacity(value, self._parent, schedule.appointmentPurposeId, schedule.appointmentType, True, schedule.begTime, schedule.endTime)
+                    if checkValue:
+                        value = checkValue
+        if column == 1: # назначение приема
+            row = index.row()
+            if row < len(self._items):
+                schedule = self._items[row]
+                if value != schedule.appointmentPurposeId:
+                    checkValue = schedule.capacity
+                    checkCapacity = True
+                    if schedule.duration not in (QTime(0, 0), QTime()):
+                        checkValue = schedule.duration
+                        checkCapacity = False
+                    if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
+                        checkResult = checkDurationAndCapacity(checkValue, self._parent, value, schedule.appointmentType, checkCapacity, schedule.begTime, schedule.endTime, False)
+                        if checkResult:
+                            if checkResult not in (0, QTime(0,0)):
+                                if checkCapacity:
+                                    schedule.capacity = checkResult
+                                else:
+                                    schedule.duration = checkResult
+                            else:
+                                value = schedule.appointmentPurposeId
+        if column == 0:
+            row = index.row()
+            if row < len(self._items):
+                schedule = self._items[row]
+                if value != schedule.appointmentType and value != 2:
+                    if isShedulesOverlap(schedule, self._items, isTemplate=True, newAppointmentType=value):
+                        QtGui.QMessageBox.information(self._parent,
+                                                      u'Внимание!',
+                                                      u'Обнаружено пересечение периодов в рамках выбранного дня,\nТип периода будет возвращен к прежнему значению!',
+                                                      QtGui.QMessageBox.Ok)
+                        value = schedule.appointmentType
+                    else:
+                        checkValue = schedule.capacity
+                        checkCapacity = True
+                        if schedule.duration not in (QTime(0, 0), QTime()):
+                            checkValue = schedule.duration
+                            checkCapacity = False
+                        if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
+                            checkResult = checkDurationAndCapacity(checkValue, self._parent, schedule.appointmentPurposeId, value, checkCapacity,
+                                                                   schedule.begTime, schedule.endTime, False)
+                            if checkResult:
+                                if checkResult not in (0, QTime(0, 0)):
+                                    if checkCapacity:
+                                        schedule.capacity = checkResult
+                                    else:
+                                        schedule.duration = checkResult
+                                else:
+                                    value = schedule.appointmentType
         return CRecordListModel.setData(self, index, value, role)
 
 

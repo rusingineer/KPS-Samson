@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -127,7 +127,8 @@ class COrgStructureActionPropertyValueType(CActionPropertyValueType):
         if orgStructureCodes:
             isFilter = True
             orgStructureList = []
-            parentIdList = db.getDistinctIdList(table, ['id'], [table['deleted'].eq(0), table['code'].inlist(orgStructureCodes)])
+            codeLikeCond = db.joinOr([table['code'].like(i) for i in orgStructureCodes])
+            parentIdList = db.getDistinctIdList(table, ['id'], [codeLikeCond, table['deleted'].eq(0)])
             for orgStructureId in parentIdList:
                 orgStructureIdList = db.getDescendants('OrgStructure', 'parent_id', orgStructureId)
                 if orgStructureIdList:

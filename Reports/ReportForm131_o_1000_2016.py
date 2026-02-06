@@ -51,8 +51,8 @@ def selectData(params):
             tableAttachType = db.table('rbAttachType')
             cond = [tableClientAttach['deleted'].eq(0),
                     tableAttachType['temporary'].eq(0),
-                    db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].dateLe(endDate)]),
-                    db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].dateGe(begDate)])
+                    db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].lt(endDate.addDays(1))]),
+                    db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].ge(begDate)])
                     ]
             if orgId:
                 cond.append(tableClientAttach['LPU_id'].eq(orgId))

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,10 +16,11 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QEvent, pyqtSignature, SIGNAL, QVariant
 
-from library.database   import CTableRecordCache
-from library.TableModel import CTableModel, CDateCol, CEnumCol, CTextCol, CDesignationCol
-from library.Utils      import forceInt, forceString, forceRef, getPref, setPref, toVariant
-# from Users.Rights       import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
+from Registry.RegistryTable import CSNILSCol
+from library.database       import CTableRecordCache
+from library.TableModel     import CTableModel, CDateCol, CEnumCol, CTextCol, CDesignationCol
+from library.Utils          import forceInt, forceString, forceRef, getPref, setPref, toVariant
+# from Users.Rights         import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry
 
 from Ui_ClientRelationSimpleComboBoxPopup import Ui_ClientRelationSimpleComboBoxPopup
 
@@ -35,6 +36,7 @@ class CClientRelationSimpleComboBoxPopup(QtGui.QFrame, Ui_ClientRelationSimpleCo
         QtGui.QFrame.__init__(self, parent, Qt.Popup)
         self.setFrameShape(QtGui.QFrame.StyledPanel)
         self.setAttribute(Qt.WA_WindowPropagation)
+        self.needSNILS = parent.getNeedSNILS()
         self.tableModel = CClientRelationSimpleTableModel(self)
         self.tableSelectionModel = QtGui.QItemSelectionModel(self.tableModel, self)
         self.tableSelectionModel.setObjectName('tableSelectionModel')
@@ -251,6 +253,8 @@ class CClientRelationSimpleTableModel(CTableModel):
         self.addColumn(CTextCol(u'Фамилия', ['lastName'], 30))
         self.addColumn(CTextCol(u'Имя', ['firstName'], 30))
         self.addColumn(CTextCol(u'Отчество', ['patrName'], 30))
+        if parent.needSNILS:
+            self.addColumn(CSNILSCol(u'СНИЛС', ['SNILS'], 35))
         self.addColumn(CTextCol(u'Номер клиента', ['id'], 20))
         self.addColumn(CEnumCol(u'Пол', ['sex'], ['', u'М', u'Ж'], 10))
         self.addColumn(CDateCol(u'Дата рождения', ['birthDate'], 20, highlightRedDate=False))
@@ -282,7 +286,7 @@ class CClientRelationSimpleTableModel(CTableModel):
         tableAddress = db.table('ClientAddress')
         tableDocumentType = db.table('rbDocumentType')
         loadFields = []
-        loadFields.append(u'''DISTINCT Client.id, Client.lastName, Client.firstName, Client.patrName, Client.birthDate, Client.sex,
+        loadFields.append(u'''DISTINCT Client.id, Client.lastName, Client.firstName, Client.patrName, Client.SNILS,Client.birthDate, Client.sex,
         ClientDocument.serial, ClientDocument.number, ClientDocument.date, ClientDocument.origin, rbDocumentType.name,
         IF(ClientAddress.type = 0, concat(_utf8'Адрес регистрации: ', ClientAddress.freeInput), _utf8'') AS regAddress,
         IF(ClientAddress.type = 1, concat(_utf8'Адрес проживания: ', ClientAddress.freeInput), _utf8'') AS logAddress,

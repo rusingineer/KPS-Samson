@@ -256,10 +256,10 @@ def selectData(params, customDate=None):
     tableActionExecutionPlanItemNomenclature        = db.table('ActionExecutionPlan_Item_Nomenclature')
     tableRbNomenclature    = db.table('rbNomenclature')
 
-    cond = [db.joinOr([db.joinAnd([tableActionExecutionPlanItem['date'].dateGe(begDate),
-                    tableActionExecutionPlanItem['date'].dateLe(begDate)]),
+    cond = [db.joinOr([db.joinAnd([tableActionExecutionPlanItem['date'].ge(begDate),
+                    tableActionExecutionPlanItem['date'].lt(begDate.addDays(1))]),
                     db.joinAnd([tableActionExecutionPlanItem['executedDatetime'].isNull(),
-                    tableActionExecutionPlanItem['date'].dateLe(begDate)])]),
+                    tableActionExecutionPlanItem['date'].lt(begDate.addDays(1))])]),
                 ]
 
     cols = [    tableRbNomenclature['name'].alias('nomenclatureName'),

@@ -257,9 +257,9 @@ def insertMainSection(parent, cursor, params):
     if mesId:
         cond.append(tableEvent['MES_id'].eq(mesId))
     if begDateEvent:
-        cond.append(db.joinOr([tableEvent['setDate'].isNull(), tableEvent['setDate'].dateGe(begDateEvent)]))
+        cond.append(db.joinOr([tableEvent['setDate'].isNull(), tableEvent['setDate'].ge(begDateEvent)]))
     if endDateEvent:
-        cond.append(db.joinOr([tableEvent['setDate'].isNull(), tableEvent['setDate'].dateLe(endDateEvent)]))
+        cond.append(db.joinOr([tableEvent['setDate'].isNull(), tableEvent['setDate'].lt(endDateEvent.addDays(1))]))
     if sex > 0:
         cond.append(tableClient['sex'].eq(sex))
     if ageFrom <= ageTo:

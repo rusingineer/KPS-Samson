@@ -50,6 +50,8 @@ class CTerritorialFundPage(Ui_territorialFundPage, QtGui.QWidget):
     @pyqtSignature('')
     def on_btnTFCPTest_clicked(self):
         url = forceString(self.edtTFCPUrl.text())
+        if not url:
+            url = "http://%s/ident/handler.php" % forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
         service = CTFUnifiedIdentService(url)
         try:
             QtGui.qApp.callWithWaitCursor(self,

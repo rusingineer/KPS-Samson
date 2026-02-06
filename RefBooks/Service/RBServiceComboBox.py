@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -19,6 +19,7 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, SIGNAL, pyqtSignature, QAbstractTableModel, QDate, QEvent, QVariant
+from PyQt4.QtGui import QFont
 
 from library.crbcombobox import CRBComboBox, CRBSelectionModel
 from library.Utils import addDots, addDotsEx, forceDate, forceRef, forceString, forceStringEx, toVariant, trim
@@ -41,7 +42,7 @@ class CRBServiceComboBoxPopup(QtGui.QFrame, Ui_RBServiceComboBoxPopup):
         self.tblService.setModel(self._model)
         self._addNone      = True
         self._staticFilter = None
-        self._order        = ''
+        self._order        = u'rbService.code ASC, rbService.name ASC, rbService.id ASC'
         self.id            = None
         self.filterByCode  = None
         self._filier       = ''
@@ -487,7 +488,7 @@ class CRBServiceComboBoxModel(QAbstractTableModel):
         self._filter       = u''
         self._staticFilter = None
         self._addNone      = True
-        self._order        = None
+        self._order        = u'rbService.code ASC, rbService.name ASC, rbService.id ASC'
         self._table        = QtGui.qApp.db.table('rbService')
         self._items        = []
         self._mapIdToRow   = {}
@@ -556,7 +557,7 @@ class CRBServiceComboBoxModel(QAbstractTableModel):
     def loadData(self, addNone=True, filter=u'', order=None):
         items = []
         if addNone:
-            items.append((None, '-', u'не задано'))
+            items.append((None, '-', u'не задано', None))
             self._mapIdToRow[None]  = 0
             self._mapCodeToRow['-'] = 0
         db = QtGui.qApp.db
@@ -570,17 +571,20 @@ class CRBServiceComboBoxModel(QAbstractTableModel):
             filterIdList.extend(CRBServiceComboBoxModel.filterByHospitalBedsProfileIdList)
             filterIdList.extend(self._additionalIdList)
             cond.append(self._table['id'].inlist(filterIdList))
-        query = db.query(db.selectStmt(self._table, 'id, code, name', cond, order))
+        if order is None:
+            order = self._order
+        query = db.query(db.selectStmt(self._table, 'id, code, name, endDate', cond, order))
         firstId = self._additionalIdList[0] if self._additionalIdList else None
         while query.next():
             record = query.record()
             id     = forceRef(record.value('id'))
             code   = forceString(record.value('code'))
             name   = forceString(record.value('name'))
+            endDate = forceDate(record.value('endDate'))
             currentRowIndex          = len(items)
             self._mapIdToRow[id]     = currentRowIndex
             self._mapCodeToRow[code] = currentRowIndex
-            items.append((id, code, name))
+            items.append((id, code, name, endDate))
 
         if firstId:
             firstRow = 1 if addNone else 0
@@ -619,12 +623,28 @@ class CRBServiceComboBoxModel(QAbstractTableModel):
             return QVariant()
         row    = index.row()
         column = index.column()
+        endDate = forceDate(self._items[row][3])
         if row > len(self._items)-1:
             return QVariant()
         if role == Qt.DisplayRole:
             return QVariant(self._items[row][column+1])
         if role == Qt.ToolTipRole:
-            return QVariant(self._items[row][column+1])
+            if endDate:
+                if endDate <= QDate.currentDate():
+                    return u"Данная услуга не является актуальной"
+                else:
+                    return QVariant(self._items[row][column+1])
+            else:
+                return QVariant(self._items[row][column+1])
+        if role == Qt.FontRole:
+            if endDate:
+                font = QFont()
+                if endDate <= QDate.currentDate():
+                    font.setItalic(True)
+                    font.setBold(True)
+                    return font
+                else:
+                    return font
         return QVariant()
 
 
@@ -680,6 +700,40 @@ class CRBServiceComboBoxModel(QAbstractTableModel):
             if commonLen > maxLen:
                 maxLen, maxLenAt = commonLen, i
         return maxLenAt, code[:maxLen]
+
+    def sort(self, column, order=Qt.AscendingOrder):
+        if not self._items:
+            return
+        try:
+            self.emit(SIGNAL('layoutAboutToBeChanged()'))
+        except Exception:
+            pass
+
+        start = 1 if self._addNone else 0
+        head = self._items[:start]
+        body = self._items[start:]
+
+        reverse = (order == Qt.DescendingOrder)
+        if column == 0:
+            body.sort(key=lambda  x: (x[1] or u'', x[2] or u'', x[0] or 0), reverse=reverse)
+        elif column == 1:
+            body.sort(key=lambda x: (x[2] or u'', x[1] or u'', x[0] or 0), reverse=reverse)
+        else:
+            #на всякий случай
+            body.sort(key=lambda x: (x[1] or u'', x[2] or u'', x[0] or 0), reverse=reverse)
+
+        self._items = head + body
+
+        #пересборка карт
+        self._mapIdToRow.clear()
+        self._mapCodeToRow.clear()
+        for row, item in enumerate(self._items):
+            self._mapIdToRow[item[0]] = row
+            self._mapCodeToRow[item[1]] = row
+        try:
+            self.emit(SIGNAL('layoutChanged()'))
+        except Exception:
+            pass
 
 
 class CRBServiceInDocTableCol(CRBInDocTableCol):

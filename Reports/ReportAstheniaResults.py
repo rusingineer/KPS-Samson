@@ -78,8 +78,8 @@ def selectData(params):
              tableAction['status'].eq(2),
              tableEvent['org_id'].eq(QtGui.qApp.currentOrgId()),
              tableActionType['flatCode'].eq('asthenia'),
-             tableAction['endDate'].dateGe(params['begDate']),
-             tableAction['endDate'].dateLe(params['endDate']),
+             tableAction['endDate'].ge(params['begDate']),
+             tableAction['endDate'].lt(params['endDate'].addDays(1)),
              tablePropertyType['name'].inlist([u'Заключение', u'Направление']),
              'age(Client.birthDate, Action.begDate) >= 60'
            ]

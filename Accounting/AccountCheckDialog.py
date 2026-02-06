@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,6 +14,7 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, Qt, SIGNAL, pyqtSlot, pyqtSignature, QTimer
+from PyQt4.QtGui import QSortFilterProxyModel
 
 from Accounting.Utils import updateAccount, clearPayStatus
 from Events.EditDispatcher import getEventFormClass
@@ -21,11 +22,13 @@ from Exchange.ExportR23Native import getFLCQuery
 from library.DialogBase import CDialogBase
 from library.InDocTable import CRecordListModel, CInDocTableCol
 from library.MemTableModel import CMemTableModel
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.TableModel import CBoolCol, CTextCol, CDateCol
 from library.Utils import forceString, forceRef, agreeNumberAndWord, forceInt, forceBool
 from Orgs.Utils import getOrgStructureDescendants
 from Registry.ClientEditDialog import CClientEditDialog
 from Reports.ReportAccountCheck import CReportAccountCheck
+from Surveillance.SurveillanceDialog import CSurveillanceDialog, isSurveillanceActive
 from Users.Rights import (urAdmin,
                           urAccessAccountInfo,
                           urAccessAccounting,
@@ -270,7 +273,15 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Visit v on v.id = ai.visit_id
             LEFT JOIN rbService s ON s.id = ai.service_id
             where ai.deleted = 0 and ai.event_id = Event.id and ai.master_id in ({master_id})
-            and (TO_DAYS(a.endDate) = TO_DAYS(e.setDate)
+            and (IF (s.infis IN ( 
+                                  'B04.012.001.010', 'B04.012.001.011', 'B04.012.001.012', 'B04.008.007', 
+                                  'B04.015.001', 'B04.008.008', 'B04.023.006', 'B04.037.003', 'B04.023.005', 
+                                  'B04.040.001', 'B04.037.004', 'B04.023.003', 'B04.015.002', 'B04.023.004',
+                                  'B04.004.003', 'B04.025.003', 'B04.015.006', 'B05.069.008', 'B04.057.003',
+                                  'B04.025.004', 'B04.025.001', 'B04.058.001.001', 'B04.058.001.01',
+                                  'B04.058.001', 'B04.058.010', 'B04.070.007', 'B04.023.004.010', 'B04.023.005.010', 
+                                  'B04.058.001.010'
+                                ) OR substr(s.infis, 1, 1) = 'V', TO_DAYS(a.begDate), TO_DAYS(a.endDate)) = TO_DAYS(e.setDate)
                 or TO_DAYS(v.date) = TO_DAYS(e.setDate)
                 or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')))
             """
@@ -286,7 +297,16 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             where e.id = Event.id and a.deleted = 0 and s.id is not null
-                and ct.price is not null and TO_DAYS(a.endDate) = TO_DAYS(e.setDate)
+                and ct.price is not null 
+                and IF (s.infis IN ( 
+                                     'B04.012.001.010', 'B04.012.001.011', 'B04.012.001.012', 'B04.008.007', 
+                                     'B04.015.001', 'B04.008.008', 'B04.023.006', 'B04.037.003', 'B04.023.005', 
+                                     'B04.040.001', 'B04.037.004', 'B04.023.003', 'B04.015.002', 'B04.023.004',
+                                     'B04.004.003', 'B04.025.003', 'B04.015.006', 'B05.069.008', 'B04.057.003',
+                                     'B04.025.004', 'B04.025.001', 'B04.058.001.001', 'B04.058.001.01',
+                                     'B04.058.001', 'B04.058.010', 'B04.070.007', 'B04.023.004.010', 'B04.023.005.010', 
+                                     'B04.058.001.010'
+                                   ) OR substr(s.infis, 1, 1) = 'V', TO_DAYS(a.begDate), TO_DAYS(a.endDate)) = TO_DAYS(e.setDate)
             union all
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
@@ -332,6 +352,9 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 and (ct.endDate is not null and DATE(a.endDate) between ct.begDate and ct.endDate
                 or DATE(a.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
             where e.id = Event.id and a.deleted = 0 and s.id is not null and ct.price is not null
+            AND EXISTS(SELECT NULL FROM ActionType_Service ats WHERE ats.master_id = a.actionType_id AND ats.service_id is not null 
+                and (ats.finance_id = c.finance_id or ats.finance_id is null)
+            )
             and (a.amount < 1 or a.amount > 999 or (isPos(s.infis, rbMedicalAidType.regionalCode, ct.price) = 1 and a.amount > 1)))
             """
              ),
@@ -346,14 +369,14 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             u"""(rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
                     or rbMedicalAidType.regionalCode in ('211', '233', '244') and rbEventProfile.regionalCode in ('8009', '8015', '8019', '8021')
                     or eti.id is not null)
-               and rbFinance.code = '2' and Event.`order` = 1 and ifnull(RelegateOrg.infisCode, '') = ''"""
+               and rbFinance.code = '2' and Event.`order` = 1 and ifnull(RelegateOrg.smoCode, '') = ''"""
              ),
         ('264', 0):
             (u'264 -  поле "Номер направления" не заполнено или содержит недопустимый символ',
             u"""(rbMedicalAidType.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
                     or rbMedicalAidType.regionalCode in ('211', '233', '244') and rbEventProfile.regionalCode in ('8009', '8015', '8019', '8021')
                     or eti.id is not null)
-               and rbFinance.code = '2' and Event.`order` = 1 and (length(ifnull(Event.srcNumber, '')) = 0 or Event.srcNumber not REGEXP '^[0-9]+_?[0-9]+$')"""
+               and rbFinance.code = '2' and Event.`order` = 1 and length(ifnull(Event.srcNumber, '')) = 0"""
              ),
         ('265', 0):
             (u'265 -  поле "Дата направления" не заполнено',
@@ -380,6 +403,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 left join Action a1 on a1.event_id = e1.id and a1.deleted = 0
                 left join ActionType at1 on at1.id = a1.actionType_id
                 left join rbService s1 on s1.id = at1.nomenclativeService_id
+                LEFT join Organisation o1 ON e1.org_id = o1.id
                 left join Contract c1 on c1.id = IFNULL(a1.contract_id, e1.contract_id) and c1.deleted = 0
                 left join Contract_Tariff ct1 ON ct1.master_id = IFNULL(c1.priceList_id, c1.id)
                     and ct1.service_id = s1.id and ct1.deleted = 0
@@ -393,6 +417,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 left join Action a2 on a2.event_id = e2.id and a2.deleted = 0
                 left join ActionType at2 on at2.id = a2.actionType_id
                 left join rbService s2 on s2.id = at2.nomenclativeService_id
+                LEFT join Organisation o2 ON e2.org_id = o2.id
                 left join Contract c2 on c2.id = IFNULL(a2.contract_id, e2.contract_id) and c2.deleted = 0
                 left JOIN rbFinance f2 ON f2.id = c2.finance_id
                 left join Contract_Tariff ct2 ON ct2.master_id = IFNULL(c2.priceList_id, c2.id)
@@ -409,7 +434,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                     and d2.mkb = Diagnosis.mkb 
                     AND so1.obrCode = so2.obrCode
                     AND ct1.id IS NOT NULL AND ct2.id is NOT NULL
-                    and month(e2.execDate) = month(e1.execDate) and year(e2.execDate) = year(e1.execDate))
+                    and month(e2.execDate) = month(e1.execDate) and year(e2.execDate) = year(e1.execDate)
+                    AND o1.infisCode = o2.infisCode)
             """
              ),
         ('322', 0):
@@ -545,17 +571,18 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             u"""exists(select STRAIGHT_JOIN ai2.id
                 from Account_Item ai
                 left join rbService s on s.id = ai.service_id
+                left JOIN vVisitServices vs ON vs.id = s.id
                 left JOIN Event e1 ON e1.id = ai.event_id
                 left join Event e2 on e2.client_id = e1.client_id
-                left join EventType et2 on et2.id = e2.eventType_id
-                left join rbMedicalAidType mt2 ON et2.medicalAidType_id = mt2.id
                 left join Account_Item ai2 on ai.serviceDate = ai2.serviceDate AND e2.id = ai2.event_id
                 left join rbService s2 on s2.id = ai2.service_id
+                LEFT join vVisitServices vs2 ON vs2.id = s2.id
                 where ai.master_id in ({master_id}) and ai.event_id = Event.id and ai.deleted = 0
-                    and isPos(s.infis, rbMedicalAidType.regionalCode, ai.price) = 1
+                    and vs.infis IS NOT NULL
                     and ai2.master_id <> ai.master_id and e2.id <> e1.id and ai2.deleted = 0
-                    and substr(s.infis, 1, 7) = substr(s2.infis, 1, 7)
-                    and isPos(s2.infis, mt2.regionalCode, ai2.price) = 1)
+                    and substr(s.infis, 5, 3) = substr(s2.infis, 5, 3)
+                    and vs2.infis IS NOT NULL
+                )
             """
              ), #34216
         ('355', 0):
@@ -576,6 +603,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                     and ct2.tariffType in (2,5)
             where e2.id = Event.id and isPos(s2.infis, mt2.regionalCode, ct2.price) = 1
             AND substr(s2.name,1,31) <> 'Обращение по поводу заболевания'
+            -- исключить из проверки проведение КТ и МРТ по списку услуг
+            AND s2.infis not in ('B01.039.011', 'B01.039.012', 'B01.039.013', 'B01.039.014')
             group by substr(s2.infis, 1, 7), date(a2.endDate)
             having count(DISTINCT a2.id) > 1)
             """
@@ -801,7 +830,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
               AND IFNULL(eti.value, '') <> 'av'
               AND
               (EXISTS(SELECT NULL FROM mes.MES m
-                        WHERE Event.MES_id = m.id AND m.code like 'G%%' and substr(m.code, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'))
+                        WHERE Event.MES_id = m.id AND m.code like 'G%%' and IF(Event.execDate < '2026-01-01', substr(m.code, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'), substr(m.code, 4, 8) not in ('st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054')))
                AND NOT EXISTS(SELECT NULL
                       FROM Action A1
                       WHERE A1.event_id = Event.id
@@ -814,7 +843,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
               
               OR 
               NOT EXISTS(SELECT NULL FROM mes.MES m
-                        WHERE Event.MES_id = m.id AND (m.code like 'G%%' or substr(m.code, 4, 8) in ('st36.013', 'st36.014', 'st36.015')))
+                        WHERE Event.MES_id = m.id AND (m.code like 'G%%' or IF(Event.execDate < '2026-01-01', substr(m.code, 4, 8) in ('st36.013', 'st36.014', 'st36.015'), substr(m.code, 4, 8) in ('st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054'))))
                AND NOT EXISTS (SELECT NULL FROM Action a
                                 LEFT JOIN ActionType at on at.id = a.actionType_id
                                 LEFT JOIN rbService s on s.id = at.nomenclativeService_id
@@ -884,12 +913,26 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             (u'Прием врача должен оказываться в один день',
             u"""exists(select ai.id from Account_Item ai
                     left join rbService s on s.id = ai.service_id
+                    left JOIN vVisitServices vs ON vs.id = s.id
                     left join Contract_Tariff ct on ai.tariff_id = ct.id
                     left join Action a on a.id = ai.action_id
                     where ai.event_id = Event.id and ai.master_id in ({master_id}) and ai.deleted = 0
-                        and isPos(s.infis, rbMedicalAidType.regionalCode, ai.price) = 1
-                        AND s.name not like 'Обращение%%'
-                        and TO_DAYS(a.begDate) <> TO_DAYS(a.endDate))
+                        and vs.infis IS NOT NULL
+                        and TO_DAYS(a.begDate) <> TO_DAYS(a.endDate)
+                        and vs.infis NOT IN (
+                            'B04.012.001.010', 'B04.012.001.011', 'B04.012.001.012', 'B04.008.007', 
+                            'B04.015.001', 'B04.008.008', 'B04.023.006', 'B04.037.003', 'B04.023.005', 
+                            'B04.040.001', 'B04.037.004', 'B04.023.003', 'B04.015.002', 'B04.023.004',
+                            'B04.004.003', 'B04.025.003', 'B04.015.006', 'B05.069.008', 'B04.057.003',
+                            'B04.025.004', 'B04.025.001', 'B04.058.001.001', 'B04.058.001.01',
+                            'B04.058.001', 'B04.058.010', 'B04.070.007', 'B04.023.004.010', 'B04.023.005.010', 
+                            'B04.058.001.010',
+                            'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
+                            'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
+                            'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
+                            'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009'
+                        )
+                )
                     """
              ),
         ('StomPosDouble', 0):
@@ -925,9 +968,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
         self.addObject('actEditClientFLC', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actOpenEvent',  QtGui.QAction(u'Открыть первичный документ', self))
         self.addObject('actDeleteEventFromAccount', QtGui.QAction(u'Удалить первичный документ из реестра', self))
+        self.addObject('actSurveillancePlanningClients', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
         self.mnuAccountItems.addAction(self.actEditClient)
         self.mnuAccountItems.addAction(self.actOpenEvent)
         self.mnuAccountItems.addAction(self.actDeleteEventFromAccount)
+        self.mnuAccountItems.addAction(self.actSurveillancePlanningClients)
         self.mnuFLC.addAction(self.actEditClientFLC)
 
         self.setupUi(self)
@@ -957,8 +1002,10 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             self.tblAccounts.show()
 
             self.addModels('AccountItemsCheck', CAccountItemsCheckModel(self))
-            self.tblAccountItems.setModel(self.modelAccountItemsCheck)
+            self.proxyModel = CSortFilterProxyTableModel(self, self.modelAccountItemsCheck)
             self.tblAccountItems.setSelectionModel(self.selectionModelAccountItemsCheck)
+            self.tblAccountItems.setSortingEnabled(True)
+            self.tblAccountItems.setModel(self.proxyModel)
             self.tblAccountItems.show()
             self.orgStructureId = None
             self.cmbEventType.setValue(None)
@@ -967,9 +1014,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             self.cmbContract.setTable('Contract', "concat_ws(' | ', (select rbFinance.name from rbFinance where rbFinance.id = Contract.finance_id), Contract.resolution, Contract.number)")
             self.cmbContract.setAddNone(True, u'не задано')
             self.cmbContract.setOrder('finance_id, resolution, number')
+            self.cmbContract.setFilter(u'Contract.deleted = 0')
             self.cmbContract.setValue(None)
 
-            self.selectionModelAccountItemsCheck.currentRowChanged.connect(self.accountItemSelectionChanged)
+            # self.selectionModelAccountItemsCheck.currentRowChanged.connect(self.accountItemSelectionChanged)  # после добавления self.proxyModel не работает
+            self.tblAccountItems.selectionModel().currentRowChanged.connect(self.accountItemSelectionChanged)  # после добавления self.proxyModel вроде работает
 
             self.tblAccountItems.setPopupMenu(self.mnuAccountItems)
 
@@ -1010,10 +1059,10 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
     def on_cmbFinance_currentIndexChanged(self, index):
 
         if self.cmbFinance.value():
-            self.cmbContract.setFilter(u'Contract.finance_id = {0}'.format(self.cmbFinance.value()))
+            self.cmbContract.setFilter(u'Contract.finance_id = {0} AND Contract.deleted = 0'.format(self.cmbFinance.value()))
             self.cmbContract.setValue(None)
         else:
-            self.cmbContract.setFilter(None)
+            self.cmbContract.setFilter(u'Contract.deleted = 0')
             self.cmbContract.setValue(None)
 
     @pyqtSignature('int')
@@ -1202,7 +1251,7 @@ left join soc_spr20 s20 on s20.code = Diagnosis.MKB and s20.datn <= Event.execDa
     and (s20.dato >= Event.execDate or s20.dato is null)
 left join soc_spr20 s20group on s20group.code = substr(Diagnosis.MKB, 1, 3)
     and s20group.datn <= Event.execDate and (s20group.dato >= Event.execDate or s20group.dato is null)
-where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(checkCases, templateCond, QtGui.qApp.provinceKLADR()[:2])
+where EventType.code <> 'hospDir' and rbFinance.code = '2' and Contract.deleted = 0 and {1}""".format(checkCases, templateCond, QtGui.qApp.provinceKLADR()[:2])
         return template
 
     def getCheckResults(self, condition):
@@ -1280,7 +1329,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
             sql = self.getCheckQuery(db.joinAnd(cond))
         self.modelAccountItemsCheck.loadFromSql(sql, lambda record: record.value('errorList') != '')
         self.setCursor(Qt.ArrowCursor)
-        rows = self.modelAccountItemsCheck.rowCount()
+        rows = self.tblAccountItems.model().rowCount()
         text = u'{0:d} {1}'.format(rows,
                                    agreeNumberAndWord(rows, (u'ошибка найдена', u'ошибки найдено', u'ошибок найдено')))
         self.lblResultCount.setText(text if rows > 0 else u'Ошибок не найдено')
@@ -1333,7 +1382,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
 
 
     def accountItemSelectionChanged(self, current, previous):
-        record = self.modelAccountItemsCheck.getRecordByRow(current.row())
+        record = self.tblAccountItems.model().getRecordByRow(current.row())
         errorCodes = forceString(record.value('errorList')).split()
         errorDescriptions = [CAccountCheckDialog.CheckTypes[(code, 0)][0] if (code, 0) in CAccountCheckDialog.CheckTypes else CAccountCheckDialog.CheckTypes[(code, 1)][0] for code in errorCodes]
         self.textErrorDescription.setPlainText("\n".join(errorDescriptions))
@@ -1345,15 +1394,18 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
         itemPresent = currentRows != [] and isAccountant
         self.actEditClient.setEnabled(currentRows != [])
         self.actOpenEvent.setEnabled(currentRows != [])
+        self.actSurveillancePlanningClients.setEnabled(currentRows != [])
         self.actDeleteEventFromAccount.setEnabled(itemPresent and self.twAccounts.currentWidget() == self.tabAccount)
         if len(currentRows) == 1:
             self.actEditClient.setVisible(True)
             self.actOpenEvent.setVisible(True)
+            self.actSurveillancePlanningClients.setVisible(True)
             self.actDeleteEventFromAccount.setText(u'Удалить первичный документ из реестра')
             self.actDeleteEventFromAccount.setVisible(True)
         elif len(currentRows) > 1:
             self.actEditClient.setVisible(False)
             self.actOpenEvent.setVisible(False)
+            self.actSurveillancePlanningClients.setVisible(False)
             self.actDeleteEventFromAccount.setText(u'Удалить выбранные первичные документы из реестра')
             self.actDeleteEventFromAccount.setVisible(True)
 
@@ -1367,7 +1419,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
     @pyqtSignature('')
     def on_actEditClient_triggered(self):
         row = self.tblAccountItems.currentIndex().row()
-        record = self.modelAccountItemsCheck.getRecordByRow(row)
+        record = self.tblAccountItems.model().getRecordByRow(row)
         clientId = forceRef(record.value('client_id'))
         if clientId:
             dialog = CClientEditDialog(self)
@@ -1404,7 +1456,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
     @pyqtSlot()
     def on_actOpenEvent_triggered(self):
         row = self.tblAccountItems.currentIndex().row()
-        record = self.modelAccountItemsCheck.getRecordByRow(row)
+        record = self.tblAccountItems.model().getRecordByRow(row)
         eventId = forceRef(record.value('event_id'))
         if eventId:
             formClass = getEventFormClass(eventId)
@@ -1429,7 +1481,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
         eventIds = []
         accountIds = []
         for index, row in enumerate(rows):
-            records.append(self.modelAccountItemsCheck.getRecordByRow(row))
+            records.append(self.tblAccountItems.model().getRecordByRow(row))
             eventIds.append(forceRef(records[index].value('event_id')))
             accountIds.extend(db.getDistinctIdList(tableAccountItem, tableAccountItem['master_id'].name(),
                                                    tableAccountItem['event_id'].eq(eventIds[index])))
@@ -1450,7 +1502,7 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
                             clearPayStatus(accountIds[index], itemList)
                             db.deleteRecordSimple(tableAccountItem, tableAccountItem['id'].inlist(itemList))
                             updateAccount(accountIds[index])
-                            self.modelAccountItemsCheck.removeRow(row)
+                            self.tblAccountItems.model().removeRow(row)
                         db.commit()
                     except:
                         db.rollback()
@@ -1458,6 +1510,18 @@ where EventType.code <> 'hospDir' and rbFinance.code = '2' and {1}""".format(che
                         raise
                 finally:
                     QtGui.qApp.restoreOverrideCursor()
+
+    @pyqtSignature('')
+    def on_actSurveillancePlanningClients_triggered(self):
+        row = self.tblAccountItems.currentIndex().row()
+        record = self.tblAccountItems.model().getRecordByRow(row)
+        clientId = forceRef(record.value('client_id'))
+        eventId = forceRef(record.value('event_id'))
+        if isSurveillanceActive(clientId, {'event_id': eventId}, {'begDate': QDate.currentDate(), 'event_id': eventId}):
+            surPlanningShow = CSurveillanceDialog(self, isFake=True)
+            surPlanningShow.surveillancePlanningShow(clientId, eventId=eventId)
+        else:
+            QtGui.QMessageBox().information(self, u'Информация', u'Пациент не состоит на диспансерном наблюдении по диагнозам в событии!', QtGui.QMessageBox.Close)
 
 
 class CFLCModel(CRecordListModel):
@@ -1483,6 +1547,7 @@ class CFLCModel(CRecordListModel):
         self.addCol(CInDocTableCol(u'SPV', 'SPV', 100).setReadOnly())
         self.addCol(CInDocTableCol(u'SPS', 'SPS', 100).setReadOnly())
         self.addCol(CInDocTableCol(u'SPN', 'SPN', 100).setReadOnly())
+        self.addCol(CInDocTableCol(u'ENP', 'ENP', 100).setReadOnly())
         self.addCol(CInDocTableCol(u'Q_G', 'Q_G', 100).setReadOnly())
         self.addCol(CInDocTableCol(u'FAMP', 'FAMP', 100).setReadOnly())
         self.addCol(CInDocTableCol(u'IMP', 'IMP', 100).setReadOnly())
@@ -1527,6 +1592,7 @@ class CFLCModel(CRecordListModel):
                   IF(SPV       REGEXP '^[[:digit:]]{1}$' = 1 OR IFNULL(SPV, '') = '',                                                NULL, 'Некорректное поле SPV'),
                   IF(SPS       REGEXP '^.{1,10}$' = 1 OR IFNULL(SPS, '') = '',                                                       NULL, 'Некорректное поле SPS'),
                   IF(SPN       REGEXP '^.{1,20}$' = 1 OR IFNULL(SPN, '') = '',                                                       NULL, 'Некорректное поле SPN'),
+                  IF(ENP       REGEXP '^[[:digit:]]{16}$' = 1 OR IFNULL(ENP, '') = '',                                               NULL, 'Некорректное поле ENP'),
                   IF(Q_G       REGEXP '^.{1,10}$' = 1 OR Q_G = '',                                                                   NULL, 'Некорректное поле Q_G'),
                   IF(CHAR_LENGTH(FAMP) <= 40,                                                                                        NULL, 'Некорректное поле FAMP'),
                   IF(CHAR_LENGTH(IMP) <= 40,                                                                                         NULL, 'Некорректное поле IMP'),

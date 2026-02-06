@@ -79,7 +79,7 @@ class CSpecialityTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['rbSpeciality.code', 'rbSpeciality.name']
+        self._fieldNames = ['rbSpeciality.id', 'rbSpeciality.code', 'rbSpeciality.name']
         self.setTable('rbSpeciality')
 
 

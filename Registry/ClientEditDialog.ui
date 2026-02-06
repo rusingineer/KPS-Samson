@@ -14,228 +14,12 @@
    <string>Регистрационная карточка</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
-   <property name="leftMargin">
-    <number>4</number>
-   </property>
-   <property name="topMargin">
-    <number>4</number>
-   </property>
-   <property name="rightMargin">
-    <number>4</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>4</number>
    </property>
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="2" column="2" rowspan="2" colspan="8">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="lblDeathReason">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Причина смерти</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-       <property name="buddy">
-        <cstring>cmbDeathReason</cstring>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="CRBComboBox" name="cmbDeathReason">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>150</width>
-         <height>0</height>
-        </size>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="lblDeathPlaceType">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Место смерти</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-       <property name="buddy">
-        <cstring>cmbDeathPlaceType</cstring>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="CRBComboBox" name="cmbDeathPlaceType">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>150</width>
-         <height>0</height>
-        </size>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_10">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item row="2" column="1" rowspan="2">
-    <widget class="CPatrNameEditor" name="edtPatrName"/>
-   </item>
-   <item row="5" column="11" colspan="2">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="3" colspan="10">
-    <widget class="QWidget" name="DeathDateWidget" native="true">
-     <layout class="QGridLayout" name="gridLayout_15">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <property name="spacing">
-       <number>0</number>
-      </property>
-     </layout>
-    </widget>
-   </item>
-   <item row="1" column="3" colspan="2">
-    <widget class="QLineEdit" name="edtSNILS">
-     <property name="inputMask">
-      <string>999-999-999 99</string>
-     </property>
-     <property name="maxLength">
-      <number>14</number>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="5" colspan="2">
-    <spacer name="horizontalSpacer_10">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="1" column="2">
-    <widget class="QLabel" name="lblSNILS">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>С&amp;НИЛС</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-     <property name="buddy">
-      <cstring>edtSNILS</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <widget class="CFirstNameEditor" name="edtFirstName"/>
-   </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lbFirstName">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Имя</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtFirstName</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0" rowspan="2">
-    <widget class="QLabel" name="lblPatrName">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Отчество</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtPatrName</cstring>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="7" colspan="4">
     <layout class="QHBoxLayout" name="horizontalLayout_6">
      <item>
@@ -277,21 +61,25 @@
      </item>
     </layout>
    </item>
-   <item row="0" column="9">
-    <spacer name="horizontalSpacer_9">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+   <item row="0" column="8">
+    <widget class="QPushButton" name="btn_findNR">
+     <property name="text">
+      <string>Поиск новорожденных</string>
      </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>40</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
+    </widget>
    </item>
-   <item row="0" column="6">
-    <widget class="QLabel" name="lblSex">
+   <item row="5" column="11" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtLastName"/>
+   </item>
+   <item row="0" column="2">
+    <widget class="QLabel" name="lblBDay">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
        <horstretch>0</horstretch>
@@ -299,54 +87,7 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>&amp;Пол</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-     <property name="buddy">
-      <cstring>cmbSex</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="7">
-    <widget class="QComboBox" name="cmbSex">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <item>
-      <property name="text">
-       <string/>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>М</string>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Ж</string>
-      </property>
-     </item>
-    </widget>
-   </item>
-   <item row="0" column="4" colspan="2">
-    <widget class="QTimeEdit" name="edtBirthTime"/>
-   </item>
-   <item row="0" column="10" colspan="2">
-    <widget class="QLabel" name="lblBegDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Дата начала карты</string>
+      <string>Дата ро&amp;ждения</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -376,27 +117,8 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblLastName">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>&amp;Фамилия</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtLastName</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QLineEdit" name="edtLastName"/>
-   </item>
-   <item row="0" column="2">
-    <widget class="QLabel" name="lblBDay">
+   <item row="1" column="2">
+    <widget class="QLabel" name="lblSNILS">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
        <horstretch>0</horstretch>
@@ -404,26 +126,51 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Дата ро&amp;ждения</string>
+      <string>С&amp;НИЛС</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="buddy">
+      <cstring>edtSNILS</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="6">
+    <widget class="QLabel" name="lblSex">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;Пол</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="buddy">
+      <cstring>cmbSex</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="10" colspan="2">
+    <widget class="QLabel" name="lblBegDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Дата начала карты</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
      <property name="buddy">
       <cstring>edtBirthDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="3">
-    <widget class="CDateEdit" name="edtBirthDate">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="calendarPopup">
-      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -447,29 +194,16 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="11">
-    <widget class="QLabel" name="lblEndDate">
+   <item row="0" column="3">
+    <widget class="CDateEdit" name="edtBirthDate">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+      <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
-      <string>Дата архивации карты</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-     <property name="buddy">
-      <cstring>edtEndDate</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="8">
-    <widget class="QPushButton" name="btn_findNR">
-     <property name="text">
-      <string>Поиск новорожденных</string>
+     <property name="calendarPopup">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -495,34 +229,853 @@
         <string>Паспортные &amp;данные</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
          <number>4</number>
         </property>
+        <item row="23" column="8" colspan="3">
+         <widget class="CRBComboBox" name="cmbVoluntaryPolisType">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="20" column="0" colspan="2">
+         <widget class="QLabel" name="lblCompulsoryPolisName">
+          <property name="text">
+           <string>&amp;Название</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtCompulsoryPolisName</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="18" column="2">
+         <widget class="QPushButton" name="btnSearchPolicy">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>искать</string>
+          </property>
+         </widget>
+        </item>
+        <item row="25" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtVoluntaryPolisNote"/>
+        </item>
+        <item row="25" column="0" colspan="2">
+         <widget class="QLabel" name="lblVoluntaryPolisNote">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Примеч&amp;ание</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtVoluntaryPolisNote</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="9" column="0" colspan="13">
+         <widget class="CKLADRComboBox" name="cmbLocCity"/>
+        </item>
+        <item row="12" column="0" colspan="2">
+         <widget class="QLabel" name="label">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;До&amp;amp;кумент&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="buddy">
+           <cstring>cmbDocType</cstring>
+          </property>
+         </widget>
+        </item>
         <item row="21" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtCompulsoryPolisNote"/>
+        </item>
+        <item row="21" column="0" colspan="2">
+         <widget class="QLabel" name="lblCompulsoryPolisNote">
+          <property name="text">
+           <string>Приме&amp;чание</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtCompulsoryPolisNote</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QToolButton" name="btnCopyPrevAddress">
+          <property name="focusPolicy">
+           <enum>Qt::NoFocus</enum>
+          </property>
+          <property name="toolTip">
+           <string>Копировать из предыдущей записи</string>
+          </property>
+          <property name="arrowType">
+           <enum>Qt::RightArrow</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="23" column="0">
+         <widget class="QLabel" name="lblVoluntaryPolisCompany">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>С&amp;МО</string>
+          </property>
+          <property name="buddy">
+           <cstring>cmbVoluntaryPolisCompany</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="19" column="0">
+         <widget class="QLabel" name="lblCompulsoryPolisCompany">
+          <property name="text">
+           <string>&amp;СМО</string>
+          </property>
+          <property name="buddy">
+           <cstring>cmbCompulsoryPolisCompany</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1" colspan="11">
+         <widget class="QLabel" name="lblStreetReg">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Адрес &amp;amp;регистрации&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="buddy">
+           <cstring>cmbRegCity</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="23" column="11" colspan="2">
+         <widget class="CRBComboBox" name="cmbVoluntaryPolisKind">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="10">
+         <widget class="CKLADRComboBox" name="cmbRegCity"/>
+        </item>
+        <item row="24" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtVoluntaryPolisName"/>
+        </item>
+        <item row="3" column="10">
+         <widget class="QLabel" name="lblLivingArea">
+          <property name="text">
+           <string>Зона проживания</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+          </property>
+          <property name="buddy">
+           <cstring>cmbLivingArea</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="24" column="0" colspan="2">
+         <widget class="QLabel" name="lblVoluntaryPolisName">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Назв&amp;ание</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtVoluntaryPolisName</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="20" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtCompulsoryPolisName"/>
+        </item>
+        <item row="7" column="0" colspan="10">
+         <widget class="QLabel" name="lblStreetLoc">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Адрес &amp;amp;проживания&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="buddy">
+           <cstring>cmbLocCity</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="28" column="2" colspan="11">
+         <widget class="CInDocTableView" name="tblContacts"/>
+        </item>
+        <item row="15" column="0" colspan="2">
+         <widget class="QLabel" name="lblDocOrigin">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Кем выдан</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtDocOrigin</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="28" column="0" colspan="2">
+         <widget class="QLabel" name="lblContacts">
+          <property name="text">
+           <string>Контакты</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="13">
+         <widget class="QLineEdit" name="edtRegFreeInput">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="19" column="8" colspan="3">
+         <widget class="CRBComboBox" name="cmbCompulsoryPolisType">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="19" column="11" colspan="2">
+         <widget class="CRBComboBox" name="cmbCompulsoryPolisKind">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="26" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtBirthPlace"/>
+        </item>
+        <item row="7" column="11">
+         <widget class="QToolButton" name="btnCopy">
+          <property name="minimumSize">
+           <size>
+            <width>20</width>
+            <height>20</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Копирование адреса</string>
+          </property>
+          <property name="text">
+           <string>...</string>
+          </property>
+          <property name="arrowType">
+           <enum>Qt::DownArrow</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="18" column="0" colspan="2">
+         <widget class="QLabel" name="lblCompulsoryPolicy">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Полис &amp;amp;ОМС&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtCompulsoryPolisSerial</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="9">
+         <widget class="CLineEditWithRegExpValidator" name="edtDocNumber">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>80</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maxLength">
+           <number>32</number>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="8">
+         <widget class="QLabel" name="lblDocNumber">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Н&amp;омер</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtDocNumber</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="26" column="0" colspan="2">
+         <widget class="QLabel" name="lblBirthPlace">
+          <property name="text">
+           <string>Место рождения</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="11" colspan="2">
+         <widget class="CRBComboBox" name="cmbLivingArea">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="0" colspan="7">
+         <widget class="CStreetComboBox" name="cmbLocStreet"/>
+        </item>
+        <item row="13" column="3">
+         <widget class="QLabel" name="lblDocSerial">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>С&amp;ерия</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          </property>
+          <property name="buddy">
+           <cstring>edtDocSerialLeft</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="12">
+         <widget class="QCheckBox" name="chkLocKLADR">
+          <property name="text">
+           <string>КЛАДР</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="10">
+         <widget class="QLabel" name="lblDocDate">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Дата выдачи</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtDocDate</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="11">
+         <widget class="CDateEdit" name="edtDocDate">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>110</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="calendarPopup">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="19" column="2" colspan="6">
+         <widget class="CInsurerComboBoxEx" name="cmbCompulsoryPolisCompany">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="22" column="0" colspan="2">
+         <widget class="QLabel" name="lblVoluntaryPolicy">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Полис &amp;amp;ДМС&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtVoluntaryPolisSerial</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="7" colspan="6">
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="lblHouse_2">
+            <property name="text">
+             <string>Д&amp;ом</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtLocHouse</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtLocHouse">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblBuilding_2">
+            <property name="text">
+             <string>К&amp;орп</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtLocCorpus</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtLocCorpus">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblFlat_2">
+            <property name="text">
+             <string>К&amp;в</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtLocFlat</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtLocFlat">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="btnLocHouseList">
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblResident">
+            <property name="text">
+             <string>Житель</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="cmbResident">
+            <item>
+             <property name="text">
+              <string>Не задано</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Городской</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Сельский</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="23" column="2" colspan="6">
+         <widget class="CInsurerComboBoxEx" name="cmbVoluntaryPolisCompany">
+          <property name="sizeAdjustPolicy">
+           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="4">
+         <widget class="CLineEditWithRegExpValidator" name="edtDocSerialLeft">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>80</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maxLength">
+           <number>8</number>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="5">
+         <widget class="CLineEditWithRegExpValidator" name="edtDocSerialRight">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>80</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maxLength">
+           <number>8</number>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="0" colspan="3">
+         <widget class="CRBComboBox" name="cmbDocType">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="0" colspan="13">
+         <widget class="QLineEdit" name="edtLocFreeInput">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="12">
+         <widget class="QCheckBox" name="chkRegKLADR">
+          <property name="text">
+           <string>КЛАДР</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="6" colspan="7">
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="lblHouse">
+            <property name="text">
+             <string>Д&amp;ом</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtRegHouse</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtRegHouse">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblBuilding">
+            <property name="text">
+             <string>К&amp;орп</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtRegCorpus</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtRegCorpus">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblFlat">
+            <property name="text">
+             <string>К&amp;в</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            </property>
+            <property name="buddy">
+             <cstring>edtRegFlat</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="edtRegFlat">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maxLength">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="btnRegHouseList">
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblAddressDate">
+            <property name="text">
+             <string>Дата регистрации</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="CDateEdit" name="edtAddressDate">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="calendarPopup">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="13" column="12">
+         <spacer name="horizontalSpacer_5">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item row="4" column="0" colspan="6">
+         <widget class="CStreetComboBox" name="cmbRegStreet">
+          <property name="minimumSize">
+           <size>
+            <width>200</width>
+            <height>0</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="22" column="2" colspan="11">
          <widget class="QWidget" name="VoluntaryPolisWidget" native="true">
           <layout class="QGridLayout" name="gridLayout_14">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
+           <property name="margin">
             <number>0</number>
            </property>
            <property name="spacing">
@@ -679,8 +1232,8 @@
           </layout>
          </widget>
         </item>
-        <item row="16" column="0" colspan="13">
-         <widget class="QFrame" name="frame_4">
+        <item row="11" column="0" colspan="13">
+         <widget class="QFrame" name="frame">
           <property name="frameShape">
            <enum>QFrame::HLine</enum>
           </property>
@@ -702,8 +1255,8 @@
           </property>
          </widget>
         </item>
-        <item row="11" column="0" colspan="13">
-         <widget class="QFrame" name="frame">
+        <item row="17" column="0" colspan="13">
+         <widget class="QFrame" name="frame_4">
           <property name="frameShape">
            <enum>QFrame::HLine</enum>
           </property>
@@ -712,728 +1265,10 @@
           </property>
          </widget>
         </item>
-        <item row="20" column="0" colspan="2">
-         <widget class="QLabel" name="lblCompulsoryPolisNote">
-          <property name="text">
-           <string>Приме&amp;чание</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtCompulsoryPolisNote</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QToolButton" name="btnCopyPrevAddress">
-          <property name="focusPolicy">
-           <enum>Qt::NoFocus</enum>
-          </property>
-          <property name="toolTip">
-           <string>Копировать из предыдущей записи</string>
-          </property>
-          <property name="arrowType">
-           <enum>Qt::RightArrow</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="18" column="0">
-         <widget class="QLabel" name="lblCompulsoryPolisCompany">
-          <property name="text">
-           <string>&amp;СМО</string>
-          </property>
-          <property name="buddy">
-           <cstring>cmbCompulsoryPolisCompany</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1" colspan="11">
-         <widget class="QLabel" name="lblStreetReg">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Адрес &amp;amp;регистрации&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="buddy">
-           <cstring>cmbRegCity</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="20" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtCompulsoryPolisNote"/>
-        </item>
-        <item row="22" column="0">
-         <widget class="QLabel" name="lblVoluntaryPolisCompany">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>С&amp;МО</string>
-          </property>
-          <property name="buddy">
-           <cstring>cmbVoluntaryPolisCompany</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="19" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtCompulsoryPolisName"/>
-        </item>
-        <item row="12" column="0" colspan="2">
-         <widget class="QLabel" name="label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;До&amp;amp;кумент&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="buddy">
-           <cstring>cmbDocType</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="22" column="11" colspan="2">
-         <widget class="CRBComboBox" name="cmbVoluntaryPolisKind">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="23" column="0" colspan="2">
-         <widget class="QLabel" name="lblVoluntaryPolisName">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Назв&amp;ание</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtVoluntaryPolisName</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="22" column="8" colspan="3">
-         <widget class="CRBComboBox" name="cmbVoluntaryPolisType">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="23" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtVoluntaryPolisName"/>
-        </item>
-        <item row="19" column="0" colspan="2">
-         <widget class="QLabel" name="lblCompulsoryPolisName">
-          <property name="text">
-           <string>&amp;Название</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtCompulsoryPolisName</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="17" column="2">
-         <widget class="QPushButton" name="btnSearchPolicy">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>искать</string>
-          </property>
-         </widget>
-        </item>
-        <item row="24" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtVoluntaryPolisNote"/>
-        </item>
-        <item row="24" column="0" colspan="2">
-         <widget class="QLabel" name="lblVoluntaryPolisNote">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Примеч&amp;ание</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtVoluntaryPolisNote</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="9" column="0" colspan="13">
-         <widget class="CKLADRComboBox" name="cmbLocCity"/>
-        </item>
-        <item row="3" column="0" colspan="10">
-         <widget class="CKLADRComboBox" name="cmbRegCity"/>
-        </item>
-        <item row="3" column="10">
-         <widget class="QLabel" name="lblLivingArea">
-          <property name="text">
-           <string>Зона проживания</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-          </property>
-          <property name="buddy">
-           <cstring>cmbLivingArea</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="15" column="0">
-         <widget class="QLabel" name="lblDocOriginCode">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Код подразделения</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtDocOrigin</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="0" colspan="10">
-         <widget class="QLabel" name="lblStreetLoc">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Адрес &amp;amp;проживания&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="buddy">
-           <cstring>cmbLocCity</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0" colspan="13">
-         <widget class="QLineEdit" name="edtRegFreeInput">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="27" column="0" colspan="2">
-         <widget class="QLabel" name="lblContacts">
-          <property name="text">
-           <string>Контакты</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-          </property>
-         </widget>
-        </item>
-        <item row="14" column="0" colspan="2">
-         <widget class="QLabel" name="lblDocOrigin">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Кем выдан</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtDocOrigin</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="18" column="11" colspan="2">
-         <widget class="CRBComboBox" name="cmbCompulsoryPolisKind">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="18" column="8" colspan="3">
-         <widget class="CRBComboBox" name="cmbCompulsoryPolisType">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="27" column="2" colspan="11">
-         <widget class="CInDocTableView" name="tblContacts"/>
-        </item>
-        <item row="18" column="2" colspan="6">
-         <widget class="CInsurerComboBoxEx" name="cmbCompulsoryPolisCompany">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="22" column="2" colspan="6">
-         <widget class="CInsurerComboBoxEx" name="cmbVoluntaryPolisCompany">
-          <property name="sizeAdjustPolicy">
-           <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="12">
-         <widget class="QCheckBox" name="chkRegKLADR">
-          <property name="text">
-           <string>КЛАДР</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="25" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtBirthPlace"/>
-        </item>
-        <item row="25" column="0" colspan="2">
-         <widget class="QLabel" name="lblBirthPlace">
-          <property name="text">
-           <string>Место рождения</string>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="0" colspan="13">
-         <widget class="QLineEdit" name="edtLocFreeInput">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="11" colspan="2">
-         <widget class="CRBComboBox" name="cmbLivingArea">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>150</width>
-            <height>0</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="11">
-         <widget class="QToolButton" name="btnCopy">
-          <property name="minimumSize">
-           <size>
-            <width>20</width>
-            <height>20</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>Копирование адреса</string>
-          </property>
-          <property name="text">
-           <string>...</string>
-          </property>
-          <property name="arrowType">
-           <enum>Qt::DownArrow</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="17" column="0" colspan="2">
-         <widget class="QLabel" name="lblCompulsoryPolicy">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Полис &amp;amp;ОМС&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtCompulsoryPolisSerial</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="12">
-         <widget class="QCheckBox" name="chkLocKLADR">
-          <property name="text">
-           <string>КЛАДР</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="21" column="0" colspan="2">
-         <widget class="QLabel" name="lblVoluntaryPolicy">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Tahoma'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:600;&quot;&gt;Полис &amp;amp;ДМС&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtVoluntaryPolisSerial</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="15" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtDocOriginCode">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="10">
-         <widget class="QLabel" name="lblDocDate">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Дата выдачи</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtDocDate</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="11">
-         <widget class="CDateEdit" name="edtDocDate">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>110</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="calendarPopup">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="9">
-         <widget class="CLineEditWithRegExpValidator" name="edtDocNumber">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>80</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maxLength">
-           <number>32</number>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="7" colspan="6">
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <property name="spacing">
-           <number>4</number>
-          </property>
-          <item>
-           <widget class="QLabel" name="lblHouse_2">
-            <property name="text">
-             <string>Д&amp;ом</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtLocHouse</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtLocHouse">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="lblBuilding_2">
-            <property name="text">
-             <string>К&amp;орп</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtLocCorpus</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtLocCorpus">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="lblFlat_2">
-            <property name="text">
-             <string>К&amp;в</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtLocFlat</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtLocFlat">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="btnLocHouseList">
-            <property name="text">
-             <string>...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item row="13" column="8">
-         <widget class="QLabel" name="lblDocNumber">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>Н&amp;омер</string>
-          </property>
-          <property name="buddy">
-           <cstring>edtDocNumber</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="0" colspan="7">
-         <widget class="CStreetComboBox" name="cmbLocStreet"/>
-        </item>
-        <item row="13" column="3">
-         <widget class="QLabel" name="lblDocSerial">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string>С&amp;ерия</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-          </property>
-          <property name="buddy">
-           <cstring>edtDocSerialLeft</cstring>
-          </property>
-         </widget>
-        </item>
-        <item row="14" column="2" colspan="11">
-         <widget class="QLineEdit" name="edtDocOrigin">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="4">
-         <widget class="CLineEditWithRegExpValidator" name="edtDocSerialLeft">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>80</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maxLength">
-           <number>8</number>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="5">
-         <widget class="CLineEditWithRegExpValidator" name="edtDocSerialRight">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>80</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maxLength">
-           <number>8</number>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="0" colspan="3">
-         <widget class="CRBComboBox" name="cmbDocType">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>150</width>
-            <height>0</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="12">
-         <spacer name="horizontalSpacer_5">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>40</width>
-            <height>20</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-        <item row="17" column="3" colspan="10">
+        <item row="18" column="3" colspan="10">
          <widget class="QWidget" name="CompulsoryPolisWidget" native="true">
           <layout class="QGridLayout" name="gridLayout_16">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
+           <property name="margin">
             <number>0</number>
            </property>
            <property name="spacing">
@@ -1618,138 +1453,42 @@ p, li { white-space: pre-wrap; }
           </layout>
          </widget>
         </item>
-        <item row="4" column="6" colspan="7">
-         <layout class="QHBoxLayout" name="horizontalLayout_2">
-          <property name="spacing">
-           <number>4</number>
+        <item row="15" column="2" colspan="11">
+         <widget class="QLineEdit" name="edtDocOrigin">
+          <property name="enabled">
+           <bool>false</bool>
           </property>
-          <item>
-           <widget class="QLabel" name="lblHouse">
-            <property name="text">
-             <string>Д&amp;ом</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtRegHouse</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtRegHouse">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="lblBuilding">
-            <property name="text">
-             <string>К&amp;орп</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtRegCorpus</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtRegCorpus">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="lblFlat">
-            <property name="text">
-             <string>К&amp;в</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="buddy">
-             <cstring>edtRegFlat</cstring>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLineEdit" name="edtRegFlat">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="maxLength">
-             <number>10</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="btnRegHouseList">
-            <property name="text">
-             <string>...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="lblAddressDate">
-            <property name="text">
-             <string>Дата регистрации</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="CDateEdit" name="edtAddressDate">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="calendarPopup">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
+         </widget>
         </item>
-        <item row="4" column="0" colspan="6">
-         <widget class="CStreetComboBox" name="cmbRegStreet">
-          <property name="minimumSize">
-           <size>
-            <width>200</width>
-            <height>0</height>
-           </size>
+        <item row="14" column="0">
+         <widget class="QLabel" name="lblDocOriginCode">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Код подразделения</string>
+          </property>
+          <property name="buddy">
+           <cstring>edtDocOrigin</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="14" column="2" colspan="11">
+         <widget class="CDocCodeEdit" name="edtDocOriginCode">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
          </widget>
         </item>
@@ -1800,8 +1539,6 @@ p, li { white-space: pre-wrap; }
        <zorder>cmbRegCity</zorder>
        <zorder>lblLivingArea</zorder>
        <zorder>cmbLivingArea</zorder>
-       <zorder>lblDocOriginCode</zorder>
-       <zorder>edtDocOriginCode</zorder>
        <zorder>horizontalSpacer_5</zorder>
        <zorder>edtDocDate</zorder>
        <zorder>lblDocDate</zorder>
@@ -1811,22 +1548,15 @@ p, li { white-space: pre-wrap; }
        <zorder>edtDocSerialLeft</zorder>
        <zorder>edtDocSerialRight</zorder>
        <zorder></zorder>
+       <zorder>lblDocOriginCode</zorder>
+       <zorder>edtDocOriginCode</zorder>
       </widget>
       <widget class="QWidget" name="tabSocStatus">
        <attribute name="title">
         <string>Соц.&amp;статус</string>
        </attribute>
        <layout class="QGridLayout">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -1840,17 +1570,8 @@ p, li { white-space: pre-wrap; }
           <property name="title">
            <string>Документ, подтверждающий соц. статус</string>
           </property>
-          <layout class="QGridLayout">
-           <property name="leftMargin">
-            <number>4</number>
-           </property>
-           <property name="topMargin">
-            <number>4</number>
-           </property>
-           <property name="rightMargin">
-            <number>4</number>
-           </property>
-           <property name="bottomMargin">
+          <layout class="QGridLayout" columnstretch="0,0,0,0,0,0,1,2" columnminimumwidth="0,0,0,0,0,0,0,0">
+           <property name="margin">
             <number>4</number>
            </property>
            <property name="spacing">
@@ -1910,6 +1631,22 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
+           <item row="1" column="1">
+            <widget class="CDateEdit" name="edtSocStatusDocDate">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="calendarPopup">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
            <item row="0" column="4">
             <widget class="QLabel" name="lblSocStatusDocNumber">
              <property name="sizePolicy">
@@ -1929,48 +1666,39 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
+           <item row="0" column="7">
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
            <item row="0" column="5" colspan="2">
             <widget class="QLineEdit" name="edtSocStatusDocNumber">
              <property name="enabled">
               <bool>false</bool>
              </property>
              <property name="maxLength">
-              <number>16</number>
+              <number>20</number>
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="lblSocStatusDocDate">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>Дата</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-             </property>
-             <property name="buddy">
-              <cstring>edtSocStatusDocDate</cstring>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="CDateEdit" name="edtSocStatusDocDate">
+           <item row="1" column="3" colspan="5">
+            <widget class="CDocSerialLeftEdit" name="edtSocStatusDocOrigin">
              <property name="enabled">
               <bool>false</bool>
              </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="calendarPopup">
-              <bool>true</bool>
+             <property name="maxLength">
+              <number>256</number>
              </property>
             </widget>
            </item>
@@ -1993,28 +1721,24 @@ p, li { white-space: pre-wrap; }
              </property>
             </widget>
            </item>
-           <item row="1" column="3" colspan="5">
-            <widget class="CDocSerialLeftEdit" name="edtSocStatusDocOrigin">
-             <property name="enabled">
-              <bool>false</bool>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lblSocStatusDocDate">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
-             <property name="maxLength">
-              <number>256</number>
+             <property name="text">
+              <string>Дата</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+             <property name="buddy">
+              <cstring>edtSocStatusDocDate</cstring>
              </property>
             </widget>
-           </item>
-           <item row="0" column="7">
-            <spacer name="horizontalSpacer_3">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
            </item>
           </layout>
          </widget>
@@ -2029,16 +1753,7 @@ p, li { white-space: pre-wrap; }
         <string>П&amp;рикрепление</string>
        </attribute>
        <layout class="QGridLayout">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -2074,16 +1789,7 @@ p, li { white-space: pre-wrap; }
         <string>&amp;Занятость</string>
        </attribute>
        <layout class="QGridLayout">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -2095,16 +1801,7 @@ p, li { white-space: pre-wrap; }
            <string>Вредность</string>
           </property>
           <layout class="QGridLayout">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
+           <property name="margin">
             <number>0</number>
            </property>
            <property name="spacing">
@@ -2287,16 +1984,7 @@ p, li { white-space: pre-wrap; }
         <string>&amp;Журнал изменений</string>
        </attribute>
        <layout class="QGridLayout">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -2315,16 +2003,7 @@ p, li { white-space: pre-wrap; }
             <string>Идентификация</string>
            </attribute>
            <layout class="QGridLayout">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -2340,16 +2019,7 @@ p, li { white-space: pre-wrap; }
             <string>Полисы</string>
            </attribute>
            <layout class="QGridLayout">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -2378,16 +2048,7 @@ p, li { white-space: pre-wrap; }
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <property name="leftMargin">
-                 <number>4</number>
-                </property>
-                <property name="topMargin">
-                 <number>4</number>
-                </property>
-                <property name="rightMargin">
-                 <number>4</number>
-                </property>
-                <property name="bottomMargin">
+                <property name="margin">
                  <number>4</number>
                 </property>
                 <item>
@@ -2400,16 +2061,7 @@ p, li { white-space: pre-wrap; }
                 <string>Проживание</string>
                </attribute>
                <layout class="QGridLayout" name="gridLayout_10">
-                <property name="leftMargin">
-                 <number>4</number>
-                </property>
-                <property name="topMargin">
-                 <number>4</number>
-                </property>
-                <property name="rightMargin">
-                 <number>4</number>
-                </property>
-                <property name="bottomMargin">
+                <property name="margin">
                  <number>4</number>
                 </property>
                 <item row="0" column="0">
@@ -2436,16 +2088,7 @@ p, li { white-space: pre-wrap; }
             <string>Статус наблюдения</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_18">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -2465,16 +2108,7 @@ p, li { white-space: pre-wrap; }
         <string>&amp;Особенности</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_4">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -2631,7 +2265,7 @@ p, li { white-space: pre-wrap; }
            <string>Порядковый номер ребенка при рождении в случае двойни/тройни</string>
           </property>
           <property name="maximum">
-           <number>3</number>
+           <number>100</number>
           </property>
          </widget>
         </item>
@@ -2734,16 +2368,7 @@ p, li { white-space: pre-wrap; }
             <property name="spacing">
              <number>4</number>
             </property>
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <item>
@@ -2755,16 +2380,7 @@ p, li { white-space: pre-wrap; }
                <property name="spacing">
                 <number>4</number>
                </property>
-               <property name="leftMargin">
-                <number>4</number>
-               </property>
-               <property name="topMargin">
-                <number>4</number>
-               </property>
-               <property name="rightMargin">
-                <number>4</number>
-               </property>
-               <property name="bottomMargin">
+               <property name="margin">
                 <number>4</number>
                </property>
                <item>
@@ -2782,16 +2398,7 @@ p, li { white-space: pre-wrap; }
                <property name="spacing">
                 <number>4</number>
                </property>
-               <property name="leftMargin">
-                <number>4</number>
-               </property>
-               <property name="topMargin">
-                <number>4</number>
-               </property>
-               <property name="rightMargin">
-                <number>4</number>
-               </property>
-               <property name="bottomMargin">
+               <property name="margin">
                 <number>4</number>
                </property>
                <item>
@@ -2810,16 +2417,7 @@ p, li { white-space: pre-wrap; }
             <property name="spacing">
              <number>4</number>
             </property>
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <item>
@@ -2835,16 +2433,7 @@ p, li { white-space: pre-wrap; }
             <property name="spacing">
              <number>4</number>
             </property>
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <item>
@@ -2864,16 +2453,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -2889,16 +2469,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -2911,16 +2482,7 @@ p, li { white-space: pre-wrap; }
             <string>Активное диспансерное наблюдение</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_13">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -2936,16 +2498,7 @@ p, li { white-space: pre-wrap; }
             <string>Принудительное лечение</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_14">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -2988,16 +2541,7 @@ p, li { white-space: pre-wrap; }
             <string>Общественно-опасные деяния</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_15">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -3013,16 +2557,7 @@ p, li { white-space: pre-wrap; }
             <string>Суицидальное поведение</string>
            </attribute>
            <layout class="QGridLayout" name="gridLayout_16">
-            <property name="leftMargin">
-             <number>4</number>
-            </property>
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <property name="rightMargin">
-             <number>4</number>
-            </property>
-            <property name="bottomMargin">
+            <property name="margin">
              <number>4</number>
             </property>
             <property name="spacing">
@@ -3045,16 +2580,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -3070,16 +2596,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -3095,16 +2612,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -3124,16 +2632,7 @@ p, li { white-space: pre-wrap; }
         <string>Свя&amp;зи</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_5">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -3158,16 +2657,7 @@ p, li { white-space: pre-wrap; }
         <string>Про&amp;чее</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_9">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -3216,16 +2706,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <item>
@@ -3254,16 +2735,7 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
+             <property name="margin">
               <number>0</number>
              </property>
              <item>
@@ -3340,18 +2812,18 @@ p, li { white-space: pre-wrap; }
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
-               <property name="displayFormat">
-                <string>dd.MM.yyyy</string>
-               </property>
-               <property name="calendarPopup">
-                <bool>true</bool>
-               </property>
                <property name="date">
                 <date>
                  <year>2000</year>
                  <month>1</month>
                  <day>1</day>
                 </date>
+               </property>
+               <property name="displayFormat">
+                <string>dd.MM.yyyy</string>
+               </property>
+               <property name="calendarPopup">
+                <bool>true</bool>
                </property>
               </widget>
              </item>
@@ -3797,16 +3269,7 @@ p, li { white-space: pre-wrap; }
         <string>Мониторинг</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_17">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -3822,16 +3285,7 @@ p, li { white-space: pre-wrap; }
         <string>ЭпидНаблюдение</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_19">
-        <property name="leftMargin">
-         <number>4</number>
-        </property>
-        <property name="topMargin">
-         <number>4</number>
-        </property>
-        <property name="rightMargin">
-         <number>4</number>
-        </property>
-        <property name="bottomMargin">
+        <property name="margin">
          <number>4</number>
         </property>
         <property name="spacing">
@@ -3843,6 +3297,254 @@ p, li { white-space: pre-wrap; }
        </layout>
       </widget>
      </widget>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="CFirstNameEditor" name="edtFirstName"/>
+   </item>
+   <item row="0" column="4" colspan="2">
+    <widget class="QTimeEdit" name="edtBirthTime"/>
+   </item>
+   <item row="1" column="3" colspan="2">
+    <widget class="QLineEdit" name="edtSNILS">
+     <property name="inputMask">
+      <string>999-999-999 99; </string>
+     </property>
+     <property name="maxLength">
+      <number>14</number>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lbFirstName">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;Имя</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtFirstName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="11">
+    <widget class="QLabel" name="lblEndDate">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Дата архивации карты</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="buddy">
+      <cstring>edtEndDate</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" rowspan="2">
+    <widget class="QLabel" name="lblPatrName">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;Отчество</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtPatrName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" rowspan="2">
+    <widget class="CPatrNameEditor" name="edtPatrName"/>
+   </item>
+   <item row="0" column="7">
+    <widget class="QComboBox" name="cmbSex">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <item>
+      <property name="text">
+       <string/>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>М</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Ж</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="1" column="5" colspan="2">
+    <spacer name="horizontalSpacer_10">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblLastName">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>&amp;Фамилия</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtLastName</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="2" rowspan="2" colspan="8">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="lblDeathReason">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Причина смерти</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>cmbDeathReason</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="CRBComboBox" name="cmbDeathReason">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>150</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lblDeathPlaceType">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Место смерти</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+       <property name="buddy">
+        <cstring>cmbDeathPlaceType</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="CRBComboBox" name="cmbDeathPlaceType">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>150</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_10">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="9">
+    <spacer name="horizontalSpacer_9">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="3" column="3" colspan="10">
+    <widget class="QWidget" name="DeathDateWidget" native="true">
+     <layout class="QGridLayout" name="gridLayout_15">
+      <property name="margin">
+       <number>0</number>
+      </property>
+      <property name="spacing">
+       <number>0</number>
+      </property>
+     </layout>
     </widget>
    </item>
   </layout>
@@ -3968,6 +3670,11 @@ p, li { white-space: pre-wrap; }
    <extends>QComboBox</extends>
    <header>library/CRBSearchComboBox.h</header>
   </customwidget>
+  <customwidget>
+   <class>CDocCodeEdit</class>
+   <extends>QLineEdit</extends>
+   <header>DocCodeEdit</header>
+  </customwidget>
  </customwidgets>
  <tabstops>
   <tabstop>edtLastName</tabstop>
@@ -3977,7 +3684,11 @@ p, li { white-space: pre-wrap; }
   <tabstop>edtBirthTime</tabstop>
   <tabstop>cmbSex</tabstop>
   <tabstop>edtSNILS</tabstop>
+  <tabstop>chkDeathDate</tabstop>
+  <tabstop>edtDeathDate</tabstop>
+  <tabstop>edtDeathTime</tabstop>
   <tabstop>cmbDeathReason</tabstop>
+  <tabstop>cmbDeathPlaceType</tabstop>
   <tabstop>scrollArea</tabstop>
   <tabstop>chkRegKLADR</tabstop>
   <tabstop>edtRegFreeInput</tabstop>
@@ -4003,9 +3714,10 @@ p, li { white-space: pre-wrap; }
   <tabstop>edtDocSerialRight</tabstop>
   <tabstop>edtDocNumber</tabstop>
   <tabstop>edtDocDate</tabstop>
-  <tabstop>edtDocOrigin</tabstop>
   <tabstop>edtDocOriginCode</tabstop>
+  <tabstop>edtDocOrigin</tabstop>
   <tabstop>btnSearchPolicy</tabstop>
+  <tabstop>btn_FERZL</tabstop>
   <tabstop>edtCompulsoryPolisSerial</tabstop>
   <tabstop>edtCompulsoryPolisNumber</tabstop>
   <tabstop>edtCompulsoryPolisBegDate</tabstop>
@@ -4035,11 +3747,12 @@ p, li { white-space: pre-wrap; }
   <tabstop>tblAttaches</tabstop>
   <tabstop>btnSearchClientAttach</tabstop>
   <tabstop>cmbWorkOrganisation</tabstop>
-  <tabstop>edtWorkOrganisationFreeInput</tabstop>
   <tabstop>btnSelectWorkOrganisation</tabstop>
+  <tabstop>edtWorkOrganisationFreeInput</tabstop>
   <tabstop>edtWorkOrganisationINN</tabstop>
   <tabstop>edtWorkOrganisationOGRN</tabstop>
   <tabstop>edtWorkPost</tabstop>
+  <tabstop>cmbWorkPost</tabstop>
   <tabstop>cmbWorkOKVED</tabstop>
   <tabstop>edtOKVEDName</tabstop>
   <tabstop>edtWorkStage</tabstop>
@@ -4047,12 +3760,6 @@ p, li { white-space: pre-wrap; }
   <tabstop>tblWorkHurtFactors</tabstop>
   <tabstop>tabChangeJournalInfo</tabstop>
   <tabstop>tblIdentificationDocs</tabstop>
-  <tabstop>tblPolicies</tabstop>
-  <tabstop>tabWidgetAddresses</tabstop>
-  <tabstop>tblAddressesReg</tabstop>
-  <tabstop>tblAddressesLoc</tabstop>
-  <tabstop>tblPersonalInfo</tabstop>
-  <tabstop>tblStatusObservation</tabstop>
   <tabstop>cmbBloodType</tabstop>
   <tabstop>edtBloodTypeDate</tabstop>
   <tabstop>edtBloodTypeNotes</tabstop>
@@ -4062,18 +3769,14 @@ p, li { white-space: pre-wrap; }
   <tabstop>edtMenarhe</tabstop>
   <tabstop>edtMenoPausa</tabstop>
   <tabstop>edtBirthNumber</tabstop>
+  <tabstop>tabFeatureTables</tabstop>
   <tabstop>tblAllergy</tabstop>
   <tabstop>tblIntoleranceMedicament</tabstop>
-  <tabstop>tblNormalParameters</tabstop>
   <tabstop>tblResearch</tabstop>
   <tabstop>twDangerous</tabstop>
   <tabstop>tblActiveDispensary</tabstop>
-  <tabstop>chkForcedTreatmentBegDate</tabstop>
-  <tabstop>edtForcedTreatmentBegDate</tabstop>
-  <tabstop>tblForcedTreatment</tabstop>
-  <tabstop>tblDangerous</tabstop>
-  <tabstop>tblSuicide</tabstop>
   <tabstop>tblContingentKind</tabstop>
+  <tabstop>tblHospitalization</tabstop>
   <tabstop>tblClientIdentification</tabstop>
   <tabstop>tblDirectRelations</tabstop>
   <tabstop>tblBackwardRelations</tabstop>
@@ -4098,11 +3801,27 @@ p, li { white-space: pre-wrap; }
   <tabstop>edtQuotaStatment</tabstop>
   <tabstop>tblClientQuotingDiscussion</tabstop>
   <tabstop>tblDeposit</tabstop>
-  <tabstop>btnUpdateFactSum</tabstop>
   <tabstop>tblClientConsents</tabstop>
   <tabstop>tblMonitoring</tabstop>
   <tabstop>tblEpidCase</tabstop>
+  <tabstop>btn_findNR</tabstop>
   <tabstop>edtBegDate</tabstop>
+  <tabstop>edtEndDate</tabstop>
+  <tabstop>buttonBox</tabstop>
+  <tabstop>tblDangerous</tabstop>
+  <tabstop>btnUpdateFactSum</tabstop>
+  <tabstop>edtForcedTreatmentBegDate</tabstop>
+  <tabstop>tblSuicide</tabstop>
+  <tabstop>tblPolicies</tabstop>
+  <tabstop>tblAddressesLoc</tabstop>
+  <tabstop>tblStatusObservation</tabstop>
+  <tabstop>tblAddressesReg</tabstop>
+  <tabstop>tblPersonalInfo</tabstop>
+  <tabstop>tblNormalParameters</tabstop>
+  <tabstop>chkForcedTreatmentBegDate</tabstop>
+  <tabstop>tblRiskFactors</tabstop>
+  <tabstop>tblForcedTreatment</tabstop>
+  <tabstop>tabWidgetAddresses</tabstop>
  </tabstops>
  <resources/>
  <connections>

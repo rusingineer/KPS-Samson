@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>481</width>
-    <height>961</height>
+    <height>999</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,16 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -77,7 +86,16 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <item>
@@ -296,7 +314,7 @@
       </size>
      </property>
      <property name="inputMask">
-      <string>a00.00; </string>
+      <string>a00.00</string>
      </property>
      <property name="text">
       <string>A.</string>
@@ -313,7 +331,7 @@
      </property>
     </widget>
    </item>
-   <item row="48" column="0" colspan="11">
+   <item row="49" column="0" colspan="11">
     <spacer>
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -373,7 +391,7 @@
    <item row="31" column="1" colspan="10">
     <widget class="QComboBox" name="cmbWorkType"/>
    </item>
-   <item row="49" column="0" colspan="11">
+   <item row="50" column="0" colspan="11">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -568,7 +586,7 @@
       </size>
      </property>
      <property name="inputMask">
-      <string>a00.00; </string>
+      <string>a00.00</string>
      </property>
      <property name="text">
       <string>Z99.9</string>
@@ -867,14 +885,20 @@
    <item row="1" column="4">
     <widget class="QTimeEdit" name="edtEndTime"/>
    </item>
+   <item row="48" column="0">
+    <widget class="QLabel" name="lblSetPerson">
+     <property name="text">
+      <string>Назначивший врач</string>
+     </property>
+    </widget>
+   </item>
+   <item row="48" column="1" colspan="10">
+    <widget class="CPersonComboBoxEx" name="cmbSetPerson"/>
+   </item>
+
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>COrgStructureComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgStructComboBoxes.h</header>
-  </customwidget>
   <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
@@ -883,17 +907,22 @@
   <customwidget>
    <class>CDateEdit</class>
    <extends>QDateEdit</extends>
-   <header>library/DateEdit.h</header>
+   <header>library/DateEdit</header>
   </customwidget>
   <customwidget>
-   <class>CPersonComboBoxEx</class>
+   <class>COrgStructureComboBox</class>
    <extends>QComboBox</extends>
-   <header>Orgs/PersonComboBoxEx.h</header>
+   <header>Orgs/OrgStructComboBoxes.h</header>
   </customwidget>
   <customwidget>
    <class>COrgComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonComboBoxEx</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/PersonComboBoxEx.h</header>
   </customwidget>
   <customwidget>
    <class>CInsurerComboBox</class>
@@ -950,6 +979,7 @@
   <tabstop>edtMKBFrom</tabstop>
   <tabstop>edtMKBTo</tabstop>
   <tabstop>cmbEquipment</tabstop>
+  <tabstop>cmbSetPerson</tabstop>
   <tabstop>buttonBox</tabstop>
  </tabstops>
  <resources/>

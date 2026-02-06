@@ -75,7 +75,7 @@ class CHospitalBedProfileTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['rbHospitalBedProfile.code', 'rbHospitalBedProfile.name']
+        self._fieldNames = ['rbHospitalBedProfile.id', 'rbHospitalBedProfile.code', 'rbHospitalBedProfile.name']
         self.setTable('rbHospitalBedProfile')
 
 

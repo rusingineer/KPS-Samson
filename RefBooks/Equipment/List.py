@@ -54,8 +54,9 @@ class CRBEquipmentList(Ui_EquipmentsListDialog, CItemsListDialog):
             CTextCol(u'Наименование', [rbName], 40),
             CRefBookCol(u'Тип оборудования', ['equipmentType_id'], rbEquipmentType, 10, 2),
             CRefBookCol(u'Подразделение', ['orgStructure_id'], 'OrgStructure', 10, 2),
-            CTextCol(u'Инвентаризационный номер',          ['inventoryNumber'], 10),
-            CTextCol(u'Модель',          ['model'], 10),
+            CTextCol(u'Инвентаризационный номер', ['inventoryNumber'], 10),
+            CTextCol(u'Модель', ['model'], 10),
+            CTextCol(u'Серийный номер', ['serialNumber'], 10),
             CDateCol(u'Дата выпуска', ['releaseDate'], 8),
             CDateCol(u'Дата ввода в эксплуатацию', ['startupDate'], 8),
             CWorkEnumCol(u'Статус', ['status'], [u'Не работает', u'работает'], 5),
@@ -377,6 +378,7 @@ class CRBEquipmentEditor(CItemEditorBaseDialog, Ui_RBEquipmentEditorDialog):
         setSpinBoxValue(   self.edtTripodCapacity,            record, 'tripodCapacity')
         setLineEditValue(  self.edtInventoryNumber,           record, 'inventoryNumber')
         setLineEditValue(  self.edtModel,                     record, 'model')
+        setLineEditValue(  self.edtSerialNumber,              record, 'serialNumber')
         setDateEditValue(  self.edtReleaseDate,               record, 'releaseDate')
         setDateEditValue(  self.edtStartupDate,               record, 'startupDate')
         setComboBoxValue(  self.cmbStatus,                    record, 'status')
@@ -411,6 +413,7 @@ class CRBEquipmentEditor(CItemEditorBaseDialog, Ui_RBEquipmentEditorDialog):
         getSpinBoxValue(   self.edtTripodCapacity,            record, 'tripodCapacity')
         getLineEditValue(  self.edtInventoryNumber,           record, 'inventoryNumber')
         getLineEditValue(  self.edtModel,                     record, 'model')
+        getLineEditValue(  self.edtSerialNumber,              record, 'serialNumber')
         getDateEditValue(  self.edtReleaseDate,               record, 'releaseDate')
         getDateEditValue(  self.edtStartupDate,               record, 'startupDate')
         getComboBoxValue(  self.cmbStatus,                    record, 'status')

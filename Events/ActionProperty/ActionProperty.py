@@ -213,6 +213,10 @@ class CActionProperty(object):
         return self._isAssigned
 
 
+    def isChanged(self):
+        return self._changed
+
+
     def setAssigned(self, isAssigned):
         if self._isAssigned != isAssigned:
             self._changed = True

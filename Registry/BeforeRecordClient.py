@@ -93,7 +93,7 @@ class CQueue(CDialogBase, Ui_Dialog):
         printOrderByScheduleItem(self, scheduleItemId, self.clientId)
 
 
-def printOrderByScheduleItem(widget, scheduleItemId, clientId=None):
+def printOrderByScheduleItem(widget, scheduleItemId, clientId=None, templateId=None):
     # clientId: для проверки того, что scheduleItem не изменился.
     # ещё нужно контролировать deleted
     db = QtGui.qApp.db
@@ -121,7 +121,8 @@ def printOrderByScheduleItem(widget, scheduleItemId, clientId=None):
                forceString(record.value('srcPerson')),    #srcPerson
                forceDate(record.value('srcDate')),        #srcDate
                forceString(record.value('srcNumber')),    #srcNumber
-               forceRef(record.value('appointmentPurpose_id')) #appointmentPurposeId
+               forceRef(record.value('appointmentPurpose_id')), #appointmentPurposeId
+               templateId=templateId
               )
 
 
@@ -143,7 +144,8 @@ def printOrder(widget,
                srcPerson,
                srcDate,
                srcNumber,
-               appointmentPurposeId
+               appointmentPurposeId,
+               templateId=None
                ):
     if toHome:
         context = 'orderHome'
@@ -182,13 +184,16 @@ def printOrder(widget,
             'recordPerson' : recordPersonInfo,
             'referral'     : referralInfo
            }
-    templates = getPrintTemplates(context)
-    if templates:
-        templateId = templates[0].id
-        QtGui.qApp.call(widget, applyTemplate, (widget, templateId, data))
-    else:
+    if not templateId:
+        templates = getPrintTemplates(context)
+        if templates:
+            templateId = templates[0].id
+    if not templateId:
         orderTemplate = getOrderTemplate()
         QtGui.qApp.call(widget, applyTemplateInt, (widget, visitInfo['type'], orderTemplate, data))
+    else:
+        QtGui.qApp.call(widget, applyTemplate, (widget, templateId, data))
+    
 
 
 def getOrderTemplate():

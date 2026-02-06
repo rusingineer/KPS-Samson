@@ -46,9 +46,9 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tablePerson, tableEvent['createPerson_id'].eq(tablePerson['id']))
     cond = []
     if begDate:
-        cond.append(tableAccountItem['date'].dateGe(begDate))
+        cond.append(tableAccountItem['date'].ge(begDate))
     if endDate:
-        cond.append(tableAccountItem['date'].dateLe(endDate))
+        cond.append(tableAccountItem['date'].lt(endDate.addDays(1)))
     if contractId:
         cond.append(tableAccount['contract_id'].eq(contractId))
     cond = cond if cond else '1'

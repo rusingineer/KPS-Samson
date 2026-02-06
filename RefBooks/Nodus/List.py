@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,6 +21,7 @@ from library.Utils               import forceString, forceStringEx, toVariant, t
 from RefBooks.Tables             import rbCode, rbName
 
 from .Ui_RBNodusEditor import Ui_RBNodusEditor
+from ..Utils import CMKBOtoMKBXColumn
 
 
 class CRBNodusList(CItemsListDialog):
@@ -29,6 +30,7 @@ class CRBNodusList(CItemsListDialog):
             CTextCol(u'Код',          [rbCode], 20),
             CTextCol(u'Наименование', [rbName], 40),
             CTextCol(u'Диагноз',      ['MKB'], 20),
+            CMKBOtoMKBXColumn(u'Диагноз МКБ-10', ['MKB', 'begDate'], 20),
             CDateCol(u'Дата начала', ['begDate'], 20),
             CDateCol(u'Дата окончания', ['endDate'], 20)
             ], 'rbNodus', [rbCode, rbName, 'MKB'])

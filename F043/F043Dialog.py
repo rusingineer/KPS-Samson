@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -23,6 +23,7 @@ from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVar
 from Events.ExportMIS import iniExportEvent
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
 from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
+from Orgs.Utils import getOrgstructureListByEventtypeId, getPersonListByEventtypeId
 from library.Attach.AttachAction        import getAttachAction
 from library.crbcombobox                import CRBComboBox
 from library.ICDInDocTableCol           import CICDExInDocTableCol
@@ -44,7 +45,7 @@ from Events.EventInfo                   import CDiagnosticInfoProxyList, CVisitI
 from Events.EventVisitsModel            import CDentitionVisitsModel
 from Events.TeethEventInfo              import CTeethEventInfo
 from Events.Utils import checkDiagnosis, checkIsHandleDiagnosisIsChecked, getAvailableCharacterIdByMKB, getDiagnosisId2, \
-    getDiagnosticResultId, getEventAddVisit, getEventDurationRange, getEventIsPrimary, getEventMesRequired, \
+    getDiagnosticResultId, getEventAddVisit, getEventAvailableOrders, getEventDurationRange, getEventIsPrimary, getEventMesRequired, \
     getEventResultId, getEventSetPerson, getEventShowTime, getEventShowVisitTime, getHealthGroupFilter, \
     hasEventVisitAssistant, setAskedClassValueForDiagnosisManualSwitch, CTableSummaryActionsMenuMixin, \
     getEventCSGRequired, CFinanceType, getNewResultCond, isDefaultResultIdValid, mkbIsVIMIS
@@ -139,6 +140,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         self.tabDiagnostic.setActionTypeClass(1)
         self.tabCure.setActionTypeClass(2)
         self.tabMisc.setActionTypeClass(3)
+        self.tabAmbCard.setEventEditor(self)
 
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         if QtGui.qApp.defaultKLADR()[:2] in ['23', '01']:
@@ -457,7 +459,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
             self.edtEndTime.setTime(eventDatetime.time() if isinstance(eventDatetime, QDateTime) else QTime())
             self.edtNextDate.setDate(QDate())
     #        self.chkPrimary.setChecked(getPrimary(clientId, eventTypeId, personId))
-            self.cmbOrder.setCurrentIndex(eventOrder)
+            self.initOrder(forceString(getEventAvailableOrders(eventTypeId)), eventOrder+1)
             self.cmbContract.setCurrentIndex(0)
             self.cmbResult.setCurrentIndex(0)
             self.cmbPrimary.setCurrentIndex(getEventIsPrimary(eventTypeId))
@@ -515,6 +517,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                 return False
             self.modelVisits.setItems(visits)
             self.updateVisitsInfo()
+        self.setOrgStructAndPersonsInCmbPersons(eventTypeId)
         self.modelDentition.setClientId(self.clientId)
         self.modelParodentium.setClientId(self.clientId)
         if not isEdit:
@@ -667,16 +670,19 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         else:
             eventDate = QDate.currentDate()
         presentActionTypes = []
+        maxOccursLimitActionTypes = []
         for item in self.modelActionsSummary.items():
             actionTypeId = forceString(item.value('actionType_id'))
             if actionTypeId not in presentActionTypes:
                 presentActionTypes.append(actionTypeId)
+                if not self.checkMaxOccursLimit(actionTypeId) and actionTypeId not in maxOccursLimitActionTypes:
+                    maxOccursLimitActionTypes.append(actionTypeId)
         if QtGui.qApp.userHasAnyRight([urAccessF043planner, urAdmin]):
             dlg = CPreF043Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
                 dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
-                            flagHospitalization, movingActionTypeId, tissueTypeId, presentActionTypes = presentActionTypes)
+                            flagHospitalization, movingActionTypeId, tissueTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -690,7 +696,9 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF043DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, movingActionTypeId, presentActionTypes = presentActionTypes)
+            presets = CPreF043DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, 
+                                                        flagHospitalization, movingActionTypeId, presentActionTypes = presentActionTypes, 
+                                                        maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             return self._prepare(None, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                  presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -816,7 +824,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         setDateEditValue(self.edtNextDate,      record, 'nextEventDate')
         self.cmbPrimary.setCurrentIndex(forceInt(record.value('isPrimary')) - 1)
         self.setExternalId(forceString(record.value('externalId')))
-        self.cmbOrder.setCurrentIndex(forceInt(record.value('order'))-1)
+        self.initOrder(forceString(getEventAvailableOrders(record.value('eventType_id'))), forceInt(record.value('order')))
         self.setPersonId(self.cmbPerson.value())
         setRBComboBoxValue(self.cmbContract, record, 'contract_id')
         self.setPerson = forceRef(record.value('setPerson_id'))
@@ -848,7 +856,19 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         self.protectClosedEvent()
         iniExportEvent(self)
         self.btnRelatedEventHighlight()
+        self.setOrgStructAndPersonsInCmbPersons(self.eventTypeId)
 
+    def setOrgStructAndPersonsInCmbPersons(self, eventTypeId):
+        orgstructureListByEventtype = getOrgstructureListByEventtypeId(eventTypeId)
+        personListByEventtype = getPersonListByEventtypeId(eventTypeId)
+        self.cmbPerson.setOrgStructureList(orgstructureListByEventtype)
+        self.cmbPerson.setPersonIdList(personListByEventtype)
+        self.modelVisits._cols[self.modelVisits.getColIndex('person_id')].orgStructureIdList = orgstructureListByEventtype
+        self.modelVisits._cols[self.modelVisits.getColIndex('person_id')].personIdList = personListByEventtype
+        self.modelActionsSummary._cols[
+            self.modelActionsSummary.getColIndex('person_id')].orgStructureIdList = orgstructureListByEventtype
+        self.modelActionsSummary._cols[
+            self.modelActionsSummary.getColIndex('person_id')].personIdList = personListByEventtype
 
     def getDiagnosisTypeId(self, dt):
         return forceRef(QtGui.qApp.db.translate('rbDiagnosisType', 'code', '2' if dt else '9', 'id'))
@@ -888,6 +908,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                                                                            diagnosisId)
                 newRecord.setValue('handleDiagnosis', QVariant(isCheckedHandleDiagnosis))
 
+            newRecord._dirty = False
             items.append(newRecord)
         self.modelDiagnostics.setItems(items)
         self.modelDiagnostics.cols()[self.modelDiagnostics.getColIndex('healthGroup_id')].setFilter(getHealthGroupFilter(forceString(self.clientBirthDate.toString('yyyy-MM-dd')), forceString(self.eventSetDateTime.date().toString('yyyy-MM-dd'))))
@@ -1455,6 +1476,10 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         result = result and self.checkExecPersonSpeciality(self.cmbPerson.value(), self.cmbPerson)
         result = result and (not begDateCheck.isNull() or self.checkInputMessage(u'дату назначения', False, self.edtBegDate))
         if endDateCheck:
+            checkRequireAction, ActionTypeIdList = self.checkRequireAction(self.eventTypeId, tabList, self.personSpecialityId, self.modelDiagnostics.items())
+            result = result and checkRequireAction
+            if ActionTypeIdList:
+                self.setActionConsbyIds(ActionTypeIdList)
             result = result and self.checkActionDataEntered(begDate, QDateTime(), endDate, self.tabToken, self.edtBegDate, None, self.edtEndDate)
             result = result and self.checkEventDate(begDate, endDate, nextDate, self.tabToken, self.edtNextDate,self.edtEndDate, True)
             minDuration,  maxDuration = getEventDurationRange(self.eventTypeId)
@@ -1480,12 +1505,9 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         result = result and self.checkActionsDateEnteredActuality(begDate, endDate, tabList)
         result = result and self.checkActionsDataEntered(begDate, endDate)
         result = result and self.checkDeposit(True)
-        if result:
-            checkEventType, skipable, errorNames, ActionTypeIdList = self.checkEventType(self.eventTypeId, tabList)
-            result = result and (checkEventType or self.checkValueMessage(u"Требуется добавить следующие документы:\n{}".
-                                                                     format(errorNames), skipable, None))
-            if not result and ActionTypeIdList:
-                self.setActionConsbyIds(ActionTypeIdList)
+        result = result and (self.checkCorrectlyEnteredPersons( self.cmbPerson
+            ) if not QtGui.qApp.checkGlobalPreference('23:checkChosenPerson',
+                                                      u'не выполнять') else True)
         result = result and (len(self.modelVisits.items())>0 or self.checkInputMessage(u'посещение', False, self.tblVisits))
         #result = result and self.checkVisitsDataEntered(begDate.date() if isinstance(begDate, QDateTime) else begDate, endDate.date() if isinstance(endDate, QDateTime) else endDate)
         result = result and self.checkVisitsDataEntered(begDate, endDate)
@@ -1495,6 +1517,8 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         self.valueForAllActionEndDate = None
         if self.edtEndDate.date():
             result = result and self.checkAndUpdateExpertise(self.edtEndDate.date(), self.cmbPerson.value())
+            if CFinanceType.getCode(self.eventFinanceId) == CFinanceType.CMI and QtGui.qApp.defaultKLADR()[:2] == u'23':
+                result = result and self.checkServiceDates(begDate, endDate)
         result = result and self.selectNomenclatureAddedActions(tabList)
         if result and self.eventFinanceId == CFinanceType.CMI and QtGui.qApp.defaultKLADR()[:2] == u'23':
             result = self.check357()
@@ -1821,6 +1845,11 @@ class CF043BaseDiagnosticsModel(CMKBListInDocTableModel):
                     mkb = forceString(self.items()[row].value('MKB'))
                     if len(mkb) != 6:
                         return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            if index.isValid():
+                if column == self.getColIndex('MKBEx'):
+                    mkb = forceString(self.items()[row].value('MKB'))
+                    if not (bool(mkb) and mkb[0] in (u'S', u'T')):
+                        return result & ~Qt.ItemIsEnabled
         return result
 
 
@@ -1863,6 +1892,9 @@ class CF043BaseDiagnosticsModel(CMKBListInDocTableModel):
             if index.isValid() and role == Qt.BackgroundRole and QtGui.qApp.preferences.propertyColor and index.column() == 2:
                 if mkbIsVIMIS(forceString(self.items()[row].value('MKB'))):
                     return QVariant(QtGui.QBrush(QtGui.QColor(QtGui.qApp.preferences.propertyColor)))
+            if index.isValid() and role == Qt.BackgroundRole and column == self.getColIndex('MKBEx'):
+                if not Qt.ItemIsEnabled & index.flags():
+                    return QVariant(QtGui.QBrush(QtGui.QColor(226, 228, 230)))
         return CMKBListInDocTableModel.data(self, index, role)
 
 
@@ -1930,6 +1962,8 @@ class CF043BaseDiagnosticsModel(CMKBListInDocTableModel):
 #                    self.updateCharacterByMKB(row, specifiedMKB)
                 self.emit(SIGNAL('diagnosisChanged()'))
                 return result
+            elif row == len(self.items()) and column == self.getColIndex('MKBEx'):
+                return False
             if QtGui.qApp.isTNMSVisible() and 0 <= row < len(self.items()) and column == self.items()[row].indexOf('TNMS'):
                 record = self.items()[row]
                 self.updateMKBTNMS(record, forceString(record.value('MKB')))
@@ -1980,34 +2014,6 @@ class CF043BaseDiagnosticsModel(CMKBListInDocTableModel):
                     record.setValue(fieldName, toVariant(None))
                 record.setValue('TNMS', toVariant(u''))
                 self.emitRowChanged(row)
-
-
-    def inheritMKBTNMS(self, record, oldMKB, newMKB, clientId, eventSetDate):
-        if QtGui.qApp.isTNMSVisible() and not oldMKB and newMKB and (newMKB[:1] == 'C' or newMKB[:2] == 'D0'):
-            query = QtGui.qApp.db.query(u"""SELECT Diagnostic.* 
-                                            FROM Diagnostic 
-                                            left JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
-                                            left JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnostic.diagnosisType_id
-                                          WHERE Diagnosis.client_id = {clientId} 
-                                            AND rbDiagnosisType.code = '1'
-                                            AND Diagnosis.MKB = '{mkb}'
-                                            AND Diagnostic.endDate <= '{date}'
-                                          ORDER BY Diagnostic.endDate DESC 
-                                          LIMIT 1""".format(clientId=clientId,
-                                                            mkb=forceString(newMKB),
-                                                            date=forceDate(eventSetDate).toString(
-                                                                'yyyy-MM-dd')))
-            if query.first():
-                recordOldDiagnostic = query.record()
-                record.setValue('TNMS', recordOldDiagnostic.value('TNMS'))
-                record.setValue('cTumor_id', recordOldDiagnostic.value('cTumor_id'))
-                record.setValue('cNodus_id', recordOldDiagnostic.value('cNodus_id'))
-                record.setValue('cMetastasis_id', recordOldDiagnostic.value('cMetastasis_id'))
-                record.setValue('cTNMphase_id', recordOldDiagnostic.value('cTNMphase_id'))
-                record.setValue('pTumor_id', recordOldDiagnostic.value('pTumor_id'))
-                record.setValue('pNodus_id', recordOldDiagnostic.value('pNodus_id'))
-                record.setValue('pMetastasis_id', recordOldDiagnostic.value('pMetastasis_id'))
-                record.setValue('pTNMphase_id', recordOldDiagnostic.value('pTNMphase_id'))
 
 
     def removeRowEx(self, row):
@@ -2169,3 +2175,8 @@ class CF043FinalDiagnosticsModel(CF043BaseDiagnosticsModel):
 
     def emitResultChanged(self, resultId):
         self.emit(SIGNAL('resultChanged(QVariant&)'), resultId)
+        
+    
+    def saveItems(self, masterId = None):
+        CMKBListInDocTableModel.saveItems(self, masterId)
+        self.prophylaxisPlanningSync()

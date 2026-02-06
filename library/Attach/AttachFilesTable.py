@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -21,7 +21,7 @@ from base64 import b64encode
 import sip
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QMetaObject, QSize, QUrl, QDateTime, QTimer, QByteArray
-
+from Registry.Utils import getClientMiniInfo
 from Reports.ReportView import CReportViewDialog
 from library.MSCAPI import MSCApi
 
@@ -44,7 +44,7 @@ from .AttachedFile import CAttachedFile
 from ..CertComboBox import extractCertInfo
 from ..MSCAPI import MSCApi
 from ..PrintInfo import CInfoContext
-from ..Utils import toVariant, forceString, forceRef, anyToUnicode, forceBool
+from ..Utils import toVariant, forceString, forceRef, anyToUnicode, forceBool, savePatientDocuments
 from ..userCertPlate import CCertInfoPlate
 
 
@@ -98,6 +98,9 @@ class CAttachFilesTable(QtGui.QTableView):
         self.actSignAsOrg = QtGui.QAction(u'Подписать за организацию',  self)
         self.actSignAsOrg.setObjectName('actSignAsOrg')
 
+        # self.actGetObject = QtGui.QAction(u'Перейти к объекту', self)
+        # self.actGetObject.setObjectName('actGetObject')
+
 #        self.setContextMenuPolicy(Qt.DefaultContextMenu)
 
         self.mnuPopup = QtGui.QMenu(self)
@@ -117,10 +120,14 @@ class CAttachFilesTable(QtGui.QTableView):
         self.mnuPopup.addSeparator()
         self.mnuPopup.addAction(self.actSignAsResp)
         self.mnuPopup.addAction(self.actSignAsOrg)
+        # if parent.objectName() == 'tabAttachedFiles':
+        #     self.mnuPopup.addSeparator()
+        #     self.mnuPopup.addAction(self.actGetObject)
 
         self.mnuPopup.setDefaultAction(self.actOpen)
 
         QMetaObject.connectSlotsByName(self)
+        self.directoryExportDocuments = QtGui.qApp.directoryExportDocuments()
         # self.actAddKey.triggered.connect(self.actAddKey_triggered)
 
 
@@ -409,7 +416,11 @@ class CAttachFilesTable(QtGui.QTableView):
 
     def contextMenuEvent(self, event):
         fileItem = self.getCurrentFileItem()
-        fileOk = bool(fileItem) and not fileItem.isLost
+        selectedItems = self.selectedItems()
+        if len(selectedItems) > 1:
+            fileOk = bool([fileItem for fileItem in selectedItems if bool(fileItem) and not fileItem.isLost])
+        else:
+            fileOk = bool(fileItem) and not fileItem.isLost
         self.actAdd.setEnabled(self.canAdd())
         self.actOpen.setEnabled(fileOk and self.canOpen(fileItem))
         self.actSave.setEnabled(fileOk and self.canSave())
@@ -429,6 +440,8 @@ class CAttachFilesTable(QtGui.QTableView):
         self.actDelete.setEnabled(bool(fileItem) and self.canDelete(fileItem))
         self.actSignAsResp.setEnabled(fileOk and self.canSignAsResp(fileItem))
         self.actSignAsOrg.setEnabled(fileOk and self.canSignAsOrg(fileItem))
+        # if hasattr(self, 'actGetObject'):
+        #     self.actGetObject.setEnabled(fileOk)
         self.mnuPopup.exec_(event.globalPos())
         event.accept()
 
@@ -592,10 +605,22 @@ class CAttachFilesTable(QtGui.QTableView):
 
     @pyqtSignature('')
     def on_actSave_triggered(self):
-        fileItem = self.getCurrentFileItem()
-        fileOk = bool(fileItem) and not fileItem.isLost
-        if fileOk and self.canSave():
-            self.saveAttachedFile(fileItem)
+        if self.objectName() == 'tblAmbCardAttachedFiles':
+            clientId = self.parent().parent().parent().parent()._clientId
+            clientFIO = getClientMiniInfo(clientId).split(',')[0].replace('*', '') + u' ID %d' % clientId
+            defaultDir = u'%s' % (QtGui.QDesktopServices.storageLocation(QtGui.QDesktopServices.DocumentsLocation))
+            exportPath = self.directoryExportDocuments or defaultDir
+            documentsDir = u'%s' % (QtGui.QFileDialog.getExistingDirectory(parent=None, directory=exportPath))
+            if documentsDir:
+                pathFIO = os.path.join(documentsDir, clientFIO)
+                savePatientDocuments(self, pathFIO)
+                self.directoryExportDocuments = documentsDir
+                QtGui.qApp.preferences.appPrefs['directoryExportDocuments'] = forceString(documentsDir)
+        else:
+            fileItem = self.getCurrentFileItem()
+            fileOk = bool(fileItem) and not fileItem.isLost
+            if fileOk and self.canSave():
+                self.saveAttachedFile(fileItem)
 
     @pyqtSignature('')
     def on_actSaveKey_triggered(self):
@@ -608,7 +633,9 @@ class CAttachFilesTable(QtGui.QTableView):
     @pyqtSignature('')
     def  on_actAddKey_triggered(self):
         interface = QtGui.qApp.webDAVInterface
+        model = self.model()
         for fileItem in self.selectedItems():
+            row = model.items.index(fileItem)
             localPath = os.path.join(QtGui.qApp.getTmpDir(), fileItem.oldName)
             interface.downloadFile(fileItem, localPath)
             tmpFile = QtCore.QFile(localPath)
@@ -694,6 +721,7 @@ class CAttachFilesTable(QtGui.QTableView):
                                                            QtGui.QMessageBox.Ok)
                             messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
                             messageBox.exec_()
+                            model.touchRow(row)
                         else:
                             messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Information,
                                                            u'Ошибка подписания документа',
@@ -711,11 +739,11 @@ class CAttachFilesTable(QtGui.QTableView):
                                                   QtGui.QMessageBox.Ok)
 
 
-                except Exception, e:
+                except Exception as e:
                     QtGui.QMessageBox.information(self, u'Ошибка получения сертификата', anyToUnicode(e.message),
                                                   QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
 
-            except Exception, e:
+            except Exception as e:
                 messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Information,
                                                u'Ошибка подписания документа',
                                                anyToUnicode(e.message),
@@ -877,6 +905,37 @@ class CAttachFilesTable(QtGui.QTableView):
                 QTimer.singleShot(0, lambda: QtGui.qApp.call(ofr, self.__signAsOrg, (model, row, fileItem)))
                 self.window().close()
 
+    # @pyqtSignature('')
+    # def on_actGetObject_triggered(self):
+    #     recordItem = self.getCurrentFileItem()._record
+    #     itemMasterId = forceRef(recordItem.value('master_id'))
+    #     itemTable = forceString(recordItem.value('objectTableName'))
+    #     clientId = self.parent().parent().parent().parent()._ambCardFilesUserId
+    #     if itemTable == 'Event':
+    #         pass
+    #     elif itemTable == 'Action':
+    #         pass
+    #     elif itemTable == 'Client':
+    #         # dialog = CClientEditDialog(self)
+    #         # try:
+    #         #     if clientId:
+    #         #         dialog.load(clientId)
+    #         #         dialog.exec_()
+    #         # finally:
+    #         #     dialog.destroy()
+    #         #     sip.delete(dialog)
+    #         #     del dialog
+    #         pass
+    #     elif itemTable == 'ProphylaxisPlanning':
+    #         # dialogPS = CSurveillancePlanningEditDialog(self)
+    #         # try:
+    #         #     dialogPS.load(itemMasterId)
+    #         #     dialogPS.exec_()
+    #         # finally:
+    #         #     dialogPS.destroy()
+    #         #     sip.delete(dialogPS)
+    #         #     del dialogPS
+    #         pass
 
 
 def convertSignatureToCMS(signatureBytes):

@@ -39,7 +39,7 @@ from Events.ActionsSummaryModel import CActionsSummaryModel
 from Events.DiagnosisType       import CDiagnosisTypeCol
 from Events.EventEditDialog     import CEventEditDialog, CDiseaseCharacter, CDiseaseStage, CDiseasePhases, CToxicSubstances, getToxicSubstancesIdListByMKB
 from Events.EventInfo           import CDiagnosticInfoProxyList, CEmergencyAccidentInfo, CEmergencyBrigadeInfo, CEmergencyCauseCallInfo, CEmergencyDeathInfo, CEmergencyDiseasedInfo, CEmergencyEbrietyInfo, CEmergencyEventInfo, CEmergencyMethodTransportInfo, CEmergencyPlaceCallInfo, CEmergencyPlaceReceptionCallInfo, CEmergencyReasondDelaysInfo, CEmergencyReceivedCallInfo, CEmergencyResultInfo, CEmergencyTransferTransportInfo, CEmergencyTypeAssetInfo, CHospitalInfo
-from Events.Utils               import checkDiagnosis, checkIsHandleDiagnosisIsChecked, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventDurationRange, getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary
+from Events.Utils               import checkDiagnosis, checkIsHandleDiagnosisIsChecked, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventAvailableOrders, getEventDurationRange, getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, setAskedClassValueForDiagnosisManualSwitch, getEventIsPrimary, checkAttachOnDate
 from F110.PreF110Dialog         import CPreF110Dialog, CPreF110DagnosticAndActionPresets
 from Orgs.PersonComboBoxEx      import CPersonFindInDocTableCol
 from Orgs.PersonInfo            import CPersonInfo
@@ -386,7 +386,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
             self.edtNextTime.setTime(QTime())
             self.cmbDispatcher.setCurrentIndex(0)
             self.cmbOrder.setCurrentIndex(getEventIsPrimary(eventTypeId))
-            self.cmbOrderEvent.setCurrentIndex(eventOrder)
+            self.initOrder(forceString(getEventAvailableOrders(eventTypeId)), eventOrder+1, True)
             self.cmbContract.setCurrentIndex(0)
             self.cmbTypeAsset.setCurrentIndex(0)
             self.edtNextDate.setEnabled(False)
@@ -451,16 +451,19 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         else:
             eventDate = QDate.currentDate()
         presentActionTypes = []
+        maxOccursLimitActionTypes = []
         for item in self.modelActionsSummary.items():
             actionTypeId = forceString(item.value('actionType_id'))
             if actionTypeId not in presentActionTypes:
                 presentActionTypes.append(actionTypeId)
+                if not self.checkMaxOccursLimit(actionTypeId) and actionTypeId not in maxOccursLimitActionTypes:
+                    maxOccursLimitActionTypes.append(actionTypeId)
         if QtGui.qApp.userHasRight(urAccessF110planner):
             dlg = CPreF110Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
                 dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
-                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes)
+                            flagHospitalization, actionTypeIdValue, tissueTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -471,7 +474,9 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF110DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes)
+            presets = CPreF110DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, 
+                                                        flagHospitalization, actionTypeIdValue, presentActionTypes = presentActionTypes, 
+                                                        maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             return self._prepare(clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                  presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -543,7 +548,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
         setRBComboBoxValue(self.cmbDispatcher,  record, 'curator_id')
         setRBComboBoxValue(self.cmbResult,      record, 'result_id')
         self.cmbOrder.setCurrentIndex(forceInt(record.value('isPrimary'))-1)
-        self.cmbOrderEvent.setCurrentIndex(forceInt(record.value('order'))-1)
+        self.initOrder(forceString(getEventAvailableOrders(record.value('eventType_id'))), forceInt(record.value('order')), True)
         self.setExternalId(forceString(record.value('externalId')))
         setComboBoxValue(self.cmbTypeAsset,     record, 'typeAsset_id')
         self.setPerson = forceRef(record.value('setPerson_id'))
@@ -659,6 +664,7 @@ class CF110Dialog(CEventEditDialog, Ui_Dialog, CEmergencyCallEditDialog):
                                                                            diagnosisId)
                 newRecord.setValue('handleDiagnosis', QVariant(isCheckedHandleDiagnosis))
 
+            newRecord._dirty = False
             items.append(newRecord)
         modelDiagnostics.setItems(items)
 
@@ -1971,34 +1977,6 @@ class CF110BaseDiagnosticsModel(CMKBListInDocTableModel):
                     record.setValue(fieldName, toVariant(None))
                 record.setValue('TNMS', toVariant(u''))
                 self.emitRowChanged(row)
-
-
-    def inheritMKBTNMS(self, record, oldMKB, newMKB, clientId, eventSetDate):
-        if QtGui.qApp.isTNMSVisible() and not oldMKB and newMKB and (newMKB[:1] == 'C' or newMKB[:2] == 'D0'):
-            query = QtGui.qApp.db.query(u"""SELECT Diagnostic.* 
-                                            FROM Diagnostic 
-                                            left JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
-                                            left JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnostic.diagnosisType_id
-                                          WHERE Diagnosis.client_id = {clientId} 
-                                            AND rbDiagnosisType.code = '1'
-                                            AND Diagnosis.MKB = '{mkb}'
-                                            AND Diagnostic.endDate <= '{date}'
-                                          ORDER BY Diagnostic.endDate DESC 
-                                          LIMIT 1""".format(clientId=clientId,
-                                                            mkb=forceString(newMKB),
-                                                            date=forceDate(eventSetDate).toString(
-                                                                'yyyy-MM-dd')))
-            if query.first():
-                recordOldDiagnostic = query.record()
-                record.setValue('TNMS', recordOldDiagnostic.value('TNMS'))
-                record.setValue('cTumor_id', recordOldDiagnostic.value('cTumor_id'))
-                record.setValue('cNodus_id', recordOldDiagnostic.value('cNodus_id'))
-                record.setValue('cMetastasis_id', recordOldDiagnostic.value('cMetastasis_id'))
-                record.setValue('cTNMphase_id', recordOldDiagnostic.value('cTNMphase_id'))
-                record.setValue('pTumor_id', recordOldDiagnostic.value('pTumor_id'))
-                record.setValue('pNodus_id', recordOldDiagnostic.value('pNodus_id'))
-                record.setValue('pMetastasis_id', recordOldDiagnostic.value('pMetastasis_id'))
-                record.setValue('pTNMphase_id', recordOldDiagnostic.value('pTNMphase_id'))
 
 
     def removeRowEx(self, row):

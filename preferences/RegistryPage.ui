@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>542</width>
-    <height>135</height>
+    <height>155</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -23,19 +23,6 @@
    <property name="spacing">
     <number>4</number>
    </property>
-   <item row="7" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>1</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
    <item row="0" column="1" colspan="2">
     <widget class="QComboBox" name="cmbDoubleClickQueueClient">
      <item>
@@ -65,17 +52,23 @@
      </item>
     </widget>
    </item>
+   <item row="8" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>1</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblDoubleClickQueueClient">
      <property name="text">
       <string>Двойной щелчок в листе предварительной записи пациента</string>
-     </property>
-    </widget>
-   </item>
-   <item row="5" column="0">
-    <widget class="QCheckBox" name="chkExternalNotificationAuto">
-     <property name="text">
-      <string>Автоматически открывать вкладку внешних уведомлений</string>
      </property>
     </widget>
    </item>
@@ -90,6 +83,13 @@
     <widget class="QCheckBox" name="chkExternalNotificationOnlyAttach">
      <property name="text">
       <string>Показывать только уведомления на прикрепленных пациентов</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QCheckBox" name="chkExternalNotificationAuto">
+     <property name="text">
+      <string>Автоматически открывать вкладку внешних уведомлений</string>
      </property>
     </widget>
    </item>
@@ -112,16 +112,6 @@
      </item>
     </widget>
    </item>
-   <item row="4" column="0">
-    <widget class="QLabel" name="lblClientsLimit">
-     <property name="text">
-      <string>Лимит списка пациентов в картотеке</string>
-     </property>
-     <property name="buddy">
-      <cstring>edtClientsLimit</cstring>
-     </property>
-    </widget>
-   </item>
    <item row="4" column="1">
     <widget class="QSpinBox" name="edtClientsLimit">
      <property name="minimum">
@@ -132,6 +122,40 @@
      </property>
      <property name="value">
       <number>10000</number>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="lblClientsLimit">
+     <property name="text">
+      <string>Лимит списка пациентов в картотеке</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtClientsLimit</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblUserNotificationsMode">
+     <property name="text">
+      <string>Режим отображения вкладки &quot;Уведомления&quot;</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtClientsLimit</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QRadioButton" name="rbnUserNotificationsModeStandard">
+     <property name="text">
+      <string>Стандартный</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="2">
+    <widget class="QRadioButton" name="rbnUserNotificationsModeExtended">
+     <property name="text">
+      <string>Расширенный</string>
      </property>
     </widget>
    </item>

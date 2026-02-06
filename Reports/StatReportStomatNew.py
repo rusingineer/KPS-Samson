@@ -540,8 +540,8 @@ class CStomatReport1(CReportEx):
         tableRBS = db.table('rbService')
         tablePerson = db.table('vrbPersonWithSpeciality')
         tableOS = db.table('OrgStructure')
-        cond = [tableAction['endDate'].dateLe(endDate),
-            tableAction['endDate'].dateGe(begDate)]
+        cond = [tableAction['endDate'].lt(endDate.addDays(1)),
+            tableAction['endDate'].ge(begDate)]
         if personId:
             cond.append(tableAction['person_id'].eq(personId))
         elif orgStructureId:
@@ -781,10 +781,10 @@ class CStomatReport1(CReportEx):
             cond = ['isSexAndAgeSuitable(Client.sex, Client.birthDate, Contract_Tariff.sex, Contract_Tariff.age, Action.endDate)',
                 tableCT['deleted'].eq(0),
                 db.joinOr([tableCT['tariffCategory_id'].eq(tablePerson['tariffCategory_id']), tableCT['tariffCategory_id'].isNull()]),
-                db.joinOr([tableCT['begDate'].dateLe(tableAction['endDate']), tableCT['begDate'].isNull()]),
-                db.joinOr([tableCT['endDate'].dateGe(tableAction['begDate']), tableCT['begDate'].isNull()]),
-                tableAction['endDate'].dateLe(endDate),
-                tableAction['endDate'].dateGe(begDate)]
+                db.joinOr([tableCT['begDate'].lt(tableAction['endDate'].addDays(1)), tableCT['begDate'].isNull()]),
+                db.joinOr([tableCT['endDate'].ge(tableAction['begDate']), tableCT['begDate'].isNull()]),
+                tableAction['endDate'].lt(endDate.addDays(1)),
+                tableAction['endDate'].ge(begDate)]
             if contractId:
                 cond.append(tableCT['master_id'].eq(contractId))
         else:

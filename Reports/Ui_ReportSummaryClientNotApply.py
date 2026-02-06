@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\dev1\PycharmProjects\client_kortis\Reports\ReportSummaryClientNotApply.ui'
+# Form implementation generated from reading ui file 'ReportSummaryClientNotApply.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Wed Apr  2 14:33:21 2025
+#      by: PyQt4 UI code generator 4.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -37,8 +38,8 @@ class Ui_ReportSummaryClientNotApply(object):
         self.frmAge.setFrameShadow(QtGui.QFrame.Raised)
         self.frmAge.setObjectName(_fromUtf8("frmAge"))
         self._2 = QtGui.QHBoxLayout(self.frmAge)
-        self._2.setMargin(0)
         self._2.setSpacing(4)
+        self._2.setMargin(0)
         self._2.setObjectName(_fromUtf8("_2"))
         self.edtAgeFrom = QtGui.QSpinBox(self.frmAge)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
@@ -67,22 +68,6 @@ class Ui_ReportSummaryClientNotApply(object):
         spacerItem = QtGui.QSpacerItem(21, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self._2.addItem(spacerItem)
         self.gridlayout.addWidget(self.frmAge, 11, 1, 1, 2)
-        spacerItem1 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridlayout.addItem(spacerItem1, 1, 2, 1, 1)
-        self.lblEndDate = QtGui.QLabel(ReportSummaryClientNotApply)
-        self.lblEndDate.setObjectName(_fromUtf8("lblEndDate"))
-        self.gridlayout.addWidget(self.lblEndDate, 1, 0, 1, 1)
-        self.lblOrgStructure = QtGui.QLabel(ReportSummaryClientNotApply)
-        self.lblOrgStructure.setObjectName(_fromUtf8("lblOrgStructure"))
-        self.gridlayout.addWidget(self.lblOrgStructure, 4, 0, 1, 1)
-        self.cmbOrgStructure = COrgStructureComboBox(ReportSummaryClientNotApply)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.cmbOrgStructure.sizePolicy().hasHeightForWidth())
-        self.cmbOrgStructure.setSizePolicy(sizePolicy)
-        self.cmbOrgStructure.setObjectName(_fromUtf8("cmbOrgStructure"))
-        self.gridlayout.addWidget(self.cmbOrgStructure, 4, 1, 1, 2)
         self.lblScene = QtGui.QLabel(ReportSummaryClientNotApply)
         self.lblScene.setObjectName(_fromUtf8("lblScene"))
         self.gridlayout.addWidget(self.lblScene, 5, 0, 1, 1)
@@ -94,8 +79,8 @@ class Ui_ReportSummaryClientNotApply(object):
         self.edtBegDate.setCalendarPopup(True)
         self.edtBegDate.setObjectName(_fromUtf8("edtBegDate"))
         self.gridlayout.addWidget(self.edtBegDate, 0, 1, 1, 1)
-        spacerItem2 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridlayout.addItem(spacerItem2, 0, 2, 1, 1)
+        spacerItem1 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridlayout.addItem(spacerItem1, 0, 2, 1, 1)
         self.lblBegDate = QtGui.QLabel(ReportSummaryClientNotApply)
         self.lblBegDate.setObjectName(_fromUtf8("lblBegDate"))
         self.gridlayout.addWidget(self.lblBegDate, 0, 0, 1, 1)
@@ -111,13 +96,13 @@ class Ui_ReportSummaryClientNotApply(object):
         self.cmbSex.addItem(_fromUtf8(""))
         self.cmbSex.addItem(_fromUtf8(""))
         self.gridlayout.addWidget(self.cmbSex, 10, 1, 1, 1)
-        spacerItem3 = QtGui.QSpacerItem(129, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridlayout.addItem(spacerItem3, 12, 0, 1, 1)
+        spacerItem2 = QtGui.QSpacerItem(129, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridlayout.addItem(spacerItem2, 13, 0, 1, 1)
         self.buttonBox = QtGui.QDialogButtonBox(ReportSummaryClientNotApply)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
-        self.gridlayout.addWidget(self.buttonBox, 13, 0, 1, 3)
+        self.gridlayout.addWidget(self.buttonBox, 14, 0, 1, 3)
         self.lblPerson = QtGui.QLabel(ReportSummaryClientNotApply)
         self.lblPerson.setObjectName(_fromUtf8("lblPerson"))
         self.gridlayout.addWidget(self.lblPerson, 7, 0, 1, 1)
@@ -140,6 +125,22 @@ class Ui_ReportSummaryClientNotApply(object):
         self.label_2 = QtGui.QLabel(ReportSummaryClientNotApply)
         self.label_2.setObjectName(_fromUtf8("label_2"))
         self.gridlayout.addWidget(self.label_2, 9, 0, 1, 1)
+        spacerItem3 = QtGui.QSpacerItem(91, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridlayout.addItem(spacerItem3, 1, 2, 1, 1)
+        self.lblEndDate = QtGui.QLabel(ReportSummaryClientNotApply)
+        self.lblEndDate.setObjectName(_fromUtf8("lblEndDate"))
+        self.gridlayout.addWidget(self.lblEndDate, 1, 0, 1, 1)
+        self.lblOrgStructure = QtGui.QLabel(ReportSummaryClientNotApply)
+        self.lblOrgStructure.setObjectName(_fromUtf8("lblOrgStructure"))
+        self.gridlayout.addWidget(self.lblOrgStructure, 4, 0, 1, 1)
+        self.cmbOrgStructure = COrgStructureComboBox(ReportSummaryClientNotApply)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cmbOrgStructure.sizePolicy().hasHeightForWidth())
+        self.cmbOrgStructure.setSizePolicy(sizePolicy)
+        self.cmbOrgStructure.setObjectName(_fromUtf8("cmbOrgStructure"))
+        self.gridlayout.addWidget(self.cmbOrgStructure, 4, 1, 1, 2)
         self.cmbattached = QtGui.QComboBox(ReportSummaryClientNotApply)
         self.cmbattached.setFrame(True)
         self.cmbattached.setObjectName(_fromUtf8("cmbattached"))
@@ -150,14 +151,17 @@ class Ui_ReportSummaryClientNotApply(object):
         self.cmbdn = CRBComboBox(ReportSummaryClientNotApply)
         self.cmbdn.setObjectName(_fromUtf8("cmbdn"))
         self.gridlayout.addWidget(self.cmbdn, 9, 1, 1, 2)
+        self.cbExDied = QtGui.QCheckBox(ReportSummaryClientNotApply)
+        self.cbExDied.setObjectName(_fromUtf8("cbExDied"))
+        self.gridlayout.addWidget(self.cbExDied, 12, 1, 1, 1)
         self.lblAgeTo.setBuddy(self.edtAgeTo)
         self.lblAgeYears.setBuddy(self.edtAgeTo)
-        self.lblEndDate.setBuddy(self.edtEndDate)
-        self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
         self.lblBegDate.setBuddy(self.edtBegDate)
         self.lblPerson.setBuddy(self.cmbPerson)
         self.lblSex.setBuddy(self.cmbSex)
         self.lblAge.setBuddy(self.edtAgeFrom)
+        self.lblEndDate.setBuddy(self.edtEndDate)
+        self.lblOrgStructure.setBuddy(self.cmbOrgStructure)
 
         self.retranslateUi(ReportSummaryClientNotApply)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), ReportSummaryClientNotApply.accept)
@@ -174,8 +178,6 @@ class Ui_ReportSummaryClientNotApply(object):
         ReportSummaryClientNotApply.setWindowTitle(_translate("ReportSummaryClientNotApply", "Сводка попациентам (не обращавшиеся в МО)", None))
         self.lblAgeTo.setText(_translate("ReportSummaryClientNotApply", "по", None))
         self.lblAgeYears.setText(_translate("ReportSummaryClientNotApply", "лет", None))
-        self.lblEndDate.setText(_translate("ReportSummaryClientNotApply", "Дата &окончания периода", None))
-        self.lblOrgStructure.setText(_translate("ReportSummaryClientNotApply", "&Подразделение", None))
         self.lblScene.setText(_translate("ReportSummaryClientNotApply", "Специальность", None))
         self.lblBegDate.setText(_translate("ReportSummaryClientNotApply", "Дата &начала периода", None))
         self.cmbSex.setItemText(1, _translate("ReportSummaryClientNotApply", "М", None))
@@ -186,11 +188,14 @@ class Ui_ReportSummaryClientNotApply(object):
         self.lblAge.setText(_translate("ReportSummaryClientNotApply", "Во&зраст с", None))
         self.label.setText(_translate("ReportSummaryClientNotApply", "Прикреплен", None))
         self.label_2.setText(_translate("ReportSummaryClientNotApply", "ДН-учет", None))
+        self.lblEndDate.setText(_translate("ReportSummaryClientNotApply", "Дата &окончания периода", None))
+        self.lblOrgStructure.setText(_translate("ReportSummaryClientNotApply", "&Подразделение прикрепления", None))
         self.cmbattached.setItemText(0, _translate("ReportSummaryClientNotApply", "Все", None))
         self.cmbattached.setItemText(1, _translate("ReportSummaryClientNotApply", "Прикрепленные", None))
         self.cmbattached.setItemText(2, _translate("ReportSummaryClientNotApply", "Не прикрепленные", None))
+        self.cbExDied.setText(_translate("ReportSummaryClientNotApply", "Исключить умерших", None))
 
-from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from library.DateEdit import CDateEdit
 from library.crbcombobox import CRBComboBox
+from library.DateEdit import CDateEdit
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox

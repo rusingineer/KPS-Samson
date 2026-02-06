@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -40,6 +40,7 @@ from Events.EventInfo               import CDiagnosticInfoIdList, CSocStatusType
 from Events.MKBInfo                 import CMKBInfo
 from Surveillance.ChangeDispanserPerson import CChangeDispanserPerson
 from Surveillance.SurveillancePlanningDialog import CSurveillancePlanningEditDialog
+from Surveillance.GroupChangeDispanserPerson import CGroupChangeDispanserPerson
 
 from RefBooks.AccountingSystem.Info import CAccountingSystemInfo
 from Registry.AmbCardMixin          import CAmbCardMixin
@@ -82,6 +83,7 @@ from Users.Rights                   import (
                                             urSurReadClientInfo,
                                             urSurEditEvent,
                                             urSurEditClientInfo,
+                                            urSurvChangePerson,
                                             urRegTabReadAmbCard,
                                             urRegTabWriteAmbCard,
                                            )
@@ -278,7 +280,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.cmbSocStatusesType.setTable('rbSocStatusType', True)
         self.cmbFilterAccountingSystem.setTable('rbAccountingSystem',  True)
         self.cmbFilterAccountingSystem.setValue(forceRef(QtGui.qApp.preferences.appPrefs.get('FilterAccountingSystem', 0)))
-        self.cmbFilterEventDispanser.setTable('rbDispanser', True)
         self.cmbDiseaseCharacter.setTable('rbDiseaseCharacter')
 
         templates = getPrintTemplates('surveillance')
@@ -306,14 +307,12 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
                                    self.edtFilterSocStatusesEndDate, self.cmbSocStatusesClass, self.cmbSocStatusesType]),
             (self.chkFilterEvent, [self.chkEventVisitDiagnosis, self.cmbFilterEventVisitType, self.label,
                                    self.edtFilterEventVisitBegDate, self.label_3, self.edtFilterEventVisitEndDate]),
-            (self.chkFilterEventDispanser, [self.cmbFilterEventDispanser]),
             (self.chkFilterDateRange, [self.cmbFilterPlanningType, self.label_5, self.edtFilterBegDate, self.label_6, self.edtFilterEndDate])]
 
         self.setChildElementsVisible(self.chkList, self.chkFilterAddressOrgStructure, False)
         self.setChildElementsVisible(self.chkList, self.chkFilterAddress, False)
         self.setChildElementsVisible(self.chkList, self.chkSocStatuses, False)
         self.setChildElementsVisible(self.chkList, self.chkFilterEvent, False)
-        self.setChildElementsVisible(self.chkList, self.chkFilterEventDispanser, False)
         self.setChildElementsVisible(self.chkList, self.chkFilterDateRange, False)
 
         self.filter = {}
@@ -344,14 +343,20 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.onChkFilterToggled(self.sender(), checked)
 
     @pyqtSignature('bool')
-    def on_chkFilterEventDispanser_toggled(self, checked):
-        self.setChildElementsVisible(self.chkList, self.chkFilterEventDispanser, checked)
-        self.onChkFilterToggled(self.sender(), checked)
-
-    @pyqtSignature('bool')
     def on_chkFilterDateRange_toggled(self, checked):
         self.setChildElementsVisible(self.chkList, self.chkFilterDateRange, checked)
         self.onChkFilterToggled(self.sender(), checked)
+
+    @pyqtSignature('int')
+    def on_cmbSocStatusesClass_currentIndexChanged(self, index):
+        socStatusClassId = self.cmbSocStatusesClass.value()
+        if socStatusClassId:
+            filter = (u'''rbSocStatusType.id IN (SELECT DISTINCT rbSocStatusClassTypeAssoc.type_id
+            FROM  rbSocStatusClassTypeAssoc
+            WHERE rbSocStatusClassTypeAssoc.class_id = %s)'''%(socStatusClassId))
+        else:
+            filter = u''
+        self.cmbSocStatusesType.setFilter(filter)
 
     def setChildElementsVisible(self, chkList, parentChk, value):
         for row in chkList:
@@ -395,17 +400,21 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.addObject('actPortal_Doctor', QtGui.QAction(u'Перейти на портал врача', self))
         self.addObject('actAmbCardShow',    QtGui.QAction(u'Открыть медицинскую карту', self))
         self.addObject('actSurveillancePlanningClients', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
+        self.addObject('actGroupChangePersonDN', QtGui.QAction(u'Изменить врача по ДН всех пациентов списка', self))
         self.actEditClientInfoBeds.setShortcut('Shift+F4')
         self.mnuClients.addAction(self.actEditClientInfoBeds)
         self.mnuClients.addAction(self.actPortal_Doctor)
         self.mnuClients.addAction(self.actAmbCardShow)
         self.mnuClients.addAction(self.actSurveillancePlanningClients)
+        self.mnuClients.addAction(self.actGroupChangePersonDN)
 
 
     def setupDiagnosisMenu(self):
         self.addObject('mnuDiagnosis', QtGui.QMenu(self))
         self.addObject('actChangePersonDN', QtGui.QAction(u'Изменить врача ДН', self))
+        self.addObject('actGroupChangePersonDNMKB', QtGui.QAction(u'Изменить врача по ДН пациента по диагнозам', self))
         self.mnuDiagnosis.addAction(self.actChangePersonDN)
+        self.mnuDiagnosis.addAction(self.actGroupChangePersonDNMKB)
 
 
     def setupMonitoringMenu(self):
@@ -443,10 +452,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         specialityId = params.get('specialityId', None)
         if specialityId:
             rows.append(u'Cпециальность: ' + [u'Отбор по "ИЛИ": ', u'Отбор по "И": '][specialityType] + forceString(db.translate('rbSpeciality', 'id', specialityId, 'name')))
-        personId = params.get('personId', None)
-        if personId:
-            personInfo = getPersonInfo(personId)
-            rows.append(u'Врач: ' + personInfo['shortName']+', '+personInfo['specialityName'])
         MKBFilter = params.get('MKBFilter', 0)
         MKBFrom = params.get('MKBFrom', '')
         MKBTo = params.get('MKBTo', '')
@@ -668,7 +673,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
             for i, clientInfo in enumerate(clientInfoList):
                 clientInfoList[i]._diagnostics = context.getInstance(CDiagnosticInfoIdList, tuple(modelDiagnostic.getDiagnosticIdList(clientInfo.id, self.filter)))
             data = {'clientsInfo': clientInfoList,
-                    'personId': context.getInstance(CPersonInfo, self.cmbFilterEventPerson.value()),
                     'begDate': CDateInfo(self.edtFilterEventBegDate.date()),
                     'endDate': CDateInfo(self.edtFilterEventEndDate.date()),
                     'orgStructureId': context.getInstance(COrgStructureInfo, self.cmbFilterEventOrgStructure.value()),
@@ -731,7 +735,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
 
     def setFilter(self):
         self.filter = {}
-        self.filter['personId'] = self.cmbFilterEventPerson.value()
         self.filter['personDN'] = self.cmbFilterPersonDN.value()
         self.filter['begDate'] = self.edtFilterEventBegDate.date()
         self.filter['endDate'] = self.edtFilterEventEndDate.date()
@@ -742,6 +745,7 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.filter['MKBFrom']   = unicode(self.edtMKBFrom.text())
         self.filter['MKBTo']     = unicode(self.edtMKBTo.text())
         self.filter['diseaseCharacterId'] = self.cmbDiseaseCharacter.value()
+        self.filter['diseaseCharacterName'] = self.cmbDiseaseCharacter.name() #Не для поиска. Чтобы запоминать значение
         self.filter['sex'] = self.cmbSex.currentIndex()
         self.filter['ageFor'] = self.spbAgeFor.value()
         self.filter['ageTo'] = self.spbAgeTo.value()
@@ -778,9 +782,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
             self.filter['eventVisitType'] = self.cmbFilterEventVisitType.currentIndex()
             self.filter['eventBegDate'] = self.edtFilterEventVisitBegDate.date()
             self.filter['eventEndDate'] = self.edtFilterEventVisitEndDate.date()
-        if self.chkFilterEventDispanser.isChecked():
-            if self.cmbFilterEventDispanser.value():
-                self.filter['dispanserId'] = self.cmbFilterEventDispanser.value()
         self.filter['accountingSystemId'] = self.cmbFilterAccountingSystem.value()
         self.filter['filterClientId'] = forceStringEx(self.edtFilterClientId.text())
         if self.chkFilterDateRange.isChecked():
@@ -794,7 +795,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         personId = None
         if QtGui.qApp.isGetPersonStationary():
             personId = QtGui.qApp.userId if QtGui.qApp.userSpecialityId else None
-        self.cmbFilterEventPerson.setValue(None)
         self.cmbFilterPersonDN.setValue(personId)
         self.edtFilterEventBegDate.setDate(QDate.currentDate())
         self.edtFilterEventEndDate.setDate(QDate())
@@ -839,8 +839,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.chkFilterAddress.setChecked(False)
         self.chkSocStatuses.setChecked(False)
         self.chkFilterEvent.setChecked(False)
-        self.chkFilterEventDispanser.setChecked(True)
-        self.cmbFilterEventDispanser.setValue(0)
         self.edtFilterEventBegDate.setDate(QDate.currentDate().addMonths(-1))
         self.setFilter()
 
@@ -926,6 +924,14 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.actEditClientInfoBeds.setEnabled(isEnabled)
         self.actAmbCardShow.setEnabled(isEnabled)
         self.actSurveillancePlanningClients.setEnabled(controlCardBtnEnabled)
+        self.actGroupChangePersonDN.setEnabled(widgetIndex == 0  and (QtGui.qApp.isAdmin() or QtGui.qApp.userHasRight(urSurvChangePerson)))
+
+
+    @pyqtSignature('')
+    def on_mnuDiagnosis_aboutToShow(self):
+        widgetIndex = self.tabDispensaireClients.currentIndex()
+        self.actGroupChangePersonDNMKB.setEnabled(widgetIndex == 0 and (QtGui.qApp.isAdmin() or QtGui.qApp.userHasRight(urSurvChangePerson)))
+        self.actChangePersonDN.setEnabled(widgetIndex == 0)
 
 
     @pyqtSignature('')
@@ -992,6 +998,28 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
 
 
     @pyqtSignature('')
+    def on_actGroupChangePersonDN_triggered(self):
+        dialog = CGroupChangeDispanserPerson(self)
+        dialog.setClientCount(self.tblConsistsClients.model().rowCount())
+        dialog.setMKBList(self.filter['MKBFrom'], self.filter['MKBTo'], self.filter['MKBFilter'])
+        dialog.setCharacterList(self.filter['diseaseCharacterName'])
+        dialog.setMKB(False)
+        if dialog.exec_():
+            personId = dialog.getPersonId()
+            clientIdList = self.tblConsistsClients.model().idList()
+            diagnosisIdList = dialog.getDiagnosisIdList(clientIdList, self.filter)
+            db = QtGui.qApp.db
+            tableDiagnosis = db.table('Diagnosis')
+            db.updateRecords(tableDiagnosis, 'dispanserPerson_id = {}'.format(forceInt(personId)), tableDiagnosis['id'].inlist(diagnosisIdList))
+            tblClients = self.getCurrentClientsTable()
+            tblDiagnosis = self.getCurrentDiagnosisTable()
+            model = tblClients.model()
+            model.loadData(self.filter)
+            clientId = tblClients.currentItemId()
+            tblDiagnosis.model().loadData(clientId, self.filter)
+
+
+    @pyqtSignature('')
     def on_actSurveillancePlanningMonitoring_triggered(self):
         tableClients = self.getCurrentClientsTable()
         clientId = tableClients.currentItemId()
@@ -1011,31 +1039,67 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
             model.loadData(clientId, self.filter)
 
 
-    def surveillancePlanningShow(self, clientId, monitoringIdList=None):
+    @pyqtSignature('')
+    def on_actGroupChangePersonDNMKB_triggered(self):
+        dialog = CGroupChangeDispanserPerson(self)
+        dialog.setClientCount(1)
+        dialog.setMKBList(self.filter['MKBFrom'], self.filter['MKBTo'], self.filter['MKBFilter'])
+        dialog.setCharacterList(self.filter['diseaseCharacterName'])
+        diagnosisIdList = self.tblConsistsDiagnosis.model().idList()
+        dialog.setMKB(True, diagnosisIdList)
+        if dialog.exec_():
+            personId = dialog.getPersonId()
+            db = QtGui.qApp.db
+            tableDiagnosis = db.table('Diagnosis')
+            MKBList = dialog.getMKB()
+            db.updateRecords(tableDiagnosis, 'dispanserPerson_id = {}'.format(forceInt(personId)), db.joinAnd([tableDiagnosis['id'].inlist(diagnosisIdList), tableDiagnosis['MKB'].inlist(MKBList)]))
+            
+            tblClients = self.getCurrentClientsTable()
+            tblDiagnosis = self.getCurrentDiagnosisTable()
+            oldClientId = tblClients.currentItemId()
+            modelClients = tblClients.model()
+            modelClients.loadData(self.filter)
+            
+            try:
+                row = modelClients.idList().index(oldClientId)
+            except ValueError:
+                return
+            idx = modelClients.index(row, 0, QModelIndex())
+            selectionModelClient = tblClients.selectionModel()
+            selectionModelClient.select(idx, QtGui.QItemSelectionModel.ClearAndSelect | QtGui.QItemSelectionModel.Rows)
+            selectionModelClient.setCurrentIndex(idx, QtGui.QItemSelectionModel.NoUpdate)
+                    
+            clientId = tblClients.currentItemId()
+            tblDiagnosis.model().loadData(clientId, self.filter)
+
+
+    def surveillancePlanningShow(self, clientId, monitoringIdList=None, eventId=None):
         if clientId:
             db = QtGui.qApp.db
-            tableDispanser = db.table('rbDispanser')
             tableDiagnosis = db.table('Diagnosis')
             tableDiagnostic = db.table('Diagnostic')
-            tableEvent = db.table('Event')
-            queryTable = tableDiagnostic.innerJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
-            queryTable = queryTable.innerJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnostic['dispanser_id']))
-            cond = [tableDiagnostic['dispanser_id'].isNotNull(),
-                    tableDiagnosis['deleted'].eq(0),
+            queryTable = tableDiagnosis.leftJoin(tableDiagnostic, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+            cond = [tableDiagnosis['deleted'].eq(0),
                     tableDiagnostic['deleted'].eq(0),
+                    tableDiagnosis['dispanser_id'].isNotNull(),
+                    tableDiagnostic['dispanser_id'].isNotNull(),
                     tableDiagnosis['client_id'].eq(clientId)
                     ]
             if monitoringIdList:
                 cond.append(tableDiagnosis['id'].inlist(monitoringIdList))
+            if eventId:
+                cond.append(tableDiagnostic['event_id'].eq(eventId))
             cols = [u'Diagnostic.*',
                     tableDiagnosis['MKB'],
                     tableDiagnosis['MKBEx'],
                     tableDiagnosis['dispanserBegDate'],
                     tableDiagnosis['dispanserPerson_id'],
-                    tableDiagnosis['dispanser_id'],
-                    tableDiagnostic['endDate']
+                    tableDiagnosis['dispanser_id'].alias('diagnosisDispanser_id'),
+                    tableDiagnostic['endDate'],
+                    'max(Diagnosis.endDate) as maxDiagnosisEndDate',
+                    'max(Diagnostic.endDate) as maxDiagnosticEndDate'
                     ]
-            dispanserItems = db.getRecordList(queryTable, cols, cond, order=tableDiagnostic['endDate'].name())
+            dispanserItems = db.getRecordListGroupBy(queryTable, cols, cond, group = 'MKB', order='maxDiagnosisEndDate DESC, maxDiagnosticEndDate DESC')
             if dispanserItems:
                 dialog = CSurveillancePlanningEditDialog(self)
                 try:
@@ -1052,15 +1116,30 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
                         eventIdLast = forceRef(eventRecord.value('id')) if eventRecord else None
                         if eventIdLast:
                             cond = [tableDiagnostic['event_id'].eq(eventIdLast),
-                                    tableDiagnostic['dispanser_id'].isNotNull(),
-                                    #tableDispanser['observed'].eq(1),
                                     tableDiagnosis['deleted'].eq(0),
-                                    tableDiagnostic['deleted'].eq(0)
+                                    tableDiagnostic['deleted'].eq(0),
+                                    tableDiagnosis['dispanser_id'].isNotNull(),
+                                    tableDiagnostic['dispanser_id'].isNotNull(),
+                                    tableDiagnosis['client_id'].eq(clientId)
                                     ]
-                            dispanserEventLastItems = db.getRecordList(queryTable, cols, cond, order=tableDiagnostic['endDate'].name())
+                            dispanserEventLastItems = db.getRecordListGroupBy(queryTable, cols, cond, group = 'MKB', order='maxDiagnosisEndDate DESC, maxDiagnosticEndDate DESC')
                             dialog.setDiagnosticEventLastRecords(dispanserEventLastItems)
                         dialog.setDiagnosticRecords(dispanserItems)
-                        dialog.exec_()
+                        if dialog.exec_():
+                            tableDiagnosis = self.getCurrentDiagnosisTable()
+                            tableClients = self.getCurrentClientsTable()
+                            oldDiagnosisId = tableDiagnosis.currentItemId()
+                            clientId = tableClients.currentItemId()
+                            model = tableDiagnosis.model()
+                            model.loadData(clientId, self.filter)
+                            try:
+                                row = model.idList().index(oldDiagnosisId)
+                            except ValueError:
+                                return
+                            idx = model.index(row, 0, QModelIndex())
+                            selectionModelDiagnosis = tableDiagnosis.selectionModel()
+                            selectionModelDiagnosis.select(idx, QtGui.QItemSelectionModel.ClearAndSelect | QtGui.QItemSelectionModel.Rows)
+                            selectionModelDiagnosis.setCurrentIndex(idx, QtGui.QItemSelectionModel.NoUpdate)
                 finally:
                     dialog.deleteLater()
 
@@ -1189,8 +1268,6 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
 
     @pyqtSignature('int')
     def on_tabDispensaireClients_currentChanged(self, index):
-        self.chkFilterEventDispanser.setVisible(index == 3)
-        self.cmbFilterEventDispanser.setVisible(index == 3)
         if index == 0:  # состоят
             QtGui.qApp.callWithWaitCursor(self, self.getFillingClients, self.tblConsistsClients, self.txtConsistsClientInfoBrowser)
             self.periodChanged(u'На дату', False)
@@ -1645,39 +1722,41 @@ class CSubjectToSurveillanceClientsModel(CSurveillanceClientsModel):
         db = QtGui.qApp.db
         tableClient = db.table('Client')
         tableDiagnosis = db.table('Diagnosis')
+        tableDS = db.table('Diagnosis').alias('DS')
         tableDiagnostic = db.table('Diagnostic')
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
         tableRBDispanser = db.table('rbDispanser')
         tableMKB = db.table('MKB')
         cond = [
             tableClient['deleted'].eq(0),
             tableDiagnosis['deleted'].eq(0),
-            tableDiagnostic['deleted'].eq(0),
-            tableDiagnostic['endDate'].ge(begDate),
             tableMKB['requiresFillingDispanser'].inlist([1,2]), # 1-иногда, 2-всегда
+            db.joinOr([tableDiagnosis['dispanser_id'].isNull(), tableDiagnosis['dispanser_id'].inlist([3,4,5])]), #tt2432
+            tableEventType['code'].notlike(u'%%rmDisp%'),
+            tableEventType['code'].notlike(u'%%ЭЛМК%'),
+            tableEventType['form'].ne(u'088'),
+            tableDS['id'].isNull()
         ]
-        if endDate:
-            cond.append(tableDiagnostic['endDate'].le(endDate))
-
-        if 'dispanserId' in filter:
-
-            dispanserId = filter.get('dispanserId')
-            dispanserList = dispanserId.split(', ')
-
-            if 'None' not in dispanserList:
-                cond.append(tableRBDispanser['id'].inlist(dispanserId))
-
-            elif dispanserList == ['None']:
-                cond.append(tableRBDispanser['id'].isNull())
-
-            else:
-                dispanserId = dispanserId.replace("None, ", "")
-                condDispanser = "rbDispanser.id IS NULL OR rbDispanser.id IN ({0})".format(dispanserId)
-                cond.append(condDispanser)
-
         queryTable = tableClient.innerJoin(tableDiagnosis, tableDiagnosis['client_id'].eq(tableClient['id']))
-        queryTable = queryTable.innerJoin(tableDiagnostic, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
-        queryTable = queryTable.innerJoin(tableMKB, tableDiagnosis['MKB'].eq(tableMKB['DiagID']))
+        queryTable = queryTable.innerJoin(tableDiagnostic, db.joinAnd([tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']), 
+                                                                               tableDiagnostic['deleted'].eq(0),
+                                                                               tableDiagnostic['endDate'].ge(begDate),
+                                                                               tableDiagnostic['endDate'].le(endDate) if endDate else 'TRUE',
+                                                                               u'''Diagnostic.endDate = (SELECT MAX(d2.endDate)
+                                                                                    FROM Diagnostic d2
+                                                                                    WHERE
+                                                                                        d2.diagnosis_id = Diagnosis.id
+                                                                                        AND d2.deleted = 0
+                                                                                        AND d2.endDate >= {}
+                                                                                        AND {})'''.format(db.formatDate(begDate), 
+                                                                                                          u'd2.endDate <= {}'.format(db.formatDate(endDate)) if endDate else 'TRUE')]))
+            
+        queryTable = queryTable.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+        queryTable = queryTable.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+        queryTable = queryTable.innerJoin(tableMKB, u"MKB.DiagID = Diagnosis.MKB")
         queryTable = queryTable.leftJoin(tableRBDispanser, tableRBDispanser['id'].eq(tableDiagnostic['dispanser_id']))
+        queryTable = queryTable.leftJoin(tableDS, db.joinAnd([tableDS['client_id'].eq(tableClient['id']), u'LEFT(DS.MKB, 3) = LEFT(Diagnosis.MKB, 3)', tableDS['dispanser_id'].inlist([1,2,6])]))
         cond, queryTable = diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnostic)
         cond, queryTable = clientsCondAdd(db, queryTable, filter, cond, tableClient)
         personDN = self.filter.get('personDN')
@@ -1697,7 +1776,13 @@ class CSubjectToSurveillanceClientsModel(CSurveillanceClientsModel):
                                                        %s%s
                                                        )''' % (
             {0: '', 1: 'NOT '}[planningType], self.prophylaxisPlanningType, begDateCond, endDateCond))
-        cols = [u'DISTINCT MAX(Diagnostic.endDate)', u'Client.id', u'rbDispanser.observed', u'Client.lastName', u'Client.firstName', u'Client.patrName']
+        cols = [u'DISTINCT MAX(Diagnostic.endDate)',
+                u'Diagnostic.dispanser_id as isNotSubject',
+                u'Client.id', 
+                u'rbDispanser.observed',
+                u'Client.lastName', 
+                u'Client.firstName', 
+                u'Client.patrName']
         group = 'Client.id'
         if specialityList and specialityType:
             cols, group = self.getColsGroupBySpeciality(cols, group)
@@ -1705,7 +1790,11 @@ class CSubjectToSurveillanceClientsModel(CSurveillanceClientsModel):
                                           cols,
                                           where=cond, group=group,
                                           order='Client.lastName ASC, Client.firstName ASC, Client.patrName ASC, Diagnostic.endDate DESC')
-        clientIdList = self.getClientIdList(records, self.filter, observedType=None)
+        subjectRecords = []
+        for record in records:
+            if not forceRef(record.value('isNotSubject')) and forceRef(record.value('id')):
+                subjectRecords.append(record)
+        clientIdList = self.getClientIdList(subjectRecords, self.filter, observedType=None)
         self.setIdList(clientIdList)
 
 
@@ -2114,32 +2203,52 @@ class CSubjectToSurveillanceMonitoringModel(CSurveillanceMonitoringModel):
             self.filter = filter
             begDate = self.filter.get('begDate', QDate.currentDate())
             endDate = self.filter.get('endDate', QDate())
-            dispanserId = self.filter.get('dispanserId', None)
             if not begDate:
                 begDate = QDate.currentDate()
             db = QtGui.qApp.db
             tableDiagnosis = db.table('Diagnosis')
+            tableDS = db.table('Diagnosis').alias('DS')
             tableDiagnostic = db.table('Diagnostic')
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
             tableRBDispanser = db.table('rbDispanser')
             tableMKB = db.table('MKB')
             cond = [
                 tableDiagnosis['id'].eq(masterId),
                 tableDiagnosis['deleted'].eq(0),
-                tableDiagnostic['deleted'].eq(0),
-                tableDiagnostic['endDate'].ge(begDate),
                 tableMKB['requiresFillingDispanser'].inlist([1, 2]),  # 1-иногда, 2-всегда
+                db.joinOr([tableDiagnosis['dispanser_id'].isNull(), tableDiagnosis['dispanser_id'].inlist([3,4,5])]), #tt2432
+                tableEventType['code'].notlike(u'%%rmDisp%'),
+                tableEventType['code'].notlike(u'%%ЭЛМК%'),
+                tableEventType['form'].ne(u'088'),
+                tableDS['id'].isNull()
             ]
-            if endDate:
-                cond.append(tableDiagnostic['endDate'].le(endDate))
-            if dispanserId:
-                cond.append(tableRBDispanser['id'].eq(dispanserId))
-            if dispanserId == 0:
-                cond.append(tableRBDispanser['id'].isNull())
-            queryTable = tableDiagnosis.innerJoin(tableDiagnostic, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
-            queryTable = queryTable.innerJoin(tableMKB, tableDiagnosis['MKB'].eq(tableMKB['DiagID']))
+            queryTable = tableDiagnosis.innerJoin(tableDiagnostic, db.joinAnd([tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']), 
+                                                                               tableDiagnostic['deleted'].eq(0),
+                                                                               tableDiagnostic['endDate'].ge(begDate),
+                                                                               tableDiagnostic['endDate'].le(endDate) if endDate else 'TRUE',
+                                                                               u'''Diagnostic.endDate = (SELECT MAX(d2.endDate)
+                                                                                    FROM Diagnostic d2
+                                                                                    WHERE
+                                                                                        d2.diagnosis_id = Diagnosis.id
+                                                                                        AND d2.deleted = 0
+                                                                                        AND d2.endDate >= {}
+                                                                                        AND {})'''.format(db.formatDate(begDate), 
+                                                                                                          u'd2.endDate <= {}'.format(db.formatDate(endDate)) if endDate else 'TRUE')]))
+            
+            queryTable = queryTable.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+            queryTable = queryTable.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            queryTable = queryTable.innerJoin(tableMKB, u"MKB.DiagID = Diagnosis.MKB")
             queryTable = queryTable.leftJoin(tableRBDispanser, tableRBDispanser['id'].eq(tableDiagnostic['dispanser_id']))
+            queryTable = queryTable.leftJoin(tableDS, db.joinAnd([tableDS['client_id'].eq(masterId), u'LEFT(DS.MKB, 3) = LEFT(Diagnosis.MKB, 3)', tableDS['dispanser_id'].inlist([1,2,6])]))
             cond, queryTable = diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnostic)
-            diagnosticIdList = db.getDistinctIdList(queryTable, [u'Diagnostic.id'], cond, order='Diagnostic.endDate DESC')
+            diagnosticIdList = []
+            records = db.getDistinctRecordList(queryTable, [u'Diagnostic.id, Diagnostic.dispanser_id as isNotSubject'], cond, order='Diagnostic.endDate DESC')
+            for record in records:
+                if not forceRef(record.value('isNotSubject')):
+                    diagnosticId = forceRef(record.value('id'))
+                    if diagnosticId and diagnosticId not in diagnosticIdList:
+                        diagnosticIdList.append(diagnosticId)
         return diagnosticIdList
 
 
@@ -2158,32 +2267,51 @@ class CSubjectToSurveillanceDiagnosisModel(CSurveillanceDiagnosisModel):
             self.filter = filter
             begDate = self.filter.get('begDate', QDate.currentDate())
             endDate = self.filter.get('endDate', QDate())
-            dispanserId = self.filter.get('dispanserId', None)
             if not begDate:
                 begDate = QDate.currentDate()
             db = QtGui.qApp.db
             tableDiagnosis = db.table('Diagnosis')
+            tableDS = db.table('Diagnosis').alias('DS')
             tableDiagnostic = db.table('Diagnostic')
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
             tableRBDispanser = db.table('rbDispanser')
             tableMKB = db.table('MKB')
             cond = [
                 tableDiagnosis['client_id'].eq(masterId),
                 tableDiagnosis['deleted'].eq(0),
-                tableDiagnostic['deleted'].eq(0),
-                tableDiagnostic['endDate'].ge(begDate),
                 tableMKB['requiresFillingDispanser'].inlist([1, 2]),  # 1-иногда, 2-всегда
+                db.joinOr([tableDiagnosis['dispanser_id'].isNull(), tableDiagnosis['dispanser_id'].inlist([3,4,5])]), #tt2432
+                tableEventType['code'].notlike(u'%%rmDisp%'),
+                tableEventType['code'].notlike(u'%%ЭЛМК%'),
+                tableEventType['form'].ne(u'088'),
+                tableDS['id'].isNull()
             ]
-            if endDate:
-                cond.append(tableDiagnostic['endDate'].le(endDate))
-            if dispanserId:
-                cond.append(tableRBDispanser['id'].eq(dispanserId))
-            if dispanserId == 0:
-                cond.append(tableRBDispanser['id'].isNull())
-            queryTable = tableDiagnosis.innerJoin(tableDiagnostic, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
-            queryTable = queryTable.innerJoin(tableMKB, tableDiagnosis['MKB'].eq(tableMKB['DiagID']))
+            queryTable = tableDiagnosis.innerJoin(tableDiagnostic, db.joinAnd([tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']), 
+                                                                               tableDiagnostic['deleted'].eq(0),
+                                                                               tableDiagnostic['endDate'].ge(begDate),
+                                                                               tableDiagnostic['endDate'].le(endDate) if endDate else 'TRUE',
+                                                                               u'''Diagnostic.endDate = (SELECT MAX(d2.endDate)
+                                                                                    FROM Diagnostic d2
+                                                                                    WHERE
+                                                                                        d2.diagnosis_id = Diagnosis.id
+                                                                                        AND d2.deleted = 0
+                                                                                        AND d2.endDate >= {}
+                                                                                        AND {})'''.format(db.formatDate(begDate), 
+                                                                                                          u'd2.endDate <= {}'.format(db.formatDate(endDate)) if endDate else 'TRUE')]))
+            queryTable = queryTable.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+            queryTable = queryTable.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            queryTable = queryTable.innerJoin(tableMKB, u"MKB.DiagID = Diagnosis.MKB")
             queryTable = queryTable.leftJoin(tableRBDispanser, tableRBDispanser['id'].eq(tableDiagnostic['dispanser_id']))
+            queryTable = queryTable.leftJoin(tableDS, db.joinAnd([tableDS['client_id'].eq(masterId), u'LEFT(DS.MKB, 3) = LEFT(Diagnosis.MKB, 3)', tableDS['dispanser_id'].inlist([1,2,6])]))
             cond, queryTable = diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnostic)
-            diagnosisIdList = db.getDistinctIdList(queryTable, [u'Diagnosis.id'], cond, order='Diagnostic.endDate DESC')
+            diagnosisIdList = []
+            records = db.getDistinctRecordList(queryTable, [u'Diagnosis.id, Diagnostic.dispanser_id as isNotSubject'], cond, order='Diagnostic.endDate DESC')
+            for record in records:
+                if not forceRef(record.value('isNotSubject')):
+                    diagnosticId = forceRef(record.value('id'))
+                    if diagnosticId and diagnosticId not in diagnosisIdList:
+                        diagnosisIdList.append(diagnosticId)
         return diagnosisIdList
 
 
@@ -2197,10 +2325,12 @@ class CSurveillancePlanningModel(CRecordListModel):
             CInDocTableCol.__init__(self, title, fieldName, width, readOnly=True)
 
         def toString(self, val, record):
-            if forceBool(val):
-                return QVariant(u'Доступно')
+            if val == 2:
+                return QVariant(u'Не подлежит')
+            elif val == 1:
+                return QVariant(u'Не отправлен')
             else:
-                return QVariant(u'Запрещено')
+                return QVariant(u'Отправлен')
 
     class CMonthCol(CEnumInDocTableCol):
         monthNames = (
@@ -2239,7 +2369,7 @@ class CSurveillancePlanningModel(CRecordListModel):
                                              parent=parent))
         self.addCol(CIntInDocTableCol(u'Год осмотра', 'year', 10, low=QDate.currentDate().year(), high=9999))
         self.addCol(CSurveillancePlanningModel.CMonthCol(u'Месяц осмотра', 'month', 10))
-        self.enableEditCol = CSurveillancePlanningModel.CEnableEditCol(u'Редактирование', 'enableEdit', 10)
+        self.enableEditCol = CSurveillancePlanningModel.CEnableEditCol(u'Экспорт в ТФОМС', 'enableEdit', 10)
         self.addExtCol(self.enableEditCol, QVariant.Bool)
 
     table = property(lambda self: self._table)
@@ -2269,7 +2399,7 @@ class CSurveillancePlanningModel(CRecordListModel):
         if clientId is None or diagnosisId is None:
             self._items = []
         else:
-            cols = ['id', 'client_id', 'diagnosis_id']
+            cols = ['id', 'client_id', 'diagnosis_id', 'isExport']
             for col in self._cols:
                 if not col.external():
                     cols.append(col.fieldName())
@@ -2290,14 +2420,13 @@ class CSurveillancePlanningModel(CRecordListModel):
             planExportFilter = [
                 tablePlanExport['exportKind'].eq('DiagnosisDispansPlaned'),
                 tablePlanExport['row_id'].inlist(idList),
-                tablePlanExport['exportSuccess'].eq(1),
             ]
             exportedIdSet = set(db.getDistinctIdList(tablePlanExport, idCol='row_id', where=planExportFilter))
             enableEditField = QtSql.QSqlField('enableEdit', self.enableEditCol.valueType())
             for item in self._items:
                 id = forceRef(item.value('id'))
                 item.append(enableEditField)
-                item.setValue('enableEdit', id not in exportedIdSet)
+                item.setValue('enableEdit', 2 if not forceBool(item.value('isExport')) else int(id not in exportedIdSet))
         self.reset()
 
     def getEmptyRecord(self):
@@ -2401,7 +2530,7 @@ class CSurveillancePlanningModel(CRecordListModel):
 
     def isLocked(self, row):
         record = self._items[row] if row < len(self._items) else None
-        return forceBool(record.value('enableEdit')) if record else True
+        return forceInt(record.value('enableEdit')) > 0 if record else True
 
     def flags(self, index):
         result = CRecordListModel.flags(self, index)
@@ -2505,14 +2634,14 @@ def diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnos
     diseaseCharacterId = filter.get('diseaseCharacterId', None)
     if diseaseCharacterId:
         cond.append(tableDiagnosis['character_id'].eq(diseaseCharacterId))
-    personId = filter.get('personId', None)
-    if personId:
-        cond.append(tableDiagnostic['person_id'].eq(personId))
+    personDN = filter.get('personDN')
+    if personDN:
+        cond.append(tableDiagnosis['dispanserPerson_id'].eq(personDN))
     orgStructureId = filter.get('orgStructureId', None)
     specialityIdListAsString = filter.get('specialityId', None)
     if orgStructureId or specialityIdListAsString:
         tablePerson = db.table('Person')
-        queryTable = queryTable.innerJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
+        queryTable = queryTable.innerJoin(tablePerson, tablePerson['id'].eq(tableDiagnosis['dispanserPerson_id']))
         cond.append(tablePerson['deleted'].eq(0))
     if orgStructureId:
         orgStructureIdList = db.getDescendants('OrgStructure', 'parent_id', orgStructureId)
@@ -2522,7 +2651,7 @@ def diagnosticCondAdd(db, queryTable, filter, cond, tableDiagnosis, tableDiagnos
         # specialityType = filter.get('specialityType', None)
         cond.append('Person.speciality_id IN (%s)'%specialityIdListAsString)
     return cond, queryTable
-
+    
 
 def clientsCondAdd(db, queryTable, filter, cond, tableClient):
     def addAddressCond(cond3, addrType, addrIdList):
@@ -2614,17 +2743,23 @@ def clientsCondAdd(db, queryTable, filter, cond, tableClient):
                     cond.append(u'''NOT EXISTS(SELECT E.id FROM Event AS E WHERE E.client_id = Client.id AND E.deleted = 0 %s)''' % (('AND %s' % db.joinAnd(condDate)) if condDate else u''))
     attachOrgId = filter.get('attachOrganisationId', None)
     if attachOrgId:
+        begDate = filter.get('begDate', QDate.currentDate())
+        endDate = filter.get('endDate', None)
         isNotAttachOrganisation = filter.get('isNotAttachOrganisation', False)
-        stmt = '''%s EXISTS (SELECT ClientAttach.id
+        stmt = '''{} EXISTS (SELECT ClientAttach.id
            FROM ClientAttach
            LEFT JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
            WHERE ClientAttach.deleted=0
-           AND ClientAttach.client_id = Client.id AND LPU_id=%s
+           AND ClientAttach.client_id = Client.id AND LPU_id={}
            AND ClientAttach.id in (SELECT MAX(CA2.id)
                        FROM ClientAttach AS CA2
                        LEFT JOIN rbAttachType AS rbAttachType2 ON rbAttachType2.id = CA2.attachType_id
-                       WHERE CA2.deleted=0 AND CA2.client_id = Client.id))'''
-        cond.append(stmt % ((u'NOT' if isNotAttachOrganisation else u''), attachOrgId))
+                       WHERE CA2.deleted=0 AND CA2.client_id = Client.id {} {}))'''.format(
+                           (u'NOT' if isNotAttachOrganisation else u''), 
+                           attachOrgId,
+                           u'AND CA2.begDate <= {}'.format(db.formatDate(endDate)) if endDate else u'AND CA2.begDate <= {}'.format(db.formatDate(begDate)),
+                           u'AND (CA2.endDate is NULL or CA2.endDate >= {})'.format(db.formatDate(begDate)))
+        cond.append(stmt)
     if filter.get('isFilterAddressOrgStructure', False):
         addrType = filter.get('addressOrgStructureTypeId', 0)
         areaOrgStructureId = filter.get('addressOrgStructureId', None)
@@ -2640,6 +2775,8 @@ def clientsCondAdd(db, queryTable, filter, cond, tableClient):
                 addAddressCond(cond2, 1, addrIdList)
             if (addrType + 1) & 4:
                 if areaOrgStructureId:
+                    begDate = filter.get('begDate', QDate.currentDate())
+                    endDate = filter.get('endDate', None)
                     orgStructureIdList = getOrgStructureDescendants(areaOrgStructureId)
                     outerCond = ['ClientAttach.client_id = Client.id']
                     innerCond = ['CA2.client_id = Client.id']
@@ -2649,13 +2786,19 @@ def clientsCondAdd(db, queryTable, filter, cond, tableClient):
                        FROM ClientAttach
                        LEFT JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
                        WHERE ClientAttach.deleted=0
-                       AND %s
+                       AND {}
                        AND ClientAttach.id in (SELECT MAX(CA2.id)
                                    FROM ClientAttach AS CA2
                                    LEFT JOIN rbAttachType AS rbAttachType2 ON rbAttachType2.id = CA2.attachType_id
-                                   WHERE CA2.deleted=0 AND %s))'''
-                    cond2.append(stmt % (db.joinAnd(outerCond), db.joinAnd(innerCond)))
+                                   WHERE CA2.deleted=0 AND {} {} {}))'''.format(
+                                       db.joinAnd(outerCond), 
+                                       db.joinAnd(innerCond),
+                                       u'AND CA2.begDate <= {}'.format(db.formatDate(endDate)) if endDate else u'AND CA2.begDate <= {}'.format(db.formatDate(begDate)),
+                                       u'AND (CA2.endDate is NULL or CA2.endDate >= {})'.format(db.formatDate(begDate)))
+                    cond2.append(stmt)
                 else:
+                    begDate = filter.get('begDate', QDate.currentDate())
+                    endDate = filter.get('endDate', None)
                     outerCond = ['ClientAttach.client_id = Client.id']
                     innerCond = ['CA2.client_id = Client.id']
                     outerCond.append('LPU_id=%d' % QtGui.qApp.currentOrgId())
@@ -2664,12 +2807,16 @@ def clientsCondAdd(db, queryTable, filter, cond, tableClient):
                        FROM ClientAttach
                        LEFT JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
                        WHERE ClientAttach.deleted=0
-                       AND %s
+                       AND {}
                        AND ClientAttach.id in (SELECT MAX(CA2.id)
                                    FROM ClientAttach AS CA2
                                    LEFT JOIN rbAttachType AS rbAttachType2 ON rbAttachType2.id = CA2.attachType_id
-                                   WHERE CA2.deleted=0 AND %s))'''
-                    cond2.append(stmt % (db.joinAnd(outerCond), db.joinAnd(innerCond)))
+                                   WHERE CA2.deleted=0 AND {} {} {}))'''.format(
+                                       db.joinAnd(outerCond), 
+                                       db.joinAnd(innerCond),
+                                       u'AND CA2.begDate <= {}'.format(db.formatDate(endDate)) if endDate else u'AND CA2.begDate <= {}'.format(db.formatDate(begDate)),
+                                       u'AND (CA2.endDate is NULL or CA2.endDate >= {})'.format(db.formatDate(begDate)))
+                    cond2.append(stmt)
             if cond2:
                 cond.append(db.joinOr(cond2))
     if filter.get('isFilterAddress', False):
@@ -2772,6 +2919,10 @@ def isSurveillanceMKB(MKBFrom, MKBTo):
     return '''Diagnosis.MKB >= '%s' AND Diagnosis.MKB <= '%s' '''%(MKBFrom, MKBTo)
 
 
+def isProphylaxisMKB(MKBFrom, MKBTo):
+    return '''ProphylaxisPlanning.MKB >= '{}' AND ProphylaxisPlanning.MKB <= '{}' '''.format(MKBFrom, MKBTo)
+
+
 class CSurveillanceFindClientInfoDialog(CFindClientInfoDialog):
     def __init__(self, parent, clientIdList=None):
         CFindClientInfoDialog.__init__(self, parent, clientIdList)
@@ -2782,3 +2933,66 @@ class CSurveillanceFindClientInfoDialog(CFindClientInfoDialog):
         self.addObject('mnuGetClientId', QtGui.QMenu(self))
         self.addObject('actGetClientId', QtGui.QAction(u'''Добавить в фильтр "Диспансерного наблюдения"''', self))
         self.mnuGetClientId.addAction(self.actGetClientId)
+
+
+
+def isSurveillanceActive(masterId, filterPP, filterD):
+    diagnosisIdList = []
+    if masterId:
+        begDate = filterPP.get('begDate', QDate())
+        eventId = filterPP.get('event_id', None)
+        db = QtGui.qApp.db
+        MKBs = []
+        if eventId:
+            tableDiagnosis = db.table('Diagnosis')
+            tableDiagnostic = db.table('Diagnostic')
+            queryTable = tableDiagnostic.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+            cond = [
+                tableDiagnostic['dispanser_id'].inlist([3,4,5]),
+                tableDiagnosis['dispanser_id'].inlist([3,4,5]),
+                tableDiagnostic['event_id'].eq(eventId),
+                tableDiagnostic['deleted'].eq(0),
+                tableDiagnosis['deleted'].eq(0),
+                tableDiagnosis['client_id'].eq(masterId)
+            ]
+            recordList = db.getRecordListGroupBy(queryTable, ['MKB'], where=cond, group='MKB', order='Diagnostic.endDate DESC')
+            for record in recordList:
+                MKB = forceString(record.value('MKB'))
+                if MKB and MKB not in MKBs:
+                    MKBs.append(MKB)
+        tableProphylaxisPlanning = db.table('ProphylaxisPlanning')
+        cond = [tableProphylaxisPlanning['client_id'].eq(masterId),
+                tableProphylaxisPlanning['deleted'].eq(0),
+                tableProphylaxisPlanning['dispanser_id'].isNotNull(),
+                tableProphylaxisPlanning['parent_id'].isNotNull()
+                ]
+        if begDate:
+            cond.append(tableProphylaxisPlanning['endDate'].ge(begDate))
+        if eventId:
+            cond.append(tableProphylaxisPlanning['MKB'].inlist(MKBs))
+        diagnosisIdList = db.getDistinctIdList(tableProphylaxisPlanning, [u'ProphylaxisPlanning.id'], where=cond, order='ProphylaxisPlanning.endDate DESC')
+        if not diagnosisIdList:
+            date = filterD.get('begDate', QDate.currentDate())
+            if not date:
+                date = QDate.currentDate()
+            eventId = filterD.get('event_id', None)
+            db = QtGui.qApp.db
+            tableDiagnosis = db.table('Diagnosis')
+            tableDiagnostic = db.table('Diagnostic')
+            tableRBDispanser = db.table('rbDispanser')
+            cond = [tableDiagnosis['client_id'].eq(masterId),
+                    tableDiagnosis['deleted'].eq(0),
+                    tableDiagnostic['deleted'].eq(0),
+                    db.joinOr([db.joinAnd([tableDiagnostic['endDate'].isNotNull(), tableDiagnostic['endDate'].le(date)]),
+                               db.joinAnd([tableDiagnostic['endDate'].isNull(), tableDiagnostic['setDate'].le(date)])]),
+                    tableRBDispanser['observed'].eq(1)
+                    ]
+            if eventId:
+                cond.append(tableDiagnostic['event_id'].eq(eventId))
+                cond.append(tableDiagnosis['MKB'].ne(''))
+            queryTable = tableDiagnosis.innerJoin(tableDiagnostic, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
+            queryTable = queryTable.innerJoin(tableRBDispanser, tableRBDispanser['id'].eq(tableDiagnosis['dispanser_id']))
+            diagnosisIdList = db.getDistinctIdList(queryTable, [u'Diagnosis.id'], where=cond, order='Diagnostic.endDate DESC')
+    if diagnosisIdList:
+        return True
+    return False

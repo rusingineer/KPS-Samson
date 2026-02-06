@@ -140,6 +140,8 @@ class CActionPropertyDelegate(QtGui.QItemDelegate):
         propertyType = model.getPropertyType(row)
         editor = propertyType.createEditor(model.action, parent, model.clientId, model.eventTypeId)
         editor.setStatusTip(forceString(model.data(index, Qt.StatusTipRole)))
+        if u'Счетчик' in forceString(propertyType.typeName):
+            editor.setReadOnly(False)
         self.connect(editor, SIGNAL('commit()'), self.commit)
         self.connect(editor, SIGNAL('editingFinished()'), self.commitAndCloseEditor)
         return editor

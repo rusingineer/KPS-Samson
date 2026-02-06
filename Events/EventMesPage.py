@@ -16,20 +16,22 @@ from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QChar, QDate, QDateTime, QString, pyqtSignature, QModelIndex, SIGNAL, QVariant, pyqtSignal
 
 
-from library.DialogBase        import CConstructHelperMixin
-from library.interchange         import getRBComboBoxValue, setRBComboBoxValue
-from library.ICDInDocTableCol    import CICDExInDocTableCol
+from library.DialogBase import CConstructHelperMixin
+from library.crbcombobox import CRBComboBox
+from library.interchange import getRBComboBoxValue, setRBComboBoxValue
+from library.ICDInDocTableCol import CICDExInDocTableCol
 from library.CSG.CSGInDocTableCol import CCSGInDocTableCol
 from library.CSG.CSGComboBox import defaultFilters
-from library.InDocTable          import CInDocTableModel, CIntInDocTableCol, CDateInDocTableCol, CRBInDocTableCol
-from library.crbcombobox         import CRBComboBox
-from library.ICDUtils                import MKBwithoutSubclassification
+from library.InDocTable import CInDocTableModel, CIntInDocTableCol, CDateInDocTableCol, CCodeRefInDocTableCol, CSPR80SearchInDocTableCol
+from library.ICDUtils import MKBwithoutSubclassification
 
-from library.Utils               import forceBool, forceInt, forceRef, forceString, forceDate, toVariant, forceDateTime
+from library.Utils import forceBool, forceInt, forceRef, forceString, forceDate, toVariant, forceDateTime
 
-from Events.Utils                import getEvenMesServiceMask, getEventMesSpecificationId, getEventMesCodeMask, getEventMesNameMask, getEventProfileId, getEventCSGRequired, getEventMesRequired, getEventMesRequiredParams, getEventCSGCodeMask, getEventSubCSGCodeMask
+from Events.Utils import getEvenMesServiceMask, getEventMesSpecificationId, getEventMesCodeMask, getEventMesNameMask, \
+    getEventProfileId, getEventCSGRequired, getEventMesRequired, getEventMesRequiredParams, getEventCSGCodeMask, \
+    getEventSubCSGCodeMask, checkDiagnosis
 from Reports.CheckMesDescription import showCheckMesDescription
-from Reports.MesDescription    import showMesDescription
+from Reports.MesDescription import showMesDescription
 
 
 from Events.Ui_EventMesPage             import Ui_EventMesPageWidget
@@ -78,6 +80,8 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
             w.setEnabled(False)
         for w in self.csgWidgets:
             w.setEnabled(False)
+
+        self.tblCSGs.verticalHeader().setResizeMode(QtGui.QHeaderView.ResizeToContents)
 
 
     def isExposed(self, row):
@@ -136,6 +140,17 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         self.modelCSGs.loadItems(self.eventId)
         for record in self.modelCSGs.items()[::-1]:
             self.modelCSGSubItems.setMasterRecord(record)
+        tabs = {}
+        if hasattr(self.eventEditor, 'tabStatus'):
+            tabs[0] = self.eventEditor.tabStatus
+        if hasattr(self.eventEditor, 'tabDiagnostic'):
+            tabs[1] = self.eventEditor.tabDiagnostic
+        if hasattr(self.eventEditor, 'tabCure'):
+            tabs[2] = self.eventEditor.tabCure
+        if hasattr(self.eventEditor, 'tabMisc'):
+            tabs[3] = self.eventEditor.tabMisc
+        for row, tab in tabs.items():
+            tab.cmbCSG.setItems()
 
 
     def setEventTypeId(self, eventTypeId):
@@ -239,6 +254,51 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
 
     def save(self, eventId):
         self.modelCSGs.saveItems(eventId)
+    
+    def checkDataEntered(self):
+        haveToCheck = False
+        for record in self.modelCSGs.items():
+            if forceString(record.value('CSGCode')):
+                haveToCheck = True
+                break
+        haveToCheckPeriods = u'мэса нет' in unicode(self.cmbMes.currentText()).lower()
+        if haveToCheck:
+            mainRecords = []
+            for row, rec in enumerate(self.modelCSGs.items()):
+                begDate = forceDate(rec.value('begDate'))
+                endDate = forceDate(rec.value('endDate'))
+                if not begDate:
+                    self.eventEditor.checkValueMessage(
+                        u'Должна быть указана дата начала для КСГ', False,
+                        self.tblCSGs, row, 1
+                    )
+                    return False
+                if not endDate:
+                    self.eventEditor.checkValueMessage(
+                        u'Должна быть указана дата окончания для КСГ', False,
+                        self.tblCSGs, row, 2
+                    )
+                    return False
+                if begDate > endDate:
+                    self.eventEditor.checkValueMessage(u'Дата начала не может быть больше даты окончания ', False, self.tblCSGs, row,
+                                                    1)
+                    return False
+                mainRecords.append((row, rec, begDate, endDate))
+
+            mainRecords.sort(key=lambda x: x[2])
+            prevEnd = None
+            for row, rec, begDate, endDate in mainRecords:
+                if haveToCheckPeriods and prevEnd is not None and begDate != prevEnd:
+                    self.eventEditor.checkValueMessage(
+                        u'Начало периода КСГ должно совпадать с концом предыдущего ({})'
+                        .format(forceString(prevEnd)),
+                        False,
+                        self.tblCSGs, row, 1
+                    )
+                    return False
+                prevEnd = endDate
+        return True
+        
 
 
     def setMKB(self, MKB):
@@ -505,7 +565,7 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         row = index1.row()
         if row == len(self.modelCSGs.items())-1:
             self.modelCSGSubItems.setMasterRecord(self.modelCSGs.items()[row])
-            self.tblCSGSubItems.setEnabled(True)
+            self.tblCSGSubItems.setEnabled(False)
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelCSGs_currentRowChanged(self, current, previous):
@@ -513,7 +573,7 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         if row < len(self.modelCSGs.items()):
             currentCSGRecord = self.modelCSGs.items()[current.row()]
             self.modelCSGSubItems.setMasterRecord(currentCSGRecord)
-            self.tblCSGSubItems.setEnabled(True)
+            self.tblCSGSubItems.setEnabled(False)
         else:
             self.modelCSGSubItems.setMasterRecord(None)
             self.tblCSGSubItems.setEnabled(False)
@@ -542,6 +602,8 @@ class CCheckMesParametersDialog(QtGui.QDialog, Ui_CheckMesParametersDialog):
 
 
 class CCSGModel(CInDocTableModel):
+    mkb_col = 3
+    
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Event_CSG', 'id', 'master_id', parent)
         self._parent = parent
@@ -555,10 +617,15 @@ class CCSGModel(CInDocTableModel):
         self.addCol(CDateInDocTableCol(  u'С',         'begDate',    15, canBeEmpty=False)).setToolTip(u'Дата начала')
         self.addCol(CDateInDocTableCol(  u'По',        'endDate',    15, canBeEmpty=False)).setToolTip(u'Дата окончания')
         self.addCol(CICDExInDocTableCol( u'МКБ',       'MKB',        7)).setToolTip(u'Код диагноза')
-        self.addCol(CRBInDocTableCol(    u'Профиль',   'eventProfile_id', 20, 'rbEventProfile', showFields = CRBComboBox.showNameAndCode))
+        self.addCol(CICDExInDocTableCol( u'Соп. МКБ',  'associatedMKB',        7)).setToolTip(u'Код диагноза сопутствующего заболевания')
+        self.addCol(CICDExInDocTableCol( u'МКБ осл.',  'complicationMKB',        7)).setToolTip(u'Код диагноза осложнения')
+        self.addHiddenCol('eventProfile_id')
         self.addCol(self.csgCol).setToolTip(u'Код КСГ')
-        self.addCol(CIntInDocTableCol(   u'Количество', 'amount', 10)).setToolTip(u'Количество')
-        self.addCol(CRBInDocTableCol(   u'Особенность выполнения', 'csgSpecification_id', 15, 'rbMesSpecification'))
+        self.addCol(CCodeRefInDocTableCol(   u'Наименование КСГ', 'CSGCode', 45, 'rbService', showFields=CRBComboBox.showName)).setToolTip(u'Наименование КСГ').setReadOnly(True)
+        self.addHiddenCol('amount')
+        self.addCol(CSPR80SearchInDocTableCol(u'Доп. критерий', 'krit', 15, 'soc_spr80', parentModel=self)).setToolTip(u'Доп. классиф. критерий')
+        self.addHiddenCol('csgSpecification_id')
+        # self.addCol(CRBInDocTableCol(   u'Особенность выполнения', 'csgSpecification_id', 15, 'rbMesSpecification'))
         self.addHiddenCol('payStatus')
 
 
@@ -572,6 +639,23 @@ class CCSGModel(CInDocTableModel):
                 if fieldName == 'seqNum':
                     return QVariant(row + 1)
         return CInDocTableModel.data(self, index, role)
+    
+    
+    def setData(self, index, value, role=Qt.EditRole):
+        column = index.column()
+        row = index.row()
+        if 0 <= row < len(self.items()) and column == self.mkb_col:
+            newMKB = forceString(value)
+            if not newMKB:
+                pass
+            else:
+                acceptable = checkDiagnosis(self._parent, newMKB, None, None, self._parent.eventEditor.clientSex, self._parent.eventEditor.clientAge, self._parent.eventEditor.edtBegDate.date())
+                if not acceptable:
+                    return False
+            value = toVariant(newMKB)
+            result = CInDocTableModel.setData(self, index, value, role)
+            return result
+        return CInDocTableModel.setData(self, index, value, role)
 
 
     def checkData(self):

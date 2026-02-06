@@ -19,6 +19,11 @@ import locale
 import os
 import sys
 import traceback
+import platform
+
+if platform.system() != 'Windows':
+    pathtail = '/appendix/mes/main.py'
+    sys.path.insert(0, os.path.realpath(__file__).replace(pathtail, ''))
 
 from PyQt4 import QtGui, QtCore, QtSql
 from PyQt4.QtCore import SIGNAL, Qt, QObject, pyqtSignature, QSettings, QByteArray, QDateTime, QDir

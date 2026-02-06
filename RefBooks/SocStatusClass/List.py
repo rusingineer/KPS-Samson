@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,7 +18,7 @@ from PyQt4.QtCore import pyqtSignature, SIGNAL
 from library.crbcombobox     import CRBComboBox
 from library.HierarchicalItemsListDialog import CHierarchicalItemsListDialog
 from library.InDocTable      import CRBInDocTableCol, CInDocTableModel
-from library.interchange     import getLineEditValue, setLineEditValue
+from library.interchange     import getCheckBoxValue, getLineEditValue, setCheckBoxValue, setLineEditValue
 
 from library.ItemsListDialog import CItemEditorBaseDialog
 from library.TableModel      import CTextCol
@@ -107,8 +107,9 @@ class CSocStatusClassItemEditor(CItemEditorBaseDialog, Ui_SocStatusClassItemEdit
 
     def setRecord(self, record):
         CItemEditorBaseDialog.setRecord(self, record)
-        setLineEditValue(   self.edtCode,           record, 'code')
-        setLineEditValue(   self.edtName,           record, 'name')
+        setLineEditValue(self.edtCode, record, 'code')
+        setLineEditValue(self.edtName, record, 'name')
+        setCheckBoxValue(self.chkIsHolded, record, 'isHolded')
         self.groupId = forceRef(record.value('group_id'))
         self.modelTypes.loadItems(self.itemId())
         self.setIsDirty(False)
@@ -116,8 +117,9 @@ class CSocStatusClassItemEditor(CItemEditorBaseDialog, Ui_SocStatusClassItemEdit
 
     def getRecord(self):
         record = CItemEditorBaseDialog.getRecord(self)
-        getLineEditValue( self.edtCode,     record, 'code')
-        getLineEditValue( self.edtName,     record, 'name')
+        getLineEditValue( self.edtCode, record, 'code')
+        getLineEditValue( self.edtName, record, 'name')
+        getCheckBoxValue(self.chkIsHolded, record, 'isHolded')
         record.setValue('group_id', toVariant(self.groupId))
         return record
 

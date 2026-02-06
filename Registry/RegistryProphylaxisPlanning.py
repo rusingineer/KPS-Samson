@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -184,12 +184,21 @@ class CRegistryProphylaxisPlanning(CDialogBase, Ui_RegistryProphylaxisPlanningDi
 
                                  
 def setRegistryProphylaxisPlanningList(content, clientIdList):
-    orgStructureId = content.getCurrentOrgSrtuctureId() if content else QtGui.qApp.currentOrgStructureId()
-    specialityId   = QtGui.qApp.userSpecialityId
-    personIdList   = content.getCurrentPersonIdList() if content else []
-    personId       = content.getCurrentPersonId() if content else QtGui.qApp.userId
-    begDate        = content.getCurrentDate() if content else QDate.currentDate()
-    endDate        = begDate.addDays(30)
+    try:
+        orgStructureId = content.getCurrentOrgSrtuctureId() if content else QtGui.qApp.currentOrgStructureId()
+        specialityId = QtGui.qApp.userSpecialityId
+        personIdList = content.getCurrentPersonIdList() if content else []
+        personId = content.getCurrentPersonId() if content else QtGui.qApp.userId
+        begDate = content.getCurrentDate() if content else QDate.currentDate()
+        withoutCurrentPerson = False
+    except AttributeError:
+        withoutCurrentPerson = True
+        orgStructureId = None
+        specialityId = None
+        personIdList = []
+        personId = None
+        begDate = QDate.currentDate()
+    endDate = begDate.addDays(30)
     if personId or personIdList:
         db = QtGui.qApp.db
         tableSchedule = db.table('Schedule')
@@ -228,7 +237,7 @@ def setRegistryProphylaxisPlanningList(content, clientIdList):
     else:
         dialog.edtMKB.setLUDEnabled(False)
     if dialog.exec_():
-        if orgStructureId or specialityId or personId:
+        if (orgStructureId or specialityId or personId) or withoutCurrentPerson:
             prophylaxisPlanningIdList = []
             for clientId in clientIdList:
                 if clientId:

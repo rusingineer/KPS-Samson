@@ -72,10 +72,14 @@ class CCSGDbData(CDbData):
         db = QtGui.qApp.db
         opATList = []
         tabs = []
+        if self.eventEditor and hasattr(self.eventEditor, 'tabStatus'):
+            tabs.append(self.eventEditor.tabStatus)
         if self.eventEditor and hasattr(self.eventEditor, 'tabCure'):
             tabs.append(self.eventEditor.tabCure)
         if self.eventEditor and hasattr(self.eventEditor, 'tabDiagnostic'):
             tabs.append(self.eventEditor.tabDiagnostic)
+        if self.eventEditor and hasattr(self.eventEditor, 'tabMisc'):
+            tabs.append(self.eventEditor.tabMisc)
         for tab in tabs:
             for item in tab.modelAPActions._items:
                 opATList.append(item[1]._actionType.id)
@@ -104,10 +108,13 @@ class CCSGDbData(CDbData):
             table = tableActionType.leftJoin(tableService, tableService['id'].eq(tableActionType['nomenclativeService_id']))
             recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
             codeList = [forceString(r.value('infis')) for r in recordList]
-            servicePart = db.joinAnd([
-                tableCSGService['serviceCode'].inlist(codeList),
-                db.joinOr([tableCSGService['mkb'].isNull(), tableCSGService['mkb'].eq(self.MKB)])
-            ])
+            servicePart = [tableCSGService['serviceCode'].inlist(codeList)]
+            if mkbCond:
+                servicePart.append(tableCSGService['mkb'].eq(self.MKB))
+            else:
+                servicePart.append(tableCSGService['mkb'].isNull())
+            if servicePart:
+                cond.append(db.joinAnd(servicePart))
         # elif self.mesServiceTemplate:
         #     joinOr = []
         #     for mesService in self.mesServiceTemplate:
@@ -139,25 +146,34 @@ class CCSGDbData(CDbData):
             else:  # не учитывать
                 mkbPart = [subCond]
 
-            if useCsgServices:
+            if not useCsgServices:
                 mkbPart.append(tableCSGService['id'].isNull())
             mkbPart = db.joinAnd(mkbPart)
+            if mkbPart:
+                cond.append(mkbPart)
 
         if (self.clientSex and useSex) or (self.clientBirthDate and useAge):
             cond.append('SELECT(isSexAndAgeSuitable(IF(%s.sex = 0, 0, %s), %s, %s.sex, %s.age, %s))'%(
                 tableCSG.name(),  self.clientSex, db.formatDate(self.clientBirthDate),
                 tableCSG.name(), tableCSG.name(), db.formatDate(self.eventBegDate)))
 
-        csgCond = [x for x in (servicePart, mkbPart) if x is not None]
-        if not csgCond:
-            csgCond = [None]
-        for dynCond in csgCond:
-            recordList = db.getRecordList(queryTable, ["DISTINCT "+tableCSG['id'].name(), tableCSG['code'].name()],
-                                  where=cond+[dynCond] if dynCond else cond,
+        # csgCond = [x for x in (servicePart, mkbPart) if x is not None]
+        # if not csgCond:
+        #     csgCond = [None]
+        # for dynCond in csgCond:
+        #     recordList = db.getRecordList(queryTable, ["DISTINCT "+tableCSG['id'].name(), tableCSG['code'].name()],
+        #                           where=cond+[dynCond] if dynCond else cond,
+        #                           order='%s.code, %s.id' % (TABLE_CSG, TABLE_CSG))
+        #     for record in recordList:
+        #         self.idList.append(forceRef(record.value(0)))
+        #         self.strList.append(forceString(record.value(1)))
+
+        recordList = db.getRecordList(queryTable, ["DISTINCT " + tableCSG['id'].name(), tableCSG['code'].name()],
+                                  where=cond,
                                   order='%s.code, %s.id' % (TABLE_CSG, TABLE_CSG))
-            for record in recordList:
-                self.idList.append(forceRef(record.value(0)))
-                self.strList.append(forceString(record.value(1)))
+        for record in recordList:
+            self.idList.append(forceRef(record.value(0)))
+            self.strList.append(forceString(record.value(1)))
 
 
 

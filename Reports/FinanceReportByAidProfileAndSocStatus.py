@@ -77,9 +77,9 @@ def selectData(params):
              tableAccountItem['deleted'].eq(0),
            ]
     if params['begDate']:
-        cond.append(tableAction['endDate'].dateGe(params['begDate']))
+        cond.append(tableAction['endDate'].ge(params['begDate']))
     if params['endDate']:
-        cond.append(tableAction['endDate'].dateLe(params['endDate']))
+        cond.append(tableAction['endDate'].lt(params['endDate'].addDays(1)))
     if params['eventTypeList']:
         cond.append(tableEvent['eventType_id'].inlist(params['eventTypeList']))
     if params['socStatusClassId']:

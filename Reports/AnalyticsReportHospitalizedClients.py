@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import pyqtSignature, QDate
+from PyQt4.QtCore import pyqtSignature, QDate, QDateTime
 
 from library.Utils      import forceDate, forceInt, forceRef, forceString, formatName
 from library.DialogBase import CDialogBase
@@ -106,11 +106,11 @@ def selectData(params):
         tableAction = tableActionMoving
         orgStructurePropertyTypeName = u'Отделение пребывания'
         actionTypeIdList = db.getIdList('ActionType', 'id', 'flatCode LIKE \'moving%\' AND deleted=0')
-        actionJoinDateCond = [tableAction['begDate'].dateLe(endDate),
-                              tableAction['begDate'].dateGe(begDate),
+        actionJoinDateCond = [tableAction['begDate'].lt(endDate.addDays(1)),
+                              tableAction['begDate'].ge(begDate),
                               tableAction['deleted'].eq(0),
                               db.joinOr(
-                                        [tableAction['endDate'].dateGe(endDate),
+                                        [tableAction['endDate'].ge(endDate),
                                          tableAction['endDate'].isNull()
                                         ]
                                        )
@@ -119,9 +119,9 @@ def selectData(params):
         tableAction = tableActionLeaved
         orgStructurePropertyTypeName = u'Отделение'
         actionTypeIdList = db.getIdList('ActionType', 'id', 'flatCode LIKE \'leaved%\' AND deleted=0')
-        actionJoinDateCond = [tableAction['begDate'].dateLe(endDate),
-                              tableAction['begDate'].dateGe(begDate),
-                              tableAction['endDate'].dateLe(endDate),
+        actionJoinDateCond = [tableAction['begDate'].lt(endDate.addDays(1)),
+                              tableAction['begDate'].ge(begDate),
+                              tableAction['endDate'].lt(endDate.addDays(1)),
                               tableAction['endDate'].isNotNull(),
                               tableAction['deleted'].eq(0)
                              ]
@@ -691,8 +691,8 @@ class CStationaryAnalyticsSetupDialog(CDialogBase, Ui_StationaryAnalyticsSetupDi
 
     def params(self):
         params = {}
-        params['begDate']     = self.edtBegDate.date()
-        params['endDate']     = self.edtEndDate.date()
+        params['begDate']     = QDateTime(self.edtBegDate.date(), self.edtBegTime.time())
+        params['endDate']     = QDateTime(self.edtEndDate.date(), self.edtEndTime.time())
         params['financeId']   = self.cmbFinance.value()
         params['financeText'] = self.cmbFinance.currentText()
         params['chkAdditionalOptions'] = self.chkFilterAdditionalOptions.isChecked()

@@ -23,6 +23,7 @@ from Events.ExecutionPlan.Groups import CExecutionPlanProxyModelGroup
 from Events.PropertyEditorAmbCard import CPropertyEditorAmbCard
 from Exchange.UO.UOAppointmentsTableDialog import CUOAppointmentsTableDialog
 from Exchange.UO.UOServiceClient import CUOServiceClient
+from Exchange.UO.Utils import checkDirectionOrg
 from library.Attach.AttachAction     import getAttachAction
 from library.Attach.AttachButton     import CAttachButton
 from library.Calendar                import wpFiveDays, wpSixDays, wpSevenDays
@@ -78,6 +79,7 @@ from Events.EventInfo                import CEventInfo
 from Events.ExecTimeNextActionDialog import CExecTimeNextActionDialog
 from Events.ExecutionPlanDialog      import CGetExecutionPlan
 from Events.GetPrevActionIdHelper    import CGetPrevActionIdHelper
+from Events.UserDictionaryEditDialog import CUserDictionaryEditDialog
 from Events.Utils import (
     checkDiagnosis,
     checkAttachOnDate,
@@ -97,7 +99,7 @@ from library.TimeoutLogout         import CTimeoutLogout
 #from Events.ExecutionPlan.ExecutionPlanType import CActionExecutionPlanType
 from Orgs.Orgs                       import selectOrganisation
 from Registry.ClientEditDialog       import CClientEditDialog
-from Registry.Utils                  import formatClientBanner, getClientInfo
+from Registry.Utils                  import getClientInfo, getClientBanner, removeExtCols
 from Resources.CourseStatus          import CCourseStatus
 from Resources.Utils                 import getNextDateExecutionPlan
 from Stock.ClientInvoiceEditDialog   import CClientInvoiceEditDialog, CClientRefundInvoiceEditDialog
@@ -243,6 +245,10 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         self.connect(self.modelActionProperties,
                      SIGNAL('setCurrentActionPlannedEndDate(QDate)'), self.setCurrentActionPlannedEndDate)
         self.btnDelete.setVisible(False)
+        self.enableUserDictionary = forceBool(QtGui.qApp.preferences.appPrefs.get('enableUserDictionary', QVariant()))
+        self.connect(self.tblProps.valueDelegate, SIGNAL('editorCreated(QWidget *)'), self.on_tblProps_valueEditorCreated)
+        self.connect(self.tblProps.valueDelegate, SIGNAL('closeEditor(QWidget *)'), self.on_tblProps_valueEditorClosed)
+        self.wgtUserDictionary.setVisible(False)
 ## done
         if not QtGui.qApp.userHasRight(canChangeActionPerson):
             self.cmbPerson.setEnabled(False)
@@ -269,8 +275,10 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                                               QtGui.QMessageBox.Ok
                                               )
                     return
-            orgId = action[u'Куда направляется']
+            orgId = action[u'Куда направляется'] #2921904
             profileId = action[u'Профиль']
+            if checkDirectionOrg(self, orgId, action) is False:
+                return
             if self.isDirty():
                 if QtGui.QMessageBox.question(self,
                                               u'Внимание!',
@@ -294,7 +302,10 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
 
     @pyqtSignature('')
     def on_actImportAvailableProfiles_triggered(self):
-        url = 'http://'+QtGui.qApp.preferences.dbServerName+'/queueManagement/importAvailableProfiles.php'
+        urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+        if not urlService:
+            urlService = QtGui.qApp.preferences.dbServerName
+        url = 'http://' + urlService + '/queueManagement/importAvailableProfiles.php'
         response = requests.get(url)
         if response.status_code == 200:
             QtGui.QMessageBox.information(self, u'Внимание!', u'Данные загружены')
@@ -310,6 +321,12 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         if action[u'Идентификатор направления'] is None:
             return
         if (action[u'Причина аннулирования'] is not None and len(action[u'Причина аннулирования']) > 0):
+            return
+        if QtGui.QMessageBox.question(self,
+                                      u'Внимание!',
+                                      u'Аннулировать направление?',
+                                      QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                      QtGui.QMessageBox.No) == QtGui.QMessageBox.No:
             return
         if self.isDirty():
             if QtGui.QMessageBox.question(self,
@@ -347,9 +364,13 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                                           QtGui.QMessageBox.Ok,
                                           QtGui.QMessageBox.Ok)
         except Exception, e:
+            if exceptionToUnicode(e) == 'timed out':
+                error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+            else:
+                error = exceptionToUnicode(e)
             QtGui.QMessageBox.critical(self,
                                        u'Ошибка при аннулировании направления',
-                                       exceptionToUnicode(e),
+                                       error,
                                        QtGui.QMessageBox.Ok,
                                        QtGui.QMessageBox.Ok)
         if actionChanged:
@@ -384,9 +405,13 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
             # self.onActionCurrentChanged()
             # self.reloadCurrentAction()
         except Exception, e:
+            if exceptionToUnicode(e) == 'timed out':
+                error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+            else:
+                error = exceptionToUnicode(e)
             QtGui.QMessageBox.critical(self,
                                        u'Ошибка при отмене записи на прием',
-                                       exceptionToUnicode(e),
+                                       error,
                                        QtGui.QMessageBox.Ok,
                                        QtGui.QMessageBox.Ok)
     # UO TT2906 -----
@@ -1574,11 +1599,8 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         self.cmbActionSpecification.setVisible(actionType.requiredActionSpecification)
         if actionType.requiredActionSpecification:
             actionSpecificationId = forceRef(record.value('actionSpecification_id'))
-            actionSpecificationIdList = actionType.getActionSpecificationIdList()
-            if actionSpecificationIdList:
-                setFilter = u'id IN (%s)' % (u', '.join(str(actionSpecificationId) for actionSpecificationId in actionSpecificationIdList if actionSpecificationId is not None))
-            else:
-                setFilter = None
+            table = QtGui.qApp.db.table('rbActionSpecification')
+            setFilter = table['id'].inlist([i for i in actionType.getActionSpecificationIdList() if i is not None])
             self.cmbActionSpecification.setTable('rbActionSpecification', True, filter=setFilter)
             self.cmbActionSpecification.setValue(actionSpecificationId)
         self.setWindowTitle(actionType.code + '|' + actionType.name)
@@ -1627,6 +1649,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         self.setPersonId(self.cmbPerson.value())
         self.modelActionProperties.setAction(self.action, self.clientId, self.clientSex, self.clientAge, self.eventTypeId)
         # self.modelActionProperties.reset()
+        self.wgtUserDictionary.setVisible(False)
         self.tblProps.resizeRowsToContents()
 
         canEdit = not self.action.isLocked() if self.action else True
@@ -2023,11 +2046,8 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         setLineEditValue(self.edtOffice,        record, 'office')
         setRBComboBoxValue(self.cmbAssistant,   record, 'assistant_id')
         if actionType.requiredActionSpecification:
-            actionSpecificationIdList = actionType.getActionSpecificationIdList()
-            if actionSpecificationIdList:
-                setFilter = u'id IN (%s)' % (u', '.join(str(actionSpecificationId) for actionSpecificationId in actionSpecificationIdList if actionSpecificationId is not None))
-            else:
-                setFilter = None
+            table = QtGui.qApp.db.table('rbActionSpecification')
+            setFilter = table['id'].inlist([i for i in actionType.getActionSpecificationIdList() if i is not None])
             self.cmbActionSpecification.setTable('rbActionSpecification', True, filter=setFilter)
             setRBComboBoxValue(self.cmbActionSpecification,   record, 'actionSpecification_id')
         setLineEditValue(self.edtNote,          record, 'note')
@@ -2058,7 +2078,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
 #            self.frmCoordDate.setVisible(False)
 #            self.lblCoordText.setVisible(False)
         if (self.cmbPerson.value() is None
-                and actionType.defaultPersonInEditor in (CActionType.dpUndefined, CActionType.dpCurrentUser, CActionType.dpCurrentMedUser)
+                and actionType.defaultPersonInEditor in (CActionType.dpCurrentUser, CActionType.dpCurrentMedUser)
                 and QtGui.qApp.userSpecialityId):
             self.cmbPerson.setValue(QtGui.qApp.userId)
 
@@ -2068,6 +2088,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
 
         self.modelActionProperties.setAction(self.action, self.clientId, self.clientSex, self.clientAge, self.eventTypeId)
         self.modelActionProperties.reset()
+        self.wgtUserDictionary.setVisible(False)
         self.tblProps.resizeRowsToContents()
 
         context = actionType.context if actionType else ''
@@ -2204,10 +2225,14 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                             and u'Идентификатор талона' in actionType._propertiesByName)
             self.btnAPQueueManagement.setEnabled(
                 enableQM and (action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
-            self.actAPQMSetAppointment.setEnabled(enableQM and (action[u'Идентификатор талона'] is None or action[
+            self.actAPQMSetAppointment.setEnabled(enableQM and (
+                    (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == '') or action[
                 u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
-            self.actAPQMCancelReferral.setEnabled(enableQM and action[u'Идентификатор направления'] is not None)
-            self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and action[u'Идентификатор талона'] is not None)
+            self.actAPQMCancelReferral.setEnabled(enableQM and (
+                    action[u'Идентификатор направления'] is not None and action[
+                u'Идентификатор направления'] != ''))
+            self.actAPQMCreateClaimForRefusal.setEnabled(
+                enableQM and (action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''))
             self.actImportAvailableProfiles.setEnabled(True)
             self.actAPQMCancelReferral.setVisible(True)
             self.actAPQMCreateClaimForRefusal.setVisible(True)
@@ -2278,6 +2303,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
     def saveInternals(self, id):
         # TODO: Почему так? saveInternals должно вызываться уже после того как checkDataEntered вызвано.
         if self.checkDataEntered(secondTry=True):
+            self.action._record = removeExtCols(QtGui.qApp.db, self.action.getRecord()) #тт2899 Вроде не должно вызывать проблем, потому что с внешними столбцами всё равно не сохраняет
             id = self.action.save(self.eventId, self.idx, checkModifyDate=False)
             checkTissueJournalStatusByActions([(self.action.getRecord(), self.action)])
             eventRecord = self._getEventRecord()
@@ -2321,7 +2347,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
     def updateClientInfo(self):
         db = QtGui.qApp.db
         self.clientInfo = getClientInfo(self.clientId, date=self.edtDirectionDate.date())
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDirectionDate.date()))
         table  = db.table('Client')
         record = db.getRecord(table, '*', self.clientId)
         if record:
@@ -2917,7 +2943,8 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                 'client': eventInfo.client,
                 'actions': eventActions,
                 'currentActionIndex': currentActionIndex,
-                'tempInvalid': None
+                'tempInvalid': None,
+                'currentAction': CActionRecordItem(self.getRecord(), self.action)
                 }
         applyTemplate(self, templateId, data, signAndAttachHandler=self.btnAttachedFiles.getSignAndAttachHandler())
 
@@ -3146,7 +3173,51 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
             if self.action.nomenclatureExpense:
                 self.action.nomenclatureExpense.cancelEx()
 
+
+    @pyqtSignature('QModelIndex, QModelIndex')
+    def on_selectionModelActionProperties_currentChanged(self, current, previous):
+        if self.enableUserDictionary:
+            row = current.row()
+            propertyType = self.modelActionProperties.getPropertyType(row)
+            if self.lvUserDictionary.supportsPropertyType(propertyType):
+                self.lvUserDictionary.load(propertyType)
+                self.wgtUserDictionary.setVisible(True)
+                self.tblProps.resizeLastColumn()
+            else:
+                self.lvUserDictionary.clear()
+                self.wgtUserDictionary.setVisible(False)
     
+
+    @pyqtSignature('QWidget *')
+    def on_tblProps_valueEditorCreated(self, editor):
+        if self.enableUserDictionary:
+            row = self.tblProps.currentIndex().row()
+            propertyType = self.modelActionProperties.getPropertyType(row)
+            if self.lvUserDictionary.supportsPropertyType(propertyType):
+                self.lvUserDictionary.setPropertyEditor(editor)
+    
+
+    @pyqtSignature('QWidget *')
+    def on_tblProps_valueEditorClosed(self, editor):
+        if self.enableUserDictionary:
+            self.lvUserDictionary.setPropertyEditor(None)
+    
+    
+    @pyqtSignature('')
+    def on_btnEditUserDictionary_clicked(self):
+        row = self.tblProps.currentIndex().row()
+        propertyType = self.modelActionProperties.getPropertyType(row)
+        dialog = CUserDictionaryEditDialog(self, propertyType)
+        dialog.exec_()
+        if dialog.dataModified:
+            self.lvUserDictionary.load(propertyType)
+
+    
+    @pyqtSignature('QString')
+    def on_edtUserDictionarySearch_textChanged(self, text):
+        self.lvUserDictionary.setFilter(text)
+
+
     def applyChanges(self):
         if self.saveData():
             self.lock(self._tableName, self._id)

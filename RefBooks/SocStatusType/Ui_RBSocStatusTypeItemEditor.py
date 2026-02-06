@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/green/s11_trunk/RefBooks/RBSocStatusTypeItemEditor.ui'
+# Form implementation generated from reading ui file './RBSocStatusTypeItemEditor.ui'
 #
-# Created by: PyQt4 UI code generator 4.12.1
+# Created: Thu Mar 06 09:18:20 2025
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,26 +29,26 @@ class Ui_SocStatusTypeItemEditorDialog(object):
         SocStatusTypeItemEditorDialog.resize(484, 334)
         SocStatusTypeItemEditorDialog.setSizeGripEnabled(True)
         self.gridLayout_2 = QtGui.QGridLayout(SocStatusTypeItemEditorDialog)
-        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setSpacing(4)
+        self.gridLayout_2.setMargin(4)
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
         self.tabWidget = QtGui.QTabWidget(SocStatusTypeItemEditorDialog)
         self.tabWidget.setObjectName(_fromUtf8("tabWidget"))
         self.tabMain = QtGui.QWidget()
         self.tabMain.setObjectName(_fromUtf8("tabMain"))
         self.gridLayout = QtGui.QGridLayout(self.tabMain)
-        self.gridLayout.setMargin(4)
         self.gridLayout.setSpacing(4)
+        self.gridLayout.setMargin(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.edtRegionalCode = QtGui.QLineEdit(self.tabMain)
-        self.edtRegionalCode.setEnabled(False)
+        self.edtRegionalCode.setEnabled(True)
         self.edtRegionalCode.setObjectName(_fromUtf8("edtRegionalCode"))
         self.gridLayout.addWidget(self.edtRegionalCode, 3, 1, 1, 1)
         self.lblShortName = QtGui.QLabel(self.tabMain)
         self.lblShortName.setObjectName(_fromUtf8("lblShortName"))
         self.gridLayout.addWidget(self.lblShortName, 2, 0, 1, 1)
         self.lblRegionalCode = QtGui.QLabel(self.tabMain)
-        self.lblRegionalCode.setEnabled(False)
+        self.lblRegionalCode.setEnabled(True)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Maximum, QtGui.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -99,8 +100,8 @@ class Ui_SocStatusTypeItemEditorDialog(object):
         self.tabIdentification = QtGui.QWidget()
         self.tabIdentification.setObjectName(_fromUtf8("tabIdentification"))
         self.gridLayout_3 = QtGui.QGridLayout(self.tabIdentification)
-        self.gridLayout_3.setMargin(4)
         self.gridLayout_3.setSpacing(4)
+        self.gridLayout_3.setMargin(4)
         self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
         self.tblIdentification = CInDocTableView(self.tabIdentification)
         self.tblIdentification.setObjectName(_fromUtf8("tblIdentification"))
@@ -132,7 +133,7 @@ class Ui_SocStatusTypeItemEditorDialog(object):
     def retranslateUi(self, SocStatusTypeItemEditorDialog):
         SocStatusTypeItemEditorDialog.setWindowTitle(_translate("SocStatusTypeItemEditorDialog", "ChangeMe!", None))
         self.lblShortName.setText(_translate("SocStatusTypeItemEditorDialog", "Краткое наименование", None))
-        self.lblRegionalCode.setText(_translate("SocStatusTypeItemEditorDialog", "&Региональный код", None))
+        self.lblRegionalCode.setText(_translate("SocStatusTypeItemEditorDialog", "Код для отчетов", None))
         self.lblDocumentType.setText(_translate("SocStatusTypeItemEditorDialog", "&Тип документа", None))
         self.lblName.setText(_translate("SocStatusTypeItemEditorDialog", "&Наименование", None))
         self.lblCode.setText(_translate("SocStatusTypeItemEditorDialog", "&Код", None))

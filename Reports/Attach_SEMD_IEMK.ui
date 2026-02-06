@@ -32,7 +32,16 @@
       <string>Фильтры</string>
      </property>
      <layout class="QGridLayout" name="gridLayout_2">
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <property name="spacing">
@@ -280,7 +289,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterDateExecActionBegDate">
+               <widget class="CDateEdit" name="edtFilterDateExecActionBegDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -294,7 +303,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterDateExecActionEndDate">
+               <widget class="CDateEdit" name="edtFilterDateExecActionEndDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -322,7 +331,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterEventBegDate">
+               <widget class="CDateEdit" name="edtFilterEventBegDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -336,7 +345,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterEventEndDate">
+               <widget class="CDateEdit" name="edtFilterEventEndDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -364,7 +373,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterAttachFileBegDate">
+               <widget class="CDateEdit" name="edtFilterAttachFileBegDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -378,7 +387,7 @@ p, li { white-space: pre-wrap; }
                </widget>
               </item>
               <item>
-               <widget class="QDateEdit" name="edtFilterAttachFileEndDate">
+               <widget class="CDateEdit" name="edtFilterAttachFileEndDate">
                 <property name="calendarPopup">
                  <bool>true</bool>
                 </property>
@@ -394,7 +403,7 @@ p, li { white-space: pre-wrap; }
              </widget>
             </item>
             <item>
-             <widget class="CMultivalueComboBox" name="cmbFilterIdentify">
+             <widget class="CRecordMultivalueComboBox" name="cmbFilterIdentify">
               <property name="enabled">
                <bool>false</bool>
               </property>
@@ -443,7 +452,7 @@ p, li { white-space: pre-wrap; }
               </item>
               <item>
                <property name="text">
-                <string>Есть только пдф</string>
+                <string>Есть только pdf</string>
                </property>
               </item>
              </widget>
@@ -537,19 +546,14 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
    <class>CPersonComboBoxEx</class>
    <extends>QComboBox</extends>
    <header>Orgs/PersonComboBoxEx.h</header>
-  </customwidget>
-  <customwidget>
-   <class>COrgStructureComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgStructComboBoxes.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CAttachButton</class>
-   <extends>QPushButton</extends>
-   <header>library/Attach/AttachButton.h</header>
   </customwidget>
   <customwidget>
    <class>CActionTypeComboBoxEx</class>
@@ -562,24 +566,34 @@ p, li { white-space: pre-wrap; }
    <header>library/TableView.h</header>
   </customwidget>
   <customwidget>
-   <class>CMultivalueComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/MultivalueComboBox.h</header>
+   <class>CPrintButton</class>
+   <extends>QPushButton</extends>
+   <header>library/PrintTemplates.h</header>
   </customwidget>
   <customwidget>
-   <class>CRBComboBox</class>
+   <class>COrgStructureComboBox</class>
    <extends>QComboBox</extends>
-   <header>library/crbcombobox.h</header>
+   <header>Orgs/OrgStructComboBoxes.h</header>
   </customwidget>
   <customwidget>
    <class>CRBMultivalueComboBox</class>
    <extends>QComboBox</extends>
+   <header location="global">library/MultivalueComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CAttachButton</class>
+   <extends>QPushButton</extends>
+   <header>library/Attach/AttachButton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRecordMultivalueComboBox</class>
+   <extends>QComboBox</extends>
    <header>library/MultivalueComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>CPrintButton</class>
-   <extends>QPushButton</extends>
-   <header>library/PrintTemplates.h</header>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header location="global">library/DateEdit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

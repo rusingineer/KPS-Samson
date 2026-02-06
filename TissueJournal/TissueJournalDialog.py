@@ -37,7 +37,7 @@ from Orgs.OrgStructComboBoxes     import COrgStructureModel
 from RefBooks.Equipment.RoleInIntegration  import CEquipmentRoleInIntegration
 
 from Registry.ClientEditDialog    import CClientEditDialog
-from Registry.Utils               import getClientInfo, formatClientBanner
+from Registry.Utils               import getClientInfo, getClientBanner
 
 from Reports.ReportBase           import CReportBase, createTable
 from Reports.ReportView           import CReportViewDialog, CPageFormat
@@ -1343,7 +1343,7 @@ class CTissueJournalDialog(CDialogBase, Ui_TissueJournalDialog):
     def updateClientInfo(self):
         if self.currentClientId:
             self.currentClientInfo = getClientInfo(self.currentClientId)
-            clientBanner = formatClientBanner(self.currentClientInfo)
+            clientBanner = getClientBanner(self.clientId)
             self.txtClientInfoBrowser.setHtml(clientBanner)
         else:
             self.currentClientInfo = None

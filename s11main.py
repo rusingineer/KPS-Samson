@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -28,6 +28,78 @@ import sip
 import sys
 import time
 from optparse import OptionParser
+
+psutilFlag = False
+
+try:
+    import psutil
+    psutilFlag = True
+except ImportError:
+    pass
+
+def lockFile(fileName, pid):
+    try:
+        lockedFile = open(fileName, 'w')
+        lockedFile.write(str(pid))
+        lockedFile.close()
+    except Exception as e:
+        print e
+        return -1
+    return 0
+
+
+def fileExists(fileName):
+    return os.path.exists(fileName)
+
+
+def getPidList():
+    if not psutilFlag:
+        return []
+
+    procName = 'samson.exe'
+    fileName = 's11main.py'
+    pids = []
+    for proc in psutil.process_iter():
+        try:
+            pinfo = proc.as_dict(attrs=['pid', 'name', 'cmdline'])
+        except psutil.NoSuchProcess:
+            pass
+        else:
+            if str(pinfo['name']).find(procName) > -1 or str(pinfo['cmdline']).find(fileName) > -1:
+                pids.append(pinfo['pid'])
+
+    return pids
+
+
+def createLock():
+    if not psutilFlag:
+        print("Psutil not available, blocking of multi-processes is not possible")
+        return
+    dirPath = os.path.join(os.path.expanduser('~'), '.samson-vista')
+    lockFileName = '.s11main.lock'
+    fileName = os.path.join(dirPath, lockFileName)
+    if not os.path.isdir(dirPath):
+        os.mkdir(dirPath)
+    myPid = os.getpid()
+    if fileExists(fileName):
+        try:
+            lockedFile = open(fileName, 'r')
+            PID = lockedFile.readline()
+            for pid in getPidList():
+                if str(pid) == str(PID):
+                    lockedFile.close()
+                    print("Exit, too many running applications")
+                    sys.exit(1)
+            lockedFile.close()
+            lockFile(fileName, myPid)
+        except Exception as e:
+            print e
+    else:
+        lockFile(fileName, myPid)
+
+# Перенес проверку запущенного приложения повыше, что бы быстрее отрбатывала, без лишней инициализации всего проекта
+if "--oneprocess" in sys.argv[1:]:
+    createLock()
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import (
@@ -54,6 +126,7 @@ from library.DbfViewDialog                              import viewDbf
 from library.DialogBase                                 import CConstructHelperMixin
 from library.downloadProgress                           import DownloadProgress, LoadSizeFormat
 from library.GS1CodeParser                              import CGS1CodeParser
+from library.ItemsListDialog                            import CItemsListDialog
 from library.MSCAPI.certErrors                          import ECertNotFound
 
 from library.PrintTemplates import CPrintAction, getPrintTemplates, applyTemplate, getFirstPrintTemplate
@@ -75,6 +148,7 @@ from library.symbologyIdentification                    import (
                                                                 isQrCode,
                                                                 stripSymbologyId,
                                                                )
+from library.TableModel                                 import CTextCol, CIntCol, CDateTimeCol
 from library.Utils import (
     anyToUnicode,
     exceptionToUnicode,
@@ -128,6 +202,7 @@ from Exchange.ExportAttachDoctorSectionInfoDialog       import CExportAttachDoct
 from Exchange.ExportActionTemplate                      import ExportActionTemplate
 from Exchange.ExportEvents                              import ExportEventType
 from Exchange.ExportFeedDataCsv                         import exportFeedDataCsv
+from Exchange.ExportVMPCases                            import ExportVMPCases
 from Exchange.ExportHL7v2_5                             import ExportHL7v2_5
 from Exchange.ExportPrimaryDocInXml                     import ExportPrimaryDocInXml
 from Exchange.ExportRbComplain                          import ExportRbComplain
@@ -140,8 +215,10 @@ from Exchange.ExportRbUnit                              import ExportRbUnit
 from Exchange.ExportSanAviacInfoDialog                  import CExportSanAviacInfoDialog
 from Exchange.ExportXmlEmc                              import ExportXmlEmc
 from Exchange.ImportRbPrintTemplate                     import ImportRbPrintTemplate
+from Exchange.ImportSPR import ImportSPR
 from Exchange.Import131Errors                           import Import131Errors
 from Exchange.ImportCSVClient                           import  ImportCSVClient
+from Exchange.ImportVMPCases                            import ImportVMPCases
 from Exchange.Import131                                 import Import131
 from Exchange.Import131XML                              import Import131XML
 from Exchange.ImportActions                             import ImportActionType
@@ -283,6 +360,7 @@ from RefBooks.MedicalBoardExpertiseCharacter.List       import CRBMedicalBoardEx
 from RefBooks.MedicalBoardExpertiseKind.List            import CRBMedicalBoardExpertiseKind
 from RefBooks.MedicalBoardExpertiseObject.List          import CRBMedicalBoardExpertiseObject
 from RefBooks.MedicalExemptionType.List                 import CRBMedicalExemptionTypeList
+from RefBooks.MedicalExemptionReason.List               import CRBMedicalExemptionReasonList
 from RefBooks.Menu.List                                 import CRBMenu
 from RefBooks.MesSpecification.List                     import CRBMesSpecificationList
 from RefBooks.Metastasis.List                           import CRBMetastasisList
@@ -317,6 +395,7 @@ from RefBooks.PrikCoefType.List                         import CRBPrikCoefTypeLi
 from RefBooks.PrintTemplate.List                        import CRBPrintTemplate
 from RefBooks.ProphylaxisPlanningType.List              import CRBProphylaxisPlanningType
 from RefBooks.QuotaType.List                            import CQuotaTypeList
+from RefBooks.RBFmsUnit                                 import CRBFmsUnitList
 from RefBooks.Reaction.List                             import CRBReactionList
 from RefBooks.ReactionType.List                         import CRBReactionTypeList
 from RefBooks.ReactionManifestation.List                import CRBReactionManifestationList
@@ -376,6 +455,7 @@ from RefBooks.GroundsForDeathCause.List                 import CRBGroundsForDeat
 from Registry.DemogrCertificates                        import CDemogrCertificatesDialog
 from Registry.DiagnosisDock                             import CDiagnosisDockWidget
 from Registry.DispExchange                              import CDispExchangeWindow
+from Registry.DistantMonitoringWindow                   import CDistantMonitoringWindow
 from Registry.FreeQueueDock                             import CFreeQueueDockWidget
 from Registry.HomeCallRequestsWindow                    import CHomeCallRequestsWindow
 from Registry.IdentCard.EkpBarCode                      import tryCardIdAsEkpIdentCard
@@ -493,6 +573,7 @@ from Reports.MUOMSOFForeign                             import CMUOMSOFForeign
 from Reports.MUOMSOFTable1                              import CMUOMSOFTable1
 from Reports.MUOMSOFTable3                              import CMUOMSOFTable3
 from Reports.NomenclatureBook                           import CNomenclatureBook
+from Reports.ReportNoProfsChild                         import CNoProfsChild
 from Reports.OutgoingDirectionsReport                   import COutgoingDirectionsReport
 from Reports.PaidServices                               import CPaidServices
 from Reports.PersonVisits                               import CPersonVisits
@@ -540,6 +621,7 @@ from Reports.ReportDoctorPreCalc                        import CReportDoctorPreC
 from Reports.ReportDoctorSummary                        import CReportDoctorSummary
 from Reports.ReportDoneActions                          import CReportApproxDoneActions
 from Reports.ReportEmergencyCallList                    import CReportEmergencyCallList
+from Reports.ReportSMPDockList                          import CReportSMPDockList
 from Reports.ReportEmergencyF30                         import CReportEmergencyF302350
 from Reports.ReportEmergencyF40                         import CReportEmergencyAdditionally, CReportEmergencyF402000, CReportEmergencyF302120, CReportEmergencyF402001, CReportEmergencyF402100, CReportEmergencyF402500, CReportEmergencyF40TimeIndicators, CReportEmergencyTalonSignal
 from Reports.ReportEmergencySize                        import CEmergencySizeReport
@@ -589,6 +671,7 @@ from Reports.ReportForm131_o_7000_2016                  import CReportForm131_o_
 from Reports.ReportForm30                               import CRepForm30
 from Reports.ReportHealthResortAnalysisUsePlacesRegions import CReportHealthResortAnalysisUsePlacesRegions
 from Reports.ReportHepatitis                            import CReportHepatitis
+from Reports.ReportHospDir                              import CHospDir
 from Reports.ReportImunoprophylaxisForm5                import CReportImunoprophylaxisForm5
 from Reports.ReportIncomingExternalDirections           import CExternalIncomingDirectionsReport
 from Reports.ReportInfoPrik                             import CInfoPrik
@@ -612,6 +695,7 @@ from Reports.ReportNumberResidentsAddress               import CReportNumberResi
 from Reports.ReportOnPerson                             import CReportOnPerson
 from Reports.ReportOnServiceType                        import CReportOnServiceType
 from Reports.ReportOperationalMonitoring                import CReportOperationalMonitoring
+from Reports.ReportStomPersonSalary                     import CReportStomPersonSalaryEx
 from Reports.ReportOrgStructureSummary                  import CReportOrgStructureSummary
 from Reports.ReportPayers                               import CReportPayers
 from Reports.ReportPayersWithFinance                    import CReportPayersWithFinance
@@ -657,6 +741,7 @@ from Reports.ReportTreatedPatientsForMajorDiseases      import CReportTreatedPat
 from Reports.ReportTreatments                           import CReportTreatments
 from Reports.ReportUETActions                           import CReportUETActionByActions, CReportUETActionByPersons
 from Reports.ReportUniversalEventList                   import CReportUniversalEventList
+from Reports.ReportActivityMO                           import CReportActivityMO
 from Reports.ReportUseContainers                        import CReportUseContainers
 from Reports.ReportVaccineJournal                       import CReportVaccineJournal
 from Reports.ReportVaccineTuberculin                    import CReportVaccineAndTuberculinTestJournal
@@ -678,7 +763,6 @@ from Reports.ServiceAverageDurationAcuteDisease         import CAverageDurationA
 from Reports.SickRateAbort                              import CSickRateAbort
 from Reports.SickRateAbort_1000                         import CSickRateAbort_1000
 from Reports.SickRateAbort_2000                         import CSickRateAbort_2000
-from Reports.SickRateAbort_3000                         import CSickRateAbort_3000
 from Reports.SickRateSurvey                             import CSickRateSurvey
 from Reports.SocStatus                                  import CSocStatus
 from Reports.SpendingToClients                          import CSpendingToClients
@@ -695,6 +779,7 @@ from Reports.StationaryF007_530                         import CStationaryF007_5
 from Reports.StationaryF014                             import CStationaryF14_4300_4301_4302, CStationaryAdultF142000, CStationaryAdultNoSeniorF142000, CStationaryChildrenF142000, CStationaryF142100, CStationaryF143000, CStationaryF144000, CStationaryF144001, CStationaryF144001A, CStationaryF144002, CStationaryF144100, CStationaryF144200, CStationaryF144201, CStationaryF144202, CStationaryF144400, CStationarySeniorF142000
 from Reports.StationaryF014_2021                        import CStationaryF0144000_2021, CStationaryF144001_2021, CStationaryF144001A_2021, CStationaryF144002_2021, CStationaryF144100_2021, CStationaryF144110_2021, CStationaryF144200_2021, CStationaryF144201_2021, CStationaryF14_4300_4301_4302_2021, CStationaryF144400_2021
 from Reports.StationaryF014_2022                        import CStationaryF144201_2022, CStationaryF014_2910_2022
+from Reports.StationaryF14KK                            import CStationaryF14KK2000Adult, CStationaryF14KK2000Senior, CStationaryF14KK2000Children, CStationaryF14KK4000, CStationaryF14KK4001, CStationaryF14KK4100
 from Reports.StationaryF016_02                          import CStationaryF016_02
 from Reports.StationaryF016_02_530                      import CStationaryF016_02_530n
 from Reports.StationaryF016ForPeriod                    import CStationaryF016ForPeriod
@@ -746,6 +831,7 @@ from Reports.StatReportF12Seniors_2022                  import CStatReportF12Sen
 from Reports.StatReportF12Seniors                       import CStatReportF12Seniors
 from Reports.StatReportF12Teenagers_2022                import CStatReportF12Teenagers_2022
 from Reports.StatReportF12Teenagers                     import CStatReportF12Teenagers
+from Reports.StatReportF12Students_2025                 import CStatReportF12Students_2025
 from Reports.StatReportF131ByDD                         import CStatReportF131ByDD
 from Reports.StatReportF131ByDoctors                    import CStatReportF131ByDoctors
 from Reports.StatReportF131ByEmployer                   import CStatReportF131ByEmployer
@@ -782,6 +868,12 @@ from Reports.VolumeServices                             import CVolumeServices
 from Reports.Workload                                   import CWorkload
 from Reports.ReportMedicalServiceExport                 import CReportMedicalServiceExportByProfile, CReportMedicalServiceExportByCitizenship
 from Reports.ReportRegistryCardFullness                 import CReportRegistryCardFullness
+from Reports.TMKReports                                 import CTMKReports
+from Reports.Form13dChildPopulation                     import CForm13dChildPopulation
+from Reports.Form25dNumberChildrenByAgeAndSocStatus     import CForm25dNumberChildrenByAgeAndSocStatus
+from Reports.ReportPreventiveMinors                     import CReportPreventiveMinors
+from Reports.ReportDrugAtitumorCure                     import CReportDrugAtitumorCure
+from Reports.ReportOnkoByStages                         import CReportOnkoByStages
 
 from Resources.JobPlanner                               import CJobPlanner
 from Resources.JobsOperatingDialog                      import CJobsOperatingDialog
@@ -978,7 +1070,7 @@ from Users.Rights import (urAccessAccountInfo,
                           urAccessRefPersnftnContingentKind,
                           urPlanningHospitalBedProfile, urAdminServiceTMK, urServiceTMKdirectionList,
                           urEditLoginPasswordProfileUser, urAccessLethality, urAccessClientAttachFederalService,
-                          urPersonSubstitution, urAccessEconomicAnalysis
+                          urPersonSubstitution, urAccessEconomicAnalysis, urAccessCashBookOnlyJournal
                           )
 from Users.Tables import demoUserName, tblUser, usrLogin, usrRetired, tblLogin
 from Users.tryKerberosAuth                              import tryKerberosAuth
@@ -1100,6 +1192,7 @@ class CS11mainApp(CBaseApp):
         database.registerDocumentTable('ClientAttach')
         database.registerDocumentTable('ClientConsent')
         database.registerDocumentTable('ClientContact')
+        database.registerDocumentTable('ClientDeposit')
         database.registerDocumentTable('ClientDocument')
         database.registerDocumentTable('ClientIdentification')
         database.registerDocumentTable('ClientIntoleranceMedicament')
@@ -1113,7 +1206,7 @@ class CS11mainApp(CBaseApp):
         database.registerDocumentTable('ClientSuicide')
         database.registerDocumentTable('ClientContingentKind')
         database.registerDocumentTable('ClientSocStatus')
-        database.registerDocumentTable('Client_StatusObservation')
+        database.registerDocumentTable('ClientHospitalization')
         database.registerDocumentTable('ClientWork')
         database.registerDocumentTable('Client_StatusObservation')
         database.registerDocumentTable('Contract')
@@ -1141,6 +1234,7 @@ class CS11mainApp(CBaseApp):
         database.registerDocumentTable('Person')
         database.registerDocumentTable('Person_Activity')
         database.registerDocumentTable('Person_Contact')
+        database.registerDocumentTable('Person_Education')
         database.registerDocumentTable('Person_Order')
         database.registerDocumentTable('Person_TimeTemplate')
         database.registerDocumentTable('Probe')
@@ -2561,6 +2655,9 @@ class CS11mainApp(CBaseApp):
         # отображение в Регистрационная карта пациента вкладки контингент:
         return forceBool(self.preferences.appPrefs.get('showingClientCardTabContingentKind', True))
 
+    def showingClientCardTabHospitalization(self):
+        # отображение в Регистрационная карта пациента вкладки Сведения о госпитализациях:
+        return forceBool(self.preferences.appPrefs.get('showingClientCardTabHospitalization', True))
 
     def showingClientCardTabIdentification(self):
         # отображение в Регистрационная карта пациента вкладки Идентификация:
@@ -2811,6 +2908,11 @@ class CS11mainApp(CBaseApp):
         return forceString(self.preferences.appPrefs.get('cashBox', ''))
 
 
+    def directoryExportDocuments(self):
+        # путь к каталогу для выгрузки прикреплённых документов
+        return forceString(self.preferences.appPrefs.get('directoryExportDocuments', ''))
+
+
     def defaultAccountingSystem(self):
         if self.accountingSystem is None:
             id = None
@@ -2878,6 +2980,10 @@ class CS11mainApp(CBaseApp):
 
     def refundRegistrationEnabled(self):
         return self.checkGlobalPreference('refundRegistration', u'да')
+
+
+    def isClinicalGroupDiagnosticVisible(self):
+        return self.checkGlobalPreference('showClinicalGroupDiagnostic', u'да')
 
 
     def isTNMSVisible(self):
@@ -3179,6 +3285,13 @@ class CS11mainApp(CBaseApp):
             return checkGlobalPreferenceList.get(unicode(value).lower(), None)
         return None
 
+    def controlOnkoTNMS(self):
+        #контроль ввода кодов ТНМ-Ст для онко диагнозов
+        checkGlobalPreferenceList = {u'не выполнять':0, u'мягкий':1, u'жёсткий':2}
+        value = self._globalPreferences.get(u'23:onkoTNMSControl', None)
+        if value:
+            return checkGlobalPreferenceList.get(unicode(value).lower(), None)
+        return None
 
     def isLockUpdateEventHospitalBeds(self):
         # Блокировать возможность перевода и выписки в Стационарном мониторе при открытии формы ввода, по умолчанию - нет
@@ -3427,11 +3540,14 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         QtGui.QMainWindow.__init__(self, parent)
         QtGui.qApp.mainWindow = self
         QtGui.qApp.visibleMyDoctorArea = False
+        QtGui.qApp.visibleNotifications = False
         self.initDockResources()
         self.initDockFreeQueue()
         self.initDockDiagnosis()
         if QtGui.qApp.defaultKLADR()[:2] == u'23':
             self.initDockSMP()
+        self.addObject('actMyArea', QtGui.QAction(u'Мой участок', self, checkable=True))
+        self.addObject('actNotifications', QtGui.QAction(u'Уведомления', self, checkable=True))
         self.setupUi(self)
         self.setCentralWidget(self.centralWidget)
         self.setCorner(Qt.TopLeftCorner,    Qt.LeftDockWidgetArea)
@@ -3444,18 +3560,15 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.menuPreferences.addAction(self.dockSMP.toggleViewAction())
         if bgParams:
             self.centralWidget.setBackground(bgParams)
-
-        self.__setattr__('actMyArea', QtGui.QAction(u'Мой участок', self, checkable=True))
-        self.actMyArea.setObjectName('actMyArea')
-        self.actMyArea.toggled.connect(self.on_actMyArea_toggled)
         self.menuPreferences.addAction(self.actMyArea)
-
+        self.menuPreferences.addAction(self.actNotifications)
         self.prepareStatusBar()
         self.registry = None
         self.homeCallRequests = None
         self.suspendedAppointment = None
         self.prophylaxisPlanning = None
         self.dispExchange = None
+        self.distantMonitoring = None
         self.updateActionsState()
         self.setUserName('')
         self.mruEventList = []
@@ -3463,14 +3576,13 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.loadPreferences()
         # self.centralWidget.subWindowActivated.connect(self.centralWidgetSubWindowActivated)
         self.actMyArea.setChecked(QtGui.qApp.visibleMyDoctorArea)
-        self.actSetAdmittingStart.setVisible(False)
-        self.actSetAdmittingEnd.setVisible(False)
-        self.actSetDutyStart.setVisible(False)
-        self.actSetDutyEnd.setVisible(False)
+        self.actNotifications.setChecked(QtGui.qApp.visibleNotifications)
+        # self.actSetAdmittingStart.setVisible(False)
+        # self.actSetAdmittingEnd.setVisible(False)
+        # self.actSetDutyStart.setVisible(False)
+        # self.actSetDutyEnd.setVisible(False)
         self.menu_036.menuAction().setVisible(False)
         self.menu_36PL.menuAction().setVisible(False)
-        self.mnuEED_2.menuAction().setVisible(False)
-        self.menu_131_2020.menuAction().setVisible(False)
         self.actStationaryYearReport.setVisible(False)
         self.actProfileYearReport.setVisible(False)
         # self.actProphylaxisPlanning.setVisible(False)
@@ -3487,11 +3599,14 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
     def on_actMyArea_toggled(self, checked):
         QtGui.qApp.visibleMyDoctorArea = checked
-        if QtGui.qApp.mainWindow.registry:
-            if checked:
-                QtGui.qApp.mainWindow.registry.tabMain.addTab(QtGui.qApp.mainWindow.registry.tabMyDoctorArea, u'Мой участок')
-            else:
-                QtGui.qApp.mainWindow.registry.tabMain.removeTab(QtGui.qApp.mainWindow.registry.tabMain.indexOf(QtGui.qApp.mainWindow.registry.tabMyDoctorArea))
+        if self.registry:
+            self.registry.tabMain.setTabVisible(self.registry.tabMyDoctorArea, checked)
+
+
+    def on_actNotifications_toggled(self, checked):
+        QtGui.qApp.visibleNotifications = checked
+        if self.registry:
+            self.registry.tabMain.setTabVisible(self.registry.tabNotifications, checked)
 
 
     @pyqtSignature('QMdiSubWindow*')
@@ -3555,6 +3670,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         if type(state) == QVariant and state.type() == QVariant.ByteArray and not geometry.isNull():
             self.restoreState(state.toByteArray())
         QtGui.qApp.visibleMyDoctorArea = forceBool(getPref(preferences, 'visibleMyDoctorArea', False))
+        QtGui.qApp.visibleNotifications = forceBool(getPref(preferences, 'visibleNotifications', False))
 
 
     def savePreferences(self):
@@ -3562,6 +3678,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         setPref(preferences, 'geometry', QVariant(self.saveGeometry()))
         setPref(preferences, 'state', QVariant(self.saveState()))
         setPref(preferences, 'visibleMyDoctorArea', QVariant(QtGui.qApp.visibleMyDoctorArea))
+        setPref(preferences, 'visibleNotifications', QVariant(QtGui.qApp.visibleNotifications))
         setPref(QtGui.qApp.preferences.windowPrefs, self.objectName(), preferences)
 
 
@@ -3643,7 +3760,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                                                                             urAccessAccountingCash,
                                                                             urAccessAccountingTargeted,
                                                                             urAccessContract,
-                                                                            urAccessCashBook
+                                                                            urAccessCashBook,
+                                                                            urAccessCashBookOnlyJournal
                                                                            )
                                                                           )
                                                    )
@@ -3660,7 +3778,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                                                    )
                                      )
         self.actContract.setEnabled(orgIdSet and (isAccountant or app.userHasRight(urAccessContract)))
-        self.actCashBook.setEnabled(orgIdSet and (isAccountant or app.userHasRight(urAccessCashBook)))
+        self.actCashBook.setEnabled(orgIdSet and (isAccountant or app.userHasAnyRight((urAccessCashBook, urAccessCashBookOnlyJournal))))
 
         # Меню Обмен
         self.mnuExchange.setEnabled(exchangeEnabled)
@@ -3733,6 +3851,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             lpuCode = forceString(app.db.translate('Organisation', 'id', app.currentOrgId(), 'infisCode'))
             if lpuCode != '45014':
                 self.mnuAccountingAnalysis.removeAction(self.actReportPaidServices)
+        self.actRepServiceAttach.setVisible(QtGui.qApp.defaultKLADR()[:2] != u'23')
 
         # Меню Справочники
         # Подменю Адреса
@@ -3985,6 +4104,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             app.userHasAnyRight([urAccessRefPersnftnResearchKind]))
         self.actRBContingentKind.setEnabled(isRefAdmin or
             app.userHasAnyRight([urAccessRefPersnftnContingentKind]))
+        self.actRBFmsUnit.setEnabled(isRefAdmin or
+            app.userHasAnyRight([urAccessRefPersonfication, urAccessRefPersnftnDocumentType]))
 
         # Подменю Номенклатура
         self.mnuNomenclature.setEnabled(isRefAdmin
@@ -4023,7 +4144,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.menu_27.menuAction().setVisible(app.userHasRight(urAdminServiceTMK) or app.userHasRight(urServiceTMKdirectionList))
         self.actTMKAdmin.setVisible(app.userHasRight(urAdminServiceTMK))
         self.actTMKListDirections.setVisible(app.userHasRight(urAdminServiceTMK) or app.userHasRight(urServiceTMKdirectionList))
-        self.actTestTNMS.setEnabled(loggedIn)
+        self.actAttach_SEMD_IEMK.setEnabled(loggedIn)
         self.actTestCSG.setEnabled(loggedIn)
         self.actSignOrgSert.setEnabled(loggedIn)
         self.actExportSanAviacInfo.setEnabled(loggedIn)
@@ -4046,6 +4167,12 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actExportLocalLabResultsToUSISH.setEnabled(exchangeEnabled)
         self.actSignOrgSert.setEnabled(app.userHasRight(urCanSignOrgCert))
 
+        servicesDN = forceString(QtGui.qApp.getGlobalPreference('23:servicesDN')) if loggedIn else None
+        if servicesDN and servicesDN == u'да':
+            self.actDistantMonitoring.setVisible(True)
+        else:
+            self.actDistantMonitoring.setVisible(False)
+
         servicesURL = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL')) if loggedIn else None
         self.actIdentityPatientService.setVisible(bool(servicesURL))
         self.actAttachOnlineService.setVisible(bool(servicesURL))
@@ -4065,8 +4192,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actRBCounter.setEnabled(isAdmin or app.userHasRight(urAccessSetupCounter))
         self.actN3QmExtraDataDef.setEnabled(isAdmin)
         self.actN3SRSUser.setEnabled(isAdmin)
-
-        self.actInformerMessages.setEnabled(loggedIn)
 
         for dock, right in ((self.dockResources, urAccessGraph),
                             (self.dockFreeQueue, urAccessGraph),
@@ -4119,6 +4244,9 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.actImportEisOmsLpu.setVisible(False)
             self.actImportOrgsINFIS.setVisible(False)
             self.actImportEisOmsSmo.setVisible(False)
+            self.actImportSPR.setVisible(True)
+        else:
+            self.actImportSPR.setVisible(False)
 
         self.actImportCSVClient.setVisible(False)
         if bool(app.db):
@@ -4168,6 +4296,37 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             if subwindow.widget() == widget:
                 return subwindow
         return None
+    
+
+    @withWaitCursor
+    def createSubwindow(self, widgetClass):
+        widget = widgetClass(self)
+        subwindow = self.centralWidget.addSubWindow(widget, Qt.SubWindow)
+        return widget
+    
+
+    def openSubwindow(self, widget):
+        subwindow = self.findSubwindow(widget)
+        if subwindow:
+            subwindow.showMaximized()
+    
+
+    def closeSubwindow(self, widget):
+        subwindow = self.findSubwindow(widget)
+        if subwindow:
+            subwindow.close()
+            self.centralWidget.activatePreviousSubWindow()
+
+
+    def closeAllSubwindows(self):
+        for subwindow in self.centralWidget.subWindowList():
+            subwindow.close()
+
+
+    def closeSubwindowsExcept(self, *widgets):
+        for subwindow in self.centralWidget.subWindowList():
+            if subwindow.widget() not in widgets:
+                subwindow.close()
 
 
     def getMenuTree(self, menu):
@@ -4238,80 +4397,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 if ok and ptr == dockWidgetPtr:
                     return (tabBar, tabIndex)
         return (None, None)
-
-
-    @withWaitCursor
-    def openRegistryWindow(self):
-        self.registry = CRegistryWindow(self)
-        subwindow = self.centralWidget.addSubWindow(self.registry, Qt.SubWindow)
-        subwindow.showMaximized()
-
-
-    def closeRegistryWindow(self):
-        if self.registry:
-            subwindow = self.findSubwindow(self.registry)
-            if subwindow:
-                subwindow.close()
-                self.centralWidget.activatePreviousSubWindow()
-#                self.registry = None
-
-
-    @withWaitCursor
-    def openSuspenedAppointmentWidnow(self):
-        self.suspendedAppointment = CSuspenedAppointmentWindow(self)
-        subwindow =  self.centralWidget.addSubWindow(self.suspendedAppointment, Qt.SubWindow)
-        subwindow.showMaximized()
-
-
-    def closeSuspendedAppointmentWindow(self):
-        if self.suspendedAppointment:
-            subwindow = self.findSubwindow(self.suspendedAppointment)
-            if subwindow:
-                subwindow.close()
-                self.centralWidget.activatePreviousSubWindow()
-            self.suspendedAppointment = None
-
-
-
-
-    @withWaitCursor
-    def openDispExchangeWindow(self):
-        self.dispExchange = CDispExchangeWindow(self)
-        self.centralWidget.addSubWindow(self.dispExchange, Qt.Window)
-
-
-    def closeDispExchangeWindow(self):
-        if self.dispExchange:
-            subwindow = self.findSubwindow(self.dispExchange)
-            if subwindow:
-                subwindow.close()
-
-
-    @withWaitCursor
-    def openHomeCallRequestsWindow(self):
-        self.homeCallRequests = CHomeCallRequestsWindow(self)
-        subwindow = self.centralWidget.addSubWindow(self.homeCallRequests, Qt.SubWindow)
-        subwindow.showMaximized()
-
-    def closeHomeCallRequestsWindow(self):
-        if self.homeCallRequests:
-            subwindow = self.findSubwindow(self.homeCallRequests)
-            if subwindow:
-                subwindow.close()
-
-
-    @withWaitCursor
-    def openProphylaxisPlanningWindow(self):
-        self.prophylaxisPlanning = CProphylaxisPlanningWindow(self)
-        subwindow = self.centralWidget.addSubWindow(self.prophylaxisPlanning, Qt.SubWindow)
-        subwindow.showMaximized()
-
-
-    def closeProphylaxisPlanningWindow(self):
-        if self.prophylaxisPlanning:
-            subwindow = self.findSubwindow(self.prophylaxisPlanning)
-            if subwindow:
-                subwindow.close()
 
 
     def addMruItem(self, mruList, id, descr):
@@ -4485,11 +4570,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.dockDiagnosis.saveDialogPreferences()
             if QtGui.qApp.defaultKLADR()[:2] == u'23':
                 self.dockSMP.saveDialogPreferences()
-            self.closeRegistryWindow()
-            self.closeSuspendedAppointmentWindow()
-            self.closeDispExchangeWindow()
-            self.closeHomeCallRequestsWindow()
-            self.closeProphylaxisPlanningWindow()
+            self.closeAllSubwindows()
             personId = dialogSelectPerson.getPersonId()
             QtGui.qApp.clearUserId(True)
             QtGui.qApp.setUserId(personId, False, loginId)
@@ -4508,11 +4589,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.dockDiagnosis.saveDialogPreferences()
         if QtGui.qApp.defaultKLADR()[:2] == u'23':
             self.dockSMP.saveDialogPreferences()
-        self.closeRegistryWindow()
-        self.closeSuspendedAppointmentWindow()
-        self.closeDispExchangeWindow()
-        self.closeHomeCallRequestsWindow()
-        self.closeProphylaxisPlanningWindow()
+        self.closeAllSubwindows()
         if QtGui.qApp.db:
             QtGui.qApp.clearUserId(True)
             QtGui.qApp.closeDatabase()
@@ -4558,50 +4635,55 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actQuit_triggered(self):
         self.close()
 
+
     @pyqtSignature('')
     def on_actRegistry_triggered(self):
         if self.registry is None:
-            self.openRegistryWindow()
-        else:
-            subwindow = self.findSubwindow(self.registry)
-            if subwindow:
-                subwindow.showMaximized()
-        if self.registry:
-            self.registry.setWindowState(Qt.WindowMaximized)
-            self.registry.switchMainTabToSpecifiedTabByIndex(self.registry.tabMain.indexOf(self.registry.tabRegistry))
-            self.registry.batchRegLocatCardReset()
-            self.closeSuspendedAppointmentWindow()
-            self.closeProphylaxisPlanningWindow()
-            self.closeDispExchangeWindow()
-            self.closeHomeCallRequestsWindow()
+            self.registry = self.createSubwindow(CRegistryWindow)
+        self.openSubwindow(self.registry)
+        self.closeSubwindowsExcept(self.registry)
+        self.registry.switchMainTabToSpecifiedTabByIndex(self.registry.tabMain.indexOf(self.registry.tabRegistry))
+        self.registry.batchRegLocatCardReset()
 
 
     @pyqtSignature('')
     def on_actSuspenedAppointment_triggered(self):
         if self.suspendedAppointment is None:
-            self.openSuspenedAppointmentWidnow()
-        else:
-            subwindow = self.findSubwindow(self.suspendedAppointment)
-            if subwindow:
-                subwindow.showMaximized()
-            self.closeDispExchangeWindow()
-            self.closeHomeCallRequestsWindow()
+            self.suspendedAppointment = self.createSubwindow(CSuspenedAppointmentWindow)
+        self.openSubwindow(self.suspendedAppointment)
+        self.closeSubwindowsExcept(self.suspendedAppointment)
 
 
     @pyqtSignature('')
     def on_actDispExchange_triggered(self):
         if self.dispExchange is None:
-            self.openDispExchangeWindow()
-        else:
-            subwindow = self.findSubwindow(self.dispExchange)
-            if subwindow:
-                subwindow.show()
-        if self.dispExchange:
-            self.dispExchange.setWindowState(Qt.WindowMaximized)
-            self.closeRegistryWindow()
-            self.closeSuspendedAppointmentWindow()
-            self.closeProphylaxisPlanningWindow()
-            self.closeHomeCallRequestsWindow()
+            self.dispExchange = self.createSubwindow(CDispExchangeWindow)
+        self.openSubwindow(self.dispExchange)
+        self.closeSubwindowsExcept(self.dispExchange)
+
+
+    @pyqtSignature('')
+    def on_actDistantMonitoring_triggered(self):
+        if self.distantMonitoring is None:
+            self.distantMonitoring = self.createSubwindow(CDistantMonitoringWindow)
+        self.openSubwindow(self.distantMonitoring)
+        self.closeSubwindowsExcept(self.distantMonitoring)
+
+
+    def on_actHomeCallRequests_triggered(self):
+        if self.homeCallRequests is None:
+            self.homeCallRequests = self.createSubwindow(CHomeCallRequestsWindow)
+        self.openSubwindow(self.homeCallRequests)
+        self.closeSubwindowsExcept(self.homeCallRequests)
+
+
+    @pyqtSignature('')
+    def on_actProphylaxisPlanning_triggered(self):
+        if self.prophylaxisPlanning is None:
+            self.prophylaxisPlanning = self.createSubwindow(CProphylaxisPlanningWindow)
+        self.openSubwindow(self.prophylaxisPlanning)
+        self.closeSubwindowsExcept(self.prophylaxisPlanning)
+
 
     @pyqtSignature('')
     def on_actTMKAdmin_triggered(self):
@@ -4617,25 +4699,9 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             data = {'filter': {}}
             applyTemplate(self, template.id, data)
 
-
-    def on_actHomeCallRequests_triggered(self):
-        if self.homeCallRequests is None:
-            self.openHomeCallRequestsWindow()
-        else:
-            subwindow = self.findSubwindow(self.homeCallRequests)
-            if subwindow:
-                subwindow.showMaximized()
-
-
     @pyqtSignature('')
-    def on_actProphylaxisPlanning_triggered(self):
-        if self.prophylaxisPlanning is None:
-            self.openProphylaxisPlanningWindow()
-        else:
-            subwindow = self.findSubwindow(self.prophylaxisPlanning)
-            if subwindow:
-                subwindow.showMaximized()
-
+    def on_actTMKReports_triggered(self):
+        CTMKReports(self).exec_()
 
     @pyqtSignature('')
     def on_actTimeline_triggered(self):
@@ -4939,6 +5005,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     @pyqtSignature('')
+    def on_actImportVMPCases_triggered(self):
+        ImportVMPCases(self).exec_()
+
+
+    @pyqtSignature('')
     def on_actExport131_triggered(self):
         Export131(self).exec_()
 
@@ -4975,6 +5046,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actExportFeedDataCsv_triggered(self):
         exportFeedDataCsv(self)
+
+
+    @pyqtSignature('')
+    def on_actExportVMPCases_triggered(self):
+        ExportVMPCases(self).exec_()
 
     @pyqtSignature('')
     def on_actExportRbResult_triggered(self):
@@ -5014,6 +5090,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actImportRbPrintTemplate_triggered(self):
         ImportRbPrintTemplate()
+    
+    
+    @pyqtSignature('')
+    def on_actImportSPR_triggered(self):
+        ImportSPR()
     
 
     @pyqtSignature('')
@@ -5164,36 +5245,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actStatReportF131ByDD_triggered(self):
         CStatReportF131ByDD(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDMonth_triggered(self):
-        CStatReportEEDMonth(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDYear_triggered(self):
-        CStatReportEEDYear(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDPeriod_triggered(self):
-        CStatReportEEDPeriod(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDMonthSummary_triggered(self):
-        CStatReportEEDMonthSummary(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDYearSummary_triggered(self):
-        CStatReportEEDYearSummary(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actStatReportEEDPeriodSummary_triggered(self):
-        CStatReportEEDPeriodSummary(self).exec_()
 
 
     @pyqtSignature('')
@@ -5420,6 +5471,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CStatReportF19_2000_Psychiatry(self).exec_()
 
     @pyqtSignature('')
+    def on_actForm030po17_triggered(self):
+        CReportPreventiveMinors(self).exec_()
+
+    @pyqtSignature('')
     def on_actForm36_2100_2190_triggered(self):
         CForm36_2100_2190(self).exec_()
 
@@ -5527,6 +5582,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actReportUniversalEventList_triggered(self):
         CReportUniversalEventList(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportActivityMO_triggered(self):
+        CReportActivityMO(self).exec_()
 
     @pyqtSignature('')
     def on_actRepService_triggered(self):
@@ -5713,16 +5772,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actReportForm131_o_6000_2021_triggered(self):
         CReportForm131_o_6000_2021(self).exec_()
 # ############################################################################
-
-
-    @pyqtSignature('')
-    def on_actReportForm131_o_2000_2019_triggered(self):
-        CReportForm131_o_2000_2019(self).exec_()
-
-
-    @pyqtSignature('')
-    def on_actReportForm131_o_3000_2019_triggered(self):
-        CReportForm131_o_3000_2019(self).exec_()
 
 
     @pyqtSignature('')
@@ -6457,6 +6506,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CReportOperationalMonitoring(self).exec_()
 
     @pyqtSignature('')
+    def on_actReportStomPersonSalary_triggered(self):
+        CReportStomPersonSalaryEx(self).exec_()
+
+    @pyqtSignature('')
     def on_actE19_triggered(self):
         CEconomicAnalisysE19Ex(self).exec_()
 
@@ -6648,11 +6701,6 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     @pyqtSignature('')
-    def on_actSickRateAbort_3000_triggered(self):
-        CSickRateAbort_3000(self).exec_()
-
-
-    @pyqtSignature('')
     def on_actFactorRateSurvey_triggered(self):
         CFactorRateSurvey(self).exec_()
 
@@ -6716,6 +6764,11 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actStatReportF12Inset2008_triggered(self):
         CStatReportF12Inset2008(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStatReportF12Students_2025_triggered(self):
+        CStatReportF12Students_2025(self).exec_()
 
 
     @pyqtSignature('')
@@ -6839,6 +6892,14 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CPeopleWithDiseasesCirculatorySystem(self).exec_()
 
     @pyqtSignature('')
+    def on_actRepNoProfsChild_triggered(self):
+        CNoProfsChild(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportHospDir_triggered(self):
+        CHospDir(self).exec_()
+
+    @pyqtSignature('')
     def on_actTempInvalidList_triggered(self):
         CTempInvalidList(self).exec_()
 
@@ -6907,7 +6968,25 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actAttachedContingent_triggered(self):
         CAttachedContingent(self).exec_()
 
+    @pyqtSignature('')
+    def on_actForm13dChildPopulation_triggered(self):
+        CForm13dChildPopulation(self).exec_()
 
+    @pyqtSignature('')
+    def on_actForm25dNumberChildrenByAgeAndSocStatus_triggered(self):
+        CForm25dNumberChildrenByAgeAndSocStatus(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actReportOnkoByStages_triggered(self):
+        CReportOnkoByStages(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actReportDrugAtitumorCure_triggered(self):
+        CReportDrugAtitumorCure(self).exec_()
+
+        
     @pyqtSignature('')
     def on_actBySMOContingent_triggered(self):
         CBySMOContingent(self).exec_()
@@ -7211,6 +7290,36 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
 
 
     @pyqtSignature('')
+    def on_actStationaryF14KK2000Adult_triggered(self):
+        CStationaryF14KK2000Adult(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStationaryF14KK2000Senior_triggered(self):
+        CStationaryF14KK2000Senior(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStationaryF14KK2000Children_triggered(self):
+        CStationaryF14KK2000Children(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStationaryF14KK4000_triggered(self):
+        CStationaryF14KK4000(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStationaryF14KK4001_triggered(self):
+        CStationaryF14KK4001(self).exec_()
+
+
+    @pyqtSignature('')
+    def on_actStationaryF14KK4100_triggered(self):
+        CStationaryF14KK4100(self).exec_()
+
+
+    @pyqtSignature('')
     def on_actOne2015Forma14DC_triggered(self):
         CStationaryOne_2015F14DC(self).exec_()
 
@@ -7338,6 +7447,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actReportEmergencyCallList_triggered(self):
         CReportEmergencyCallList(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportSMPDockList_triggered(self):
+        CReportSMPDockList(self).exec_()
 
 
     @pyqtSignature('')
@@ -8269,6 +8382,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CRBMedicalExemptionTypeList(self).exec_()
 
 
+    @pyqtSignature('')
+    def on_actRBMedicalExemptionReason_triggered(self):
+        CRBMedicalExemptionReasonList(self).exec_()
+
 
     @pyqtSignature('')
     def on_actRBTest_triggered(self):
@@ -8551,6 +8668,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CRBContingentKindRemovalList(self).exec_()
 
     @pyqtSignature('')
+    def on_actRBFmsUnit_triggered(self):
+        CRBFmsUnitList(self).exec_()
+
+    @pyqtSignature('')
     def on_actExportLocalLabResultsToUSISH_triggered(self):
         try:
             ExportLocalLabResultsToUsish.exportLocalLabResultsToUsish()
@@ -8572,20 +8693,24 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             if dialog.exec_():
                 prevOrgId = application.currentOrgId()
                 prevOrgStructureId = application.currentOrgStructureId()
+                prevOrgStructureVisible = None
+                if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
+                    prevOrgStructureVisible = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
                 application.preferences.appPrefs.update(dialog.getProps())
                 application.preferences.save()
                 orgId = application.currentOrgId()
+                OrgStructureVisible = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
                 if not orgId:
-                    self.closeRegistryWindow()
-                    self.closeSuspendedAppointmentWindow()
-                    self.closeProphylaxisPlanningWindow()
-                    self.closeDispExchangeWindow()
-                    self.closeHomeCallRequestsWindow()
+                    self.closeAllSubwindows()
                 self.setUserName(application.userName())
                 if orgId != prevOrgId:
                     application.emit(SIGNAL('currentOrgIdChanged()'))
                 if QtGui.qApp.currentOrgStructureId() != prevOrgStructureId:
                     application.emit(SIGNAL('currentOrgStructureIdChanged()'))
+                if OrgStructureVisible != prevOrgStructureVisible:
+                    QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
+                    QtGui.qApp.mainWindow.dockFreeQueue.onConnectionChanged(True)
+                QtGui.qApp.emitCurrentClientInfoChanged()
                 application.clearPreferencesCache()
                 self.updateActionsState()
                 application.webDAVInterface.setWebDAVUrl(application.getWebDAVUrl())
@@ -8679,6 +8804,9 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actAbout_triggered(self):
         dlg = QtGui.QDialog()
         dlg.setWindowTitle(u'О программе')
+        def aboutModernisation():
+            dialog = CModernisationVersionList(None)
+            dialog.exec_()
         dlg.setWindowIcon(QtGui.QIcon(':/new/prefix1/icons/znak_32x32.png'))
         dlg.setWindowFlags(dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         layout = QtGui.QVBoxLayout()
@@ -8688,6 +8816,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         layout.addWidget(logo)
         label = QtGui.QLabel()
         label.setText(QtGui.qApp.getAbout())
+        label.setTextFormat(Qt.RichText)
+        label.linkActivated.connect(aboutModernisation)
         layout.addWidget(label)
         hbox = QtGui.QHBoxLayout()
         hbox.setAlignment(Qt.AlignCenter)
@@ -8718,6 +8848,31 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             self.homeCallRequests = None
         elif widget == self.prophylaxisPlanning:
             self.prophylaxisPlanning = None
+        elif widget == self.distantMonitoring:
+            self.distantMonitoring = None
+
+
+class CModernisationVersionList(CItemsListDialog):
+    def __init__(self, parent):
+        CItemsListDialog.__init__(self, parent, [
+            CIntCol(u'Версия', ['version'], 20),
+            CDateTimeCol(u'Дата обновления', ['dateUpdate'], 40),
+            CTextCol(u'Описание', ['description'], 100),
+        ], 'VersionControlMod', ['dateUpdate', 'version'])
+        self.setWindowTitleEx(u'Установленные версии модернизации')
+        self.btnNew.setVisible(False)
+        self.btnNew.setEnabled(False)
+        self.btnEdit.setVisible(False)
+        self.btnEdit.setEnabled(False)
+        self.tblItems.doubleClicked.disconnect()
+
+
+    def select(self, props={}):
+        table = self.model.table()
+        cond = CItemsListDialog.generateFilterByProps(self, props)
+        cond.append(table['name'].eq('Update'))
+        cond.append(table['description'].isNotNull())
+        return QtGui.qApp.db.getIdList(table.name(), self.idFieldName, cond, self.order)
 
 
 def parseGCDebug(val):
@@ -8763,7 +8918,7 @@ def parseBgParams(image, size, position):
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def main():
-    os.chdir(os.path.dirname(os.path.realpath('__file__')))
+    os.chdir(os.path.dirname(os.path.realpath(__file__)))
 ##    gc.set_threshold(*[10*k for k in gc.get_threshold()])
     parser = OptionParser(usage='usage: %prog [options]')
     parser.add_option('-c', '--config',
@@ -8862,6 +9017,12 @@ def main():
                       help='display the Python backtrace on SIGSEGV, SIGFPE, SIGABRT, SIGBUS and SIGILL signals',
                       action='store_true',
                       default=True
+                      )
+    parser.add_option('--oneprocess',
+                      dest='oneprocess',
+                      help='forbid start more than one copy of application',
+                      action='store_true',
+                      default=False
                       )
 #    parser.add_option("-q", "--quiet",   action="store_false", dest="verbose", default=True,  help="don't print status messages to stdout")
     (options, args) = parser.parse_args()

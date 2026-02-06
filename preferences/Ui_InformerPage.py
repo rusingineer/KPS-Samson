@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\preferences\InformerPage.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_pre_release\preferences\InformerPage.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #

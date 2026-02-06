@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -26,6 +26,7 @@ from Ui_ReAttach import Ui_Dialog
 class CReAttach(QtGui.QDialog, Ui_Dialog):
     def __init__(self,  parent):
         QtGui.QDialog.__init__(self, parent)
+        self.clearLog()
         self.setupUi(self)
 
     def setClientIdList(self, clientIdList):
@@ -37,7 +38,7 @@ class CReAttach(QtGui.QDialog, Ui_Dialog):
         self.appendLog(u'Экспорт данных.Ожидайте...', False)
         self.showLog()
         try:
-            response = AttachService.callServiceReAttach('clientReAttach', {'reattachlist': self.clientIdList}, timeout=1200)
+            response = AttachService.callServiceReAttach('clientReAttach', {'reattachlist': self.clientIdList}, timeout=1200, returnRawResult=True)
             if 'responsemessage' not in response:
                 self.appendLog(u'Неопознанная ошибка', False)
             else:

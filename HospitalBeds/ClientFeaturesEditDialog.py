@@ -17,7 +17,7 @@ from PyQt4.QtCore import QDate
 
 from library.ItemsListDialog     import CItemEditorBaseDialog
 from library.Utils               import exceptionToUnicode, forceDate, forceInt, forceRef, forceString, forceStringEx, toVariant
-from Registry.Utils              import getClientInfo, formatClientBanner
+from Registry.Utils              import getClientInfo, getClientBanner
 
 from Registry.ClientEditDialog   import CAllergyModel, CIntoleranceMedicamentModel
 from Ui_ClientFeaturesEditDialog import Ui_Dialog
@@ -41,7 +41,7 @@ class CClientFeaturesEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         self.tblIntoleranceMedicament.addPopupDelRow()
         date = QDate.currentDate()
         self.clientInfo = getClientInfo(self.clientId, date=date)
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, date))
 
     def checkDataEntered(self):
         result = True

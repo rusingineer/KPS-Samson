@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Reports\TMKInfo.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client_pre_release\Reports\TMKInfo.ui'
 #
-# Created: Thu Mar 14 11:57:41 2024
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 

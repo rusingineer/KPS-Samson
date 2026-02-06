@@ -40,13 +40,13 @@ class CLengthOfStayReport(CReport):
         tableAction = db.table('Action')
         if clientMovings:
             cond = [
-                tableAction['endDate'].dateGe(begDate),
-                tableAction['endDate'].dateLe(endDate if endDate else QDate.currentDate())
+                tableAction['endDate'].ge(begDate),
+                tableAction['endDate'].lt(endDate.addDays(1) if endDate else QDate.currentDate())
             ]
         else:
             cond = [
-                tableAction['begDate'].dateGe(begDate),
-                tableAction['begDate'].dateLe(endDate if endDate else QDate.currentDate())
+                tableAction['begDate'].ge(begDate),
+                tableAction['begDate'].lt(endDate.addDays(1) if endDate else QDate.currentDate())
             ]
         orgStructureCond = 'is not NULL'
         if orgStructureId:

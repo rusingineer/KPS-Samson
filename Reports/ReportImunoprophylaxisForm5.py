@@ -43,9 +43,9 @@ def selectData(params):
 
     cond = []
     if begDate:
-        cond.append(tableClientVaccination['datetime'].dateGe(begDate))
+        cond.append(tableClientVaccination['datetime'].ge(begDate))
     if endDate:
-        cond.append(tableClientVaccination['datetime'].dateLe(endDate))
+        cond.append(tableClientVaccination['datetime'].lt(endDate.addDays(1)))
     if personId:
         cond.append(tableClientVaccination['person_id'].eq(personId))
 

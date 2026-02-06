@@ -18,7 +18,7 @@ from PyQt4.QtCore import QDate, QDateTime, QTime
 
 from Events.Utils import getActionTypeIdListByFlatCode, CFinanceType
 from Orgs.Utils import getOrgStructureFullName
-from library.Utils import forceDate, forceInt, forceString, forceDateTime, forceBool, forceRef
+from library.Utils import forceDate, forceInt, forceString, forceDateTime, forceBool, forceRef, isRetirementAge
 
 from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
@@ -49,10 +49,8 @@ MainRows3100 = [
     (1, u'венерологические для детей', '16', '1E<18'),
     (1, u'инфекционные для взрослых', '17', '1G>=18;13;1GCOVID>=18;13COVID'),
     (2, u'из них лепрозные', '17.1', '1G>=18'),
-    (5, u'Для COVID-19', '17.2', '1GCOVID>=18;13COVID'),
     (1, u'инфекционные для детей', '18', '1G<18;14;1GCOVID<18;14COVID'),
     (2, u'из них лепрозные', '18.1', '1G<18'),
-    (5, u'Для COVID-19', '18.2', '1GCOVID<18;14COVID'),
     (1, u'кардиологические для взрослых', '19', '03;1U;94'),
     (2, u'из них:\nкардиологические интенсивной терапии', '19.1', '1U'),
     (2, u'кардиологические для больных с острым инфарктом миокарда', '19.2', '94'),
@@ -111,7 +109,6 @@ MainRows3100 = [
     (2, u'из них:\nреанимационные для новорожденных', '45.1', '1J'),
     (2, u'интенсивной терапии', '45.2', '1S'),
     (2, u'интенсивной терапии для новорожденных', '45.3', '1T'),
-    (5, u'для COVID-19', '45.4', '1ICOVID'),
     (1, u'ревматологические для взрослых', '46', '64'),
     (1, u'ревматологические для детей', '47', '65'),
     (1, u'сестринского ухода', '48', '73'),
@@ -147,8 +144,12 @@ MainRows3100 = [
     (1, u'прочие койки для детей', '77', '35'),
     (1, u'Кроме того, «движение» больных новорожденных', '78', None),
     (1, u'Из общего числа (стр. 1) - платных коек', '79', 'cash'),
-    (1, u'Кроме того – дополнительно развернутые койки для лечения пациентов с COVID-19', '80', ''),
+    (1, u'Кроме того – дополнительно развернутые койки', '80', ''),
+    (2, u'их них (из стр. 80) койки для особых целей', '80.1', ''),
     (1, u'Реанимационные (с учетом внутрибольничных переводов)', '81', '1I;1ICOVID;1IORIT'),
+    (2, u'реанимационные для новорожденных', '81.1', ''),
+    (2, u'интенсивной терапии', '81.2', ''),
+    (2, u'интенсивной терапии для новорожденных', '81.3', ''),
     (1, u'Профиль неопределен', '82', 'NOPROFILE')
 ]
 
@@ -495,7 +496,9 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             CASE 
                 WHEN Event.setDate<'2022-01-01T00:00:00' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 60 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 55 year, 1, 0))
                 WHEN Event.setDate between '2022-01-01T00:00:00' and '2023-12-31T23:59:59' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 61 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 56 year, 1, 0)) 
-                WHEN Event.setDate>='2024-01-01T00:00:00' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 62 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 57 year, 1, 0)) 
+                WHEN Event.setDate>='2024-01-01T00:00:00' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 63 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 58 year, 1, 0))
+                WHEN Event.setDate>='2026-01-01T00:00:00' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 64 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 59 year, 1, 0))
+                WHEN Event.setDate>='2028-01-01T00:00:00' THEN SUM(IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 65 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 60 year, 1, 0))
             END as countSenior'''.format(','.join([ str(id) for id in actionTypeMovingList]) if actionTypeMovingList else 0, addressFunc)
 
             records = db.getRecordListGroupBy(queryTable, cols=cols, where=db.joinAnd(cond), group=['profile', 'Contract.finance_id', 'IF(Client.birthDate > Event.setDate - interval 18 year, 1, 0)'])
@@ -614,7 +617,11 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                     WHEN Event.setDate between '2022-01-01T00:00:00' and '2023-12-31T23:59:59' THEN SUM(IF((ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null)
                         and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 61 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 56 year), 1, 0))
                     WHEN Event.setDate>='2024-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null)
-                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 62 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 57 year), 1, 0)) 
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 63 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 58 year), 1, 0)) 
+                    WHEN Event.setDate>='2026-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null)
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 64 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 59 year), 1, 0)) 
+                    WHEN Event.setDate>='2028-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null)
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 65 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 60 year), 1, 0))  
                 END as countSenior,
                 SUM(IF(ActionProperty_String.value like 'переведен в дневной стационар%', 1, 0)) AS countTransfer,
                 SUM(IF(ActionProperty_String.value like '%другой стационар%', 1, 0)) AS countOtherTransfer,
@@ -625,7 +632,11 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                     WHEN Event.setDate between '2022-01-01T00:00:00' and '2023-12-31T23:59:59' THEN SUM(IF((ActionProperty_String.value like 'умер%')
                         and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 61 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 56 year), 1, 0)) 
                     WHEN Event.setDate>='2024-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value like 'умер%')
-                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 62 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 57 year), 1, 0)) 
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 63 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 58 year), 1, 0))
+                    WHEN Event.setDate>='2026-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value like 'умер%')
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 64 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 59 year), 1, 0)) 
+                    WHEN Event.setDate>='2028-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value like 'умер%')
+                        and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 65 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 60 year), 1, 0)) 
                 END as countDeathSenior""".format(','.join([ str(id) for id in actionTypeMovingList]) if actionTypeMovingList else 0)
 
             records = db.getRecordListGroupBy(queryTable, cols=cols, where=db.joinAnd(cond),
@@ -696,13 +707,10 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             cols = u'''
                         IF((Diagnosis.mkb='U07.1' or Diagnosis.mkb='U07.2') and rbHospitalBedProfile.regionalCode in ('1G','1I','13'), CONCAT(rbHospitalBedProfile.regionalCode,'COVID'), rbHospitalBedProfile.regionalCode) as profile,
                         Contract.finance_id,
-                        IF(Client.birthDate > Event.setDate - interval 18 year, 1, 0) as isChild,
                         WorkDays(IF(Event.setDate < {begDate}, {begDate}, Event.setDate), IF(IFNULL(Event.execDate, {endDate}) >= {endDate}, {endDate}, Event.execDate), EventType.weekProfileCode, rbMedicalAidType.regionalCode) AS dayCount,
-                        CASE 
-                            WHEN Event.setDate<'2022-01-01T00:00:00' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 60 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 55 year, 1, 0) 
-                            WHEN Event.setDate between '2022-01-01T00:00:00' and '2023-12-31T23:59:59' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 61 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 56 year, 1, 0) 
-                            WHEN Event.setDate>='2024-01-01T00:00:00' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 62 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 57 year, 1, 0) 
-                        END as isSenior '''.format(
+                        Client.sex,
+                        age(Client.birthDate, Event.setDate) as age,
+                        Event.setDate'''.format(
                 begDate=db.formatDate(forceDateTime(begDateTime)),
                 endDate=db.formatDate(forceDateTime(endDateTime)))
 
@@ -713,9 +721,13 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 record = query.record()
                 ageCond = ''
                 profile = forceString(record.value('profile'))
-                isChild = forceBool(record.value('isChild'))
                 dayCount = forceInt(record.value('dayCount'))
                 _financeId = forceRef(record.value('finance_id'))
+                sex = forceInt(record.value('sex'))
+                age = forceInt(record.value('age'))
+                setDate = forceDate(record.value('setDate'))
+                isChild = (age < 18)
+                isSenior = isRetirementAge(sex, age, setDate)
                 if profile in profileWithAgeList:
                     ageCond = '<18' if isChild else '>=18'
                 if not profile:
@@ -726,7 +738,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 for key in keys:
                     days = mapProfileCountDays.setdefault(key, [0,0])
                     mapProfileCountDays[key][0] = days[0] + dayCount
-                    if forceBool(record.value('isSenior')):
+                    if isSenior:
                         mapProfileCountDays[key][1] = days[1] + dayCount
             return mapProfileCountDays
 
@@ -795,13 +807,11 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 cond.append(tableEvent['expose'].eq(1))
 
             cols = u'''     
-                            IF((Diagnosis.mkb='U07.1' or Diagnosis.mkb='U07.2') and rbHospitalBedProfile.regionalCode in ('1G','1I','13'), CONCAT(rbHospitalBedProfile.regionalCode,'COVID'), rbHospitalBedProfile.regionalCode) as profile,
-                            WorkDays(IF(Action.begDate < {begDate}, {begDate}, Action.begDate), IF(IFNULL(Action.endDate, {endDate}) >= {endDate}, {endDate}, Action.endDate), EventType.weekProfileCode, rbMedicalAidType.regionalCode)  AS dayCount,
-                            CASE 
-                                WHEN Event.setDate<'2022-01-01T00:00:00' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 60 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 55 year, 1, 0) 
-                                WHEN Event.setDate between '2022-01-01T00:00:00' and '2023-12-31T23:59:59' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 61 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 56 year, 1, 0) 
-                                WHEN Event.setDate>='2024-01-01T00:00:00' THEN IF(Client.sex = 1 and Client.birthDate <= Event.setDate - interval 62 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 57 year, 1, 0) 
-                            END as isSenior '''.format(
+                        IF((Diagnosis.mkb='U07.1' or Diagnosis.mkb='U07.2') and rbHospitalBedProfile.regionalCode in ('1G','1I','13'), CONCAT(rbHospitalBedProfile.regionalCode,'COVID'), rbHospitalBedProfile.regionalCode) as profile,
+                        WorkDays(IF(Action.begDate < {begDate}, {begDate}, Action.begDate), IF(IFNULL(Action.endDate, {endDate}) >= {endDate}, {endDate}, Action.endDate), EventType.weekProfileCode, rbMedicalAidType.regionalCode)  AS dayCount,
+                        Client.sex,
+                        age(Client.birthDate, Event.setDate) as age,
+                        Event.setDate'''.format(
                 begDate=db.formatDate(forceDateTime(begDateTime)),
                 endDate=db.formatDate(forceDateTime(endDateTime)))
 
@@ -812,9 +822,13 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 record = query.record()
                 profile = forceString(record.value('profile'))
                 dayCount = forceInt(record.value('dayCount'))
+                sex = forceInt(record.value('sex'))
+                age = forceInt(record.value('age'))
+                setDate = forceDate(record.value('setDate'))
+                isSenior = isRetirementAge(sex, age, setDate)
                 days = mapProfileCountDays.setdefault((profile, ''), [0, 0])
                 mapProfileCountDays[(profile, '')][0] = days[0] + dayCount
-                if forceBool(record.value('isSenior')):
+                if isSenior:
                     mapProfileCountDays[(profile, '')][1] = days[1] + dayCount
             return mapProfileCountDays
 
@@ -1112,6 +1126,9 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             table.setText(i, 16, reportLine[13])
 
         cursor.movePosition(QtGui.QTextCursor.End)
+        splitTitle(cursor, u'', u'Код по ОКЕИ: человек - 792')
+        cursor.setCharFormat(CReportBase.ReportBody)
+        cursor.insertText(u"Из общего числа пациентов, поступивших на платные койки - иностранные граждане - всего, чел 1 ________, из них дети 2 ________.")
         cursor.insertBlock()
         cursor.insertBlock()
         splitTitle(cursor, u'(3101)', u'Код по ОКЕИ: человек - 792')

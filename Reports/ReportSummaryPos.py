@@ -177,6 +177,7 @@ class CReportSummaryPosEx(CReportSummaryPos):
     def getSetupDialog(self, parent):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
+        result.loadPrefs()
         return result
 
 

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -50,6 +50,8 @@ class CVisitItemDelegate(QtGui.QItemDelegate):
             db = QtGui.qApp.db
             table = db.table('Visit')
             tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
+            tableRBEventTypePurpose = db.table('rbEventTypePurpose')
             tableDiagnosis = db.table('Diagnosis')
             tableDiagnostic = db.table('Diagnostic')
             tableDispanser = db.table('rbDispanser')
@@ -57,6 +59,8 @@ class CVisitItemDelegate(QtGui.QItemDelegate):
             queryTable = queryTable.innerJoin(tableDiagnostic, tableDiagnostic['event_id'].eq(tableEvent['id']))
             queryTable = queryTable.innerJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
             queryTable = queryTable.innerJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnostic['dispanser_id']))
+            queryTable = queryTable.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            queryTable = queryTable.innerJoin(tableRBEventTypePurpose, tableRBEventTypePurpose['id'].eq(tableEventType['purpose_id']))
             cond = [#table['date'].dateGe(takenDate),
                     tableDiagnosis['client_id'].eq(clientId),
                     tableEvent['client_id'].eq(clientId),
@@ -65,7 +69,8 @@ class CVisitItemDelegate(QtGui.QItemDelegate):
                     table['deleted'].eq(0),
                     tableDiagnosis['deleted'].eq(0),
                     tableDiagnostic['deleted'].eq(0),
-                    tableEvent['deleted'].eq(0)
+                    tableEvent['deleted'].eq(0),
+                    tableRBEventTypePurpose['purpose'].eq(6)
                     ]
             if visitIdList:
                 cond.append(table['id'].notInlist(visitIdList))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2018-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2018-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -152,17 +152,17 @@ def formTableAndCondtionForMse(tableTempInvalidDocumentId):
 
     tableTempInvalidDocumentAlias = db.table('TempInvalidDocument').alias('TID')
     tableTempInvalid          = db.table('TempInvalid')
-    tableEvent                = db.table('Event')
-    tableAction               = db.table('Action')
-    tableActionType           = db.table('ActionType')
+    # tableEvent                = db.table('Event')
+    # tableAction               = db.table('Action')
+    # tableActionType           = db.table('ActionType')
     # tableActionPropertyType   = db.table('ActionPropertyType')
     # tableActionProperty       = db.table('ActionProperty')
     # tableActionPropertyString = db.table('ActionProperty_String')
     table = tableTempInvalidDocumentAlias
     table = table.innerJoin(tableTempInvalid, tableTempInvalid['id'].eq(tableTempInvalidDocumentAlias['master_id']))
-    table = table.innerJoin(tableEvent, tableEvent['id'].eq(tableTempInvalid['event_id']))
-    table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
-    table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+    # table = table.innerJoin(tableEvent, tableEvent['id'].eq(tableTempInvalid['event_id']))
+    # table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+    # table = table.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
     # table = table.innerJoin(tableActionPropertyType, tableActionPropertyType['actionType_id'].eq(tableAction['actionType_id']))
     # table = table.innerJoin(tableActionProperty, [ tableActionProperty['action_id'].eq(tableAction['id']),
     #                                                tableActionProperty['type_id'].eq(tableActionPropertyType['id']),
@@ -172,11 +172,12 @@ def formTableAndCondtionForMse(tableTempInvalidDocumentId):
     # table = table.innerJoin(tableActionPropertyString, tableActionPropertyString['id'].eq(tableActionProperty['id']))
     # это условие "существует направление на МСЭ"
     cond = [ tableTempInvalidDocumentAlias['id'].eq(tableTempInvalidDocumentId),
-             tableEvent['deleted'].eq(0),
-             tableAction['deleted'].eq(0),
-             # tableAction['status'].eq(CActionStatus.withoutResult),
-             tableAction['endDate'].isNotNull(),
-             tableActionType['flatCode'].eq('inspection_mse'),
+             tableTempInvalid['mseDate'].isNotNull()
+             # tableEvent['deleted'].eq(0),
+             # tableAction['deleted'].eq(0),
+             # # tableAction['status'].eq(CActionStatus.withoutResult),
+             # tableAction['endDate'].isNotNull(),
+             # tableActionType['flatCode'].eq('inspection_mse'),
              # tableActionPropertyType['deleted'].eq(0),
              # tableActionPropertyType['name'].eq(u'номер ЛН'),
              # tableActionPropertyString['value'].eq(tableTempInvalidDocumentAlias['number'])
@@ -186,17 +187,18 @@ def formTableAndCondtionForMse(tableTempInvalidDocumentId):
 
 def getDateOfDirectionToMse(tempInvalidDocumentId):
     db = QtGui.qApp.db
-    tableAction = db.table('Action')
-    table, cond = formTableAndCondtionForMse(tempInvalidDocumentId)
+    tableTempInvalidDocument = db.table('TempInvalidDocument')
+    tableTempInvalid = db.table('TempInvalid')
+    table = tableTempInvalid.leftJoin(tableTempInvalidDocument,
+                                      tableTempInvalid['id'].eq(tableTempInvalidDocument['master_id']))
     record = db.getRecordEx(table,
-                            tableAction['endDate'],
-                            cond
+                            tableTempInvalid['mseDate'],
+                            tableTempInvalidDocument['id'].eq(tempInvalidDocumentId)
                             )
     if record:
-        return forceDate(record.value('endDate'))
+        return forceDate(record.value('mseDate'))
     else:
         return None
-
 
 def formConditionForDirectionToMse(tableTempInvalidDocument):
     db = QtGui.qApp.db

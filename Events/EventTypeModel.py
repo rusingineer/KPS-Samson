@@ -38,7 +38,7 @@ class CEventTypeTableModel(CTableModel):
         self.addColumn(CNumCol(    u'Мин.длительность', ['minDuration'], 10))
         self.addColumn(CNumCol(    u'Макс.длительность',['maxDuration'], 10))
         self.addColumn(CRefBookCol(u'Сервис ОМС',       ['service_id'], 'rbService', 10))
-        self._fieldNames = ['EventType.code', 'EventType.name', 'EventType.usishCode',
+        self._fieldNames = ['EventType.id', 'EventType.code', 'EventType.name', 'EventType.usishCode',
         'EventType.regionalCode', 'EventType.purpose_id', 'EventType.eventProfile_id',
         'EventType.medicalAidKind_id', 'EventType.medicalAidType_id', 'EventType.sex',
         'EventType.age', 'EventType.period', 'EventType.singleInPeriod',

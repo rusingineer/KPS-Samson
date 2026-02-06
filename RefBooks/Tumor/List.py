@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,12 +15,13 @@
 from library.interchange         import getDateEditValue, setDateEditValue
 from library.ItemsListDialog     import CItemsListDialog
 from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
-from library.TableModel          import CTextCol, CDateCol
-from library.Utils               import forceString, forceStringEx, toVariant, trim
+from library.TableModel import CTextCol, CDateCol
+from library.Utils import forceString, forceStringEx, toVariant, trim
 
 from RefBooks.Tables             import rbCode, rbName
 
 from .Ui_RBTumorEditor           import Ui_RBTumorEditor
+from ..Utils import CMKBOtoMKBXColumn
 
 
 class CRBTumorList(CItemsListDialog):
@@ -29,6 +30,7 @@ class CRBTumorList(CItemsListDialog):
             CTextCol(u'Код',          [rbCode], 20),
             CTextCol(u'Наименование', [rbName], 40),
             CTextCol(u'Диагноз',      ['MKB'], 20),
+            CMKBOtoMKBXColumn(u'Диагноз МКБ-10', ['MKB', 'begDate'],  20),
             CDateCol(u'Дата начала', ['begDate'], 20),
             CDateCol(u'Дата окончания', ['endDate'], 20)
             ], 'rbTumor', [rbCode, rbName, 'MKB'])

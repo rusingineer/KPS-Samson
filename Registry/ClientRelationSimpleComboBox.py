@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -36,6 +36,7 @@ class CClientRelationSimpleComboBox(CClientRelationComboBox):
         self.mainClientId = mainClientId
         self.clientId = None
         self.clientLowerId = None
+        self.needSNILS = False
         self.regAddressInfo = regAddressInfo
         self.logAddressInfo = logAddressInfo
         self.date = QDate.currentDate()
@@ -74,10 +75,18 @@ class CClientRelationSimpleComboBox(CClientRelationComboBox):
             self.clientLowerId = clientLowerId
 
 
+    def setNeedSNILS(self, value=False):
+        self.needSNILS = value
+
+
+    def getNeedSNILS(self):
+        return self.needSNILS
+
+
     def setValue(self, clientId):
         if not self.model().isReadOnly():
             self.clientId = clientId
-            self.updateText()
+            self.updateText(needSNILS=self.needSNILS)
             self.lineEdit().setCursorPosition(0)
 
 

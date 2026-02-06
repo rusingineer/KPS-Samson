@@ -1,20 +1,72 @@
 # -*- coding: utf-8 -*-
 
+import re
 import json
 import base64
-import re
 
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from PyQt4 import QtGui
+from library.Utils import forceDate, forceDateTime
+from Reports.Report import CReport, CVoidSetupDialog
+from Reports.ReportBase import CReportBase, createTable
 from library.DialogBase import CDialogBase
-from PyQt4.QtCore import Qt, pyqtSignature, QVariant
-from library.Utils import setPref, getPref, forceString
+from PyQt4.QtCore import Qt, pyqtSignature, QVariant, QAbstractTableModel
+from library.Utils import forceString
 
 from Ui_TMKInfo import Ui_tmkInfo
 from Ui_TMKReports import Ui_tmkReports
 
+
+def columnValidator(colName, values):
+    text = u"   "
+
+    if colName in values:
+        text = values[colName] if values[colName] else u'   '
+    elif 'nsi_code_{0}'.format(colName) in values:
+        text = values['nsi_code_{0}'.format(colName)] if values['nsi_code_{0}'.format(colName)] else u'   '
+
+    if "\n" in text:
+        text = text.replace("\n", "")
+
+    if colName == u'col_hdlogrw6ik6jd1iy2ngmja':
+        if values[u'status_name'] in (u'Заявка отменена/отклонена', u'Заключение готово'):
+            text = values[u'update_time']
+        else:
+            pass
+
+    if u'-' in text and u':' in text:
+        if colName == u'col_kz1npipauuoxfhwdzi43za':
+            try:
+                td = text.split(u"+")
+                date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
+                text = date_obj.strftime('%d.%m.%Y')
+            except:
+                pass
+
+        elif u'T' in text:
+            try:
+                td = text.split(u"+")
+                date_obj = datetime.strptime(td[0], '%Y-%m-%dT%H:%M:%S')
+                text = date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                pass
+
+        elif u" " in text:
+            try:
+                td = text.split(u"+")
+                date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
+                text = date_obj.strftime('%d.%m.%Y %H:%M')
+            except:
+                pass
+
+    if text == u"True":
+        text = u"Да"
+    elif text == u"False":
+        text = u"Нет"
+
+    return text
 
 
 class CTMKReports(CDialogBase, Ui_tmkReports):
@@ -22,6 +74,7 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
         self.parent = parent
+        self.setFilter = True
         self.setWindowTitle(u"ТМК-Отчет")
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
 
@@ -30,13 +83,13 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         self.url = u"http://{0}/tm-shared/api".format(ip_address.group(0))
         self.header = {'Accept': 'application/fhir+json'}
 
-        self.token = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'TMKServiceToken', 'value'))
+        self.token = '770bb750-0ad8-44f6-81a0-80fa4b6abf34'
         self.userId = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'TMKServiceUserId', 'value'))
         if not self.token or not self.userId or not self.url:
             QtGui.QMessageBox.information(
                 self,
         u'Ошибка',
-        u'Для работы сервиса, в настройках - предпочтениях - глобальные настройки, нужно указать Token и userID для сервиса ТМП',
+        u'Для работы сервиса, в настройках - предпочтениях - глобальные настройки, нужно указать userID для сервиса ТМК',
                 QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
         if self.token and self.userId and self.url:
             self.sessionId = self.getSessionId(self.token, self.userId)
@@ -44,24 +97,41 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         self.tableName = []
         self.tableTitle = []
         self.tableData = []
-
-        self.cmbFilterI._popupView._view.horizontalHeader().setDefaultSectionSize(20)
-
-        self.tableWidget.setSortingEnabled(True)
-        self.tableWidget.verticalHeader().hide()
-        self.tableWidget.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.listDescription = []
 
         self.chkGetData.setChecked(True)
 
         self.chkBoxPreferences = QtGui.qApp.preferences.appPrefs
 
         self.listId = [
-            '4e61e410-6de1-426f-ad3a-a0b1c6d10673',
-            '07f1a6d2-f38f-4466-b166-9529da109ea6'
+            '4e61e410-6de1-426f-ad3a-a0b1c6d10673'
         ]
 
-        self.listName = []
-        self.listDescription = []
+        self.setCmbTemplates()
+
+        self.lblTemplatesId.setVisible(False)
+        self.cmbTemplatesId.setVisible(False)
+
+        self.addModels('Report', CTMKReportModel(self))
+        self.setModels(self.tblReport, self.modelReport, self.selectionModelReport)
+        self.tblReport.setSortingEnabled(True)
+
+        self.tblReport.enableColsHide()
+        self.tblReport.enableColsMove()
+
+        self.cmbStatusName._popupView.lblFilterCode.setText(u'Наименование')
+        self.cmbStatusName._popupView.lblFilterName.setVisible(False)
+        self.cmbStatusName._popupView.edtFilterName.setVisible(False)
+
+        self.cmbOrganisation._popupView.lblFilterCode.setText(u'Наименование')
+        self.cmbOrganisation._popupView.lblFilterName.setVisible(False)
+        self.cmbOrganisation._popupView.edtFilterName.setVisible(False)
+
+        self.btnFilterApply.setFocus()
+
+    def setCmbTemplates(self):
+        """Устанавливаем названия доступных отчетов в комбобокс"""
+        listName = []
 
         for i in self.listId:
             r = requests.get(self.url + '/Reports/templates/' + i)
@@ -74,17 +144,18 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
                 data = (data.decode('utf-8'))
                 data = json.loads(data)
 
-                self.listName.append(data['name'])
+                listName.append(data['name'])
                 if data['accessDescription']:
                     self.listDescription.append(data['accessDescription'])
                 else:
-                    self.listDescription.append(u'Его нет')
+                    self.listDescription.append(u'Отчет без описания.')
 
-        self.cmbTemplatesId.setToolTip(u"Описание: {0}".format(self.listDescription[0]))
-        self.cmbTemplatesId.addItems(self.listName)
+        self.setDescription(self.listDescription[0])
 
+        self.cmbTemplatesId.addItems(listName)
 
     def getSessionId(self, token, userId):
+        """Авторизовываемся"""
         authHeaders = {
             'Content-type': 'application/fhir+json',
             'Accept': 'application/fhir+json',
@@ -110,8 +181,13 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
 
         return sessionId
 
-
     def getReportData(self, sessionId, fileId):
+        """ Запрашиваем ТМК отчет по выбранному из self.listId """
+        self.tableName = []
+        self.tableTitle = []
+        self.tableData = []
+        self.listDescription = []
+
         getReportDataHeaders = {
         'Content-type': 'application/fhir+json',
         'Accept': 'application/fhir+json',
@@ -168,149 +244,124 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
             data = json.loads(data)
             self.tableName = []
             self.tableTitle = []
-            newTable = []
 
             json_list = data['template']['reportColumns']
             sortedJsonList = sorted(json_list, key=lambda x: (unicode(x['name'])))
 
+            renameClmn = {
+                u'status_name': u'Статус заявки'
+            }
+
             for i in sortedJsonList:
-                self.tableName.append(i['name'])
+                if i['title'] in renameClmn:
+                    self.tableName.append(renameClmn[i['title']])
+                else:
+                    self.tableName.append(u"{0}".format(i['name']))
 
                 self.tableTitle.append(i['title'])
-            self.tableData = data['table']
 
-            fileId = self.cmbTemplatesId.currentIndex()
+            # clmnDateTime = []
+            self.tableData = []
+            for val in data['table']:
+                row = []
+                for idx, colName in enumerate(self.tableTitle):
+                    # TODO Наверное нужно определять тип данных, а не в стринг все кидать
+                    # text = val[colName]
+                    # if colName not in clmnDateTime and self.isDateTime(text):
+                    #     clmnDateTime.append(colName)
+                    row.append(forceString(columnValidator(colName, val)))
+                self.tableData.append(row)
 
-            idChk = forceString(getPref(self.chkBoxPreferences, 'chkBoxTMKTemplaceId-{0}'.format(self.listId[fileId]), ''))
-            if idChk:
-                idChk = idChk.split(',')
-                idChk = [int(x) for x in idChk]
+            self.setValuesCmb(self.tableData)
+            self.setLenRecord(len(self.tableData))
+            if self.setFilter:
+                self.setFilterParametrs()
+                self.setFilter = False
+            self.modelReport.setHeader(self.tableName)
+            self.modelReport.setHeaderEn(self.tableTitle)
+            self.modelReport.setItems(self.tableData)
+            # self.modelReport.setClmnDateTime([self.tableTitle.index(i) for i in clmnDateTime])
+            self.tblReport.resizeColumnsToContents()
+            self.tblReport.horizontalHeader().setStretchLastSection(True)
 
-            if idChk:
-                setPref(self.chkBoxPreferences, 'chkBoxTMKTemplaceId-{0}'.format(self.listId[fileId]), QVariant(','.join(str(el) for el in idChk)))
-
-            self.cmbFilterI.clear()
-            self.cmbFilterI.addItems(self.tableName)
-
-            textChk = u""
-
-            if idChk:
-                self.cmbFilterI.setCheckedRows(idChk)
-
-                for i in idChk:
-                    textChk += self.tableName[i] + u"\n"
-
-            self.cmbFilterI.setToolTip(textChk)
-
-            for i in self.tableData:
-                if self.filter(i):
-                    newTable.append(i)
-
-            self.upTable(newTable)
         else:
             QtGui.QMessageBox.warning(self,
                                       u'Внимание!',
                                       u'Данные о отчета по шаблону {0} не найденны'.format(fileId),
                                       QtGui.QMessageBox.Ok)
 
+    def setLenRecord(self, num):
+        self.lblNumRec.setText(u'Всего записей: {0}'.format(num))
 
-    def updateTable(self):
-        newTable = []
+    def setDescription(self, description):
+        self.cmbTemplatesId.setToolTip(u"Описание: {0}".format(description))
 
-        for i in self.tableData:
-            if self.filter(i):
-                newTable.append(i)
+    def setValuesCmb(self, values):
+        # Читаем наименования статусов и загоням в мульти комбо бокс или обычный.
+        cmbStatus = []
+        cmbOrganisation = []
 
-        self.tableWidget.clear()
-        self.upTable(newTable)
+        for val in values:
+            if val[self.tableTitle.index('col_pkm3viuqkam8fvren9ska')] not in cmbOrganisation:
+                cmbOrganisation.append(val[self.tableTitle.index('col_pkm3viuqkam8fvren9ska')])
 
+            if val[self.tableTitle.index('status_name')] not in cmbStatus:
+                cmbStatus.append(val[self.tableTitle.index('status_name')])
 
-    def upTable(self, newTable):
-        hide = self.cmbFilterI.getCheckedRows()
+        for val in cmbStatus:
+            self.cmbStatusName.addItem(val)
 
-        if hide:
-            fileId = self.cmbTemplatesId.currentIndex()
-            setPref(self.chkBoxPreferences, 'chkBoxTMKTemplaceId-{0}'.format(self.listId[fileId]), QVariant(','.join(str(el) for el in hide)))
-
-        self.tableWidget.setRowCount(len(newTable))
-        self.tableWidget.setColumnCount(int(len(self.tableName)))
-        self.tableWidget.setHorizontalHeaderLabels(self.tableName)
-        self.tableWidget.resizeColumnsToContents()
-
-        for n, i in enumerate(newTable):
-            for t in self.tableTitle:
-                self.tableWidget.setItem(n, self.tableTitle.index(t), QtGui.QTableWidgetItem(self.getText(t, i)))
+        for val in cmbOrganisation:
+            self.cmbOrganisation.addItem(val)
 
 
-        for n, i in enumerate(newTable):
-            self.tableWidget.showColumn(n)
+    # def isDateTime(self, val):
+    #     if val and u'-' in val and u':' in val:
+    #         if u'T' in val:
+    #             try:
+    #                 td = val.split(u"+")
+    #                 date_obj = datetime.strptime(td[0], '%Y-%m-%dT%H:%M:%S')
+    #                 text = date_obj.strftime('%d.%m.%Y %H:%M')
+    #                 return True
+    #             except:
+    #                 pass
+    #
+    #         elif u" " in val:
+    #             try:
+    #                 td = val.split(u"+")
+    #                 date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
+    #                 text = date_obj.strftime('%d.%m.%Y %H:%M')
+    #                 return True
+    #             except:
+    #                 pass
+    #     return False
 
-        for i in hide:
-            self.tableWidget.hideColumn(i)
+    def setFilterParametrs(self):
+        maxDate = None
+        minDate = None
 
+        idxDate = self.tableTitle.index(u'create_time')
 
-    def filter(self, data):
-        status = True
+        for values in self.tableData:
+            parmDate = values[idxDate]
+            parmDate = forceDate(datetime.strptime(parmDate, "%d.%m.%Y %H:%M"))
+            if parmDate > maxDate:
+                maxDate = parmDate
 
-        createApplBegDate = self.edtCreateApplicationBegDate.dateTime().toString('yyyy-MM-ddTHH:mm:ss')
-        createApplEndDate = self.edtCreateApplicationEndDate.dateTime().toString('yyyy-MM-ddTHH:mm:ss')
+            if minDate != None:
+                if parmDate < minDate:
+                    minDate = parmDate
+            else:
+                minDate = parmDate
 
-        create_time = data['create_time']
+        self.edtBegDate.setMaximumDate(maxDate)
+        self.edtBegDate.setMinimumDate(minDate)
 
-        if self.chkCreateApplicationBegDate.isChecked() or self.chkCreateApplicationEndDate.isChecked():
-            if self.chkCreateApplicationBegDate.isChecked():
-                if createApplBegDate <= create_time:
-                    status = True
-                else:
-                    status = False
+        self.edtEndDate.setMaximumDate(maxDate)
+        self.edtEndDate.setMinimumDate(minDate)
 
-            if self.chkCreateApplicationEndDate.isChecked():
-                if createApplEndDate >= create_time:
-                    status = True
-                else:
-                    status = False
-
-            if self.chkCreateApplicationBegDate.isChecked() and self.chkCreateApplicationEndDate.isChecked():
-                if createApplBegDate <= create_time <= createApplEndDate:
-                    status = True
-                else:
-                    status = False
-
-        return status
-
-
-    def getText(self, t, i):
-        text = u"   "
-
-        if t in i:
-            text = i[t] if i[t] else u'   '
-        elif 'nsi_code_{0}'.format(t) in i:
-            text = i['nsi_code_{0}'.format(t)] if i['nsi_code_{0}'.format(t)] else u'   '
-
-        if u'-' in text and u':' in text:
-            if u'T' in text:
-                try:
-                    date_obj = datetime.strptime(text, '%Y-%m-%dT%H:%M:%S')
-                    text = date_obj.strftime('%d.%m.%Y %H:%M')
-                except:
-                    pass
-
-            elif u"+" in text:
-                try:
-                    td = text.split(u"+")
-                    date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
-                    text = date_obj.strftime('%d.%m.%Y %H:%M')
-                    # text = text + u" +" + td[1]
-                except:
-                    pass
-
-        if text == u"True":
-            text = u"Да"
-        elif text == u"False":
-            text = u"Нет"
-
-        return text
-
+        self.edtBegDate.setDate(minDate)
+        self.edtEndDate.setDate(maxDate)
 
     @pyqtSignature('')
     def on_btnFilterApply_clicked(self):
@@ -318,70 +369,275 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
             QtGui.QMessageBox.information(
                 self,
         u'Ошибка',
-        u'Для работы сервиса, в настройках - предпочтениях - глобальные настройки, нужно указать Token и userID для сервиса ТМП',
+        u'Для работы сервиса, в настройках - предпочтениях - глобальные настройки, нужно указать userID для сервиса ТМК',
                 QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
 
         else:
             fileId = self.cmbTemplatesId.currentIndex()
-
             if self.chkGetData.isChecked():
-                # 4e61e410-6de1-426f-ad3a-a0b1c6d10673
-                # 07f1a6d2-f38f-4466-b166-9529da109ea6
-
                 self.getReportData(self.sessionId, self.listId[fileId])
                 self.chkGetData.setChecked(False)
-            else:
-                # Фильтруем существующие данные
-                self.updateTable()
 
+            reportFilter = {}
+            if self.chkBegDate.isChecked():
+                begDate = self.edtBegDate.date()
+                reportFilter['begDate'] = ['create_time', begDate]
+            if self.chkEndDate.isChecked():
+                endDate = self.edtEndDate.date()
+                reportFilter['endDate'] = ['create_time', endDate]
+
+            directions = self.cmbDirections.currentIndex()
+            reportFilter['directions'] = ['col_odvlnsmwikqcp4dxsmoq', directions]
+
+            statusName = self.cmbStatusName.value()
+            splStatName = statusName.replace(u'‚ ', u'‚').split(u'‚')
+            if splStatName != [u'']:
+                reportFilter['statusName'] = ['status_name', splStatName]
+
+            organisation = self.cmbOrganisation.value()
+            splOrg = organisation.replace(u'‚ ', u'‚').split(u'‚')
+            if splOrg != [u'']:
+                reportFilter['organisation'] = ['col_pkm3viuqkam8fvren9ska', splOrg]
+
+            self.modelReport.filter(reportFilter)
+            self.setLenRecord(self.modelReport.getLen())
 
     @pyqtSignature('')
     def on_btnFilterReset_clicked(self):
-        self.chkCreateApplicationBegDate.setChecked(False)
-        self.chkCreateApplicationEndDate.setChecked(False)
+        self.chkBegDate.setChecked(False)
+        self.chkEndDate.setChecked(False)
+        self.cmbDirections.setCurrentIndex(0)
+        self.modelReport.filter()
 
-        # Фильтруем существующие данные
-        self.updateTable()
+    @pyqtSignature('')
+    def on_btnPrint_clicked(self):
+        clmnHide = []
+        for column in range(self.tblReport.model().columnCount()):
+            if self.tblReport.isColumnHidden(column):
+                clmnHide.append(column)
 
+        reportHeader = []
+        for idx, val in enumerate(self.modelReport.getHeader()):
+            if idx not in clmnHide:
+                reportHeader.append(val)
+
+        reportItems = []
+        for value in self.modelReport.getItems():
+            itms = []
+            for idx, val in enumerate(value):
+                if idx not in clmnHide:
+                    itms.append(val)
+            reportItems.append(itms)
+
+        CReportTMKReports(self, reportHeader, reportItems).exec_()
 
     @pyqtSignature('QModelIndex')
-    def on_tableWidget_doubleClicked(self, index):
+    def on_tblReport_doubleClicked(self, index):
         row = index.row()
-        col = index.column()
         data = []
 
         for i in range(0, len(self.tableName)):
-            try:
-                value = self.tableWidget.item(row, i).text()
-                data.append(value)
-            except:
-                data.append(u'   ')
+            value = self.modelReport.item(row, i)
+            data.append(value)
 
         ReportInfo(self, data, self.tableName).exec_()
-
 
     @pyqtSignature('int')
     def on_cmbTemplatesId_currentIndexChanged(self):
         fileId = self.cmbTemplatesId.currentIndex()
-        self.cmbTemplatesId.setToolTip(u"Описание: {0}".format(self.listDescription[fileId]))
+        self.setDescription(self.listDescription[fileId])
         self.chkGetData.setChecked(True)
-
 
 
 class ReportInfo(QtGui.QDialog, Ui_tmkInfo):
     def __init__(self, parent, data, colName):
         QtGui.QDialog.__init__(self, parent)
         self.setupUi(self)
-        self.setWindowTitle(u'Свойства записи 2')
+        self.setWindowTitle(u'Свойства записи')
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self.data = data
         self.colName = colName
-
 
     def exec_(self):
         text = u''
 
-        for i in self.colName:
-            text += u'{0}: {1}\n'.format(i, self.data[self.colName.index(i)])
+        for colName in self.colName:
+            text += u'{0}: {1}\n'.format(
+                colName,
+                self.data[self.colName.index(colName)])
 
         self.edtInfo.setText(text)
         return QtGui.QDialog.exec_(self)
+
+
+class Col(object):
+    def __init__(self, title):
+        self._title = QVariant(title)
+        self._switchOff = True
+
+    def switchOff(self):
+        return self._switchOff
+
+    def title(self):
+        return self._title
+
+
+class CTMKReportModel(QAbstractTableModel):
+    def __init__(self, parent):
+        QAbstractTableModel.__init__(self, parent)
+        self._items = []
+        self.items = []
+        self._cols = []
+        self.header = []
+        # self.clmnDateTime = []
+        self.headerEn = []
+
+    def columnCount(self, index = None):
+        return len(self.header)
+
+    def rowCount(self, index = None):
+        return len(self.items)
+
+    def flags(self, index):
+        return Qt.ItemIsSelectable|Qt.ItemIsEnabled
+
+    def headerData(self, section, orientation, role = Qt.DisplayRole):
+        if orientation == Qt.Horizontal:
+            if role == Qt.DisplayRole:
+                return QVariant(self.header[section])
+        return QVariant()
+
+    def data(self, index, role=Qt.DisplayRole):
+        column = index.column()
+        row = index.row()
+        if role == Qt.DisplayRole:
+            item = self.items[row]
+            return QVariant(item[column])
+        return QVariant()
+
+    def loadData(self, items):
+        self.items = items
+        self.reset()
+
+    def setHeader(self, header):
+        self._cols = []
+        self.header = header
+        for clmnTitle in header:
+            self._cols.append(Col(clmnTitle))
+        self.reset()
+
+    def setHeaderEn(self, header):
+        self.headerEn = header
+
+    def setItems(self, items):
+        self._items = items
+        self.loadData(items)
+
+    # def setClmnDateTime(self, clmn):
+    #     self.clmnDateTime = clmn
+
+    def cols(self):
+        return self._cols
+
+    def getHeader(self):
+        return self.header
+
+    def getItems(self):
+        return self.items
+
+    def item(self, row, column):
+        return self.items[row][column]
+
+    def getLen(self):
+        return len(self.items)
+
+    def filter(self, filters=None):
+        if filters:
+            filterIterms = []
+
+            for values in self._items:
+                status = True
+                if 'begDate' in filters and status:
+                    idx = self.headerEn.index(filters['begDate'][0])
+                    begDate = forceDate(datetime.strptime(values[idx], "%d.%m.%Y %H:%M"))
+                    if begDate < filters['begDate'][1]:
+                        status = False
+
+                if 'endDate' in filters and status:
+                    idx = self.headerEn.index(filters['endDate'][0])
+                    begDate = forceDate(datetime.strptime(values[idx], "%d.%m.%Y %H:%M"))
+                    if begDate > filters['endDate'][1]:
+                        status = False
+
+                if 'directions' in filters and status:
+                    idx = self.headerEn.index(filters['directions'][0])
+                    lpuFullName = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'fullName')).upper()
+                    if filters['directions'][1] == 0:
+                        pass
+                    elif filters['directions'][1] == 1:
+                        if lpuFullName == values[idx].replace('. ', '.'):
+                            status = False
+                    elif filters['directions'][1] == 2:
+                        if lpuFullName != values[idx].replace('. ', '.'):
+                            status = False
+
+                if 'statusName' in filters and status:
+                    if filters['statusName'][1]:
+                        idx = self.headerEn.index(filters['statusName'][0])
+                        if values[idx] not in filters['statusName'][1]:
+                            status = False
+
+                if 'organisation' in filters and status:
+                    if filters['organisation'][1]:
+                        idx = self.headerEn.index(filters['organisation'][0])
+                        if values[idx] not in filters['organisation'][1]:
+                            status = False
+
+                if status:
+                    filterIterms.append(values)
+
+            self.loadData(filterIterms)
+        else:
+            self.loadData(self._items)
+
+    def sort(self, column, order=Qt.AscendingOrder):
+        # TODO Добавь логику сортировки в зависимости от типа колонки
+        reverse = order == Qt.DescendingOrder
+        # if self.clmnDateTime and column in self.clmnDateTime:
+        #     self.items.sort(key=lambda x: forceDateTime(x[column]) if x else None, reverse=reverse)
+        # else:
+        self.items.sort(key=lambda x: forceString(x[column]).lower() if x else None, reverse=reverse)
+        self.reset()
+
+
+class CReportTMKReports(CReport):
+    def __init__(self, parent, header, items):
+        CReport.__init__(self, parent)
+        self.setTitle(u'Печать отчета')
+        self.header = header
+        self.items = items
+
+    def getSetupDialog(self, parent):
+        return CVoidSetupDialog(parent)
+
+    def build(self, params):
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Печать отчета')
+        cursor.insertBlock()
+
+        tableColumns = []
+
+        width = str(int(100 / len(self.header)))
+        for head in self.header:
+            tableColumns.append(('{0}%'.format(width), [u'{0}'.format(head)], CReportBase.AlignLeft))
+
+        table = createTable(cursor, tableColumns)
+
+        for values in self.items:
+            row = table.addRow()
+            for idx, val in enumerate(values):
+                table.setText(row, idx, forceString(val))
+
+        return doc

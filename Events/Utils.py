@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -470,6 +470,13 @@ class CEquipmentDescription(CDbEntityCache):
 
 
 class CEventTypeDescription(CDbEntityCache):
+    STATIONARY_CODES = ('1', '2', '3')
+    DAY_STATIONARY_CODES = ('7',)
+    STOMATOLOGY_CODES = ('9', '10')
+    HEALTH_RESORT_CODES = ('8',)
+
+    ALL_STATIONARY_CODES = STATIONARY_CODES + DAY_STATIONARY_CODES
+
     cache = {}
     mapCodeToId = {}
 
@@ -574,7 +581,11 @@ class CEventTypeDescription(CDbEntityCache):
                                        'showButtonNomenclatureExpense',
                                        'showButtonJobTickets',
                                        'relOrg_id',
-                                       'relcounter_id'
+                                       'relcounter_id',
+                                       # 'isPaymentApprovalAlwaysIncluded',
+                                       # 'defaultPayer',
+                                       'availableOrders',
+                                       #'checkCompletedEventsOMS'
                                        ), tableEventType['id'].eq(eventTypeId))
         if not record:
             record = QtSql.QSqlRecord()
@@ -638,9 +649,10 @@ class CEventTypeDescription(CDbEntityCache):
         self.aidTypeId   = forceRef(record.value('aidType_id'))
         self.aidTypeCode = forceString(record.value('aidTypeCode'))
         self.aidTypeRegionalCode = forceString(record.value('aidTypeRegionalCode'))
-        self.isStationary = self.aidTypeCode in ('1', '2', '3')
-        self.isDayStationary = self.aidTypeCode == '7'
-        self.isHealthResort = self.aidTypeCode == '8'
+        self.isStationary = self.aidTypeCode in self.STATIONARY_CODES
+        self.isDayStationary = self.aidTypeCode in self.DAY_STATIONARY_CODES
+        self.isStomatology = self.aidTypeCode in self.STOMATOLOGY_CODES
+        self.isHealthResort = self.aidTypeCode in self.HEALTH_RESORT_CODES
         self.showStatusActionsInPlanner = forceBool(record.value('showStatusActionsInPlanner'))
         self.showDiagnosticActionsInPlanner = forceBool(record.value('showDiagnosticActionsInPlanner'))
         self.showCureActionsInPlanner = forceBool(record.value('showCureActionsInPlanner'))
@@ -670,6 +682,7 @@ class CEventTypeDescription(CDbEntityCache):
         self.keepVisitParity = forceBool(record.value('keepVisitParity'))
         self.isRestrictVisitTypeAgeSex = forceBool(record.value('isRestrictVisitTypeAgeSex'))
         self.mesSpecificationId = forceRef(record.value('mesSpecification_id'))
+        self.availableOrders = forceString(record.value('availableOrders'))
         self.plannedInspections = None
         self.mapPlannedInspectionSpecialityIdToServiceId = {}
         self.mapPlannedSpecialityIdVisitTypeIdList = {}
@@ -1051,6 +1064,11 @@ def getEventAidKindCode(eventTypeId):
 def getIsDayStationary(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).isDayStationary
 
+def getIsStationary(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).isStationary
+
+def getIsStomatology(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).isStomatology
 
 def getIsHealthResort(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).isHealthResort
@@ -1155,6 +1173,13 @@ def getEventSetPerson(eventTypeId):
 
 def getEventActionsControlRequired(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).actionsControlEnabled
+
+
+# def getEventIsPaymentApprovalAlwaysIncluded(eventTypeId):
+#     return CEventTypeDescription.get(eventTypeId).isPaymentApprovalAlwaysIncluded
+
+def getEventAvailableOrders(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).availableOrders
 
 
 # #######################################################################
@@ -2258,16 +2283,14 @@ def getActionTypeDescendants(actionTypeId, class_=None):
     result = set([actionTypeId])
     parents = [actionTypeId]
 
-    if actionTypeId and class_ is None:
-        class_ = db.translate(tableActionType, 'id', actionTypeId, 'class')
-    if class_:
+    if class_ is not None:
         classCond = tableActionType['class'].eq(class_)
     else:
-        classCond = None
+        classCond = ''
     while parents:
         cond = tableActionType['group_id'].inlist(parents)
         if classCond:
-          cond = [cond, classCond]
+            cond = [cond, classCond]
         children = set(db.getIdList(tableActionType, where=cond))
         newChildren = children-result
         result |= newChildren
@@ -2370,12 +2393,20 @@ class CTableSummaryActionsMenuMixin():
     
     def canUnbindRow(self, rows):
         from Events.Action import CActionTypeCache
-        tabs = {
-            0: self.tabStatus,
-            1: self.tabDiagnostic,
-            2: self.tabCure,
-            3: self.tabMisc
-        }
+        if hasattr(self, 'tabStatus'):
+            tabs = {
+                0: self.tabStatus,
+                1: self.tabDiagnostic,
+                2: self.tabCure,
+                3: self.tabMisc
+            }
+        else:
+            tabs = {
+                0: self.tabActions,
+                1: self.tabActions,
+                2: self.tabActions,
+                3: self.tabActions
+            }
         
         def afterReturnCond(actions):
             db = QtGui.qApp.db
@@ -2462,6 +2493,18 @@ class CTableSummaryActionsMenuMixin():
                     if not (forceInt(record.value('person_id')) and QtGui.qApp.userId in getPersonOrgStructureChiefs(forceInt(record.value('person_id')))):
                         return False
                 return True
+            elif len(relatedRows)> 0:
+                # ТТ3431 Дать возможность откреплять мероприятия - Надо,чтобы свои действия врач мог откреплять без этих прав
+                for record, action in relatedRows:
+                    if not (forceInt(record.value('setPerson_id')) == QtGui.qApp.userId or forceInt(record.value('person_id')) == QtGui.qApp.userId  or forceInt(record.value('createPerson_id')) == QtGui.qApp.userId):
+                        return False
+                return True
+        elif len(relatedRows)> 0:
+            # ТТ3431 Дать возможность откреплять мероприятия - Надо,чтобы свои действия врач мог откреплять без этих прав
+            for record, action in relatedRows:
+                if not (forceInt(record.value('setPerson_id')) == QtGui.qApp.userId or forceInt(record.value('person_id')) == QtGui.qApp.userId  or forceInt(record.value('createPerson_id')) == QtGui.qApp.userId):
+                    return False
+            return True
         return False
 
 
@@ -2541,12 +2584,21 @@ class CTableSummaryActionsMenuMixin():
 
     def on_actUnBindAction_triggered(self):
         from Events.Action import CActionTypeCache
-        tabs = {
-            0: self.tabStatus,
-            1: self.tabDiagnostic,
-            2: self.tabCure,
-            3: self.tabMisc
-        }
+        
+        if hasattr(self, 'tabStatus'):
+            tabs = {
+                0: self.tabStatus,
+                1: self.tabDiagnostic,
+                2: self.tabCure,
+                3: self.tabMisc
+            }
+        else:
+            tabs = {
+                0: self.tabActions,
+                1: self.tabActions,
+                2: self.tabActions,
+                3: self.tabActions
+            }
         
         def nomenclatureGroupingRows(rows):
             newRows = []
@@ -2745,6 +2797,7 @@ class CTableSummaryActionsMenuMixin():
                             return False
                     if self.modelActionsSummary.table.newRecord().count() != record.count():
                         action._record = self.modelActionsSummary.removeExtCols(record)
+                    action.setChanged(True)
                     actionId = action.save(eventId, idx=0, checkModifyDate=False)
                     actionIdList.append(actionId)
                     rowsList = rowsSortByPagesTables.get(tbl, None)
@@ -3005,11 +3058,20 @@ def isDefaultResultIdValid(resultId, eventPurposeId, condition):
 
 
 
-def mkbIsOnko(mkb1, mkb2):
-    if (mkb1 and len(mkb1) > 1 and mkb1[0] == 'C') or (
-            mkb1 and mkb2 and mkb1[:3] == 'D70' and (('C00' <= mkb2[:3] <= 'C80') or (mkb2[:3] == 'C97'))) or (
-            mkb1 and ('D00' <= mkb1[:3] <= 'D09')) or (mkb1 and ('D45' <= mkb1[:3] <= 'D47')):
-        return True
+def mkbIsOnko(mkb1, mkb2, includeHematologyMKB=1):
+    if (mkb1 and len(mkb1) > 1 and mkb1[0] == 'C') \
+            or (mkb1 and mkb2 and mkb1[:3] == 'D70' and (('C00' <= mkb2[:3] <= 'C80') or (mkb2[:3] == 'C97'))) \
+            or (mkb1 and ('D00' <= mkb1[:3] <= 'D09')) \
+            or (mkb1 and ('D45' <= mkb1[:3] <= 'D47')):
+        if includeHematologyMKB:
+            return True
+        #в таблице soc_cancerHemaBlood неожиданно русская раскладка для диагнозов C
+        mkbList = [mkb1]
+        if mkb1.startswith(u'C'):
+            mkbList.append(mkb1.replace(u'C', u'С'))
+        table = QtGui.qApp.db.table('soc_cancerHemaBlood')
+        if not QtGui.qApp.db.getRecordEx(table, '*', [table['mkb'].inlist(mkbList)]):
+            return True
     return False
 
 
@@ -3997,3 +4059,27 @@ def getNomenclatureIdSmnnLfFormIdList(nomenclatureId):
     return nomenclatureIdSmnnLfFormIdList   
 
 
+def getClinicalGroupMKBPrevEvent(MKB, eventId, clientId, setDate):
+    MKB = forceStringEx(MKB)
+    db = QtGui.qApp.db
+    tableDiagnostic = db.table('Diagnostic')
+    tableDiagnosis = db.table('Diagnosis')
+    tableEvent = db.table('Event')
+    cols = [tableDiagnostic['clinicalGroup'],
+            tableEvent['setDate'],
+            tableEvent['execDate']
+            ]
+    cond = [tableDiagnosis['client_id'].eq(clientId),
+            tableDiagnosis['MKB'].eq(MKB),
+            tableEvent['deleted'].eq(0),
+            tableDiagnosis['deleted'].eq(0),
+            tableDiagnostic['deleted'].eq(0)
+            ]
+    if eventId:
+        cond.append(tableEvent['id'].ne(eventId))
+    if setDate:
+        cond.append(tableEvent['setDate'].dateLe(setDate))
+    queryTable = tableEvent.innerJoin(tableDiagnostic, tableDiagnostic['event_id'].eq(tableEvent['id']))
+    queryTable = queryTable.innerJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+    record = db.getRecordEx(queryTable, cols, cond, ['Event.setDate, Event.execDate DESC'])
+    return forceStringEx(record.value('clinicalGroup')) if record else ''

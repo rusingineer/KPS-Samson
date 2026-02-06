@@ -172,8 +172,8 @@ def selectData2(params, isReport2710 = False):
     queryTable = queryTable.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
     queryTable = queryTable.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
 
-    cond = [tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+    cond = [tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableEvent['deleted'].eq(0),
             tableAction['deleted'].eq(0),
             tableActionType['deleted'].eq(0),

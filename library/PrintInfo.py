@@ -223,7 +223,7 @@ class CIdentificationInfoMixin:
                 list_record_from_view = None
                 if query_check_view.next():
                     view_exist = True
-                    list_record_from_view = QtGui.qApp.db.getRecordList(urn.replace(u'urn:oid:', u'v'))
+                    list_record_from_view = QtGui.qApp.db.getRecordList(u"`" + urn.replace(u'urn:oid:', u'v') + u"`", u"*" )
                 if records:
                     result = []
                     for record in records:

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -31,6 +31,7 @@ class CStrComboBox(CBaseMultivalue, CROComboBox):
         self._variants = []
         self._regexps  = []
         self._methodsNames = {'mc' : (self.setMultivalueChecking, (True, ))}
+        self.installEventFilter(self)
 
 
     def setDomain(self, domain, isUpdateCurrIndex=True):

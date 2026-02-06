@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -75,7 +75,12 @@ from library.pdf417        import pdf417image
 from library.Barcodes.qrcode     import qrcodeImage
 from library.Barcodes.datamatrix import datamatrixImage
 from library.Utils import forceInt, forceRef, forceString, forceStringEx, smartDict, unformatSNILS, toVariant, forceBool
+try:
+    from lxml import etree
+except:
+    etree = None
 
+# import io
 
 u"""Шаблоны печати"""
 
@@ -429,15 +434,16 @@ def compileTemplate(template, fromWidget=None, templateId=None):
 
 
 class CTemplateExecutionResult(object):
-    __slots__ = ('documentName', 'content', 'canvases', 'supplements', 'currentAction', 'propertiesData')
+    __slots__ = ('documentName', 'content', 'canvases', 'supplements', 'currentAction', 'propertiesData', 'variables')
 
-    def __init__(self, documentName, content, canvases, supplements, currentAction=None, propertiesData={}):
+    def __init__(self, documentName, content, canvases, supplements, currentAction=None, propertiesData={}, variables=None):
         self.documentName = documentName
         self.content = content
         self.canvases = canvases
         self.supplements = supplements
         self.currentAction = currentAction
         self.propertiesData = propertiesData
+        self.variables = variables
 
 
 def execTemplate(documentName, code, data, templateId, pageFormat=None, fromWidget=None):
@@ -472,6 +478,7 @@ def execTemplate(documentName, code, data, templateId, pageFormat=None, fromWidg
             supplements = execContext.getSupplements()
             documentName = execContext.getDocumentName()
             supressPreview = execContext.supressPreview
+            variables = execContext.globals
         except SystemExit:
             supressPreview = True
         finally:
@@ -481,7 +488,7 @@ def execTemplate(documentName, code, data, templateId, pageFormat=None, fromWidg
         if supressPreview:
             return CTemplateExecutionResult(None, None, None, None)
         else:
-            return CTemplateExecutionResult(documentName, stream.getvalue(), canvases, supplements)
+            return CTemplateExecutionResult(documentName, stream.getvalue(), canvases, supplements, variables=variables)
     except ETemplateContext, ex:
         if fromWidget:
             fromWidget.setText(u'ОШИБКА ЗАПОЛНЕНИЯ ШАБЛОНА')
@@ -592,11 +599,11 @@ def applyTemplateInt(widget, name, template, data, templateType=htmlTemplate, fr
         if templateType == exaroTemplate:
             printExaroTemplate(templateResult.content, None, True)
         elif templateType == svgTemplate:
-            showSVG(widget, templateResult, pageFormat, signAndAttachHandler, printBlank, btnRedoInfo)
+            showSVG(widget, templateResult, pageFormat, signAndAttachHandler, printBlank, btnRedoInfo, data)
         elif templateType == cssTemplate:
             showCSS(widget, templateResult.content, data)
         else:
-            showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler, btnRedoInfo)
+            showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler, btnRedoInfo, data)
 
 # ###
 
@@ -722,7 +729,7 @@ def applyMultiTemplateListInt(widget, templateIdAndDataList, fromWidget=None, si
         showHtml(widget, templateResult, pageFormat, fromWidget, signAndAttachHandler)
 
 
-def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachHandler=None, btnRedoInfo = None):
+def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachHandler=None, btnRedoInfo = None, data = None):
     if fromWidget:
         fromWidget.setText(templateResult.content)
         fromWidget.setCanvases(templateResult.canvases)
@@ -738,6 +745,9 @@ def showHtml(widget, templateResult, pageFormat, fromWidget=None, signAndAttachH
         reportView.setSupplements(templateResult.supplements)
         reportView.setPageFormat(pageFormat)
         reportView.setSignAndAttachHandler(signAndAttachHandler)
+        if data and 'signerPerson' in data.keys():
+            signer = data['signerPerson']
+            reportView.setSignerPerson(signer)
         reportView.setRedoInfo(btnRedoInfo)
 
         # для самосборного эпикриза
@@ -1317,10 +1327,39 @@ class ETemplateContext(Exception):
         return self._rusText
 
 
+def clearCommentCDA(value):
+    if etree:
+        check = None
+        content = value.encode('utf-8')
+        if '<?xml-stylesheet' not in value:
+            check = 1
+            content = content.replace('<?xml version="1.0" encoding="UTF-8"?>', '<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type="text/xsl" href="Shema.xsl"?>\n'.encode('utf-8'))
+
+        tree = etree.fromstring(content)
+        coms = tree.xpath('//comment()')
+
+        for c in coms:
+            p = c.getparent()
+            p.remove(c)
+
+        xslt_root = '<?xml version="1.0" encoding="UTF-8"?>\n'.encode('utf-8') + etree.tostring(tree.getprevious(), encoding='utf-8') + '\n'.encode('utf-8')
+
+        content = xslt_root + etree.tostring(tree, encoding='utf-8')
+
+        if check:
+            content = content.replace('<?xml-stylesheet type="text/xsl" href="Shema.xsl"?>', '')
+
+        return content.decode('utf-8')
+    else:
+        return value
+
 class CTemplateContext(object):
     def __init__(self, data, infoContext, stream, documentName, pageFormat, templateId):
         self.data = data
         self.pyplot = None
+        urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+        if not urlService:
+            urlService = QtGui.qApp.preferences.dbServerName
         now = QDateTime.currentDateTime()
         self.templateId = templateId
         builtins = {
@@ -1350,6 +1389,7 @@ class CTemplateContext(object):
                  'datamatrixUrl'       : self.datamatrixUrl,
                  'datamatrix'          : self.datamatrix,
                  'code128'             : code128,
+                 'clearCommentCDA'       : clearCommentCDA,
                  'p38code'             : self.p38code,
                  'p38code23'           : self.p38code23,
                  'p38test'             : self.p38test,
@@ -1361,7 +1401,7 @@ class CTemplateContext(object):
                  'declination'       : self.declination,
                  'dialogs'             : infoContext.getInstance(CDialogsInfo),
                  'write'               : lambda string: '' if stream.write(string) else '',
-                 'dbServerName'        : QtGui.qApp.preferences.dbServerName,
+                 'dbServerName'        : urlService,
                  'defaultKLADR'        : QtGui.qApp.defaultKLADR(),
                  'provinceKLADR'       : QtGui.qApp.provinceKLADR(),
                  'getKLADRName'        : self.getKLADRName,
@@ -1722,6 +1762,17 @@ class CTemplateContext(object):
                 u' отличном от html не реализована</BODY></HTML>'
 
         templateResult = compileAndExecTemplate(templateName, template, self.globals)
+        
+        if templateResult.supplements:
+            for key, innerSupplement in templateResult.supplements.items():
+                if key in self._supplements:
+                    self._supplements[key] += "\n" + innerSupplement
+                else:
+                    self._supplements[key] = innerSupplement
+        if templateResult.variables:
+            for key, var in templateResult.variables.items():
+                self.globals.setdefault(key, var)
+                
         return templateResult.content
 
 
@@ -1734,7 +1785,10 @@ class CTemplateContext(object):
 
 
     def addSupplement(self, name, supplement):
-        self._supplements[name] = supplement
+        if name in self._supplements:
+            self._supplements[name] = supplement + "\n" + self._supplements[name]
+        else:
+            self._supplements[name] = supplement
 
 
     def getSupplements(self):

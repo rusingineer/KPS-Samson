@@ -65,13 +65,13 @@ def selectVisitsData(params):
              tableClient['deleted'].eq(0),
              tableVisit['deleted'].eq(0),
              tableOrgStructure['deleted'].eq(0),
-             tableEvent['setDate'].dateLe(tableVisit['date'])
+             tableEvent['setDate'].lt(tableVisit['date'].addDays(1))
             ]
 
     if begDate:
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate).addDays(1))
     if purposeId:
         cond.append(tableEventType['purpose_id'].eq(purposeId))
     if eventTypeId:
@@ -144,9 +144,9 @@ def selectActionsData(params):
            ]
 
     if begDate:
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
     if purposeId:
         cond.append(tableEventType['purpose_id'].eq(purposeId))
     if eventTypeId:

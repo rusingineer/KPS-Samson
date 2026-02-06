@@ -43,7 +43,7 @@ def selectData(params):
     sex = params.get('sex', 0)
     ageFrom = params.get('ageFrom', 0)
     ageTo = params.get('ageTo', 150)
-
+    exDied = params.get('exDied', 0)
     db = QtGui.qApp.db
 
     tableEvent = db.table('Event').alias('e')
@@ -55,11 +55,13 @@ def selectData(params):
     tableDiagnostic = db.table('Diagnostic')
     tablerbDisp = db.table('rbDispanser')
     tablePerson = db.table('Person')
+    tableDeAttachType = db.table('rbDeAttachType')
 
     cond = [
         tableEvent['client_id'].isNotNull(),
         tableClientAttach['deleted'].eq(0),
         tableClientAttach['endDate'].isNull(),
+        tableClient['deleted'].eq(0),
         "not rat.outcome"
     ]
 
@@ -83,12 +85,16 @@ def selectData(params):
         # cond.append('Diagnostic.endDate >= ADDDATE(c.birthDate, INTERVAL %d YEAR)'%ageFrom)
         # cond.append('Diagnostic.endDate < SUBDATE(ADDDATE(c.birthDate, INTERVAL %d YEAR),1)'%(ageTo+1))
         cond.append('(e.execDate >= ADDDATE(c.birthDate, INTERVAL %d YEAR)) AND (e.execDate < ADDDATE(c.birthDate, INTERVAL %d YEAR))''' % (ageFrom, ageTo+1))
+    if exDied:
+        cond.append(db.joinOr([tableClient['deathDate'].isNull(), tableDeAttachType['regionalCode'].ne(2)]))
+
 
     queryTable = tableClient
     queryTable = queryTable.leftJoin(tableEvent, tableEvent['client_id'].eq(tableClient['id']))
     queryTable = queryTable.leftJoin(tablePerson, tableEvent['execPerson_id'].eq(tablePerson['id']))
     queryTable = queryTable.leftJoin(tableClientAttach, "ca.id = getClientAttachId(c.id,2)")
     queryTable = queryTable.leftJoin(tableAttachType, (tableClientAttach['attachType_id'].eq(tableAttachType['id'])))
+    queryTable = queryTable.leftJoin(tableDeAttachType, (tableClientAttach['deAttachType_id'].eq(tableDeAttachType['id'])))
     queryTable = queryTable.leftJoin(tableOrgStructure,
                                      tableOrgStructure['id'].eq(tableClientAttach['orgStructure_id']))
     queryTable = queryTable.leftJoin(tableClientDocument, "cd.id = getClientDocumentId(c.id)")
@@ -124,12 +130,12 @@ def selectData(params):
     # cond.append(tableClient['id'].inlist(listClientId))
     querytable3 = tableEvent
     cond3 = [tableEvent['client_id'].isNotNull(),
-             tableEvent['execDate'].dateGe(begDate),
-             tableEvent['execDate'].dateLe(endDate)]
+             tableEvent['execDate'].ge(begDate),
+             tableEvent['execDate'].lt(endDate.addDays(1))]
     cols3 = tableEvent['client_id'].alias('clientId')
     listClientId = readQuery(db.query(db.selectStmt(querytable3, cols3, cond3)))
     cond.append(tableClient['id'].notInlist(listClientId))
-    stmt = db.selectStmtGroupBy(queryTable, cols, cond, group='clientId')
+    stmt = db.selectStmtGroupBy(queryTable, cols, cond, group='clientId', order='c.`lastName`, c.`firstName`, c.`patrName`')
     return db.query(stmt)
 
 
@@ -262,6 +268,7 @@ class CReportSummaryClientNotApplyDialog(QtGui.QDialog, Ui_ReportSummaryClientNo
         self.cmbSex.setCurrentIndex(params.get('sex', 0))
         self.edtAgeFrom.setValue(params.get('ageFrom', 0))
         self.edtAgeTo.setValue(params.get('ageTo', 150))
+        self.cbExDied.setChecked(params.get('exDied', 0))
 
     def params(self):
         result = {}
@@ -275,6 +282,7 @@ class CReportSummaryClientNotApplyDialog(QtGui.QDialog, Ui_ReportSummaryClientNo
         result['sex'] = self.cmbSex.currentIndex()
         result['ageFrom'] = self.edtAgeFrom.value()
         result['ageTo'] = self.edtAgeTo.value()
+        result['exDied'] = self.cbExDied.checkState()
         return result
 
     @pyqtSignature('int')

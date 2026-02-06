@@ -14,10 +14,15 @@ LEFT JOIN ActionType ON ActionType.id = Action.actionType_id
 LEFT JOIN rbService ON rbService.id = ActionType.nomenclativeService_id
 LEFT JOIN Contract ON Contract.id = Event.contract_id
 LEFT JOIN rbFinance on rbFinance.id = coalesce(Action.finance_id, Contract.finance_id)
-LEFT JOIN Contract_Tariff ct ON ct.master_id in (Contract.id, Contract.priceListExternal_id)
-    and ct.service_id = rbService.id and ct.deleted = 0
-    and (ct.endDate is not null and DATE(Action.endDate) between ct.begDate and ct.endDate
-    or DATE(Action.endDate) >= ct.begDate and ct.endDate is null) and ct.tariffType in (2,5)
+LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                                        (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                                            and ct1.service_id = rbService.id and ct1.deleted = 0
+                                            and (ct1.endDate is not null and DATE(Action.endDate) between ct1.begDate and ct1.endDate
+                                            or DATE(Action.endDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType in (2,5) LIMIT 1),
+                                        (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                                            and ct2.service_id = rbService.id and ct2.deleted = 0
+                                            and (ct2.endDate is not null and DATE(Action.endDate) between ct2.begDate and ct2.endDate
+                                            or DATE(Action.endDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType in (2,5) LIMIT 1))
 LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
   FROM Diagnostic
   INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
@@ -37,7 +42,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
             WHERE cp.client_id = Client.id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= Event.execDate))),
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
    (SELECT MAX(cp2.id)
             FROM ClientPolicy cp2
             WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
@@ -56,7 +61,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
           WHERE cp.client_id = Event.relative_id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= Event.execDate)
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
              )))
 LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
 LEFT JOIN rbMedicalAidType mt ON mt.id = case when rbMedicalAidType.regionalCode in ('271', '272') and Event.execDate >= '2020-05-01' then (select mat.id from rbMedicalAidType mat where mat.regionalCode = IF(rbMedicalAidType.regionalCode = '271', '21', '22') limit 1) else rbMedicalAidType.id end
@@ -71,10 +76,16 @@ LEFT JOIN rbMedicalAidType ON EventType.medicalAidType_id = rbMedicalAidType.id
 LEFT JOIN rbEventProfile ep on ep.id = EventType.eventProfile_id
 LEFT JOIN Contract ON Contract.id = Event.contract_id
 LEFT JOIN rbFinance on rbFinance.id = coalesce(Visit.finance_id, Contract.finance_id)
-LEFT JOIN Contract_Tariff ct ON ct.master_id in (Contract.id, Contract.priceListExternal_id)
-    and ct.tariffType = 0 and ct.service_id = rbService.id and ct.deleted = 0
-    and (ct.endDate is not null and DATE(Visit.date) between ct.begDate and ct.endDate
-    or DATE(Visit.date) >= ct.begDate and ct.endDate is null)
+LEFT JOIN Contract_Tariff ct ON ct.id = (COALESCE(
+                                           (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                                                and ct1.tariffType = 0 and ct1.service_id = rbService.id and ct1.deleted = 0
+                                                and (ct1.endDate is not null and DATE(Visit.date) between ct1.begDate and ct1.endDate
+                                                or DATE(Visit.date) >= ct1.begDate and ct1.endDate IS NULL) LIMIT 1),
+                                           (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                                                and ct2.tariffType = 0 and ct2.service_id = rbService.id and ct2.deleted = 0
+                                                and (ct2.endDate is not null and DATE(Visit.date) between ct2.begDate and ct2.endDate
+                                                or DATE(Visit.date) >= ct2.begDate and ct2.endDate IS NULL) LIMIT 1))
+)
 LEFT JOIN Person ON Person.id = Visit.person_id
 LEFT JOIN Client on Client.id = Event.client_id
 LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
@@ -84,7 +95,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
             WHERE cp.client_id = Client.id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate))),
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate)))),
    (SELECT MAX(cp2.id)
             FROM ClientPolicy cp2
             WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
@@ -103,10 +114,19 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
           WHERE cp.client_id = Event.relative_id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate)
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate))
              )))
 LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
 LEFT JOIN rbMedicalAidType mt ON mt.id = case when rbMedicalAidType.regionalCode in ('271', '272') and Event.execDate >= '2020-05-01' then (select mat.id from rbMedicalAidType mat where mat.regionalCode = IF(rbMedicalAidType.regionalCode = '271', '21', '22') limit 1) else rbMedicalAidType.id end
+LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
+  FROM Diagnostic
+  INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
+  WHERE Diagnostic.event_id = Event.id
+  AND Diagnostic.deleted = 0
+  AND rbDiagnosisType.code IN ('1', '2', '4')
+  ORDER BY rbDiagnosisType.code
+  LIMIT 1
+  )
 """
 
 mesJoins = u"""
@@ -128,10 +148,15 @@ LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
   )
 LEFT JOIN Contract ON Contract.id = Event.contract_id
 LEFT JOIN rbFinance on rbFinance.id = Contract.finance_id
-LEFT JOIN Contract_Tariff ct ON ct.master_id in (Contract.id, Contract.priceListExternal_id)
-    and ct.service_id = rbService.id and ct.deleted = 0
-    and (ct.endDate is not null and DATE(Event.execDate) between ct.begDate and ct.endDate
-    or DATE(Event.execDate) >= ct.begDate and ct.endDate is null) and ct.tariffType = 13
+LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                                          (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                                              and ct1.service_id = rbService.id and ct1.deleted = 0
+                                              and (ct1.endDate is not null and DATE(Event.execDate) between ct1.begDate and ct1.endDate
+                                              or DATE(Event.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                                          (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                                              and ct2.service_id = rbService.id and ct2.deleted = 0
+                                              and (ct2.endDate is not null and DATE(Event.execDate) between ct2.begDate and ct2.endDate
+                                              or DATE(Event.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
 LEFT JOIN Person ON Person.id = Event.execPerson_id
 LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id) 
                                                       FROM ClientPolicy cp2
@@ -140,7 +165,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
             WHERE cp.client_id = Client.id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate))),
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate)))),
    (SELECT MAX(cp2.id)
             FROM ClientPolicy cp2
             WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
@@ -159,7 +184,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
           WHERE cp.client_id = Event.relative_id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate)
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate))
              )))
 LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
 LEFT JOIN rbMedicalAidType mt ON mt.id = rbMedicalAidType.id
@@ -175,10 +200,14 @@ LEFT JOIN rbEventProfile ep on ep.id = EventType.eventProfile_id
 LEFT JOIN rbService ON rbService.infis = Event_CSG.CSGCode
 LEFT JOIN Contract ON Contract.id = Event.contract_id
 LEFT JOIN rbFinance on rbFinance.id = Contract.finance_id
-LEFT JOIN Contract_Tariff ct ON ct.master_id in (Contract.id, Contract.priceListExternal_id)
-    and ct.service_id = rbService.id and ct.deleted = 0
-    and (ct.endDate is not null and Event_CSG.endDate between ct.begDate and ct.endDate
-    or Event_CSG.endDate >= ct.begDate and ct.endDate is null) and ct.tariffType = 13
+LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+    and ct1.service_id = rbService.id and ct1.deleted = 0
+    and (ct1.endDate is not null and Event_CSG.endDate between ct1.begDate and ct1.endDate
+    or Event_CSG.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+      (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+    and ct2.service_id = rbService.id and ct2.deleted = 0
+    and (ct2.endDate is not null and Event_CSG.endDate between ct2.begDate and ct2.endDate
+    or Event_CSG.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
 LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
   FROM Diagnostic
   INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
@@ -198,7 +227,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
             WHERE cp.client_id = Client.id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= Event.execDate))),
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate)))),
    (SELECT MAX(cp2.id)
             FROM ClientPolicy cp2
             WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
@@ -217,7 +246,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
           WHERE cp.client_id = Event.relative_id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= Event.execDate)
+              AND cp.begDate <= Event.execDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.execDate))
              )))
 LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
 LEFT JOIN rbMedicalAidType mt ON mt.id = rbMedicalAidType.id
@@ -253,6 +282,7 @@ LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
   LIMIT 1
   )
 LEFT JOIN rbMedicalAidType mt ON mt.id = case when rbMedicalAidType.regionalCode in ('271', '272') and Event.execDate >= '2020-05-01' then (select mat.id from rbMedicalAidType mat where mat.regionalCode = IF(rbMedicalAidType.regionalCode = '271', '21', '22') limit 1) else rbMedicalAidType.id end
+LEFT JOIN Event_CSG ON Event_CSG.id = Account_Item.eventCSG_id
 """
 
 actionOnlyMESJoins = u"""
@@ -315,10 +345,10 @@ colActionKD = u"IF(substr(rbService.infis, 1, 1) = 'V', WorkDays(Event.setDate, 
 colVisitKD = u"0 as colKD"
 colMesKD = u"""if(mt.regionalCode in ('11', '12', '301', '302', '401', '402'),
     WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), 0) as colKD"""
-colCsgKD = u"""if(mt.regionalCode in ('11', '12', '301', '302', '401', '402') and substr(rbService.infis, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'),
+colCsgKD = u"""if(mt.regionalCode in ('11', '12', '301', '302', '401', '402') and IF(Event.execDate < '2026-01-01', substr(rbService.infis, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'), substr(rbService.infis, 4, 8) not in ('st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054')),
     WorkDays(Event_CSG.begDate, Event_CSG.endDate, EventType.weekProfileCode, mt.regionalCode), 0) as colKD"""
-colAccountKD = u"IF(substr(rbService.infis, 1, 1) in ('V', 'G') AND mt.regionalCode in ('11', '12', '301', '302', '401', '402') and substr(rbService.infis, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'), WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), 0) as colKD"
-colAccountKDPD = u"IF(substr(rbService.infis, 1, 1) in ('V', 'G') AND mt.regionalCode in ('11', '12', '301', '302', '401', '402','41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522') and substr(rbService.infis, 4, 8) not in ('st36.013', 'st36.014', 'st36.015'), WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), 0) as colKD"
+colAccountKD = u"IF(substr(rbService.infis, 1, 1) in ('V', 'G') AND mt.regionalCode in ('11', '12', '301', '302', '401', '402'), WorkDays(IF(Account_Item.eventCSG_id is not null, Event_CSG.begDate, Event.setDate), IF(Account_Item.eventCSG_id is not null, Event_CSG.endDate, Event.execDate), EventType.weekProfileCode, mt.regionalCode), 0) as colKD"
+colAccountKDPD = u"IF(substr(rbService.infis, 1, 1) in ('V', 'G') AND mt.regionalCode in ('11', '12', '301', '302', '401', '402','41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522'), WorkDays(IF(Account_Item.eventCSG_id is not null, Event_CSG.begDate, Event.setDate), IF(Account_Item.eventCSG_id is not null, Event_CSG.endDate, Event.execDate), EventType.weekProfileCode, mt.regionalCode), 0) as colKD"
 colActionVisitPD = u"0 as colPD"
 colMesPD = u"""if(mt.regionalCode in ('41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522'),
     WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), 0) as colPD"""
@@ -429,7 +459,12 @@ colVisitSUM = u"round(ct.price, 2) as colSUM"
 colMesSUM = u"""CalcCSGTarif(Event.id, Event.execDate, rbService.infis, d.mkb,
     WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), ct.frag1Start,
     ct.frag2Start, age(Client.birthDate, Event.setDate), mt.regionalCode, ct.master_id, ct.price) as colSUM"""
+colCsgSUM = u"""IF (substr(rbService.infis, 4) = 'st02.003' AND Event.execDate >= '2025-06-01', CalcCSGTarif(Event.id, Event.execDate, rbService.infis, d.mkb,
+    WorkDays(Event_CSG.begDate, Event_CSG.endDate, EventType.weekProfileCode, mt.regionalCode), ct.frag1Start,
+    ct.frag2Start, age(Client.birthDate, Event.setDate), mt.regionalCode, ct.master_id, ct.price), round(ct.price, 2)) as colSUM"""
 colAccountSum = u"round(Account_Item.sum, 2) as colSUM"
+colExposedSum = u"0 as colExposedSUM"
+colAccountExposedSum = u"round(Account_Item.exposedSum, 2) as colExposedSUM"
 clientId = u"Event.client_id as colClient"
 eventId = u"Event.id as colEvent"
 orgStructureName = u"OrgStructure.name as colOrgStructure"
@@ -455,6 +490,8 @@ financeTitle = u"rbFinance.name as colFinance"
 financeCode = u"rbFinance.code as colFinanceCode"
 parentOrgStructure = u"parentOrgStructure.name as colParentOrgStructure"
 person = u"concat(Person.lastName, ' ', Person.firstName, ' ', Person.patrName, ' (', Person.code, ')') as colPerson"
+personSNILS = u'Person.SNILS as colPersonSNILS'
+personFIO = u"concat(Person.lastName, ' ', Person.firstName, ' ', Person.patrName) as colPersonFIO"
 MKBCode = u"m.diagID as colMKBCode"
 MKBName = u"m.DiagName as colMKBName"
 eventSetDate = u"Event.setDate as colEventSetDate"
@@ -472,7 +509,7 @@ eventProfileCode = u"ep.regionalCode as colEventProfileCode"
 eventType = u"EventType.name as colEventType"
 eventTypeId = u"EventType.id as colEventTypeId"
 specialityOKSOName = u"rbSpeciality.OKSOName as colSpecialityOKSOName"
-personWithSpeciality = u"concat(Person.lastName, ' ', Person.firstName, ' ', Person.patrName, ' (', Person.code, '), ', rbSpeciality.OKSOName) as colPersonWithSpeciality"
+personWithSpeciality = u"concat(Person.lastName, ' ', Person.firstName, ' ', Person.patrName, ' (', Person.code, '), ', ifnull(rbSpeciality.OKSOName, '')) as colPersonWithSpeciality"
 contractName = u"concat_ws(' ', Contract.resolution, Contract.number) as colContract"
 kpk = u"CONCAT(rbHospitalBedProfile.regionalCode, ' - ', rbHospitalBedProfile.name) as colKPK"
 insurerCodeName = u"concat_ws(' ', Insurer.infisCode, Insurer.shortName) as colInsurerCodeName"
@@ -532,7 +569,8 @@ colKDPD = [colActionKD, colVisitKD, colMesKDPD, colCsgKDPD, colAccountKDPD]
 colCSG = [colActionVisitCSG, colActionVisitCSG, colMesCSG, colMesCSG, colMesCSG]
 colUET = [colActionUET, colVisitMesUET, colVisitMesUET, colVisitMesUET, colAccountUET]
 colAmount = [colActionAmount, colVisitMesAmount, colVisitMesAmount, colVisitMesAmount, colAccountAmount]
-colSUM = [colActionSUM, colVisitSUM, colMesSUM, colVisitSUM, colAccountSum]
+colSUM = [colActionSUM, colVisitSUM, colMesSUM, colCsgSUM, colAccountSum]
+colExposedSum = [colExposedSum, colExposedSum, colExposedSum, colExposedSum, colAccountExposedSum]
 colClient = [clientId] * 5
 colClientSex = [clientSex] * 5
 colAge = [age] * 5
@@ -561,6 +599,8 @@ colFinance = [financeTitle] * 5
 colFinanceCode = [financeCode] * 5
 colParentOrgStructure = [parentOrgStructure] * 5
 colPerson = [person] * 5
+colPersonSNILS = [personSNILS] * 5
+colPersonFIO = [personFIO] * 5
 colPersonWithSpeciality = [personWithSpeciality] * 5
 colMKBCode = [MKBCode] * 5
 colMKBName = [MKBName] * 5
@@ -600,7 +640,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
             WHERE cp.client_id = Client.id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate))),
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate)))),
    (SELECT MAX(cp2.id)
             FROM ClientPolicy cp2
             WHERE cp2.client_id = Client.id AND cp2.deleted = 0 AND cp2.begDate =
@@ -619,7 +659,7 @@ LEFT JOIN ClientPolicy on ClientPolicy.id = COALESCE((SELECT MAX(cp2.id)
           WHERE cp.client_id = Event.relative_id
               AND cp.policyType_id IN (1,2)
               AND cp.deleted = 0
-              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= Event.setDate)
+              AND cp.begDate <= Event.setDate AND (cp.endDate is NULL OR cp.endDate >= DATE(Event.setDate))
              )))
 LEFT JOIN Organisation AS Insurer ON Insurer.id = ClientPolicy.insurer_id
 """
@@ -638,20 +678,7 @@ LEFT JOIN Organisation AS ContractPayer ON ContractPayer.id = Contract.payer_id"
             joinStmt[idx] += u"""
 LEFT JOIN rbSpeciality ON rbSpeciality.id = Person.speciality_id"""
         if colMKBCode in cols:
-            if idx in [0, 2, 3, 4]:
-                joinStmt[idx] += u"""
-LEFT JOIN MKB m on m.diagID = d.MKB"""
-            else:
-                joinStmt[idx] += u"""
-LEFT JOIN Diagnosis d on d.id = (SELECT diagnosis_id
-  FROM Diagnostic
-  INNER JOIN rbDiagnosisType ON rbDiagnosisType.id = diagnosisType_id
-  WHERE Diagnostic.event_id = Event.id
-  AND Diagnostic.deleted = 0
-  AND rbDiagnosisType.code IN ('1', '2', '4')
-  ORDER BY rbDiagnosisType.code
-  LIMIT 1
-  )
+            joinStmt[idx] += u"""
 LEFT JOIN MKB m on m.diagID = d.MKB"""
         if colCitizenship in cols:
             joinStmt[idx] += u"""

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,7 +14,7 @@
 
 from PyQt4                      import QtGui
 from PyQt4.QtSql                import QSqlRecord, QSqlField
-from PyQt4.QtCore               import pyqtSignature, QDate, Qt, QVariant, SIGNAL
+from PyQt4.QtCore               import pyqtSignature, QDate, Qt, QVariant, SIGNAL, QByteArray
 from library.Utils              import (forceInt,
                                         forceString,
                                         forceDate,
@@ -37,6 +37,7 @@ from library.PrintTemplates     import (getPrintTemplates,
                                         getTemplate,
                                         compileAndExecTemplate,
                                         htmlTemplate,
+                                        svgTemplate,
                                         CTemplateExecutionResult)
 from library.PrintInfo          import CInfoContext
 from Ui_ActionGroupSignPage1    import Ui_ActionGroupSignPage1
@@ -87,8 +88,8 @@ class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin):
 
 
     def setActionIdList(self, actionIdList):
-        context = CInfoContext()
         for actionId in actionIdList:
+            context = CInfoContext()
             record = QtGui.qApp.db.getRecord('Action', 'status, person_id', actionId)
             if not record:
                 continue
@@ -184,6 +185,7 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
         result = {}
         result['status'] = self.cmbActionStatus.currentIndex()
         result['withoutDocuments'] = self.chkWithoutDocuments.isChecked()
+        result['exportSuitable'] = self.chkExportSuitable.isChecked()
         if self.chkSetDate.isChecked():
             result['setBegDate'] = self.edtSetBegDate.date()
             result['setEndDate'] = self.edtSetEndDate.date()
@@ -202,11 +204,12 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
         self.cmbActionStatus.setCurrentIndex(0)
         self.chkSetDate.setChecked(True)
         self.chkExecDate.setChecked(True)
-        self.chkPerson.setChecked(True)
+        self.chkPerson.setChecked(False)
         self.cmbPerson.setValue(QtGui.qApp.userId)
         self.chkSetPerson.setChecked(False)
         self.cmbSetPerson.setValue(QtGui.qApp.userId)
         self.chkWithoutDocuments.setChecked(True)
+        self.chkExportSuitable.setChecked(True)
         self.edtSetBegDate.setDate(self.setBegDateDefault)
         self.edtSetEndDate.setDate(self.setEndDateDefault)
         self.edtExecBegDate.setDate(self.execBegDateDefault)
@@ -259,6 +262,10 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
     def on_chkWithoutDocuments_toggled(self, _):
         self.updateActionsList()
 
+    @pyqtSignature('bool')
+    def on_chkExportSuitable_toggled(self, _):
+        self.updateActionsList()
+
 
     @pyqtSignature('bool')
     def on_chkSetDate_toggled(self, _):
@@ -300,8 +307,13 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
         record = self.modelActions.getRecordByRow(currentIndex.row())
         actionId = forceInt(record.value('id'))
         templateId = forceInt(record.value('templateId'))
-        result, isError = getTempalteResult(self.wizard(), templateId, actionId)
-        self.txtReport.setHtml(result.content)
+        result, isError, type = getTempalteResult(self.wizard(), templateId, actionId)
+        if type == svgTemplate:
+            svgContent = "data:image/svg+xml;base64," + QByteArray(result.content.encode('utf-8')).toBase64().data()
+            htmlContent = '<html><body><img src="{}" /></body></html>'.format(svgContent)
+            self.txtReport.setHtml(htmlContent)
+        else:
+            self.txtReport.setHtml(result.content)
     
     @pyqtSignature('QModelIndex,QModelIndex')
     def on_modelActions_dataChanged(self, topLeft, bottomRight):
@@ -397,7 +409,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
             return
 
         try:
-            result, isError = getTempalteResult(self.wizard(), templateId, actionId)
+            result, isError, type = getTempalteResult(self.wizard(), templateId, actionId)
         except:
             result, isError = None, True
             QtGui.qApp.logCurrentException()
@@ -456,6 +468,10 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
                 for filename in result.supplements.keys():
                     self.logBrowser.append(u'%s - документ «%s» успешно сформирован,'\
                                            u' прикреплён без подписи' % (actionInfoStr, result.documentName + '.' + filename))
+            self.isChanged = True
+            actionInfo.isChanged = True
+            if self.wizard().currentAttachButton and self.wizard().currentAction:
+                self.wizard().currentAttachButton.modelFiles_changed()
         else:
             self.logBrowser.append(u'%s - документ не сформирован' % (actionInfoStr))
             self.skippedCount += 1
@@ -505,6 +521,7 @@ class CActionsModel(CRecordListModel):
         execBegDate = filters.get('execBegDate', None)
         execEndDate = filters.get('execEndDate', None)
         isWithoutDocuments = filters.get('withoutDocuments', False)
+        isExportSuitable = filters.get('exportSuitable', False)
 
         if status > 0 and (status - 1) != forceInt(record.value('status')):
             return False
@@ -522,6 +539,12 @@ class CActionsModel(CRecordListModel):
             return False
         if isWithoutDocuments and len(actionInfo._action.getAttachedFileItemList()) > 0:
             return False
+        if isExportSuitable:
+            pdf = actionInfo.identifyInfoByCode('n3.medDocumentType.Pdf').value
+            cda = actionInfo.identifyInfoByCode('n3.medDocumentType.Cda').value
+            observation = actionInfo.identifyInfoByCode('n3.medDocumentType.Observation').value
+            if not pdf and not cda and not observation:
+                return False
 
         return True
 
@@ -587,20 +610,22 @@ class CActionsModel(CRecordListModel):
 
 
 def getTempalteResult(wizard, templateId, actionId):
+    from Events.TeethEventInfo import CTeethEventInfo
+
     name, template, type_, printBlank = getTemplate(templateId)
     result = u''
     isError = False
-    if type_ != htmlTemplate:
+    if type_ not in (htmlTemplate, svgTemplate):
         result = CTemplateExecutionResult(u'Ошибка',
             u'<HTML><BODY>Поддержка шаблонов печати в формате' \
-            u' отличном от html не реализована</BODY></HTML>',
+            u' отличном от html или svg не реализована</BODY></HTML>',
             {},
             {})
         isError = True
-        return result, isError
+        return result, isError, type_
 
     actionInfo = wizard.actionInfoMap[actionId]
-    eventInfo = actionInfo.getEventInfo()
+    eventInfo = actionInfo.getEventInfo(infoClass=CTeethEventInfo)
     data = {
         'event': eventInfo,
         'action': actionInfo,
@@ -630,4 +655,4 @@ def getTempalteResult(wizard, templateId, actionId):
         QtGui.QMessageBox = oldMessageBox
         QtGui.QDialog = oldDialog
 
-    return result, isError
+    return result, isError, type_

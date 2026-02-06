@@ -13,25 +13,26 @@
 #############################################################################
 
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant, SIGNAL
+from PyQt4.QtCore import Qt, QAbstractTableModel, QModelIndex, QVariant, SIGNAL, QDate
 from Events.ActionRelations.Groups import CRelationsProxyModelGroup
 
 from library.InDocTable import CRBInDocTableCol, CEnumInDocTableCol, CIntInDocTableCol, CDateInDocTableCol, CFloatInDocTableCol, CInDocTableCol, forcePyType
 from library.Utils import (
     forceDate, forceDouble, forceInt, forceRef, forceString, toVariant, getDentitionActionTypeId,
-    forceDateTime, forceStringEx, forceDateTime, trim)
+    forceDateTime, forceStringEx, forceDateTime, trim, ActionTypeServiceMixin)
 
 from Events.Action import CAction, CActionType, CActionTypeCache, getActionDefaultAmountEx, getActionDuration
 from Events.ActionStatus                import CActionStatus
 from Events.ActionProperty import CActionPropertyValueTypeRegistry
 from Events.ExecutionPlan.Groups        import CActionExecutionPlanGroup, CExecutionPlanProxyModelGroup
 from Events.ExecutionPlan.ExecutionPlan import CActionExecutionPlan, CActionExecutionPlanItem
-from Events.Utils import getActionTypeIdListByClass, getEventMedicalAidKindId#, getLfFormIdList
+from Events.Utils import getActionTypeIdListByClass, getEventMedicalAidKindId, getLfFormIdList
 from Resources.JobTicketStatus          import CJobTicketStatus
 from RefBooks.ActionTypeGroup.RBActionTypeGroupEditor import CSmnnInDocTableCol, CLfFormInDocTableCol
 from Stock.NomenclatureComboBox import CNomenclatureInDocTableCol
 from library.blmodel.Query              import CQuery
 from library.crbcombobox import CRBComboBox, CRBModelDataCache
+from library.database                   import CSqlRecord
 
 from Users.Rights import urAccessEditCentralizedAccounting
 
@@ -143,6 +144,7 @@ class CActionsModel(QAbstractTableModel):
                         record.setValue('amount', toVariant(value))
                         self.emitRowsChanged(row, row)
                         self.emitAmountChanged(row)
+                        self.emitActionsUpdated(['amount'])
 
                 # TT 1012 "Синхронизировать даты действия с датами события"
                 if actionType.defaultDirectionDate == CActionType.dddSyncEventBegDate:
@@ -151,12 +153,14 @@ class CActionsModel(QAbstractTableModel):
                     if prevDirectionDate != directionDate:
                         record.setValue('directionDate', toVariant(directionDate))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['directionDate'])
                 elif actionType.defaultDirectionDate == CActionType.dddSyncEventEndDate:
                     prevDirectionDate = forceDateTime(record.value('directionDate'))
                     directionDate = forceDateTime(self.eventEditor.getExecDateTime())
                     if prevDirectionDate != directionDate:
                         record.setValue('directionDate', toVariant(directionDate))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['directionDate'])
 
                 if actionType.defaultBegDate == CActionType.dbdSyncEventBegDate:
                     prevBegDate = forceDateTime(record.value('begDate'))
@@ -164,12 +168,14 @@ class CActionsModel(QAbstractTableModel):
                     if prevBegDate != begDate:
                         record.setValue('begDate', toVariant(begDate))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['begDate'])
                 elif actionType.defaultBegDate == CActionType.dbdSyncEventEndDate:
                     prevBegDate = forceDateTime(record.value('begDate'))
                     begDate = forceDateTime(self.eventEditor.getExecDateTime())
                     if prevBegDate != begDate:
                         record.setValue('begDate', toVariant(begDate))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['begDate'])
 
                 if actionType.defaultEndDate == CActionType.dedSyncEventBegDate:
                     prevEndDate = forceDateTime(record.value('endDate'))
@@ -178,6 +184,7 @@ class CActionsModel(QAbstractTableModel):
                         record.setValue('endDate', toVariant(endDate))
                         record.setValue('status', toVariant(CActionStatus.finished if not endDate.isNull() else CActionStatus.started))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['endDate','status'])
                 elif actionType.defaultEndDate == CActionType.dedSyncEventEndDate:
                     prevEndDate = forceDateTime(record.value('endDate'))
                     endDate = forceDateTime(self.eventEditor.getExecDateTime())
@@ -185,6 +192,7 @@ class CActionsModel(QAbstractTableModel):
                         record.setValue('endDate', toVariant(endDate))
                         record.setValue('status', toVariant(CActionStatus.finished if not endDate.isNull() else CActionStatus.started))
                         self.emitRowsChanged(row, row)
+                        self.emitActionsUpdated(['endDate','status'])
 
 
     def updateActionAmount(self, row):  # по изменению в самом действии
@@ -472,6 +480,7 @@ class CActionsModel(QAbstractTableModel):
                     self.actionIdForMarkDeleted.append(action.getId())
             self.beginRemoveRows(parentIndex, row, row+count-1)
             del self._items[row:row+count]
+            self.emit(SIGNAL('removeRows()'))
             self.endRemoveRows()
             return True
         else:
@@ -660,6 +669,8 @@ class CActionsModel(QAbstractTableModel):
         record = self.table.newRecord()
         for i in xrange(record.count()):
             record.setValue(i, srcRecord.value(record.fieldName(i)))
+        if type(srcRecord) == CSqlRecord:
+            record._dirty = srcRecord._dirty
         return record
 
 
@@ -838,8 +849,12 @@ class CActionsModel(QAbstractTableModel):
 
     def emitRowsChanged(self, row1, row2):
         index1 = self.index(row1, 0)
-        index2 = self.index(row2, self.columnCount())
+        index2 = self.index(row2, self.columnCount() - 1)
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index1, index2)
+    
+    
+    def emitActionsUpdated(self, updatedList = []):
+        self.emit(SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), updatedList)
 
 
     def reloadItem(self, row):
@@ -863,6 +878,7 @@ class CActionsModel(QAbstractTableModel):
                 and u'Идентификатор направления' in actionType._propertiesByName
                 and u'Причина аннулирования' in actionType._propertiesByName
                 and action[u'Идентификатор направления'] is not None
+                and action[u'Идентификатор направления'] != ''
                 and action[u'Причина аннулирования'] is None
             ):
                 QtGui.QMessageBox.critical(
@@ -1009,7 +1025,7 @@ class CGroups(object):
         return sum([len(g) for g in self._groups])
 
 
-class CGroupActionsProxyModel(QtGui.QProxyModel):
+class CGroupActionsProxyModel(QtGui.QProxyModel, ActionTypeServiceMixin):
     __groupingAllowed__ = True
 
     __pyqtSignals__ = (
@@ -1022,6 +1038,7 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
 
         QtGui.QProxyModel.__init__(self, parent)
         QtGui.QProxyModel.setModel(self, actionModel)
+        ActionTypeServiceMixin.__init__(self)
 
         self._parent = parent
         self._actionModel = actionModel
@@ -1047,6 +1064,7 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
         self.connect(self._actionModel, SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self._emitDataChanged)
         self.connect(self._actionModel, SIGNAL('amountChanged(int)'), self._emitAmountChanged)
         self.connect(self._actionModel, SIGNAL('itemsCountChanged()'), self._emitItemsCountChanged)
+        self.connect(self._actionModel, SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), self._emitActionsUpdated)
 
     @property
     def eventEditor(self):
@@ -1063,6 +1081,9 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
         r1, r2 = self._mapModelRow2ProxyRow[mr1], self._mapModelRow2ProxyRow[mr2]
         i1, i2 = self.index(r1, 0), self.index(r2, 0)
         self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), i1, i2)
+    
+    def _emitActionsUpdated(self, updatedList = []):
+        self.emit(SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), updatedList)
 
     def _emitAmountChanged(self, row):
         row = self._mapModelRow2ProxyRow[row]
@@ -1179,8 +1200,9 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
                         if group.firstItem.id == action.getMasterId() or (not group.firstItem.id and id(group.firstItem) == action.getMasterId()):
                             group.addItem(modelRow, item)
                             added = True
-                    if not group.expanded:
-                        self.touchGrouping(group._mapItem2Row[group.firstItem])
+                    if not group.expanded and len(group.items)>1:
+                        group.setExpanded(not group.expanded)
+                        self._resetData()
                     if added:
                         continue
             if not added:
@@ -1227,12 +1249,31 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
             items = self._actionModel.items()
             if 0 <= row < len(items):
                 record, action = items[row]
+                if action and action.getType():
+                    actionTypeId = action.getType().id
+                    actionTypeCache = CActionTypeCache.getById(actionTypeId)
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
+                    if not self.checkActionTypeService(actionTypeId, code, numService):
+                        return self._qBoldItalicFont
                 if isHeadItem and group.canBeGrouped():
                     if action and ((action.trailerIdx > 0 and not bool(action.trailerIdx & 1)) or forceRef(record.value('prevAction_id'))):
                         return self._qBoldItalicFont
                     return self._qBoldFont
                 if action and ((action.trailerIdx > 0 and not bool(action.trailerIdx & 1)) or forceRef(record.value('prevAction_id'))):
                     return self._qItalicFont
+
+        elif role == Qt.ToolTipRole:
+            items = self._actionModel.items()
+            if 0 <= row < len(items):
+                record, action = items[row]
+                if action and action.getType():
+                    actionTypeId = action.getType().id
+                    actionTypeCache = CActionTypeCache.getById(actionTypeId)
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
+                    if not self.checkActionTypeService(actionTypeId, code, numService):
+                        return u"Услуга в типе действия не является актуальной"
 
         return self._actionModel.data(modelIndex, role)
 
@@ -1518,10 +1559,12 @@ class CGroupActionsProxyModel(QtGui.QProxyModel):
         table = db.table('Action')
         for group in self._groups.groupsIterator:
             if isinstance(group, CRelationsProxyModelGroup):  
-                ids = []   
+                ids = []
                 for item in group.items:
                     if item != group.firstItem:
                         ids.append(item.id)
+                        item.record.setValue('master_id', toVariant(group.firstItem.id))
+                    item.record.setValue('id', toVariant(item.id))
                 if ids:
                     db.updateRecords(table, 'master_id = {}'.format(group.firstItem.id), table['id'].inlist(ids))
         
@@ -1596,6 +1639,7 @@ class CGroupActionsProxyModelEx(CGroupActionsProxyModel):
         self.connect(self._actionModel, SIGNAL('dataChanged(QModelIndex, QModelIndex)'), self._emitDataChanged)
         self.connect(self._actionModel, SIGNAL('amountChanged(int)'), self._emitAmountChanged)
         self.connect(self._actionModel, SIGNAL('itemsCountChanged()'), self._emitItemsCountChanged)
+        self.connect(self._actionModel, SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), self._emitActionsUpdated)
 
 
     def columnCount(self, index=None):

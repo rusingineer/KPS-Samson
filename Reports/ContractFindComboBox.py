@@ -37,6 +37,7 @@ class CIndependentContractTreeFindComboBox(CTreeComboBox):
         self._prevValue = None
         self.contractId = None
         self.filter = filter
+        self.mainDialog = None
 
 
     def showPopup(self):

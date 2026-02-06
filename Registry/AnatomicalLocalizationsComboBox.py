@@ -234,6 +234,11 @@ class CFilterModel(CSortFilterProxyTreeModel):
         self.filterName = ''
 
 
+    def data(self, index, role=Qt.DisplayRole):
+        if self.filterName:
+            self.parent().tblAnatomicalLocalizations.expand(index)
+        return CSortFilterProxyTreeModel.data(self, index, role)
+
     def acceptItem(self, item):
         result = True
         if self.filterName:

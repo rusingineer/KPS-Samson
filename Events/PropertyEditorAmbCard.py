@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -100,7 +100,8 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
         if status is not None:
             cond.append(tableAction['status'].eq(status))
         if actionGroupId:
-            cond.append(tableAction['actionType_id'].inlist(getActionTypeDescendants(actionGroupId)))
+            actionClass = forceInt(db.translate("ActionType", "id", actionGroupId, "class"))
+            cond.append(tableAction['actionType_id'].inlist(getActionTypeDescendants(actionGroupId, actionClass)))
         elif actionTypeclass is not None:
             cond.append(tableActionType['class'].eq(actionTypeclass))
         if orgStructureId:

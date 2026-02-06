@@ -27,10 +27,10 @@ class CAddRelatedAction(CDialogBase, Ui_AddRelatedAction):
     def __init__(self, parent, idList):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
+        self.selectedActionTypeIdList = []
         self.addModels('ActionTypes', CActionsModel(self))
         self.setModels(self.tblActionTypes, self.modelActionTypes, self.selectionModelActionTypes)
         self.tblActionTypes.setIdList(idList)
-        self.selectedActionTypeIdList = []
 
     
     def isSelected(self, actionTypeId):

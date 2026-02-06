@@ -20,14 +20,14 @@ from PyQt4.QtCore import QVariant
 
 from library.PrintInfo import CInfo
 from library.CTableComboBox import CTableSearchComboBox
-from library.Utils import forceRef, forceString, trim
+from library.Utils import forceRef, forceString
 from library.database import decorateString
 
 from ActionPropertyValueType import CActionPropertyValueType
 
 
 class CReferenceColumnsActionPropertyValueType(CActionPropertyValueType):
-    name         = 'ReferenceColumns'
+    name = 'ReferenceColumns'
     variantType  = QVariant.Int
 
     def __init__(self, domain=None):
@@ -66,18 +66,19 @@ class CReferenceColumnsActionPropertyValueType(CActionPropertyValueType):
         def _initializeEditorJSON(self, action, domain):
             if action and domain:
                 obj = json.loads(domain, object_pairs_hook=OrderedDict)
-                tableName = obj.get(u'table', u'').strip()
-                if tableName.replace('`','').startswith('v1') or tableName.replace('`','').startswith('1'):
-                    tableName = unicode(QtGui.qApp.db.db.databaseName()) + "." + tableName
+                dTableName = obj.get(u'table', u'').strip()
+                if dTableName.replace('`','').startswith('v1') or dTableName.replace('`','').startswith('1'):
+                    tableName = unicode(QtGui.qApp.db.db.databaseName()) + "." + dTableName
+                else:
+                    tableName = dTableName
                 self.fields = obj.get(u'fields', {})
                 where = obj.get(u'where', [])
                 identify = obj.get(u'identify', {})
-
                 if not tableName:
                     raise Exception(u'Отсутствует название справочной таблицы в «%s»' % domain)
                 if not isinstance(tableName, basestring):
                     raise Exception(u'Неправильное описание справочной таблицы в «%s»' % domain)
-
+            
                 if isinstance(self.fields, dict):
                     if not all(isinstance(k, basestring) for k in self.fields.keys()):
                         raise Exception(u'Неправильное описание полей для фильтрации в «%s»' % domain)
@@ -91,9 +92,9 @@ class CReferenceColumnsActionPropertyValueType(CActionPropertyValueType):
                     raise Exception(u'Неправильное описание where в «%s»' % domain)
 
                 if isinstance(identify, dict):
-                    if not all(isinstance(k, basestring) for k in self.fields.keys()):
+                    if not all(isinstance(k, basestring) for k in identify.keys()):
                         raise Exception(u'Неправильное описание полей для идентификации в «%s»' % domain)
-                    if not all(isinstance(v, basestring) for v in self.fields.values()):
+                    if not all(isinstance(v, basestring) for v in identify.values()):
                         raise Exception(u'Неправильное описание полей для идентификации в «%s»' % domain)
                 else:
                     raise Exception(u'Неправильное описание полей для идентификации в «%s»' % domain)
@@ -120,7 +121,7 @@ class CReferenceColumnsActionPropertyValueType(CActionPropertyValueType):
                     ])
                     cond.append(stmt.format(tableId=tableId, masterTable=tableName, urn=urn, values=values))
 
-                self.setTable(tableName, fields=','+','.join(self.fields.keys()), fieldNames=list(self.fields.values()), order=','.join(self.fields.keys()), filter=QtGui.qApp.db.joinAnd(cond))
+                self.setTable(tableName, fields=','+','.join(self.fields.keys()), fieldNames=list(self.fields.values()), order=','.join(self.fields.keys()), filter=QtGui.qApp.db.joinAnd(cond), rawTable=dTableName)
 
 
         def setValue(self, value):
@@ -145,6 +146,8 @@ class CReferenceColumnsActionPropertyValueType(CActionPropertyValueType):
 
 
     def toText(self, v):
+        if not v:
+            return u''
         if self.domainTable.replace('`','').startswith('v1') or self.domainTable.replace('`','').startswith('1'):
             tableName = unicode(QtGui.qApp.db.db.databaseName()) + "." + self.domainTable
         else:

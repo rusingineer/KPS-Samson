@@ -200,19 +200,20 @@ HeaderCols = [
             (u'Транспортные несчастные случаи (V01-V99)',                           u'5',  u'V01-V99'),
             (u'из них: дорожно-транспортные несчастные случаи',                     u'6',  convCodeList()),
             (u'Другие внешние причины (W00 - X59)',                                 u'7',  u'W00-X59'),
-            (u'случайное утопление',                                                u'8',  u'W65-W74'),
-            (u'воздействие дыма, огня и пламени',                                   u'9',  u'X00-X09'),
-            (u'случайное отравление',                                               u'10', u'X40-X49'),
-            (u'из гр.10: наркотиками',                                              u'11', u'X42'),
-            (u'алкоголем',                                                          u'12', u'X45'),
-            (u'Преднамеренное самоповреждение(X60-X84)',                            u'13', u'X60-X84'),
-            (u'из них: наркотиками',                                                u'14', u'X62'),
-            (u'алкоголем',                                                          u'15', u'X65'),
-            (u'Нападение',                                                          u'16', u'X85-Y09'),
-            (u'Повреждение с неопределенными намерениями',                          u'17', u'Y10-Y34'),
-            (u'Действия, предусмотренные законом, военные операции и терроризм',    u'18', u'Y35-Y38'),
-            (u'Осложнения терапевтических и хирургических вмешательств',            u'19', u'Y40-Y84'),
-            (u'Последствия воздействия внешних причин заболеваемости и смертности', u'20', u'Y85-Y89'),
+            (u'из них: W00 - W19',                                                  u'8',  u'W00-W19'),
+            (u'случайное утопление',                                                u'9',  u'W65-W74'),
+            (u'воздействие дыма, огня и пламени',                                   u'10',  u'X00-X09'),
+            (u'случайное отравление',                                               u'11', u'X40-X49'),
+            (u'из гр.10: наркотиками',                                              u'12', u'X42'),
+            (u'алкоголем',                                                          u'13', u'X45'),
+            (u'Преднамеренное самоповреждение(X60-X84)',                            u'14', u'X60-X84'),
+            (u'из них: наркотиками',                                                u'15', u'X62'),
+            (u'алкоголем',                                                          u'16', u'X65'),
+            (u'Нападение',                                                          u'17', u'X85-Y09'),
+            (u'Повреждение с неопределенными намерениями',                          u'18', u'Y10-Y34'),
+            (u'Действия, предусмотренные законом, военные операции и терроризм',    u'19', u'Y35-Y38'),
+            (u'Осложнения терапевтических и хирургических вмешательств',            u'20', u'Y40-Y84'),
+            (u'Последствия воздействия внешних причин заболеваемости и смертности', u'21', u'Y85-Y89'),
            ]
 
 
@@ -841,7 +842,7 @@ class CStatReportF57_1000(CReport):
 
     def build(self, params):
         mapMainRows = createMapCodeToRowIdx( [row[2] for row in MainRowsNew] )
-        rowSize = 17
+        rowSize = 18
         reportMainData = [ [0]*rowSize for row in xrange(len(MainRowsNew)) ]
         mapHeaderCols = createMapCodeToRowIdx( [row[2] for row in HeaderCols] )
 #        reportHeaderData = [ 0 for row in xrange(len(HeaderCols)) ]
@@ -876,41 +877,42 @@ class CStatReportF57_1000(CReport):
             ( '4.5%', [u'',                                                                                               u'Транспортные несча-\nстные случаи (V01-V99)',                             u'Всего',                                          u'',                                 u'V01-V99', u'5'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них: дорожно-\nтранспортные несчастные случаи', u'',                               u'*',       u'6'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'Другие внешние при-\nчины (W00 - X59)',                                   u'Всего',                                          u'',                                 u'W00-X59', u'7'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них: ',                                       u'случайное утопление',              u'W65-W74', u'8'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'воздействие дыма,\n огня и пламени',u'X00-X09', u'9'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'случайное отравление',             u'X40-X49', u'10'],CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'11'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X45',     u'12'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                              u'Всего',                                          u'',                                 u'X60-X84', u'13'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них:',                                        u'наркотиками ',                     u'X62',     u'14'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X65',     u'15'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Нападение',                                                               u'',                                               u'',                                 u'X85-Y09', u'16'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                            u'',                                               u' ',                                u'Y10-Y34 ',u'17'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',   u'',                                               u'',                                 u'Y35-Y38', u'18'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',           u'',                                               u'',                                 u'Y40-Y84', u'19'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности',u'',                                               u'',                                 u'Y85-Y89', u'20'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из них: ',                                       u'падения',                          u'W00-W19', u'8'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'случайное утопление',              u'W65-W74', u'9'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'воздействие дыма,\n огня и пламени',u'X00-X09', u'10'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'случайное отравление',             u'X40-X49', u'11'],CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'12'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X45',     u'13'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                              u'Всего',                                          u'',                                 u'X60-X84', u'14'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из них:',                                        u'наркотиками ',                     u'X62',     u'15'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X65',     u'16'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Нападение',                                                               u'',                                               u'',                                 u'X85-Y09', u'17'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                            u'',                                               u' ',                                u'Y10-Y34 ',u'18'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',   u'',                                               u'',                                 u'Y35-Y38', u'19'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',           u'',                                               u'',                                 u'Y40-Y84', u'20'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности',u'',                                               u'',                                 u'Y85-Y89', u'21'], CReportBase.AlignRight),
             ]
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 5, 1)
         table.mergeCells(0, 1, 5, 1)
         table.mergeCells(0, 2, 5, 1)
-        table.mergeCells(0, 3, 1, 17)
+        table.mergeCells(0, 3, 1, 18)
         table.mergeCells(1, 3, 3, 1)
         table.mergeCells(1, 4, 1, 2)
         table.mergeCells(2, 4, 2, 1)
         table.mergeCells(2, 5, 2, 1)
-        table.mergeCells(1, 6, 1, 6)
+        table.mergeCells(1, 6, 1, 7)
         table.mergeCells(2, 6, 2, 1)
-        table.mergeCells(2, 7, 1, 3)
-        table.mergeCells(2, 10, 1, 2)
-        table.mergeCells(1, 12, 1, 3)
-        table.mergeCells(2, 12, 2, 1)
-        table.mergeCells(2, 13, 1, 2)
-        table.mergeCells(1, 15, 3, 1)
+        table.mergeCells(2, 7, 1, 4)
+        table.mergeCells(2, 11, 1, 2)
+        table.mergeCells(1, 13, 1, 3)
+        table.mergeCells(2, 13, 2, 1)
+        table.mergeCells(2, 14, 1, 2)
         table.mergeCells(1, 16, 3, 1)
         table.mergeCells(1, 17, 3, 1)
         table.mergeCells(1, 18, 3, 1)
         table.mergeCells(1, 19, 3, 1)
+        table.mergeCells(1, 20, 3, 1)
 
         for row, rowDescr in enumerate(MainRowsNew):
             i   = table.addRow()
@@ -954,7 +956,7 @@ class CStatReportF57_2000(CReport):
 
     def build(self, params):
         mapMainRows = createMapCodeToRowIdx( [row[2] for row in MainRowsNew] )
-        rowSize = 17
+        rowSize = 18
         reportMainData = [ [0]*rowSize for row in xrange(len(MainRowsNew)) ]
         mapHeaderCols = createMapCodeToRowIdx( [row[2] for row in HeaderCols] )
 #        reportHeaderData = [ 0 for row in xrange(len(HeaderCols)) ]
@@ -988,41 +990,42 @@ class CStatReportF57_2000(CReport):
             ( '4.5%', [u'',                                                                                               u'Транспортные несча-\nстные случаи (V01-V99)',                             u'Всего',                                          u'',                                 u'V01-V99', u'5'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них: дорожно-\nтранспортные несчастные случаи',u'',                                 u'*',       u'6'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'Другие внешние при-\nчины (W00 - X59)',                                   u'Всего',                                          u'',                                 u'W00-X59', u'7'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них: ',                                       u'случайное утопление',              u'W65-W74', u'8'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'воздействие дыма,\n огня и пламени', u'X00-X09', u'9'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'случайное отравление',             u'X40-X49', u'10'],CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'11'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X45',     u'12'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                              u'Всего',                                          u'',                                 u'X60-X84', u'13'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'из них:',                                        u'наркотиками ',                     u'X62',     u'14'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X65',     u'15'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Нападение',                                                               u'',                                               u'',                                 u'X85-Y09', u'16'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                            u'',                                               u' ',                                u'Y10-Y34 ',u'17'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',   u'',                                               u'',                                 u'Y35-Y38', u'18'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',           u'',                                               u'',                                 u'Y40-Y84', u'19'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности',u'',                                               u'',                                 u'Y85-Y89', u'20'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из них: ',                                       u'падения',                          u'W00-W19', u'8'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'случайное утопление',              u'W65-W74', u'9'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'воздействие дыма,\n огня и пламени', u'X00-X09', u'10'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'случайное отравление',             u'X40-X49', u'11'],CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'12'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X45',     u'13'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                              u'Всего',                                          u'',                                 u'X60-X84', u'14'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'из них:',                                        u'наркотиками ',                     u'X62',     u'15'], CReportBase.AlignRight),
+            ( '4%',   [u'',                                                                                               u'',                                                                        u'',                                               u'алкоголем ',                       u'X65',     u'16'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Нападение',                                                               u'',                                               u'',                                 u'X85-Y09', u'17'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                            u'',                                               u' ',                                u'Y10-Y34 ',u'18'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',   u'',                                               u'',                                 u'Y35-Y38', u'19'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',           u'',                                               u'',                                 u'Y40-Y84', u'20'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности',u'',                                               u'',                                 u'Y85-Y89', u'21'], CReportBase.AlignRight),
             ]
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 5, 1)
         table.mergeCells(0, 1, 5, 1)
         table.mergeCells(0, 2, 5, 1)
-        table.mergeCells(0, 3, 1, 17)
+        table.mergeCells(0, 3, 1, 18)
         table.mergeCells(1, 3, 3, 1)
         table.mergeCells(1, 4, 1, 2)
         table.mergeCells(2, 4, 2, 1)
         table.mergeCells(2, 5, 2, 1)
-        table.mergeCells(1, 6, 1, 6)
+        table.mergeCells(1, 6, 1, 7)
         table.mergeCells(2, 6, 2, 1)
-        table.mergeCells(2, 7, 1, 3)
-        table.mergeCells(2, 10, 1, 2)
-        table.mergeCells(1, 12, 1, 3)
-        table.mergeCells(2, 12, 2, 1)
-        table.mergeCells(2, 13, 1, 2)
-        table.mergeCells(1, 15, 3, 1)
+        table.mergeCells(2, 7, 1, 4)
+        table.mergeCells(2, 11, 1, 2)
+        table.mergeCells(1, 13, 1, 3)
+        table.mergeCells(2, 13, 2, 1)
+        table.mergeCells(2, 14, 1, 2)
         table.mergeCells(1, 16, 3, 1)
         table.mergeCells(1, 17, 3, 1)
         table.mergeCells(1, 18, 3, 1)
         table.mergeCells(1, 19, 3, 1)
+        table.mergeCells(1, 20, 3, 1)
 
         for row, rowDescr in enumerate(MainRowsNew):
             i   = table.addRow()
@@ -1066,7 +1069,7 @@ class CStatReportF57_3000(CReport):
 
     def build(self, params):
         mapMainRows = createMapCodeToRowIdx( [row[2] for row in MainRowsNew] )
-        rowSize = 17
+        rowSize = 18
         reportMainData = [ [0]*rowSize for row in xrange(len(MainRowsNew)) ]
         mapHeaderCols = createMapCodeToRowIdx( [row[2] for row in HeaderCols] )
 #        reportHeaderData = [ 0 for row in xrange(len(HeaderCols)) ]
@@ -1101,41 +1104,42 @@ class CStatReportF57_3000(CReport):
             ( '4.5%', [u'',                                                                                               u'Транспортные несча-\nстные случаи (V01-V99)',                              u'Всего',                                          u'',                                 u'V01-V99', u'5'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'',                                                                         u'из них: дорожно-\nтранспортные несчастные случаи', u'',                                 u'*',       u'6'], CReportBase.AlignRight),
             ( '4.5%', [u'',                                                                                               u'Другие внешние при-\nчины (W00 - X59)',                                    u'Всего',                                          u'',                                 u'W00-X59', u'7'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'из них: ',                                       u'случайное утопление',              u'W65-W74', u'8'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'',                                               u'воздействие дыма,\n огня и пламени', u'X00-X09', u'9'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'',                                               u'случайное отравление',             u'X40-X49', u'10'],CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'11'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'',                                               u'алкоголем ',                       u'X45',     u'12'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                               u'Всего',                                          u'',                                 u'X60-X84', u'13'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'из них:',                                        u'наркотиками ',                     u'X62',     u'14'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'',                                                                         u'',                                               u'алкоголем ',                       u'X65',     u'15'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Нападение',                                                                u'',                                               u'',                                 u'X85-Y09', u'16'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                             u'',                                               u' ',                                u'Y10-Y34 ',u'17'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',    u'',                                               u'',                                 u'Y35-Y38', u'18'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',            u'',                                               u'',                                 u'Y40-Y84', u'19'], CReportBase.AlignRight),
-            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности', u'',                                               u'',                                 u'Y85-Y89', u'20'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'из них: ',                                       u'падения',                          u'W00-W19', u'8'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'',                                               u'случайное утопление',              u'W65-W74', u'9'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'',                                               u'воздействие дыма,\n огня и пламени', u'X00-X09', u'10'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'',                                               u'случайное отравление',             u'X40-X49', u'11'],CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'из гр.10:',                                      u'наркотиками ',                     u'X42',     u'12'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'',                                               u'алкоголем ',                       u'X45',     u'13'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Преднамеренное самоп-\nовреждение(X60-X84)',                               u'Всего',                                          u'',                                 u'X60-X84', u'14'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'',                                                                         u'из них:',                                        u'наркотиками ',                     u'X62',     u'15'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'',                                                                         u'',                                               u'алкоголем ',                       u'X65',     u'16'], CReportBase.AlignRight),
+            ( '4%', [u'',                                                                                               u'Нападение',                                                                u'',                                               u'',                                 u'X85-Y09', u'17'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Повреждение с неопре-\nделенными намерениями',                             u'',                                               u' ',                                u'Y10-Y34 ',u'18'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Действия, предусмотре-\nнные законом, воен-\nные операции и терроризм',    u'',                                               u'',                                 u'Y35-Y38', u'19'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Осложнения терапевти-\nческих и хирургичес-\nких вмешательств',            u'',                                               u'',                                 u'Y40-Y84', u'20'], CReportBase.AlignRight),
+            ( '4.5%', [u'',                                                                                               u'Последствия воздейст-\nвия внешних причин за-\nболеваемости и смертности', u'',                                               u'',                                 u'Y85-Y89', u'21'], CReportBase.AlignRight),
             ]
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 5, 1)
         table.mergeCells(0, 1, 5, 1)
         table.mergeCells(0, 2, 5, 1)
-        table.mergeCells(0, 3, 1, 17)
+        table.mergeCells(0, 3, 1, 18)
         table.mergeCells(1, 3, 3, 1)
         table.mergeCells(1, 4, 1, 2)
         table.mergeCells(2, 4, 2, 1)
         table.mergeCells(2, 5, 2, 1)
-        table.mergeCells(1, 6, 1, 6)
+        table.mergeCells(1, 6, 1, 7)
         table.mergeCells(2, 6, 2, 1)
-        table.mergeCells(2, 7, 1, 3)
-        table.mergeCells(2, 10, 1, 2)
-        table.mergeCells(1, 12, 1, 3)
-        table.mergeCells(2, 12, 2, 1)
-        table.mergeCells(2, 13, 1, 2)
-        table.mergeCells(1, 15, 3, 1)
+        table.mergeCells(2, 7, 1, 4)
+        table.mergeCells(2, 11, 1, 2)
+        table.mergeCells(1, 13, 1, 3)
+        table.mergeCells(2, 13, 2, 1)
+        table.mergeCells(2, 14, 1, 2)
         table.mergeCells(1, 16, 3, 1)
         table.mergeCells(1, 17, 3, 1)
         table.mergeCells(1, 18, 3, 1)
         table.mergeCells(1, 19, 3, 1)
+        table.mergeCells(1, 20, 3, 1)
 
         for row, rowDescr in enumerate(MainRowsNew):
             i   = table.addRow()

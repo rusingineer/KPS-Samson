@@ -10,6 +10,7 @@ from UOServiceClient import CUOServiceClient
 
 from Ui_UOAppointmentsTableDialog import Ui_UOAppointmentsTableDialog
 
+
 class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppointmentsTableDialog):
     def __init__(self, parent, action):
         QtGui.QDialog.__init__(self, parent)
@@ -22,13 +23,17 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
         self.btnSetAppointment.setEnabled(False)
         self.btnRegisterReferral.setEnabled(False)
         self.action = action
+        try:
+            self.clientId = parent.clientId()
+        except:
+            self.clientId = parent.clientId
         self.orgId = action[u'Куда направляется']
         self.profileId = action[u'Профиль']
         h = self.tblAppointments.fontMetrics().height()
-        self.tblAppointments.verticalHeader().setDefaultSectionSize(3*h/2)
+        self.tblAppointments.verticalHeader().setDefaultSectionSize(3 * h / 2)
         self.tblAppointments.verticalHeader().hide()
         w = self.tblAppointments.fontMetrics().width('00.00.0000')
-        self.tblAppointments.horizontalHeader().setDefaultSectionSize(w+h*2)
+        self.tblAppointments.horizontalHeader().setDefaultSectionSize(w + h * 2)
         self.actionChanged = False
 
     def showEvent(self, event):
@@ -39,30 +44,31 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
         self.tblAppointments.setEnabled(enabled)
         self.btnUpdateList.setEnabled(enabled)
         self.btnSetAppointment.setEnabled(enabled and self.selectionModelAppointments.hasSelection())
-        self.btnRegisterReferral.setEnabled(enabled and not self.action[u'Идентификатор талона'])
+        self.btnRegisterReferral.setEnabled(enabled and not self.action[u'Идентификатор направления'])
         self.btnClose.setEnabled(enabled)
 
     def updateList(self):
         self.modelAppointments.setList(None)
         self.modelDoctors.setList(None)
-        if not self.action[u'Идентификатор направления']:
-            self.on_btnRegisterReferral_auto_clicked()
         self.lblStatus.setText(u"Загрузка списка талонов...")
         self.lblStatus.setVisible(True)
         self.enableControls(False)
         QtGui.qApp.setWaitCursor()
-        if self.action[u'Идентификатор направления']:
-            try:
-                QtGui.qApp.processEvents()
-                client = CUOServiceClient()
-                serviceData = client.getInspectDoctorsReferral2(self.action[u'Идентификатор направления'])
-                self.modelDoctors.setList(serviceData)
-            except Exception, e:
-                QtGui.QMessageBox.critical(self,
-                    u'Ошибка при получении списка доступных талонов',
-                    exceptionToUnicode(e),
-                    QtGui.QMessageBox.Ok,
-                    QtGui.QMessageBox.Ok)
+        try:
+            QtGui.qApp.processEvents()
+            client = CUOServiceClient()
+            serviceData = client.getAvailableAppointments(self.orgId, self.profileId, self.clientId)
+            self.modelDoctors.setList(serviceData)
+        except Exception, e:
+            if exceptionToUnicode(e) == 'timed out':
+                error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+            else:
+                error = exceptionToUnicode(e)
+            QtGui.QMessageBox.critical(self,
+                                       u'Ошибка при получении списка доступных талонов',
+                                       error,
+                                       QtGui.QMessageBox.Ok,
+                                       QtGui.QMessageBox.Ok)
         QtGui.qApp.restoreOverrideCursor()
         self.enableControls(True)
         if len(self.modelDoctors.rows) > 0:
@@ -90,7 +96,8 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
 
     @pyqtSignature('')
     def on_btnSetAppointment_clicked(self):
-        if self.action[u'Идентификатор талона'] and self.action[u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ':
+        if self.action[u'Идентификатор талона'] and self.action[
+            u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ':
             return
         client = CUOServiceClient()
         self.lblStatus.setText(u"Регистрация направления и запись на прием...")
@@ -105,12 +112,16 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
                     idMq = client.registerReferral(self.action)
                     self.action[u'Идентификатор направления'] = idMq
                     self.actionChanged = True
-                except Exception, e:
+                except Exception as e:
+                    if exceptionToUnicode(e) == 'timed out':
+                        error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+                    else:
+                        error = exceptionToUnicode(e)
                     QtGui.QMessageBox.critical(self,
-                        u'Ошибка при регистрации направления',
-                        exceptionToUnicode(e),
-                        QtGui.QMessageBox.Ok,
-                        QtGui.QMessageBox.Ok)
+                                               u'Ошибка при регистрации направления',
+                                               error,
+                                               QtGui.QMessageBox.Ok,
+                                               QtGui.QMessageBox.Ok)
                     return
             self.lblStatus.setText(u"Запись на прием...")
             QtGui.qApp.processEvents()
@@ -122,18 +133,22 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
             try:
                 client.setAppointment(self.action, specialityId, doctorId, appointmentId)
                 self.actionChanged = True
-            except Exception, e:
+            except Exception as e:
+                if exceptionToUnicode(e) == 'timed out':
+                    error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+                else:
+                    error = exceptionToUnicode(e)
                 QtGui.QMessageBox.critical(self,
-                    u'Ошибка при записи на прием',
-                    exceptionToUnicode(e),
-                    QtGui.QMessageBox.Ok,
-                    QtGui.QMessageBox.Ok)
+                                           u'Ошибка при записи на прием',
+                                           exceptionToUnicode(e),
+                                           QtGui.QMessageBox.Ok,
+                                           QtGui.QMessageBox.Ok)
                 return
             QtGui.QMessageBox.information(self,
-                u'Внимание!',
-                u'Запись на прием выполнена успешно',
-                QtGui.QMessageBox.Ok,
-                QtGui.QMessageBox.Ok)
+                                          u'Внимание!',
+                                          u'Запись на прием выполнена успешно',
+                                          QtGui.QMessageBox.Ok,
+                                          QtGui.QMessageBox.Ok)
             self.accept()
         finally:
             QtGui.qApp.restoreOverrideCursor()
@@ -142,10 +157,8 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
 
     @pyqtSignature('')
     def on_btnRegisterReferral_auto_clicked(self):
-        if self.action[u'Идентификатор талона']:
-            return
         client = CUOServiceClient()
-        self.lblStatus.setText(u"Регистрация направления")
+        self.lblStatus.setText(u"Регистрация направления и запись на прием...")
         self.lblStatus.setVisible(True)
         self.enableControls(False)
         QtGui.qApp.setWaitCursor()
@@ -157,13 +170,23 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
                     idMq = client.registerReferral(self.action)
                     self.action[u'Идентификатор направления'] = idMq
                     self.actionChanged = True
-                except Exception, e:
+                except Exception as e:
+                    if exceptionToUnicode(e) == 'timed out':
+                        error = u'В данный момент целевая медицинская организация не доступна.\nПопробуйте записать позже.'
+                    else:
+                        error = exceptionToUnicode(e)
                     QtGui.QMessageBox.critical(self,
                                                u'Ошибка при регистрации направления',
-                                               exceptionToUnicode(e),
+                                               error,
                                                QtGui.QMessageBox.Ok,
                                                QtGui.QMessageBox.Ok)
                     return
+            QtGui.QMessageBox.information(self,
+                                          u'Внимание!',
+                                          u'Направление зарегистрировано',
+                                          QtGui.QMessageBox.Ok,
+                                          QtGui.QMessageBox.Ok)
+            self.accept()
         finally:
             QtGui.qApp.restoreOverrideCursor()
             self.enableControls(True)
@@ -171,6 +194,8 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
 
     @pyqtSignature('')
     def on_btnRegisterReferral_clicked(self):
+        if not self.action[u'Идентификатор направления']:
+            self.on_btnRegisterReferral_auto_clicked()
         if self.action[u'Идентификатор талона']:
             return
         self.action[u'Идентификатор талона'] = u'Направление для самостоятельной записи через ЕПГУ'
@@ -206,20 +231,20 @@ class CUOAppointmentsTableDialog(QtGui.QDialog, CConstructHelperMixin, Ui_UOAppo
     @pyqtSignature('')
     def on_modelAppointments_modelReset(self):
         self.btnSetAppointment.setEnabled(False)
-    
+
 
 class CUODoctorsListModel(QAbstractItemModel):
     def __init__(self, parent):
         QAbstractItemModel.__init__(self, parent)
         self.rows = []
         self.doctors = {}
-    
+
     def index(self, row, col, parent):
         return self.createIndex(row, col, None)
-    
+
     def parent(self, child):
         return QModelIndex()
-    
+
     def setList(self, serviceData):
         self.rows = []
         self.doctors = {}
@@ -236,13 +261,13 @@ class CUODoctorsListModel(QAbstractItemModel):
                         }
             self.rows = sorted(self.doctors.keys(), key=lambda k: self.doctors[k]['name'])
         self.reset()
-    
+
     def columnCount(self, parent):
         return 1
-    
+
     def rowCount(self, parent):
         return len(self.rows)
-    
+
     def data(self, index, role):
         if role == Qt.DisplayRole:
             row = index.row()
@@ -251,7 +276,7 @@ class CUODoctorsListModel(QAbstractItemModel):
                 key = self.rows[row]
                 return QVariant(self.doctors[key]['name'])
         return QVariant()
-    
+
     def getDoctorByIndex(self, index):
         row = index.row()
         key = self.rows[row]
@@ -289,13 +314,13 @@ class CUOAppointmentsTableModel(QAbstractTableModel):
                 self.maxRowCount = len(appointments)
         self.columns = sorted(self.appointmentsByDate.keys())
         self.reset()
-        
-    def columnCount(self, index = None):
+
+    def columnCount(self, index=None):
         return len(self.columns)
 
-    def rowCount(self, index = None):
+    def rowCount(self, index=None):
         return self.maxRowCount
-    
+
     def data(self, index, role):
         appointment = self.getAppointmentByIndex(index)
         if appointment:
@@ -315,19 +340,19 @@ class CUOAppointmentsTableModel(QAbstractTableModel):
                     toolTip.append(u"Номер талона: %s" % appointment['num'])
                 return QVariant('\n'.join(toolTip))
         return QVariant()
-    
+
     def flags(self, index):
         appointment = self.getAppointmentByIndex(index)
         if appointment:
-            return Qt.ItemIsEnabled|Qt.ItemIsSelectable
+            return Qt.ItemIsEnabled | Qt.ItemIsSelectable
         else:
             return Qt.NoItemFlags
-    
+
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return QVariant(self.columns[section])
         return QVariant()
-    
+
     def getAppointmentByIndex(self, index):
         row = index.row()
         col = index.column()

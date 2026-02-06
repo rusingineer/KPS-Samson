@@ -9,7 +9,7 @@ from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
 from EconomicAnalisys import (getStmt, colClient, colEvent, colOrgStructure, colMedicalType, colEventType, colFinance,
                               colPerson, colServiceInfis, colServiceName, colCSG, colPos, colObr, colSMP, colKD, colPD,
-                              colUET, colAmount, colSUM, colSpecialityOKSOName)
+                              colUET, colAmount, colSUM, colSpecialityOKSOName, colExposedSum)
 
 
 class CEconomicAnalisysE10(CReport):
@@ -40,7 +40,7 @@ class CEconomicAnalisysE10(CReport):
             detailCol = [colFinance, colSpecialityOKSOName]
             detailColName = u"colFinance", u"colSpecialityOKSOName"
         cols = [colClient, colEvent, colServiceInfis, colServiceName,
-                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM]
+                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum]
         cols.extend(detailCol)
         
         colsStmt = u"""select %s as osname,
@@ -57,7 +57,8 @@ class CEconomicAnalisysE10(CReport):
         sum(colPD) as pd,
         sum(colSMP) as callambulance,
         sum(IF(colPos = 0 and colCSG = 0 and colSMP = 0 and colObr = 0, colAmount, 0)) as usl,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """ % detailColName
         
         groupCols = u'%s, %s, colServiceInfis, colServiceName' % detailColName
@@ -68,7 +69,9 @@ class CEconomicAnalisysE10(CReport):
         return QtGui.qApp.db.query(stmt)
 
     def build(self, params):
-        reportRowSize = 9
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 10 if needExposedSum else 9
         reportData = {}
 
         def processQuery(query):
@@ -84,6 +87,7 @@ class CEconomicAnalisysE10(CReport):
                 pd = forceInt(record.value('pd'))
                 uet = forceDouble(record.value('uet'))
                 sums = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
                 cnt = forceInt(record.value('cnt'))
                 pos = forceInt(record.value('pos'))
 
@@ -97,7 +101,8 @@ class CEconomicAnalisysE10(CReport):
                 reportLine[5] += uet
                 reportLine[6] += sums
                 reportLine[7] += cnt
-
+                if needExposedSum:
+                    reportLine[8] += exposedSum
         query = self.selectData(params)
         processQuery(query)
         # now text
@@ -121,9 +126,10 @@ class CEconomicAnalisysE10(CReport):
             ('10%', [u'Кол-во дней лечения'], CReportBase.AlignRight),
             ('5%', [u'Кол-во посещений'], CReportBase.AlignRight),
             ('10%', [u'Кол-во УЕТ'], CReportBase.AlignRight),
-            ('10%', [u'Сумма'], CReportBase.AlignRight)
+            ('5%', [u'Сумма'], CReportBase.AlignRight)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('5%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 1, 2)
         for col in xrange(reportRowSize):
@@ -203,6 +209,7 @@ class CEconomicAnalisysE10Ex(CEconomicAnalisysE10):
         result.setDetailToVisible(True)
         result.setListDetailTo(self.detailList)
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

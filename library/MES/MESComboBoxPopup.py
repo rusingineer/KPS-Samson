@@ -465,6 +465,18 @@ class CMESComboBoxPopup(QtGui.QFrame, Ui_MESComboBoxPopup):
                        ]
             cond.append(db.existsStmt(tableMESMkbEx, subCond))
 
+        if useAdditionCriteria:
+            tableSpr69 = db.table('soc_spr69')
+            queryTable = queryTable.innerJoin(tableSpr69, tableSpr69['ksgkusl'].eq(tableMES['code']))
+            if date:
+                cond.append(db.joinOr([tableSpr69['dato'].isNull(), tableSpr69['dato'].ge(date)]))
+                cond.append(db.joinOr([tableSpr69['datn'].isNull(), tableSpr69['datn'].le(date)]))
+
+            if self.criteriaList:
+                cond.append(tableSpr69['KRIT'].inlist(self.criteriaList))
+            if self.fractions:
+                cond.append(tableSpr69['fr'].eq(self.fractions))
+
         orderCond='mes.MES.code asc, mes.MES.id'
 
         idList = db.getDistinctIdList(queryTable, tableMES['id'].name(),

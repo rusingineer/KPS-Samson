@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\PROJECTS\samson\UP_s11\client_test\Users\Login.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Users\Login.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -36,7 +36,7 @@ class Ui_LoginDialog(object):
         self.lblLogin = QtGui.QLabel(LoginDialog)
         self.lblLogin.setObjectName(_fromUtf8("lblLogin"))
         self.gridlayout.addWidget(self.lblLogin, 0, 0, 1, 1)
-        self.edtPassword = QtGui.QLineEdit(LoginDialog)
+        self.edtPassword = CPasswordEdit(LoginDialog)
         self.edtPassword.setEchoMode(QtGui.QLineEdit.Password)
         self.edtPassword.setObjectName(_fromUtf8("edtPassword"))
         self.gridlayout.addWidget(self.edtPassword, 1, 1, 1, 1)
@@ -65,3 +65,4 @@ class Ui_LoginDialog(object):
         self.lblPassword.setText(_translate("LoginDialog", "&Пароль", None))
         self.lblLogin.setText(_translate("LoginDialog", "&Имя", None))
 
+from library.PasswordEdit import CPasswordEdit

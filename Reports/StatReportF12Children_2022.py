@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -384,8 +384,6 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE %s
 GROUP BY Diagnosis.client_id, firstInPeriod
 ORDER BY firstInPeriod DESC
@@ -407,6 +405,11 @@ ORDER BY firstInPeriod DESC
                        tableDiagnostic['deleted'].eq(0)
                      ]
     addDateInRange(diagnosticCond, tableDiagnostic['setDate'], begDate, endDate)
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -422,14 +425,8 @@ ORDER BY firstInPeriod DESC
             diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].eq(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -503,11 +500,11 @@ ORDER BY firstInPeriod DESC
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     isDispanser = params.get('isDispanser', False)
     if isDispanser:
         cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
@@ -536,16 +533,13 @@ def selectObservedDataClient(begDate, endDate, eventPurposeId, eventTypeIdList, 
 SELECT
    Diagnosis.client_id,
    age(Client.birthDate, %s) AS clientAge,
-   rbDiseaseCharacter.code AS diseaseCharacter,
    Diagnosis.MKB
 
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11') AND %s
-GROUP BY Diagnosis.client_id, clientAge, diseaseCharacter, Diagnosis.MKB
+GROUP BY Diagnosis.client_id, clientAge, Diagnosis.MKB
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -563,6 +557,11 @@ GROUP BY Diagnosis.client_id, clientAge, diseaseCharacter, Diagnosis.MKB
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
                        tableDiagnostic['deleted'].eq(0)
                      ]
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -578,14 +577,8 @@ GROUP BY Diagnosis.client_id, clientAge, diseaseCharacter, Diagnosis.MKB
             diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].eq(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -659,11 +652,11 @@ GROUP BY Diagnosis.client_id, clientAge, diseaseCharacter, Diagnosis.MKB
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
         FROM
         Diagnostic AS D1
@@ -687,11 +680,22 @@ def selectDataToOneYear(begDate, endDate, eventPurposeId, eventTypeIdList, orgSt
 SELECT
    Diagnosis.MKB AS MKB,
    COUNT(*) AS sickCount,
-   rbDiseaseCharacter.code AS diseaseCharacter,
+    EXISTS(
+        SELECT NULL
+        FROM Diagnostic AS D1
+            INNER JOIN Event AS E ON E.id = D1.event_id
+            INNER JOIN rbDiseaseCharacter on rbDiseaseCharacter.id = D1.character_id
+        WHERE D1.diagnosis_id = Diagnosis.id
+            AND E.deleted = 0
+            AND D1.deleted = 0
+            AND rbDiseaseCharacter.code = '1'
+            AND D1.setDate >= \'%(begDate)s\'
+            AND D1.setDate <= \'%(endDate)s\'
+    ) AS hasAcuteDiagnostic,
    rbDiagnosisType.code AS diagnosisType,
-   IF(DATE_ADD(Client.birthDate, INTERVAL 29 DAY) >= %s, 1, 0) AS dayAge,
+   IF(DATE_ADD(Client.birthDate, INTERVAL 29 DAY) >= %(ageDate)s, 1, 0) AS dayAge,
    Diagnosis.client_id,
-   age(Client.birthDate, %s) AS clientAge,
+   age(Client.birthDate, %(ageDate)s) AS clientAge,
    EXISTS(SELECT rbResult.id
    FROM
    Diagnostic AS D1
@@ -705,10 +709,12 @@ SELECT
     LEFT JOIN rbDispanser ON rbDispanser.id = D1.dispanser_id
     WHERE
       D1.diagnosis_id = Diagnosis.id
-      AND (rbDispanser.code IN (2,6) AND D1.setDate >= \'%s\' AND D1.setDate <= \'%s\')
+      AND (rbDispanser.code IN (2,6)
+      AND D1.setDate >= \'%(begDate)s\'
+      AND D1.setDate <= \'%(endDate)s\')
     ORDER BY rbDispanser.code
     LIMIT 1) AS getObserved,
-   (%s) AS firstInPeriod,
+   (%(firstInPeriod)s) AS firstInPeriod,
    EXISTS(SELECT mes.MES.id
     FROM
     Diagnostic AS D1
@@ -735,12 +741,11 @@ SELECT
 
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
-%s
+%(join)s
 LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
-AND %s
-GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNotPrimary, getAdultsDispans, rbDiagnosisType.id, closedEvent, dayAge, clientAge, Diagnosis.client_id
+AND %(cond)s
+GROUP BY MKB, hasAcuteDiagnostic, diagnosisType, firstInPeriod, getObserved, getProfilactic, isNotPrimary, getAdultsDispans, closedEvent, dayAge, clientAge, Diagnosis.client_id
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -763,7 +768,7 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
     addDateInRange(diagnosticCond, tableDiagnostic['setDate'], begDate, endDate)
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
-    diagnosticCond.append(tableEventType['code'].ne('rmDisp'))
+    diagnosticCond.append(tableEventType['code'].notInlist(['rmDisp', 'MSE']))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -867,11 +872,11 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     isDispanser = params.get('isDispanser', False)
     if isDispanser:
         cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
@@ -887,14 +892,14 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
             WHERE D2.diagnosis_id = Diagnosis.id
               AND D2.dispanser_id IS NOT NULL
               AND D2.endDate < %s)) = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(endDate.addDays(1))))
-    return db.query(stmt % ((tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31))),
-                            (tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31))),
-                            begDate.toString("yyyy-MM-dd"), 
-                            endDate.toString("yyyy-MM-dd"),
-                            db.joinAnd([tableDiagnosis['setDate'].le(endDate),
-                                        tableDiagnosis['setDate'].ge(begDate)]),
-                            stmtAddress,
-                            db.joinAnd(cond)))
+    return db.query(stmt % {
+        'ageDate': tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)),
+        'begDate': begDate.toString("yyyy-MM-dd"), 
+        'endDate': endDate.toString("yyyy-MM-dd"),
+        'firstInPeriod': db.joinAnd([tableDiagnosis['setDate'].le(endDate), tableDiagnosis['setDate'].ge(begDate)]),
+        'join': stmtAddress,
+        'cond': db.joinAnd(cond)
+    })
 
 
 def selectRemoveDispToOneYear(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, params):
@@ -909,11 +914,9 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
 AND %s
-GROUP BY MKB, rbDiagnosisType.id, dayAge, clientAge, Diagnosis.client_id
+GROUP BY MKB, dayAge, clientAge, Diagnosis.client_id
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -939,6 +942,7 @@ GROUP BY MKB, rbDiagnosisType.id, dayAge, clientAge, Diagnosis.client_id
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
     diagnosticCond.append(tableRBDispanser['code'].inlist(['3','4','5']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1040,11 +1044,11 @@ GROUP BY MKB, rbDiagnosisType.id, dayAge, clientAge, Diagnosis.client_id
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     isDispanser = params.get('isDispanser', False)
     if isDispanser:
         cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
@@ -1077,11 +1081,9 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
 AND %s
-GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id 
+GROUP BY MKB, clientAge, Diagnosis.client_id 
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -1098,6 +1100,11 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
                        tableDiagnostic['deleted'].eq(0)
                      ]
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1126,14 +1133,8 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
             diagnosticCond.append(tablePerson['deleted'].eq(0))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -1207,11 +1208,11 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     cond.append(u'''IF((SELECT MAX(rbDispanser.observed)
         FROM
         Diagnostic AS D1
@@ -1235,9 +1236,20 @@ def selectData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureId
 SELECT
    Diagnosis.MKB AS MKB,
    COUNT(*) AS sickCount,
-   rbDiseaseCharacter.code AS diseaseCharacter,
+    EXISTS(
+        SELECT NULL
+        FROM Diagnostic AS D1
+            INNER JOIN Event AS E ON E.id = D1.event_id
+            INNER JOIN rbDiseaseCharacter on rbDiseaseCharacter.id = D1.character_id
+        WHERE D1.diagnosis_id = Diagnosis.id
+            AND E.deleted = 0
+            AND D1.deleted = 0
+            AND rbDiseaseCharacter.code in ('1', '2')
+            AND D1.setDate >= \'%(begDate)s\'
+            AND D1.setDate <= \'%(endDate)s\'
+    ) AS hasFirstTimeDiagnostic,
    rbDiagnosisType.code AS diagnosisType,
-   age(Client.birthDate, %s) AS clientAge,
+   age(Client.birthDate, %(ageDate)s) AS clientAge,
    EXISTS(SELECT rbResult.id
    FROM
    Diagnostic AS D1
@@ -1251,10 +1263,12 @@ SELECT
     LEFT JOIN rbDispanser ON rbDispanser.id = D1.dispanser_id
     WHERE
       D1.diagnosis_id = Diagnosis.id
-      AND (rbDispanser.code IN (2,6) AND D1.setDate >= \'%s\' AND D1.setDate <= \'%s\')
+      AND (rbDispanser.code IN (2,6)
+      AND D1.setDate >= \'%(begDate)s\'
+      AND D1.setDate <= \'%(endDate)s\')
     ORDER BY rbDispanser.code
     LIMIT 1) AS getObserved,
-   (%s) AS firstInPeriod,
+   (%(firstInPeriod)s) AS firstInPeriod,
    EXISTS(SELECT ETP.id
     FROM
     Diagnostic AS D1
@@ -1290,12 +1304,11 @@ SELECT
 
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
-%s
+%(join)s
 LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
-AND %s
-GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNotPrimary, getAdultsDispans, rbDiagnosisType.id, closedEvent, clientAge
+AND %(cond)s
+GROUP BY MKB, hasFirstTimeDiagnostic, diagnosisType, firstInPeriod, getObserved, getProfilactic, isNotPrimary, getAdultsDispans, closedEvent, clientAge
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -1317,7 +1330,7 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
     tableEventType = db.table('EventType')
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
-    diagnosticCond.append(tableEventType['code'].ne('rmDisp'))
+    diagnosticCond.append(tableEventType['code'].notInlist(['rmDisp', 'MSE']))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1421,11 +1434,11 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -1445,13 +1458,14 @@ GROUP BY MKB, diseaseCharacter, firstInPeriod, getObserved, getProfilactic, isNo
             WHERE D2.diagnosis_id = Diagnosis.id
               AND D2.dispanser_id IS NOT NULL
               AND D2.endDate < %s))) = 1, 1, 0)'''%(tableDiagnosis['setDate'].formatValue(endDate.addDays(1))))
-    return db.query(stmt % ((tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31))),
-                            begDate.toString("yyyy-MM-dd"), 
-                            endDate.toString("yyyy-MM-dd"),
-                            db.joinAnd([tableDiagnosis['setDate'].le(endDate),
-                                        tableDiagnosis['setDate'].ge(begDate)]),
-                            stmtAddress,
-                            db.joinAnd(cond)))
+    return db.query(stmt % {
+        'ageDate': tableDiagnosis['setDate'].formatValue(QDate(endDate.year(), 12, 31)),
+        'begDate': begDate.toString("yyyy-MM-dd"), 
+        'endDate': endDate.toString("yyyy-MM-dd"),
+        'firstInPeriod': db.joinAnd([tableDiagnosis['setDate'].le(endDate), tableDiagnosis['setDate'].ge(begDate)]),
+        'join': stmtAddress,
+        'cond': db.joinAnd(cond)
+    })
 
 
 def selectRemoveDispData(begDate, endDate, eventPurposeId, eventTypeIdList, orgStructureIdList, personId, sex, ageFrom, ageTo, socStatusClassId, socStatusTypeId, isFilterAddressOrgStructure, addrType, addressOrgStructureId, locality, params):
@@ -1472,11 +1486,9 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
 AND %s
-GROUP BY MKB, rbDiagnosisType.id, clientAge
+GROUP BY MKB, clientAge
     """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -1502,6 +1514,7 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge
     diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
     diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
     diagnosticCond.append(tableRBDispanser['code'].inlist(['3','4','5']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1605,11 +1618,11 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -1652,11 +1665,9 @@ SELECT
 FROM Diagnosis
 LEFT JOIN Client ON Client.id = Diagnosis.client_id
 %s
-LEFT JOIN rbDiagnosisType    ON rbDiagnosisType.id = Diagnosis.diagnosisType_id
-LEFT JOIN rbDiseaseCharacter ON rbDiseaseCharacter.id = Diagnosis.character_id
 WHERE Diagnosis.diagnosisType_id NOT IN (SELECT RBDT.id FROM rbDiagnosisType AS RBDT WHERE RBDT.code = '7' OR RBDT.code = '11')
 AND %s
-GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
+GROUP BY MKB, clientAge, Diagnosis.client_id
 """
     db = QtGui.qApp.db
     tableDiagnosis  = db.table('Diagnosis')
@@ -1673,6 +1684,11 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
     diagnosticCond = [ tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']),
                        tableDiagnostic['deleted'].eq(0)
                      ]
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
+    diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    diagnosticCond.append(tableEventType['code'].ne('MSE'))
     if specialityId:
         diagnosticQuery = diagnosticQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableDiagnostic['person_id']))
         diagnosticCond.append(tablePerson['speciality_id'].eq(specialityId))
@@ -1701,14 +1717,8 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
             diagnosticCond.append(tablePerson['deleted'].eq(0))
         diagnosticCond.append(tablePerson['org_id'].eq(QtGui.qApp.currentOrgId()))
     if eventTypeIdList:
-        tableEvent = db.table('Event')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
         diagnosticCond.append(tableEvent['eventType_id'].inlist(eventTypeIdList))
     elif eventPurposeId:
-        tableEvent = db.table('Event')
-        tableEventType = db.table('EventType')
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEvent, tableEvent['id'].eq(tableDiagnostic['event_id']))
-        diagnosticQuery = diagnosticQuery.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         diagnosticCond.append(tableEventType['purpose_id'].eq(eventPurposeId))
     cond.append(db.existsStmt(diagnosticQuery, diagnosticCond))
 
@@ -1782,11 +1792,11 @@ GROUP BY MKB, rbDiagnosisType.id, clientAge, Diagnosis.client_id
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if params.get('MKBFrom'):
         cond.append(tableDiagnosis['MKB'].ge(params.get('MKBFrom')))
     if params.get('MKBTo'):
@@ -1932,7 +1942,7 @@ class CStatReportF12Children0_14_2022(CReport):
             clientAge = forceInt(record.value('clientAge'))
             MKB = normalizeMKB(forceString(record.value('MKB')))
             sickCount = forceInt(record.value('sickCount'))
-            diseaseCharacter = forceString(record.value('diseaseCharacter'))
+            hasFirstTimeDiagnostic = forceBool(record.value('hasFirstTimeDiagnostic'))
             diagnosisType = forceString(record.value('diagnosisType'))
             firstInPeriod = forceBool(record.value('firstInPeriod'))
             closedEvent = forceBool(record.value('closedEvent'))
@@ -1963,17 +1973,7 @@ class CStatReportF12Children0_14_2022(CReport):
                 cols.append(1)
             elif clientAge >= 5 and clientAge < 10:
                 cols.append(2)
-            if diseaseCharacter == '1': # острое
-                cols.append(4)
-                if MKB.startswith('E66') and sex == 1:
-                    registered1005[6] += sickCount
-                    if MKB in ('E66.2'):
-                        registered1005[7] += sickCount
-                if getAdultsDispans:
-                    cols.append(6)
-                if getObserved:
-                    cols.append(5)
-            elif firstInPeriod:
+            if hasFirstTimeDiagnostic: # острое и хроническое впервые установленное
                 cols.append(4)
                 if MKB.startswith('E66') and sex == 1:
                     registered1005[6] += sickCount
@@ -2000,7 +2000,7 @@ class CStatReportF12Children0_14_2022(CReport):
                     for col in cols:
                         reportLine[col] += sickCount
 
-            if diagnosisType == '98' and clientAge >= 0 and clientAge < 1:
+            if diagnosisType == '98':
                 if detailMKB:
                     reportLine = reportCompData.setdefault(MKB, [0]*rowCompSize)
                     reportLine[0] += sickCount
@@ -2101,7 +2101,6 @@ class CStatReportF12Children0_14_2022(CReport):
         while queryObservedClient.next():
             record = queryObservedClient.record()
             clientId = forceRef(record.value('client_id'))
-            diseaseCharacter = forceString(record.value('diseaseCharacter'))
             clientAge = forceInt(record.value('clientAge'))
             MKB = normalizeMKB(forceString(record.value('MKB')))
             if clientId and MKB in [u'B18.2', u'B18.1', u'B18', u'B18.8', u'B18.9', u'K74.6']:
@@ -2353,7 +2352,7 @@ class CStatReportF12Children0_1_2022(CReport):
         result.setFilterAddressOrgStructureVisible(True)
         result.setAllAddressSelectable(True)
         result.setAllAttachSelectable(True)
-        result.setEventTypeListListVisible(True)
+        result.setEventTypeListListVisible(False)
         result.setOrgStructureListVisible(True)
         result.setSpecialityVisible(True)
         result.setCMBEventTypeVisible(False)
@@ -2521,7 +2520,7 @@ class CStatReportF12Children0_1_2022(CReport):
             clientId            = forceRef(record.value('client_id'))
             MKB                 = normalizeMKB(forceString(record.value('MKB')))
             sickCount           = forceInt(record.value('sickCount'))
-            diseaseCharacter    = forceString(record.value('diseaseCharacter'))
+            hasAcuteDiagnostic  = forceBool(record.value('hasAcuteDiagnostic'))
             diagnosisType       = forceString(record.value('diagnosisType'))
             firstInPeriod       = forceBool(record.value('firstInPeriod'))
             closedEvent         = forceBool(record.value('closedEvent'))
@@ -2537,7 +2536,7 @@ class CStatReportF12Children0_1_2022(CReport):
                 cols.append(2)
             if dayAge:
                 cols.append(3)
-            if diseaseCharacter == '1': # острое
+            if hasAcuteDiagnostic: # острое
                 if clientAge >= 0 and clientAge < 1:
                     cols.append(6)
                 elif clientAge >= 1 and clientAge < 3:
@@ -2639,7 +2638,6 @@ class CStatReportF12Children0_1_2022(CReport):
             sickCount = forceInt(record.value('sickCount'))
             clientAge = forceInt(record.value('clientAge')) 
             clientId = forceRef(record.value('client_id'))
-            diseaseCharacter = forceString(record.value('diseaseCharacter'))
             
             cols = []
             if clientAge >= 0 and clientAge < 1:

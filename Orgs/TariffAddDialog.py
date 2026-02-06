@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,10 +15,11 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, Qt, pyqtSignature, QVariant
+from PyQt4.QtGui import QFont
 from PyQt4.QtSql import QSqlField
 from library.InDocTable import CInDocTableModel, CInDocTableCol, CBoolInDocTableCol
 from library.DialogBase import CDialogBase
-from library.Utils import forceRef, forceString, forceDouble, toVariant
+from library.Utils import forceRef, forceString, forceDouble, toVariant, forceDate
 from Accounting.Tariff import CTariff
 from library.TableModel import CTableModel, CTextCol
 
@@ -360,9 +361,31 @@ class CTariffModel(CInDocTableModel):
         
         db = QtGui.qApp.db
         self.reset()    
-        self._items = db.getRecordList(self._table, ['id', 'infis', 'name', 'adultUetDoctor'], filter, ['id'])
+        self._items = db.getRecordList(self._table, ['id', 'infis', 'name', 'adultUetDoctor', 'endDate'], filter, ['id'])
         for record in self._items:
             record.insert(0, QSqlField('isActive'))
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid() and role == Qt.FontRole:
+            row = index.row()
+            if 0 <= row < len(self._items):
+                if forceDate(self.items()[row].value('endDate')) <= QDate.currentDate():
+                    font = QFont()
+                    font.setItalic(True)
+                    font.setBold(True)
+                    return font
+                else:
+                    return QVariant()
+
+        if index.isValid() and role == Qt.ToolTipRole:
+            row = index.row()
+            if 0 <= row < len(self._items):
+                if forceDate(self.items()[row].value('endDate')) <= QDate.currentDate():
+                    return u"Данная услуга не является актуальной"
+                else:
+                    return u""
+
+        return CInDocTableModel.data(self, index, role)
         
     
 class CTariffServicesModel(CTableModel):

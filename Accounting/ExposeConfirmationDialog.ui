@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>335</height>
+    <height>336</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,6 +20,40 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="9" column="0">
+    <widget class="QCheckBox" name="chkExposeByChildOrgStruct">
+     <property name="text">
+      <string>При выставлении счетов разбивать по подразделениям</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkFilterPaymentByOrgStructure">
+     <property name="text">
+      <string>При выставлении счетов учитывать текущее подразделение</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QCheckBox" name="chkSeparateReExpose">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Перевыставлять в отдельный счет</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkReExpose">
+     <property name="text">
+      <string>Выполнять перевыставление по имеющимся отказам</string>
+     </property>
+    </widget>
+   </item>
    <item row="1" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
@@ -57,30 +91,33 @@
      </item>
     </layout>
    </item>
-   <item row="2" column="0" colspan="2">
-    <widget class="QCheckBox" name="chkFilterPaymentByOrgStructure">
+   <item row="10" column="1">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>61</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="7" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkOnlyResearchOnCOVID">
      <property name="text">
-      <string>При выставлении счетов учитывать текущее подразделение</string>
+      <string>Выставлять только исследования на covid</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="QCheckBox" name="chkReExpose">
-     <property name="text">
-      <string>Выполнять перевыставление по имеющимся отказам</string>
+   <item row="11" column="0">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <widget class="QCheckBox" name="chkSeparateReExpose">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Перевыставлять в отдельный счет</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
@@ -95,36 +132,6 @@
     <widget class="QCheckBox" name="chkOnlyDispCOVID">
      <property name="text">
       <string>Выставлять только углубленную диспансеризацию</string>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="0" colspan="2">
-    <widget class="QCheckBox" name="chkOnlyResearchOnCOVID">
-     <property name="text">
-      <string>Выставлять только исследования на covid</string>
-     </property>
-    </widget>
-   </item>
-   <item row="8" column="1">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>61</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="9" column="0">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
@@ -161,6 +168,13 @@
        </item>
       </layout>
      </widget>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QCheckBox" name="chkOnlyTFOMS">
+     <property name="text">
+      <string>Выставлять только инокраевые счета</string>
+     </property>
     </widget>
    </item>
   </layout>

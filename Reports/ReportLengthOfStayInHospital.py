@@ -135,23 +135,23 @@ def selectData(params):
         if eventStatus == 1:
             cond.append(tableEvent['execDate'].isNotNull())
             if begExecDate:
-                cond.append(tableEvent['execDate'].dateGe(begExecDate))
+                cond.append(tableEvent['execDate'].ge(begExecDate))
             if endExecDate:
-                cond.append(tableEvent['execDate'].dateLe(endExecDate))
+                cond.append(tableEvent['execDate'].lt(endExecDate.addDays(1)))
         else:
             joinAnd1 = [tableEvent['execDate'].isNull()]
             joinAnd2 = [tableEvent['execDate'].isNotNull()]
             if endExecDate:
-                joinAnd1.append(tableEvent['setDate'].dateLe(endExecDate))
-                joinAnd2.append(tableEvent['execDate'].dateLe(endExecDate))
+                joinAnd1.append(tableEvent['setDate'].lt(endExecDate.addDays(1)))
+                joinAnd2.append(tableEvent['execDate'].lt(endExecDate.addDays(1)))
             if begExecDate:
-                joinAnd2.append(tableEvent['execDate'].dateGe(begExecDate))
+                joinAnd2.append(tableEvent['execDate'].ge(begExecDate))
             cond.append(db.joinOr([db.joinAnd(joinAnd1),
                                    db.joinAnd(joinAnd2)]))
     if begSetDate:
-        cond.append(tableEvent['setDate'].dateGe(begSetDate))
+        cond.append(tableEvent['setDate'].ge(begSetDate))
     if endSetDate:
-        cond.append(tableEvent['setDate'].dateLe(endSetDate))
+        cond.append(tableEvent['setDate'].lt(endSetDate.addDays(1)))
     if orgStructureIdList:
         cond.append(tablePerson['orgStructure_id'].inlist(orgStructureIdList))
     if personId:

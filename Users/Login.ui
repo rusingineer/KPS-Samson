@@ -14,7 +14,16 @@
    <string>Регистрация</string>
   </property>
   <layout class="QGridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>6</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>6</number>
+   </property>
+   <property name="bottomMargin">
     <number>6</number>
    </property>
    <property name="spacing">
@@ -41,7 +50,7 @@
     </widget>
    </item>
    <item row="1" column="1">
-    <widget class="QLineEdit" name="edtPassword">
+    <widget class="CPasswordEdit" name="edtPassword">
      <property name="echoMode">
       <enum>QLineEdit::Password</enum>
      </property>
@@ -75,6 +84,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CPasswordEdit</class>
+   <extends>QLineEdit</extends>
+   <header>library/PasswordEdit.h</header>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>edtLogin</tabstop>
   <tabstop>edtPassword</tabstop>

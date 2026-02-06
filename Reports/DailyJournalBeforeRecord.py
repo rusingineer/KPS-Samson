@@ -298,7 +298,7 @@ class CDailyJournalBeforeRecord(CReport):
             birthDate = forceDate(record.value('birthDate'))
             age = calcAge(birthDate, date)
             birthDateAndAge = '%s (%s)'%(birthDate.toString('dd.MM.yyyy'), age)
-            attaches =  formatAttachesAsHTML(getClientAttaches(clientId), date)
+            attaches =  formatAttachesAsHTML(getClientAttaches(clientId), clientId, date)
             recordClass = forceInt(record.value('recordClass'))
             if recordClass == 3:
                 recordName = u'Самозапись через интернет'

@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DistantMonitoringPersonPage</class>
+ <widget class="QWidget" name="DistantMonitoringPersonPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1177</width>
+    <height>872</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Регистрация врача</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="margin">
+    <number>2</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="grpTables" native="true">
+     <layout class="QGridLayout" name="gridLayout_3">
+      <property name="margin">
+       <number>2</number>
+      </property>
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblRecordCount">
+        <property name="text">
+         <string>Список пуст</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="2">
+       <widget class="CTableView" name="tblPersonList">
+        <property name="selectionBehavior">
+         <enum>QAbstractItemView::SelectRows</enum>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="grpFilter">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>350</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>350</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Фильтр</string>
+     </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="margin">
+       <number>4</number>
+      </property>
+      <property name="spacing">
+       <number>2</number>
+      </property>
+      <item row="14" column="0">
+       <widget class="QCheckBox" name="chkUserLogin">
+        <property name="text">
+         <string>Регистрационное имя</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QCheckBox" name="chkLPU">
+        <property name="text">
+         <string>Внешнее ЛПУ</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QCheckBox" name="chkUserProfile">
+        <property name="text">
+         <string>Профиль прав</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QCheckBox" name="chkActivity">
+        <property name="text">
+         <string>Вид деятельности</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QCheckBox" name="chkLastName">
+        <property name="text">
+         <string>Фамилия</string>
+        </property>
+       </widget>
+      </item>
+      <item row="19" column="0" colspan="2">
+       <spacer name="verticalSpacer_8">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>591</width>
+          <height>316</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="20" column="0" colspan="2">
+       <widget class="CApplyResetDialogButtonBox" name="buttonBoxFilter">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="standardButtons">
+         <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="chkStrPodr">
+        <property name="text">
+         <string>Структурное подразделение</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0" colspan="2">
+       <widget class="COrgStructureComboBox" name="cmbStrPodr">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0" colspan="2">
+       <widget class="CRBComboBox" name="cmbPost">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0" colspan="2">
+       <widget class="QComboBox" name="cmbLPU">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="0" colspan="2">
+       <widget class="QLineEdit" name="edtLastName">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0" colspan="2">
+       <widget class="CRBComboBox" name="cmbUserProfile">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0" colspan="2">
+       <widget class="CRBComboBox" name="cmbActivity">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0" colspan="2">
+       <widget class="CRBComboBox" name="cmbSpeciality">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0" colspan="2">
+       <widget class="QLineEdit" name="edtUserLogin">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="17" column="0">
+       <widget class="QLineEdit" name="edtSNILS">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="inputMask">
+         <string>999-999-999 99; </string>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0" colspan="2">
+       <widget class="QCheckBox" name="chkSNILS">
+        <property name="text">
+         <string>СНИЛС</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QCheckBox" name="chkPost">
+        <property name="text">
+         <string>Должность</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QCheckBox" name="chkSpeciality">
+        <property name="text">
+         <string>Специальность</string>
+        </property>
+       </widget>
+      </item>
+      <item row="18" column="0">
+       <widget class="QCheckBox" name="chkIsRegistered">
+        <property name="text">
+         <string>Зарегистрированные в сервисе</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header>library/TableView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CApplyResetDialogButtonBox</class>
+   <extends>QDialogButtonBox</extends>
+   <header>library/DialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>COrgStructureComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgStructComboBoxes.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>tblPersonList</tabstop>
+  <tabstop>buttonBoxFilter</tabstop>
+ </tabstops>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>chkStrPodr</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbStrPodr</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>448</x>
+     <y>31</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>554</x>
+     <y>31</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPost</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbPost</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>396</x>
+     <y>55</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>572</x>
+     <y>53</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSpeciality</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbSpeciality</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>398</x>
+     <y>79</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>552</x>
+     <y>75</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkActivity</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbActivity</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>422</x>
+     <y>97</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>572</x>
+     <y>97</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkLPU</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbLPU</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>398</x>
+     <y>119</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>600</x>
+     <y>121</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkUserProfile</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>cmbUserProfile</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>412</x>
+     <y>139</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>566</x>
+     <y>143</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkLastName</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtLastName</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>406</x>
+     <y>163</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>568</x>
+     <y>165</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkUserLogin</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtUserLogin</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>432</x>
+     <y>183</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>580</x>
+     <y>187</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSNILS</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtSNILS</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>392</x>
+     <y>205</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>576</x>
+     <y>209</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

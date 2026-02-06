@@ -31,7 +31,7 @@ class CRBSocStatusTypeList(CItemsListDialog):
             CTextCol(u'Код',          [rbCode], 20),
             CTextCol(u'Наименование', [rbName], 40),
             CTextCol(u'Краткое наименование', ['shortName'], 40),
-            CTextCol(u'Региональный код', ['regionalCode'], 20),
+            CTextCol(u'Код для отчетов', ['regionalCode'], 20),
             CRefBookCol(u'Тип документа',['documentType_id'], 'rbDocumentType', 20)
             ], rbSocStatusType, [rbCode, rbName])
         self.setWindowTitleEx(u'Типы социального статуса')

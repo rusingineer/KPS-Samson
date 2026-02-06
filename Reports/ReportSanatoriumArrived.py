@@ -44,8 +44,8 @@ def selectData(params, relative=False):
     cond = [tableAction['deleted'].eq(0),
             tableActionType['deleted'].eq(0),
             tableActionType['flatCode'].eq('received'),
-            tableAction['begDate'].dateGe(begDate),
-            tableAction['begDate'].dateLe(endDate),
+            tableAction['begDate'].ge(begDate),
+            tableAction['begDate'].lt(endDate.addDays(1)),
             tableRbMedicalAidType['code'].eq(8)] #Санаторно-курортная
     if relative:
         cond.append(tableEvent['relative_id'].isNotNull())

@@ -1,0 +1,168 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Registry\DistantMonitoringPersonPage.ui'
+#
+# Created by: PyQt4 UI code generator 4.11.4
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+try:
+    _fromUtf8 = QtCore.QString.fromUtf8
+except AttributeError:
+    def _fromUtf8(s):
+        return s
+
+try:
+    _encoding = QtGui.QApplication.UnicodeUTF8
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig, _encoding)
+except AttributeError:
+    def _translate(context, text, disambig):
+        return QtGui.QApplication.translate(context, text, disambig)
+
+class Ui_DistantMonitoringPersonPage(object):
+    def setupUi(self, DistantMonitoringPersonPage):
+        DistantMonitoringPersonPage.setObjectName(_fromUtf8("DistantMonitoringPersonPage"))
+        DistantMonitoringPersonPage.resize(1177, 872)
+        self.horizontalLayout = QtGui.QHBoxLayout(DistantMonitoringPersonPage)
+        self.horizontalLayout.setMargin(2)
+        self.horizontalLayout.setSpacing(2)
+        self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
+        self.grpTables = QtGui.QWidget(DistantMonitoringPersonPage)
+        self.grpTables.setObjectName(_fromUtf8("grpTables"))
+        self.gridLayout_3 = QtGui.QGridLayout(self.grpTables)
+        self.gridLayout_3.setMargin(2)
+        self.gridLayout_3.setSpacing(2)
+        self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
+        self.lblRecordCount = QtGui.QLabel(self.grpTables)
+        self.lblRecordCount.setObjectName(_fromUtf8("lblRecordCount"))
+        self.gridLayout_3.addWidget(self.lblRecordCount, 1, 0, 1, 1)
+        self.tblPersonList = CTableView(self.grpTables)
+        self.tblPersonList.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        self.tblPersonList.setObjectName(_fromUtf8("tblPersonList"))
+        self.gridLayout_3.addWidget(self.tblPersonList, 0, 0, 1, 2)
+        self.horizontalLayout.addWidget(self.grpTables)
+        self.grpFilter = QtGui.QGroupBox(DistantMonitoringPersonPage)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Preferred)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.grpFilter.sizePolicy().hasHeightForWidth())
+        self.grpFilter.setSizePolicy(sizePolicy)
+        self.grpFilter.setMinimumSize(QtCore.QSize(350, 0))
+        self.grpFilter.setMaximumSize(QtCore.QSize(350, 16777215))
+        self.grpFilter.setFlat(False)
+        self.grpFilter.setObjectName(_fromUtf8("grpFilter"))
+        self.gridLayout = QtGui.QGridLayout(self.grpFilter)
+        self.gridLayout.setMargin(4)
+        self.gridLayout.setSpacing(2)
+        self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
+        self.chkUserLogin = QtGui.QCheckBox(self.grpFilter)
+        self.chkUserLogin.setObjectName(_fromUtf8("chkUserLogin"))
+        self.gridLayout.addWidget(self.chkUserLogin, 14, 0, 1, 1)
+        self.chkLPU = QtGui.QCheckBox(self.grpFilter)
+        self.chkLPU.setObjectName(_fromUtf8("chkLPU"))
+        self.gridLayout.addWidget(self.chkLPU, 8, 0, 1, 1)
+        self.chkUserProfile = QtGui.QCheckBox(self.grpFilter)
+        self.chkUserProfile.setObjectName(_fromUtf8("chkUserProfile"))
+        self.gridLayout.addWidget(self.chkUserProfile, 10, 0, 1, 1)
+        self.chkActivity = QtGui.QCheckBox(self.grpFilter)
+        self.chkActivity.setObjectName(_fromUtf8("chkActivity"))
+        self.gridLayout.addWidget(self.chkActivity, 6, 0, 1, 1)
+        self.chkLastName = QtGui.QCheckBox(self.grpFilter)
+        self.chkLastName.setObjectName(_fromUtf8("chkLastName"))
+        self.gridLayout.addWidget(self.chkLastName, 12, 0, 1, 1)
+        spacerItem = QtGui.QSpacerItem(591, 316, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridLayout.addItem(spacerItem, 19, 0, 1, 2)
+        self.buttonBoxFilter = CApplyResetDialogButtonBox(self.grpFilter)
+        self.buttonBoxFilter.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBoxFilter.setStandardButtons(QtGui.QDialogButtonBox.Apply|QtGui.QDialogButtonBox.Reset)
+        self.buttonBoxFilter.setObjectName(_fromUtf8("buttonBoxFilter"))
+        self.gridLayout.addWidget(self.buttonBoxFilter, 20, 0, 1, 2)
+        self.chkStrPodr = QtGui.QCheckBox(self.grpFilter)
+        self.chkStrPodr.setObjectName(_fromUtf8("chkStrPodr"))
+        self.gridLayout.addWidget(self.chkStrPodr, 0, 0, 1, 1)
+        self.cmbStrPodr = COrgStructureComboBox(self.grpFilter)
+        self.cmbStrPodr.setEnabled(False)
+        self.cmbStrPodr.setObjectName(_fromUtf8("cmbStrPodr"))
+        self.gridLayout.addWidget(self.cmbStrPodr, 1, 0, 1, 2)
+        self.cmbPost = CRBComboBox(self.grpFilter)
+        self.cmbPost.setEnabled(False)
+        self.cmbPost.setObjectName(_fromUtf8("cmbPost"))
+        self.gridLayout.addWidget(self.cmbPost, 3, 0, 1, 2)
+        self.cmbLPU = QtGui.QComboBox(self.grpFilter)
+        self.cmbLPU.setEnabled(False)
+        self.cmbLPU.setObjectName(_fromUtf8("cmbLPU"))
+        self.gridLayout.addWidget(self.cmbLPU, 9, 0, 1, 2)
+        self.edtLastName = QtGui.QLineEdit(self.grpFilter)
+        self.edtLastName.setEnabled(False)
+        self.edtLastName.setObjectName(_fromUtf8("edtLastName"))
+        self.gridLayout.addWidget(self.edtLastName, 13, 0, 1, 2)
+        self.cmbUserProfile = CRBComboBox(self.grpFilter)
+        self.cmbUserProfile.setEnabled(False)
+        self.cmbUserProfile.setObjectName(_fromUtf8("cmbUserProfile"))
+        self.gridLayout.addWidget(self.cmbUserProfile, 11, 0, 1, 2)
+        self.cmbActivity = CRBComboBox(self.grpFilter)
+        self.cmbActivity.setEnabled(False)
+        self.cmbActivity.setObjectName(_fromUtf8("cmbActivity"))
+        self.gridLayout.addWidget(self.cmbActivity, 7, 0, 1, 2)
+        self.cmbSpeciality = CRBComboBox(self.grpFilter)
+        self.cmbSpeciality.setEnabled(False)
+        self.cmbSpeciality.setObjectName(_fromUtf8("cmbSpeciality"))
+        self.gridLayout.addWidget(self.cmbSpeciality, 5, 0, 1, 2)
+        self.edtUserLogin = QtGui.QLineEdit(self.grpFilter)
+        self.edtUserLogin.setEnabled(False)
+        self.edtUserLogin.setObjectName(_fromUtf8("edtUserLogin"))
+        self.gridLayout.addWidget(self.edtUserLogin, 15, 0, 1, 2)
+        self.edtSNILS = QtGui.QLineEdit(self.grpFilter)
+        self.edtSNILS.setEnabled(False)
+        self.edtSNILS.setObjectName(_fromUtf8("edtSNILS"))
+        self.gridLayout.addWidget(self.edtSNILS, 17, 0, 1, 1)
+        self.chkSNILS = QtGui.QCheckBox(self.grpFilter)
+        self.chkSNILS.setObjectName(_fromUtf8("chkSNILS"))
+        self.gridLayout.addWidget(self.chkSNILS, 16, 0, 1, 2)
+        self.chkPost = QtGui.QCheckBox(self.grpFilter)
+        self.chkPost.setObjectName(_fromUtf8("chkPost"))
+        self.gridLayout.addWidget(self.chkPost, 2, 0, 1, 1)
+        self.chkSpeciality = QtGui.QCheckBox(self.grpFilter)
+        self.chkSpeciality.setObjectName(_fromUtf8("chkSpeciality"))
+        self.gridLayout.addWidget(self.chkSpeciality, 4, 0, 1, 1)
+        self.chkIsRegistered = QtGui.QCheckBox(self.grpFilter)
+        self.chkIsRegistered.setObjectName(_fromUtf8("chkIsRegistered"))
+        self.gridLayout.addWidget(self.chkIsRegistered, 18, 0, 1, 1)
+        self.horizontalLayout.addWidget(self.grpFilter)
+
+        self.retranslateUi(DistantMonitoringPersonPage)
+        QtCore.QObject.connect(self.chkStrPodr, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbStrPodr.setEnabled)
+        QtCore.QObject.connect(self.chkPost, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbPost.setEnabled)
+        QtCore.QObject.connect(self.chkSpeciality, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbSpeciality.setEnabled)
+        QtCore.QObject.connect(self.chkActivity, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbActivity.setEnabled)
+        QtCore.QObject.connect(self.chkLPU, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbLPU.setEnabled)
+        QtCore.QObject.connect(self.chkUserProfile, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbUserProfile.setEnabled)
+        QtCore.QObject.connect(self.chkLastName, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.edtLastName.setEnabled)
+        QtCore.QObject.connect(self.chkUserLogin, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.edtUserLogin.setEnabled)
+        QtCore.QObject.connect(self.chkSNILS, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.edtSNILS.setEnabled)
+        QtCore.QMetaObject.connectSlotsByName(DistantMonitoringPersonPage)
+        DistantMonitoringPersonPage.setTabOrder(self.tblPersonList, self.buttonBoxFilter)
+
+    def retranslateUi(self, DistantMonitoringPersonPage):
+        DistantMonitoringPersonPage.setWindowTitle(_translate("DistantMonitoringPersonPage", "Регистрация врача", None))
+        self.lblRecordCount.setText(_translate("DistantMonitoringPersonPage", "Список пуст", None))
+        self.grpFilter.setTitle(_translate("DistantMonitoringPersonPage", "Фильтр", None))
+        self.chkUserLogin.setText(_translate("DistantMonitoringPersonPage", "Регистрационное имя", None))
+        self.chkLPU.setText(_translate("DistantMonitoringPersonPage", "Внешнее ЛПУ", None))
+        self.chkUserProfile.setText(_translate("DistantMonitoringPersonPage", "Профиль прав", None))
+        self.chkActivity.setText(_translate("DistantMonitoringPersonPage", "Вид деятельности", None))
+        self.chkLastName.setText(_translate("DistantMonitoringPersonPage", "Фамилия", None))
+        self.chkStrPodr.setText(_translate("DistantMonitoringPersonPage", "Структурное подразделение", None))
+        self.edtSNILS.setInputMask(_translate("DistantMonitoringPersonPage", "999-999-999 99; ", None))
+        self.chkSNILS.setText(_translate("DistantMonitoringPersonPage", "СНИЛС", None))
+        self.chkPost.setText(_translate("DistantMonitoringPersonPage", "Должность", None))
+        self.chkSpeciality.setText(_translate("DistantMonitoringPersonPage", "Специальность", None))
+        self.chkIsRegistered.setText(_translate("DistantMonitoringPersonPage", "Зарегистрированные в сервисе", None))
+
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from library.DialogButtonBox import CApplyResetDialogButtonBox
+from library.TableView import CTableView
+from library.crbcombobox import CRBComboBox

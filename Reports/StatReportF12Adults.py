@@ -450,11 +450,11 @@ INNER JOIN Address ON Address.id = ClientAddress.address_id'''
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     return db.query(stmt % (db.joinAnd([tableDiagnosis['setDate'].le(endDate),
                                         tableDiagnosis['setDate'].ge(begDate)]),
                             colsEventTypeDDId,
@@ -629,11 +629,11 @@ INNER JOIN Address ON Address.id = ClientAddress.address_id'''
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     if boolThyroidosData:
         return db.query(stmt % (stmtAddress, db.joinAnd(cond), tableDiagnosis['setDate'].formatValue(endDate.addDays(1))))
     else:

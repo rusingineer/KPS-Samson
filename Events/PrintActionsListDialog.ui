@@ -17,59 +17,85 @@
    <string>Печать списка действий по отдельным шаблонам</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="0">
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Порядок печати:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="2">
-    <widget class="QPushButton" name="btnSelectStatus">
-     <property name="text">
-      <string>Статус</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="1">
-    <widget class="QPushButton" name="btnSelectAll">
-     <property name="text">
-      <string>Все</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="label_2">
-     <property name="text">
-      <string>Выбрать:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="2" column="3">
+   <item row="4" column="3">
     <widget class="QPushButton" name="btnSelectDiagnostic">
      <property name="text">
       <string>Диагностика</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="4">
+   <item row="4" column="1">
+    <widget class="QPushButton" name="btnSelectAll">
+     <property name="text">
+      <string>Все</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="label_2">
+     <property name="text">
+      <string>Выбрать:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3" colspan="2">
+    <widget class="QRadioButton" name="rbSortByEndDate">
+     <property name="text">
+      <string>По дате окончания</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="6">
+    <widget class="QPushButton" name="btnSelectNone">
+     <property name="text">
+      <string>Очистить все</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="4">
     <widget class="QPushButton" name="btnSelectCure">
      <property name="text">
       <string>Лечение</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="5">
-    <widget class="QPushButton" name="btnSelectMisc">
-     <property name="text">
-      <string>Мероприятия</string>
+   <item row="5" column="0" colspan="7">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
      </property>
     </widget>
    </item>
-   <item row="2" column="6">
-    <widget class="QPushButton" name="btnSelectNone">
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblActionsFromTO">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="text">
-      <string>Очистить все</string>
+      <string>Действия</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0" colspan="7">
+    <widget class="QTableView" name="tblActions"/>
+   </item>
+   <item row="1" column="5" colspan="2">
+    <widget class="QCheckBox" name="chbAddPageBreaks">
+     <property name="text">
+      <string>Каждый шаблон с новой страницы</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Порядок печати:</string>
      </property>
     </widget>
    </item>
@@ -83,35 +109,85 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0" colspan="7">
-    <widget class="QTableView" name="tblActions"/>
-   </item>
-   <item row="3" column="0" colspan="7">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="3" colspan="2">
-    <widget class="QRadioButton" name="rbSortByEndDate">
+   <item row="4" column="5">
+    <widget class="QPushButton" name="btnSelectMisc">
      <property name="text">
-      <string>По дате окончания</string>
+      <string>Мероприятия</string>
      </property>
     </widget>
    </item>
-   <item row="1" column="5" colspan="2">
-    <widget class="QCheckBox" name="chbAddPageBreaks">
+   <item row="4" column="2">
+    <widget class="QPushButton" name="btnSelectStatus">
      <property name="text">
-      <string>Каждый шаблон с новой страницы</string>
+      <string>Статус</string>
      </property>
     </widget>
+   </item>
+   <item row="3" column="1" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="lblFrom">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>с</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="CDateEdit" name="edtBegDate">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="lblTo">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="layoutDirection">
+        <enum>Qt::LeftToRight</enum>
+       </property>
+       <property name="text">
+        <string>по</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="CDateEdit" name="edtEndDate">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>

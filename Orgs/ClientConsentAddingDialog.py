@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,19 +16,17 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QVariant
 
-from Registry.Utils import getClientBanner
 from library.DialogBase import CDialogBase
 from library.InDocTable import CInDocTableModel, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol, CRBInDocTableCol
-from library.Utils      import forceDate, forceInt, forceRef, toVariant
+from library.Utils import forceDate, forceInt, forceRef, toVariant, forceString
 
 from Ui_ClientConsentAddingDialog import Ui_ClientConsentAddingDialog
 
 
 class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
     def __init__(self, parent=None, clientId=None, clientConsentTypeList=None):
-        CDialogBase.__init__(self, None)
+        CDialogBase.__init__(self, parent)
         self.setupUi(self)
-        self.parent = parent
         self.addModels('ClientConsents', CClientConsentModel(self))
         self.setModels(self.tblClientConsents, self.modelClientConsents, self.selectionModelClientConsents)
         if clientId and clientConsentTypeList:
@@ -61,13 +59,7 @@ class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
         date = self.edtDate.date() if self.edtDate.date() else QDate.currentDate()
         self.modelClientConsents.setRepresenterClientAndDateValues(representerClientId, date)
         self.modelClientConsents.saveItems(self._clientId)
-        clientBanner = getClientBanner(self._clientId, aDateAttaches=QDate.currentDate())
-        if hasattr(self.parent, 'txtClientInfoBrowser'):
-            self.parent.txtClientInfoBrowser.setHtml(clientBanner)
-        if hasattr(self.parent, 'txtClientInfoBrowserEvents'):
-            self.parent.txtClientInfoBrowserEvents.setHtml(clientBanner)
-        if hasattr(self.parent, 'txtClientInfoBrowserActions'):
-            self.parent.txtClientInfoBrowserActions.setHtml(clientBanner)
+        QtGui.qApp.emitCurrentClientInfoChanged()
         return True
 
 

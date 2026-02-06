@@ -16,6 +16,7 @@
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QString, QVariant, SIGNAL
 
+from Orgs.Utils import getOrgStructureDescendants, getParentOrgStructureId
 from library.ICDInDocTableCol import CICDExInDocTableCol
 from library.InDocTable import CInDocTableModel, CBoolInDocTableCol, CDateInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CRBInDocTableCol
 from library.Utils import forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString, toVariant, forceStringEx
@@ -53,7 +54,13 @@ class CActionPerson(CPersonFindInDocTableCol):
             orgStructureList = actionType.getPFOrgStructureRecordList()
             specialityList = actionType.getPFSpecialityRecordList()
             tablePerson = QtGui.qApp.db.table('vrbPersonWithSpecialityAndPost')
-            orgStructureIdList = [forceInt(orgStructureRecord.value('orgStructure_id')) for orgStructureRecord in orgStructureList]
+            orgStructureIdList = []
+            for orgStructureRecord in orgStructureList:
+                orgStruct = forceInt(orgStructureRecord.value('orgStructure_id'))
+                orgStructureIdList.append(orgStruct)
+                for orgStructDescendant in getOrgStructureDescendants(orgStruct):
+                    orgStructureIdList.append(orgStructDescendant)
+            orgStructureIdList = list(set(orgStructureIdList))
             specialityIdList = [forceInt(specialityRecord.value('speciality_id')) for specialityRecord in specialityList]
             if orgStructureIdList:
                 _filter.append(tablePerson['orgStructure_id'].inlist(orgStructureIdList))
@@ -68,6 +75,8 @@ class CActionPerson(CPersonFindInDocTableCol):
             editor.setFilter(self.filter)
         editor.setDate(self.date)
         editor.setOrgStructureId(self.orgStructureId)
+        editor.setOrgStructureList(self.orgStructureIdList)
+        editor.setPersonIdList(self.personIdList)
         editor.setBegDate(self._parent.getSetDateTime().date())
         editor.setPreferredWidth(self.preferredWidth)
         return editor

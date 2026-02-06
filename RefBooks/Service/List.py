@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,6 +14,7 @@
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QObject, QRegExp, pyqtSignature, SIGNAL
+from PyQt4.QtGui import QFont
 
 from library.AgeSelector import checkAgeSelectorSyntax
 from library.crbcombobox import CRBComboBox
@@ -23,7 +24,7 @@ from library.InDocTable  import CInDocTableModel, CBoolInDocTableCol, CCodeNameI
 from library.interchange import getCheckBoxValue, getComboBoxValue, getDateEditValue, getDoubleBoxValue, getLineEditValue, getRBComboBoxValue, getTextEditValue, setCheckBoxValue, setComboBoxValue, setDateEditValue, setDoubleBoxValue, setLineEditValue, setRBComboBoxValue, setTextEditValue
 from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
 from library.ItemsListDialog import CItemsSplitListDialogEx, CItemEditorBaseDialog
-from library.TableModel  import CBoolCol, CEnumCol, CRefBookCol, CTextCol
+from library.TableModel  import CBoolCol, CEnumCol, CRefBookCol, CTextCol, CTableModel, CDateCol
 from library.Utils import addDots, addDotsEx, forceDate, forceRef, forceString, forceStringEx, toVariant
 
 from Exchange.Cimport    import Cimport
@@ -62,6 +63,8 @@ class CRBServiceList(CItemsSplitListDialogEx):
             CBoolCol(u'Унаследовано из ЕИС', ['eisLegacy'], 10),
             CTextCol(u'ИНФИС код',           ['infis'], 20),
             CEnumCol(u'Лицензирование',      ['license'], [u'не требуется', u'требуется лицензия', u'требуется персональный сертификат'], 30),
+            CDateCol(u'Дата начала', ['begDate'], 20),
+            CDateCol(u'Дата окончания', ['endDate'], 20)
             ],
             [rbCode, rbName],
             'rbService_Contents',
@@ -144,10 +147,40 @@ class CRBServiceList(CItemsSplitListDialogEx):
         if endDate:
             cond.append(table['endDate'].le(forceString(endDate.toString(Qt.ISODate))))
 
+        flagCloseServices = props.get('closeServices', 2)
+        if flagCloseServices:
+            cond.append(table['endDate'].ge(forceString(QDate.currentDate().toString(Qt.ISODate))))
+
         return QtGui.qApp.db.getIdList(table.name(),
                            'id',
                            cond,
                            self.order)
+
+    def setup(self, cols, tableName, order, forSelect=False, filterClass=None):
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+        self.forSelect = forSelect
+        self.filterClass = filterClass
+        self.props = {}
+        self.order = order
+        self.addModels('', CServiceModel(self, cols))
+        self.model.idFieldName = self.idFieldName
+        self.model.setTable(tableName, recordCacheCapacity=QtGui.qApp.db.getCount(tableName, 'id'))
+        self.setModels(self.tblItems, self.model, self.selectionModel)
+        #        self.createPopupMenu(self.tblItems)
+        self.btnSelect.setEnabled(self.forSelect)
+        self.btnSelect.setVisible(self.forSelect)
+        self.btnSelect.setDefault(self.forSelect)
+        self.btnFilter.setEnabled(self.forSelect and bool(self.filterClass))
+        self.btnFilter.setEnabled(bool(self.filterClass))
+        self.btnFilter.setVisible(bool(self.filterClass))
+        self.btnEdit.setDefault(not self.forSelect)
+        self.tblItems.setFocus(Qt.OtherFocusReason)
+
+        self.btnNew.setShortcut('F9')
+        self.btnEdit.setShortcut('F4')
+        self.btnPrint.setShortcut('F6')
+        QObject.connect(
+            self.tblItems.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
 
 
     def copyInternals(self, newItemId, oldItemId):
@@ -421,6 +454,7 @@ class CServiceFilterDialog(QtGui.QDialog, Ui_ServiceFilterDialog):
         self.edtNote.setText(props.get('note', ''))
         self.chkEIS.setCheckState(props.get('EIS', Qt.PartiallyChecked))
         self.chkNomenclature.setCheckState(props.get('nomenclature', Qt.PartiallyChecked))
+        self.chkCloseServices.setCheckState(props.get('сloseServices', 2))
         self.edtBegDate.setDate(props.get('begDate', QDate()))
         self.edtEndDate.setDate(props.get('endDate', QDate()))
         self.edtCreatePeriodBegDate.setDate(props.get('createBegDate', QDate()))
@@ -441,6 +475,7 @@ class CServiceFilterDialog(QtGui.QDialog, Ui_ServiceFilterDialog):
                   'endDate': forceDate(self.edtEndDate.date()),
                   'createBegDate': forceDate(self.edtCreatePeriodBegDate.date()),
                   'createEndDate': forceDate(self.edtCreatePeriodEndDate.date()),
+                  'closeServices': self.chkCloseServices.checkState()
                  }
         return result
 
@@ -466,3 +501,33 @@ class CServiceFilterDialog(QtGui.QDialog, Ui_ServiceFilterDialog):
     @pyqtSignature('')
     def on_cmbSection_currentIndexChanged(self):
         self.updateTypesClasses()
+
+class CServiceModel(CTableModel):
+    def __init__(self, parent, cols):
+        CTableModel.__init__(self, parent, cols)
+        self._expiredServices = set()
+
+
+
+    def data(self, index, role=Qt.DisplayRole):
+        row = index.row()
+        record = self.getRecordByRow(row)
+        endDate = forceDate(record.value('endDate'))
+        if role == Qt.ToolTipRole:
+            if endDate:
+                if endDate <= QDate.currentDate():
+                    return u"Данная услуга не является актуальной"
+                else:
+                    return u""
+
+        if role == Qt.FontRole:
+            if endDate:
+                font = QFont()
+                if endDate <= QDate.currentDate():
+                    font.setItalic(True)
+                    font.setBold(True)
+                    return font
+                else:
+                    return font
+
+        return CTableModel.data(self, index, role)

@@ -73,13 +73,13 @@ def selectData(params):
     if financeId:
         cond.append(tableContract['finance_id'].eq(financeId))
     cond.append(tableAction[dateFieldsName].isNotNull())
-    cond.append(tableAction[dateFieldsName].dateLe(endDate))
-    cond.append(tableAction[dateFieldsName].dateGe(begDate))
+    cond.append(tableAction[dateFieldsName].lt(endDate.addDays(1)))
+    cond.append(tableAction[dateFieldsName].ge(begDate))
     if chkStatus and status is not None:
         cond.append(tableAction['status'].eq(status))
     if chkStatus == CActionStatus.finished:
         cond.append(tableAction['endDate'].isNotNull())
-        cond.append(tableAction['endDate'].dateGe(begDate))
+        cond.append(tableAction['endDate'].ge(begDate))
     if personId and chkPerson:
         cond.append(tableAction['person_id'].eq(personId))
     fields = [tableAction['modifyDatetime'].name(),
@@ -200,17 +200,17 @@ def selectData(params):
             cond.append(tableAccountItem['refuseType_id'].isNotNull())
         if confirmationPeriodType:
             if confirmationBegDate:
-                cond.append(tableAccountItem['date'].dateGe(confirmationBegDate))
+                cond.append(tableAccountItem['date'].ge(confirmationBegDate))
             if confirmationEndDate:
-                cond.append(tableAccountItem['date'].dateLe(confirmationEndDate))
+                cond.append(tableAccountItem['date'].lt(confirmationEndDate.addDays(1)))
         else:
             tableAccount = db.table('Account')
             queryTable = queryTable.leftJoin(tableAccount, tableAccount['id'].eq(tableAccountItem['master_id']))
             cond.append(tableAccount['deleted'].eq(0))
             if confirmationBegDate:
-                cond.append(tableAccount['date'].dateGe(confirmationBegDate))
+                cond.append(tableAccount['date'].ge(confirmationBegDate))
             if confirmationEndDate:
-                cond.append(tableAccount['date'].dateLe(confirmationEndDate))
+                cond.append(tableAccount['date'].lt(confirmationEndDate.addDays(1)))
 
     order.append(u'personCode')
     order.append(tablePerson['lastName'].name())

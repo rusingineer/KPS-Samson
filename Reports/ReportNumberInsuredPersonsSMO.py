@@ -59,11 +59,11 @@ GROUP BY clientAge, clientSex, shortName
     if insurerId:
         cond.append(tableClientPolicy['insurer_id'].eq(insurerId))
     if policyDate:
-        cond.append(tableClientPolicy['begDate'].dateLe(policyDate))
+        cond.append(tableClientPolicy['begDate'].lt(policyDate.addDays(1)))
         cond.append(
                     db.joinOr(
                               [
-                               tableClientPolicy['endDate'].dateGe(policyDate),
+                               tableClientPolicy['endDate'].ge(policyDate),
                                tableClientPolicy['endDate'].isNull()
                               ]
                              )

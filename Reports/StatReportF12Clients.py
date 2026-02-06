@@ -219,11 +219,11 @@ ORDER BY Client.lastName, Client.firstName, Client.patrName, Diagnosis.MKB, Diag
         if 'begDeathDate' in params:
             begDeathDate = params['begDeathDate']
             if begDeathDate:
-                cond.append(tableClient['deathDate'].dateGe(begDeathDate))
+                cond.append(tableClient['deathDate'].ge(begDeathDate))
         if 'endDeathDate' in params:
             endDeathDate = params['endDeathDate']
             if endDeathDate:
-                cond.append(tableClient['deathDate'].dateLe(endDeathDate))
+                cond.append(tableClient['deathDate'].lt(endDeathDate.addDays(1)))
     return db.query(stmt % (filterAddressType,
                             stmtAddress,
                             tableDiagnostic['endDate'].formatValue(endDate.addDays(1)),

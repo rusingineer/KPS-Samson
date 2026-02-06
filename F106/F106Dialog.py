@@ -333,30 +333,31 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
             if diagSelectDlg.findDiagnosis(clientId):
                 if diagSelectDlg.exec_():
                     mkbrecord = diagSelectDlg.getDiagnosis()
-                    record = self.modelFinalDiagnostics.getEmptyRecord()
-                    record.setValue('MKB', mkbrecord.value('MKB'))
-                    record.setValue('MKBEx', mkbrecord.value('MKBEx'))
-                    record.setValue('traumaType_id', mkbrecord.value('traumaType_id'))
-                    record.setValue('character_id', mkbrecord.value('character_id'))
-                    record.setValue('phase_id', mkbrecord.value('phase_id'))
-                    record.setValue('stage_id', mkbrecord.value('stage_id'))
-                    self.modelFinalDiagnostics.addRecord(record)
-                    record = self.modelPreliminaryDiagnostics.getEmptyRecord()
-                    record.setValue('MKB', mkbrecord.value('MKB'))
-                    record.setValue('MKBEx', mkbrecord.value('MKBEx'))
-                    record.setValue('traumaType_id', mkbrecord.value('traumaType_id'))
-                    record.setValue('character_id', mkbrecord.value('character_id'))
-                    record.setValue('phase_id', mkbrecord.value('phase_id'))
-                    record.setValue('stage_id', mkbrecord.value('stage_id'))
-                    self.modelPreliminaryDiagnostics.addRecord(record)
-                    db = QtGui.qApp.db
-                    tableResult = db.table('rbResult')
-                    cond = [tableResult['eventPurpose_id'].eq(self.eventPurposeId),
-                            tableResult['code'].eq('0')]
-                    resultRecord = db.getRecordEx(tableResult, 'id', cond)
-                    if resultRecord:
-                        resultId = forceInt(resultRecord.value(0))
-                        self.cmbResult.setValue(resultId)
+                    if mkbrecord:
+                        record = self.modelFinalDiagnostics.getEmptyRecord()
+                        record.setValue('MKB', mkbrecord.value('MKB'))
+                        record.setValue('MKBEx', mkbrecord.value('MKBEx'))
+                        record.setValue('traumaType_id', mkbrecord.value('traumaType_id'))
+                        record.setValue('character_id', mkbrecord.value('character_id'))
+                        record.setValue('phase_id', mkbrecord.value('phase_id'))
+                        record.setValue('stage_id', mkbrecord.value('stage_id'))
+                        self.modelFinalDiagnostics.addRecord(record)
+                        record = self.modelPreliminaryDiagnostics.getEmptyRecord()
+                        record.setValue('MKB', mkbrecord.value('MKB'))
+                        record.setValue('MKBEx', mkbrecord.value('MKBEx'))
+                        record.setValue('traumaType_id', mkbrecord.value('traumaType_id'))
+                        record.setValue('character_id', mkbrecord.value('character_id'))
+                        record.setValue('phase_id', mkbrecord.value('phase_id'))
+                        record.setValue('stage_id', mkbrecord.value('stage_id'))
+                        self.modelPreliminaryDiagnostics.addRecord(record)
+                        db = QtGui.qApp.db
+                        tableResult = db.table('rbResult')
+                        cond = [tableResult['eventPurpose_id'].eq(self.eventPurposeId),
+                                tableResult['code'].eq('0')]
+                        resultRecord = db.getRecordEx(tableResult, 'id', cond)
+                        if resultRecord:
+                            resultId = forceInt(resultRecord.value(0))
+                            self.cmbResult.setValue(resultId)
         return result
 
 
@@ -520,6 +521,7 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
                     setDate, self.clientId, diagnosisId)
                 newRecord.setValue('handleDiagnosis', QVariant(isCheckedHandleDiagnosis))
 
+            newRecord._dirty = False
             items.append(newRecord)
         modelDiagnostics.setItems(items)
 
@@ -1468,34 +1470,6 @@ class CF106DiagnosticsModel(CMKBListInDocTableModel):
                     record.setValue(fieldName, toVariant(None))
                 record.setValue('TNMS', toVariant(u''))
                 self.emitRowChanged(row)
-
-
-    def inheritMKBTNMS(self, record, oldMKB, newMKB, clientId, eventSetDate):
-        if QtGui.qApp.isTNMSVisible() and not oldMKB and newMKB and (newMKB[:1] == 'C' or newMKB[:2] == 'D0'):
-            query = QtGui.qApp.db.query(u"""SELECT Diagnostic.* 
-                                            FROM Diagnostic 
-                                            left JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
-                                            left JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnostic.diagnosisType_id
-                                          WHERE Diagnosis.client_id = {clientId} 
-                                            AND rbDiagnosisType.code = '1'
-                                            AND Diagnosis.MKB = '{mkb}'
-                                            AND Diagnostic.endDate <= '{date}'
-                                          ORDER BY Diagnostic.endDate DESC 
-                                          LIMIT 1""".format(clientId=clientId,
-                                                            mkb=forceString(newMKB),
-                                                            date=forceDate(eventSetDate).toString(
-                                                                'yyyy-MM-dd')))
-            if query.first():
-                recordOldDiagnostic = query.record()
-                record.setValue('TNMS', recordOldDiagnostic.value('TNMS'))
-                record.setValue('cTumor_id', recordOldDiagnostic.value('cTumor_id'))
-                record.setValue('cNodus_id', recordOldDiagnostic.value('cNodus_id'))
-                record.setValue('cMetastasis_id', recordOldDiagnostic.value('cMetastasis_id'))
-                record.setValue('cTNMphase_id', recordOldDiagnostic.value('cTNMphase_id'))
-                record.setValue('pTumor_id', recordOldDiagnostic.value('pTumor_id'))
-                record.setValue('pNodus_id', recordOldDiagnostic.value('pNodus_id'))
-                record.setValue('pMetastasis_id', recordOldDiagnostic.value('pMetastasis_id'))
-                record.setValue('pTNMphase_id', recordOldDiagnostic.value('pTNMphase_id'))
 
 
     def payStatus(self, row):

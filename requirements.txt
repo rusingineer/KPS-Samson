@@ -38,3 +38,4 @@ lxml==4.9.3
 protobuf==3.6.1
 grpcio==1.17.1
 grpcio-tools==1.17.1
+psutil==5.7.1

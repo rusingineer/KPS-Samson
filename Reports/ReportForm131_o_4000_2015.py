@@ -68,8 +68,8 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tableActionPropertyString, tableActionPropertyString['id'].eq(tableActionProperty['id']))
     queryTable = queryTable.leftJoin(tableActionPropertyInteger, tableActionPropertyInteger['id'].eq(tableActionProperty['id']))
     cond = [tableEvent['deleted'].eq(0),
-            tableEvent['execDate'].dateGe(begDate),
-            tableEvent['execDate'].dateLe(endDate),
+            tableEvent['execDate'].ge(begDate),
+            tableEvent['execDate'].lt(endDate.addDays(1)),
             tableActionType['deleted'].eq(0),
             tableRbEventProfile['regionalCode'].inlist(['8008', '8009']),
             tableAction['deleted'].eq(0),

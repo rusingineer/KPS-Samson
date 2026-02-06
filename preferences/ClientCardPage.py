@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -48,12 +48,14 @@ class CClientCardPage(Ui_clientCardPage, QtGui.QWidget):
         self.chkTabResearch.setChecked(forceBool(props.get('showingClientCardTabResearch', True)))
         self.chkTabDangerous.setChecked(forceBool(props.get('showingClientCardTabDangerous', True)))
         self.chkTabContingentKind.setChecked(forceBool(props.get('showingClientCardTabContingentKind', True)))
+        self.chkTabHospitalization.setChecked(forceBool(props.get('showingClientCardTabHospitalization', True)))
         self.chkTabIdentification.setChecked(forceBool(props.get('showingClientCardTabIdentification', True)))
         self.chkTabRelations.setChecked(forceBool(props.get('showingClientCardTabRelations', True)))
         self.chkTabContacts.setChecked(forceBool(props.get('showingClientCardTabContacts', True)))
         self.chkTabConsent.setChecked(forceBool(props.get('showingClientCardTabConsent', True)))
         self.chkTabMonitoring.setChecked(forceBool(props.get('showingClientCardTabMonitoring', True)))
         self.chkTabEpidCase.setChecked(forceBool(props.get('showingClientCardTabEpidCase', True)))
+        self.cmbResident.setCurrentIndex(forceInt(props.get('resident', 0)))
 
     def getProps(self, props):
         props['checkClientCardPolicyAffiliation'] = toVariant(self.cmbCheckPolicyAffiliation.currentIndex())
@@ -76,9 +78,11 @@ class CClientCardPage(Ui_clientCardPage, QtGui.QWidget):
         props['showingClientCardTabResearch'] = toVariant(self.chkTabResearch.isChecked())
         props['showingClientCardTabDangerous'] = toVariant(self.chkTabDangerous.isChecked())
         props['showingClientCardTabContingentKind'] = toVariant(self.chkTabContingentKind.isChecked())
+        props['showingClientCardTabHospitalization'] = toVariant(self.chkTabHospitalization.isChecked())
         props['showingClientCardTabIdentification'] = toVariant(self.chkTabIdentification.isChecked())
         props['showingClientCardTabRelations'] = toVariant(self.chkTabRelations.isChecked())
         props['showingClientCardTabContacts'] = toVariant(self.chkTabContacts.isChecked())
         props['showingClientCardTabConsent'] = toVariant(self.chkTabConsent.isChecked())
         props['showingClientCardTabMonitoring'] = toVariant(self.chkTabMonitoring.isChecked())
         props['showingClientCardTabEpidCase'] = toVariant(self.chkTabEpidCase.isChecked())
+        props['resident'] = toVariant(self.cmbResident.currentIndex())

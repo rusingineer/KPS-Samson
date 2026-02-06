@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2015 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -28,10 +28,10 @@ concat(IF(length(trim(PersonOrgStructure.bookkeeperCode))=5, PersonOrgStructure.
                               IF(length(trim(Parent4.bookkeeperCode))=5, Parent4.bookkeeperCode, Parent5.bookkeeperCode)))))
     , '_', apv_number.value) AS m11_ornm,
 IF(Action.begDate < CURDATE(), DATE_ADD(date(Action.begDate), INTERVAL '23:59' HOUR_MINUTE), Action.begDate) as m12_ordt,
-case apv_form.value
-  when 'планово' then 1
-  when 'неотложенно' then 2
-  when 'экстренно' then 3
+case
+  when apv_form.value LIKE 'планов%%' then 1
+  when apv_form.value LIKE 'неотлож%%' then 2
+  when apv_form.value LIKE 'экстрен%%' then 3
 end as m13_ortp,
 IF(length(trim(PersonOrgStructure.bookkeeperCode))=5, PersonOrgStructure.bookkeeperCode,
                         IF(length(trim(Parent1.bookkeeperCode))=5, Parent1.bookkeeperCode,
@@ -70,24 +70,24 @@ LEFT JOIN rbMedicalAidType mat ON mat.id = et.medicalAidType_id
 inner join Client on Client.id = Event.client_id
 inner join ActionType on ActionType.id = Action.actionType_id
 left join ActionPropertyType as apt_number on apt_number.actionType_id = Action.actionType_id and apt_number.name = 'Номер направления' and apt_number.deleted = 0
-left join ActionProperty     as ap_number  on ap_number.type_id = apt_number.id and ap_number.action_id = Action.id
+left join ActionProperty     as ap_number  on ap_number.type_id = apt_number.id and ap_number.action_id = Action.id    AND ap_number.deleted = 0
 left join ActionProperty_String as apv_number on apv_number.id = ap_number.id
 left join ActionPropertyType as apt_date on apt_date.actionType_id = Action.actionType_id and apt_date.name = 'Плановая дата госпитализации' and apt_date.deleted = 0
-left join ActionProperty     as ap_date  on ap_date.type_id = apt_date.id and ap_date.action_id = Action.id
+left join ActionProperty     as ap_date  on ap_date.type_id = apt_date.id and ap_date.action_id = Action.id    AND ap_date.deleted = 0
 left join ActionProperty_Date as apv_date on apv_date.id = ap_date.id
 left join ActionPropertyType as apt_form on apt_form.actionType_id = Action.actionType_id and apt_form.name = 'Порядок направления' and apt_form.deleted = 0
-left join ActionProperty     as ap_form  on ap_form.type_id = apt_form.id and ap_form.action_id = Action.id
+left join ActionProperty     as ap_form  on ap_form.type_id = apt_form.id and ap_form.action_id = Action.id    AND ap_form.deleted = 0
 left join ActionProperty_String as apv_form on apv_form.id = ap_form.id
 left join ActionPropertyType as apt_org on apt_org.actionType_id = Action.actionType_id and apt_org.name = 'Куда направляется' and apt_org.deleted = 0
-left join ActionProperty     as ap_org  on ap_org.type_id = apt_org.id and ap_org.action_id = Action.id
+left join ActionProperty     as ap_org  on ap_org.type_id = apt_org.id and ap_org.action_id = Action.id    AND ap_org.deleted = 0
 left join ActionProperty_Organisation as apv_org on apv_org.id = ap_org.id
 left join Organisation as HospitalOrg on HospitalOrg.id = apv_org.value
 left join ActionPropertyType as apt_profile on apt_profile.actionType_id = Action.actionType_id and apt_profile.name = 'Профиль койки' and apt_profile.deleted = 0
-left join ActionProperty     as ap_profile  on ap_profile.type_id = apt_profile.id and ap_profile.action_id = Action.id
+left join ActionProperty     as ap_profile  on ap_profile.type_id = apt_profile.id and ap_profile.action_id = Action.id    AND ap_profile.deleted = 0
 left join ActionProperty_rbHospitalBedProfile as apv_profile on apv_profile.id = ap_profile.id
 left join rbHospitalBedProfile as BedProfile on BedProfile.id = apv_profile.value
 left join ActionPropertyType as apt_usok on apt_usok.actionType_id = Action.actionType_id and apt_usok.name = 'Тип стационара' and apt_usok.deleted = 0
-left join ActionProperty     as ap_usok  on ap_usok.type_id = apt_usok.id and ap_usok.action_id = Action.id
+left join ActionProperty     as ap_usok  on ap_usok.type_id = apt_usok.id and ap_usok.action_id = Action.id    AND ap_usok.deleted = 0
 left join ActionProperty_String as apv_usok on apv_usok.id = ap_usok.id
 left join Diagnosis on Diagnosis.id = getEventDiagnosis(Event.id)
 left join Person on Person.id = Action.person_id
@@ -97,7 +97,7 @@ left join OrgStructure as Parent2 on Parent2.id = Parent1.parent_id
 left join OrgStructure as Parent3 on Parent3.id = Parent2.parent_id
 left join OrgStructure as Parent4 on Parent4.id = Parent3.parent_id
 left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
-left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
+left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, IFNULL(Event.execDate, Event.setDate), Event.id)
 left join Organisation as Insurer on Insurer.id = Policy.insurer_id
 left join rbPolicyKind as PolicyKind on PolicyKind.id = Policy.policyKind_id
 left join ClientDocument as Document on Document.id = getClientDocumentId(Client.id)
@@ -108,7 +108,8 @@ where ActionType.flatCode = 'hospitalDirection'
 and ActionType.deleted = 0
 and Action.deleted = 0
 and Event.deleted = 0
-AND f.code in ('2', '4')        
+AND f.code in ('2', '4')
+AND IF(Action.begDate < CURDATE(), DATE_ADD(date(Action.begDate), INTERVAL '23:59' HOUR_MINUTE), Action.begDate) >= (NOW() - interval 5 day)       
 %s"""
     else:
         stmt = u"""
@@ -120,10 +121,10 @@ concat(IF(length(trim(PersonOrgStructure.bookkeeperCode))=5, PersonOrgStructure.
                               IF(length(trim(Parent4.bookkeeperCode))=5, Parent4.bookkeeperCode, Parent5.bookkeeperCode)))))
     , '_', apv_number.value) AS m11_ornm,
 IF(Action.begDate < CURDATE(), DATE_ADD(date(Action.begDate), INTERVAL '23:59' HOUR_MINUTE), Action.begDate) as m12_ordt,
-case apv_form.value
-  when 'планово' then 1
-  when 'неотложенно' then 2
-  when 'экстренно' then 3
+case
+  when apv_form.value LIKE 'планов%%' then 1
+  when apv_form.value LIKE 'неотлож%%' then 2
+  when apv_form.value LIKE 'экстрен%%' then 3
 end as m13_ortp,
 IF(length(trim(PersonOrgStructure.bookkeeperCode))=5, PersonOrgStructure.bookkeeperCode,
                         IF(length(trim(Parent1.bookkeeperCode))=5, Parent1.bookkeeperCode,
@@ -166,16 +167,16 @@ LEFT JOIN rbMedicalAidType mat ON mat.id = et.medicalAidType_id
 inner join Client on Client.id = Event.client_id
 inner join ActionType on ActionType.id = Action.actionType_id
 left join ActionPropertyType as apt_number on apt_number.actionType_id = Action.actionType_id and apt_number.name = 'Номер направления' and apt_number.deleted = 0
-left join ActionProperty     as ap_number  on ap_number.type_id = apt_number.id and ap_number.action_id = Action.id
+left join ActionProperty     as ap_number  on ap_number.type_id = apt_number.id and ap_number.action_id = Action.id    AND ap_number.deleted = 0
 left join ActionProperty_String as apv_number on apv_number.id = ap_number.id
 left join ActionPropertyType as apt_date on apt_date.actionType_id = Action.actionType_id and apt_date.name = 'Плановая дата госпитализации поликлиники' and apt_date.deleted = 0
-left join ActionProperty     as ap_date  on ap_date.type_id = apt_date.id and ap_date.action_id = Action.id
+left join ActionProperty     as ap_date  on ap_date.type_id = apt_date.id and ap_date.action_id = Action.id   AND ap_date.deleted = 0
 left join ActionProperty_Date as apv_date on apv_date.id = ap_date.id
 left join ActionPropertyType as apt_form on apt_form.actionType_id = Action.actionType_id and apt_form.name = 'Порядок направления' and apt_form.deleted = 0
-left join ActionProperty     as ap_form  on ap_form.type_id = apt_form.id and ap_form.action_id = Action.id
+left join ActionProperty     as ap_form  on ap_form.type_id = apt_form.id and ap_form.action_id = Action.id   AND ap_form.deleted = 0
 left join ActionProperty_String as apv_form on apv_form.id = ap_form.id
 left join ActionPropertyType as apt_org on apt_org.actionType_id = Action.actionType_id and apt_org.name = 'Подразделение' and apt_org.deleted = 0
-left join ActionProperty     as ap_org  on ap_org.type_id = apt_org.id and ap_org.action_id = Action.id
+left join ActionProperty     as ap_org  on ap_org.type_id = apt_org.id and ap_org.action_id = Action.id   AND ap_org.deleted = 0
 left join ActionProperty_OrgStructure apos on apos.id = ap_org.id
 left join OrgStructure  as os on os.id = apos.value
 left join OrgStructure as destParent1 on destParent1.id = os.parent_id
@@ -184,11 +185,11 @@ left join OrgStructure as destParent3 on destParent3.id = destParent2.parent_id
 left join OrgStructure as destParent4 on destParent4.id = destParent3.parent_id
 left join OrgStructure as destParent5 on destParent5.id = destParent4.parent_id
 left join ActionPropertyType as apt_profile on apt_profile.actionType_id = Action.actionType_id and apt_profile.name = 'Профиль койки' and apt_profile.deleted = 0
-left join ActionProperty     as ap_profile  on ap_profile.type_id = apt_profile.id and ap_profile.action_id = Action.id
+left join ActionProperty     as ap_profile  on ap_profile.type_id = apt_profile.id and ap_profile.action_id = Action.id   AND ap_profile.deleted = 0
 left join ActionProperty_rbHospitalBedProfile as apv_profile on apv_profile.id = ap_profile.id
 left join rbHospitalBedProfile as BedProfile on BedProfile.id = apv_profile.value
 left join ActionPropertyType as apt_usok on apt_usok.actionType_id = Action.actionType_id and apt_usok.name = 'Тип стационара' and apt_usok.deleted = 0
-left join ActionProperty     as ap_usok  on ap_usok.type_id = apt_usok.id and ap_usok.action_id = Action.id
+left join ActionProperty     as ap_usok  on ap_usok.type_id = apt_usok.id and ap_usok.action_id = Action.id   AND ap_usok.deleted = 0
 left join ActionProperty_String as apv_usok on apv_usok.id = ap_usok.id
 left join Diagnosis on Diagnosis.id = getEventDiagnosis(Event.id)
 left join Person on Person.id = Action.person_id
@@ -198,7 +199,7 @@ left join OrgStructure as Parent2 on Parent2.id = Parent1.parent_id
 left join OrgStructure as Parent3 on Parent3.id = Parent2.parent_id
 left join OrgStructure as Parent4 on Parent4.id = Parent3.parent_id
 left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
-left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
+left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, IFNULL(Event.execDate, Event.setDate), Event.id)
 left join Organisation as Insurer on Insurer.id = Policy.insurer_id
 left join rbPolicyKind as PolicyKind on PolicyKind.id = Policy.policyKind_id
 left join ClientDocument as Document on Document.id = getClientDocumentId(Client.id)
@@ -211,11 +212,12 @@ and ActionType.deleted = 0
 and Action.deleted = 0
 and Event.deleted = 0
 AND f.code = '2'
+AND IF(Action.begDate < CURDATE(), DATE_ADD(date(Action.begDate), INTERVAL '23:59' HOUR_MINUTE), Action.begDate) >= (NOW() - interval 5 day)
 %s"""
     if isReexport:
         cond = u"and ae.success = 1 AND ae.dateTime >= IF(hour(now()) >= 20, curDate() + INTERVAL 20 HOUR, curDate() - INTERVAL 4 HOUR);"
     else:
-        cond = u"AND IFNULL(ae.success, 0) = 0 and IF(Action.begDate < CURDATE(), DATE_ADD(date(Action.begDate), INTERVAL '23:59' HOUR_MINUTE), Action.begDate) >= (NOW() - interval 5 day);"
+        cond = u"AND IFNULL(ae.success, 0) = 0;"
     stmt = stmt % cond
     return QtGui.qApp.db.query(stmt)
 
@@ -238,8 +240,8 @@ substring(MovingOrgStructure.infisCode, 1, 3) as m19_sccd,
 IF(IFNULL(Event.externalId, '') <> '', Event.externalId, Event.id) as m20_crdnum,
 Action.MKB as m21_mkbcd,
 CASE
-	WHEN mat.regionalCode IN ('11', '12', '301', '302', '401', '402') THEN 1
- 	ELSE 2 END AS m24_usok,
+  WHEN mat.regionalCode IN ('11', '12', '301', '302', '401', '402') THEN 1
+  ELSE 2 END AS m24_usok,
 PolicyKind.regionalCode as a10_dct,
 Policy.serial as a11_dcs,
 Policy.number as a12_dcn,
@@ -266,7 +268,7 @@ LEFT JOIN rbMedicalAidType mat ON mat.id = et.medicalAidType_id
 inner join Client on Client.id = Event.client_id
 inner join ActionType on ActionType.id = Action.actionType_id
 left join ActionPropertyType as apt_orgstruct on apt_orgstruct.actionType_id = Moving.actionType_id and apt_orgstruct.name = 'Отделение пребывания' and apt_orgstruct.deleted = 0
-left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Moving.id
+left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Moving.id   AND ap_orgstruct.deleted = 0
 left join ActionProperty_OrgStructure as apv_orgstruct on apv_orgstruct.id = ap_orgstruct.id
 left join OrgStructure as MovingOrgStructure on MovingOrgStructure.id = apv_orgstruct.value
 left join OrgStructure as Parent1 on Parent1.id = MovingOrgStructure.parent_id
@@ -275,12 +277,12 @@ left join OrgStructure as Parent3 on Parent3.id = Parent2.parent_id
 left join OrgStructure as Parent4 on Parent4.id = Parent3.parent_id
 left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
 left join ActionPropertyType as apt_bed on apt_bed.actionType_id = Moving.actionType_id and apt_bed.name = 'койка' and apt_bed.deleted = 0
-left join ActionProperty     as ap_bed  on ap_bed.type_id = apt_bed.id and ap_bed.action_id = Moving.id
+left join ActionProperty     as ap_bed  on ap_bed.type_id = apt_bed.id and ap_bed.action_id = Moving.id   AND ap_bed.deleted = 0
 left join ActionProperty_HospitalBed as apv_bed on apv_bed.id = ap_bed.id
 left join Organisation as RelegateOrg on RelegateOrg.id = Event.relegateOrg_id
 left join OrgStructure_HospitalBed as HospitalBed on HospitalBed.id = apv_bed.value
 left join rbHospitalBedProfile as BedProfile on BedProfile.id = HospitalBed.profile_id
-left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
+left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.setDate, Event.id)
 left join Organisation as Insurer on Insurer.id = Policy.insurer_id
 left join rbPolicyKind as PolicyKind on PolicyKind.id = Policy.policyKind_id
 left join ClientDocument as Document on Document.id = getClientDocumentId(Client.id)
@@ -289,17 +291,17 @@ left join rbExternalSystem es on es.code = 'ТФОМС:План.госп.'
 left join Action_Export ae ON ae.system_id = es.id AND Action.id = ae.master_id
 where ActionType.flatCode = 'received'
 and mat.regionalCode in ('11', '12', '301', '302', '401', '402', '41', '42', '43', '51', '52', '71', '72', '90', '411', '422', '511', '522')
-/*AND LENGTH(Event.srcNumber) > 0*/
 and Event.order = 1
 AND f.code = '2'
 and ActionType.deleted = 0
 and Action.deleted = 0
 and Event.deleted = 0
+and Action.begDate >= (NOW() - interval 5 day)
 %s"""
     if isReexport:
         cond = u"and ae.success = 1 AND ae.dateTime >= IF(hour(now()) >= 20, curDate() + INTERVAL 20 HOUR, curDate() - INTERVAL 4 HOUR);"
     else:
-        cond = u"AND IFNULL(ae.success, 0) = 0 and Event.setDate >= (NOW() - interval 5 day);"
+        cond = u"AND IFNULL(ae.success, 0) = 0;"
     stmt = stmt % cond
     return QtGui.qApp.db.query(stmt)
 
@@ -352,7 +354,7 @@ LEFT JOIN rbMedicalAidType mat ON mat.id = et.medicalAidType_id
 inner join Client on Client.id = Event.client_id
 inner join ActionType on ActionType.id = Leaved.actionType_id
 left join ActionPropertyType as apt_orgstruct on apt_orgstruct.actionType_id = Leaved.actionType_id and apt_orgstruct.name = 'Отделение' and apt_orgstruct.deleted = 0
-left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Leaved.id
+left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Leaved.id   AND ap_orgstruct.deleted = 0
 left join ActionProperty_OrgStructure as apv_orgstruct on apv_orgstruct.id = ap_orgstruct.id
 left join OrgStructure as LeavedOrgStructure on LeavedOrgStructure.id = apv_orgstruct.value
 left join OrgStructure as Parent1 on Parent1.id = LeavedOrgStructure.parent_id
@@ -361,7 +363,7 @@ left join OrgStructure as Parent3 on Parent3.id = Parent2.parent_id
 left join OrgStructure as Parent4 on Parent4.id = Parent3.parent_id
 left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
 left join ActionPropertyType as apt_bedProfile on apt_bedProfile.actionType_id = Leaved.actionType_id and apt_bedProfile.name = 'Профиль' and apt_bedProfile.deleted = 0
-left join ActionProperty as ap_bedProfile  on ap_bedProfile.type_id = apt_bedProfile.id and ap_bedProfile.action_id = Leaved.id
+left join ActionProperty as ap_bedProfile  on ap_bedProfile.type_id = apt_bedProfile.id and ap_bedProfile.action_id = Leaved.id   AND ap_bedProfile.deleted = 0
 left join ActionProperty_rbHospitalBedProfile aphbp on aphbp.id = ap_bedProfile.id
 left join rbHospitalBedProfile as BedProfile on BedProfile.id = aphbp.value
 left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
@@ -377,11 +379,12 @@ and ActionType.deleted = 0
 and Leaved.deleted = 0
 AND f.code = '2'
 and Event.deleted = 0
+and Leaved.endDate >= (NOW() - interval 5 day)
 %s"""
     if isReexport:
         cond = u"and ae.success = 1 AND ae.dateTime >= IF(hour(now()) >= 20, curDate() + INTERVAL 20 HOUR, curDate() - INTERVAL 4 HOUR);"
     else:
-        cond = u"AND IFNULL(ae.success, 0) = 0 and Event.execDate >= (NOW() - interval 5 day);"
+        cond = u"AND IFNULL(ae.success, 0) = 0;"
     stmt = stmt % cond
     return QtGui.qApp.db.query(stmt)
 
@@ -425,7 +428,7 @@ left JOIN rbFinance f ON f.id = c.finance_id
 inner join Client on Client.id = Event.client_id
 inner join ActionType on ActionType.id = Action.actionType_id
 left join ActionPropertyType as apt_orgstruct on apt_orgstruct.actionType_id = Moving.actionType_id and apt_orgstruct.name = 'Отделение пребывания' and apt_orgstruct.deleted = 0
-left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Moving.id
+left join ActionProperty as ap_orgstruct on ap_orgstruct.type_id = apt_orgstruct.id and ap_orgstruct.action_id = Moving.id AND ap_orgstruct.deleted = 0
 left join ActionProperty_OrgStructure as apv_orgstruct on apv_orgstruct.id = ap_orgstruct.id
 left join OrgStructure as MovingOrgStructure on MovingOrgStructure.id = apv_orgstruct.value
 left join OrgStructure as Parent1 on Parent1.id = MovingOrgStructure.parent_id
@@ -434,11 +437,11 @@ left join OrgStructure as Parent3 on Parent3.id = Parent2.parent_id
 left join OrgStructure as Parent4 on Parent4.id = Parent3.parent_id
 left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
 left join ActionPropertyType as apt_bed on apt_bed.actionType_id = Moving.actionType_id and apt_bed.name = 'койка' and apt_bed.deleted = 0
-left join ActionProperty as ap_bed  on ap_bed.type_id = apt_bed.id and ap_bed.action_id = Moving.id
+left join ActionProperty as ap_bed  on ap_bed.type_id = apt_bed.id and ap_bed.action_id = Moving.id AND ap_bed.deleted = 0
 left join ActionProperty_HospitalBed as apv_bed on apv_bed.id = ap_bed.id
 left join OrgStructure_HospitalBed as HospitalBed on HospitalBed.id = apv_bed.value
 left join rbHospitalBedProfile as BedProfile on BedProfile.id = HospitalBed.profile_id
-left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
+left join ClientPolicy as Policy on Policy.id = getClientPolicyIdForDate(Client.id, 1, Event.setDate, Event.id)
 left join Organisation as Insurer on Insurer.id = Policy.insurer_id
 left join rbPolicyKind as PolicyKind on PolicyKind.id = Policy.policyKind_id
 left join ClientDocument as Document on Document.id = getClientDocumentId(Client.id)
@@ -452,11 +455,12 @@ AND f.code = '2'
 and ActionType.deleted = 0
 and Action.deleted = 0
 and Event.deleted = 0
+and Action.begDate >= (NOW() - interval 5 day)
 %s"""
     if isReexport:
         cond = u"and ae.success = 1 AND ae.dateTime >= IF(hour(now()) >= 20, curDate() + INTERVAL 20 HOUR, curDate() - INTERVAL 4 HOUR);"
     else:
-        cond = u"AND IFNULL(ae.success, 0) = 0 and Event.setDate >= (NOW() - interval 5 day);"
+        cond = u"AND IFNULL(ae.success, 0) = 0;"
     stmt = stmt % cond
     return QtGui.qApp.db.query(stmt)
 
@@ -489,7 +493,7 @@ class CHospital(CReport):
         cursor.insertBlock()
         cursor.setCharFormat(CReportBase.ReportTitle)
         cursor.setBlockFormat(CReportBase.AlignCenter)
-        firstTitle = u"""Метод "sendPlanOrdersClinic" - передача сведений из ЦОД о направлениях на госпитализацию""" 
+        firstTitle = u'Метод "sendPlanOrdersClinic" - передача сведений о выписанных направлениях на госпитализацию в ЦОД'
         cursor.insertBlock()
         cursor.insertText(firstTitle)
         cursor.insertBlock()
@@ -564,7 +568,7 @@ class CHospital(CReport):
             
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.insertBlock()
-        firstTitle = u"""Метод "sendFactOrdersHospital" - передача сведений из ЦОД о госпитализациях по направлениям""" 
+        firstTitle = u'Метод "sendFactOrdersHospital" - передача сведений о плановых госпитализациях в ЦОД'
         cursor.insertBlock()
         #рисуем вторую табличку
         cursor.setCharFormat(CReportBase.ReportTitle)
@@ -643,7 +647,7 @@ class CHospital(CReport):
             
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.insertBlock()
-        firstTitle = u"""Метод "sendOrdersLeaveHospital" - передача сведений из ЦОД о выбывших пациентах""" 
+        firstTitle = u'Метод "sendOrdersLeave" - передача сведений о выбывших пациентах в ЦОД'
         cursor.insertBlock()
 
         #рисуем вторую табличку
@@ -719,7 +723,7 @@ class CHospital(CReport):
             
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.insertBlock()
-        firstTitle = u"""Метод "sendOrdersHospitalUrgently" - передача сведений из ЦОД об экстренной госпитализации""" 
+        firstTitle = u'Метод "sendOrdersHospitalUrgently" - передача сведений об экстренных госпитализациях в ЦОД'
         cursor.insertBlock()
 
         #рисуем вторую табличку

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,26 +13,27 @@
 #############################################################################
 
 import re
+from Reports.Report     import CVoidSetupDialog
+from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, pyqtSignature, SIGNAL, Qt, QUrl
-from PyQt4.QtGui import QColor, QBrush
+from PyQt4.QtGui import QBrush
+from Reports.Report      import CReport
 from Events.EditDispatcher import getEventFormClass
-from Exchange.PyServices import getPyServices, getCdaCode
 from Reports.ReportBase import CReportBase, createTable
-from Reports.ReportView import CPageFormat, CReportViewDialog
 from Users.Rights import urCanOpenAnyAttachedFile, urCanOpenOwnAttachedFile
 from Orgs.Utils import getOrgStructureDescendants
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Ui_Attach_SEMD_IEMK import Ui_Attach_SEMD_IEMK_Dialog
 from library.DateEdit import CDateEdit
 from library.DialogBase import CDialogBase
 from library.InDocTable import CRecordListModel, CInDocTableCol
-from library.SimpleProgressDialog import CSimpleProgressDialog
-from library.Utils import forceString, toVariant, forceBool, anyToUnicode, forceInt, forceRef, forceDate, \
-    formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, forceDateTime
+from library.Utils import forceString, toVariant, forceInt, forceRef, forceDate, \
+    formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, forceDateTime, forceBool, trim
 from F088.F088EditDialog import CF088EditDialog
 from F088.F0882022EditDialog import CF0882022EditDialog
-from Surveillance.SurveillanceDialog import CSurveillanceDialog
 from Events.Utils import getActionTypeDescendants
+import datetime
 
 
 class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
@@ -40,7 +41,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
         self.listFilterIdentify = ""
-        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+        self.setWindowFlags(Qt.Window)
         self.addModels('ActionFileAttach', CActionFileAttachModel(self))
         self.setModels(self.tblActionFileAttach, self.modelActionFileAttach, self.selectionModelActionFileAttach)
         self.tblActionFileAttach.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
@@ -66,22 +67,24 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.edtFilterEventEndDate.setDate(QDate().currentDate())
         self.edtFilterAttachFileBegDate.setDate(QDate().currentDate())
         self.edtFilterAttachFileEndDate.setDate(QDate().currentDate())
-        # self.chkFilterUploadedDocs.setChecked(True)
         self.btnFilterReset.clicked.connect(self.resetFilters)
         self.btnFilterApply.clicked.connect(self.applyFilters)
         self.selectionModelActionFileAttach.selectionChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
         self.btnOpenFile.setVisible(False)
         self.addObject('actPrintWindow', QtGui.QAction(u'Печать списка', self))
         self.addObject('actPrintSummaryDocuments', QtGui.QAction(u'Сводка по  документам', self))
+        self.addObject('actPrintWindowSelected', QtGui.QAction(u'Печать списка(выделенных пациентов)', self))
         # self.addObject('actPrintGroupStrucPerson', QtGui.QAction(u'Группировка по подразделениям и врачам', self))
         # self.addObject('actPrintGroupPersonInfo', QtGui.QAction(u'Группировка по врачам с отображением количественных показателей', self))
         self.actPrintWindow.triggered.connect(self.on_actPrintWindow_triggered)
+        self.actPrintWindowSelected.triggered.connect(self.on_actPrintWindowSelected_triggered)
         self.actPrintSummaryDocuments.triggered.connect(self.on_actPrintSummaryDocuments_triggered)
         # self.actPrintGroupStrucPerson.triggered.connect(self.on_actPrintGroupStrucPerson_triggered)
         # self.actPrintGroupPersonInfo.triggered.connect(self.on_actPrintGroupPersonInfo_triggered)
         self.addObject('mnuPrint', QtGui.QMenu(self))
         self.mnuPrint.addAction(self.actPrintWindow)
         self.mnuPrint.addAction(self.actPrintSummaryDocuments)
+        self.mnuPrint.addAction(self.actPrintWindowSelected)
         # self.mnuPrint.addAction(self.actPrintGroupStrucPerson)
         # self.mnuPrint.addAction(self.actPrintGroupPersonInfo)
         self.btnPrint.setMenu(self.mnuPrint)
@@ -89,31 +92,18 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.cmbActionType.setClassesPopupVisible(True)
         self.cmbActionType.setClasses([0, 1, 2, 3])
         self.cmbActionType.setOrgStructure(None)
-        # self.chkFilterSNILS.setEnabled(True)
         self.getDefaultParams()
         self.updateFilterIdentify()
-
-        # if not QtGui.qApp.isAdmin():
-        #     self.cmbFilterPerson.setValue(QtGui.qApp.userId)
-        #     if not QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin]):
-        #         self.cmbFilterPerson.setEnabled(False)
-        #     elif QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin]):
-        #         self.cmbFilterPerson.setEnabled(True)
-
         self.connect(self.tblActionFileAttach.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.sortByColumn)
         self.groupBoxFilters.setTitle(u'Фильтры по действиям')
         self.__sortColumn = None
         self.__sortAscending = False
         self.appPrefs = QtGui.qApp.preferences.appPrefs
         self.getPreferences()
-        self.cols = ['id', 'master_id', 'comment', 'path', 'respSignatureBytes', 'respSigner_id', 'respSigningDatetime',
-                     'orgSignatureBytes', 'orgSigner_id', 'orgSigningDatetime', 'respSigner_name']
-
         self.cmbFinance.setTable('rbFinance', True)
         self.cmbFinance.setValue(0)
-        # self.cmbForPerson.setCurrentIndex(1)
-        # self.on_cmbForPerson_currentIndexChanged(1)
         self.cmbSpeciality.setTable('rbSpeciality', True)
+        self.cmbFilterIdentify.enableFilter(True)
 
         self.edtFilterEventBegDate.setDate(QDate.currentDate())
         self.edtFilterEventEndDate.setDate(QDate.currentDate())
@@ -123,11 +113,11 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         doc = "'n3.medDocumentType.Cda'"
 
         db = QtGui.qApp.db
-        stmt = u"""SELECT note, value, system_id as system, code FROM ActionType_Identification 
-          LEFT JOIN rbAccountingSystem `as` ON ActionType_Identification.system_id = as.id
-          WHERE as.code IN ({0})
+        stmt = u"""SELECT note, value, system_id as sys, code FROM ActionType_Identification 
+          LEFT JOIN rbAccountingSystem rbas ON ActionType_Identification.system_id = rbas.id
+          WHERE rbas.code IN ({0})
           AND note != '' AND note IS not NULL and deleted = 0 group by note ORDER BY note """.format(doc)
-        longest_word = ''
+        #longest_word = ''
 
         list_auto_check = []
         x = 0
@@ -137,12 +127,14 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
             lFilterIdentify = lFilterIdentify.split(',')
 
         query = db.query(stmt)
+        from collections import OrderedDict
+        filterItems = OrderedDict()
         while query.next():
             rec = query.record()
             value = forceString(rec.value('value'))
             name = forceString(rec.value('note'))
 
-            self.cmbFilterIdentify.addItem("|" + value + "|" + name)
+            filterItems[value] = name.replace(u'\xa0', '')
             if self.listFilterIdentify != "" and signal is False:
                 if value in lFilterIdentify:
                     list_auto_check.append(x)
@@ -150,16 +142,13 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
                 list_auto_check.append(x)
             x += 1
 
-            if len(forceString(rec.value('note'))) > len(longest_word):
-                longest_word = forceString(rec.value('note'))
+            #if len(forceString(rec.value('note'))) > len(longest_word):
+            #    longest_word = forceString(rec.value('note'))
 
-        self.cmbFilterIdentify._popupView._view.horizontalHeader().setDefaultSectionSize(20) # Изменяем ширину первого столбца
-        self.cmbFilterIdentify.preferredWidth = (len(longest_word)) * 6 # Изменяем ширину второго столбца
+        self.cmbFilterIdentify.setItems(OrderedDict(sorted(filterItems.items())))
+        #self.cmbFilterIdentify._popupView._view.horizontalHeader().setDefaultSectionSize(20)  # Изменяем ширину первого столбца
+        #self.cmbFilterIdentify.preferredWidth = (len(longest_word)) * 6  # Изменяем ширину второго столбца
         self.cmbFilterIdentify.setCheckedRows(list_auto_check)
-
-    @pyqtSignature('int')
-    def on_cmbTypeDoc_currentIndexChanged(self):
-        self.updateFilterIdentify()
 
     def getModelAndTable(self):
         tbl = self.tblActionFileAttach
@@ -167,34 +156,63 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         return tbl, model
 
     def getPreferences(self):
-        # if forceBool(self.appPrefs.get('FileAttachSigned', 0)):
-        #     self.cmbFilterSigned.setCurrentIndex(forceInt(self.appPrefs.get('FileAttachSigned', 0)))
-        # if forceBool(self.appPrefs.get('FileAttachOrgStrChk', False)):
-        #     self.chkFilterOrgStructure.setChecked(forceBool(self.appPrefs.get('FileAttachOrgStrChk', False)))
-        # if forceBool(self.appPrefs.get('FileAttachOrgStrId')):
-        #     self.cmbFilterOrgStructure.setValue(forceInt(self.appPrefs.get('FileAttachOrgStrId', '')))
-        # if forceBool(self.appPrefs.get('FileAttachPersonId')) and QtGui.qApp.isAdmin():
-        #     self.cmbFilterPerson.setValue(forceInt(self.appPrefs.get('FileAttachPersonId', '')))
-        # if forceBool(self.appPrefs.get('FileAttachATChk', False)):
-        #     self.chkFilterActionType.setChecked(forceBool(self.appPrefs.get('FileAttachATChk', False)))
-        # if forceBool(self.appPrefs.get('FileAttachAT')):
-        #     self.cmbActionType.setValue(forceInt(self.appPrefs.get('FileAttachAT', '')))
+        if forceBool(self.appPrefs.get('AttachSEMDChkLastName', False)):
+            self.chkFilterLastName.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkLastName', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkFirstName', False)):
+            self.chkFilterFirstName.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkFirstName', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkPatrName', False)):
+            self.chkFilterPatrName.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkPatrName', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkEventId', False)):
+            self.chkFilterEventId.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkEventId', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkActionType', False)):
+            self.chkFilterActionType.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkActionType', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkEventType', False)):
+            self.chkFilterEventType.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkEventType', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkDateExecActionBegDate', False)):
+            self.chkFilterDateExecActionBegDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkDateExecActionBegDate', False)))
+        if forceBool(self.appPrefs.get('AttachSEMDChkDateExecActionEndDate', False)):
+            self.chkFilterDateExecActionEndDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkDateExecActionEndDate', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkEventBegDate', False)):
+            self.chkFilterEventBegDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkEventBegDate', False)))
+        if forceBool(self.appPrefs.get('AttachSEMDChkEventEndDate', False)):
+            self.chkFilterEventEndDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkEventEndDate', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkAttachFileBegDate', False)):
+            self.chkFilterAttachFileBegDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkAttachFileBegDate', False)))
+        if forceBool(self.appPrefs.get('AttachSEMDChkAttachFileEndDate', False)):
+            self.chkFilterAttachFileEndDate.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkAttachFileEndDate', False)))
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkIdentify', False)):
+            self.chkFilterIdentify.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkIdentify', False)))
+
         self.applyFilters()
 
     def setPreferences(self):
-        pass
-        # signed = self.cmbFilterSigned.currentIndex()
-        # orgStrId = self.cmbFilterOrgStructure.value() if self.chkFilterOrgStructure.isChecked() else ''
-        # personId = self.cmbFilterPerson.value()
-        # snilsCheck = self.chkFilterSNILS.isChecked()
-        # actType = self.cmbActionType.value() if self.chkFilterActionType.isChecked() else ''
-        # self.appPrefs['FileAttachSigned'] = toVariant(signed)
-        # self.appPrefs['FileAttachOrgStrChk'] = toVariant(self.chkFilterOrgStructure.isChecked())
-        # self.appPrefs['FileAttachOrgStrId'] = toVariant(orgStrId)
-        # self.appPrefs['FileAttachPersonId'] = toVariant(personId)
-        # self.appPrefs['FileAttachSNILS'] = toVariant(snilsCheck)
-        # self.appPrefs['FileAttachATChk'] = toVariant(self.chkFilterActionType.isChecked())
-        # self.appPrefs['FileAttachAT'] = toVariant(actType)
+        self.appPrefs['AttachSEMDChkLastName'] = toVariant(self.chkFilterLastName.isChecked())
+        self.appPrefs['AttachSEMDChkFirstName'] = toVariant(self.chkFilterFirstName.isChecked())
+        self.appPrefs['AttachSEMDChkPatrName'] = toVariant(self.chkFilterPatrName.isChecked())
+        self.appPrefs['AttachSEMDChkEventId'] = toVariant(self.chkFilterEventId.isChecked())
+        self.appPrefs['AttachSEMDChkActionType'] = toVariant(self.chkFilterActionType.isChecked())
+        self.appPrefs['AttachSEMDChkEventType'] = toVariant(self.chkFilterEventType.isChecked())
+
+        self.appPrefs['AttachSEMDChkDateExecActionBegDate'] = toVariant(self.chkFilterDateExecActionBegDate.isChecked())
+        self.appPrefs['AttachSEMDChkDateExecActionEndDate'] = toVariant(self.chkFilterDateExecActionEndDate.isChecked())
+
+        self.appPrefs['AttachSEMDChkEventBegDate'] = toVariant(self.chkFilterEventBegDate.isChecked())
+        self.appPrefs['AttachSEMDChkEventEndDate'] = toVariant(self.chkFilterEventEndDate.isChecked())
+
+        self.appPrefs['AttachSEMDChkAttachFileBegDate'] = toVariant(self.chkFilterAttachFileBegDate.isChecked())
+        self.appPrefs['AttachSEMDChkAttachFileEndDate'] = toVariant(self.chkFilterAttachFileEndDate.isChecked())
+
+        self.appPrefs['AttachSEMDChkIdentify'] = toVariant(self.chkFilterIdentify.isChecked())
+
 
     def sortByColumn(self, column):
         tbl, model = self.getModelAndTable()
@@ -207,10 +225,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         header.setSortIndicatorShown(True)
         header.setSortIndicator(column, Qt.AscendingOrder if self.__sortAscending else Qt.DescendingOrder)
         model.sortData(column, self.__sortAscending)
-
-    @pyqtSignature('QModelIndex')
-    def on_tblAttachFiles_clicked(self, index):
-        self.rowCount()
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelFileAttach_currentRowChanged(self, current, previous):
@@ -229,9 +243,9 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.menu = QtGui.QMenu(self)
         tbl, model = self.getModelAndTable()
         selectedRows = self.getSelectedRows(tbl)
-        currentRow = forceInt(tbl.currentRow())
-        attachedFileId = forceInt(tbl.model().records[currentRow].value('afa_id'))
         if len(selectedRows) == 1:
+            currentRow = forceInt(tbl.currentRow())
+            attachedFileId = forceInt(tbl.model().records[currentRow].value('afa_id'))
             if attachedFileId != 0:
                 openFile = QtGui.QAction(u'Открыть файл', self)
                 openFile.triggered.connect(self.openAttachFile)
@@ -296,11 +310,8 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.edtFilterAttachFileBegDate.setDate(QDate.currentDate())
         self.edtFilterAttachFileEndDate.setDate(QDate.currentDate())
         self.cmbFilterPerson.setCurrentIndex(0)
-        # self.cmbFilterPerson.setCurrentIndex(0)
         self.cmbActionType.setValue(None)
         self.cmbEventType.clearValue()
-        # self.chkFilterSNILS.setEnabled(True)
-        # self.chkFilterSNILS.setChecked(False)
         self.cmbFilterSigned.setCurrentIndex(0)
         self.chkFilterLastName.setChecked(False)
         self.chkFilterFirstName.setChecked(False)
@@ -316,8 +327,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.chkFilterActionType.setChecked(False)
         self.chkFilterEventType.setChecked(False)
         self.chkFilterIdentify.setChecked(False)
-        # self.chkFilterActionNoFile.setChecked(False)
-        # self.chkFilterUploadedDocs.setChecked(True)
         self.cmbFilterIdentify.setEnabled(False)
         self.cmbFilterIdentify.setCurrentIndex(0)
         self.cmbFilterIdentify.clearItemChecked()
@@ -326,7 +335,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.cmbSpeciality.setToolTip("")
         self.cmbSpeciality.setEditText("")
         self.cmbFinance.setValue(0)
-        # self.cmbForPerson.setCurrentIndex(1)
         self.applyFilters()
 
     def saveDefaultParams(self, params):
@@ -364,8 +372,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         begDate = None
         endDate = None
         orgStructureList = None
-        actionNoFile = None
-        typeDoc = None
         dateExecActionBegDate = None
         dateExecActionEndDate = None
         eventBegDate = None
@@ -373,6 +379,9 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         attachFileBegDate = None
         attachFileEndDate = None
         uploadedDocs = None
+        actionType = None
+        identify = None
+        eventType = None
 
         if self.chkFilterLastName.isChecked():
             lastName = forceString(self.edtFilterLastName.text())
@@ -403,23 +412,27 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         if self.chkFilterAttachFileEndDate.isChecked():
             attachFileEndDate = self.edtFilterAttachFileEndDate.date()
 
-        actionType = self.cmbActionType.value()
-        # forPerson = self.cmbForPerson.currentIndex()
+        if self.chkFilterActionType.isChecked():
+            actionType = self.cmbActionType.value()
         financeId = self.cmbFinance.value()
+        
         specialityId = self.cmbSpeciality.value()
         if specialityId:
             specialityId = specialityId.split(',')
 
-        identify = ", ".join(self.getListIdentify())
-
-        eventType = self.cmbEventType.value()
+        if self.chkFilterEventType.isChecked():
+            eventType = self.cmbEventType.value()
+            
         result['FilterIdentify'] = self.chkFilterIdentify.isChecked()
-        result['listFilterIdentify'] = identify
+        if self.chkFilterIdentify.isChecked():
+            identify = ", ".join(self.getListIdentify())
+            result['listFilterIdentify'] = identify
 
-        # actionNoFile = self.chkFilterActionNoFile.isChecked()
+        #if self.chkFilterIExportSuccess.isChecked():
+        #    exportSuccess = self.cmbExportSuccess.currentIndex()
+
         actionNoFile = self.cmbFilterIsFile.currentIndex()
         actionNoFile = True if actionNoFile == 1 else False
-        # uploadedDocs = self.chkFilterUploadedDocs.isChecked()
         if self.cmbFilterFileType.isEnabled():
             uploadedDocs = self.cmbFilterFileType.currentIndex()
             uploadedDocs = False if uploadedDocs == 1 else True
@@ -463,9 +476,9 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         listIdentify = []
         if self.chkFilterIdentify.isChecked():
             identify = self.cmbFilterIdentify.value()
-            for i in re.split(' |\|', identify):
-                if i.isdigit():
-                    listIdentify.append(i)
+            for i in re.split(',', identify):
+                if trim(i).isdigit():
+                    listIdentify.append(trim(i))
         return listIdentify
 
     def getEventType(self):
@@ -594,93 +607,62 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
             self.edtFilterAttachFileEndDate.setDisabled(True)
 
     @pyqtSignature('int')
-    def on_cmbFilterIsFile_currentIndexChanged(self, index):
-        if index == 0:
-            self.cmbFilterFileType.setEnabled(True)
-        else:
-            self.cmbFilterFileType.setEnabled(False)
-
-    @pyqtSignature('int')
     def on_cmbFilterPerson_currentIndexChanged(self, index):
         if index == 0:
             self.chkFilterSNILS.setEnabled(False)
         else:
             self.chkFilterSNILS.setEnabled(True)
 
+    @pyqtSignature('int')
+    def on_cmbFilterIsFile_currentIndexChanged(self, index):
+        if index == 0:
+            self.cmbFilterSigned.setEnabled(True)
+            self.cmbFilterFileType.setEnabled(True)
+        elif index == 1:
+            self.cmbFilterSigned.setEnabled(False)
+            self.cmbFilterFileType.setEnabled(False)
+            self.cmbFilterSigned.setCurrentIndex(0)
+
     @pyqtSignature('')
     def on_actPrintWindow_triggered(self):
+        '''Печать списка'''
         data = self.parseModel()
-        html = self.createPageForPrintWindow(data)
-        self.reportPage(html)
+        CReportPrintWindow(self, data).exec_()
+
+
+    @pyqtSignature('')
+    def on_actPrintWindowSelected_triggered(self):
+        '''Печать списка пациентов, которых выделили в таблице'''
+        data = self.parseModel(isSelected=True)
+        CReportPrintWindow(self, data).exec_()
+
 
     @pyqtSignature('')
     def on_actPrintSummaryDocuments_triggered(self):
-        dlg = CPrintSummaryDocumentsDialog(self)
-        if dlg.exec_():
-            parametrs = dlg.getParametrs()
-
-            db = QtGui.qApp.db
-
-            stmt = u"""
-            SELECT DISTINCT
-                CONCAT_WS(' ', p.lastName, p.firstName, p.patrName) AS person
-              , CASE WHEN os.name IS NULL THEN 'Неизвестно' ELSE os.name end as orgStructure
-              , COUNT(a.id) AS actionsSum
-              , COUNT(ee.id) AS IEMK_Sum
-              , COUNT(imS.id) AS successSum
-              , COUNT(imF.id) AS failedSum
-            FROM Action a
-              INNER JOIN ActionType at ON a.actionType_id = at.id
-              INNER JOIN rbAccountingSystem rbas ON rbas.urn = 'urn:oid:1.2.643.2.69.1.1.1.195.Cda'
-              LEFT JOIN rbExternalSystem es ON es.code = 'N3.РЕГИСЗ.ИЭМК.v3'
-              INNER JOIN ActionType_Identification ati ON at.id = ati.master_id AND ati.system_id = rbas.id
-              INNER JOIN Person p ON p.id = CASE WHEN ati.value != '291' THEN a.person_id ELSE a.setPerson_id END
-              INNER JOIN Event e ON a.event_id = e.id
-              LEFT JOIN Event_Export ee ON e.id = ee.master_id AND ee.system_id = es.id AND ee.success = 1
-              LEFT JOIN Action_FileAttach afa ON afa.master_id = a.id
-              LEFT JOIN Information_Messages imS ON imS.IdMedDocumentMis_id = afa.id AND imS.typeMessages = 'REMDStatus' AND imS.status = 'Success' AND imS.IdFedRequest IS NOT NULL AND imS.RemdRegNumber != ''
-              LEFT JOIN Information_Messages imF ON imF.IdMedDocumentMis_id = afa.id AND imF.typeMessages = 'REMDStatus' AND imF.status = 'Failed' AND imF.IdMedDocumentMis NOT IN (SELECT im.IdMedDocumentMis FROM Information_Messages im WHERE im.status = 'Success' AND im.IdFedRequest IS NOT NULL AND im.RemdRegNumber != '')
-              LEFT JOIN OrgStructure os ON p.orgStructure_id = os.id
-            WHERE 
-              a.deleted = 0
-              AND a.begDate >= '{0} 00:00' 
-              AND a.endDate <= '{1} 00:00'
-              {2}
-            GROUP BY p.SNILS{3}
-            ORDER BY {4}p.lastName, p.firstName, p.patrName;
-            """.format(
-                parametrs.get('edtDateStart').toString('yyyy-MM-dd'),
-                parametrs.get('edtDateEnd').toString('yyyy-MM-dd'),
-                'AND e.isClosed = 1' if parametrs.get('chkGroupByOrgStructure') else '',
-                ', os.name' if parametrs.get('chkClosedEvents') else '',
-                'os.name, ' if parametrs.get('chkClosedEvents') else ''
-            )
-
-            data = []
-            query = db.query(stmt)
-            while query.next():
-                record = query.record()
-                data.append(record)
-
-            html = self.createPagePrintSummaryDocuments(data, parametrs.get('chkGroupByOrgStructure'))
-            self.reportPage(html)
+        '''Сводка по  документам'''
+        CReportPrintSummaryDocuments(self).exec_()
 
     # @pyqtSignature('')
     # def on_actPrintGroupStrucPerson_triggered(self):
+    #     '''Группировка по подразделениям и врачам'''
     #     data = self.parseModel()
-    #     html = self.createPageForPrintGroupStrucPerson(data)
-    #     self.reportPage(html)
+    #     CReportGroupStrucPerson(self, data).exec_()
 
     # @pyqtSignature('')
     # def on_actPrintGroupPersonInfo_triggered(self):
+    #     '''Группировка по врачам с отображением количественных показателей'''
     #     data = self.parseModel()
-    #     html = self.createPageForPrintGroupPersonInfo(data)
-    #     self.reportPage(html)
+    #     CReportGroupPersonInfo(self, data).exec_()
 
-    def parseModel(self):
+    def parseModel(self, isSelected=None):
         tbl, model = self.getModelAndTable()
         listData = []
         items = model.items()
+        if isSelected:
+            newListItem = []
+            for el in tbl.selectedRowList():
+                newListItem.append(items[el])
+            items = newListItem
         for item in items:
             data = dataclass()
             data.fio_client = forceString(item.value('fio_client'))
@@ -709,294 +691,10 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
             listData.append(data)
         return listData
 
-    def createPageForPrintWindow(self, data):
-        doc = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(doc)
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'Печать списка')
-        cursor.insertBlock()
-
-        tableColumns = [
-            ('3%',  [u'№'],                                                     CReportBase.AlignCenter),
-            ('10%', [u'ФИО \nПациента'],                                        CReportBase.AlignLeft),
-            ('3%',  [u'Код \nкарточки'],                                        CReportBase.AlignLeft),
-            ('10%', [u'Тип \nсобытия'],                                         CReportBase.AlignLeft),
-            ('10%', [u'Период \nобращения'],                                    CReportBase.AlignLeft),
-            ('10%', [u'Тип \nдействия'],                                        CReportBase.AlignLeft),
-            ('8%',  [u'Дата \nвыполнения \nдействия'],                          CReportBase.AlignLeft),
-            ('8%',  [u'Дата \nприкрепления'],                                   CReportBase.AlignLeft),
-            ('10%', [u'Назначил'],                                              CReportBase.AlignLeft),
-            ('10%', [u'Врач'],                                                  CReportBase.AlignLeft),
-            ('6%',  [u'Имя файла'],                                             CReportBase.AlignLeft),
-            ('8%',  [u'Дата \nподписания \nЭЦП врача'],                         CReportBase.AlignLeft),
-            ('8%',  [u'Дата \nподписания \nЭЦП МО'],                            CReportBase.AlignLeft),
-            ('8%',  [u'Дата \nэкспорта'],                                       CReportBase.AlignLeft),
-            ('10%', [u'Информация о \nприеме документа \nфедеральным РЭМД'],    CReportBase.AlignLeft),
-            ('10%', [u'Отправка в \nРегиональный РЭМД'],                        CReportBase.AlignLeft),
-        ]
-
-        table = createTable(cursor, tableColumns)
-
-        x = 0
-        for value in data:
-            row = table.addRow()
-            x = x + 1
-            table.setText(row, 0, forceString(x))
-            table.setText(row, 1, value.fio_client)
-            table.setText(row, 2, forceString(value.event_id))
-            table.setText(row, 3, forceString(value.event_type_name))
-            table.setText(row, 4, forceString(value.period))
-            table.setText(row, 5, forceString(value.action_type))
-            table.setText(row, 6, forceString(value.actEndDate))
-            table.setText(row, 7, forceString(value.fileAttachDatetime))
-            table.setText(row, 8, forceString(value.setPerson))
-            table.setText(row, 9, forceString(value.person))
-            table.setText(row, 10, forceString(value.fileName))
-            table.setText(row, 11, forceString(value.date_sign_ecp_person))
-            table.setText(row, 12, forceString(value.date_sign_ecp_mo))
-            table.setText(row, 13, forceString(value.export_date))
-            table.setText(row, 14, forceString(value.statusREMD))
-            table.setText(row, 15, forceString(value.export_success))
-
-        return doc.toHtml()
-
-    def createPagePrintSummaryDocuments(self, data, group):
-        doc = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(doc)
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'Сводка по документам')
-        cursor.insertBlock()
-
-        tableColumns = [
-            ('15%', [u'Врач'],                   CReportBase.AlignLeft),
-            ('15%', [u'Введено действий'],       CReportBase.AlignLeft),
-            ('20%', [u'Выгружено в ИЭМК'],       CReportBase.AlignLeft),
-            ('15%', [u'Успешно принят РЭМД'],    CReportBase.AlignLeft),
-            ('15%', [u'Отклонен РЭМД'],          CReportBase.AlignLeft),
-            ('20%', [u'Статус РЭМД не получен'], CReportBase.AlignLeft),
-        ]
-
-        table = createTable(cursor, tableColumns)
-
-        structure = None
-        structureActionsSum = 0
-        structureIEMK_Sum = 0
-        structureSuccessSum = 0
-        structureFailedSum = 0
-        structureUnknownSum = 0
-
-        boldChars = QtGui.QTextCharFormat()
-        boldChars.setFontWeight(QtGui.QFont.Bold)
-
-        for idx, record in enumerate(data):
-            person = forceString(record.value('person'))
-            actionsSum = forceInt(record.value('actionsSum'))
-            IEMK_Sum = forceInt(record.value('IEMK_Sum'))
-            successSum = forceInt(record.value('successSum'))
-            failedSum = forceInt(record.value('failedSum'))
-            unknownSum = IEMK_Sum - (successSum + failedSum)
-            orgStructureRecord = forceString(record.value('orgStructure'))
-            if successSum >= 500:
-                textColor = Qt.green
-            else:
-                textColor = None
-            if group:
-                if orgStructureRecord != structure:
-                    if idx != 0:
-                        row = table.addRow()
-                        table.setText(row, 0, structure, charFormat=boldChars)
-                        table.setText(row, 1, structureActionsSum, charFormat=boldChars)
-                        table.setText(row, 2, structureIEMK_Sum, charFormat=boldChars)
-                        table.setText(row, 3, structureSuccessSum, charFormat=boldChars)
-                        table.setText(row, 4, structureFailedSum, charFormat=boldChars)
-                        table.setText(row, 5, structureUnknownSum, charFormat=boldChars)
-                    structure = orgStructureRecord
-                    structureActionsSum = 0
-                    structureIEMK_Sum = 0
-                    structureSuccessSum = 0
-                    structureFailedSum = 0
-                    structureUnknownSum = 0
-
-            row = table.addRow()
-            table.setText(row, 0, person, brushColor=textColor)
-            table.setText(row, 1, actionsSum, brushColor=textColor)
-            table.setText(row, 2, IEMK_Sum, brushColor=textColor)
-            table.setText(row, 3, successSum, brushColor=textColor)
-            table.setText(row, 4, failedSum, brushColor=textColor)
-            table.setText(row, 5, unknownSum, brushColor=textColor)
-
-            if group:
-                structureActionsSum += actionsSum
-                structureIEMK_Sum += IEMK_Sum
-                structureSuccessSum += successSum
-                structureFailedSum += failedSum
-                structureUnknownSum += unknownSum
-
-            if group and idx == len(data) - 1:
-                row = table.addRow()
-                table.setText(row, 0, structure, charFormat=boldChars)
-                table.setText(row, 1, structureActionsSum, charFormat=boldChars)
-                table.setText(row, 2, structureIEMK_Sum, charFormat=boldChars)
-                table.setText(row, 3, structureSuccessSum, charFormat=boldChars)
-                table.setText(row, 4, structureFailedSum, charFormat=boldChars)
-                table.setText(row, 5, structureUnknownSum, charFormat=boldChars)
-
-        return doc.toHtml()
-
-    def createPageForPrintGroupStrucPerson(self, data):
-        doc = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(doc)
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'Группировка по подразделениям и врачам')
-        cursor.insertBlock()
-
-        tableColumns = [
-            ('15%', [u'Подразделение'],     CReportBase.AlignLeft),
-            ('10%', [u'Врач'],              CReportBase.AlignLeft),
-            ('15%', [u'ФИО Пациента'],      CReportBase.AlignLeft),
-            ('10%', [u'Код карточки'],      CReportBase.AlignLeft),
-            ('15%', [u'Тип события'],       CReportBase.AlignLeft),
-            ('15%', [u'Период обращения'],  CReportBase.AlignLeft),
-            ('20%', [u'Тип действия'],      CReportBase.AlignLeft),
-        ]
-
-        table = createTable(cursor, tableColumns)
-
-        data.sort(key=lambda item: (item.structure, item.person))
-
-        structure = None
-        person = None
-
-        for value in data:
-            if value.structure != structure:
-                structure = value.structure
-                row = table.addRow()
-                table.setText(row, 0, forceString(value.structure))
-                table.setText(row, 1, forceString(u"   "))
-                table.setText(row, 2, forceString(u"   "))
-                table.setText(row, 3, forceString(u"   "))
-                table.setText(row, 4, forceString(u"   "))
-                table.setText(row, 5, forceString(u"   "))
-                table.setText(row, 6, forceString(u"   "))
-
-            if value.structure == structure:
-                if value.person != person:
-                    person = value.person
-                    row = table.addRow()
-                    table.setText(row, 0, forceString(u"   "))
-                    table.setText(row, 1, forceString(value.person))
-                    table.setText(row, 2, forceString(value.fio_client))
-                    table.setText(row, 3, forceString(value.event_id))
-                    table.setText(row, 4, forceString(value.event_type_name))
-                    table.setText(row, 5, forceString(value.period))
-                    table.setText(row, 6, forceString(value.action_type))
-                elif value.person == person:
-                    row = table.addRow()
-                    table.setText(row, 0, forceString(u"   "))
-                    table.setText(row, 1, forceString(u"   "))
-                    table.setText(row, 2, forceString(value.fio_client))
-                    table.setText(row, 3, forceString(value.event_id))
-                    table.setText(row, 4, forceString(value.event_type_name))
-                    table.setText(row, 5, forceString(value.period))
-                    table.setText(row, 6, forceString(value.action_type))
-
-        return doc.toHtml()
-
-    def createPageForPrintGroupPersonInfo(self, data):
-        doc = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(doc)
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'Группировка по врачам с отображением количественных показателей')
-        cursor.insertBlock()
-
-        tableColumns = [
-            ('50%', [u'Врач'],                  CReportBase.AlignLeft),
-            ('10%', [u'Действий'],              CReportBase.AlignLeft),
-            ('10%', [u'Прикрепленно файлов'],   CReportBase.AlignLeft),
-            ('10%', [u'Подписано врачем'],      CReportBase.AlignLeft),
-            ('10%', [u'Выгруженно в рэмд'],     CReportBase.AlignLeft),
-            ('10%', [u'Полученно успешных'],    CReportBase.AlignLeft)
-        ]
-
-        table = createTable(cursor, tableColumns)
-
-        data.sort(key=lambda item: item.setPerson)
-
-        person = None
-        action = 0
-
-        for value in data:
-            numberAction = 0
-            numberFile = 0
-            numberSugner = 0
-            numberUnloadREMD = 0
-            numberGoodPush = 0
-
-            if value.person != person:
-                person = value.person
-                row = table.addRow()
-                table.setText(row, 0, forceString(value.person))
-                table.setText(row, 1, forceString(u"   "))
-                table.setText(row, 2, forceString(u"   "))
-                table.setText(row, 3, forceString(u"   "))
-                table.setText(row, 4, forceString(u"   "))
-                table.setText(row, 5, forceString(u"   "))
-
-            if value.person == person and action != value.action_id:
-                action = value.action_id
-                # сколько действий
-                numberAction = len([v for v in data if v.action_id == value.action_id])
-                # сколько прикреплено прикреплено файлов
-                numberFile = len([v for v in data if v.action_id == value.action_id and v.fileName])
-                # сколько подписано врачом
-                numberSugner = len([v for v in data if v.action_id == value.action_id and v.date_sign_ecp_person])
-                # сколько выгружено в региональный РЭМД
-                numberUnloadREMD = len([v for v in data if v.action_id == value.action_id and v.export_date])
-                # Сколько полуено успешных уведослений из федерального РЭМД
-                numberGoodPush = len([v for v in data if v.action_id == value.action_id and v.export_success == u'успех'])
-
-                row = table.addRow()
-                table.setText(row, 0, forceString(u"   "))
-                table.setText(row, 1, forceString(numberAction))
-                table.setText(row, 2, forceString(numberFile))
-                table.setText(row, 3, forceString(numberSugner))
-                table.setText(row, 4, forceString(numberUnloadREMD))
-                table.setText(row, 5, forceString(numberGoodPush))
-
-        return doc.toHtml()
-
-    def reportPage(self, html):
-        pageFormat = CPageFormat(pageSize=CPageFormat.A4,
-                                 orientation=CPageFormat.Portrait,
-                                 leftMargin=15,
-                                 topMargin=15,
-                                 rightMargin=15,
-                                 bottomMargin=15)
-        view = CReportViewDialog(self)
-        view.setWindowTitle(u'Печать: Сводка о формировании СЭМД для РЭМД')
-        if pageFormat:
-            view.setPageFormat(pageFormat)
-        view.setText(html)
-        view.exec_()
-
     @pyqtSignature('')
     def on_actOpenEvent_triggered(self):
         QtGui.qApp.callWithWaitCursor(self, self.openEvent)
-
-    @pyqtSignature('')
-    def on_actOpenSurveillance_triggered(self):
-        tbl, model = self.getModelAndTable()
-        selectedRow = self.getSelectedRows(tbl)
-        record = model.getRecordByRow(selectedRow[0])
-        clientId = forceRef(record.value('client_id')) if record else None
-        if clientId:
-            try:
-                surPlanningShow = CSurveillanceDialog(self, isFake=True)
-                if surPlanningShow.surveillancePlanningShow(clientId):
-                    tbl.setCurrentRow(selectedRow)
-            finally:
-                surPlanningShow.deleteLater()
-
+    
     def openEvent(self):
         tbl, model = self.getModelAndTable()
         selectedRow = self.getSelectedRows(tbl)
@@ -1068,75 +766,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
             result = item
         return result
 
-    def validateFile(self):
-        tbl, model = self.getModelAndTable()
-        currentRows = tbl.selectedRowList()
-        attachFilesIdList = self.modelActionFileAttach.getAttachFilesId(currentRows)
-
-        db = QtGui.qApp.db
-        interface = QtGui.qApp.webDAVInterface
-        pyServices = getPyServices()
-        results = {}
-
-        if pyServices:
-            availableCodes = pyServices.listCdaCodes()
-            if availableCodes is not None:
-                table = db.table('Action_FileAttach')
-                cond = db.joinAnd([table['id'].inlist(attachFilesIdList), table['deleted'].eq(0)])
-                cols = [table['id'], table['path']]
-                records = db.getRecordList(table, cols, cond)
-                countAll = len(records)
-
-                def stepIterator(progressDialog):
-                    for record in records:
-                        id = forceRef(record.value('id'))
-                        path = forceString(record.value('path'))
-                        item = interface.createAttachedFileItem(path)
-                        xmlText = interface.downloadBytes(item)
-                        cdaCode = getCdaCode(xmlText)
-                        if cdaCode is None or cdaCode not in availableCodes:
-                            results[id] = CValidationResult(CValidationResult.UNAVAILABLE)
-                        else:
-                            jsonResult = pyServices.validateCda(xmlText)
-                            results[id] = CValidationResult.fromJsonResult(jsonResult)
-                        yield 1
-
-                progressDialog = CSimpleProgressDialog(self)
-                progressDialog.okButtonText = u"Проверить"
-                progressDialog.setState(CSimpleProgressDialog.ReadyToWork)
-                progressDialog.setMinimumWidth(500)
-                progressDialog.setWindowTitle(u'Проверка документов по схематрону')
-                progressDialog.setStepCount(countAll)
-                progressDialog.setFormat(u'%v из %m')
-                progressDialog.setAutoStart(False)
-                progressDialog.setAutoClose(False)
-                progressDialog.setStepIterator(stepIterator)
-                try:
-                    progressDialog.exec_()
-                except Exception, e:
-                    QtGui.QMessageBox.critical(self, u'Ошибка связи с сервисом валидации', anyToUnicode(e.message))
-                if results:
-                    countValidated = len(results)
-                    self.modelActionFileAttach.updateValidationResults(results)
-                    self.applyFilters()
-                    QtGui.QMessageBox.information(self, u'Проверка документов по схематрону',
-                                                  u'Проверено {0} из {1}'.format(countValidated, countAll))
-            else:
-                QtGui.QMessageBox.critical(self, u'Ошибка',
-                                           u"На данном рабочем месте нет доступа к серверу сервисов по адресу: {0}".format(
-                                               pyServices.url))
-        self.gbValidationResult.setVisible(bool(self.modelActionFileAttach.validationResults))
-
-    def setupValidationResultColors(self):
-        self.setupValidationResultColor(CValidationResult.SUCCESS, self.chkValidationSuccess, QColor(200, 255, 200))
-        self.setupValidationResultColor(CValidationResult.UNAVAILABLE, self.chkValidationUnavailable,
-                                        QColor(255, 250, 200))
-        self.setupValidationResultColor(CValidationResult.ERROR, self.chkValidationError, QColor(255, 200, 200))
-
-    def setupValidationResultColor(self, resultCode, filterCheckbox, color):
-        self.modelActionFileAttach.validationResultColors[resultCode] = color
-        filterCheckbox.setStyleSheet("background-color: {0}".format(color.name()))
-
 
 class CFileAttachModel(CRecordListModel):
     def getMasterId(self, index):
@@ -1157,68 +786,6 @@ class CFileAttachModel(CRecordListModel):
     def updateValidationResults(self, newResults):
         for id, result in newResults.iteritems():
             self.validationResults[id] = result
-
-
-class dataclass():
-    def __init__(self):
-        self.fio_client = None
-        self.event_id = None
-        self.event_type_name = None
-        self.structure = None
-        self.period = None
-        self.action_id = None
-        self.action_type = None
-        self.action_typeCode = None
-        self.actEndDate = None
-        self.fileAttachDatetime = None
-        self.setPerson = None
-        self.setPersonCode = None
-        self.person = None
-        self.personCode = None
-        self.fileName = None
-        self.date_sign_ecp_person = None
-        self.date_sign_ecp_mo = None
-        self.export_date = None
-        self.statusREMD = None
-        self.export_success = None
-
-
-class CPrintSummaryDocumentsDialog(QtGui.QDialog):
-    def __init__(self, parent=None):
-        super(CPrintSummaryDocumentsDialog, self).__init__(parent)
-        self.layout = QtGui.QGridLayout(self)
-
-        self.setWindowTitle(u'Параметры отчёта')
-
-        self.edtDateStart = CDateEdit()
-        self.edtDateEnd = CDateEdit()
-        self.chkGroupByOrgStructure = QtGui.QCheckBox(u'Группировать по подразделениям')
-        self.chkClosedEvents = QtGui.QCheckBox(u'По закрытым событиям')
-
-        self.buttonBox = QtGui.QDialogButtonBox()
-        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
-        self.connect(self.buttonBox, SIGNAL('accepted()'), self.accept)
-        self.connect(self.buttonBox, SIGNAL('rejected()'), self.reject)
-
-        self.layout.addWidget(QtGui.QLabel(u'Дата начала периода'), 0, 0)
-        self.layout.addWidget(self.edtDateStart, 0, 1)
-
-        self.layout.addWidget(QtGui.QLabel(u'Дата окончания периода'), 1, 0)
-        self.layout.addWidget(self.edtDateEnd, 1, 1)
-
-        self.layout.addWidget(self.chkGroupByOrgStructure, 2, 0)
-
-        self.layout.addWidget(self.chkClosedEvents, 3, 0)
-
-        self.layout.addWidget(self.buttonBox, 4, 0, 1, 2)
-
-    def getParametrs(self):
-        paramentrs = dict()
-        paramentrs['edtDateStart'] = self.edtDateStart.date()
-        paramentrs['edtDateEnd'] = self.edtDateEnd.date()
-        paramentrs['chkGroupByOrgStructure'] = self.chkGroupByOrgStructure.isChecked()
-        paramentrs['chkClosedEvents'] = self.chkClosedEvents.isChecked()
-        return paramentrs
 
 
 class CActionFileAttachModel(CFileAttachModel):
@@ -1244,9 +811,8 @@ class CActionFileAttachModel(CFileAttachModel):
         self.records = None
         self.validationResults = {}
         self.validationResultColors = {}
-        endDate = QDate().currentDate()
-        begDate = QDate().currentDate().addDays(-2)
-        self.loadData(begDate=begDate, endDate=endDate)
+        dateExecActionBegDate = QDate().currentDate().addDays(-2)
+        self.loadData(dateExecActionBegDate=dateExecActionBegDate)
 
     def data(self, index, role=Qt.DisplayRole):
         column = index.column()
@@ -1274,27 +840,32 @@ class CActionFileAttachModel(CFileAttachModel):
         return db.getDistinctIdList(tableActionType, 'id', cond)
 
     def loadData(self, lastName=None, firstName=None, patrName=None, eventId=None, signedIndex=5,
-                 orgStructureList=None, personId=None, begDate=None, endDate=None, actionType=None,
+                 orgStructureList=None, begDate=None, endDate=None, actionType=None, personId=None,
                  identify=None, eventType=None, dateExecActionBegDate=None, dateExecActionEndDate=None,
                  eventBegDate=None, eventEndDate=None, attachFileBegDate=None, attachFileEndDate=None,
-                 personSNILS=None, validationResultCodes=None, forPerson=0, specialityId=None,
+                 validationResultCodes=None, specialityId=None, personSNILS=None,
                  financeId=None, actionNoFile=None, uploadedDocs=None):
 
         db = QtGui.qApp.db
 
         tableActionFileAttach = db.table('Action_FileAttach').alias('afa')
+        tableActionFileAttachPDF = db.table('Action_FileAttach').alias('afaPDF')
         tableAction = db.table('Action').alias('a')
         tableClient = db.table('Client')
         tableEvent = db.table('Event')
         tablePerson = db.table('Person')
         tablePersonOrgStructure = db.table('Person').alias('pOrgStructure')
+        tableSetPersonOrgStructure = db.table('Person').alias('labPers')
+        tableOrgStructureLab = db.table('OrgStructure').alias('oslabPers')
         tableOrgStructure = db.table('OrgStructure').alias('os')
         tableActionType = db.table('ActionType').alias('AT')
         tableEventType = db.table('EventType')
-        tableInformationMessages = db.table('Information_Messages').alias('IM')
+        tableInformationMessages1 = db.table('Information_Messages').alias('IM1')
+        tableInformationMessages2 = db.table('Information_Messages').alias('IM2')
         tableActionTypeIdentification = db.table('ActionType_Identification').alias('ati')
         tableActionFileAttachExport = db.table('Action_FileAttach_Export').alias('afe')
         tableAccountingSystem = db.table('rbAccountingSystem').alias('rbAS')
+        tableContract = db.table('Contract')
 
         # Общие колонки на вывод
         cols0 = [
@@ -1302,17 +873,16 @@ class CActionFileAttachModel(CFileAttachModel):
             u"concat_ws(' ', " + forceString(tableActionType['name']) + u", 'от', DATE_FORMAT(a.endDate, '%d.%m.%Y')) as title",
             tableEvent['id'].alias('eventId'),
             tableEventType['name'].alias('event_type_name'),
-            tablePersonOrgStructure['orgStructure_id'].alias('structure_id'),
+            u"CASE WHEN ati.value != '291' THEN  pOrgStructure.orgStructure_id ELSE labPers.orgStructure_id END as structure_id",
             tableOrgStructure['name'].alias('structure'),
             u"concat_ws('|', " + forceString(tableActionType['code']) + u"," + forceString(tableActionType['name']) + u") AS action_type",
             u"concat_ws(' ', Client.`lastName`, Client.`firstName`, Client.`patrName`) AS fio_client",
             tableAction['endDate'].alias('actEndDate'),
             u"concat_ws(' - ', DATE_FORMAT(Event.setDate, '%d.%m.%Y'), DATE_FORMAT(Event.execDate, '%d.%m.%Y')) AS period",
-            u"""(select concat_ws( '|', Person.`code`,  concat_ws(' ', Person.`lastName`, Person.`firstName`, Person.`patrName`))
-                from Person where Person.id = a.`setPerson_id`) as setPerson""",
+            u"""concat( labPers.code,'|', formatPersonName(labPers.id)) as setPerson""",
 
-            u"""(select concat_ws( '|', Person.`code`, concat_ws(' ', Person.`lastName`, Person.`firstName`, Person.`patrName`))
-                from Person where Person.id = CASE WHEN ati.value != '291' THEN a.person_id ELSE a.setPerson_id END) as person""",
+            u"""CASE WHEN ati.value != '291' THEN  concat( pOrgStructure.code,'|', formatPersonName(pOrgStructure.id))
+            ELSE  concat( labPers.code,'|', formatPersonName(labPers.id))    END as person""",
         ]
 
         # Колонки первого запроса
@@ -1324,14 +894,12 @@ class CActionFileAttachModel(CFileAttachModel):
             tableActionFileAttach['orgSigningDatetime'].alias('fileAttachDatetime'),
             tableActionFileAttachExport['dateTime'].alias('export_date'),
             tableActionFileAttachExport['note'],
+            u"""if(afe.id is null and IM2.id IS NULL and IM1.id IS NULL, '', IF((afe.success = 1 or afe.note = 'XML - документ не подписан') OR IM2.id IS NOT NULL OR IM1.id IS NOT NULL, 'успешно', 'ошибка')) as export_success""",
             u"""case
-            when IM.status = 'Success' then 'успех'
-            when IM.status = 'Failed' then 'ошибка'
-            end as export_success""",
-            u"""case
-            when IM.status = 'Success' and IM.Message <> '' AND IM.RemdRegNumber then CONCAT('Успех - ', IM.Message)
-            when IM.status = 'Success' and IM.Message <> '' AND IM.RemdRegNumber = '' then 'Ожидается валидация документа на федеральном уровне'
-            when IM.status = 'Failed' and IM.Message <> '' then CONCAT('Ошибка - ', IM.Message)
+            when IM1.RemdRegNumber                      then CONCAT('Успех - ', IM1.RemdRegNumber)
+            when IM1.id is NULL AND IM2.status = 'Success' then 'Ожидается валидация документа на федеральном уровне'
+            when IM1.id is NULL AND IM2.status = 'Failed'  then CONCAT('Ошибка - ', IM2.Message)
+            when IM1.id is NULL AND IM2.id IS NULL AND (afe.id IS NULL OR afe.success=0 OR afe.note = 'XML - документ не подписан')  then ''
             ELSE 'Информация еще не получена'
             END AS StatusREMD""",
             tableActionFileAttach['master_id'],
@@ -1353,7 +921,7 @@ class CActionFileAttachModel(CFileAttachModel):
             u"NULL AS export_date",
             u"'' as export_success",
             u"NULL AS note",
-            u"'Информация еще не получена' AS StatusREMD",
+            u"'' AS StatusREMD",
             u"NULL AS master_id",
             u"NULL AS documentDate",
             u"NULL AS modifyDatetime",
@@ -1368,17 +936,7 @@ class CActionFileAttachModel(CFileAttachModel):
             tableActionType['deleted'].eq(0),
             tableActionTypeIdentification['deleted'].eq(0),
             tableActionType['flatCode'].notlike(u'%temperatureSheet%'),
-            tableAccountingSystem['code'].like(u'%n3.medDocumentType.%')
-        ]
-
-        cond1 = []
-
-        cond2 = [
-            u"""
-            (SELECT MAX(afa.id) FROM Action_FileAttach afa
-            left JOIN Action_FileAttach_Export afe ON
-            afe.id = ( SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id = afae.master_id)
-            WHERE afa.master_id = a.id AND afa.deleted = 0) IS null"""
+            tableAccountingSystem['urn'].eq(u'urn:oid:1.2.643.2.69.1.1.1.195.Cda')
         ]
 
         tableQuery0 = tableAction
@@ -1390,83 +948,55 @@ class CActionFileAttachModel(CFileAttachModel):
         tableQuery0 = tableQuery0.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
         tableQuery0 = tableQuery0.leftJoin(tablePersonOrgStructure, tablePersonOrgStructure['id'].eq(tableAction['person_id']))
         tableQuery0 = tableQuery0.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePersonOrgStructure['orgStructure_id']))
+        tableQuery0 = tableQuery0.leftJoin(tableSetPersonOrgStructure, tableSetPersonOrgStructure['id'].eq(tableAction['setPerson_id']))
+        tableQuery0 = tableQuery0.leftJoin(tableOrgStructureLab, tableOrgStructureLab['id'].eq(tableSetPersonOrgStructure['orgStructure_id']))
+        tableQuery0 = tableQuery0.leftJoin(tableContract, tableContract['id'].eq(tableEvent['contract_id']))
 
-        # if forPerson == 0:
-        #     pass
-        #
-        # elif forPerson == 1:  # Исполнитель
-        #     tableQuery0 = tableQuery0.leftJoin(tablePerson, tablePerson['id'].eq(tableAction['person_id']))
-        #
-        #     if personId:
-        #         cond0.append(tableAction['person_id'].eq(personId))
-        #
-        # elif forPerson == 2:  # Назначивший
-        #     tableQuery0 = tableQuery0.leftJoin(tablePerson, tablePerson['id'].eq(tableAction['setPerson_id']))
-        #
-        #     if personId:
-        #         cond0.append(tableAction['setPerson_id'].eq(personId))
+        if uploadedDocs:
+            tableQuery0 = tableQuery0.leftJoin(tableActionFileAttach,
+                                               u"""
+                                   afa.id =(  SELECT    MAX(id) FROM    Action_FileAttach afa
+                                     WHERE    afa.master_id = a.id    AND afa.deleted = 0
+                                       AND ( right(SUBSTRING_INDEX(afa.path, '/', -1 ),  3) = "xml" AND RIGHT(rbAS.urn, 3)= "cda") )
+                                               """)
+        else:
+            tableQuery0 = tableQuery0.leftJoin(tableActionFileAttach,
+                                               u"""
+                                    afa.id =(  SELECT    MAX(id) FROM    Action_FileAttach afa
+                                      WHERE    afa.master_id = a.id    AND afa.deleted = 0
+                                        AND ( right(SUBSTRING_INDEX(afa.path, '/', -1 ),  3) = "xml" AND RIGHT(rbAS.urn, 3)= "cda") )
+                                               """)
+            tableQuery0 = tableQuery0.leftJoin(tableActionFileAttachPDF,
+                                               u"""
+                                    afaPDF.id =(  SELECT    MAX(id) FROM    Action_FileAttach afa 
+                                    WHERE    afa.master_id = a.id    AND afa.deleted = 0 AND right(SUBSTRING_INDEX(afa.path, '/', -1 ),  3) = "pdf" )
+                                               """)
 
-        cond1 = cond0 + cond1
-        cond2 = cond0 + cond2
+        tableQuery0 = tableQuery0.leftJoin(tableActionFileAttachExport,
+                                           u"""afe.id = (SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id = afae.master_id)""")
+        tableQuery0 = tableQuery0.leftJoin(tableInformationMessages1,
+                                           u"""
+                                           IM1.id = (SELECT MAX(id) FROM 
+                                           Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = afe.master_id 
+                                           AND IdFedRequest IS NOT NULL AND IdFedRequest IS NOT NULL AND RemdRegNumber != '')
+                                           """)
+        tableQuery0 = tableQuery0.leftJoin(tableInformationMessages2,
+                                           u"""
+                                           IM2.id = (SELECT MAX(id) FROM 
+                                           Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = afe.master_id )
+                                           """)
+
+        if uploadedDocs:
+            cond1 = cond0 + [u"""afa.id IS not NULL"""]
+            cond2 = cond0
+        elif uploadedDocs == False:
+            cond1 = cond0 + [u"""afaPDF.id IS not NULL"""] + [u"""afa.id IS NULL"""]
+            cond2 = cond0
+        else:
+            cond2 = cond0 + [u"""afaPDF.id IS NULL"""] + [u"""afa.id IS NULL"""]
+            cond1 = cond0
 
         tableQuery1 = tableQuery0
-        if uploadedDocs:
-            tableQuery1 = tableQuery1.innerJoin(tableActionFileAttach,
-            u"""
-afa.id =(
-    SELECT
-        MAX(id)
-    FROM
-        Action_FileAttach afa
-    WHERE
-        afa.master_id = a.id
-        AND afa.deleted = 0
-        AND (
-                ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "xml" 
-                    AND RIGHT(rbAS.urn, 3)= "cda")
-                OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "pdf" 
-                    AND RIGHT(rbAS.urn, 3)= "pdf")
-                OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "sms" 
-                    AND RIGHT(rbAS.urn, 5)= "Vimis")
-        )
-    )
-            """)
-        else:
-           tableQuery1 = tableQuery1.innerJoin(tableActionFileAttach,
-           u"""
-afa.id =(
-   SELECT
-       MAX(id)
-   FROM
-       Action_FileAttach afa
-   WHERE
-       afa.master_id = a.id
-       AND afa.deleted = 0
-       AND  ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "pdf" 
-                   AND RIGHT(rbAS.urn, 3)= "pdf")
-   )
-           """)
-
-        # tableQuery1 = tableQuery1.innerJoin(tableActionFileAttach,
-        # u"""
-        # afa.id =( SELECT MAX(id) FROM Action_FileAttach afa WHERE afa.master_id = a.id AND afa.deleted = 0
-        # AND (( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "xml" AND RIGHT(rbAS.urn, 3)= "cda")
-        # OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "pdf" AND RIGHT(rbAS.urn, 3)= "pdf")
-        # OR ( right(SUBSTRING_INDEX(afa.path, '/', -1 ), 3) = "sms" AND RIGHT(rbAS.urn, 5)= "Vimis")))
-        # """)
-
-        tableQuery1 = tableQuery1.leftJoin(tableActionFileAttachExport,
-        u"""afe.id = (SELECT MAX(id) FROM Action_FileAttach_Export afae WHERE afa.id = afae.master_id)""")
-        tableQuery1 = tableQuery1.leftJoin(tableInformationMessages,
-        u"""
-        IM.id = (
-        SELECT MAX(Information_Messages.id) FROM Information_Messages WHERE
-        typeMessages = 'REMDStatus'
-        AND IdMedDocumentMis_id = afa.id
-        AND (((status = 'Success' AND IdFedRequest IS NOT NULL ) OR (status = 'Failed'))
-        OR (status = 'Success' AND IdFedRequest IS NOT NULL AND RemdRegNumber != '')))
-        """)
-
         tableQuery2 = tableQuery0
 
         def appendCond(cond):
@@ -1480,19 +1010,6 @@ afa.id =(
         appendCond(tableActionTypeIdentification['note'].isNotNull())
         appendCond(tableActionTypeIdentification['note'].ne(''))
         appendCond(tableActionTypeIdentification['deleted'].eq(0))
-
-        appendCond("""
-            {0} in (
-                SELECT
-                    id
-                FROM rbAccountingSystem `as`
-                WHERE `as`.urn in (
-                    'urn:oid:1.2.643.2.69.1.1.1.195.Cda', 
-                    'urn:oid:1.2.643.2.69.1.1.1.195.Pdf', 
-                    'urn:oid:1.2.643.2.69.1.1.1.195.Observa'))""".format(tableActionTypeIdentification['system_id']))
-
-        # if specialityId and forPerson != 0:
-        #     appendCond(tablePerson['speciality_id'].eq(specialityId))
 
         if lastName:
             appendCond("Client.lastName like '%s%%'" % lastName)
@@ -1520,10 +1037,9 @@ afa.id =(
             cond1.append(tableActionFileAttach['respSignatureBytes'].isNotNull())
 
         if orgStructureList:
-            appendCond(tablePersonOrgStructure['orgStructure_id'].inlist(orgStructureList))
-
-        if forceBool(personSNILS):
-            appendCond(tablePerson['SNILS'].eq(personSNILS))
+            appendCond(' CASE WHEN ati.value != "291" THEN  pOrgStructure.orgStructure_id in (' + (
+                    ','.join(map(str, orgStructureList))) + ') ELSE labPers.orgStructure_id in (' + (
+                                   ','.join(map(str, orgStructureList))) + ') END ')
 
         if personSNILS and personId:
             rec = db.getRecordEx(tablePerson, [tablePerson['SNILS']], [tablePerson['id'].eq(personId)])
@@ -1538,8 +1054,8 @@ afa.id =(
         elif personId and forceBool(personSNILS):
             appendCond(u"""
                 CASE
-                    WHEN ati.value != '291' THEN (select SNILS from Person where a.person_id = id) = '{1}'
-                                            ELSE (select SNILS from Person where a.setPerson_id = id) = '{1}'
+                    WHEN ati.value != '291' THEN pOrgStructure.SNILS = '{1}'
+                                            ELSE labPers.SNILS = '{1}'
                     END""".format(int(personId), personSNILS))
 
         # Дата выполнения действия
@@ -1551,7 +1067,8 @@ afa.id =(
         elif dateExecActionEndDate:
             appendCond(tableAction['endDate'].lt(dateExecActionEndDate.addDays(1)))
         else:
-            if not dateExecActionBegDate and not dateExecActionEndDate:
+            if not dateExecActionBegDate and not dateExecActionEndDate and not eventBegDate\
+                    and not eventEndDate and not attachFileBegDate and not attachFileEndDate:
                 appendCond(tableAction['endDate'].ge(QDate().currentDate().addDays(-2)))
 
         # Дата окончания события
@@ -1581,11 +1098,14 @@ afa.id =(
             appendCond("{0} IN ({1})".format(tableActionTypeIdentification['value'], identify))
 
         if eventType:
-            appendCond(tableEventType['id'].inlist(eventType))
+            appendCond(tableEventType['id'].inlist([eventType]))
 
         if financeId:
-            appendCond(tableAction['finance_id'].eq(financeId))
-        # /\/\/\/\/\/\/\/\/\/\/\/\Filter/\/\/\/\/\/\/\/\/\/\/\
+            appendCond(tableContract['finance_id'].eq(financeId))
+        
+        if specialityId:
+            appendCond(tablePersonOrgStructure['speciality_id'].inlist(specialityId))
+        #/\/\/\/\/\/\/\/\/\/\/\/\Filter/\/\/\/\/\/\/\/\/\/\/\
 
         stmt1 = db.selectStmt(tableQuery1, cols1, cond1, 'a.id')  # С прикрепленными файлами
         stmt2 = db.selectStmt(tableQuery2, cols2, cond2, 'a.id')  # Без прикрепленных файлов
@@ -1616,20 +1136,551 @@ afa.id =(
         self.setItems(recordModify)
 
 
-class CValidationResult:
-    SUCCESS = 0
-    UNAVAILABLE = 1
-    ERROR = 2
-
-    def __init__(self, code, errors=None):
-        self.code = code
-        self.errors = errors
-
-    @classmethod
-    def fromJsonResult(cls, jsonResult):
-        if not jsonResult['schema_found']:
-            return cls(CValidationResult.UNAVAILABLE)
-        elif jsonResult['valid']:
-            return cls(CValidationResult.SUCCESS)
+    def sortData(self, column, ascending):
+        col = self._cols[column]
+        #self._items.sort(key=lambda item: col.toSortString(item.value(col.fieldName()), item), reverse=not ascending)
+        if column == 3:
+            self._items.sort(key=lambda item: forceDate(QDate(datetime.datetime.strptime(forceString(item.value(col.fieldName())).split(u'-')[0].strip(), '%d.%m.%Y').date())) if forceString(item.value(col.fieldName())) else QDate(), reverse= not ascending)
+            self.emitRowsChanged(0, len(self._items)-1)
         else:
-            return cls(CValidationResult.ERROR, jsonResult['errors'])
+            self._items.sort(key=lambda item: (col.toSortString(item.value(col.fieldName()), item) if u'не задано' != col.toSortString(item.value(col.fieldName()), item) else u''), reverse=not ascending)
+            self.emitRowsChanged(0, len(self._items)-1)
+
+
+class dataclass():
+    def __init__(self):
+        self.fio_client = None
+        self.event_id = None
+        self.event_type_name = None
+        self.structure = None
+        self.period = None
+        self.action_id = None
+        self.action_type = None
+        self.action_typeCode = None
+        self.actEndDate = None
+        self.fileAttachDatetime = None
+        self.setPerson = None
+        self.setPersonCode = None
+        self.person = None
+        self.personCode = None
+        self.fileName = None
+        self.date_sign_ecp_person = None
+        self.date_sign_ecp_mo = None
+        self.export_date = None
+        self.statusREMD = None
+        self.export_success = None
+
+
+class CPrintSummaryDocumentsDialog(CDialogBase):
+    def __init__(self, parent=None):
+        CDialogBase.__init__(self, parent)
+        self.layout = QtGui.QGridLayout(self)
+
+        self.setWindowTitle(u'Параметры отчёта')
+
+        self.edtBegDate = CDateEdit(self)
+        self.edtEndDate = CDateEdit(self)
+        self.cmbOrgStructure = COrgStructureComboBox(self)
+        self.chkGroupByOrgStructure = QtGui.QCheckBox(u'Группировать по подразделениям')
+        self.chkClosedEvents = QtGui.QCheckBox(u'По закрытым событиям')
+
+        self.buttonBox = QtGui.QDialogButtonBox()
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
+        self.connect(self.buttonBox, SIGNAL('accepted()'), self.accept)
+        self.connect(self.buttonBox, SIGNAL('rejected()'), self.reject)
+
+        self.layout.addWidget(QtGui.QLabel(u'Дата начала периода'), 0, 0)
+        self.layout.addWidget(self.edtBegDate, 0, 1)
+
+        self.layout.addWidget(QtGui.QLabel(u'Дата окончания периода'), 1, 0)
+        self.layout.addWidget(self.edtEndDate, 1, 1)
+
+        self.layout.addWidget(QtGui.QLabel(u'Подразделение'), 2, 0)
+        self.layout.addWidget(self.cmbOrgStructure, 2, 1)
+
+        self.layout.addWidget(self.chkGroupByOrgStructure, 3, 0)
+
+        self.layout.addWidget(self.chkClosedEvents, 4, 0)
+
+        self.layout.addWidget(self.buttonBox, 5, 0, 1, 2)
+
+    def params(self):
+        paramentrs = dict()
+        paramentrs['begDate'] = self.edtBegDate.date()
+        paramentrs['endDate'] = self.edtEndDate.date()
+        paramentrs['orgStructureId'] = self.cmbOrgStructure.value()
+        paramentrs['chkGroupByOrgStructure'] = self.chkGroupByOrgStructure.isChecked()
+        paramentrs['chkClosedEvents'] = self.chkClosedEvents.isChecked()
+        return paramentrs
+
+    def setParams(self, params):
+        today = QtCore.QDate.currentDate()
+        self.edtBegDate.setDate(params.get('begDate', today))
+        self.edtEndDate.setDate(params.get('endDate', today))
+        self.cmbOrgStructure.setValue(params.get('orgStructureId', None))
+        self.chkGroupByOrgStructure.setChecked(params.get('chkGroupByOrgStructure', False))
+        self.chkClosedEvents.setChecked(params.get('chkClosedEvents', False))
+
+
+class CReportPrintSummaryDocuments(CReport):
+    def __init__(self, parent):
+        CReport.__init__(self, parent)
+        self.setTitle(u'Сводка по  документам')
+
+    def getSetupDialog(self, parent):
+        result = CPrintSummaryDocumentsDialog(parent)
+        result.setWindowTitle(self.title())
+        return result
+
+    def select(self, params):
+        db = QtGui.qApp.db
+
+        begDate = params.get('begDate')
+        begDate = db.formatDate(begDate).replace("'", "") + 'T00:00:00'
+
+        endDate = params.get('endDate').addDays(1)
+        endDate = db.formatDate(endDate).replace("'", "") + 'T00:00:00'
+
+        chkClosedEvents = params.get('chkClosedEvents')
+        orgStructureId = params.get('orgStructureId', None)
+        orgStructureIdList = None
+        if orgStructureId:
+            orgStructureIdList = getOrgStructureDescendants(orgStructureId)
+        if orgStructureIdList:
+            orgStructure = ' and CASE WHEN ati.value != "291" THEN  pOrgStructure.orgStructure_id in (' + (','.join(map(str, orgStructureIdList))) + ') ELSE labPers.orgStructure_id in (' + (','.join(map(str, orgStructureIdList))) + ') END '
+        else:
+            orgStructure = ''
+
+        stmt = u"""
+SELECT
+  COUNT(DISTINCT a.`id`) AS '1', # кол-во действий в которых может быть файл
+  CASE
+      WHEN ati.value != '291' THEN  pOrgStructure.SNILS
+      ELSE  labPers.SNILS
+    END
+  as person,
+CASE
+      WHEN ati.value != '291' THEN  pOrgStructure.id
+      ELSE  labPers.id
+    END AS gg,
+CASE
+      WHEN ati.value != '291' THEN concat_ws(' ', pOrgStructure.`lastName`, pOrgStructure.`firstName`, pOrgStructure.`patrName`)
+      ELSE concat_ws(' ', labPers.`lastName`, labPers.`firstName`, labPers.`patrName`)
+    END AS gg2
+  ,
+  CASE
+      WHEN ati.value != '291' THEN  CASE
+    WHEN os.name IS NULL THEN 'Неизвестно'
+    ELSE os.name
+  end
+      ELSE  CASE
+    WHEN oslabPers.name IS NULL THEN 'Неизвестно'
+    ELSE oslabPers.name
+  end
+    END as orgStructure,
+     CASE
+      WHEN ati.value != '291' THEN  CASE
+    WHEN os.name IS NULL THEN '0'
+    ELSE os.id
+  end
+      ELSE  CASE
+    WHEN oslabPers.name IS NULL THEN '0'
+    ELSE oslabPers.id
+  end
+    END as orgStructureId,
+  count(IFNULL(afa.id,null)) as '2', # наличие файла
+count(IF(afe.success = 1 OR IM1.id IS NOT NULL OR IM2.id IS NOT NULL OR afe.note = 'XML - документ не подписан', 1, null)) AS '3' , # наличие выгрузки в регион
+count(IM1.RemdRegNumber) AS '4', # успешность федералов
+  count(if(IM1.RemdRegNumber, NULL, if(IM2.status='Failed',1,null))) AS '5', # ошибка федералов (последнее полученное сообщение за исключением тех услучаев где мы получили ранее статус 4)
+count(if(IM1.id is null AND IM2.id IS NULL AND afe.success=1, 1, null)) AS '6' # нет сообщений
+
+FROM
+  Action AS a
+INNER JOIN ActionType AS AT ON  AT.`id` = a.`actionType_id`
+INNER JOIN ActionType_Identification AS ati ON  ati.`master_id` = AT.`id`
+INNER JOIN rbAccountingSystem AS rbAS ON  rbAS.`id` = ati.`system_id`
+LEFT JOIN Event ON  Event.`id` = a.`event_id`
+LEFT JOIN EventType ON  EventType.`id` = Event.`eventType_id`
+LEFT JOIN Client ON  Client.`id` = Event.`client_id`
+LEFT JOIN Person AS pOrgStructure ON  pOrgStructure.`id` = a.`person_id`
+  LEFT JOIN Person AS labPers ON  labPers.`id` = a.setPerson_id
+LEFT JOIN OrgStructure AS os ON  os.`id` = pOrgStructure.`orgStructure_id`
+LEFT JOIN OrgStructure AS oslabPers ON  oslabPers.`id` = labPers.`orgStructure_id`
+LEFT JOIN Action_FileAttach AS afa ON  afa.id =(  SELECT    MAX(id)
+  FROM    Action_FileAttach afa
+  WHERE    afa.master_id = a.id    AND afa.deleted = 0
+    AND ( right(SUBSTRING_INDEX(afa.path, '/', -1 ),  3) = "xml" AND RIGHT(rbAS.urn, 3)= "cda") 
+                                        )
+LEFT JOIN Action_FileAttach_Export AS afe ON  afe.id = (  SELECT
+    MAX(id)
+  FROM
+    Action_FileAttach_Export afae
+  WHERE
+    afa.id = afae.master_id)
+
+LEFT JOIN Information_Messages AS IM1 ON  IM1.id = (SELECT MAX(id) FROM 
+    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = afe.master_id 
+    AND IdFedRequest IS NOT NULL AND IdFedRequest IS NOT NULL AND RemdRegNumber != '')
+
+LEFT JOIN Information_Messages AS IM2 ON  IM2.id = (SELECT MAX(id) FROM 
+    Information_Messages WHERE typeMessages = 'REMDStatus' AND IdMedDocumentMis_id = afe.master_id )
+
+WHERE
+  (a.`deleted` = 0)
+  AND (AT.`deleted` = 0)
+  AND (ati.`deleted` = 0)
+  AND (AT.`flatCode` NOT LIKE '%temperatureSheet%')
+  AND (rbAS.urn = 'urn:oid:1.2.643.2.69.1.1.1.195.Cda')
+  AND (a.`endDate` >= '{begDate}')
+  AND (a.`endDate`<'{endDate}')
+  {orgStructure}
+  {eventClose}
+  AND (Event.`org_id` = {currentOgrId})
+  AND (EventType.`code` NOT IN ('rmDisp', 'smp', 'hospDir'))
+  AND (EventType.`context` NOT IN ('relatedAction'))
+  AND (ati.`note` IS NOT NULL)
+  AND (ati.`note` != '')
+  AND (ati.`deleted` = 0)
+
+  GROUP BY person
+
+ORDER BY orgStructure, gg2;
+
+;
+""".format(
+            begDate=begDate,
+            endDate=endDate,
+            eventClose=u'AND (Event.isClosed = 1)' if chkClosedEvents else '',
+            orgStructure= orgStructure,
+            currentOgrId=QtGui.qApp.currentOrgId())
+
+        records = []
+        query = db.query(stmt)
+        while query.next():
+            record = query.record()
+            clmn1 = forceInt(record.value('1'))
+            clmn2 = forceInt(record.value('2'))
+            clmn3 = forceInt(record.value('3'))
+            clmn4 = forceInt(record.value('4'))
+            clmn5 = forceInt(record.value('5'))
+            clmn6 = forceInt(record.value('6'))
+
+            snils = forceInt(record.value('person'))
+            orgStructure = forceInt(record.value('orgStructureId'))
+            orgStructureName = forceString(record.value('orgStructure'))
+            labPersId = forceInt(record.value('gg'))
+            person = forceString(record.value('gg2'))
+
+            records.append(
+                {
+                    'clmn1': clmn1,
+                    'clmn2': clmn2,
+                    'clmn3': clmn3,
+                    'clmn4': clmn4,
+                    'clmn5': clmn5,
+                    'clmn6': clmn6,
+                    'snils': snils,
+                    'orgStructure': orgStructure,
+                    'orgStructureName': orgStructureName,
+                    'labPersId': labPersId,
+                    'person': person
+                }
+            )
+
+        return records
+
+    def build(self, params):
+        group = params.get('chkGroupByOrgStructure')
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Сводка по документам')
+        cursor.insertBlock()
+        self.dumpParams(cursor, params)
+        cursor.insertBlock()
+
+        data = self.select(params)
+
+        tableColumns = [
+            ('40%', [u'Врач'],                   CReportBase.AlignLeft),
+            ('10%', [u'Введено действий'],       CReportBase.AlignLeft),
+            ('10%', [u'Сформировано документов'], CReportBase.AlignLeft),
+            ('10%', [u'Выгружено в ИЭМК'],       CReportBase.AlignLeft),
+            ('10%', [u'Успешно принят РЭМД'],    CReportBase.AlignLeft),
+            ('10%', [u'Отклонен РЭМД'],          CReportBase.AlignLeft),
+            ('10%', [u'Статус РЭМД не получен'], CReportBase.AlignLeft),
+        ]
+
+        table = createTable(cursor, tableColumns)
+
+        boldChars = QtGui.QTextCharFormat()
+        boldChars.setFontWeight(QtGui.QFont.Bold)
+
+        orgStr = None
+
+        def getColor(clmn):
+            if int(clmn) >= 500:
+                return Qt.green
+            else:
+                return None
+
+        for rec in data:
+            clmn1 = rec['clmn1']
+            clmn2 = rec['clmn2']
+            clmn3 = rec['clmn3']
+            clmn4 = rec['clmn4']
+            clmn5 = rec['clmn5']
+            clmn6 = rec['clmn6']
+            orgStructure = rec['orgStructure']
+            orgStructureName = rec['orgStructureName']
+            person = rec['person']
+
+            if not group:
+                textColor = getColor(clmn4)
+
+                row = table.addRow()
+                table.setText(row, 0, forceString(person), brushColor=textColor)
+                table.setText(row, 1, forceString(clmn1), brushColor=textColor)
+                table.setText(row, 2, forceString(clmn2), brushColor=textColor)
+                table.setText(row, 3, forceString(clmn3), brushColor=textColor)
+                table.setText(row, 4, forceString(clmn4), brushColor=textColor)
+                table.setText(row, 5, forceString(clmn5), brushColor=textColor)
+                table.setText(row, 6, forceString(clmn6), brushColor=textColor)
+
+            else:
+                if orgStr != orgStructure:
+                    orgStr = orgStructure
+
+                    allClmn1 = sum([i['clmn1'] for i in data if i['orgStructure'] == orgStructure])
+                    allClmn2 = sum([i['clmn2'] for i in data if i['orgStructure'] == orgStructure])
+                    allClmn3 = sum([i['clmn3'] for i in data if i['orgStructure'] == orgStructure])
+                    allClmn4 = sum([i['clmn4'] for i in data if i['orgStructure'] == orgStructure])
+                    allClmn5 = sum([i['clmn5'] for i in data if i['orgStructure'] == orgStructure])
+                    allClmn6 = sum([i['clmn6'] for i in data if i['orgStructure'] == orgStructure])
+
+
+                    row = table.addRow()
+                    table.setText(row, 0, forceString(orgStructureName), charFormat=boldChars)
+                    table.setText(row, 1, forceString(allClmn1), charFormat=boldChars)
+                    table.setText(row, 2, forceString(allClmn2), charFormat=boldChars)
+                    table.setText(row, 3, forceString(allClmn3), charFormat=boldChars)
+                    table.setText(row, 4, forceString(allClmn4), charFormat=boldChars)
+                    table.setText(row, 5, forceString(allClmn5), charFormat=boldChars)
+                    table.setText(row, 6, forceString(allClmn6), charFormat=boldChars)
+
+                textColor = getColor(clmn4)
+
+                row = table.addRow()
+                table.setText(row, 0, forceString(person), brushColor=textColor)
+                table.setText(row, 1, forceString(clmn1), brushColor=textColor)
+                table.setText(row, 2, forceString(clmn2), brushColor=textColor)
+                table.setText(row, 3, forceString(clmn3), brushColor=textColor)
+                table.setText(row, 4, forceString(clmn4), brushColor=textColor)
+                table.setText(row, 5, forceString(clmn5), brushColor=textColor)
+                table.setText(row, 6, forceString(clmn6), brushColor=textColor)
+
+        return doc
+
+
+class CReportPrintWindow(CReport):
+    def __init__(self, parent, data):
+        CReport.__init__(self, parent)
+        self.setTitle(u'Печать списка')
+        self.data = data
+
+    def getSetupDialog(self, parent):
+        return CVoidSetupDialog(parent)
+
+    def build(self, params):
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Печать списка')
+        cursor.insertBlock()
+
+        tableColumns = [
+            ('3%', [u'№'], CReportBase.AlignCenter),
+            ('10%', [u'ФИО \nПациента'], CReportBase.AlignLeft),
+            ('3%', [u'Код \nкарточки'], CReportBase.AlignLeft),
+            ('10%', [u'Тип \nсобытия'], CReportBase.AlignLeft),
+            ('10%', [u'Период \nобращения'], CReportBase.AlignLeft),
+            ('10%', [u'Тип \nдействия'], CReportBase.AlignLeft),
+            ('8%', [u'Дата \nвыполнения \nдействия'], CReportBase.AlignLeft),
+            ('8%', [u'Дата \nприкрепления'], CReportBase.AlignLeft),
+            ('10%', [u'Назначил'], CReportBase.AlignLeft),
+            ('10%', [u'Врач'], CReportBase.AlignLeft),
+            ('6%', [u'Имя файла'], CReportBase.AlignLeft),
+            ('8%', [u'Дата \nподписания \nЭЦП врача'], CReportBase.AlignLeft),
+            ('8%', [u'Дата \nподписания \nЭЦП МО'], CReportBase.AlignLeft),
+            ('8%', [u'Дата \nэкспорта'], CReportBase.AlignLeft),
+            ('10%', [u'Информация о \nприеме документа \nфедеральным РЭМД'], CReportBase.AlignLeft),
+            ('10%', [u'Отправка в \nРегиональный РЭМД'], CReportBase.AlignLeft),
+        ]
+
+        table = createTable(cursor, tableColumns)
+
+        x = 0
+        for value in self.data:
+            row = table.addRow()
+            x = x + 1
+            table.setText(row, 0, forceString(x))
+            table.setText(row, 1, value.fio_client)
+            table.setText(row, 2, forceString(value.event_id))
+            table.setText(row, 3, forceString(value.event_type_name))
+            table.setText(row, 4, forceString(value.period))
+            table.setText(row, 5, forceString(value.action_type))
+            table.setText(row, 6, forceString(value.actEndDate))
+            table.setText(row, 7, forceString(value.fileAttachDatetime))
+            table.setText(row, 8, forceString(value.setPerson))
+            table.setText(row, 9, forceString(value.person))
+            table.setText(row, 10, forceString(value.fileName))
+            table.setText(row, 11, forceString(value.date_sign_ecp_person))
+            table.setText(row, 12, forceString(value.date_sign_ecp_mo))
+            table.setText(row, 13, forceString(value.export_date))
+            table.setText(row, 14, forceString(value.statusREMD))
+            table.setText(row, 15, forceString(value.export_success))
+
+        return doc
+
+
+class CReportGroupStrucPerson(CReport):
+    def __init__(self, parent, data):
+        CReport.__init__(self, parent)
+        self.setTitle(u'Печать списка')
+        self.data = data
+
+    def getSetupDialog(self, parent):
+        return CVoidSetupDialog(parent)
+
+    def build(self, params):
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Группировка по подразделениям и врачам')
+        cursor.insertBlock()
+
+        tableColumns = [
+            ('15%', [u'Подразделение'], CReportBase.AlignLeft),
+            ('10%', [u'Врач'], CReportBase.AlignLeft),
+            ('15%', [u'ФИО Пациента'], CReportBase.AlignLeft),
+            ('10%', [u'Код карточки'], CReportBase.AlignLeft),
+            ('15%', [u'Тип события'], CReportBase.AlignLeft),
+            ('15%', [u'Период обращения'], CReportBase.AlignLeft),
+            ('20%', [u'Тип действия'], CReportBase.AlignLeft),
+        ]
+
+        table = createTable(cursor, tableColumns)
+
+        self.data.sort(key=lambda item: (item.structure, item.person))
+
+        structure = None
+        person = None
+
+        for value in self.data:
+            if value.structure != structure:
+                structure = value.structure
+                row = table.addRow()
+                table.setText(row, 0, forceString(value.structure))
+                table.setText(row, 1, forceString(u"   "))
+                table.setText(row, 2, forceString(u"   "))
+                table.setText(row, 3, forceString(u"   "))
+                table.setText(row, 4, forceString(u"   "))
+                table.setText(row, 5, forceString(u"   "))
+                table.setText(row, 6, forceString(u"   "))
+
+            if value.structure == structure:
+                if value.person != person:
+                    person = value.person
+                    row = table.addRow()
+                    table.setText(row, 0, forceString(u"   "))
+                    table.setText(row, 1, forceString(value.person))
+                    table.setText(row, 2, forceString(value.fio_client))
+                    table.setText(row, 3, forceString(value.event_id))
+                    table.setText(row, 4, forceString(value.event_type_name))
+                    table.setText(row, 5, forceString(value.period))
+                    table.setText(row, 6, forceString(value.action_type))
+                elif value.person == person:
+                    row = table.addRow()
+                    table.setText(row, 0, forceString(u"   "))
+                    table.setText(row, 1, forceString(u"   "))
+                    table.setText(row, 2, forceString(value.fio_client))
+                    table.setText(row, 3, forceString(value.event_id))
+                    table.setText(row, 4, forceString(value.event_type_name))
+                    table.setText(row, 5, forceString(value.period))
+                    table.setText(row, 6, forceString(value.action_type))
+
+        return doc
+
+
+class CReportGroupPersonInfo(CReport):
+    def __init__(self, parent, data):
+        CReport.__init__(self, parent)
+        self.setTitle(u'Печать списка')
+        self.data = data
+
+    def getSetupDialog(self, parent):
+        return CVoidSetupDialog(parent)
+
+    def build(self, params):
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Группировка по врачам с отображением количественных показателей')
+        cursor.insertBlock()
+
+        tableColumns = [
+            ('50%', [u'Врач'], CReportBase.AlignLeft),
+            ('10%', [u'Действий'], CReportBase.AlignLeft),
+            ('10%', [u'Прикрепленно файлов'], CReportBase.AlignLeft),
+            ('10%', [u'Подписано врачем'], CReportBase.AlignLeft),
+            ('10%', [u'Выгруженно в рэмд'], CReportBase.AlignLeft),
+            ('10%', [u'Полученно успешных'], CReportBase.AlignLeft)
+        ]
+
+        table = createTable(cursor, tableColumns)
+
+        self.data.sort(key=lambda item: item.setPerson)
+
+        person = None
+        action = 0
+
+        for value in self.data:
+            numberAction = 0
+            numberFile = 0
+            numberSugner = 0
+            numberUnloadREMD = 0
+            numberGoodPush = 0
+
+            if value.person != person:
+                person = value.person
+                row = table.addRow()
+                table.setText(row, 0, forceString(value.person))
+                table.setText(row, 1, forceString(u"   "))
+                table.setText(row, 2, forceString(u"   "))
+                table.setText(row, 3, forceString(u"   "))
+                table.setText(row, 4, forceString(u"   "))
+                table.setText(row, 5, forceString(u"   "))
+
+            if value.person == person and action != value.action_id:
+                action = value.action_id
+                # сколько действий
+                numberAction = len([v for v in self.data if v.action_id == value.action_id])
+                # сколько прикреплено прикреплено файлов
+                numberFile = len([v for v in self.data if v.action_id == value.action_id and v.fileName])
+                # сколько подписано врачом
+                numberSugner = len([v for v in self.data if v.action_id == value.action_id and v.date_sign_ecp_person])
+                # сколько выгружено в региональный РЭМД
+                numberUnloadREMD = len([v for v in self.data if v.action_id == value.action_id and v.export_date])
+                # Сколько полуено успешных уведослений из федерального РЭМД
+                numberGoodPush = len(
+                    [v for v in self.data if v.action_id == value.action_id and v.export_success == u'успех'])
+
+                row = table.addRow()
+                table.setText(row, 0, forceString(u"   "))
+                table.setText(row, 1, forceString(numberAction))
+                table.setText(row, 2, forceString(numberFile))
+                table.setText(row, 3, forceString(numberSugner))
+                table.setText(row, 4, forceString(numberUnloadREMD))
+                table.setText(row, 5, forceString(numberGoodPush))
+
+        return doc

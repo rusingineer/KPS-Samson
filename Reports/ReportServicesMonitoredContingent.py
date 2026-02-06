@@ -130,8 +130,8 @@ ORDER BY specialityName, Person.lastName, Person.firstName, Person.patrName
         cond.append(tableClientAttach['LPU_id'].eq(orgId))
         cond.append(tableClientAttach['deleted'].eq(0))
         cond.append(tableAttachType['temporary'].eq(0))
-        cond.append(db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].dateLe(tableVisit['date'])]))
-        cond.append(db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].dateGe(tableVisit['date'])]))
+        cond.append(db.joinOr([tableClientAttach['begDate'].isNull(), tableClientAttach['begDate'].lt(tableVisit['date'].addDays(1))]))
+        cond.append(db.joinOr([tableClientAttach['endDate'].isNull(), tableClientAttach['endDate'].ge(tableVisit['date'])]))
     groupContingentType = 'NULL AS clientContingentType,'
     if contingentTypeId:
         groupContingentType = '(%s) AS clientContingentType, '%(appendContingentTypeCond(contingentTypeId))

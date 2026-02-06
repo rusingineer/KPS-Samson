@@ -64,9 +64,9 @@ def selectData(params):
              tablePropInteger['value'].le(params['resultTo'])
            ]
     if begDate:
-        cond.append(tableAction['createDatetime'].dateGe(begDate))
+        cond.append(tableAction['createDatetime'].ge(begDate))
     if endDate:
-        cond.append(tableAction['createDatetime'].dateLe(endDate))
+        cond.append(tableAction['createDatetime'].lt(endDate.addDays(1)))
 
     stmt = db.selectStmt(queryTable, cols, cond)
     query = db.query(stmt)

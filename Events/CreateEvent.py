@@ -30,9 +30,10 @@ from library.PrintTemplates import applyTemplate
 
 from Events.EditDispatcher        import getEventFormClass, getEventFormClassByType, getF090ActionIdToEventId
 from Events.PreCreateEventDialog import CPreCreateEventDialog
-from Events.Utils import CEventTypeDescription, CFinanceType, getActionTypeIdListByFlatCode, getEventShowTime, checkEventPosibility, getDeathDate, getEventAgeSelector, \
+from Events.Utils import CEventTypeDescription, CFinanceType, getActionTypeIdListByFlatCode, getEventShowTime, \
+    checkEventPosibility, getDeathDate, getEventAgeSelector, \
     getEventFinanceCode, getEventTypeForm, getEventProfileId, isEventDeath, getEventOrder, getEventContextData, \
-    getEventAidTypeRegionalCode
+    getEventAidTypeRegionalCode, getIsDayStationary, getIsStationary, getIsStomatology
 from Registry.CheckEnteredOpenEventsDialog import CCheckEnteredOpenEvents
 from Registry.Utils import getClientCompulsoryPolicy, getClientInfo, getClientVoluntaryPolicy, getClientWork, getClientIdentifications
 from Users.Rights import urAdmin, urRegTabWriteEvents, urNewEventCliSnils, urNewEventCliPolis, urNewEventCliUDL, urHospitalOverWaitDirection
@@ -116,6 +117,14 @@ def requestNewEvent(params):
             financeCode = getEventFinanceCode(eventTypeId)
 
             # проверять только при создании событий по омс
+            if financeCode == CFinanceType.CMI and not personId:
+                if not QtGui.QMessageBox.warning(widget,
+                                            u'Внимание!',
+                                            u'Укажите врача ответственного за событие.',
+                                            QtGui.QMessageBox.Ok,
+                                            QtGui.QMessageBox.Ok):
+                    break
+                continue
             if financeCode == CFinanceType.CMI and not checkFirstEvent(clientId, personId, eventSetDate, eventDate, eventTypeId):
                 if QtGui.QMessageBox.question(widget,
                                     u'Внимание!',
@@ -123,6 +132,22 @@ def requestNewEvent(params):
                                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.Cancel,
                                     QtGui.QMessageBox.Yes) == QtGui.QMessageBox.Cancel:
                     break
+
+            if form != '001' and QtGui.qApp.getGlobalPreference('23:StationaryEventOpened') == u'да':
+                eventId, msg = findExistsEvent(eventTypeId, personId, clientId, eventSetDate, eventDate)
+                if eventId:
+                    msg = u'Новый случай пересекается по времени с существующим.%s\nОткрыть существующий?' % msg
+                    boxResultExisting = QtGui.QMessageBox.question(widget,
+                        u'Внимание!',
+                        msg,
+                        QtGui.QMessageBox.Yes|QtGui.QMessageBox.Cancel, # |QMessageBox.Ignore - убрал игнорирование
+                        QtGui.QMessageBox.Yes
+                        )
+                    if boxResultExisting == QtGui.QMessageBox.Cancel:
+                        break
+                    elif boxResultExisting == QtGui.QMessageBox.Yes and eventId:
+                        editEvent(widget, eventId)
+                        return eventId
 
             if form == '088':
                 db = QtGui.qApp.db
@@ -1185,3 +1210,87 @@ def checkFirstEvent(clientID, personId, setDate, endDate, eventTypeId):
         if checkFlag != 0:
             return False
     return True
+
+
+def findExistsEvent(eventTypeId, personId, clientId, eventSetDate, eventDate):
+    # Проверяем пересечения только для ОМС
+    if eventTypeId and clientId and (eventSetDate or eventDate) \
+            and getEventFinanceCode(eventTypeId) == CFinanceType.CMI:
+        db = QtGui.qApp.db
+        queryTable = tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tableMedicalAidType = db.table('rbMedicalAidType')
+        tableFinance = db.table('rbFinance')
+        queryTable = queryTable.innerJoin(tableEventType, tableEvent['eventType_id'].eq(tableEventType['id']))
+        queryTable = queryTable.innerJoin(tableMedicalAidType,
+                                          tableEventType['medicalAidType_id'].eq(tableMedicalAidType['id']))
+        queryTable = queryTable.innerJoin(tableFinance, tableEventType['finance_id'].eq(tableFinance['id']))
+        cols = [tableEvent['id'], tableEvent['setDate'], tableEvent['execPerson_id'], tableEventType['name']]
+        conditions = [tableEvent['client_id'].eq(clientId),
+                      # Проверяем пересечение только с ОМС
+                      tableFinance['code'].eq(CFinanceType.CMI),
+                      tableEvent['deleted'].eq(0)]
+        order = 'Event.setDate, Event.execDate'
+        eventSetDate = db.formatDate(eventSetDate) if eventSetDate else None
+        eventExecDate = db.formatDate(eventDate) if eventDate else None
+        isStationary = getIsStationary(eventTypeId) or getIsDayStationary(eventTypeId)
+        # Добавляем условие по врачу (специальности) для нестационарных случаев (и дневных стационаров)
+        if not isStationary or getIsDayStationary(eventTypeId):
+            if getIsDayStationary(eventTypeId):
+                # Для дневных стационаров не проверяем пересечения со стоматологией
+                conditions.append(tableMedicalAidType['code'].notInlist(CEventTypeDescription.STOMATOLOGY_CODES))
+            else:
+                conditions.append(
+                               # А так же проверить пересечение со стационарными случаями
+                               # (для стоматологии только с круглосуточными)
+                               tableMedicalAidType['code'].inlist(CEventTypeDescription.ALL_STATIONARY_CODES)
+                               if not getIsStomatology(eventTypeId) else
+                               tableMedicalAidType['code'].inlist(CEventTypeDescription.STATIONARY_CODES))
+        if eventSetDate and eventExecDate:
+            conditions.append(
+                '''((Event.execDate IS NOT NULL
+                     AND ((DATE(Event.setDate) <= {0} AND DATE(Event.execDate) >= {1})
+                          OR (DATE(Event.setDate) >= {0} AND DATE(Event.execDate) <= {1})
+                          OR (DATE(Event.setDate) >= {0} AND DATE(Event.setDate) <= {1})
+                          OR (DATE(Event.setDate) <= {0} AND (DATE(Event.execDate) >= {0}
+                                                              AND DATE(Event.execDate) <= {1}))
+                          OR (Event.setDate IS NULL AND DATE(Event.execDate) >= {0})))
+                    OR (Event.execDate IS NULL AND DATE(Event.setDate) <= {1}))'''.format(eventSetDate, eventExecDate))
+        elif eventSetDate:
+            conditions.append(
+                '''(Event.execDate IS NULL
+                    OR (Event.execDate IS NOT NULL AND DATE(Event.execDate) >= {0}))'''.format(eventSetDate))
+        elif eventExecDate:
+            conditions.append(
+                '''(Event.setDate IS NULL
+                    OR (Event.setDate IS NOT NULL AND DATE(Event.setDate) <= {0}))'''.format(eventExecDate))
+            order = 'Event.setDate DESC, Event.execDate DESC'
+        # Дополнительно проверяем даты начала и конца как между стационарными случаями, так и между стационарным и
+        # поликлиническим случаями
+        conditions.append(
+            db.joinOr(['0' if isStationary
+                           else tableMedicalAidType['code'].notInlist(CEventTypeDescription.ALL_STATIONARY_CODES),
+                       db.joinAnd([('(DATE(Event.setDate) != %s)' % eventExecDate) if eventExecDate else '1',
+                                   ('(Event.execDate IS NULL OR (DATE(Event.execDate) != %s))' % eventSetDate)
+                                    if eventSetDate else '1'])]))
+        conditions.append(getWorkEventTypeFilter())
+        recordList = db.getRecordList(queryTable, cols, conditions, order)
+        if recordList:
+            record = recordList[0]
+            eventId = forceRef(record.value('id'))
+            setDate = forceString(forceDate(record.value('setDate')).toString('dd.MM.yyyy'))
+            eventTypeName = forceString(record.value('name'))
+            persId = forceRef(record.value('execPerson_id'))
+            return eventId, getExistsEventInfo(setDate, persId, eventTypeName)
+    return None, ''
+
+
+def getWorkEventTypeFilter():
+    return '(EventType.purpose_id NOT IN (SELECT rbEventTypePurpose.id from rbEventTypePurpose where rbEventTypePurpose.code = \'0\'))'
+
+def getExistsEventInfo(setDate, personId, medicalAidTypeName):
+    db = QtGui.qApp.db
+    personName = forceString(db.translate('vrbPersonWithSpeciality', 'id', personId, 'name'))
+    return u'''\n\nТип событий:\n{medicalAidTypeName};\nдата: {setDate}; врач: {personName}\n'''.format(setDate=setDate,
+                                                                                                  medicalAidTypeName=medicalAidTypeName,
+                                                                                                  personName=personName)

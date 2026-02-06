@@ -1,7 +1,8 @@
-<ui version="4.0" >
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
  <class>InformerMessageEditorDialog</class>
- <widget class="QDialog" name="InformerMessageEditorDialog" >
-  <property name="geometry" >
+ <widget class="QDialog" name="InformerMessageEditorDialog">
+  <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
@@ -9,55 +10,62 @@
     <height>356</height>
    </rect>
   </property>
-  <property name="windowTitle" >
+  <property name="windowTitle">
    <string>ChangeMe!</string>
   </property>
-  <property name="sizeGripEnabled" >
+  <property name="sizeGripEnabled">
    <bool>false</bool>
   </property>
-  <layout class="QGridLayout" name="gridLayout" >
-   <property name="margin" >
+  <layout class="QGridLayout" name="gridLayout">
+   <property name="margin">
     <number>4</number>
    </property>
-   <property name="spacing" >
+   <property name="spacing">
     <number>4</number>
    </property>
-   <item row="0" column="0" >
-    <widget class="QLabel" name="lblSubject" >
-     <property name="text" >
-      <string>&amp;Тема</string>
-     </property>
-     <property name="buddy" >
-      <cstring>edtSubject</cstring>
-     </property>
-    </widget>
+   <item row="0" column="1">
+    <widget class="QLineEdit" name="edtSubject"/>
    </item>
-   <item row="0" column="1" >
-    <widget class="QLineEdit" name="edtSubject" />
-   </item>
-   <item row="1" column="0" >
-    <widget class="QLabel" name="lblText" >
-     <property name="text" >
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblText">
+     <property name="text">
       <string>&amp;Сообщение</string>
      </property>
-     <property name="alignment" >
+     <property name="alignment">
       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
      </property>
-     <property name="buddy" >
+     <property name="buddy">
       <cstring>edtText</cstring>
      </property>
     </widget>
    </item>
-   <item row="1" column="1" >
-    <widget class="QTextEdit" name="edtText" />
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblSubject">
+     <property name="text">
+      <string>&amp;Тема</string>
+     </property>
+     <property name="buddy">
+      <cstring>edtSubject</cstring>
+     </property>
+    </widget>
    </item>
-   <item row="2" column="0" colspan="2" >
-    <widget class="QDialogButtonBox" name="buttonBox" >
-     <property name="orientation" >
+   <item row="1" column="1">
+    <widget class="QTextEdit" name="edtText"/>
+   </item>
+   <item row="3" column="0" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
-     <property name="standardButtons" >
+     <property name="standardButtons">
       <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkIsConstant">
+     <property name="text">
+      <string>Является постоянным</string>
      </property>
     </widget>
    </item>
@@ -76,11 +84,11 @@
    <receiver>InformerMessageEditorDialog</receiver>
    <slot>accept()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>194</x>
      <y>309</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>156</x>
      <y>318</y>
     </hint>
@@ -92,11 +100,11 @@
    <receiver>InformerMessageEditorDialog</receiver>
    <slot>reject()</slot>
    <hints>
-    <hint type="sourcelabel" >
+    <hint type="sourcelabel">
      <x>248</x>
      <y>309</y>
     </hint>
-    <hint type="destinationlabel" >
+    <hint type="destinationlabel">
      <x>311</x>
      <y>318</y>
     </hint>

@@ -110,6 +110,12 @@ class CPlanningProfilactic(QtGui.QDialog, Ui_PlanningProfilactic):
                                         AND ca.endDate IS NULL
                                         AND o.areaType > 0
                                 )
+                                LEFT JOIN OrgStructure ON OrgStructure.id = ClientAttach.orgStructure_id
+                                LEFT JOIN OrgStructure AS Parent1 ON Parent1.id = OrgStructure.parent_id
+                                LEFT JOIN OrgStructure AS Parent2 ON Parent2.id = Parent1.parent_id
+                                LEFT JOIN OrgStructure AS Parent3 ON Parent3.id = Parent2.parent_id
+                                LEFT JOIN OrgStructure AS Parent4 ON Parent4.id = Parent3.parent_id
+                                LEFT JOIN OrgStructure AS Parent5 ON Parent5.id = Parent4.parent_id
                             WHERE (
                                     Client.sex = 1 and age(Client.birthDate, concat(cast(dpq.year as char(4)), '-', cast(dpq.mnth as char(2)), '-01')) < 60
                                     or Client.sex = 2 and age(Client.birthDate, concat(cast(dpq.year as char(4)), '-', cast(dpq.mnth as char(2)), '-01')) < 55
@@ -163,6 +169,12 @@ class CPlanningProfilactic(QtGui.QDialog, Ui_PlanningProfilactic):
                                         AND ca.endDate IS NULL
                                         AND o.areaType > 0
                                 )
+                                LEFT JOIN OrgStructure ON OrgStructure.id = ClientAttach.orgStructure_id
+                                LEFT JOIN OrgStructure AS Parent1 ON Parent1.id = OrgStructure.parent_id
+                                LEFT JOIN OrgStructure AS Parent2 ON Parent2.id = Parent1.parent_id
+                                LEFT JOIN OrgStructure AS Parent3 ON Parent3.id = Parent2.parent_id
+                                LEFT JOIN OrgStructure AS Parent4 ON Parent4.id = Parent3.parent_id
+                                LEFT JOIN OrgStructure AS Parent5 ON Parent5.id = Parent4.parent_id
                             WHERE (
                                     Client.sex = 1 and age(Client.birthDate, concat(cast(dpq.year as char(4)), '-', cast(dpq.mnth as char(2)), '-01')) >= 60
                                     or Client.sex = 2 and age(Client.birthDate, concat(cast(dpq.year as char(4)), '-', cast(dpq.mnth as char(2)), '-01')) >= 55
@@ -286,11 +298,11 @@ class CPlanningProfilactic(QtGui.QDialog, Ui_PlanningProfilactic):
                 if self.chkQuantityWorkAge.isChecked():
                     stmt = u"call updateProfilacticPlanAbility(%s, %d, %d, %d, %d, %d, %d, %d);" % (
                         codeMoSql, year, monthFrom, monthTo, addDisp3, addDisp1, addProf, currentPersonId
-                        )
+                    )
                 else:
                     stmt = u"call updateProfilacticPlan(%s, %d, %d, %d, %d, %d, %d, %d, %d);" % (
                         codeMoSql, year, monthFrom, monthTo, addDisp3, addDisp1, addProf, currentPersonId, covidPriority
-                        )
+                    )
                 message = u'Добавлено записей: %d'
                 query = db.query(stmt)
                 stmt = 'select @countInsertedRows as cnt;'

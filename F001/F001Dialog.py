@@ -40,7 +40,7 @@ from Events.EventEditDialog     import CEventEditDialog
 from Events.EventInfo import CDiagnosticInfo, CCharacterInfo, CTraumaTypeInfo, CPersonInfo, CDiagnosticResultInfo, \
     CToxicSubstancesInfo, CDagnosisTypeInfo
 from Events.MKBInfo             import CMKBInfo, CMorphologyMKBInfo
-from Events.Utils                import CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventFinanceId, getEventIncludeTooth, getEventIsTakenTissue, getEventLimitActionTypes, getEventSetPerson, getEventShowTime, getExternalIdDateCond, getEventIsPrimary, getEventCode, checkDiagnosis, getEventTypeForm
+from Events.Utils                import CTableSummaryActionsMenuMixin, getAvailableCharacterIdByMKB, getDiagnosisId2, getEventAvailableOrders, getEventFinanceId, getEventIncludeTooth, getEventIsTakenTissue, getEventLimitActionTypes, getEventSetPerson, getEventShowTime, getExternalIdDateCond, getEventIsPrimary, getEventCode, checkDiagnosis, getEventTypeForm
 from F001.PreF001Dialog         import CPreF001Dialog, CPreF001DagnosticAndActionPresets
 from Orgs.Utils                 import getOrgStructureActionTypeIdSet
 from Registry.Utils             import CClientInfo
@@ -179,6 +179,7 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         self.postInitSetup()
         self.prolongateEvent = False
         self.prevEventId = None
+        self.diagnosticIsModified = False
         self.tabNotes.setEventEditor(self)
         self.setupVisitsIsExposedPopupMenu()
 
@@ -594,7 +595,7 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             self.edtBegTime.setTime(eventSetDatetime.time() if isinstance(eventSetDatetime, QDateTime) else QTime())
             self.edtEndTime.setTime(eventDatetime.time() if isinstance(eventDatetime, QDateTime) else QTime())
             self.cmbContract.setCurrentIndex(0)
-            self.cmbOrder.setCurrentIndex(eventOrder)
+            self.initOrder(forceString(getEventAvailableOrders(eventTypeId)), eventOrder+1)
             self.chkPrimary.setChecked(getEventIsPrimary(eventTypeId) == 0)
 #            if self.cmbDiagnosticResult.model().rowCount() > 0:
 #                self.cmbDiagnosticResult.setCurrentIndex(1)
@@ -629,17 +630,20 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         else:
             eventDate = QDate.currentDate()
         presentActionTypes = []
+        maxOccursLimitActionTypes = []
         for item in self.modelActionsSummary.items():
             actionTypeId = forceString(item.value('actionType_id'))
             if actionTypeId not in presentActionTypes:
                 presentActionTypes.append(actionTypeId)
+                if not self.checkMaxOccursLimit(actionTypeId) and actionTypeId not in maxOccursLimitActionTypes:
+                    maxOccursLimitActionTypes.append(actionTypeId)
         form = getEventTypeForm(eventTypeId)
         if (form != u'090' and QtGui.qApp.userHasAnyRight([urAccessF001planner, urAdmin])) or (form == u'090' and QtGui.qApp.userHasAnyRight([urAccessF090planner,])):
             dlg = CPreF001Dialog(self, self.contractTariffCache)
             try:
                 dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
                 dlg.prepare(clientId, eventTypeId, eventDate, self.personId, self.personSpecialityId, self.personTariffCategoryId, 
-                            flagHospitalization, movingActionTypeId, tissueTypeId, presentActionTypes = presentActionTypes)
+                            flagHospitalization, movingActionTypeId, tissueTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
                 if dlg.diagnosticsTableIsNotEmpty() or dlg.actionsTableIsNotEmpty():
                     if not dlg.exec_():
                         return False
@@ -667,7 +671,9 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             finally:
                 dlg.deleteLater()
         else:
-            presets = CPreF001DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, flagHospitalization, movingActionTypeId, presentActionTypes = presentActionTypes)
+            presets = CPreF001DagnosticAndActionPresets(clientId, eventTypeId, eventDate, self.personSpecialityId, 
+                                                        flagHospitalization, movingActionTypeId, presentActionTypes = presentActionTypes, 
+                                                        maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             presets.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             result = self._prepare(None, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
                                    presets.unconditionalDiagnosticList, presets.unconditionalActionList, presets.disabledActionTypeIdList,
@@ -851,7 +857,7 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         setRBComboBoxValue(self.cmbExecPerson,      record, 'execPerson_id')
         setRBComboBoxValue(self.cmbSetPerson, record, 'setPerson_id')
         self.setExternalId(forceString(record.value('externalId')))
-        self.cmbOrder.setCurrentIndex(forceInt(record.value('order'))-1)
+        self.initOrder(forceString(getEventAvailableOrders(record.value('eventType_id'))), forceInt(record.value('order')))
         self.setPersonId(self.cmbExecPerson.value())
         setRBComboBoxValue(self.cmbContract, record, 'contract_id')
         self.chkPrimary.setChecked(forceInt(record.value('isPrimary'))==1)
@@ -1595,6 +1601,8 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             self.updateCharacterByMKB(MKB)
             self.updateToxicSubstancesIdListByMKB(MKB)
             self.cmbMKB.setText(MKB)
+            if (not MKB) or (MKB and MKB[0] not in ('S','T')):
+                self.cmbMKBEx.setEnabled(False)
             self.cmbCharacter.setValue(characterId)
             self.chkDiagnosisType.setChecked(bool(diagnosisTypeId == priorId))
             self.cmbMKBEx.setText(MKBEx)
@@ -1691,6 +1699,8 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
         date = endDate if endDate else begDate
         MKB = unicode(self.cmbMKB.text())
         MKBEx = unicode(self.cmbMKBEx.text())
+        if self.diagnosticIsModified:
+            record._dirty = True
         if QtGui.qApp.isTNMSVisible():
             valueTNMS, tnmsMap = self.cmbTNMS.getValue()
             TNMS = forceStringEx(valueTNMS)
@@ -1964,6 +1974,13 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
     def on_cmbExecPerson_currentIndexChanged(self, index):
         self.setPersonId(self.cmbExecPerson.value())
 
+    @pyqtSignature('QString')
+    def on_cmbMKB_textChanged(self, text):
+        newMKB = forceString(text)
+        if newMKB and newMKB[0] in ('S','T'):
+            self.cmbMKBEx.setEnabled(True)
+        else:
+            self.cmbMKBEx.setEnabled(False)
 
 #    @pyqtSignature('QString')
     def on_edtMKB_textChanged(self, value):
@@ -2002,6 +2019,7 @@ class CF001Dialog(CEventEditDialog, Ui_F001Dialog, CActionTypesSelectionManager,
             self.cmbMorphology.setEnabled(False)
         if QtGui.qApp.isTNMSVisible():
             self.cmbTNMS.setMKB(forceStringEx(value))
+        self.diagnosticIsModified = True
 
 
     @pyqtSignature('')

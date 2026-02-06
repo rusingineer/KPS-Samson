@@ -331,12 +331,12 @@ def selectData(params):
             tableAccount['deleted'].eq(0)
             ]
     if dateType:
-        cond.append(tableEvent['setDate'].dateGe(begDate))
-        cond.append(tableEvent['setDate'].dateLe(endDate))
+        cond.append(tableEvent['setDate'].ge(begDate))
+        cond.append(tableEvent['setDate'].lt(endDate.addDays(1)))
     else:
         cond.append(tableAction['endDate'].isNotNull())
-        cond.append(tableAction['endDate'].dateGe(begDate))
-        cond.append(tableAction['begDate'].dateLe(endDate))
+        cond.append(tableAction['endDate'].ge(begDate))
+        cond.append(tableAction['begDate'].lt(endDate.addDays(1)))
     if contractIdList:
         cond.append(tableContract['id'].inlist(contractIdList))
     if financeTypeList:
@@ -358,14 +358,14 @@ def selectData(params):
             cond.append(tableAccountItem['refuseType_id'].isNotNull())
         if confirmationPeriodType:
             if confirmationBegDate:
-                cond.append(tableAccountItem['date'].dateGe(confirmationBegDate))
+                cond.append(tableAccountItem['date'].ge(confirmationBegDate))
             if confirmationEndDate:
-                cond.append(tableAccountItem['date'].dateLe(confirmationEndDate))
+                cond.append(tableAccountItem['date'].lt(confirmationEndDate.addDays(1)))
         else:
             if confirmationBegDate:
-                cond.append(tableAccount['date'].dateGe(confirmationBegDate))
+                cond.append(tableAccount['date'].ge(confirmationBegDate))
             if confirmationEndDate:
-                cond.append(tableAccount['date'].dateLe(confirmationEndDate))
+                cond.append(tableAccount['date'].lt(confirmationEndDate.addDays(1)))
     if class_ is not None:
         cond.append(tableActionType['class'].eq(class_))
     if actionTypeGroupIdList:

@@ -29,11 +29,14 @@ from library.PDF.fixPdf import fixPdf
 from Ui_SVGView import Ui_SVGViewDialog
 
 
-def showSVG(widget, templateResult, pageFormat, signAndAttachHandler=None, printBlank=None, btnRedoInfo=None):
+def showSVG(widget, templateResult, pageFormat, signAndAttachHandler=None, printBlank=None, btnRedoInfo=None, data=None):
     view = CSVGView(pageFormat, widget)
     view.setDocName(unicode(templateResult.documentName))
     view.setContent(templateResult.content, templateResult.canvases, printBlank)
     view.setSignAndAttachHandler(signAndAttachHandler)
+    if data and 'signerPerson' in data.keys():
+        signer = data['signerPerson']
+        view.setSignerPerson(signer)
     view.setRedoInfo(btnRedoInfo)
     view.setSupplements(templateResult.supplements)
     view.currentAction = templateResult.currentAction
@@ -219,6 +222,7 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
         self.templateContent = None
         self.templateId = None
         self.templateData = None
+        self.signerPerson = None
         self.initItems()
         self.setupPagesControl()
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
@@ -508,6 +512,9 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
                 snils = forceString(db.translate('Person', 'id', personId, 'SNILS'))
             else:
                 snils = 'empty'
+        
+        if self.signerPerson:
+            snils = forceString(db.translate('Person', 'id', self.signerPerson, 'SNILS'))
 
         tmpFile = QTemporaryFile()
         if not tmpFile.open():

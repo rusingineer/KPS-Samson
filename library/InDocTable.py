@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -35,6 +35,7 @@ from library.Utils import CColsMovingFeature, copyFields, forceBool, forceDate, 
 from library.DateEdit import CDateEdit
 from library.DateTimeEdit import CDateTimeEdit
 from library.PreferencesMixin import CPreferencesMixin
+from library.LineEditWithRegExpValidator import CLineEditWithRegExpValidator
 
 
 __all__ = ( 'CInDocTableCol',
@@ -422,6 +423,40 @@ class CRBTestSearchInDocTableCol(CRBInDocTableCol):
         return editor
 
 
+class CSPR80SearchInDocTableCol(CRBInDocTableCol):
+
+    def __init__(self, title, fieldName, width, tableName, **params):
+        CInDocTableCol.__init__(self, title, fieldName, width, **params)
+        self.tableName  = tableName
+        self.filter     = params.get('filter', '')
+        self.addNone    = params.get('addNone', True)
+        self.showFields = params.get('showFields', CRBComboBox.showCodeAndName)
+        self.preferredWidth = params.get('preferredWidth', None)
+        self.parentModel = params.get('parentModel', None)
+        self.force = False
+
+    def createEditor(self, parent):
+        csgRecord = self.parentModel.getRecordByRow(self.parentModel._parent.tblCSGs.currentIndex().row())
+        editor = CRBSearchComboBox(parent)
+        db = QtGui.qApp.db
+        tableSpr80 = db.table('soc_spr80')
+        begDateCSG = forceDate(csgRecord.value('begDate'))
+        endDateCSG = forceDate(csgRecord.value('endDate'))
+        cond = []
+        cond.append(db.joinOr([tableSpr80['code'].like('amt___'), tableSpr80['code'].like('amt__'), tableSpr80['code'].inlist(['irs1', 'irs2'])]))
+        if not endDateCSG.isNull():
+            cond.append(tableSpr80['begDate'].le(endDateCSG))
+            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(endDateCSG)]))
+        else:
+            cond.append(tableSpr80['begDate'].le(begDateCSG))
+            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(begDateCSG)]))
+        self.filter = db.joinAnd(cond)
+        editor.setTable(self.tableName, addNone=self.addNone, filter=self.filter)
+        editor.setShowFields(self.showFields)
+        editor.setPreferredWidth(self.preferredWidth)
+        return editor
+
+
 # WFT?
 # в libary этому классу не место!
 class CClientInDocTableCol(CInDocTableCol):
@@ -459,12 +494,25 @@ class CCodeNameInDocTableCol(CRBInDocTableCol):
 
 class CCodeRefInDocTableCol(CRBInDocTableCol):
     #u"""Ссылка на справочник не по id, а по code"""
+    def __init__(self, title, fieldName, width, tableName, **params):
+        CInDocTableCol.__init__(self, title, fieldName, width, **params)
+        self.tableName  = tableName
+        self.filter     = params.get('filter', '')
+        self.addNone    = params.get('addNone', True)
+        self.showFields = params.get('showFields', CRBComboBox.showCodeAndName)
+        self.preferredWidth = params.get('preferredWidth', None)
+        self.force = False
+
+
     def toString(self, val, record):
         code = forceString(val)
         if len(code):
             name = QtGui.qApp.db.translate(self.tableName, 'code', code, 'name')
             if name is not None:
-                return toVariant(code + ' - ' + forceString(name))
+                if self.showFields == CRBComboBox.showName:
+                    return toVariant(forceString(name))
+                else:
+                    return toVariant(code + ' - ' + forceString(name))
         return QVariant()
 
 
@@ -579,6 +627,7 @@ class CDateTimeInDocTableCol(CInDocTableCol):
     def __init__(self, title, fieldName, width, **params):
         CInDocTableCol.__init__(self, title, fieldName, width, **params)
         self.highlightRedDate = params.get('highlightRedDate', True)
+        self.canBeEmpty = params.get('canBeEmpty', False)
 
 
     def toString(self, val, record):
@@ -598,6 +647,30 @@ class CDateTimeInDocTableCol(CInDocTableCol):
         if self.highlightRedDate and date and QtGui.qApp.calendarInfo.getDayOfWeek(date) in (6,7):
             return QVariant(QtGui.QColor(255, 0, 0))
         return QVariant()
+
+
+    def createEditor(self, parent):  # А как мы вообще без эдитора работали??
+        editor = CDateTimeEdit(parent)
+        editor.setHighlightRedDate(self.highlightRedDate)
+        editor.canBeEmpty(self.canBeEmpty)
+        return editor
+
+
+    def setEditorData(self, editor, value, record):
+        value = value.toDateTime()
+        if not value.isValid() and not self.canBeEmpty:
+            value = QDateTime.currentDateTime()
+        editor.setDate(value)
+
+
+    def getEditorData(self, editor):
+        value = editor.date()
+        if value.isValid():
+            return toVariant(value)
+        elif self.canBeEmpty:
+            return QVariant()
+        else:
+            return QVariant(QDateTime.currentDateTime())
 
 # WTF? library не должно ничего знать об Event-ах...
 class CDateTimeForEventInDocTableCol(CInDocTableCol):
@@ -803,6 +876,17 @@ class CTextInDocTableCol(CInDocTableCol):
         return QVariant(Qt.AlignLeft + Qt.AlignTop)
 
 
+class CRegExpedInDocTableCol(CInDocTableCol):
+    def __init__(self, title, fieldName, width, **params):
+        CInDocTableCol.__init__(self, title, fieldName, width, **params)
+        self.regExp = None
+
+
+    def createEditor(self, parent):
+        editor = CLineEditWithRegExpValidator(parent)
+        return editor
+
+
 class CRecordListModel(QAbstractTableModel):
     # модель для взаимодействия со списком QSqlRecord; возможно редактирование
     def __init__(self, parent):
@@ -911,7 +995,7 @@ class CRecordListModel(QAbstractTableModel):
 
 
     def getEmptyRecord(self):
-        record = QtSql.QSqlRecord()
+        record = database.CSqlRecord()#QtSql.QSqlRecord()
         return record
 
 
@@ -948,6 +1032,7 @@ class CRecordListModel(QAbstractTableModel):
             self.beginRemoveRows(parentIndex, row, row+count-1)
             del self._items[row:row+count]
             self.endRemoveRows()
+            self.emit(SIGNAL('removeRows()'))
             return True
         else:
             return False
@@ -1279,11 +1364,13 @@ class CInDocTableModel(CRecordListModel):
         record = self._table.newRecord()
         for i in xrange(record.count()):
             record.setValue(i, srcRecord.value(record.fieldName(i)))
+        if type(srcRecord) == database.CSqlRecord:
+            record._dirty = srcRecord.isDirty()
         return record
 
 
     def getEmptyRecord(self):
-        record = QtSql.QSqlRecord()
+        record = database.CSqlRecord() #QtSql.QSqlRecord()
         fields = self.getTableFieldList()
         for field in fields:
             record.append( QtSql.QSqlField(field.field) )
@@ -1322,8 +1409,8 @@ class CLocItemDelegate(QtGui.QItemDelegate):
             if row < len(model.items()):
                 record = model.items()[row]
             else:
-                record = model.table.newRecord() #model.getEmptyRecord() иногда getEmptyRecord сразу сохраняет запись в бд
-### БЛЯ! getEmptyRecord НИКОГДА НЕ ДОЛЖЕН СОХРАНЯТЬ ЗАПИСЬ В БД
+                record = model.getEmptyRecord() #model.getEmptyRecord() иногда getEmptyRecord сразу сохраняет запись в бд
+### getEmptyRecord НИКОГДА НЕ ДОЛЖЕН СОХРАНЯТЬ ЗАПИСЬ В БД
 
             model.setEditorData(column, editor, model.data(index, Qt.EditRole), record)
 
@@ -2074,6 +2161,12 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                 if width:
                     self.setColumnWidth(i, width)
                 i += 1
+        else:
+            if model:
+                for i in xrange(model.columnCount()):
+                    width = forceInt(getPref(preferences, 'col_'+str(i), None))
+                    if width:
+                        self.setColumnWidth(i, width)
         self.horizontalHeader().setStretchLastSection(True)
         state = getPref(preferences, 'headerState', QVariant()).toByteArray()
         if state:
@@ -2113,6 +2206,11 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                 width = self.columnWidth(i)
                 setPref(preferences, self.colKey(col), QVariant(width))
                 i += 1
+        else:
+            if model:
+                for i in xrange(model.columnCount()):
+                    width = self.columnWidth(i)
+                    setPref(preferences, 'col_'+str(i), QVariant(width))
         header = self.horizontalHeader()
         if header.isMovable() or self.headerColsHidingAvailable():
             params = {}
@@ -2371,6 +2469,98 @@ class CMKBListInDocTableModel(CInDocTableModel):
         item.setValue('character_id', toVariant(characterId))
         self.emitCellChanged(row, item.indexOf('character_id'))
 
+
+    def updateClinicalGroup(self, row, oldMKB, MKB, eventId, clientId, setDate):
+        from Events.Utils import getClinicalGroupMKBPrevEvent
+        item = self.items()[row]
+#        clinicalGroup = forceStringEx(item.value('clinicalGroup'))
+        if oldMKB != MKB:
+            newClinicalGroup = getClinicalGroupMKBPrevEvent(MKB, eventId, clientId, setDate)
+            if newClinicalGroup:
+                item.setValue('clinicalGroup', toVariant(newClinicalGroup))
+                self.emitCellChanged(row, self.getColIndex('clinicalGroup'))
+
+    def inheritMKBTNMS(self, record, oldMKB, newMKB, clientId, eventSetDate):
+        if QtGui.qApp.isTNMSVisible() and not oldMKB and newMKB and (newMKB[:1] == 'C' or newMKB[:2] == 'D0'):
+            query = QtGui.qApp.db.query(u"""SELECT
+    EXISTS(SELECT NULL FROM rbTumor WHERE rbTumor.id = cTumor_id AND rbTumor.endDate >= '{date}') AS cTumorIsActual,
+    EXISTS(SELECT NULL FROM rbNodus WHERE rbNodus.id = cNodus_id AND rbNodus.endDate >= '{date}') AS cNodusIsActual,
+    EXISTS(SELECT NULL FROM rbMetastasis WHERE rbMetastasis.id = cMetastasis_id AND rbMetastasis.endDate >= '{date}') AS cMetastasisIsActual,
+    EXISTS(SELECT NULL FROM rbTNMphase WHERE rbTNMphase.id = cTNMphase_id AND rbTNMphase.endDate >= '{date}') AS cTNMphaseIsActual,
+    EXISTS(SELECT NULL FROM rbTumor WHERE rbTumor.id = pTumor_id AND rbTumor.endDate >= '{date}') AS pTumorIsActual,
+    EXISTS(SELECT NULL FROM rbNodus WHERE rbNodus.id = pNodus_id AND rbNodus.endDate >= '{date}') AS pNodusIsActual,
+    EXISTS(SELECT NULL FROM rbMetastasis WHERE rbMetastasis.id = pMetastasis_id AND rbMetastasis.endDate >= '{date}') AS pMetastasisIsActual,
+    EXISTS(SELECT NULL FROM rbTNMphase WHERE rbTNMphase.id = pTNMphase_id AND rbTNMphase.endDate >= '{date}') AS pTNMphaseIsActual,
+    cTumor_id, cNodus_id, cMetastasis_id, cTNMphase_id, pTumor_id, pNodus_id, pMetastasis_id, pTNMphase_id, Diagnostic.TNMS
+FROM Diagnostic 
+LEFT JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
+LEFT JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnostic.diagnosisType_id
+WHERE Diagnosis.client_id = {clientId} 
+    AND rbDiagnosisType.code = '1'
+    AND Diagnosis.MKB = '{mkb}'
+    AND Diagnostic.endDate <= '{date}'
+    AND Diagnostic.deleted = 0
+    AND Diagnosis.deleted = 0
+ORDER BY Diagnostic.endDate DESC 
+LIMIT 1""".format(clientId=clientId,
+                  mkb=forceString(newMKB),
+                  date=forceDate(eventSetDate).toString('yyyy-MM-dd')))
+            if query.first():
+                recordOldDiagnostic = query.record()
+                if all([forceInt(recordOldDiagnostic.value('cTumorIsActual')) or not forceRef(recordOldDiagnostic.value('cTumor_id')),
+                        forceInt(recordOldDiagnostic.value('cNodusIsActual')) or not forceRef(recordOldDiagnostic.value('cNodus_id')),
+                        forceInt(recordOldDiagnostic.value('cMetastasisIsActual')) or not forceRef(recordOldDiagnostic.value('cMetastasis_id')),
+                        forceInt(recordOldDiagnostic.value('cTNMphaseIsActual')) or not forceRef(recordOldDiagnostic.value('cTNMphase_id')),
+                        forceInt(recordOldDiagnostic.value('pTumorIsActual')) or not forceRef(recordOldDiagnostic.value('pTumor_id')),
+                        forceInt(recordOldDiagnostic.value('pNodusIsActual')) or not forceRef(recordOldDiagnostic.value('pNodus_id')),
+                        forceInt(recordOldDiagnostic.value('pMetastasisIsActual')) or not forceRef(recordOldDiagnostic.value('pMetastasis_id')),
+                        forceInt(recordOldDiagnostic.value('pTNMphaseIsActual')) or not forceRef(recordOldDiagnostic.value('pTNMphase_id'))]):
+                    record.setValue('TNMS', recordOldDiagnostic.value('TNMS'))
+                    record.setValue('cTumor_id', recordOldDiagnostic.value('cTumor_id'))
+                    record.setValue('cNodus_id', recordOldDiagnostic.value('cNodus_id'))
+                    record.setValue('cMetastasis_id', recordOldDiagnostic.value('cMetastasis_id'))
+                    record.setValue('cTNMphase_id', recordOldDiagnostic.value('cTNMphase_id'))
+                    record.setValue('pTumor_id', recordOldDiagnostic.value('pTumor_id'))
+                    record.setValue('pNodus_id', recordOldDiagnostic.value('pNodus_id'))
+                    record.setValue('pMetastasis_id', recordOldDiagnostic.value('pMetastasis_id'))
+                    record.setValue('pTNMphase_id', recordOldDiagnostic.value('pTNMphase_id'))
+
+
+    def prophylaxisPlanningSync(self):
+        items = self.items()
+        db = QtGui.qApp.db
+        tablePP = db.table('ProphylaxisPlanning').alias('pp1')
+        tableDispanser = db.table('rbDispanser')
+        table = tablePP.leftJoin(tableDispanser, tableDispanser['id'].eq(tablePP['dispanser_id']))
+        for row, item in enumerate(items):
+            MKB = forceStringEx(item.value('MKB'))
+            dispanserId = forceRef(item.value('dispanser_id'))
+            if (dispanserId
+                    and forceInt(db.translate('rbDispanser', 'id', dispanserId, 'observed')) == 0
+                    and self.eventEditor.edtEndDate.date()
+                    and forceDate(item.value('endDate'))):
+                recordDiagnosis = db.getRecordEx('Diagnosis', 'client_id', 'id = {0}'.format(forceString(item.value('diagnosis_id'))))
+                itemsCS = db.getRecordList(table, 'pp1.*', '''(MKB="{0}" AND rbDispanser.observed = 1 AND client_id = {1} AND takenDate <= {2}) or 
+                                           EXISTS(SELECT pp2.id from ProphylaxisPlanning pp2 
+                                           LEFT JOIN rbDispanser d2 ON d2.id = pp2.dispanser_id
+                                           WHERE pp2.id = pp1.parent_id 
+                                           and MKB="{0}" AND d2.observed = 1 AND client_id = {1} and pp2.takenDate <= {2})'''.format(
+                    MKB,
+                    forceString(recordDiagnosis.value('client_id')),
+                    db.formatDate(self.eventEditor.edtEndDate.date())))
+                for itemRCS in itemsCS:
+                    begDate = forceDate(itemRCS.value('begDate'))
+                    visitId = forceRef(itemRCS.value('visit_id'))
+                    if forceDate(item.value('endDate')) and begDate and forceDate(item.value('endDate')) < begDate and not visitId:
+                        db.markRecordsDeleted(tablePP, tablePP['id'].eq(forceRef(itemRCS.value('id'))))
+                    else:
+                        removeReasonId = forceRef(db.translate('rbSurveillanceRemoveReason', 'dispanser_id', item.value('dispanser_id'), 'id'))
+                        if not removeReasonId:
+                            removeReasonId = forceRef(db.translate('rbSurveillanceRemoveReason', 'code', '1', 'id'))
+                        itemRCS.setValue('dispanser_id', forceRef(item.value('dispanser_id')))
+                        itemRCS.setValue('removeDate', forceDate(item.value('endDate')))
+                        itemRCS.setValue('removeReason_id', removeReasonId)
+                        db.insertOrUpdate(tablePP, itemRCS)
 
 
 # WTF?

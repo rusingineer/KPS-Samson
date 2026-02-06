@@ -7,7 +7,7 @@ from Reports.ReportBase import CReportBase
 
 from library.Utils import forceString, forceInt, forceDouble
 from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
-from EconomicAnalisys import getStmt, colServiceInfis, colServiceName, colKDPD, colUET, colAmount, colSUM
+from EconomicAnalisys import getStmt, colServiceInfis, colServiceName, colKDPD, colUET, colAmount, colSUM, colExposedSum
 
 
 class CEconomicAnalisysE1(CReport):
@@ -16,13 +16,14 @@ class CEconomicAnalisysE1(CReport):
         self.setTitle(u'Э-1. Нагрузка на врача')
 
     def selectData(self, params):
-        cols = [colServiceInfis, colServiceName, colKDPD, colUET, colAmount, colSUM]
+        cols = [colServiceInfis, colServiceName, colKDPD, colUET, colAmount, colSUM, colExposedSum]
         colsStmt = u"""select colServiceInfis as code_usl,
         colServiceName as name_usl,
         sum(colAmount) as amount,
         round(sum(colUET), 2) as uet,
         sum(colKD) as kd,
-        round(sum(colSUM), 2) as sum
+        round(sum(colSUM), 2) as sum,
+        round(sum(colExposedSUM), 2) as exposedSum
         """
         groupCols = u'colServiceInfis, colServiceName'
         orderCols = u'colServiceInfis, colServiceName'
@@ -33,7 +34,9 @@ class CEconomicAnalisysE1(CReport):
         return db.query(stmt)
 
     def build(self, description, params):
-        reportRowSize = 6
+        needExposedSum = params.get('dataType', None) == 3
+
+        reportRowSize = 7 if needExposedSum else 6
         colsShift = 2
         reportData = {}
 
@@ -44,15 +47,19 @@ class CEconomicAnalisysE1(CReport):
                 name_usl = forceString(record.value('name_usl'))
                 amount = forceInt(record.value('amount'))
                 kd = forceInt(record.value('kd'))
+                pd = forceInt(record.value('pd'))
                 uet = forceDouble(record.value('uet'))
                 sum = forceDouble(record.value('sum'))
+                exposedSum = forceDouble(record.value('exposedSum'))
 
                 key = (code_usl, name_usl)
                 reportLine = reportData.setdefault(key, [0]*reportRowSize)
                 reportLine[0] += amount
-                reportLine[1] += kd
+                reportLine[1] += kd + pd
                 reportLine[2] += uet
                 reportLine[3] += sum
+                if needExposedSum:
+                    reportLine[4] += exposedSum
 
         query = self.selectData(params)
         processQuery(query)
@@ -74,9 +81,10 @@ class CEconomicAnalisysE1(CReport):
             ('6%',  [u'Кол-во услуг'], CReportBase.AlignRight),
             ('10%',  [u'Кол-во койко-дней (дней лечения)'], CReportBase.AlignRight),
             ('10%',  [u'Кол-во УЕТ'], CReportBase.AlignRight),
-            ('14%',  [u'Сумма'], CReportBase.AlignRight)
+            ('7%',  [u'Сумма'], CReportBase.AlignRight)
             ]
-
+        if needExposedSum:
+            tableColumns.append(('7%',  [u'Выставленная сумма'], CReportBase.AlignRight))
         table = createTable(cursor, tableColumns)
         table.mergeCells(0, 0, 1, 2)
         for col in xrange(reportRowSize):
@@ -111,6 +119,7 @@ class CEconomicAnalisysE1Ex(CEconomicAnalisysE1):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

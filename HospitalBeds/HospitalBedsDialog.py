@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -71,17 +71,17 @@ from Events.EventFeedPage         import CFeedPageDialog
 from Events.TempInvalidDialog     import CTempInvalidListDialog
 from Events.EventInfo             import CEventInfo, CContractInfo
 from Events.InputDialog import CDateTimeInputDialog
-from Events.Utils                 import (cutFeed,
-                                          getActionTypeDescendants,
-                                          getDiagnosisId2,
-                                          getActionTypeIdListByFlatCode,
-                                          getChiefId,
-                                          getEventCSGRequired,
-                                          checkTissueJournalStatusByActions,
-                                          getEventShowTime,
-                                          getEventPrevEventTypeId,
-                                          getPrevEventIdByEventTypeId
-                                         )
+from Events.Utils import (cutFeed,
+                          getActionTypeDescendants,
+                          getDiagnosisId2,
+                          getActionTypeIdListByFlatCode,
+                          getChiefId,
+                          getEventCSGRequired,
+                          checkTissueJournalStatusByActions,
+                          getEventShowTime,
+                          getEventPrevEventTypeId,
+                          getPrevEventIdByEventTypeId, getEventCounterId
+                          )
 from Events.NomenclatureExpense.NomenclatureExpenseDialog import CNomenclatureExpenseHBDialog
 from F003.ExecPersonListEditorDialog import CExecPersonListEditorDialog
 from HospitalBeds.CheckPeriodActions         import CCheckPeriodActions
@@ -320,10 +320,23 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.comfortableActionTypeIdList = getActionTypeIdListByFlatCode(u'comfortable%')
         self.temperatureSheetActionTypeIdList = getActionTypeIdListByFlatCode(u'temperatureSheet%')
         currentOrgStructureId = QtGui.qApp.currentOrgStructureId()
+        currentOrgId = QtGui.qApp.currentOrgId()
         orgStructureFilter = None
-        if currentOrgStructureId and not (QtGui.qApp.userHasRight(urHBCanChangeOrgStructure) or QtGui.qApp.isAdmin()):
-            orgStructureFilter = 'OrgStructure.id = %i'% currentOrgStructureId
-        self.addModels('OrgStructure', COrgStructureModel(self, QtGui.qApp.currentOrgId(), None, None, None, orgStructureFilter))
+        preferenceFilter = []
+        widgetsToHide = False
+        if QtGui.qApp.preferences.appPrefs.get('HospitalBedsOrgStructureCheckedNames'):
+            preferenceFilter = [forceInt(checkedId) for checkedId in
+                                QtGui.qApp.preferences.appPrefs.get('HospitalBedsOrgStructureCheckedNames').toList()]
+        if currentOrgStructureId and not (QtGui.qApp.userHasRight(urHBCanChangeOrgStructure) or QtGui.qApp.isAdmin()) and currentOrgStructureId not in preferenceFilter:
+            orgStructureFilter = 'OrgStructure.id = %i' % currentOrgStructureId
+        elif currentOrgStructureId and not (QtGui.qApp.userHasRight(urHBCanChangeOrgStructure) or QtGui.qApp.isAdmin()) and currentOrgStructureId in preferenceFilter:
+            currentOrgId = None
+            widgetsToHide = True
+        if orgStructureFilter and preferenceFilter:
+            orgStructureFilter = ' AND OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
+        elif preferenceFilter:
+            orgStructureFilter = 'OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
+        self.addModels('OrgStructure', COrgStructureModel(self, currentOrgId, None, None, None, orgStructureFilter))
         self.addModels('HospitalBeds', CHospitalBedsModel(self))
         self.addModels('InvoluteBeds',  CInvoluteBedsModel(self))
         self.addModels('Presence', CPresenceModel(self))
@@ -360,6 +373,8 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.printMenuDiag = {}
 
         self.setupUi(self)
+        if widgetsToHide:
+            self.widgetsHide()
         self.setWindowFlags(Qt.Window | Qt.WindowSystemMenuHint | Qt.WindowMinMaxButtonsHint | Qt.WindowCloseButtonHint)
         self.setWindowState(Qt.WindowMaximized)
 
@@ -436,19 +451,19 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         #self.btnTemperatureList.setShortcut(Qt.Key_F2)
         self.btnTransfer.setShortcut(Qt.Key_F5)
         self.btnLeaved.setShortcut(Qt.Key_F8)
-        self.templateNames = (
-            'mHospitalBeds',
-            'mPresence',
-            'mReceived',
-            'mTransfer',
-            'mLeaved',
-            'mReadyToLeave',
-            'mQueue',
-            'mEmergency',
-            'mRenunciation',
-            'mDeath',
-            'mReanimation',
-        )
+        self.templateNames = {
+            self.tabFund: 'mHospitalBeds',
+            self.tabPresence: 'mPresence',
+            self.tabReceived: 'mReceived',
+            self.tabTransfer: 'mTransfer',
+            self.tabLeaved: 'mLeaved',
+            self.tabReabyToLeave: 'mReadyToLeave',
+            self.tabQueue: 'mQueue',
+            self.tabEmergency: 'mEmergency',
+            self.tabRenunciation: 'mRenunciation',
+            self.tabDeath: 'mDeath',
+            self.tabReanimation: 'mReanimation',
+        }
         self.btnPlanOperatingDay.setMenu(self.mnuBtnPlanOperatingDay)
         self.btnFeed.setMenu(self.mnuBtnFeed)
         self.btnTemperatureList.setMenu(self.mnuBtnTemperatureList)
@@ -640,8 +655,9 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.loadFilters()
         self.on_selectionModelOrgStructure_currentChanged(None, None)
         # Preferences
-        self.widgetsVisible()
-        
+        if not widgetsToHide:
+            self.widgetsVisible()
+            
     
     def widgetsVisible(self):
         if not QtGui.qApp.showingHospitalBedsTabDeath():
@@ -978,6 +994,12 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         if table in [self.tblPresence] :
             self.addObject('qshcTemperatureListEditor', QtGui.QShortcut('F2', table, self.on_actTemperatureListEditor_triggered))
             self.qshcTemperatureListEditor.setContext(Qt.WidgetShortcut)
+        for table in [self.tblHospitalBeds, self.tblPresence, self.tblReceived, self.tblTransfer, self.tblLeaved, self.tblReabyToLeave,self.tblQueue,self.tblEmergency,self.tblRenunciation, self.tblDeath, self.tblReanimation]:
+            self.addObject('qshcAddAction', QtGui.QShortcut('Shift+F8', table, self.on_actAddAction_triggered))
+            table.installEventFilter(self)
+        for table in [self.tblActionsStatus, self.tblActionsCure, self.tblActionsMisc, self.tblActionsDiagnostic]:
+            self.addObject('qshcAddActionEvent', QtGui.QShortcut('Shift+F8', table, self.on_actAddActionEvent_triggered))
+            table.installEventFilter(self)
         self.addObject('qshcPeriodActionsDialog', QtGui.QShortcut('F3', self.tblQueue, self.on_actPeriodActionsDialog_triggered))
         self.addObject('qshcOpenEvent', QtGui.QShortcut('F4', self.tblQueue, self.on_actOpenEvent_triggered))
         self.addObject('qshcEditClientInfo', QtGui.QShortcut('Shift+F4', self.tblQueue, self.on_actEditClientInfoBeds_triggered))
@@ -996,6 +1018,8 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.qshcBTNPlanning.setContext(Qt.WidgetShortcut)
         self.qshcStatusObservationClient.setContext(Qt.WidgetShortcut)
         self.qshcNomenclatureExpense.setContext(Qt.WidgetShortcut)
+        self.qshcAddAction.setContext(Qt.WidgetShortcut)
+        self.qshcAddActionEvent.setContext(Qt.WidgetShortcut)
 
     def preparePrintBtnDiag(self,  index = 1):
         btn = self.btnPrintActionListVariant
@@ -1048,7 +1072,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             menu = self.printMenuDiag[index]
         else:
             menu = QtGui.QMenu()
-            templates = getPrintTemplates(self.templateNames[index])
+            templates = getPrintTemplates(self.templateNames[self.tabWidget.widget(index)])
             if templates:
                 for i, template in enumerate(templates):
                     action = CPrintAction(template.name, template.id, self.btnPrintActionListVariant, self.btnPrintActionListVariant)
@@ -1148,7 +1172,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         else:
             menu = QtGui.QMenu()
             subMenuDict={}
-            templates = getPrintTemplates(self.templateNames[index])
+            templates = getPrintTemplates(self.templateNames[self.tabWidget.widget(index)])
             if templates:
                 for i, template in enumerate(templates):
                     if not template.group:
@@ -1528,6 +1552,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actStatusObservationClient.setShortcut('Shift+F5')
         self.actOpenEvent.setShortcut(Qt.Key_F4)
         self.actTemperatureListEditor.setShortcut(Qt.Key_F2)
+        self.actAddAction.setShortcut('Shift+F8')
         self.actPeriodActionsDialog.setShortcut(Qt.Key_F3)
         self.mnuHospitalBeds.addAction(self.actOpenEvent)
         self.mnuHospitalBeds.addAction(self.actAddAction)
@@ -1569,6 +1594,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.addObject('actEditClientInfo', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actEditStatusObservationClient', QtGui.QAction(u'Изменить статус наблюдения пациента', self))
         self.addObject('actTranslateStatusActionInBeginClass', QtGui.QAction(u'Перевести статус действия в начато', self))
+        self.actAddActionEvent.setShortcut('Shift+F8')
         self.mnuEditActionEvent.addAction(self.actEditActionEvent)
         self.mnuEditActionEvent.addAction(self.actAddActionEvent)
         self.mnuEditActionEvent.addAction(self.actJobTicketsEventToDiagnostic)
@@ -2117,7 +2143,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             tablePlacement = db.table('OrgStructure_Placement')
             if orgStructureId:
                 treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-                orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+                orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
                 if orgStructureIdList:
                     tableOS = db.table('OrgStructure')
                     movingOSIdList = db.getIdList(tableOS, tableOS['id'], [tableOS['id'].inlist(orgStructureIdList), tableOS['type'].ne(4), tableOS['deleted'].eq(0)])
@@ -3021,6 +3047,9 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             if orgStructureId:
                 orgStructureIdList = self.getOrgStructureIdList(orgStructureId)
             queryRecieve = db.query(u'SELECT id FROM OrgStructure where Name like "Приемное отделение%"')
+            ageForCurDate = self.spbAgeForCurDate.value()
+            ageToCurDate = self.spbAgeToCurDate.value()
+
             while queryRecieve.next():
                 if forceRef(queryRecieve.record().value('id')) in orgStructureIdList: 
                     tableAction = db.table('Action')
@@ -4196,8 +4225,9 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                 if index.isValid():
                     row = index.row()
                     if row >= 0:
-                        clientId         = self.modelQueue.getClientId(row)
-                        eventId          = self.modelQueue.getEventId(row)
+                        planningActionId = self.modelQueue.getPlanningActionId(row)
+                        clientId = self.modelQueue.getClientId(row)
+                        eventId = self.modelQueue.getEventId(row)
                         directionInfo = [
                                         self.modelQueue.getExternalId(row),
                                         self.modelQueue.getRelegateOrgId(row),
@@ -4208,7 +4238,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                                         self.modelQueue.getSetPersonId(row),
                                         self.modelQueue.getMKB(row),
                                      ]
-                    HospitalizationEvent = CHospitalizationFromQueue(self, clientId, eventId, directionInfo)
+                    HospitalizationEvent = CHospitalizationFromQueue(self, clientId, eventId, directionInfo, planningActionId=planningActionId)
                     HospitalizationEvent.requestNewEvent()
             elif widgetIndex == self.tabWidget.indexOf(self.tabEmergency):
                 clientId = None
@@ -5416,6 +5446,9 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             eventTypeId = forceRef(record.value('eventType_id')) if record else None
             oldPrevEventId = forceRef(record.value('prevEvent_id')) if record else None
             clientId = forceRef(record.value('client_id')) if record else None
+            date = forceDate(record.value('execDate')) if record else None
+            setDate = forceDate(record.value('setDate')) if record else None
+            orgId = forceInt(record.value('org_id')) if record else None
             if eventTypeId:
                 tableETE = db.table('EventType_Event')
                 cols = [tableETE['eventType_id']
@@ -5424,12 +5457,37 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                         ]
                 eventTypeIdList = db.getDistinctIdList(tableETE, cols, cond, 'EventType_Event.id')
                 if eventTypeIdList:
-                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId)
+                    dialog = CUpdateEventTypeByEvent(self, eventTypeIdList, eventTypeId, date, orgId, forceInt(clientId), setDate, eventId)
                     try:
                         if dialog.exec_():
                             newEventTypeId = dialog.getNewEventTypeId()
                             if newEventTypeId:
+                                order = dialog.getOrder()
+                                contractId = dialog.getContractId()
+                                # eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
+                                # if eventTypeRecord:
+                                #     changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
+                                # else:
+                                #     changeExternalId = False
+                                # if changeExternalId:
+                                #     counterId = getEventCounterId(newEventTypeId)
+                                #     if counterId:
+                                #         try:
+                                #             externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
+                                #             record.setValue('externalId', externalId)
+                                #         except Exception as e:
+                                #             QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                #                                     u'Внимание!',
+                                #                                     u'Произошла ошибка при получении значения счетчика\n%s' % e,
+                                #                                     QtGui.QMessageBox.Ok)
+                                #             return False
+                                #     else:
+                                #         record.setValue('externalId', '')
                                 record.setValue('eventType_id', toVariant(newEventTypeId))
+                                if order > -1:
+                                    record.setValue('order', toVariant(order+1))
+                                if contractId:
+                                    record.setValue('contract_id', toVariant(contractId))
                                 idList = set([])
                                 idListParents = set(db.getTheseAndParents(tableET, 'prevEvent_id', [eventId if eventId else self.prevEventId]))
                                 idList ^= idListParents
@@ -7788,3 +7846,18 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             self.cmbFilterDocumentTypeForTracking.setEnabled(enabled)
             self.btnDocumentLocationList.setEnabled(enabled)
 
+    def widgetsHide(self):
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabDeath))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabEmergency))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabFund))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabLeaved))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabPresence))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabQueue))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabReabyToLeave))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabReanimation))
+        self.btnTransferReanimation.setVisible(False)
+        self.chkShowLocatedInReanimation.setVisible(False)
+        self.chkShowLocatedInReanimation.setChecked(True)
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabReceived))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabRenunciation))
+        self.tabWidget.removeTab(self.tabWidget.indexOf(self.tabTransfer))

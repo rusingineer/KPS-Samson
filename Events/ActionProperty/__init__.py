@@ -68,6 +68,7 @@ from PulseActionPropertyValueType               import CPulseActionPropertyValue
 from RadiationDoseActionPropertyValueType       import CRadiationDoseActionPropertyValueType
 from ReferenceActionPropertyValueType           import CReferenceActionPropertyValueType
 from ReferenceColumnsActionPropertyValueType    import CReferenceColumnsActionPropertyValueType
+from ReferenceColumnsTreeActionPropertyValueType import CReferenceColumnsTreeActionPropertyValueType
 from RLSActionPropertyValueType                 import CRLSActionPropertyValueType
 from SamplingActionPropertyValueType            import CSamplingActionPropertyValueType
 from SocStatusActionPropertyValueType           import CSocStatusActionPropertyValueType
@@ -128,6 +129,7 @@ CActionPropertyValueTypeRegistry.register(CPulseActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CRadiationDoseActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CReferenceActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CReferenceColumnsActionPropertyValueType)
+CActionPropertyValueTypeRegistry.register(CReferenceColumnsTreeActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CRLSActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CSamplingActionPropertyValueType)
 CActionPropertyValueTypeRegistry.register(CSocStatusActionPropertyValueType)

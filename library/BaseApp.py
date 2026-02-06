@@ -34,6 +34,7 @@ from PyQt4.QtCore           import Qt, SIGNAL, qInstallMsgHandler, QDir, QVarian
 from library                import database
 from library.Calendar       import CCalendarInfo
 from library.Preferences    import CPreferences
+from library.database import CDatabaseException
 from library.getHostName    import getHostName
 
 from library.Utils import forceString, forceRef, anyToUnicode, exceptionToUnicode, quote, forceDate
@@ -78,23 +79,32 @@ class CBaseApp(QtGui.QApplication):
         if QtGui.qApp.db:
             record = QtGui.qApp.db.getRecordEx('VersionControl', 'version, dateUpdate', 'name="baseVersion"')
             if record:
-                ver23 = (u'АИС «Конфигурация МИС КПС «САМСОН» (Краснодарский край)»\n'
-                        u'Версия БД %s (от %s)\n'
-                        u'Версия сборки: %s\n'
-                        u'Copyright © 2015-2024 ООО "СОЦ-Информ"\n'
-                        u'Создано при участии: ООО «КОРТИС Технологии», ООО «Виста», ГБУ "КМИАЦ".\n' % (forceString(record.value('version')),
-                                                                         forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"),
-                                                                         cls.socRev))
+                try:
+                    recordMod = QtGui.qApp.db.getRecordEx('VersionControlMod', 'version, dateUpdate', 'name="baseVersion"')
+                    modernisationVersion = u'<a href="1">Версия модернизации</a><br/>' if recordMod else ''
+                except CDatabaseException:
+                    modernisationVersion = ''
 
-        return u'%s\n' \
-               u'Комплекс Программных Средств \n' \
-               u'"Система Автоматизации Медико-Страхового Обслуживания Населения"\n' \
-               u'«%s»\n' \
+                ver23 = (u'АИС «Конфигурация МИС КПС «САМСОН» (Краснодарский край)»<br/>'
+                        u'Версия БД %s (от %s)<br/>'
+                        u'Версия сборки: %s<br/>'
+                        u'%s'
+                        u'Copyright © 2015-2025 ООО "СОЦ-Информ"<br/>'
+                        u'Создано при участии: ООО «КОРТИС Технологии», ООО «Виста», ГБУ "КМИАЦ".<br/>' % (
+                    forceString(record.value('version')),
+                    forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"),
+                    cls.socRev,
+                    modernisationVersion))
+
+        return u'%s<br/>' \
+               u'Комплекс Программных Средств<br/>' \
+               u'"Система Автоматизации Медико-Страхового Обслуживания Населения"<br/>' \
+               u'«%s»<br/>' \
                u'%s' \
-               u'Версия %s (ревизия %s от %s)\n' \
-               u'Copyright © 2012-2024 ООО "САМСОН Групп"\n' \
-               u'распространяется под лицензией GNU GPL v.3 или выше\n' % (ver23, cls.title,
-                   ((u'Версия сборки: '+ cls.socRev + u'\n') if ver23 == '' else u''), cls.version, cls.lastChangedRev, cls.lastChangedDate)
+               u'Версия %s (ревизия %s от %s)<br/>' \
+               u'Copyright © 2012-2025 ООО "САМСОН Групп"<br/>' \
+               u'распространяется под лицензией GNU GPL v.3 или выше<br/>' % (ver23, cls.title,
+                   ((u'Версия сборки: '+ cls.socRev + u'<br/>') if ver23 == '' else u''), cls.version, cls.lastChangedRev, cls.lastChangedDate)
 
 
     def __init__(self, args, iniFileName):
@@ -484,6 +494,23 @@ class CBaseApp(QtGui.QApplication):
             return func(*params, **kwparams)
         finally:
             self.restoreOverrideCursor()
+
+
+    def callWithProgressBar(self, widget, iterFunc, collection):
+        """
+            Вызывает функцию по элементам и показывает прогрессбар по центру
+            экрана для визуализации хода выполнения с возможностью прервать
+            выполнение. Результат работы такой же, как у фукнкции `map`, но
+            при этом показывается прогрессбар. Важно отметить, что на одну
+            итерацию прогрессбар не отображается. Если выполнение было
+            отменено, то будет возвращено None.
+        """
+        if len(collection) == 1:
+            return [iterFunc(collection[0])]
+        else:
+            from library.BackgroundProgressBar import CBackgroundProgressBar
+            pbar = CBackgroundProgressBar(parent=widget or self.mainWindow)
+            return pbar.run(iterFunc, collection)
 
 
     def highlightRedDate(self):

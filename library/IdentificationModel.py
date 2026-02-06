@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,7 +18,7 @@ from Orgs.PersonComboBox import CPersonComboBox
 from library.InDocTable import CInDocTableModel, CRecordListModel, CDateInDocTableCol, CInDocTableCol
 from library.TableModel import CTableModel, CTextCol, CCol
 from library.TableView  import CTableView
-from library.database   import decorateString, CTableRecordCache
+from library.database   import decorateString, CTableRecordCache, checkViewURN
 from library.Utils      import trim, forceRef, forceStringEx, forceBool, forceString, forceInt, toVariant, getPref, setPref
 from library.crbcombobox import CRBComboBox
 from library.Ui_IdentificationComboBoxExPopup import Ui_IdentificationComboBoxExPopup
@@ -425,13 +425,15 @@ class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
 
     def createEditor(self, parent, option=None, index=None):
         urn = self.getUrn(parent=parent)
-        checkExistView = self.checkViewURN(urn) if urn else False
+        checkExistView = checkViewURN(urn) if urn else False
         if checkExistView:
             tableName = u"`"+urn+u"`"
             temp_code = None
             if forceString(parent.parent().currentItem().value('value_spr')) != '':
                 temp_code = forceString(parent.parent().currentItem().value('value_spr'))
             editor = CSprComboBoxEx(parent, tableName, temp_code)
+            if tableName == u'`v1.2.643.5.1.13.13.11.1078`':
+                editor.setFilter(u"`v1.2.643.5.1.13.13.11.1078`.ACTUAL = 'true'")
             # editor._code = forceString(parent.parent().currentItem().value('value_spr')) if forceString(parent.parent().currentItem().value('value_spr')) != '' \
             #                            else forceString(parent.parent().currentItem().value('value'))
         else:
@@ -447,7 +449,7 @@ class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
         if type(editor) == QtGui.QLabel:
             editor.setText(u'')
         else:
-            editor.setValue(forceStringEx(value))
+            editor.setValue(forceRef(value))
 
     def getEditorData(self, editor):
         # if type(editor) == QtGui.QLineEdit:
@@ -494,21 +496,11 @@ class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
                     return urn
             else:
                 return None
-    
-
-    def checkViewURN(self, urn):
-        db = QtGui.qApp.db
-        stmt = u"""select * from information_schema.VIEWS v where v.TABLE_NAME like  '"""+ forceString(urn)+u"'"
-        query = db.query(stmt)
-        if query.next():
-            return True
-        else:
-            return False
 
     def toString(self, val, record):
         system_id = forceInt(record.value(0))
         urn = self.getUrn(systemid=system_id)
-        viewExists = self.checkViewURN(urn)
+        viewExists = checkViewURN(urn) if urn else False
         if viewExists:
             urn = "`"+urn+"`"
             for item in self._getItems(urn=urn):
@@ -813,7 +805,8 @@ class CSprComboBoxExPopup(QtGui.QFrame, Ui_IdentificationComboBoxExPopup):
         idList = db.getDistinctIdList(tableSpr, [tableSpr['id'].name(), tableSpr['code'].name(), tableSpr['name'].name()],
                                       where=cond,
                                       order=order,
-                                      limit=1000)
+                                      #limit=1000 ???
+                                      )
         # fakeIdList = self.tableModel.getSpecialValuesKeys()
         # if fakeIdList:
         #     return fakeIdList+idList

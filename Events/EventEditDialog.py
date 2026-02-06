@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -25,12 +25,16 @@ from PyQt4.QtCore                 import (
                                           QTime,
                                           QVariant,
                                           pyqtSignature,
-                                          SIGNAL
+                                          SIGNAL,
+                                          QTimer
                                          )
+from PyQt4.QtSql import QSqlField
 
+from Events.ActionTypeListDialog import CActionTypeListDialog
 from Events.ActionsModel import CActionRecordItem
 from Surveillance.SurveillancePlanningDialog import CSurveillancePlanningEditDialog
 from library.Counter              import CCounterController
+from library.TableModel import CTextCol
 from library.crbcombobox          import CRBModelDataCache
 from library.ICDUtils             import MKBwithoutSubclassification
 from library.InDocTable           import CRBInDocTableCol
@@ -62,7 +66,7 @@ from Events.Action                import CAction, CActionTypeCache, CActionType,
 from Events.ActionInfo            import CMedicalDiagnosisInfoList
 from Events.ActionsSelector       import selectActionTypes
 from Events.ActionStatus          import CActionStatus
-from Events.ActionTypeDialog      import CActionTypeDialogTableModel
+from Events.ActionTypeDialog import CActionTypeDialog
 from Events.ContractTariffCache   import CContractTariffCache
 from Events.EventInfo import (
     CContractInfo,
@@ -142,7 +146,8 @@ from KLADR.Utils                  import KLADRMatch
 from Resources.JobTicketStatus    import CJobTicketStatus
 
 from Orgs.PersonInfo              import CPersonInfo
-from Orgs.Utils                   import getOrganisationShortName, COrgInfo, getOrgStructureDescendants
+from Orgs.Utils import getOrganisationShortName, COrgInfo, getOrgStructureDescendants, \
+    checkPersonByDefaultSettingsFromEventtype
 from Orgs.PersonComboBoxEx        import CPersonFindInDocTableCol
 from RefBooks.Finance.Info        import CFinanceInfo
 from Registry.ClientEditDialog    import CClientEditDialog
@@ -151,9 +156,9 @@ from Registry.ShowContingentsClientDialog import CShowContingentsClientDialog
 from Registry.Utils               import (
                                           CCheckNetMixin,
                                           CClientInfo,
-                                          formatClientBanner,
                                           getClientInfo,
                                           getClientWork,
+                                          getClientBanner
                                          )
 from Registry.ClientVaccinationCard import openClientVaccinationCard
 from Reports.ReportBase           import CReportBase, createTable
@@ -201,6 +206,7 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
     TNMSFieldsDict = {u'cT': u'cTumor_id', u'cN': u'cNodus_id', u'cM': u'cMetastasis_id', u'cS': u'cTNMphase_id',
                       u'pT': u'pTumor_id', u'pN': u'pNodus_id', u'pM': u'pMetastasis_id', u'pS': u'pTNMphase_id'}
 
+    re_actionPropertyStringChecking = re.compile(u'[A-Za-zЁёА-я0-9]+')
     def __init__(self, parent):
         CItemEditorBaseDialog.__init__(self, parent, 'Event')
         CCheckNetMixin.__init__(self)
@@ -337,6 +343,7 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
                     self.setIsAssertNoMessage(True)
             finally:
                 dialog.deleteLater()
+        return result
 
 
     def setupVisitsIsExposedPopupMenu(self):
@@ -1058,10 +1065,7 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
         self.actionTypeDepositIdList = []
         if hasattr(self, 'tabNotes'):
             if self.tabNotes.isEventClosed():
-                if (QtGui.qApp.userHasRight(urEditClosedEvent) or QtGui.qApp.userHasRight(urEditClosedEventCash)):
-                    result = result and (QtGui.qApp.userHasRight(urEditClosedEvent) or QtGui.qApp.userHasRight(
-                        urEditClosedEventCash))
-                else:
+                if not QtGui.qApp.userHasAnyRight([urEditClosedEvent, urEditClosedEventCash]):
                     result = result and self.checkValueMessage(u'Событие закрыто, сохранение данных невозможно!',
                                                                False,
                                                                self.tabNotes.chkIsClosed,
@@ -1071,9 +1075,15 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
 
         for actionsTab in self.getActionsTabsList():
             result = result and actionsTab.checkAPRelatedAction()
-        #result = result and self.checkDeposit(True)
+        # result = result and self.checkDeposit(True)
         for actionsTab in self.getActionsTabsList():
             result = result and actionsTab.checkAPDataEntered()
+            
+        db = QtGui.qApp.db
+        medicalAidTypeId = forceInt(db.translate('EventType', 'id', self.eventTypeId, 'medicalAidType_id'))
+        if medicalAidTypeId and forceInt(db.translate('rbMedicalAidType', 'id', medicalAidTypeId, 'regionalCode')) in (111, 112):
+            result = result and self.checkRefuseHospitalization()
+            
         if getEventMesRequired(self.eventTypeId):
             if self.isActionLeavedEvent():
                 result = result and self.checkTemporaryMes()
@@ -1087,6 +1097,51 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
         self.valueForAllActionEndDate = None
         self.res = None
         return result
+    
+    
+    def checkRefuseHospitalization(self):
+        from Events.ActionStatus import CActionStatus
+        tabActions = None
+        if hasattr(self, 'tabActions'):
+            tabActions = self.tabActions
+        elif hasattr(self, 'tabMisc'):
+            tabActions = self.tabMisc
+        if tabActions:
+            recievedAction = None
+            leavedAction = None
+            for row, (record, action) in enumerate(tabActions.modelAPActions.items()):
+                actionTypeId = forceRef(record.value('actionType_id'))
+                actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
+                if u'moving' in actionType.flatCode.lower():
+                    return True
+                if u'received' in actionType.flatCode.lower():
+                    if forceRef(record.value('status')) == CActionStatus.finished:
+                        recievedAction = (row, record, action)
+                    else:
+                        return True
+                if u'leaved' in actionType.flatCode.lower():
+                    if forceRef(record.value('status')) == CActionStatus.finished:
+                        leavedAction = (row, record, action)
+                    else:
+                        return True
+            if recievedAction and leavedAction:
+                receivedPropertyRef = recievedAction[2].getProperty(u'Причина отказа от госпитализации')
+                receivedPropertyAct = recievedAction[2].getProperty(u'Принятые меры при отказе в госпитализации')
+                if not receivedPropertyRef.getValue():
+                    self.checkValueMessage(u'Заполните поле "Причина отказа от госпитализации"',
+                                           False, tabActions.tblAPActions, row=recievedAction[0], column=0)
+                    index = tabActions.tblAPProps.model().index(recievedAction[2].getIndexByProperty(receivedPropertyRef), 1)
+                    self.setFocusToWidget(tabActions.tblAPProps, recievedAction[2].getIndexByProperty(receivedPropertyRef), 1)
+                    QTimer.singleShot(0, lambda: tabActions.tblAPProps.scrollTo(index, QtGui.QAbstractItemView.PositionAtTop))
+                    return False
+                if not receivedPropertyAct.getValue():
+                    self.checkValueMessage(u'Заполните поле "Принятые меры при отказе в госпитализации"',
+                                           False, tabActions.tblAPActions, row=recievedAction[0], column=0)
+                    index = tabActions.tblAPProps.model().index(recievedAction[2].getIndexByProperty(receivedPropertyAct), 1)
+                    self.setFocusToWidget(tabActions.tblAPProps, recievedAction[2].getIndexByProperty(receivedPropertyAct), 1)
+                    QTimer.singleShot(0, lambda: tabActions.tblAPProps.scrollTo(index, QtGui.QAbstractItemView.PositionAtTop))
+                    return False
+        return True
 
 
     def checkDiagnosticsControl(self):
@@ -1122,7 +1177,7 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
                     diagnostic = forceString(modelDiagnostics.data(modelDiagnostics.index(row, mkbIndex)))[:3]
                     diagnostics[personId].append(diagnostic)
             for key, value in diagnostics.items():
-                if len(set(value)) < len(value) and self.eventContext != u'f131':
+                if len(set(value)) < len(value) and self.eventContext and self.eventContext[:4] != u'f131':
                     message = u'Один и тот же врач не может устанавливать в одном и том же событии диагнозы из одного блока'
                     return self.checkValueMessage(message, skipable, modelDiagnostics, row, mkbIndex, setFocus=False)
         return result
@@ -1698,6 +1753,9 @@ LIMIT 1))))'''%(str(eventId)))
     def checkDataBeforeOpen(self):
         record = self.record()
         if record:
+            if not self.isReadOnly() and self.cmbContract.value() != forceRef(record.value('contract_id')):
+                self.setIsDirty(True)
+
             payStatus = forceInt(record.value('payStatus'))
             isClosed  = forceInt(record.value('isClosed'))
 
@@ -1826,73 +1884,67 @@ LIMIT 1))))'''%(str(eventId)))
         if eventProfileRegionalCode == u'8023' and self.edtEndDate.date().isValid():
             checkDiag = self.checkDiagnosticsFor8023Profile()
         result = CItemEditorBaseDialog.save(self) if checkDiag else None
-        if result and forceBool(QtGui.qApp.preferences.appPrefs.get('isPrefSurveillancePlanningDialog', False)):
-            if hasattr(self, 'modelPreliminaryDiagnostics') and hasattr(self, 'modelFinalDiagnostics'):
-                modelDiagnostics = [self.modelPreliminaryDiagnostics, self.modelFinalDiagnostics]
-            elif hasattr(self, 'modelDiagnostics'):
-                modelDiagnostics = [self.modelDiagnostics]
-            else:
-                modelDiagnostics = []
-            if modelDiagnostics and self.itemId() and self.eventContext in (u'f131', u'f025', u'f030'):
-                dispanserItems = self.getSurveillanceItems(modelDiagnostics)
-                if dispanserItems:
-                    messagesaveSurveillancePlanning = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
-                                                                        u'Запланировать явку по диспансерному наблюдению?',
-                                                                        QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
-                                                                        self)
-                    messagesaveSurveillancePlanning.setDefaultButton(QtGui.QMessageBox.Ok)
-                    res = messagesaveSurveillancePlanning.exec_()
-                    if res == QtGui.QMessageBox.Ok:
-                        self.saveSurveillancePlanning(dispanserItems, self.itemId())
         if self.clientIntoleranceMedicamentRecords:
             CNomenclatureExpenseDialog.saveClientIntoleranceMedicamentRecords(self.clientIntoleranceMedicamentRecords, self.clientId)
         return result
+
+
+    def done(self, result):
+        if self.isReadOnly():
+            scd = self.cdDiscard
+        elif result < 0: # закрытие из closeEvent или Esc
+            scd = self.askSaveDiscardContinueEdit()
+        elif result == 0:   # закрытие кнопкой отмены
+            scd = self.cdDiscard
+        else:               # закрытие кнопкой "ok"
+            scd = self.cdSave
+            if self.getEventId() and hasattr(self, 'tabNotes') and self.tabNotes.isEventClosed():
+                scd = self.askSaveDiscardContinueEdit()
+
+        if scd == self.cdDiscard:
+            self.discardData()
+
+        if scd == self.cdDiscard or (scd == self.cdSave and self.saveData()):
+            self.saveDialogPreferences()
+            if result < 0:
+                result = 1 if scd == self.cdSave else 0
+            # При закрытии редактора события проверяем необходимость планирования явки по ДН
+            if (result
+                    and forceBool(QtGui.qApp.preferences.appPrefs.get('isPrefSurveillancePlanningDialog', False))
+                    and self.itemId()
+                    and self.eventContext and self.eventContext[:4] in (u'f131', u'f025', u'f030')):
+                self.checkSurveillancePlanning()
+            QtGui.QDialog.done(self, result)
+
+
+    def askSaveContinueEdit(self):
+        if self.isDirty():
+            msgBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                       u'Внимание!',
+                                       u'Данные были изменены.\nСохранить данные?',
+                                       QtGui.QMessageBox.Save | QtGui.QMessageBox.Cancel,
+                                       self)
+            msgBox.setWindowFlags(msgBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            msgBox.setDefaultButton(QtGui.QMessageBox.Save)
+            res = msgBox.exec_()
+            return {QtGui.QMessageBox.Save: self.cdSave}.get(res, self.cdContinueEdit)
+        else:
+            msgBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                       u'Внимание!',
+                                       u'Нет данных для сохранения',
+                                       QtGui.QMessageBox.Ok,
+                                       self)
+            msgBox.setWindowFlags(msgBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            msgBox.setDefaultButton(QtGui.QMessageBox.Ok)
+            msgBox.exec_()
+        return self.cdContinueEdit
 
 
     def saveData(self):
         if self.isSaveActionsForNomenclatureExpense:
             return self.checkActionsForNomenclatureExpense() and self.save()
         else:
-            # Если есть право на редактирование закрытых событий
-            if (QtGui.qApp.userHasRight(urEditClosedEvent) or QtGui.qApp.userHasRight(urEditClosedEventCash)):
-                isClosed = None
-                if hasattr(self, 'tabNotes'):
-                    isClosed = self.tabNotes.isEventClosed()
-                # Проверка на закрытое событие
-                if isClosed:
-                # Проверка на созданное обращение
-                    if self.getEventId():
-                    # Если вызов сохранения производился через кнопку внизу события
-                        if isinstance(self.buttonBox.sender(), QtGui.QPushButton):
-                            buttonBoxName = self.buttonBox.sender().text()
-                            if buttonBoxName == u'ОК' or buttonBoxName == u'Применить':
-                                dirty = self.isDirty()
-                                res = None
-                                if not dirty:
-                                    res = 3
-                                else:
-                                    res = self.askSaveDiscardContinueEdit()
-                                if res == 3:        # 3 - Если нажали Сохранить
-                                    return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
-                                elif res == 1 and buttonBoxName != u'Применить':
-                                    return self.done(0)         # 0 - Закрыть без сохранения
-                                else:
-                                    return False
-                            else:
-                                # Если сохранение данных не через кнопку ОК или Применить, а другую кнопку
-                                return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
-                        # Если есть право, но сохранения не через кнопки внизу события
-                        else:
-                            return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
-                    # Если событие новое, то сохраняем как и раньше
-                    else:
-                        return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
-                # Если событие не закрыто, т.е. еще нет eventId
-                else:
-                    return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
-            # Если нет права на редактирование закртых событий, то сохраняем как и раньше
-            else:
-                return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
+            return self.checkUnfinishedActions() and self.checkDataEntered() and self.save()
 
 
     def setIsSaveActionsForNomenclatureExpense(self, value):
@@ -1919,6 +1971,36 @@ LIMIT 1))))'''%(str(eventId)))
                             result = result and tab.checkAPDataEntered()
                             result = result and self.checkActionsNEDataEnteredEx(begDate, endDate, action.action, row, tab)
         return result
+
+
+    def checkSurveillancePlanning(self):
+        if hasattr(self, 'modelPreliminaryDiagnostics') and hasattr(self, 'modelFinalDiagnostics'):
+            modelDiagnostics = [self.modelPreliminaryDiagnostics, self.modelFinalDiagnostics]
+        elif hasattr(self, 'modelDiagnostics'):
+            modelDiagnostics = [self.modelDiagnostics]
+        else:
+            modelDiagnostics = []
+        if modelDiagnostics:
+            dispanserItems = self.getSurveillanceItems(modelDiagnostics)
+            if dispanserItems:
+                observed = False
+                for record in dispanserItems:
+                    dispanserId = forceRef(record.value('dispanser_id'))
+                    if dispanserId and forceInt(QtGui.qApp.db.translate('rbDispanser', 'id', dispanserId, 'observed')) == 1:
+                        observed = True
+                        break
+                planMessage = u'Запланировать явку по диспансерному наблюдению?' if observed else u'Открыть Контрольную карту диспансерного наблюдения?'
+                messagesaveSurveillancePlanning = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                                                    planMessage,
+                                                                    QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                                                                    self)
+                messagesaveSurveillancePlanning.setDefaultButton(QtGui.QMessageBox.Ok)
+                res = messagesaveSurveillancePlanning.exec_()
+                if res == QtGui.QMessageBox.Ok:
+                    for record in dispanserItems:
+                        record.append(QSqlField('diagnosisDispanser_id', QVariant.Int))
+                        record.setValue('diagnosisDispanser_id', QtGui.qApp.db.translate('Diagnosis', 'id', forceRef(record.value('diagnosis_id')), 'dispanser_id'))
+                    self.saveSurveillancePlanning(dispanserItems, self.itemId())
 
 
     def checkActionsNEDataEnteredEx(self, eventDirectionDate, eventEndDate, action, row, actionTab):
@@ -2098,6 +2180,7 @@ LIMIT 1))))'''%(str(eventId)))
         # Это хак: удаляем payStatus из записи
         result = type(record)(record) # copy record
         result.remove(result.indexOf('payStatus'))
+        result._dirty = True # при сохранении эвента всегда пытаемся сохранить запись, чтоб modifyDatetime обновлялась
         return result
 
 
@@ -2797,36 +2880,80 @@ LIMIT 1))))'''%(str(eventId)))
         return True
 
 
-    def checkEventType(self, eventTypeId, tabList):
+    def checkRequireAction(self, eventTypeId, tabList, specialityId, diagnosisItems):
         result = True
-        listActionType_f = []  # Список id actionType всех документов
-        listActionTypeNotSkipable = []
-        listActionTypeSkipable = []
-        errorNamesNotSkipable = u'\n'
-        errorNamesSkipable = u'\n'
-        skip = True
+        existingActionIds = []  # Список id actionType всех документов
+        actionGroups = {}
+        selectedActions = []
+        diagnosisCodes = [forceString(record.value('MKB')) for record in diagnosisItems]
         for tab in tabList:
             items = tab.modelAPActions.items()
             for (record, action) in items:
-                listActionType_f.append(action._actionType.id)
+                existingActionIds.append(action._actionType.id)
+
         db = QtGui.qApp.db
         table = db.table('EventType_RequireAction')
-        table_at = db.table('ActionType')
-        record = db.getRecordList(table, [table['actionType_id'], table['required']], table['eventType_id'].eq(eventTypeId))  # Список id actionType по eventTypeId
-        for id in record:
-            idActionType = forceInt(id.value('actionType_id'))
-            require = forceBool(id.value('required'))
-            if idActionType not in listActionType_f:
-                result = False
-                actname = forceString(db.getRecordEx(table_at, table_at['name'], table_at['id'].eq(idActionType)).value('name'))
-                if require:
-                    errorNamesNotSkipable += actname + u'\n'
-                    listActionTypeNotSkipable.append(idActionType)
-                    skip = False
-                else:
-                    errorNamesSkipable += actname + u'\n'
-                    listActionTypeSkipable.append(idActionType)
-        return result, skip, errorNamesNotSkipable if listActionTypeNotSkipable else errorNamesSkipable, listActionTypeNotSkipable if listActionTypeNotSkipable else listActionTypeSkipable
+        records = db.getRecordList(table, [table['actionType_id'], table['selectionGroup'], table['speciality_id'], table['mkb']], table['eventType_id'].eq(eventTypeId))  # Список id actionType по eventTypeId
+
+        group100Match = []
+        group100Dop = []
+        group100Priority = {
+            3: [],  # Полное совпадение: и специальность и диагноз
+            2: [],  # Совпадение только по диагнозу
+            1: [],  # Совпадение только по специальности
+            0: []  # Без фильтров (запасной вариант)
+        }
+
+        for record in records:
+            actionTypeId = forceInt(record.value('actionType_id'))
+            selectionGroup = forceInt(record.value('selectionGroup'))
+            specialityIdsStr = forceString(record.value('speciality_id'))
+            mkbFilter = forceString(record.value('mkb'))
+            specialityFilter = [id_str.strip() for id_str in specialityIdsStr.split(',')] if specialityIdsStr else []
+            mkbFilterList = [mkb.strip() for mkb in mkbFilter.split(',')] if mkbFilter else []
+            matchesSpeciality = not specialityFilter or str(specialityId) in specialityFilter
+            matchesDiagnosis = not mkbFilterList or any(diagnosis in mkbFilterList for diagnosis in diagnosisCodes)
+            hasSpecialityFilter = bool(specialityFilter)
+            hasDiagnosisFilter = bool(mkbFilterList)
+            if selectionGroup == 100:
+                if hasSpecialityFilter and hasDiagnosisFilter and matchesSpeciality and matchesDiagnosis:
+                    group100Priority[3].append(actionTypeId)  # Полное совпадение
+                elif hasDiagnosisFilter and matchesDiagnosis and (not hasSpecialityFilter or matchesSpeciality):
+                    group100Priority[2].append(actionTypeId)  # Совпадение по диагнозу
+                elif hasSpecialityFilter and matchesSpeciality and (not hasDiagnosisFilter or matchesDiagnosis):
+                    group100Priority[1].append(actionTypeId)  # Совпадение по специальности
+                elif not hasSpecialityFilter and not hasDiagnosisFilter:
+                    group100Priority[0].append(actionTypeId)  # Без фильтров
+
+            elif matchesSpeciality and matchesDiagnosis:
+                if selectionGroup not in actionGroups:
+                    actionGroups[selectionGroup] = []
+                actionGroups[selectionGroup].append(actionTypeId)
+        for priority in [3, 2, 1, 0]:
+            if group100Priority[priority]:
+                selectedActions.extend(group100Priority[priority])
+                break
+        for selectionGroup, actionTypeIds in sorted(actionGroups.items()):
+            if actionTypeIds:
+                groupSatisfied = any(action_id in existingActionIds for action_id in actionTypeIds)
+                if not groupSatisfied:
+                    if selectionGroup == 1:
+                        selectedActions.extend(actionTypeIds)
+                    if selectionGroup >= 2:
+                        result = False
+                        dialog = CActionTypeDialogTableModel(self, actionTypeIds, skipable=False)
+                        dialog.setWindowTitle(u"Требуется выбрать одно обязательное мероприятие)")
+                        if dialog.exec_():
+                            selectedActions.append(dialog.currentItemId())
+                    if selectionGroup == 0:
+                        dialog = CActionTypeListDialog(self, filter='id in (%s)' % ','.join(
+                            str(typeId) for typeId in actionTypeIds))
+                        dialog.setWindowTitle(u"Можно выбрать одно или несколько мероприятий")
+                        if dialog.exec_():
+                            dialog.getCheckedIdList()
+                            selectedActions.extend(dialog.values())
+
+        return result, selectedActions if selectedActions else None
 
     def checkEventTypeNextEventDate(self, eventTypeId, execDate, clientId):
         res = True
@@ -2862,7 +2989,8 @@ LIMIT 1))))'''%(str(eventId)))
             tableClientSocStatus['client_id'].eq(clientId),
             tableClientSocStatus['socStatusClass_id'].eq(socStatusClassId),
         ]
-        if self.clientAge and self.clientAge[3] < 18:
+        # (18 -> 1 ПФ62167)
+        if self.clientAge and self.clientAge[3] < 1:
             cond.append(tableClientSocStatus['begDate'].gt(execDate))
         else:
             cond.append('YEAR(begDate)>\'%d\'' % execDate.year())
@@ -3133,7 +3261,7 @@ LIMIT 1))))'''%(str(eventId)))
             date = self.eventSetDateTime.date()
         self.clientInfo = getClientInfo(self.clientId, date=date, consents={'begDate': self.eventSetDateTime.date() \
             if self.eventSetDateTime else QDate(), 'endDate': self.eventDate if self.eventDate else QDate()}, eventId=self.itemId())
-        self.txtClientInfoBrowser.setHtml(formatClientBanner(self.clientInfo))
+        self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, date))
         if self.clientInfo.id:
             self.clientSex       = self.clientInfo.sexCode
             self.clientBirthDate = self.clientInfo.birthDate
@@ -3429,6 +3557,15 @@ LIMIT 1))))'''%(str(eventId)))
         self.resetActionTemplateCache()
         if hasattr(self, 'tabMes'):
             self.tabMes.setSpeciality(self.personSpecialityId)
+    
+    
+    def initOrder(self, availableOrders, defaultOrder, form110=False):
+        cmbOrder = self.cmbOrderEvent if form110 else self.cmbOrder
+        cmbOrder.setCurrentIndex(defaultOrder-1)
+        if availableOrders:
+            for index in range(cmbOrder.count()):
+                if forceString(index+1) not in forceString(availableOrders):
+                    cmbOrder.model().item(index).setEnabled(False)
 
 
     def getSuggestedPersonId(self):
@@ -3581,6 +3718,200 @@ LIMIT 1))))'''%(str(eventId)))
                                 return False, finalDiagnosis
         return True, finalDiagnosis
 
+    def checkCorrectlyEnteredPersons(self, cmbPerson, diagnostic=[]):
+        message = u''
+        result = True
+        widgetFocus = rowFocus = columnFocus = detailWdigetFocus = None
+        if not checkPersonByDefaultSettingsFromEventtype(cmbPerson.value(), self.eventTypeId):
+            message += u'   - исполнитель в обращении (%s)\n' % cmbPerson.name()
+            widgetFocus = cmbPerson
+        if hasattr(self, 'tblVisits'):
+            model = self.tblVisits.model()
+            for row, record in enumerate(model.items()):
+                personId = forceRef(record.value('person_id'))
+                if not checkPersonByDefaultSettingsFromEventtype(personId, self.eventTypeId):
+                    message += u'   - врач в посещении (%s)\n' % forceString(
+                        model.data(model.index(row, model.getColIndex('person_id'))))
+                    if not widgetFocus:
+                        widgetFocus = self.tblVisits
+                        rowFocus = row
+                        columnFocus = model.getColIndex('person_id')
+        if diagnostic:
+            tblInspections, modelDiagnostics = diagnostic
+            for row, record in enumerate(modelDiagnostics.items()):
+                personId = forceRef(record.value('person_id'))
+                specialityId = forceRef(record.value('speciality_id'))
+                if not checkPersonByDefaultSettingsFromEventtype(personId, self.eventTypeId, specialityId):
+                    message += u'   - врач в диагностике (%s)\n' % forceString(
+                        modelDiagnostics.data(modelDiagnostics.index(row, modelDiagnostics.getColIndex('person_id'))))
+                    if not widgetFocus:
+                        widgetFocus = tblInspections
+                        rowFocus = row
+                        columnFocus = modelDiagnostics.getColIndex('person_id')
+        for actionTab in self.getActionsTabsList():
+            model = actionTab.tblAPActions.model()
+            for row, (record, action) in enumerate(model.items()):
+                if action and action.getType().id:
+                    if not checkPersonByDefaultSettingsFromEventtype(forceInt(record.value('person_id')),
+                                                                     self.eventTypeId):
+                    # if not action.getType().getPFOrgStructureRecordList() and not action.getType().getPFSpecialityRecordList() and not checkPersonByDefaultSettingsFromEventtype(
+                    #         forceInt(record.value('person_id')), self.eventTypeId):
+                        message += u'   - врач в типе действия %s (%s)\n' % (action.getType().name,
+                                                                        actionTab.cmbAPPerson.itemText(
+                                                                            actionTab.cmbAPPerson.model().searchId(
+                                                                                forceInt(record.value('person_id')))))
+                        if not widgetFocus:
+                            widgetFocus = actionTab.tblAPActions
+                            rowFocus = row
+                            columnFocus = 0
+                            detailWdigetFocus = actionTab.cmbAPPerson
+        if message:
+            message = u'Врач не соответствует умолчаниям типа события\n' + message
+            result = result and self.checkValueMessage(message, QtGui.qApp.checkGlobalPreference('23:checkChosenPerson',
+                                                                                                 u'мягкий'),
+                                                       widgetFocus, rowFocus, columnFocus, detailWdigetFocus)
+        return result
+    def getDiagnosisForOnko(self):
+        return '', '', ''
+
+    def checkNeedTNMS(self, tblDiagnostics, cColumns, pColumns):
+        if not QtGui.qApp.isTNMSVisible():
+            return True
+
+        controlOnkoTNMS = QtGui.qApp.controlOnkoTNMS()
+        if controlOnkoTNMS not in (1, 2):
+            return True
+
+        from Events.Utils import mkbIsOnko
+        mkb = self.getDiagnosisForOnko()
+        if not mkbIsOnko(mkb[0], mkb[2], includeHematologyMKB=0):
+            return True
+
+        result = True
+
+        try:
+            from library.TNMS.TNMSComboBox import CTNMSComboBox
+
+            # создавать комбобокс только при необходимости
+            class CTNMSSingleton(object):
+                _instance = None
+                def __new__(cls, *args, **kwargs):
+                    if cls._instance is None:
+                        cls._instance = super(CTNMSSingleton, cls).__new__(cls, *args, **kwargs)
+                        cls._instance.tnmsComboBox = None
+                    return cls._instance
+
+                def __init__(self, parent, date, MKB):
+                    if self.tnmsComboBox is None:
+                        self.tnmsComboBox = CTNMSComboBox(parent)
+                        self.tnmsComboBox.setEndDate(date)
+                        self.tnmsComboBox.setMKB(MKB)
+                        self.tnmsComboBox._popup = self.tnmsComboBox.createPopup()
+                        for idx in range(self.tnmsComboBox._popup.layout().count()):
+                            wgt = self.tnmsComboBox._popup.layout().itemAt(idx).widget()
+                            if wgt is not None:
+                                wgt.blockSignals(True)
+                        self.tnmsComboBox.updatePopupBeforeShow()
+
+                def getPopup(self):
+                    return self.tnmsComboBox._popup
+
+            tnms = None
+            modelDiagnostics = tblDiagnostics.model()
+            rowFocus = None
+            for idx, record in enumerate(modelDiagnostics.items()):
+                if forceRef(record.value('diagnosisType_id')) in (1, 2):
+                    date = self.edtEndDate.date() if self.edtEndDate.date() else self.edtBegDate.date()
+                    # условие в соответствии со счетами
+                    if forceRef(record.value('cTNMphase_id')):
+                        count = 0
+                        if 'cTumor_id' in cColumns \
+                                and (forceRef(record.value('cTumor_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbCTumor.count() == 1):
+                            count += 1
+                        if 'cNodus_id' in cColumns \
+                                and (forceRef(record.value('cNodus_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbCNodus.count() == 1):
+                            count += 1
+                        if 'cMetastasis_id' in cColumns \
+                                and (forceRef(record.value('cMetastasis_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbCMetastasis.count() == 1):
+                            count += 1
+                        if 'cTNMphase_id' in cColumns \
+                                and (forceRef(record.value('cTNMphase_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbCStage.count() == 1):
+                            count += 1
+                        tnms = count == len(cColumns)
+                        # tnms = all(forceRef(record.value(col)) for col in cColumns)
+                    elif forceRef(record.value('pTNMphase_id')):
+                        count = 0
+                        if 'pTumor_id' in pColumns \
+                                and (forceRef(record.value('pTumor_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbPTumor.count() == 1):
+                            count += 1
+                        if 'pNodus_id' in pColumns \
+                                and (forceRef(record.value('pNodus_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbPNodus.count() == 1):
+                            count += 1
+                        if 'pMetastasis_id' in pColumns \
+                                and (forceRef(record.value('pMetastasis_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbPMetastasis.count() == 1):
+                            count += 1
+                        if 'pTNMphase_id' in pColumns \
+                                and (forceRef(record.value('pTNMphase_id'))
+                                     or CTNMSSingleton(self, date, mkb[0]).getPopup().cmbPStage.count() == 1):
+                            count += 1
+                        tnms = count == len(pColumns)
+                        # tnms = all(forceRef(record.value(col)) for col in pColumns)
+                    elif CTNMSSingleton(self, date, mkb[0]).getPopup().cmbCStage.count() == 1:
+                        tnms = True
+                    rowFocus = idx
+                    break
+            if not tnms:
+                result = self.checkValueMessage(u"Необходимо заполнить 'TNM-Ст'", controlOnkoTNMS == 1, tblDiagnostics,
+                                                row=rowFocus, column=modelDiagnostics.getColIndex('TNMS'))
+        except:
+            QtGui.qApp.logCurrentException()
+        return result
+
+    def checkServiceDates(self, begDate, endDate):
+        result = True
+        if hasattr(self, 'tabNotes') and hasattr(self.tabNotes, 'chkExpose') and self.tabNotes.chkExpose.isChecked():
+            if endDate:
+                from Exchange.ExportR23Native import CExportPage1
+
+                tableService = QtGui.qApp.db.table('rbService')
+                cond = [
+                    QtGui.qApp.db.joinOr([tableService['infis'].inlist(CExportPage1.reabilitationKuslList),
+                                          tableService['infis'].inlist(CExportPage1.diabetSchoolKuslList) if endDate >= QDate(2025, 3, 1) else '0',
+                                          tableService['infis'].inlist(CExportPage1.chronicDiseaseSchoolKuslList) if endDate >= QDate(2025, 10, 1) else '0'])
+                ]
+                begDates = endDates = []
+                if isinstance(begDate, QDateTime):
+                    begDate = begDate.date()
+                if isinstance(endDate, QDateTime):
+                    endDate = endDate.date()
+
+                for actionTab in self.getActionsTabsList():
+                    model = actionTab.tblAPActions.model()
+                    for record, action in model.items():
+                        financeId = forceRef(record.value('finance_id'))
+                        if financeId is None or CFinanceType.getCode(financeId) == CFinanceType.CMI:
+                            serviceIdList = self.getActionTypeServiceIdList(action.getType().id, CFinanceType.CMI)
+                            if serviceIdList:
+                                endDates.append(forceDate(record.value('endDate')))
+                                # проверка на дату начала услуги как в выставлении счетов
+                                if action.getType().name.upper().startswith(u'ОБРАЩЕН') or QtGui.qApp.db.getCount(
+                                        tableService, where=cond + [tableService['id'].inlist(serviceIdList)]):
+                                    begDates.append(forceDate(record.value('begDate')))
+                                else:
+                                    begDates.append(forceDate(record.value('endDate')))
+
+                if not (begDate in begDates and endDate in endDates):
+                    result = result and self.checkValueMessage(
+                    u'Нет услуги, у которой "Дата начала" совпадала бы с "Датой начала лечения" или "Дата окончания" совпадала бы с "Датой окончания лечения"',
+                    False, self)
+        return result
 
     def selectNomenclatureAddedActions(self, tabList):
         result = True
@@ -3686,6 +4017,14 @@ LIMIT 1))))'''%(str(eventId)))
                     val = edt.toPlainText()
                 if not trim(val):
                     return True
+                # строка не должна состоять только из точек, тире или
+                # прочих незначимых символов, которыми пользователи обходят штрафы.
+                # +по тз проверять минимальную длину в 3 символа(
+                if typeName in ('String', 'Text') and QtGui.qApp.getGlobalPreference(
+                        '23:checkActionPropertyStringValue') == u'да':
+                    # any(symb.isalnum() for symb in val):
+                    if not CEventEditDialog.re_actionPropertyStringChecking.search(val):
+                        return True
             if isinstance(val, list):
                 return bool(val)
             if type(val) == QDate:
@@ -3696,25 +4035,39 @@ LIMIT 1))))'''%(str(eventId)))
         propertyTypeList = actionType.getPropertiesById().items()
         propertyTypeList.sort(key=lambda x: (x[1].idx, x[0]))
         propertyTypeList = [x[1] for x in propertyTypeList if x[1].applicable(self.clientSex, self.clientAge)]
+        propertyAssignedRequired = False
+        if actionType.propertyAssignedVisible:
+            propertyAssignedRequired = actionType.propertyAssignedRequired
         actionEndDate = forceDate(action.getRecord().value('endDate'))
+        assignedAny = False
+        assignedRow = -1
+        actionTypeName = actionType.name
         for row, propertyType in enumerate(propertyTypeList):
+            property = action.getPropertyById(propertyType.id)
+            if propertyType.isAssignable:
+                if assignedRow < 0:
+                    assignedRow = row
+                if property._isAssigned:
+                    assignedAny = True
             penalty = propertyType.penalty
             needChecking = penalty > 0 and ((penalty < 50 and not isNull(actionEndDate)) or (50 <= penalty < 75) or (75 <= penalty < 100 and not isNull(self.eventDate)) or penalty == 100)
             if needChecking or propertyType.isFill:
                 skippable = (penalty < 50 and isNull(actionEndDate)) or (50 <= penalty < 75) or (75 <= penalty < 100 and isNull(self.eventDate)) or propertyType.isFill
                 if propertyType.isJobTicketValueType() and forceInt(action._record.value('status')) == CActionStatus.withoutResult:
                     skippable = False
-                property = action.getPropertyById(propertyType.id)
                 if isNull(property._value, propertyType.typeName):
                     if actionTab:
                         actionRow = actionTab.tblAPActions.model()._mapModelRow2ProxyRow[actionRow]
-                    actionTypeName = action._actionType.name
                     propertyTypeName = propertyType.name
                     if actionRow and actionTab:
                         actionTab.tblAPActions.setCurrentIndex(actionTab.tblAPActions.model().createIndex(actionRow, 0))
                     result = self.checkValueMessage(u'%sНеобходимо заполнить значение свойства "%s" в действии "%s"' %(u'Свойство "%s" является обязательным для заполнения.\n'%(propertyTypeName), propertyTypeName, actionTypeName), skippable, tblAPProps, row, 1)
                     if not result:
                         return result
+        if propertyAssignedRequired and assignedRow > -1 and not assignedAny:
+            result = self.checkValueMessage(u'В действии "{}" необходимо назначить хотя бы один показатель.'.format(actionTypeName), False, tblAPProps, assignedRow, 1)
+            if not result:
+                return result
         return True
 
 
@@ -4472,7 +4825,7 @@ LIMIT 1))))'''%(str(eventId)))
             printNotAllowed = forceBool(db.translate('rbPrintTemplate', 'id', templateId, 'needEventId'))
             if printNotAllowed:
                 messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
-                                               u'Требуется сохранить случай обслуживания до формирования печатной формы документа! Для сохранения без закрытия редактора нажмите кнопку "Обновить".',
+                                               u'Требуется сохранить случай обслуживания до формирования печатной формы документа! Для сохранения без закрытия редактора нажмите кнопку "Применить".',
                                                QtGui.QMessageBox.Ok)
                 messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
                 messageBox.exec_()
@@ -5233,15 +5586,13 @@ LIMIT 1))))'''%(str(eventId)))
         # if forceBool(QtGui.qApp.preferences.appPrefs.get('isPrefSurveillancePlanningDialog', False)):
         if clientId:
             db = QtGui.qApp.db
-            tableDispanser = db.table('rbDispanser')
             tableDiagnosis = db.table('Diagnosis')
             tableDiagnostic = db.table('Diagnostic')
-            tableEvent = db.table('Event')
-            queryTable = tableDiagnostic.innerJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
-            queryTable = queryTable.innerJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnostic['dispanser_id']))
-            cond = [tableDiagnostic['dispanser_id'].isNotNull(),
-                    tableDiagnosis['deleted'].eq(0),
+            queryTable = tableDiagnosis.leftJoin(tableDiagnostic, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+            cond = [tableDiagnosis['deleted'].eq(0),
                     tableDiagnostic['deleted'].eq(0),
+                    tableDiagnosis['dispanser_id'].isNotNull(),
+                    tableDiagnostic['dispanser_id'].isNotNull(),
                     tableDiagnosis['client_id'].eq(clientId)
                     ]
             if monitoringIdList:
@@ -5250,10 +5601,12 @@ LIMIT 1))))'''%(str(eventId)))
                     tableDiagnosis['MKB'],
                     tableDiagnosis['MKBEx'],
                     tableDiagnosis['dispanserBegDate'],
-                    tableDiagnosis['dispanser_id'],
-                    tableDiagnostic['endDate']
+                    tableDiagnosis['dispanser_id'].alias('diagnosisDispanser_id'),
+                    tableDiagnostic['endDate'],
+                    'max(Diagnosis.endDate) as maxDiagnosisEndDate',
+                    'max(Diagnostic.endDate) as maxDiagnosticEndDate'
                     ]
-            dispanserItems = db.getRecordList(queryTable, cols, cond, order=tableDiagnostic['endDate'].name())
+            dispanserItems = db.getRecordListGroupBy(queryTable, cols, cond, group = 'MKB', order='maxDiagnosisEndDate DESC, maxDiagnosticEndDate DESC')
             if dispanserItems:
                 try:
                     dialog = CSurveillancePlanningEditDialog(self)
@@ -5271,12 +5624,13 @@ LIMIT 1))))'''%(str(eventId)))
                         eventIdLast = forceRef(eventRecord.value('id')) if eventRecord else None
                         if eventIdLast:
                             cond = [tableDiagnostic['event_id'].eq(eventIdLast),
-                                    tableDiagnostic['dispanser_id'].isNotNull(),
-                                    #tableDispanser['observed'].eq(1),
                                     tableDiagnosis['deleted'].eq(0),
-                                    tableDiagnostic['deleted'].eq(0)
+                                    tableDiagnostic['deleted'].eq(0),
+                                    tableDiagnosis['dispanser_id'].isNotNull(),
+                                    tableDiagnostic['dispanser_id'].isNotNull(),
+                                    tableDiagnosis['client_id'].eq(clientId)
                                     ]
-                            dispanserEventLastItems = db.getRecordList(queryTable, cols, cond, order=tableDiagnostic['endDate'].name())
+                            dispanserEventLastItems = db.getRecordListGroupBy(queryTable, cols, cond, group = 'MKB', order='maxDiagnosisEndDate DESC, maxDiagnosticEndDate DESC')
                             dialog.setDiagnosticEventLastRecords(dispanserEventLastItems)
                         dialog.setDiagnosticRecords(dispanserItems)
                         dialog.exec_()
@@ -5292,26 +5646,6 @@ LIMIT 1))))'''%(str(eventId)))
     @pyqtSignature('int')
     def on_cmbResult_currentIndexChanged(self):
         if QtGui.qApp.provinceKLADR()[:2] == u'23' and CFinanceType.getCode(self.eventFinanceId) == 2:
-            ishodObrCode = self.cmbResult.code()
-            endDateCheck = self.edtEndDate.date()
-            if not endDateCheck:
-                endDateCheck = self.edtBegDate.date()
-            db = QtGui.qApp.db
-            table = db.table('soc_checkSpr12')
-            cond = [table['code'].eq(ishodObrCode),
-                    table['begDate'].le(endDateCheck),
-                    table['endDate'].gt(endDateCheck.addDays(1))
-                    ]
-            record = db.getRecordEx(table, 'code_ishl', cond)
-            codeIshl = ''
-            if record:
-                codeIshl = forceString(record.value('code_ishl')).split(',')
-                table = db.table('rbDiagnosticResult')
-            if codeIshl:
-                cond = ' AND %s' % table['regionalCode'].inlist(codeIshl)
-            else:
-                cond = ''
-
             if hasattr(self, 'modelDiagnostics'):
                 modelDiagnostics = self.modelDiagnostics
             elif hasattr(self, 'modelFinalDiagnostics'):
@@ -5320,7 +5654,30 @@ LIMIT 1))))'''%(str(eventId)))
                 modelDiagnostics = None
 
             if modelDiagnostics and modelDiagnostics.getColIndex('result_id', None):
-                modelDiagnostics.cols()[modelDiagnostics.getColIndex('result_id', None)].filter = 'eventPurpose_id=\'%d\' %s' % (self.eventPurposeId, cond)
+                ishodObrCode = self.cmbResult.code()
+                endDateCheck = self.edtEndDate.date()
+                if not endDateCheck:
+                    endDateCheck = self.edtBegDate.date()
+                db = QtGui.qApp.db
+                table = db.table('soc_checkSpr12')
+                cond = [table['code'].eq(ishodObrCode),
+                        table['begDate'].le(endDateCheck),
+                        table['endDate'].gt(endDateCheck.addDays(1))
+                        ]
+                record = db.getRecordEx(table, 'code_ishl', cond)
+                codeIshl = ''
+                if record:
+                    codeIshl = forceString(record.value('code_ishl')).split(',')
+
+                table = db.table('rbDiagnosticResult')
+                cond = [table['eventPurpose_id'].eq(self.eventPurposeId),
+                        db.joinOr([table['begDate'].isNull(), table['begDate'].le(endDateCheck)]),
+                        db.joinOr([table['endDate'].isNull(), table['endDate'].ge(endDateCheck)])]
+
+                if codeIshl:
+                    cond.append(table['regionalCode'].inlist(codeIshl))
+
+                modelDiagnostics.cols()[modelDiagnostics.getColIndex('result_id', None)].filter = db.joinAnd(cond)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -5626,11 +5983,21 @@ LIMIT 1))))'''%(str(eventId)))
         self.done(self.saveAndCreateAccount)
 
 
+    def setItemId(self, itemId):
+        CItemEditorBaseDialog.setItemId(self, itemId)
+        if itemId:
+            record = QtGui.qApp.db.getRecord('Event', '*', itemId)
+            if record:
+                self.tabNotes.setNotes(record)
+
+
     @pyqtSignature('')
     def on_btnApply_clicked(self):
+        prevId = self.itemId()
         if self.applyChanges():
-            self.getPrevActionIdHelper.prevActionIdCache = {} #Из-за кэша неправильно отрабатывает копирование из предыдущего тт2046
-            self.tabNotes.setNotes(QtGui.qApp.db.getRecord('Event', '*', self.itemId()))
+            self.getPrevActionIdHelper.prevActionIdCache = {} # Из-за кэша неправильно отрабатывает копирование из предыдущего тт2046
+            if self.itemId() != prevId and hasattr(self, 'btnRelatedEvent'):
+                self.btnRelatedEventHighlight()
             buttons = QtGui.QMessageBox.Ok
             messageBox = QtGui.QMessageBox()
             messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
@@ -5638,13 +6005,15 @@ LIMIT 1))))'''%(str(eventId)))
             messageBox.setText(u'Данные сохранены')
             messageBox.setStandardButtons(buttons)
             messageBox.setDefaultButton(QtGui.QMessageBox.Ok)
-            return messageBox.exec_()
+            messageBox.exec_()
 
 
     @pyqtSignature('')
     def on_btnRefresh_clicked(self):
+        prevId = self.itemId()
         if self.applyChanges():
-            self.tabNotes.setNotes(QtGui.qApp.db.getRecord('Event', '*', self.itemId())) 
+            if self.itemId() != prevId and hasattr(self, 'btnRelatedEvent'):
+                self.btnRelatedEventHighlight()
             self.loadActions()
             buttons = QtGui.QMessageBox.Ok
             messageBox = QtGui.QMessageBox()
@@ -5653,12 +6022,15 @@ LIMIT 1))))'''%(str(eventId)))
             messageBox.setText(u'Данные обновлены')
             messageBox.setStandardButtons(buttons)
             messageBox.setDefaultButton(QtGui.QMessageBox.Ok)
-            return messageBox.exec_()
-
+            messageBox.exec_()
 
 
     def applyChanges(self):
-        if self.saveData():
+        if self.getEventId() and hasattr(self, 'tabNotes') and self.tabNotes.isEventClosed():
+            res = self.askSaveContinueEdit()
+        else:
+            res = self.cdSave
+        if res == self.cdSave and self.saveData():
             QtGui.qApp.delAllCounterValueIdReservation()
             self.lock(self._tableName, self._id)
             return True
@@ -5765,6 +6137,9 @@ LIMIT 1))))'''%(str(eventId)))
         self.tabMisc.loadActions(items.get(3, []))
         self.modelActionsSummary.regenerate()
         self.tabCash.modelAccActions.regenerate()
+        for i in [0,1,2,3]:
+            for item in items.get(i, []):
+                item.record._dirty = False
 
 
     def loadActionsInternal(self):
@@ -5900,6 +6275,18 @@ LIMIT 1))))'''%(str(eventId)))
                                    WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= %s AND DC.deleted = 0 AND rbDP.name LIKE '%s')'''%(db.formatDate(date), u'%снят%'))
             diagnosticIdList = db.getDistinctIdList(queryTable, [u'Diagnostic.id'], where=cond, order='Diagnostic.endDate DESC')
         return diagnosticIdList
+
+
+    def checkMaxOccursLimit(self, actionTypeId):
+        if hasattr(self, 'modelActionsSummary'):
+            actionType = CActionTypeCache.getById(actionTypeId)
+            count = 0
+            for item in self.modelActionsSummary.items():
+                if item and forceString(item.value('actionType_id')) == actionTypeId:
+                    count += 1
+            result = actionType.checkMaxOccursLimit(count, False)
+            return result
+        return False
 
 
 # == столбики для редактирования характера и стадии в диагнозах
@@ -6071,4 +6458,11 @@ class CCheckActionEndDateMessageBox(QtGui.QMessageBox):
 
 def getMedicalDiagnosisContext():
     return ['medicalDiagnosis']
+
+class CActionTypeDialogTableModel(CActionTypeDialog):
+    def __init__(self, parent, idList, skipable=True):
+        CActionTypeDialog.__init__(self, parent, [
+            CTextCol(u'Код', ['code'],  20),
+            CTextCol(u'Наименование действия', ['name'], 40)
+            ], 'ActionType', ['id'], False, None, idList, skipable)
 

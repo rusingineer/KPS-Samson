@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -11,13 +11,15 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-
+import re
 import urlparse
 import requests
 
 from PyQt4 import QtSql
 from PyQt4.QtCore import *
 
+from Reports.ReportBase import CReportBase, createTable
+from Reports.ReportView import CPageFormat, CReportViewDialog
 from library.JsonRpc.client   import CJsonRpcClent
 from library.Utils            import *
 from library.DockWidget       import CDockWidget
@@ -27,6 +29,7 @@ from Events.Action            import *
 from Registry.Utils           import *
 from SMPAddEventDialog        import CSMPAddEventDialog
 from types import NoneType
+from datetime import datetime
 
 from Ui_SMPDockContent   import Ui_Form
 
@@ -193,6 +196,9 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         findClient = QtGui.QAction(u'Найти в картотеке', self)
         self.menu.addAction(findClient)
         findClient.triggered.connect(self.findClient)
+        printSMPList = QtGui.QAction(u'Печать списка вызовов', self)
+        self.menu.addAction(printSMPList)
+        printSMPList.triggered.connect(self.printSMPList)
         self.menu.popup(QtGui.QCursor.pos())
 
 
@@ -217,6 +223,16 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             QtGui.QMessageBox.warning(self, u'Внимание!',
                                       u'Для поиска необходимо открыть окно картотеки!',
                                       QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+    def printSMPList(self):
+        report = CSMPListReport(self, self.modelCallInfo)
+        doc = report.build()
+        view = CReportViewDialog(self)
+        view.setWindowTitle(report.title())
+        view.setText(doc)
+        if report.pageFormat:
+            view.setPageFormat(report.pageFormat)
+        view.exec_()
 
 
     def addComboBoxItems(self, comboBox, sql):
@@ -445,6 +461,8 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
         if (QtGui.qApp.isBusyReconnect == 1):
             return
 
+        isNotification = False
+
         # Сначала вызовы СМП Активное посещение врача
         sql = u"""  select MAX(callInfo.callDate)
                     from smp_callinfo as callInfo
@@ -464,10 +482,9 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             if query.first() and not query.value(0).toDate().isNull():
                 date = query.value(0).toDate()
                 self.lblNewEventsAct.setText(u'Новые вызовы СМП (Активн.) (дата: <a href="setdate:%s">%s</a>)' % (date.toString(Qt.ISODate), forceString(date)))
-                self.setTabNotification(True)
+                isNotification = True
             else:
                 self.lblNewEventsAct.setText(u"")
-                self.setTabNotification(False)
 
         # Затем вызовы СМП, которые НМП
         sql = u"""select MAX(callInfo.callDate)
@@ -481,10 +498,11 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
             if query.first() and not query.value(0).toDate().isNull():
                 date = query.value(0).toDate()
                 self.lblNewEvents.setText(u'Новые вызовы СМП (дата: <a href="setdate:%s">%s</a>)' % (date.toString(Qt.ISODate), forceString(date)))
-                self.setTabNotification(True)
+                isNotification = True
             else:
                 self.lblNewEvents.setText(u"")
-                self.setTabNotification(False)
+
+        self.setTabNotification(isNotification)
 
 
     def setTabNotification(self, hasNewEvents):
@@ -556,7 +574,10 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
 
         rId = record.value(u'rId').toInt()[0]
 
-        clent = CJsonRpcClent("http://%s/smp/handler.php" % QtGui.qApp.preferences.dbServerName)
+        urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+        if not urlService:
+            urlService = QtGui.qApp.preferences.dbServerName
+        clent = CJsonRpcClent("http://%s/smp/handler.php" % urlService)
         try:
             result = clent.call('updEvent', {'id': rId, 'operFIO': self.getMyFIO()[:25]})
             if result:
@@ -590,7 +611,10 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
                 lpuCode = forceString(record.value(u'OMS_CODE'))
                 idCallNumber = record.value(u'idCallNumber').toLongLong()[0]
                 operFIO = QtGui.qApp.userInfo.name()
-                clent = CJsonRpcClent("http://%s/smp/handler.php" % QtGui.qApp.preferences.dbServerName)
+                urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+                if not urlService:
+                    urlService = QtGui.qApp.preferences.dbServerName
+                clent = CJsonRpcClent("http://%s/smp/handler.php" % urlService)
                 try:
                     result = clent.call('addEvent', {'lpuCode': lpuCode, 'idCallNumber': idCallNumber, 'note': note, 'idCallEventType': eventTypeId, 'operFIO': operFIO})
                     if result == -1:
@@ -674,3 +698,206 @@ class CSMPDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CContainerP
 class CCallInfoModel(QtSql.QSqlQueryModel):
     def __init__(self, parent):
         QtSql.QSqlQueryModel.__init__(self, parent)
+
+class CSMPListReport(CReportBase):
+    def __init__(self, parent, model):
+        CReportBase.__init__(self, parent)
+        self.model = model
+        self.setTitle(u'Список вызовов СМП')
+        self.pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Landscape, leftMargin=1,
+                                      topMargin=1, rightMargin=1, bottomMargin=1)
+
+    def formatAge(self, record):
+        age = []
+        ageParts = [
+            (u'Лет', (u'год', u'года', u'лет')),
+            (u'Месяцев', (u'месяц', u'месяца', u'месяцев')),
+            (u'Дней', (u'день', u'дня', u'дней'))
+        ]
+        for partName, words in ageParts:
+            part = record.value(partName)
+            if not part.isNull():
+                part = forceInt(part)
+                age.append(u'%d %s' % (part, agreeNumberAndWord(part, words)))
+        if age:
+            return ', '.join(age)
+
+    def formatAddress(self, record):
+        settlement = forceString(record.value(26))
+        street = forceString(record.value(27))
+        house = forceString(record.value(28))
+        building = forceString(record.value(29))
+        flat = forceString(record.value(30))
+        porch = forceString(record.value(31))
+        porchCode = forceString(record.value(32))
+        floor = forceString(record.value(33))
+        landmarks = forceString(record.value(34))
+
+        addressParts = []
+
+        if settlement:
+            addressParts.append(settlement)
+        if street:
+            addressParts.append(u" {0}".format(street))
+        if house and house != 0:
+            addressParts.append(u"д. {0}".format(house))
+        if building and building != 0:
+            addressParts.append(u"корп. {0}".format(building))
+        if flat and flat != 0:
+            addressParts.append(u"кв. {0}".format(flat))
+        if porch and porch != "0":
+            addressParts.append(u"подъезд {0}".format(porch))
+        if porchCode and porchCode != 0:
+            addressParts.append(u"код домофона {0}".format(porchCode))
+        if floor and floor != "0":
+            addressParts.append(u"этаж {0}".format(floor))
+        if landmarks:
+            addressParts.append(u"ориентир: {0}".format(landmarks))
+
+        return ", ".join(part for part in addressParts if part)
+
+    def extractDiagnosis(self, text):
+        pattern = u"<b>Основной диагноз:</b> ([^<]+)"
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip()
+        else:
+            return ''
+
+    def extractComplaints(self, text):
+        pattern = u"<b>Жалобы:</b> ([^<]+)"
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip()
+        else:
+            return ''
+    def extractClientBirthDate(self, text):
+        pattern = u"<b>Дата рождения:</b> ([^<]+)"
+        match = re.search(pattern, text)
+        if not match:
+            return ''
+        dateStr = match.group(1).strip()
+        try:
+            birthDate = datetime.strptime(dateStr, "%d.%m.%Y")
+            return birthDate.strftime("%Y-%m-%d")
+        except ValueError:
+            return ''
+
+    def findClientId(self, lastName, firstName, patrName, birthDate):
+        db = QtGui.qApp.db
+        table = db.table('Client')
+        cond = [
+            table['lastName'].eq(lastName),
+            table['firstName'].eq(firstName),
+            table['patrName'].eq(patrName),
+            table['birthDate'].dateEq(birthDate),
+            table['deleted'].eq(0)
+        ]
+
+        record = db.getRecordEx(table, 'id', cond)
+        if record:
+            return forceInt(record.value('id'))
+        else:
+            return ''
+
+    def findClientAttach(self, clientId):
+        db = QtGui.qApp.db
+        tableClient = db.table('Client')
+        tableClientAttach = db.table('ClientAttach')
+        tableOrgStructure = db.table('OrgStructure')
+        cond = [
+            tableClient['id'].eq(clientId),
+            tableClient['deleted'].eq(0),
+            tableClientAttach['deleted'].eq(0),
+
+        ]
+
+        queryTable = tableClient.innerJoin(tableClientAttach, tableClientAttach['client_id'].eq(tableClient['id']))
+        queryTable = queryTable.innerJoin(tableOrgStructure, tableOrgStructure['id'].eq(tableClientAttach['orgStructure_id']))
+
+        record = db.getRecordEx(queryTable, tableOrgStructure['name'], cond)
+        if record:
+            return forceString(record.value('name'))
+        else:
+            return ''
+
+    def build(self):
+        doc = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(self.title())
+        cursor.insertBlock()
+        cursor.setCharFormat(CReportBase.ReportBody)
+        # cursor.insertText(description)
+        cursor.insertBlock()
+
+        tableColumns = [
+            ('8%', [u'Дата вызова'], CReportBase.AlignLeft),
+            ('5%', [u'Время приёма вызова'], CReportBase.AlignLeft),
+            ('5%', [u'Тип вызова'], CReportBase.AlignLeft),
+            ('5%', [u'Код пациента'], CReportBase.AlignLeft),
+            ('15%', [u'ФИО'], CReportBase.AlignLeft),
+            ('5%', [u'Пол'], CReportBase.AlignLeft),
+            ('5%', [u'Возраст'], CReportBase.AlignLeft),
+            ('10%', [u'Основной диагноз'], CReportBase.AlignLeft),
+            ('22%', [u'Жалобы'], CReportBase.AlignLeft),
+            ('10%', [u'Повод к вызову'], CReportBase.AlignLeft),
+            ('15%', [u'Адрес'], CReportBase.AlignLeft),
+            ('10%', [u'Участок'], CReportBase.AlignLeft),
+            ('10%', [u'Телефон'], CReportBase.AlignLeft),
+            ('10%', [u'ФИО передавшего вызов'], CReportBase.AlignLeft),
+            ('10%', [u'Подтверждение вызова'], CReportBase.AlignLeft)
+        ]
+        table = createTable(cursor, tableColumns)
+        rowCount = self.model.rowCount()
+        for row in xrange(0, rowCount):
+            tableRow = table.addRow()
+            record = self.model.record(row)
+            callDate = forceString(record.value(0))
+            endReceivingCall = forceString(record.value(15))
+            fio = formatName(forceString(record.value(3)),
+                             forceString(record.value(4)),
+                             forceString(record.value(5)))
+            sex = forceString(record.value(11))
+            age = self.formatAge(record)
+            type_rec = record.value(41).toInt()[0]
+            info = forceString(record.value(42))
+            if forceString(record.value(17)) == '' and type_rec == 2:
+                diseaseBasic = self.extractDiagnosis(info)
+            else:
+                diseaseBasic = forceString(record.value(17))
+            complaints = self.extractComplaints(info)
+            callOccasion = forceString(record.value(21))
+            address = self.formatAddress(record)
+            telephone = forceString(record.value(35))
+            transferUser = forceString(record.value(9))
+            isDone = forceString(record.value(7))
+            type_name = ''
+            if type_rec == 0:
+                type_name = u'НМП'
+            elif type_rec == 1:
+                type_name = u'03'
+            elif type_rec == 2:
+                type_name = u'СМП (Актив.)'
+            birthDate = self.extractClientBirthDate(info)
+            clientId = self.findClientId(forceString(record.value(3)), forceString(record.value(4)),
+                                                  forceString(record.value(5)), birthDate)
+            attach = self.findClientAttach(forceString(clientId))
+
+            table.setText(tableRow, 0, callDate)
+            table.setText(tableRow, 1, endReceivingCall)
+            table.setText(tableRow, 2, type_name)
+            table.setText(tableRow, 3, clientId)
+            table.setText(tableRow, 4, fio)
+            table.setText(tableRow, 5, sex)
+            table.setText(tableRow, 6, age)
+            table.setText(tableRow, 7, diseaseBasic)
+            table.setText(tableRow, 8, complaints)
+            table.setText(tableRow, 9, callOccasion)
+            table.setText(tableRow, 10, address)
+            table.setText(tableRow, 11, attach)
+            table.setText(tableRow, 12, telephone)
+            table.setText(tableRow, 13, transferUser)
+            table.setText(tableRow, 14, isDone)
+
+        return doc

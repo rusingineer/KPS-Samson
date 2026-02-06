@@ -506,8 +506,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         <b>Тип заявления: </b> {3}<br>
         <b>Информация о причине смены прикрепления: </b> {4}<br>
         <b>Статус заявления: </b> {5}<br>
-        <b>Дата создания заявления: </b> {6}<br>
-        <b>Дата получения заявления: </b> {7}<br>
+        <b>Дата создания заявления пациентом: </b> {6}<br>
+        <b>Дата получения заявления в МИС: </b> {7}<br>
         <b>Причины отказа в прикреплении к МО: </b> {8}<br>
         <b>Комментарий к статусу: </b> {9}<br>
         <b>Участок: </b> {10}<br>
@@ -646,6 +646,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         self.tblStatements.model().loadData(filters)
         self.tblStatements.setCurrentRow(0)
         self.modelStatementsDataChanged()
+        if self.__sortColumn is not None:
+            self.modelStatements.sortData(self.__sortColumn, self.__sortAscending)
 
     def formatDateTime(self, value):
         if isinstance(value, QVariant):
@@ -670,6 +672,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         tableColumns = [('9%', [u'Тип заявления'], CReportBase.AlignLeft),
                         ('7%', [u'Статус заявления'], CReportBase.AlignLeft),
                         ('7%', [u'Идентификатор заявления'], CReportBase.AlignLeft),
+                        ('7%', [u'Дата создания заявления'], CReportBase.AlignLeft),
                         ('7%', [u'Дата получения заявления'], CReportBase.AlignLeft),
                         ('13%', [u'ФИО пациента'], CReportBase.AlignLeft),
                         ('4%', [u'Дата рождения'], CReportBase.AlignLeft),
@@ -716,8 +719,8 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
             <b>Идентификатор заявления присвоенный сервером: </b> {3}<br>
             <b>Тип заявления: </b> {4} <b>Информация о причине смены прикрепления: </b> {5}<br>
             <b>Статус заявления: </b> {6}<br>
-            <b>Дата создания заявления: </b> {7}<br>
-            <b>Дата получения заявления: </b> {8}<br>
+            <b>Дата создания заявления пациентом: </b> {7}<br>
+            <b>Дата получения заявления в МИС: </b> {8}<br>
             <b>Причины отказа в прикреплении к МО: </b> {9}<br>
             <b>Комментарий к статусу: </b> {10}<br>
             <b>Участок: </b> {11}<br>
@@ -792,7 +795,7 @@ class CAttachOnlineReasonRejectDialog(CDialogBase, Ui_ReasonRejectDialog):
         self.setupUi(self)
         self.btnApply.clicked.connect(self.applyClicked)
         self.btnCancel.clicked.connect(self.cancelClicked)
-        self.cmbReasonReject.setTable('soc_AttachMO_ReasonReject')
+        self.cmbReasonReject.setTable('soc_AttachMO_ReasonReject', True, 'visibility = 0')
         self.execResult = 0
         self.cmbReasonReject.setCurrentIndex(0)
 
@@ -819,7 +822,8 @@ class CStatementsModel(CRecordListModel):
         self.addCol(CEnumInDocTableCol(u'Тип заявления', 'order_type', 20, [u'-', u'Прикрепление', u'Открепление', u'Отмена заявления'])).setReadOnly()
         self.addCol(CInDocTableCol(u'Статус заявления', 'statusString', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Идентификатор заявления', 'attachTaskId', 20)).setReadOnly()
-        self.addCol(CInDocTableCol(u'Дата получения заявления', 'orderCreateDate', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата создания заявления', 'orderCreateDate', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата получения заявления', 'createDate', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'ФИО пациента', 'patient_fullName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата рождения', 'birthDate', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Адрес регистрации', 'regAddress', 40)).setReadOnly()
@@ -967,12 +971,12 @@ class CStatementsModel(CRecordListModel):
                 cond.append(tableAttachTask['id'].eq(_id))
         elif filters:
             if filters['requestBegDate'] and filters['requestEndDate']:
-                cond.append(tableAttachTask['createDatetime'].ge(filters['requestBegDate']))
-                cond.append(tableAttachTask['createDatetime'].lt(filters['requestEndDate'].addDays(1)))
+                cond.append(tableAttachTask['orderCreateDate'].ge(filters['requestBegDate']))
+                cond.append(tableAttachTask['orderCreateDate'].lt(filters['requestEndDate'].addDays(1)))
             elif filters['requestBegDate']:
-                cond.append(tableAttachTask['createDatetime'].ge(filters['requestBegDate']))
+                cond.append(tableAttachTask['orderCreateDate'].ge(filters['requestBegDate']))
             elif filters['requestEndDate']:
-                cond.append(tableAttachTask['createDatetime'].lt(filters['requestEndDate'].addDays(1)))
+                cond.append(tableAttachTask['orderCreateDate'].lt(filters['requestEndDate'].addDays(1)))
             if filters['statementType']:
                 cond.append(tableAttachTask['order_type'].eq(filters['statementType']))
             if filters['statementStatus']:

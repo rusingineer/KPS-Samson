@@ -20,7 +20,7 @@ from PyQt4.QtCore import Qt, SIGNAL, QEventLoop, QMimeData, QVariant
 
 from library.Utils import CColsMovingFeature, forceInt, forceString, getPref, setPref, toVariant, forceBool
 
-from library.TableModel import CTableModel
+from library.TableModel import CTableModel, CQueryModel
 from library.MemTableModel import CMemTableModel
 from library.PreferencesMixin import CPreferencesMixin
 
@@ -206,8 +206,12 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
 
 
     def currentItem(self):
-        itemId = self.currentItemId()
-        record = self.model().recordCache().get(itemId) if itemId else None
+        if isinstance(self.model(), CQueryModel):
+            index = self.currentIndex()
+            record = self.model().recordByIndex(index)
+        else:
+            itemId = self.currentItemId()
+            record = self.model().recordCache().get(itemId) if itemId else None
         return record
 
 
@@ -336,8 +340,8 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                     if not _showMask[iModelCol]:
                         continue
                     index = model.createIndex(iModelRow, iModelCol)
-                    if type(model.data(index)) != type(0):
-                        if type(model.data(index).toPyObject()) == type(None):
+                    if type(model.data(index,Qt.DisplayRole)) != type(0):
+                        if type(model.data(index,Qt.DisplayRole).toPyObject()) == type(None):
                             itemData = model.itemData(index)
                             if itemData:
                                 key = itemData.keys()[0]
@@ -348,9 +352,9 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                             else:
                                 text = u''
                         else:
-                            text = forceString(model.data(index))
+                            text = forceString(model.data(index,Qt.DisplayRole))
                     else:
-                        text = forceString(model.data(index))
+                        text = forceString(model.data(index,Qt.DisplayRole))
                     table.setText(iTableRow, iTableCol, text)
                     iTableCol += 1
             return doc
@@ -469,7 +473,7 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                         self.setColumnWidth(i, width)
 
         state = getPref(preferences, 'headerState', QVariant()).toByteArray()
-        if state:
+        if state and hasattr(self.model(), 'cols'):
             header = self.horizontalHeader()
             try:
                 state = json.loads(forceString(state))
@@ -477,24 +481,27 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
                 header.restoreState(state)
                 return
             maxVIndex = 0
-            colsLen = len(self.model().cols())
-            for i, col in enumerate(self.model().cols()):
-                name = forceString(col.title())
-                curVIndex = header.visualIndex(i)
-                if name in state:
-                    vIndex = state[name][0]
-                    isHidden = state[name][1]
-                    if vIndex > maxVIndex:
-                        maxVIndex = vIndex
-                    if vIndex != curVIndex:
-                        header.moveSection(curVIndex, vIndex)
-                    if isHidden:
-                        header.setSectionHidden(i, True)
-                else:
-                    if self.headerColsHidingAvailable():
-                        if hasattr(col, 'defaultHidden') and isfunction(col.defaultHidden):
-                            header.setSectionHidden(i, col.defaultHidden())
-                    header.moveSection(curVIndex, colsLen-1)
+            try:
+                colsLen = len(self.model().cols())
+                for i, col in enumerate(self.model().cols()):
+                    name = forceString(col.title())
+                    curVIndex = header.visualIndex(i)
+                    if name in state:
+                        vIndex = state[name][0]
+                        isHidden = state[name][1]
+                        if vIndex > maxVIndex:
+                            maxVIndex = vIndex
+                        if vIndex != curVIndex:
+                            header.moveSection(curVIndex, vIndex)
+                        if isHidden:
+                            header.setSectionHidden(i, True)
+                    else:
+                        if self.headerColsHidingAvailable():
+                            if hasattr(col, 'defaultHidden') and isfunction(col.defaultHidden):
+                                header.setSectionHidden(i, col.defaultHidden())
+                        header.moveSection(curVIndex, colsLen-1)
+            except:
+                return
         elif self.headerColsHidingAvailable() and hasattr(self.model(), 'cols'):
             try:
                 cols = self.model().cols()
@@ -542,3 +549,9 @@ class CExtendedSelectionTableView(CTableView):
     def __init__(self, parent):
         CTableView.__init__(self, parent)
         self.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+
+
+class CCenterIconDelegate(QtGui.QStyledItemDelegate):
+    def initStyleOption(self, option, index):
+        QtGui.QStyledItemDelegate.initStyleOption(self, option, index)
+        option.decorationSize = option.rect.size()

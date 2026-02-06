@@ -228,7 +228,7 @@ class CLoginListDialog(Ui_LoginListDialog, CItemsListDialog):
 
     def setSort(self, col):
         name = self.model.cols()[col].fields()[0]
-        self.order = name
+        self.order = self.model.table().tableName + '.' + name
         header = self.tblItems.horizontalHeader()
         header.setSortIndicatorShown(True)
         header.setSortIndicator(col, Qt.AscendingOrder)

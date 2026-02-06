@@ -178,13 +178,13 @@ def selectData(params):
         tableClientSocStatus = db.table('ClientSocStatus')
         if begDate:
             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                               tableClientSocStatus['endDate'].dateGe(begDate)
+                                               tableClientSocStatus['endDate'].ge(begDate)
                                               ]),
                                    tableClientSocStatus['endDate'].isNull()
                                   ]))
         if endDate:
             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                               tableClientSocStatus['begDate'].dateLe(endDate)
+                                               tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                               ]),
                                    tableClientSocStatus['begDate'].isNull()
                                   ]))

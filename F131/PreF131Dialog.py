@@ -73,10 +73,10 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
 
 
     def prepare(self, clientId, eventTypeId, eventDate, tissueTypeId=None, typeQueue = -1, docNum=None, relegateInfo=[],
-                plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, presentActionTypes = []):
+                plannedEndDate = None, mapJournalInfoTransfer = [], voucherParams = {}, presentActionTypes = [], maxOccursLimitActionTypes = []):
         self.tissueTypeId = tissueTypeId
         self.setClientInfo(clientId, eventDate)
-        self.setEventTypeId(eventTypeId, presentActionTypes)
+        self.setEventTypeId(eventTypeId, presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def setClientInfo(self, clientId, eventDate):
@@ -141,13 +141,13 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
             self._clientWorkHurtFactorCodeList.append(forceString(record.value('code')))
 
 
-    def setEventTypeId(self, eventTypeId, presentActionTypes = []):
+    def setEventTypeId(self, eventTypeId, presentActionTypes = [], maxOccursLimitActionTypes = []):
         eventTypeRecord = QtGui.qApp.db.getRecord('EventType', ['name'], eventTypeId)
         eventTypeName  = forceString(eventTypeRecord.value('name'))
         title = u'Планирование: %s, Пациент: %s, Пол: %s, ДР.: %s '% (eventTypeName, self.__clientName, formatSex(self.__clientSex), forceString(self.__clientBirthDate))
         QtGui.QDialog.setWindowTitle(self, title)
         self.prepareDiagnostics(eventTypeId)
-        self.prepareActions(eventTypeId, presentActionTypes)
+        self.prepareActions(eventTypeId, presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
 
 
     def prepareDiagnostics(self, eventTypeId):
@@ -193,7 +193,7 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
         model.reset()
 
 
-    def prepareActions(self, eventTypeId, presentActionTypes = []):
+    def prepareActions(self, eventTypeId, presentActionTypes = [], maxOccursLimitActionTypes = []):
         includedGroups = []
 
         db = QtGui.qApp.db
@@ -204,6 +204,8 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
         cond = [table['eventType_id'].eq(eventTypeId), tableActionType['deleted'].eq(0)]
         if presentActionTypes:
             cond.append('''(IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes)))
+        if maxOccursLimitActionTypes:
+            cond.append('ActionType.id not in ({})'.format(', '.join(maxOccursLimitActionTypes)))
         records = db.getRecordList(join, 'EventType_Action.*', cond, 'ActionType.class, idx, id')
 
         for record in records:

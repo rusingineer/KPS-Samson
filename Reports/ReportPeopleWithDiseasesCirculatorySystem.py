@@ -276,7 +276,8 @@ class CPeopleWithDiseasesCirculatorySystem(CReport):
                 table.setText(i, 4, each_act['firstname'])
                 table.setText(i, 5, each_act['patrname'])
                 table.setText(i, 6, each_act['birthDate'])
-                table.setText(i, 7, each_act['police'])
+                enp = u'\xa0'+each_act['police']
+                table.setText(i, 7, enp)
                 table.setText(i, 8, each_act['SNILS'][:3] + '-' + each_act['SNILS'][3:6] + '-' + each_act['SNILS'][6:9]
                               + ' ' + each_act['SNILS'][9:])
                 table.setText(i, 9, each_act['MKB'])

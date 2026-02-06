@@ -19,7 +19,8 @@ from PyQt4.QtCore import QDate, QDir, pyqtSignature, QRegExp, Qt, QVariant, QDat
 from Exchange.XmlStreamReader import CXmlStreamReader
 
 from library.dbfpy.dbf import Dbf
-from library.Utils import forceBool, forceDate, forceRef, forceString, nameCase, toVariant, forceInt, formatName
+from library.Utils import forceBool, forceDate, forceRef, forceString, nameCase, toVariant, forceInt, formatName, \
+    forceStringEx
 
 from Accounting.Utils import updateAccounts, updateDocsPayStatus
 from Events.Utils import CPayStatus, getPayStatusMask
@@ -28,7 +29,7 @@ from Exchange.Utils import dbfCheckNames, tbl, xmlCheckNames
 from Reports.ReportBase import CReportBase, createTable
 from Reports.ReportView import CReportViewDialog
 from Registry.Utils import getClientPolicyEx, getClientSocStatuses, getSocStatusClassList, getCleintSocStatusType, \
-    getSocStatusTypeClasses
+    getSocStatusTypeClasses, getClientSvoSocStatus
 from zipfile import is_zipfile, ZipFile
 from Exchange.ExportR23Native import CExportPage1, updateInternalHash, CExportR23NoKeysDialog, updateInternalHashFLK
 from Exchange.Ui_ImportPayRefuseR23 import Ui_Dialog
@@ -138,6 +139,19 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
         try:
             if is_zipfile(forceString(fileName)):
                 archive = ZipFile(forceString(fileName), 'r')
+                if not self.isPreControl:
+                    # если не предконтроль - ищем архив в архиве
+                    for file in archive.filelist:
+                        if file.filename[-4:] == '.zip':
+                            try:
+                                import cStringIO as StringIO
+                            except ImportError:
+                                import StringIO
+                            in_memory_archive = StringIO.StringIO(archive.read(file))
+                            archive = ZipFile(in_memory_archive, 'r')
+                            # archive = ZipFile(forceString(fileName), 'r')
+                            break
+
                 names = archive.namelist()
                 rxDbf = QRegExp('^[PUDNROICEML]\\d{1,5}.dbf', Qt.CaseInsensitive) #transit
                 rxXml = QRegExp('^[PUDNROICEML]\\d{1,5}.xml', Qt.CaseInsensitive)
@@ -915,6 +929,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
 
         serial = forceString(row.get('SPSF'))
         number = forceString(row.get('SPNF'))
+        enp = forceString(row.get('ENPF'))
 
         oldInsurerOGRN = forceString(row.get('PL_OGRN'))
         Q_G = forceString(row.get('Q_G'))
@@ -1022,6 +1037,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                                 record.remove(record.indexOf('compulsoryServiceStop'))
                                 record.remove(record.indexOf('voluntaryServiceStop'))
                                 record.remove(record.indexOf('area'))
+                                record.remove(record.indexOf('enp'))
                                 self.db.updateRecord(self.tableClientPolicy, record)
 
                                 msg.append(u'Добавлен'
@@ -1044,6 +1060,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                             record.remove(record.indexOf('compulsoryServiceStop'))
                             record.remove(record.indexOf('voluntaryServiceStop'))
                             record.remove(record.indexOf('area'))
+                            record.remove(record.indexOf('enp'))
                             self.db.updateRecord(self.tableClientPolicy, record)
                             self.err2log(u'<b><font color=blue>Обновлен</font></b>'
                                         u' полис %s №%s (%s) -> %s №%s (%s).' %
@@ -1080,88 +1097,56 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                 self.err2log(u'<b><font color=silver>Без изменений:</font></b> `%s`' % forceInt(clientId))
                 msg.append(u'Без изменений `%s`' % clientId)
 
+            if clientId and enp:
+                record = getClientPolicyEx(clientId, True, QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'), eventId)
+                if not record:
+                    record = getClientPolicyEx(clientId, True, None)
+                if record:
+                    oldENP = forceString(record.value('enp'))
+                else:
+                    oldENP = ''
+                enp_system_id = self.db.translate('rbAccountingSystem', 'code', 'ENP', 'id')
+                table = self.tableClientIdentification
+                if oldENP != enp and not oldENP:
+                    # если раньше ЕНП не было
+                    # заносим ЕНП в ClientIdentification
+                    enp_record = table.newRecord()
+                    enp_record.setValue('createDatetime', QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'))
+                    enp_record.setValue('modifyDatetime', QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'))
+                    enp_record.setValue('deleted', toVariant(0))
+                    enp_record.setValue('client_id', clientId)
+                    enp_record.setValue('accountingSystem_id', toVariant(enp_system_id))
+                    enp_record.setValue('identifier', toVariant(enp))
+                    enp_record.setValue('checkDate', QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'))
+                    enp_record.setValue(
+                        'note', toVariant(u'Импорт ФЛК от {0}'.format(QDate.currentDate().toString('dd.MM.yyyy')))
+                    )
+                    self.db.insertRecord(table, enp_record)
+                    self.err2log(u'<b><font color=green>Добавляем</font></b>'u' новый ЕНП №%s.' % (forceInt(enp)))
+                    msg.append(u'Добавлен новый ЕНП №%s.' % enp)
+                elif oldENP != enp and oldENP:
+                    # если данные ЕНП отличаются и раньше был другой ЕНП
+                    # обновляем ЕНП в ClientIdentification
+                    enp_record = self.db.getRecordEx(
+                        table, '*',
+                        [table['deleted'].eq(0), table['accountingSystem_id'].eq(enp_system_id),
+                         table['client_id'].eq(clientId)]
+                    )
+                    if enp_record is not None:
+                        enp_record.setValue('modifyDatetime', QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'))
+                        enp_record.setValue('identifier', toVariant(enp))
+                        enp_record.setValue('checkDate', QDate.fromString(row.get('DATO'), 'yyyy-MM-dd'))
+                        enp_record.setValue(
+                            'note', toVariant(u'Импорт ФЛК от {0}'.format(QDate.currentDate().toString('dd.MM.yyyy')))
+                        )
+                        self.db.updateRecord(table, enp_record)
+                        self.err2log(u'<b><font color=green>Обновляем</font></b>'u' информацию об ЕНП №%s.' % (forceInt(enp)))
+                        msg.append(u'Обновлена информация об ЕНП №%s.' % enp)
+
             if clientId:
-                svoSocStatusExists = False
-                svoSocStatusClient = ''
-                socStatuses = getClientSocStatuses(clientId)
-                socStatusesMap = {}
-                for socStatus in socStatuses:
-                    socStatusesMap[socStatus] = forceString(self.db.translate('rbSocStatusType', 'id', socStatus, 'code'))
-                svoSocStatusExists = '035' in socStatusesMap.values() or '065' in socStatusesMap.values()
-                if svoSocStatusExists:
-                    svoSocStatusClient = '035' if '035' in socStatusesMap.values() else '065'
-
-                if svoSocStatusExists and svoSocStatus == '000':
-                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
-
-                    tableSocStatus = self.db.table('ClientSocStatus')
-                    socStatusRecord = self.db.getRecordEx(
-                        tableSocStatus, '*',
-                        [
-                            tableSocStatus['deleted'].eq(0),
-                            tableSocStatus['client_id'].eq(clientId),
-                            tableSocStatus['socStatusClass_id'].eq(socStatusSvoClassId)
-                        ]
-                    )
-                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('deleted', toVariant(1))
-                    self.db.updateRecord(tableSocStatus, socStatusRecord)
-                    self.err2log(u'<b><font color=green>Удаляем</font></b>'u' соц статус %s.' % (svoSocStatusClient))
-                    msg.append(u'Удалён соц статус %s.' % (svoSocStatusClient))
-                elif svoSocStatus != '000' and not svoSocStatusExists:
-                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
-
-                    tableSocStatus = self.db.table('ClientSocStatus')
-                    socStatusRecord = tableSocStatus.newRecord()
-                    socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('deleted', toVariant(0))
-                    socStatusRecord.setValue('client_id', toVariant(clientId))
-                    socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
-                    socStatusRecord.setValue('socStatusType_id', toVariant(forceInt(self.db.translate('rbSocStatusType', 'code', svoSocStatus, 'id'))))
-                    socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
-                    socStatusRecord.setValue('note', toVariant(''))
-
-                    self.db.insertRecord(tableSocStatus, socStatusRecord)
-                    self.err2log(u'<b><font color=green>Добавляем</font></b>'u' соц статус %s.' % (svoSocStatus))
-                    msg.append(u'Добавлен соц статус %s.' % (svoSocStatus))
-
-                elif svoSocStatus != '000' and svoSocStatus != svoSocStatusClient:
-                    socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
-
-                    tableSocStatus = self.db.table('ClientSocStatus')
-                    socStatusRecord = self.db.getRecordEx(
-                        tableSocStatus, '*',
-                        [
-                            tableSocStatus['deleted'].eq(0),
-                            tableSocStatus['client_id'].eq(clientId),
-                            tableSocStatus['socStatusClass_id'].eq(socStatusSvoClassId)
-                        ]
-                    )
-                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('deleted', toVariant(1))
-                    self.db.updateRecord(tableSocStatus, socStatusRecord)
-
-                    socStatusRecord = tableSocStatus.newRecord()
-                    socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
-                    socStatusRecord.setValue('deleted', toVariant(0))
-                    socStatusRecord.setValue('client_id', toVariant(clientId))
-                    socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
-                    socStatusRecord.setValue('socStatusType_id', toVariant(forceInt(self.db.translate('rbSocStatusType', 'code', svoSocStatus, 'id'))))
-                    socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
-                    socStatusRecord.setValue('note', toVariant(''))
-
-                    self.db.insertRecord(tableSocStatus, socStatusRecord)
-                    self.err2log(u'<b><font color=green>Меняем</font></b>'u' соц статус с %s на %s.' % (svoSocStatus, svoSocStatusClient))
-                    msg.append(u'Изменён соц статус с %s на %s.' % (svoSocStatus, svoSocStatusClient))
-
-                # else:
-                #     self.err2log(u'<b><font color=silver>Соц статус без изменений:</font></b> `%s`' % forceInt(clientId))
-                #     msg.append(u'Соц статус без изменений `%s`' % clientId)
-            # else:
-            #     self.err2log(u'<b><font color=silver>Соц статус без изменений:</font></b> `%s`' % forceInt(clientId))
-            #     msg.append(u'Соц статус без изменений `%s`' % clientId)
+                # обработка соц статуса сво
+                clientSvoSocStatusRow = getClientSvoSocStatus(clientId)
+                self.processClientSvoSocStatus(msg, clientId, svoSocStatus, clientSvoSocStatusRow)
 
         else:
             self.err2log(u'<b><font color=silver>Пациент не найден:</font></b> `%s`' % forceInt(clientId))
@@ -1512,6 +1497,118 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             self.db.insertRecord(tableClientHistory, historyRecord)
 
         return dirty
+
+    def processClientSvoSocStatus(self, msg, clientId, flkSocStatus, clientSvoSocStatusRow):
+
+        def checkSocStatusTypeClassAssoc(statusCode, svoClassId):
+            # проверка, есть ли в rbSocStatusType тип соц статуса с кодом statusCode
+            # с проставленной связью c классом svo
+            tableAssoc = self.db.table('rbSocStatusClassTypeAssoc')
+            tableType = self.db.table('rbSocStatusType')
+            table = tableType.leftJoin(tableAssoc, tableType['id'].eq(tableAssoc['type_id']))
+            if self.db.getRecordEx(
+                table, '*',
+                [
+                    tableType['code'].eq(statusCode),
+                    tableAssoc['class_id'].eq(svoClassId)
+                ]
+            ):
+                return True
+            else:
+                return False
+
+        socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+        tableSocStatus = self.db.table('ClientSocStatus')
+
+        if flkSocStatus != '000':
+            # если код соц статуса не 000, то проверим, есть ли он в rbSocStatusType и связан ли с классом svo
+            # checkAssocOk = checkSocStatusTypeClassAssoc(flkSocStatus, socStatusSvoClassId)
+
+            if not checkSocStatusTypeClassAssoc(flkSocStatus, socStatusSvoClassId):
+                # если код соц статуса не занесён в rbSocStatusType,
+                # то создаём с названием 'отсутствующая запись справочника "Социальная категория"'
+                tableSocStatusType = self.db.table('rbSocStatusType')
+                socStatusTypeRecord = tableSocStatusType.newRecord()
+                socStatusTypeRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+                socStatusTypeRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                socStatusTypeRecord.setValue('code', toVariant(flkSocStatus))
+                socStatusTypeRecord.setValue('name', toVariant(u'отсутствующая запись справочника "Социальная категория"'))
+                socStatusTypeRecord.setValue('shortName', toVariant(''))
+                socStatusTypeRecord.setValue('socCode', toVariant(''))
+                socStatusTypeRecord.setValue('regionalCode', toVariant(flkSocStatus))
+                self.db.insertRecord(tableSocStatusType, socStatusTypeRecord)
+
+                insertedTypeId = forceInt(socStatusTypeRecord.value('id'))
+
+                # и относим к классу соц статуса с кодом svo
+                tableSocStatusClassTypeAssoc = self.db.table('rbSocStatusClassTypeAssoc')
+                socStatusClassTypeAssocRecord = tableSocStatusClassTypeAssoc.newRecord()
+                socStatusClassTypeAssocRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+                socStatusClassTypeAssocRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                socStatusClassTypeAssocRecord.setValue('class_id', toVariant(socStatusSvoClassId))
+                socStatusClassTypeAssocRecord.setValue('type_id', toVariant(insertedTypeId))
+                self.db.insertRecord(tableSocStatusClassTypeAssoc, socStatusClassTypeAssocRecord)
+
+                self.err2log(u'<b><font color=green>Добавляем в справочник "Социальный статус: типы"</font></b>'u' соц статус %s - %s.' % (flkSocStatus, u'отсутствующая запись справочника "Социальная категория"'))
+                msg.append(u'Добавлен в справочник соц статус %s - %s.' % (flkSocStatus, u'отсутствующая запись справочника "Социальная категория"'))
+
+        if clientSvoSocStatusRow:
+            # если у пациента уже был соц статус по классу svo, то определяем его код
+            curSvoSocStatusId = forceRef(clientSvoSocStatusRow.value('socStatusType_id'))
+            curSvoSocStatusCode = forceStringEx(self.db.translate('rbSocStatusType', 'id', curSvoSocStatusId, 'code'))
+        else:
+            curSvoSocStatusCode = None
+
+        if clientSvoSocStatusRow and flkSocStatus == '000':
+            # если у пациента уже был соц статус по классу svo, а от флк пришёл соц статус 000 - помечаем его удалённым
+
+            clientSvoSocStatusRow.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            clientSvoSocStatusRow.setValue('deleted', toVariant(1))
+            self.db.updateRecord(tableSocStatus, clientSvoSocStatusRow)
+            self.err2log(u'<b><font color=green>Удаляем</font></b>'u' соц статус %s.' % curSvoSocStatusCode)
+            msg.append(u'Удалён соц статус %s.' % curSvoSocStatusCode)
+
+        elif flkSocStatus != '000' and not clientSvoSocStatusRow:
+            # если у пациента не было соц статуса по классу svo, а от флк пришёл код соц статуса - создаём новый с кодом из флк
+
+            socStatusRecord = tableSocStatus.newRecord()
+            socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusRecord.setValue('deleted', toVariant(0))
+            socStatusRecord.setValue('client_id', toVariant(clientId))
+            socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
+            socStatusRecord.setValue('socStatusType_id', toVariant(
+                forceInt(self.db.translate('rbSocStatusType', 'code', flkSocStatus, 'id'))))
+            socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
+            socStatusRecord.setValue('note', toVariant(''))
+
+            self.db.insertRecord(tableSocStatus, socStatusRecord)
+            self.err2log(u'<b><font color=green>Добавляем</font></b>'u' соц статус %s.' % flkSocStatus)
+            msg.append(u'Добавлен соц статус %s.' % flkSocStatus)
+
+        elif flkSocStatus != '000' and flkSocStatus != curSvoSocStatusCode:
+            # если у пациента уже был соц статус по классу svo,
+            # а от флк пришёл иной код соц статуса - помечаем старый удалённым и создаём новый с кодом из флк
+            clientSvoSocStatusRow.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            clientSvoSocStatusRow.setValue('deleted', toVariant(1))
+            self.db.updateRecord(tableSocStatus, clientSvoSocStatusRow)
+
+            socStatusRecord = tableSocStatus.newRecord()
+            socStatusRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusRecord.setValue('deleted', toVariant(0))
+            socStatusRecord.setValue('client_id', toVariant(clientId))
+            socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
+            socStatusRecord.setValue('socStatusType_id', toVariant(
+                forceInt(self.db.translate('rbSocStatusType', 'code', flkSocStatus, 'id'))))
+            socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
+            socStatusRecord.setValue('note', toVariant(''))
+
+            self.db.insertRecord(tableSocStatus, socStatusRecord)
+            self.err2log(u'<b><font color=green>Меняем</font></b>'u' соц статус с %s на %s.' % (
+                curSvoSocStatusCode, flkSocStatus
+            ))
+            msg.append(u'Изменён соц статус с %s на %s.' % (curSvoSocStatusCode, flkSocStatus))
 
 
     @pyqtSignature('int')

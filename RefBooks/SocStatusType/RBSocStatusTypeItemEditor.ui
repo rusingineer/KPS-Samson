@@ -17,7 +17,16 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -33,7 +42,16 @@
        <string>&amp;Основная информация</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout">
-       <property name="margin">
+       <property name="leftMargin">
+        <number>4</number>
+       </property>
+       <property name="topMargin">
+        <number>4</number>
+       </property>
+       <property name="rightMargin">
+        <number>4</number>
+       </property>
+       <property name="bottomMargin">
         <number>4</number>
        </property>
        <property name="spacing">
@@ -42,7 +60,7 @@
        <item row="3" column="1">
         <widget class="QLineEdit" name="edtRegionalCode">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -56,7 +74,7 @@
        <item row="3" column="0">
         <widget class="QLabel" name="lblRegionalCode">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -65,7 +83,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>&amp;Региональный код</string>
+          <string>Код для отчетов</string>
          </property>
          <property name="buddy">
           <cstring>edtRegionalCode</cstring>
@@ -165,7 +183,16 @@
        <string>&amp;Идентификация</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_3">
-       <property name="margin">
+       <property name="leftMargin">
+        <number>4</number>
+       </property>
+       <property name="topMargin">
+        <number>4</number>
+       </property>
+       <property name="rightMargin">
+        <number>4</number>
+       </property>
+       <property name="bottomMargin">
         <number>4</number>
        </property>
        <property name="spacing">
@@ -189,14 +216,14 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library/InDocTable.h</header>
+  </customwidget>
+  <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>CInDocTableView</class>
-   <extends>QTableView</extends>
-   <header>library/InDocTable.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

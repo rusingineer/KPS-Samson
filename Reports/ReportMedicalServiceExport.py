@@ -86,9 +86,9 @@ def selectActionsData(params, byProfile):
              tableActionType['serviceType'].eq(2),
            ]
     if begDate:
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
     if eventTypeId:
         cond.append(tableEventType['id'].eq(eventTypeId))
     if eventTypePurposeId:
@@ -147,9 +147,9 @@ def selectVisitsData(params, byProfile):
              tableSocStatusType['id'].inlist(getSocStatusTypeIdList()),
            ]
     if begDate:
-        cond.append(tableEvent['execDate'].dateGe(begDate))
+        cond.append(tableEvent['execDate'].ge(begDate))
     if endDate:
-        cond.append(tableEvent['execDate'].dateLe(endDate))
+        cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
     if eventTypeId:
         cond.append(tableEventType['id'].eq(eventTypeId))
     if eventTypePurposeId:

@@ -77,7 +77,8 @@ class CCSGServicesModel(CTableModel):
             CDoubleCol(u'Частота использования для взрослого', ['cfreq'], 10),
             CDoubleCol(u'УЕТ общей анастезии для взрослого', ['agauet'], 10),
             CDoubleCol(u'УЕТ общей анастезии для ребёнка', ['cgauet'], 10),
-            CIntCol(u'Кратность', ['multiple'], 30)
+            CIntCol(u'Кратность', ['multiple'], 30),
+            CTextCol(u'МКБ', ['mkb'], 10),
             ], 'CSG_Service')
 
 
@@ -119,6 +120,7 @@ class CCSGServicesExModel(CInDocTableModel):
         self.addCol(CFloatInDocTableCol(u'УЕТ общей анастезии для взрослого', 'agauet', 10, precision=2)).setSortable(True)
         self.addCol(CFloatInDocTableCol(u'УЕТ общей анастезии для ребёнка', 'cgauet', 10, precision=2)).setSortable(True)
         self.addCol(CInDocTableCol(u'Кратность', 'multiple', 30)).setSortable(True)
+        self.addCol(CMKBInDocTableCol(u'МКБ', 'mkb', 10)).setSortable(True)
 
 
 class CCSGEditor(CItemEditorBaseDialog, Ui_CSGEditor):

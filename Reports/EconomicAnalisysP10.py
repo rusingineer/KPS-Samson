@@ -283,6 +283,7 @@ class CEconomicAnalisysP10Ex(CEconomicAnalisysP10):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
         result.shrink()
+        result.loadPrefs()
         return result
 
 

@@ -403,7 +403,6 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
     def __addEventsPayment(self, mapEventIdToSum, isRefund, useCard):
         db = QtGui.qApp.db
         tableEventPayment = db.table('Event_Payment')
-        today = QDate.currentDate()
         now   = QDateTime.currentDateTime()
         operationId = self.__getCashOperation(isRefund)
         for eventId, sum in mapEventIdToSum.iteritems():
@@ -414,8 +413,7 @@ class CCashRegisterWindow(QtGui.QMdiSubWindow, Ui_CCashRegister, CConstructHelpe
                 record.setValue('modifyDatetime',   now)
                 record.setValue('modifyPerson_id',  QtGui.qApp.userId)
                 record.setValue('master_id',        eventId)
-                # record.setValue('dateTime',         now)
-                record.setValue('date',             today)
+                record.setValue('dateTime',         now)
                 record.setValue('cashOperation_id', operationId)
                 record.setValue('sum',              sum if not isRefund else -sum)
                 record.setValue('typePayment',      1 if useCard else 0)

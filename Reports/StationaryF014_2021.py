@@ -454,13 +454,13 @@ class CStationaryF0144000_2021(CStationaryF144000):
                     tableClientSocStatus = db.table('ClientSocStatus')
                     if begDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                           tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                           tableClientSocStatus['endDate'].ge(begDateTime)
                                                           ]),
                                                tableClientSocStatus['endDate'].isNull()
                                               ]))
                     if endDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                           tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                           tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                           ]),
                                                tableClientSocStatus['begDate'].isNull()
                                               ]))
@@ -476,9 +476,9 @@ class CStationaryF0144000_2021(CStationaryF144000):
                 if existFlatCode:
                     cond.append(tableActionType['flatCode'].ne(u''))
                 if bool(begDateTime):
-                    cond.append(tableAction['endDate'].dateGe(begDateTime))
+                    cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):
-                    cond.append(tableAction['begDate'].dateLe(endDateTime))
+                    cond.append(tableAction['begDate'].lt(endDateTime.addDays(1)))
                 if orgStructureIdList:
                     cond.append(getDataOrgStructure_HBDS(nameProperty, orgStructureIdList, isTypeOS))
                 if financeId:
@@ -599,7 +599,7 @@ class CStationaryF0144000_2021(CStationaryF144000):
                                    tableA_E['event_id'].eq(tableEvent_P['id']),
                                    tableA_E['endDate'].isNotNull(),
                                    tableAT_E['deleted'].eq(0),
-                                   tableA_E['endDate'].dateLe(tableAction['endDate']),
+                                   tableA_E['endDate'].lt(tableAction['endDate'].addDays(1)),
                                    u'DATE(A_E.begDate) >= DATE(('+unicode(stmtJOINA)+u'))'
                                    ]
                         tableAE = tableA_E.innerJoin(tableAT_E, tableAT_E['id'].eq(tableA_E['actionType_id']))
@@ -620,7 +620,7 @@ class CStationaryF0144000_2021(CStationaryF144000):
                                           tableAction_P['endDate'].isNotNull(),
                                           tableAction_P['deleted'].eq(0),
                                           tableEvent_P['deleted'].eq(0),
-                                          tableAction_P['endDate'].dateLe(tableAction['endDate']),
+                                          tableAction_P['endDate'].lt(tableAction['endDate'].addDays(1)),
                                           u'DATE(Action_P.begDate) >= DATE(('+unicode(stmtJOINA)+u'))'
                                           ]
                         table = table.leftJoin(tableAction_P, db.joinAnd(condJOINAction))
@@ -640,13 +640,13 @@ class CStationaryF0144000_2021(CStationaryF144000):
                         tableClientSocStatus = db.table('ClientSocStatus')
                         if begDateTime:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                               tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                               tableClientSocStatus['endDate'].ge(begDateTime)
                                                               ]),
                                                    tableClientSocStatus['endDate'].isNull()
                                                   ]))
                         if endDateTime:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                               tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                               tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                               ]),
                                                    tableClientSocStatus['begDate'].isNull()
                                                   ]))
@@ -701,13 +701,13 @@ class CStationaryF0144000_2021(CStationaryF144000):
                     tableClientSocStatus = db.table('ClientSocStatus')
                     if begDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                           tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                           tableClientSocStatus['endDate'].ge(begDateTime)
                                                           ]),
                                                tableClientSocStatus['endDate'].isNull()
                                               ]))
                     if endDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                           tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                           tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                           ]),
                                                tableClientSocStatus['begDate'].isNull()
                                               ]))
@@ -723,9 +723,9 @@ class CStationaryF0144000_2021(CStationaryF144000):
                 if existFlatCode:
                     cond.append(tableActionType['flatCode'].ne(u''))
                 if bool(begDateTime):
-                    cond.append(tableAction['endDate'].dateGe(begDateTime))
+                    cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):
-                    cond.append(tableAction['endDate'].dateLe(endDateTime))
+                    cond.append(tableAction['endDate'].lt(endDateTime.addDays(1)))
                 if orgStructureIdList:
                     table = table.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePerson['orgStructure_id']))
                     cond.append(tablePerson['deleted'].eq(0))
@@ -1024,13 +1024,13 @@ class CStationaryF144001_2021(CStationaryF144001):
                     tableClientSocStatus = db.table('ClientSocStatus')
                     if begDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                           tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                           tableClientSocStatus['endDate'].ge(begDateTime)
                                                           ]),
                                                tableClientSocStatus['endDate'].isNull()
                                               ]))
                     if endDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                           tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                           tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                           ]),
                                                tableClientSocStatus['begDate'].isNull()
                                               ]))
@@ -1044,9 +1044,9 @@ class CStationaryF144001_2021(CStationaryF144001):
                     table = table.innerJoin(tableRBMedicalAidType, tableEventType['medicalAidType_id'].eq(tableRBMedicalAidType['id']))
                     cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
                 if bool(begDateTime):
-                    cond.append(tableAction['endDate'].dateGe(begDateTime))
+                    cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):
-                    cond.append(tableAction['begDate'].dateLe(endDateTime))
+                    cond.append(tableAction['begDate'].lt(endDateTime.addDays(1)))
                 if orgStructureIdList:
                     cond.append(getDataOrgStructure_HBDS(nameProperty, orgStructureIdList, isTypeOS))
                 cond.append(tableClient['sex'].ne(0))
@@ -1111,13 +1111,13 @@ class CStationaryF144001_2021(CStationaryF144001):
                         tableClientSocStatus = db.table('ClientSocStatus')
                         if begDateTime:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                               tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                               tableClientSocStatus['endDate'].g(begDateTime)
                                                               ]),
                                                    tableClientSocStatus['endDate'].isNull()
                                                   ]))
                         if endDateTime:
                             cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                               tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                               tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                               ]),
                                                    tableClientSocStatus['begDate'].isNull()
                                                   ]))
@@ -1169,13 +1169,13 @@ class CStationaryF144001_2021(CStationaryF144001):
                     tableClientSocStatus = db.table('ClientSocStatus')
                     if begDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                           tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                           tableClientSocStatus['endDate'].ge(begDateTime)
                                                           ]),
                                                tableClientSocStatus['endDate'].isNull()
                                               ]))
                     if endDateTime:
                         cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                           tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                           tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                           ]),
                                                tableClientSocStatus['begDate'].isNull()
                                               ]))
@@ -1189,9 +1189,9 @@ class CStationaryF144001_2021(CStationaryF144001):
                     table = table.innerJoin(tableRBMedicalAidType, tableEventType['medicalAidType_id'].eq(tableRBMedicalAidType['id']))
                     cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
                 if bool(begDateTime):
-                    cond.append(tableAction['endDate'].dateGe(begDateTime))
+                    cond.append(tableAction['endDate'].ge(begDateTime))
                 if bool(endDateTime):
-                    cond.append(tableAction['endDate'].dateLe(endDateTime))
+                    cond.append(tableAction['endDate'].lt(endDateTime.addDays(1)))
                 if orgStructureIdList:
                     tableOrgStructure = db.table('OrgStructure')
                     table = table.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePerson['orgStructure_id']))
@@ -1317,13 +1317,13 @@ class CStationaryF144002_2021(CStationaryF144002):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -1339,17 +1339,17 @@ class CStationaryF144002_2021(CStationaryF144002):
 
         joinOr1 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNull()])
         joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateGe(begDateTime),
-                              tableAction['begDate'].dateLe(endDateTime)])
+                              tableAction['begDate'].ge(begDateTime),
+                              tableAction['begDate'].lt(endDateTime.addDays(1))])
 
         joinOr3 = db.joinAnd([tableAction['begDate'].isNull(),
                               tableAction['endDate'].isNotNull(),
-                              tableAction['endDate'].dateGe(begDateTime)])
+                              tableAction['endDate'].ge(begDateTime)])
 
         joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateLe(begDateTime),
+                              tableAction['begDate'].lt(begDateTime.addDays(1)),
                               db.joinOr([tableAction['endDate'].isNull(),
-                                         tableAction['endDate'].dateGe(begDateTime)])
+                                         tableAction['endDate'].ge(begDateTime)])
                               ])
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
 
@@ -1383,13 +1383,13 @@ class CStationaryF144002_2021(CStationaryF144002):
                 tableClientSocStatus = db.table('ClientSocStatus')
                 if begDateTime:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                       tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                       tableClientSocStatus['endDate'].ge(begDateTime)
                                                       ]),
                                            tableClientSocStatus['endDate'].isNull()
                                           ]))
                 if endDateTime:
                     cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                       tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                       tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                       ]),
                                            tableClientSocStatus['begDate'].isNull()
                                           ]))
@@ -1522,13 +1522,13 @@ class CStationaryF144100_2021(CStationaryF144100):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -1544,17 +1544,17 @@ class CStationaryF144100_2021(CStationaryF144100):
                               tableAction['endDate'].isNull()])
 
         joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateGe(begDateTime),
-                              tableAction['begDate'].dateLe(endDateTime)])
+                              tableAction['begDate'].ge(begDateTime),
+                              tableAction['begDate'].lt(endDateTime.addDays(1))])
 
         joinOr3 = db.joinAnd([tableAction['begDate'].isNull(),
                               tableAction['endDate'].isNotNull(),
-                              tableAction['endDate'].dateGe(begDateTime)])
+                              tableAction['endDate'].ge(begDateTime)])
 
         joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateLe(begDateTime),
+                              tableAction['begDate'].lt(begDateTime.addDays(1)),
                               db.joinOr([tableAction['endDate'].isNull(),
-                                tableAction['endDate'].dateGe(begDateTime)])])
+                                tableAction['endDate'].ge(begDateTime)])])
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
 
         if orgStructureIdList:
@@ -1597,13 +1597,13 @@ class CStationaryF144100_2021(CStationaryF144100):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -1738,9 +1738,9 @@ class CStationaryF144110_2021(CStationaryF014):
                 tableRBMedicalAidType['code'].inlist([1, 2, 3]),
                ]
         if begDate:
-            cond.append(tableAction['endDate'].dateGe(begDate))
+            cond.append(tableAction['endDate'].ge(begDate))
         if endDate:
-            cond.append(tableAction['endDate'].dateLe(endDate))
+            cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         if orgStructureIdList:
             cond.append(getDataOrgStructure(nameProperty, orgStructureIdList))
 
@@ -1791,9 +1791,9 @@ class CStationaryF144110_2021(CStationaryF014):
 
         if selectActionType == 0:
             if begDate:
-                cond.append(tableAction['endDate'].dateGe(begDate))
+                cond.append(tableAction['endDate'].ge(begDate))
             if endDate:
-                cond.append(tableAction['endDate'].dateLe(endDate))
+                cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
         else:
             systemIdList = db.getIdList('rbAccountingSystem', 'id', "urn = 'urn:oid:4110'")
             cond.append(tableAction['event_id'].inlist(self.getEventIdList(params)))
@@ -1804,13 +1804,13 @@ class CStationaryF144110_2021(CStationaryF014):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDate:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDate)
+                                                   tableClientSocStatus['endDate'].ge(begDate)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDate:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDate)
+                                                   tableClientSocStatus['begDate'].lt(endDate.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -1963,13 +1963,13 @@ class CStationaryF144200_2021(CStationaryF014):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -1985,17 +1985,17 @@ class CStationaryF144200_2021(CStationaryF014):
                               tableAction['endDate'].isNull()])
 
         joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateGe(begDateTime),
-                              tableAction['begDate'].dateLe(endDateTime)])
+                              tableAction['begDate'].ge(begDateTime),
+                              tableAction['begDate'].lt(endDateTime.addDays(1))])
 
         joinOr3 = db.joinAnd([tableAction['begDate'].isNull(),
                               tableAction['endDate'].isNotNull(),
-                              tableAction['endDate'].dateGe(begDateTime)])
+                              tableAction['endDate'].ge(begDateTime)])
 
         joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateLe(begDateTime),
+                              tableAction['begDate'].lt(begDateTime.addDays(1)),
                               db.joinOr([tableAction['endDate'].isNull(),
-                                         tableAction['endDate'].dateGe(begDateTime)])])
+                                         tableAction['endDate'].ge(begDateTime)])])
 
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
         if orgStructureIdList:
@@ -2159,13 +2159,13 @@ class CStationaryF144201_2021(CStationaryF014):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -2178,9 +2178,9 @@ class CStationaryF144201_2021(CStationaryF014):
 
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
         joinOr1 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNull()])
-        joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].dateGe(begDateTime), tableAction['begDate'].dateLe(endDateTime)])
-        joinOr3 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNotNull(), tableAction['endDate'].dateGe(begDateTime)])
-        joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].dateLe(begDateTime), db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].dateGe(begDateTime)])])
+        joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].ge(begDateTime), tableAction['begDate'].lt(endDateTime.addDays(1))])
+        joinOr3 = db.joinAnd([tableAction['begDate'].isNull(), tableAction['endDate'].isNotNull(), tableAction['endDate'].ge(begDateTime)])
+        joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(), tableAction['begDate'].lt(begDateTime.addDays(1)), db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].ge(begDateTime)])])
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
         if orgStructureIdList:
             cond.append(getDataOrgStructure(nameProperty, orgStructureIdList))
@@ -2270,13 +2270,13 @@ class CStationaryF14_4300_4301_4302_2021(CStationaryF014):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -2288,8 +2288,8 @@ class CStationaryF14_4300_4301_4302_2021(CStationaryF014):
             cond.append(tableClientSocStatus['deleted'].eq(0))
 
         cond.append(tableRBMedicalAidType['code'].inlist([1, 2, 3]))
-        cond.append(tableAction['begDate'].dateGe(begDateTime))
-        cond.append(tableAction['endDate'].dateLe(endDateTime))
+        cond.append(tableAction['begDate'].ge(begDateTime))
+        cond.append(tableAction['endDate'].lt(endDateTime.addDays(1)))
         if orgStructureIdList:
             cond.append(getDataOrgStructure(nameProperty, orgStructureIdList))
         if financeId:
@@ -2435,13 +2435,13 @@ class CStationaryF144400_2021(CStationaryF014):
             tableClientSocStatus = db.table('ClientSocStatus')
             if begDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['endDate'].isNotNull(),
-                                                   tableClientSocStatus['endDate'].dateGe(begDateTime)
+                                                   tableClientSocStatus['endDate'].ge(begDateTime)
                                                   ]),
                                        tableClientSocStatus['endDate'].isNull()
                                       ]))
             if endDateTime:
                 cond.append(db.joinOr([db.joinAnd([tableClientSocStatus['begDate'].isNotNull(),
-                                                   tableClientSocStatus['begDate'].dateLe(endDateTime)
+                                                   tableClientSocStatus['begDate'].lt(endDateTime.addDays(1))
                                                   ]),
                                        tableClientSocStatus['begDate'].isNull()
                                       ]))
@@ -2457,17 +2457,17 @@ class CStationaryF144400_2021(CStationaryF014):
                               tableAction['endDate'].isNull()])
 
         joinOr2 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateGe(begDateTime),
-                              tableAction['begDate'].dateLe(endDateTime)])
+                              tableAction['begDate'].ge(begDateTime),
+                              tableAction['begDate'].lt(endDateTime.addDays(1))])
 
         joinOr3 = db.joinAnd([tableAction['begDate'].isNull(),
                               tableAction['endDate'].isNotNull(),
-                              tableAction['endDate'].dateGe(begDateTime)])
+                              tableAction['endDate'].ge(begDateTime)])
 
         joinOr4 = db.joinAnd([tableAction['begDate'].isNotNull(),
-                              tableAction['begDate'].dateLe(begDateTime),
+                              tableAction['begDate'].lt(begDateTime.addDays(1)),
                               db.joinOr([tableAction['endDate'].isNull(),
-                                         tableAction['endDate'].dateGe(begDateTime)])])
+                                         tableAction['endDate'].ge(begDateTime)])])
 
         cond.append(db.joinOr([joinOr1, joinOr2, joinOr3, joinOr4]))
         if orgStructureIdList:

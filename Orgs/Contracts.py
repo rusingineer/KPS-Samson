@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -15,6 +15,7 @@
 
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QString, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtGui import QFont
 
 from library.crbcombobox import CRBComboBox
 from RefBooks.Service.RBServiceComboBox import CRBServiceInDocTableCol
@@ -32,6 +33,7 @@ from library.InDocTable             import (
                                             CIntInDocTableCol,
                                             CRBInDocTableCol,
                                            )
+from library.database import CTableRecordCache
 from library.interchange            import (
                                             getCheckBoxValue,
                                             getComboBoxValue,
@@ -61,7 +63,7 @@ from Accounting.FormProgressDialog import CContractFormProgressDialog, CFormProg
 from Accounting.Tariff import CTariff
 from Accounting.Utils import getContractDescr, packExposeDiscipline, unpackExposeDiscipline, roundMath
 from Events.ActionsSelector import CEnableCol
-from Events.EventInfo              import CContractInfo,  CContractInfoList
+from Events.EventInfo import CContractInfo, CContractInfoList, CTariffInfoList
 from Exchange.ExportTariffsR23 import ExportTariffsR23
 from Exchange.ExportTariffsXML import ExportTariffsXML
 from Exchange.ImportTariffsCSV import ImportTariffsCSV
@@ -1277,8 +1279,11 @@ class CContractEditor(CItemEditorBaseDialog, Ui_ContractEditorDialog):
     def on_btnPrint_printByTemplate(self,  templateId):
         context = CInfoContext()
         contract = context.getInstance(CContractInfo, self.itemId())
+        notHiddenTariffs = context.getInstance(CTariffInfoList, contract.id, tuple(
+            map(lambda item: forceRef(item.value('id')), self.getFilteredTariffItems())))
         data = {
-                 'contract': contract
+                 'contract': contract,
+                 'notHiddenTariffs': notHiddenTariffs,
                }
         applyTemplate(self, templateId, data)
 
@@ -1630,6 +1635,7 @@ class CTariffModel(CInDocTableModel):
 
         self.__expenseData = {}
         self.__attachData = {}
+        self.serviceRecordCache = CTableRecordCache(QtGui.qApp.db, 'rbService', ['id', 'endDate'])
         
     def updateDateDependentFilters(self, begDate, endDate):
         db = QtGui.qApp.db
@@ -1682,6 +1688,37 @@ class CTariffModel(CInDocTableModel):
 ##            if column == 3 and self.serviceDisabled(row):
 ##                    return QVariant()
 #        return CInDocTableModel.data(self, index, role)
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid() and role == Qt.FontRole:
+            row = index.row()
+            column = index.column()
+            if 0 <= row < len(self._items):
+                if column == 5:
+                    serviceId = forceInt(self.items()[row].value('service_id'))
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            font = QFont()
+                            font.setItalic(True)
+                            font.setBold(True)
+                            return font
+                        else:
+                            return QVariant()
+
+        if index.isValid() and role == Qt.ToolTipRole:
+            row = index.row()
+            column = index.column()
+            if 0 <= row < len(self._items):
+                if column == 5:
+                    serviceId = forceInt(self.items()[row].value('service_id'))
+                    serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
+                    if serviceRecord:
+                        if forceDate(serviceRecord.value('endDate')) <= QDate.currentDate():
+                            return u"Данная услуга не является актуальной"
+                        else:
+                            return u""
+
+        return CInDocTableModel.data(self, index, role)
 
 
     def setData(self, index, value, role=Qt.EditRole):

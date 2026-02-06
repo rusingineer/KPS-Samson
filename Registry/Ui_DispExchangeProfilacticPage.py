@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Registry\DispExchangeProfilacticPage.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Registry\DispExchangeProfilacticPage.ui'
 #
-# Created: Wed Dec 20 11:54:44 2023
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -28,8 +27,8 @@ class Ui_DispExchangeProfilacticPage(object):
         DispExchangeProfilacticPage.setObjectName(_fromUtf8("DispExchangeProfilacticPage"))
         DispExchangeProfilacticPage.resize(1487, 1041)
         self.horizontalLayout = QtGui.QHBoxLayout(DispExchangeProfilacticPage)
-        self.horizontalLayout.setSpacing(4)
         self.horizontalLayout.setMargin(4)
+        self.horizontalLayout.setSpacing(4)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.scrollArea = QtGui.QScrollArea(DispExchangeProfilacticPage)
         self.scrollArea.setWidgetResizable(True)
@@ -57,7 +56,6 @@ class Ui_DispExchangeProfilacticPage(object):
         self.layoutWidget = QtGui.QWidget(self.splitter)
         self.layoutWidget.setObjectName(_fromUtf8("layoutWidget"))
         self.verticalLayout_2 = QtGui.QVBoxLayout(self.layoutWidget)
-        self.verticalLayout_2.setMargin(0)
         self.verticalLayout_2.setObjectName(_fromUtf8("verticalLayout_2"))
         self.tabWidget = QtGui.QTabWidget(self.layoutWidget)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -107,8 +105,8 @@ class Ui_DispExchangeProfilacticPage(object):
         self.groupBox.setMinimumSize(QtCore.QSize(300, 0))
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
         self.verticalLayout_6 = QtGui.QVBoxLayout(self.groupBox)
-        self.verticalLayout_6.setSpacing(4)
         self.verticalLayout_6.setMargin(4)
+        self.verticalLayout_6.setSpacing(4)
         self.verticalLayout_6.setObjectName(_fromUtf8("verticalLayout_6"))
         self.gridLayout = QtGui.QGridLayout()
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
@@ -384,6 +382,12 @@ class Ui_DispExchangeProfilacticPage(object):
         self.chkExportedWithErrors.setChecked(False)
         self.chkExportedWithErrors.setObjectName(_fromUtf8("chkExportedWithErrors"))
         self.verticalLayout_6.addWidget(self.chkExportedWithErrors)
+        self.cmbExportedWithErrors = CRecordMultivalueComboBox(self.groupBox)
+        self.cmbExportedWithErrors.setObjectName(_fromUtf8("cmbExportedWithErrors"))
+        self.verticalLayout_6.addWidget(self.cmbExportedWithErrors)
+        self.chkHideSuccess = QtGui.QCheckBox(self.groupBox)
+        self.chkHideSuccess.setObjectName(_fromUtf8("chkHideSuccess"))
+        self.verticalLayout_6.addWidget(self.chkHideSuccess)
         self.lblDispPassed = QtGui.QLabel(self.groupBox)
         self.lblDispPassed.setObjectName(_fromUtf8("lblDispPassed"))
         self.verticalLayout_6.addWidget(self.lblDispPassed)
@@ -440,7 +444,57 @@ class Ui_DispExchangeProfilacticPage(object):
 
         self.retranslateUi(DispExchangeProfilacticPage)
         self.tabWidget.setCurrentIndex(0)
+        QtCore.QObject.connect(self.chkExportedWithErrors, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cmbExportedWithErrors.setVisible)
         QtCore.QMetaObject.connectSlotsByName(DispExchangeProfilacticPage)
+        DispExchangeProfilacticPage.setTabOrder(self.scrollArea, self.tblClients)
+        DispExchangeProfilacticPage.setTabOrder(self.tblClients, self.tabWidget)
+        DispExchangeProfilacticPage.setTabOrder(self.tabWidget, self.tblPlanExportErrors)
+        DispExchangeProfilacticPage.setTabOrder(self.tblPlanExportErrors, self.tblFactInfos)
+        DispExchangeProfilacticPage.setTabOrder(self.tblFactInfos, self.tblFactInvcs)
+        DispExchangeProfilacticPage.setTabOrder(self.tblFactInvcs, self.cmbKind)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbKind, self.sbYear)
+        DispExchangeProfilacticPage.setTabOrder(self.sbYear, self.cmbMonth)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbMonth, self.chkFilterLastName)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterLastName, self.edtFilterLastName)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterLastName, self.chkFilterFirstName)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterFirstName, self.edtFilterFirstName)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterFirstName, self.chkFilterPatrName)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterPatrName, self.edtFilterPatrName)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterPatrName, self.chkFilterBirthDay)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterBirthDay, self.edtFilterBirthDay)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterBirthDay, self.chkFilterEndBirthDay)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterEndBirthDay, self.edtFilterEndBirthDay)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterEndBirthDay, self.chkFilterAddressOrgStructure)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterAddressOrgStructure, self.cmbFilterAddressOrgStructure)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbFilterAddressOrgStructure, self.chkFilterSex)
+        DispExchangeProfilacticPage.setTabOrder(self.chkFilterSex, self.cmbFilterSex)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbFilterSex, self.cmbBusyness)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbBusyness, self.chkSocStatuses)
+        DispExchangeProfilacticPage.setTabOrder(self.chkSocStatuses, self.chkSocStatusesCondition)
+        DispExchangeProfilacticPage.setTabOrder(self.chkSocStatusesCondition, self.edtFilterSocStatusesBegDate)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterSocStatusesBegDate, self.edtFilterSocStatusesEndDate)
+        DispExchangeProfilacticPage.setTabOrder(self.edtFilterSocStatusesEndDate, self.cmbSocStatusesClass)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbSocStatusesClass, self.cmbSocStatusesType)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbSocStatusesType, self.chkForPlanning)
+        DispExchangeProfilacticPage.setTabOrder(self.chkForPlanning, self.chkHideUDEvents)
+        DispExchangeProfilacticPage.setTabOrder(self.chkHideUDEvents, self.chkNotPlanned)
+        DispExchangeProfilacticPage.setTabOrder(self.chkNotPlanned, self.chkNotExported)
+        DispExchangeProfilacticPage.setTabOrder(self.chkNotExported, self.chkExportedSuccessfully)
+        DispExchangeProfilacticPage.setTabOrder(self.chkExportedSuccessfully, self.chkExportedWithErrors)
+        DispExchangeProfilacticPage.setTabOrder(self.chkExportedWithErrors, self.cmbExportedWithErrors)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbExportedWithErrors, self.chkHideSuccess)
+        DispExchangeProfilacticPage.setTabOrder(self.chkHideSuccess, self.cmbDispPassed)
+        DispExchangeProfilacticPage.setTabOrder(self.cmbDispPassed, self.btnResetFilter)
+        DispExchangeProfilacticPage.setTabOrder(self.btnResetFilter, self.btnApplyFilter)
+        DispExchangeProfilacticPage.setTabOrder(self.btnApplyFilter, self.btnShowReport)
+        DispExchangeProfilacticPage.setTabOrder(self.btnShowReport, self.btnPlanningProfilactic)
+        DispExchangeProfilacticPage.setTabOrder(self.btnPlanningProfilactic, self.btnPutEvPlanList)
+        DispExchangeProfilacticPage.setTabOrder(self.btnPutEvPlanList, self.btnGetEvFactInfos)
+        DispExchangeProfilacticPage.setTabOrder(self.btnGetEvFactInfos, self.btnGetEvFactInvcs)
+        DispExchangeProfilacticPage.setTabOrder(self.btnGetEvFactInvcs, self.btnGetEvPlanQtys)
+        DispExchangeProfilacticPage.setTabOrder(self.btnGetEvPlanQtys, self.btnPutEvContacts)
+        DispExchangeProfilacticPage.setTabOrder(self.btnPutEvContacts, self.btnPutEvPlanDates)
+        DispExchangeProfilacticPage.setTabOrder(self.btnPutEvPlanDates, self.btnExportedPlan)
 
     def retranslateUi(self, DispExchangeProfilacticPage):
         DispExchangeProfilacticPage.setWindowTitle(_translate("DispExchangeProfilacticPage", "Проф. мероприятия", None))
@@ -494,6 +548,7 @@ class Ui_DispExchangeProfilacticPage(object):
         self.chkNotExported.setText(_translate("DispExchangeProfilacticPage", "Запланированные, не отправленные", None))
         self.chkExportedSuccessfully.setText(_translate("DispExchangeProfilacticPage", "Отправленные успешно", None))
         self.chkExportedWithErrors.setText(_translate("DispExchangeProfilacticPage", "Отправленные с ошибками", None))
+        self.chkHideSuccess.setText(_translate("DispExchangeProfilacticPage", "Скрывать успешно отправленные", None))
         self.lblDispPassed.setText(_translate("DispExchangeProfilacticPage", "Прохождение дисп./проф.", None))
         self.cmbDispPassed.setItemText(0, _translate("DispExchangeProfilacticPage", "Все", None))
         self.cmbDispPassed.setItemText(1, _translate("DispExchangeProfilacticPage", "Прошедшие", None))
@@ -510,8 +565,9 @@ class Ui_DispExchangeProfilacticPage(object):
         self.btnPutEvPlanDates.setText(_translate("DispExchangeProfilacticPage", "Даты планируемых мероприятий", None))
         self.btnExportedPlan.setText(_translate("DispExchangeProfilacticPage", "Список планирования ТФОМС", None))
 
-from library.crbcombobox import CRBComboBox
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Registry.SocStatusComboBox import CSocStatusComboBox
-from library.TableView import CTableView
 from library.DateEdit import CDateEdit
+from library.MultivalueComboBox import CRecordMultivalueComboBox
+from library.TableView import CTableView
+from library.crbcombobox import CRBComboBox

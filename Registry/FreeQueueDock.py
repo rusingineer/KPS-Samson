@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -25,7 +25,7 @@ from library.Utils            import forceBool, forceDate, forceDateTime, forceI
 
 from Events.Utils             import getDeathDate
 from Orgs.OrgStructComboBoxes import COrgStructureModel
-from Orgs.Utils               import findOrgStructuresByAddress
+from Orgs.Utils import findOrgStructuresByAddress, getPersonInfo
 
 from Registry.BeforeRecordClient          import printOrderByScheduleItem
 from Registry.ReferralEditDialog          import inputReferral
@@ -37,7 +37,7 @@ from Registry.ResourcesDock import (CActivityModel,
                                     CFlatResourcesPersonnelModel,
                                     getQuota,
                                     isAppointmentEnabledForClient,
-                                    isReferralRequired, isAppointmentEnabledForDate,
+                                    isReferralRequired, isAppointmentEnabledForDate, checkInterofficeRecord
                                     )
 from Registry.Utils                       import getClientAddressEx, CCheckNetMixin, getClientAttachEx
 from Timeline.Schedule import CSchedule, CScheduleItem, getScheduleItemIdListForClient, getScheduleItemIdFinance, \
@@ -133,8 +133,13 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
 
         self.groupingSpeciality = forceBool(QtGui.qApp.preferences.appPrefs.get('groupingSpeciality', True))
         self.activityListIsShown = forceBool(QtGui.qApp.preferences.appPrefs.get('activityListIsShown', False))
+        orgStructureFilter = None
+        if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
+            preferenceFilter = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
+            if preferenceFilter:
+                orgStructureFilter = 'OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
 
-        self.addModels('OrgStructure', COrgStructureModel(self, QtGui.qApp.currentOrgId()))
+        self.addModels('OrgStructure', COrgStructureModel(self, QtGui.qApp.currentOrgId(), filter=orgStructureFilter))
         self.addModels('Activity',     CActivityModel(self))
         self.addModels('AmbQueue',     CQueueModel(self))
 
@@ -219,6 +224,14 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         self.updateQueueTableLockCnt = None
         if toUpdate:
             self.updateQueueTable()
+
+        self.postForMainLogicRecord = []
+        self.postForInterofficeRecord = []
+
+        reloadIconPixmap = QtGui.QStyle.SP_BrowserReload
+        reloadIcon = self.style().standardIcon(reloadIconPixmap)
+        self.btnUpdateItems.setIcon(reloadIcon)
+        self.btnUpdateItems.clicked.connect(self.updateQueueTable)
 
         self.timer.start()
 
@@ -530,8 +543,19 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             QtGui.QMessageBox.warning(self, u'Внимание!', u'Назначение приёма препятствует записи пациента')
             return False
 
-        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem):
-            QtGui.QMessageBox.warning(self, u'Внимание!', u'Запись за горизонт 14 дней разрешена только для повторной записи самому к себе')
+        if scheduleItem and not QtGui.qApp.isReStagingInQueue() and not isAppointmentEnabledForDate(scheduleItem, personId):
+            personInfo = getPersonInfo(personId)
+            if QtGui.qApp.userId == personId:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                          u'Запись на КТ разрешена только на 14 дней')
+            else:
+                QtGui.QMessageBox.warning(self, u'Не удалось выполнить запись.',
+                                      u'Запись на ' + scheduleItem.time.toString(
+                                          'dd.MM.yyyy HH:mm') + u' разрешена только для врача ' + personInfo[
+                                          'shortName'])
+            return False
+
+        if not checkInterofficeRecord(self, personId, scheduleItem):
             return False
 
         quota = getQuota(personId, capacity)
@@ -643,6 +667,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             specialityId = self.getPersonSpecialityId(personId)
             orgStructureId = self.getPersonOrgStructureId(personId)
             scheduleItem = self.modelAmbQueue.getScheduleItem(row)
+            skipMessageBox = False
             if ( specialityId
                 and orgStructureId
                 and self.queueingEnabled(scheduleItemId, date, personId, specialityId, clientId, scheduleItem)
@@ -676,9 +701,16 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                             dataChanged = False
                             if scheduleItem:
                                 itemsList = self.getScheduleItemsChain(scheduleItem, self.edtCountTickets.value())
+                                firstAppointment = itemsList[0].appointmentPurposeId
+                                controlledSpeciality = True if getExceptionSpecialty(specialityId) == 0 else False
                                 for i in itemsList:
                                     if i.clientId or forceBool(i.value('deleted')):
                                         dataChanged = True
+                                        break
+                                    appointmentPurpose = i.appointmentPurposeId
+                                    if len(itemsList) > 1 and self.checkScheduleItemsInOrder(appointmentPurpose, controlledSpeciality, firstAppointment):
+                                        dataChanged = True
+                                        skipMessageBox = True
                                         break
                                     i.clientId = clientId
                                     i.recordDatetime = currentDateTime
@@ -704,11 +736,54 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                             raise
                     finally:
                         self.releaseLock()
-                QtGui.QMessageBox.warning( self,
-                    u'Внимание!',
-                    u'Запись на это время невозможна, так как оно уже занято',
-                    QtGui.QMessageBox.Ok,
-                    QtGui.QMessageBox.Ok)
+                if not skipMessageBox:
+                    QtGui.QMessageBox.warning( self,
+                        u'Внимание!',
+                        u'Запись на это время невозможна, так как оно уже занято',
+                        QtGui.QMessageBox.Ok,
+                        QtGui.QMessageBox.Ok)
+        return False
+
+
+    def checkScheduleItemsInOrder(self, appointmentPurpose, controlledSpeciality, firstAppointment=None):
+        """
+        Проверяет слот записи на НЕ! соответствие ограничениям по И38
+        :param appointmentPurpose: Назначение приёма слота из списка
+        :param controlledSpeciality: Является ли специальностью контролируемой МИАЦ
+        :param firstAppointment: Назначение приёма первого слота для проверки соответствия последующих
+        :return: Bool
+        """
+        if (not firstAppointment or not appointmentPurpose) and controlledSpeciality:
+            QtGui.QMessageBox.warning(self,
+                                      u'Внимание!',
+                                      u'Запись на это время невозможна, так как в номерках отсутствует назначение приёма',
+                                      QtGui.QMessageBox.Ok,
+                                      QtGui.QMessageBox.Ok)
+            return True
+        if appointmentPurpose != firstAppointment:
+            QtGui.QMessageBox.warning(self,
+                                      u'Внимание!',
+                                      u'Запись на это время невозможна, так как назначения приёма в номерках отличаются',
+                                      QtGui.QMessageBox.Ok,
+                                      QtGui.QMessageBox.Ok)
+            return True
+        db = QtGui.qApp.db
+        finance = db.translate('rbAppointmentPurpose', 'id', appointmentPurpose,
+                               'finance_id')
+        if not forceInt(finance) and controlledSpeciality:
+            QtGui.QMessageBox.warning(self,
+                                      u'Внимание!',
+                                      u'Запись на это время невозможна, так как в номерках имеется назначение приёма без финансирования',
+                                      QtGui.QMessageBox.Ok,
+                                      QtGui.QMessageBox.Ok)
+            return True
+        elif forceString(db.translate('rbFinance', 'id', forceInt(finance), 'name')) == u'ОМС' and controlledSpeciality:
+            QtGui.QMessageBox.warning(self,
+                                      u'Внимание!',
+                                      u'Запись на это время невозможна, так как в номерках имеется назначение приёма с финансированием "ОМС"',
+                                      QtGui.QMessageBox.Ok,
+                                      QtGui.QMessageBox.Ok)
+            return True
         return False
 
 
@@ -1141,53 +1216,23 @@ class CQueueModel(CRecordListModel):
 
     def loadData(self):
         if self.personIdList:
-            self._items = []
-            records = self.loadItems(self.personIdList)
-            absentPersonIdList = []
-            absentDates = []
-            for record in records:
-                if not forceRef(record.value('reasonOfAbsence_id')):
-                    self._items.append(record)
-                else:
-                    if forceString(record.value('post')) in ('59', '49', '110'):
-                        if forceInt(record.value('substitutionPerson_id')) not in absentPersonIdList:
-                            absentPersonIdList.append(forceInt(record.value('substitutionPerson_id')))
-                        if forceDate(record.value('date')) not in absentDates:
-                            absentDates.append(forceDate(record.value('date')))
-            if absentPersonIdList:
-                absentRecords = self.loadItems(absentPersonIdList, absentDates)
-                for record in absentRecords:
-                    if forceString(record.value('post')) in ('59', '49', '110'):
-                        self._items.append(record)
-                self._items = sorted(self._items, key=lambda x: forceDateTime(x.value('time')))
+            self._items = self.loadItems(self.personIdList)
         else:
             self._items = []
         self.emit(SIGNAL('dataLoadDone(int)'), len(self._items))
 
     
-    def loadItems(self, personIdList, absentDates = None):
+    def loadItems(self, personIdList):
         now = QDateTime.currentDateTime()
         db = QtGui.qApp.db
         table = tableScheduleItem = db.table('vScheduleItem')
         tablePerson = db.table('Person')
         tableAppointmentPurpose = db.table('rbAppointmentPurpose')
-        tableSubstitution = db.table('soc_PersonSubstitution')
         tablePost = db.table('rbPost')
         tablePostIdentification = db.table('rbPost_Identification')
         tableAccountingSystem = db.table('rbAccountingSystem')
         table = table.innerJoin(tablePerson, tablePerson['id'].eq(tableScheduleItem['person_id']))
         table = table.leftJoin(tableAppointmentPurpose, tableAppointmentPurpose['id'].eq(tableScheduleItem['appointmentPurpose_id']))
-        table = table.leftJoin(tableSubstitution, db.joinAnd([tableSubstitution['absencesPerson_id'].eq(tablePerson['id']),
-                                                              """
-                                                              CASE
-                                                                WHEN
-                                                                    reasonOfAbsence_id IS NOT NULL
-                                                                THEN
-                                                                    ((soc_PersonSubstitution.deleted = 0
-                                                                        AND soc_PersonSubstitution.begDate <= vScheduleItem.date
-                                                                        AND soc_PersonSubstitution.endDate >= vScheduleItem.date))
-                                                                ELSE soc_PersonSubstitution.id IS NULL
-                                                            END"""]))
         table = table.leftJoin(tablePost, tablePost['id'].eq(tablePerson['post_id']))
         table = table.leftJoin(tablePostIdentification, tablePostIdentification['master_id'].eq(tablePost['id']))
         table = table.leftJoin(tableAccountingSystem, tableAccountingSystem['id'].eq(tablePostIdentification['system_id']))
@@ -1195,6 +1240,7 @@ class CQueueModel(CRecordListModel):
                     tableScheduleItem['person_id'].inlist(personIdList),
                     tableScheduleItem['client_id'].isNull(),
                     tableScheduleItem['appointmentType'].eq(self.appointmentType),
+                    tableScheduleItem['reasonOfAbsence_id'].isNull(),
                     db.joinOr([tableScheduleItem['appointmentPurpose_id'].isNull(),
                             db.joinAnd([ tableAppointmentPurpose['enableOwnRecord'].eq(1),
                                             tableScheduleItem['person_id'].eq(QtGui.qApp.userId)
@@ -1209,8 +1255,6 @@ class CQueueModel(CRecordListModel):
                     tableScheduleItem['time'].ge(now),
                     tableAccountingSystem['urn'].eq('urn:oid:1.2.643.5.1.13.13.11.1002')
                 ]
-        if absentDates:
-            cond.append(tableScheduleItem['date'].inlist(absentDates))
         if self.begDate:
             cond.append(tableScheduleItem['date'].ge(self.begDate))
         if self.timeRange:
@@ -1229,9 +1273,7 @@ class CQueueModel(CRecordListModel):
         if self.activityId:
             cond.append('activity_id = %d or activity_id is NULL' % self.activityId)
         cond.append( 'Person.lastAccessibleTimelineDate IS NULL OR vScheduleItem.date<=Person.lastAccessibleTimelineDate')
-        if not QtGui.qApp.userHasRight(urAdmin):
-            cond.append( 'vScheduleItem.date<=%s or (vScheduleItem.date<=%s and vScheduleItem.person_id = %s)' % (db.dateAdd('current_date', 'day', '14'), db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId))
-        elif QtGui.qApp.isTimelineAccessibilityDays() == 1:
+        if QtGui.qApp.isTimelineAccessibilityDays() == 1:
             cond.append( 'Person.timelineAccessibleDays <= 0 OR vScheduleItem.date<=%s'%db.dateAdd('current_date', 'day', 'Person.timelineAccessibleDays'))
         if self.countTickets>1:
             for offset in xrange(1, self.countTickets):
@@ -1252,7 +1294,6 @@ class CQueueModel(CRecordListModel):
                                                 tableScheduleItem['appointmentPurpose_id'],
                                                 tableScheduleItem['office'],
                                                 tableScheduleItem['reasonOfAbsence_id'],
-                                                tableSubstitution['substitutionPerson_id'],
                                                 tablePost['code'],
                                                 tablePostIdentification['value'].alias('post')],
                                                 cond,

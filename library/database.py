@@ -16,7 +16,7 @@ from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QDateTime, QVariant, QDate, QTime
 
 from library.DBReconnectProgressDialog import CDBReconnectProgressDialog
-from library.Utils import toVariant, forceLong, forceDateTime, forceInt, forceDate, forceStringEx
+from library.Utils import forceString, toVariant, forceLong, forceDateTime, forceInt, forceDate, forceStringEx
 from library.exception import CException
 
 
@@ -93,6 +93,40 @@ class CDatabaseException(CException):
 
 #    def __str__(self):
 #        return unicode(self._message)
+class CSqlRecord(QtSql.QSqlRecord):
+    def __init__(self, *args, **kwargs):
+        QtSql.QSqlRecord.__init__(self, *args, **kwargs)
+        if len(args) == 1 and type(args[0]) == CSqlRecord:
+            self._dirty = args[0]._dirty
+        else:
+            self._dirty = False
+
+    def setValue(self, name, val):
+        if name not in ("modifyDatetime", "modifyPerson_id", "createDatetime", "createPerson_id"):
+            prev_value = QtSql.QSqlRecord.value(self, name)
+            if type(val) != QVariant:
+                val = QVariant(val)
+            if val != prev_value:
+                if val.typeName():
+                    different = prev_value.toString() != val.toString()
+                else:
+                    different = not (prev_value.isNull() and prev_value.isValid())
+                if different:
+                    self.setIsDirty(True)
+        QtSql.QSqlRecord.setValue(self, name, val)
+
+    def setNull(self, name):
+        if not QtSql.QSqlRecord.value(self, name).isNull():
+            self.setIsDirty(True)
+        QtSql.QSqlRecord.setNull(self, name)
+
+
+    def isDirty(self):
+        return self._dirty
+    
+    
+    def setIsDirty(self, isDirty):
+        self._dirty = isDirty
 
 
 class CField(object):
@@ -379,6 +413,7 @@ class CTable(object):
         self.tableName = str(tableName)
         self._idField = None
         self._idFieldName = None
+        self.index_hint = None
         record = database.record(self.tableName)
         for i in range(record.count()):
             qtfield = record.field(i)
@@ -447,7 +482,7 @@ class CTable(object):
 
 
     def newRecord(self, fields=None):
-        record = QtSql.QSqlRecord()
+        record = CSqlRecord() #QtSql.QSqlRecord()
         if fields:
             for field in self.fields:
                 if field.field.name() in fields:
@@ -659,7 +694,7 @@ class CJoin(object):
 
 
     def name(self):
-        return u'%s %s %s %s ' % (self.firstTable.name(), self.stmt, self.secondTable.name(), ('ON %s'%self.onCond) if self.onCond else '')
+        return u'%s %s %s %s ' % (' '.join([self.firstTable.name(), self.firstTable.index_hint if hasattr(self.firstTable, 'index_hint') and self.firstTable.index_hint else '']), self.stmt, self.secondTable.name(), ('ON %s'%self.onCond) if self.onCond else '')
 
 
     def join(self, table, onCond):
@@ -965,7 +1000,7 @@ class CDatabase(object):
                 pass
         if res.isEmpty():
             raise CDatabaseException(CDatabase.errTableNotFound % tableName)
-        return res
+        return CSqlRecord(res)
 
 
     def mainTable(self, tableExpr):
@@ -1240,7 +1275,7 @@ class CDatabase(object):
         if query.first():
             record=query.record()
 #            del query
-            return record
+            return CSqlRecord(record)
         else:
             return None
 
@@ -1517,7 +1552,8 @@ class CDatabase(object):
         res = []
         query = self.query(stmt)
         while query.next():
-            res.append(query.record())
+            record = query.record()
+            res.append(CSqlRecord(record))
         return res
 
 
@@ -1548,14 +1584,17 @@ class CDatabase(object):
         return res
 
 
-    def translate(self, table, keyCol, keyVal, valCol):
+    def translate(self, table, keyCol, keyVal, valCol, nonDeleted=False):
         if keyCol == 'id' and keyVal is None:
             return None
         self.checkdb()
         table = self.forceTable(table)
         if not isinstance(keyCol, CField):
             keyCol = table[keyCol]
-        record = self.getRecordEx(table, valCol, keyCol.eq(keyVal))
+        where = [keyCol.eq(keyVal)]
+        if nonDeleted:
+            where.append(table['deleted'].eq(0))
+        record = self.getRecordEx(table, valCol, where)
         if record:
             return record.value(0)
         else:
@@ -1812,6 +1851,8 @@ class CMySqlDatabase(CDatabase):
             else:
                 parts.append(self.escapeFieldName(record.fieldName(i)) + '=?')
                 values.append(record.value(i))
+        if type(record) == CSqlRecord and not record.isDirty():
+            return recordId.toInt()[0]
         values.append(recordId)
         stmt = 'UPDATE ' + table.name() + ' SET ' + ', '.join(parts) + ' WHERE ' + cond
         preparedQuery = self.preparedQueryCache.get(stmt)
@@ -2468,3 +2509,13 @@ def connectDataBase(driverName, serverName, serverPort, databaseName, userName, 
         return CSqliteDatabase(serverName, serverPort, databaseName, userName, password, connectionName, logger=logger)
     else:
         raise CDatabaseException(CDatabase.errUndefinedDriver % driverName)
+    
+
+def checkViewURN(urn):
+    db = QtGui.qApp.db
+    stmt = u"""select * from information_schema.VIEWS v where v.TABLE_SCHEMA = '{}' and v.TABLE_NAME like '{}'""".format(unicode(db.db.databaseName()), forceString(urn.split('.`')[-1].replace('`','')))
+    query = db.query(stmt)
+    if query.next():
+        return True
+    else:
+        return False

@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,13 +14,16 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QVariant, QModelIndex
+from PyQt4.QtCore import Qt, QVariant, QModelIndex, QDate
+from PyQt4.QtGui import QFont
 
+from Events.Action import CActionTypeCache
 from library.crbcombobox  import CRBComboBox, CRBModelDataCache
 from library.InDocTable   import CInDocTableCol
 from library.TreeComboBox import CTreeComboBox, CTreeComboBoxGetIdSetIdMixin
 from library.TreeModel    import CTreeItemWithId, CTreeModel
-from library.Utils        import forceBool, forceInt, forceRef, forceString, forceStringEx, toVariant
+from library.Utils        import forceBool, forceInt, forceRef, forceString, forceStringEx, toVariant, \
+    forceDate, ActionTypeServiceMixin
 
 from Accounting.Tariff    import CTariff
 from Events.Utils         import recordAcceptable
@@ -125,9 +128,10 @@ class CActionTypeRootTreeItemIsSelect(CActionTypeTreeItem):
             return True
 
 
-class CActionTypeModel(CTreeModel):
+class CActionTypeModel(CTreeModel, ActionTypeServiceMixin):
     def __init__(self, parent=None, enabledActionTypeIdList=None):
         CTreeModel.__init__(self, parent, CActionTypeRootTreeItem(self))
+        ActionTypeServiceMixin.__init__(self)
         self._enabledActionTypeIdList=enabledActionTypeIdList
         self._classes = range(4)
         self.parnt = parent
@@ -277,6 +281,38 @@ class CActionTypeModel(CTreeModel):
         if role == Qt.DisplayRole:
             return QVariant(u'Типы мероприятий')
         return QVariant()
+
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        item = index.internalPointer()
+        if item:
+            if role == Qt.ToolTipRole:
+                actionTypeId = item._id
+                if actionTypeId:
+                    actionTypeCache = CActionTypeCache.getById(actionTypeId)
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
+                    if not self.checkActionTypeService(actionTypeId, code, numService):
+                        return u"Услуга в типе действия не является актуальной"
+                    else:
+                        return u""
+
+            if role == Qt.FontRole:
+                actionTypeId = item._id
+                if actionTypeId:
+                    font = QFont()
+                    actionTypeCache = CActionTypeCache.getById(actionTypeId)
+                    code = actionTypeCache.code
+                    numService = actionTypeCache.nomenclativeServiceId
+                    if not self.checkActionTypeService(actionTypeId, code, numService):
+                        font.setItalic(True)
+                        font.setBold(True)
+                        return font
+                    else:
+                        return font
+        return CTreeModel.data(self, index, role)
 
 
 class CActionTypeComboBox(CTreeComboBoxGetIdSetIdMixin, CTreeComboBox):

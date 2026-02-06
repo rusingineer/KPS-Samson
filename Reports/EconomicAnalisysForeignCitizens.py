@@ -249,6 +249,7 @@ class CEconomicAnalisysForeignCitizensEx(CEconomicAnalisysForeignCitizens):
         result.setAgeVisible(False)
         result.lblOrgStructure.setVisible(False)
         result.shrink()
+        result.loadPrefs()
         return result
 
     def build(self, params):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_test\Orgs\PersonComboBoxExPopup.ui'
+# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Orgs\PersonComboBoxExPopup.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -129,6 +129,7 @@ class Ui_PersonComboBoxExPopup(object):
         self.cmbActivity.setObjectName(_fromUtf8("cmbActivity"))
         self.gridlayout1.addWidget(self.cmbActivity, 5, 1, 1, 2)
         self.cmbOrganisation = COrgComboBox(self.tabSearch)
+        self.cmbOrganisation.setEnabled(False)
         self.cmbOrganisation.setObjectName(_fromUtf8("cmbOrganisation"))
         self.gridlayout1.addWidget(self.cmbOrganisation, 0, 1, 1, 2)
         self.lblOrganisation = QtGui.QLabel(self.tabSearch)

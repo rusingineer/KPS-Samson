@@ -99,9 +99,9 @@ def selectData(params):
              tableAT['flatCode'].inlist(['leaved', 'received']),
            ]
     if begDate:
-        cond.append(tableAction['endDate'].dateGe(begDate))
+        cond.append(tableAction['endDate'].ge(begDate))
     if endDate:
-        cond.append(tableAction['endDate'].dateLe(endDate))
+        cond.append(tableAction['endDate'].lt(endDate.addDays(1)))
 
     stmt = db.selectDistinctStmt(queryTable, cols, cond)
     query = db.query(stmt)

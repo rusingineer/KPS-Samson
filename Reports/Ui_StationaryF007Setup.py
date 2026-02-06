@@ -157,7 +157,7 @@ class Ui_StationaryF007SetupDialog(object):
         self.lblOrgStructure.setText(_translate("StationaryF007SetupDialog", "&Подразделение", None))
         self.cmbSchedule.setItemText(0, _translate("StationaryF007SetupDialog", "Не учитывать", None))
         self.cmbSchedule.setItemText(1, _translate("StationaryF007SetupDialog", "Круглосуточные", None))
-        self.cmbSchedule.setItemText(2, _translate("StationaryF007SetupDialog", "Не круглосуточные", None))
+        self.cmbSchedule.setItemText(2, _translate("StationaryF007SetupDialog", "Дневные", None))
         self.chkIsGroupingOS.setText(_translate("StationaryF007SetupDialog", "Группировка по подразделениям", None))
         self.chkFinance.setText(_translate("StationaryF007SetupDialog", "Тип финансирования", None))
 

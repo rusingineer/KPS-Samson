@@ -18,8 +18,8 @@ from PyQt4.QtCore  import Qt, pyqtSignature, SIGNAL, QAbstractTableModel, QDate,
 
 from library.DialogBase import CConstructHelperMixin
 from library.DialogBase import CDialogBase
-from library.InDocTable import CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol
-from library.TableModel import CDateCol, CDateTimeCol, CTextCol
+from library.InDocTable import CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol #, CBoolInDocTableCol
+from library.TableModel import CDateCol, CDateTimeCol, CTextCol, CBoolCol
 from library.Utils      import forceDate, forceDateTime, forceRef, forceString, toVariant
 from Events.Action      import CAction
 #from Orgs.Utils         import getPersonChiefs
@@ -27,6 +27,89 @@ from Users.Rights       import urEditThermalSheetPastDate
 
 from Ui_TemperatureListGroupEditor import Ui_TemperatureListGroupEditor
 from Ui_GetTemperatureEditor       import Ui_GetTemperatureEditor
+
+
+class CBoolInDocTableColNew(CInDocTableCol):
+    def __init__(self, title, fieldName, width, **params):
+        super(CBoolInDocTableColNew, self).__init__(title, fieldName, width, **params)
+
+    def flags(self, index=None):
+        # Устанавливаем флаги, чтобы ячейка была редактируемой через чекбокс
+        result = super(CBoolInDocTableColNew, self).flags(index)
+        if result & Qt.ItemIsEditable:
+            result = (result & ~Qt.ItemIsEditable) | Qt.ItemIsUserCheckable
+        return result
+
+    def data(self, record, role=Qt.DisplayRole):
+        """
+        Определяем, что должно отображаться в ячейке в зависимости от роли.
+        """
+        value = super(CBoolInDocTableColNew, self).data(record, role)
+
+        if role == Qt.CheckStateRole:  # Для отображения состояния чекбокса
+            if forceInt(value) == 0:
+                return QVariant(Qt.Unchecked)
+            else:
+                return QVariant(Qt.Checked)
+
+        if role == Qt.DisplayRole:  # Не отображаем текст (оставляем пустое)
+            return QVariant()
+
+        return value
+
+    def setData(self, record, value, role=Qt.EditRole):
+        """
+        Устанавливаем данные ячейки.
+        """
+        if role == Qt.CheckStateRole:  # Обработка изменения состояния чекбокса
+            record[self.fieldName()] = 1 if value == Qt.Checked else 0
+            return True
+
+        return super(CBoolInDocTableColNew, self).setData(record, value, role)
+
+    def toCheckState(self, val, record):
+        """
+        Преобразует значение в состояние чекбокса.
+        """
+        if forceInt(val) == 0:
+            return QVariant(Qt.Unchecked)
+        else:
+            return QVariant(Qt.Checked)
+
+    def toString(self, val, record):
+        """
+        Убираем текстовое отображение для булевых значений.
+        """
+        return QVariant()
+
+    def createEditor(self, parent):
+        """
+        Мы не создаём отдельный редактор, так как чекбокс взаимодействует напрямую.
+        """
+        return None
+
+    def setEditorData(self, editor, value, record):
+        """
+        Так как редактор не создаётся, метод можно оставить пустым.
+        """
+        pass
+
+    def getEditorData(self, editor):
+        """
+        Так как редактор не создаётся, метод можно оставить пустым.
+        """
+        return None
+
+
+
+
+
+# class CBoolInDocTableColNew(CInDocTableCol):
+    # def __init__(self, title, fieldName, width, **params):
+    #     CInDocTableCol.__init__(self, title, fieldName, width, **params)
+    #
+    # def flags(self, index=None):
+    #     result = CInDocTableCol.flags(self)
 
 
 class CTemperatureListGroupEditorDialog(QtGui.QDialog, CConstructHelperMixin, Ui_TemperatureListGroupEditor):
@@ -246,6 +329,9 @@ class CThermalSheetModel(QAbstractTableModel):
                       CTextCol(u'Температура',   ['temperature'],                                   20, 'l'),
                       CTextCol(u'День болезни',  ['diseaseDay'],                                     20, 'l')
                       ]
+        if len(actionTypeIdList) > 1:
+            min_id = min(actionTypeIdList)
+            actionTypeIdList = [min_id]
         nameAPTList = self.getActionPropertyTypeName(actionTypeIdList)
         for nameAPT in nameAPTList:
             self._cols.append(nameAPT)
@@ -265,8 +351,10 @@ class CThermalSheetModel(QAbstractTableModel):
             return Qt.ItemIsEnabled|Qt.ItemIsSelectable
         column = index.column()
         result = Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        if column > 6:
+        if column > 6 and self._cols[column].title().toString() != u'Стул':
             result |= Qt.ItemIsEditable
+        if self._cols[column].title().toString() == u'Стул':
+            result |= Qt.ItemIsUserCheckable
         return result
 
 
@@ -292,20 +380,36 @@ class CThermalSheetModel(QAbstractTableModel):
         row = index.row()
         if role == Qt.DisplayRole:
             item = self._items[row]
-            return toVariant(item[column])
+            if self._cols[column].title().toString() != u'Стул':
+            #     return QVariant(Qt.Checked if item[column] and item[column] != 0 else Qt.Unchecked)
+            # else:
+                return toVariant(item[column])
         elif role == Qt.EditRole:
             item = self._items[row]
-            return toVariant(item[column])
+            if self._cols[column].title().toString() != u'Стул':
+            #     return QVariant(Qt.Checked if item[column] and item[column] != 0 else Qt.Unchecked)
+            # else:
+                return toVariant(item[column])
+        elif role == Qt.CheckStateRole:
+            if self._cols[column].title().toString() == u'Стул':  # Для столбца "Стул"
+                return Qt.Checked if self._items[row][column] else Qt.Unchecked
+
         return QVariant()
 
 
     def setData(self, index, value, role=Qt.EditRole):
+        column = index.column()
+        row = index.row()
         if role == Qt.EditRole:
-            column = index.column()
-            row = index.row()
+            # if self._cols[column].title().toString() != u'Стул':
             self._items[row][column] = value
             self.emitCellChanged(row, column)
             return True
+        if role == Qt.CheckStateRole:
+            if self._cols[column].title().toString() == u'Стул':
+                self._items[row][column] = 1 if value == Qt.Checked else 0
+                self.emitCellChanged(row, column)
+                return True
         return False
 
 
@@ -391,6 +495,10 @@ class CThermalSheetModel(QAbstractTableModel):
                     addColumnBoolean = True
                 elif u'string' in typeName.lower():
                     nameAPTList.append(CInDocTableCol(nameAPT, [id], 20, low=0, high=99999))
+                    addColumnBoolean = True
+                elif u'boolean' in typeName.lower():
+                    # nameAPTList.append(CBoolInDocTableCol(nameAPT, [id], 20))
+                    nameAPTList.append(CBoolInDocTableColNew(nameAPT, [id], 20))
                     addColumnBoolean = True
                 if addColumnBoolean:
                     self.column.append(nameAPT)

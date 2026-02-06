@@ -84,6 +84,7 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
                     directionDate = forceDate(record.value('directionDate')) if record else None
                     if typeName == u'Профиль МП':
                         tableOMAP = db.table('Organisation_MedicalAidProfile')
+                        tableRBMAP = db.table('rbMedicalAidProfile')
                         cond = [tableOrganisation['deleted'].eq(0)]
                         if propertyValue:
                             cond.append(tableOMAP['medicalAidProfile_id'].eq(propertyValue))
@@ -92,8 +93,14 @@ class COrganisationActionPropertyValueType(CActionPropertyValueType):
                                 db.joinOr([tableOMAP['begDate'].isNull(), tableOMAP['begDate'].dateLe(directionDate)]))
                             cond.append(
                                 db.joinOr([tableOMAP['endDate'].isNull(), tableOMAP['endDate'].dateGe(directionDate)]))
+                        if action.actionType().flatCode == u'researchDirection':
+                            cond.append(tableRBMAP['federalCode'].inlist([85, 86, 87, 88]))
+                        else:
+                            cond.append(tableRBMAP['federalCode'].notInlist([85, 86, 87, 88]))
                         queryTable = tableOrganisation.innerJoin(tableOMAP,
                                                                  tableOMAP['master_id'].eq(tableOrganisation['id']))
+                        queryTable = queryTable.innerJoin(tableRBMAP,
+                                                                 tableOMAP['medicalAidProfile_id'].eq(tableRBMAP['id']))
                         idList = db.getDistinctIdList(queryTable, [tableOrganisation['id']], cond)
                         filterList.append(tableOrganisation['id'].inlist(idList))
                     if typeName == u'rbHospitalBedProfile':

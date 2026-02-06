@@ -88,7 +88,10 @@ class CExportSanAviacInfoDialog(QtGui.QDialog, CConstructHelperMixin, Ui_ExportS
         self.disableControls()
         self.edExportResults.setVisible(True)
         try:
-            result = SanAviacService.sendSanAviacInformation(requests, "http://%s/san_avia/handler.php" % QtGui.qApp.preferences.dbServerName)
+            urlService = forceString(QtGui.qApp.db.translate('GlobalPreferences', 'code', 'PHP_ServicesUrl', 'value'))
+            if not urlService:
+                urlService = QtGui.qApp.preferences.dbServerName
+            result = SanAviacService.sendSanAviacInformation(requests, "http://%s/san_avia/handler.php" % urlService)
 
             for resultItem in result['result']:
                 self.edExportResults.insertPlainText(u"ActionID %s: %s\n" % (resultItem["IDr"],  (resultItem["Error"] if resultItem["Error"] != "" else u"успешно") ))

@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -24,27 +24,28 @@ class CMapActionTypeIdToServiceIdList:
 
     def mappingActionTypeList(self, actionTypeList, financeId):
         # для массовой загрузки в событиях
+        db = QtGui.qApp.db
+        table = db.table('ActionType_Service')
         notFoundList = []
-        for actionType in actionTypeList:
+        for actionType in set(actionTypeList):
             key = (actionType, financeId)
             if self.mapActionTypeIdToServiceIdList.get(key, None) is None:
                 notFoundList.append(actionType)
-
-        db = QtGui.qApp.db
-        table = db.table('ActionType_Service')
-        records = db.getRecordList(table, cols='master_id, service_id',
-                                   where=[table['master_id'].inlist(notFoundList), table['finance_id'].eq(financeId),
-                                          table['service_id'].isNotNull()])
-        for record in records:
-            key = (forceRef(record.value('master_id')), financeId)
-            item = self.mapActionTypeIdToServiceIdList.setdefault(key, set())
-            if type(item) == list:
-                item = set(item)
-            item.add(forceRef(record.value('service_id')))
-            self.mapActionTypeIdToServiceIdList[key] = item
+        if notFoundList:
+            records = db.getRecordList(table, cols='master_id, service_id',
+                                       where=[table['master_id'].inlist(notFoundList),
+                                              table['finance_id'].eq(financeId),
+                                              table['service_id'].isNotNull()])
+            for record in records:
+                key = (forceRef(record.value('master_id')), financeId)
+                item = self.mapActionTypeIdToServiceIdList.setdefault(key, set())
+                if type(item) == list:
+                    item = set(item)
+                item.add(forceRef(record.value('service_id')))
+                self.mapActionTypeIdToServiceIdList[key] = item
 
         notFoundList = []
-        for actionType in actionTypeList:
+        for actionType in set(actionTypeList):
             key = (actionType, financeId)
             if self.mapActionTypeIdToServiceIdList.get(key, None) is None:
                 notFoundList.append(actionType)

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -18,7 +18,7 @@
 from math import ceil
 
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL, QEvent
 
 from Events.ActionsSelector import selectActionTypesEx
 from Events.ExportMIS import iniExportEvent
@@ -28,7 +28,7 @@ from library.Attach.AttachAction import getAttachAction
 from library.crbcombobox        import CRBComboBox
 from library.ICDInDocTableCol   import CICDExInDocTableCol
 from library.ICDMorphologyInDocTableCol import CMKBMorphologyCol
-from library.InDocTable         import CBoolInDocTableCol, CDateInDocTableCol, CDateTimeForEventInDocTableCol, CInDocTableCol, CMKBListInDocTableModel, CRBInDocTableCol, CRBLikeEnumInDocTableCol
+from library.InDocTable         import CBoolInDocTableCol, CDateInDocTableCol, CDateTimeForEventInDocTableCol, CInDocTableCol, CMKBListInDocTableModel, CRBInDocTableCol, CRBLikeEnumInDocTableCol, CEnumInDocTableCol
 from library.interchange        import getDateEditValue, getDatetimeEditValue, getRBComboBoxValue, setDateEditValue, setDatetimeEditValue, setRBComboBoxValue
 from library.MapCode            import createMapCodeToRowIdx
 from library.PrintInfo          import CDateInfo, CInfoContext
@@ -53,7 +53,7 @@ from Events.Utils import getEventResultId, CEventTypeDescription, checkDiagnosis
 from F131.PreF131Dialog         import CPreF131Dialog
 from Orgs.Orgs                  import selectOrganisation
 from Orgs.PersonInfo            import CPersonInfo
-from Orgs.Utils                 import getOrganisationInfo
+from Orgs.Utils import getOrganisationInfo, getOrgstructureListByEventtypeId, getPersonListByEventtypeId
 from Registry.HurtModels        import CWorkHurtFactorsModel, CWorkHurtsModel
 from Reports.Report             import normalizeMKB
 from Users.Rights                import urAdmin, urEditAfterInvoicingEvent, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
@@ -134,6 +134,16 @@ RowsTemplate = [
                 (u'Прочие заболевания', u'11', u'')
                 ]
 
+healthGroupToResults = {
+    '1': ['317', '321', '327', '332', '337', '343', '347', '352', '375'],
+    '2': ['318', '322', '328', '333', '338', '344', '348', '353', '361', '365', '369', '376', '378'],
+    '3': ['319', '323', '329', '334', '339', '345', '349', '354', '362', '366', '370', '377', '379'],
+    u'3а': ['355', '357', '373'],
+    u'3б': ['356', '358', '374'],
+    '4': ['320', '324','330', '335', '340', '350', '363', '367', '371'],
+    '5': ['325', '331', '336', '341', '351', '364', '368', '372' ]
+}
+
 
 def specialityName(specialityId):
     specialityRecord = QtGui.qApp.db.getRecord('rbSpeciality', 'name', specialityId)
@@ -192,6 +202,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.addObject('actShowAttachedToClientFiles', getAttachAction('Client_FileAttach',  self))
         self.addObject('actShowContingentsClient', QtGui.QAction(u'Показать все наблюдаемые контингенты', self))
         self.addObject('actOpenClientVaccinationCard', QtGui.QAction(u'Открыть прививочную карту', self))
+        self.addObject('actSurveillancePlanningClients', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
         self.setupDiagnosticsMenu()
         # self.setupActionsMenu()
 
@@ -222,6 +233,8 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.tabDiagnostic.setActionTypeClass(1)
         self.tabCure.setActionTypeClass(2)
         self.tabMisc.setActionTypeClass(3)
+        self.tabAmbCard.setEventEditor(self)
+
         self.buttonBox.addButton(self.btnPrint, QtGui.QDialogButtonBox.ActionRole)
         # self.buttonBox.addButton(self.btnMedicalCommission, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnPrintMedicalDiagnosis, QtGui.QDialogButtonBox.ActionRole)
@@ -256,12 +269,14 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.txtClientInfoBrowser.actions.append(self.actShowAttachedToClientFiles)
         self.txtClientInfoBrowser.actions.append(self.actShowContingentsClient)
         self.txtClientInfoBrowser.actions.append(self.actOpenClientVaccinationCard)
+        self.txtClientInfoBrowser.actions.append(self.actSurveillancePlanningClients)
         self.actOpenClientVaccinationCard.setEnabled(QtGui.qApp.userHasAnyRight([urCanReadClientVaccination, urCanEditClientVaccination]))
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
         self.tblWorkHurts.addPopupDelRow()
         self.tblWorkHurtFactors.addPopupDelRow()
         self.tblInspections.setPopupMenu(self.mnuDiagnostics)
         self.tblInspections.setDelRowsIsExposed(lambda rowsExp: not any(map(self.modelDiagnostics.isExposed, rowsExp)))
+        self.tblInspections.installEventFilter(self)
         # self.tblActions.setPopupMenu(self.mnuAction)
         # self.addObject('qshcActionsEdit', QtGui.QShortcut('F4', self.tblActions, self.on_actActionEdit_triggered))
         # self.qshcActionsEdit.setContext(Qt.WidgetShortcut)
@@ -336,6 +351,15 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.mnuDiagnostics.addSeparator()
         self.mnuDiagnostics.addAction(self.actDiagnosticsRemove)
 
+    def eventFilter(self, obj, event):
+        if obj == self.tblInspections and event.type() == QEvent.KeyPress:
+            if event.key() == Qt.Key_Down:
+                if self.modelDiagnostics.rowCount() > 0:
+                    current_index = self.tblInspections.currentIndex()
+                    if current_index.isValid() and current_index.row() == self.modelDiagnostics.rowCount() - 1:
+                        self.on_actDiagnosticsAddAccomp_triggered()
+                        return True
+        return CEventEditDialog.eventFilter(self, obj, event)
 
     # def setupActionsMenu(self):
     #     self.addObject('mnuAction', QtGui.QMenu(self))
@@ -437,11 +461,14 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 eventDate = QDate.currentDate()
             dlg.setBegDateEvent(eventSetDatetime.date() if isinstance(eventSetDatetime, QDateTime) else eventSetDatetime)
             presentActionTypes = []
+            maxOccursLimitActionTypes = []
             for item in self.modelActionsSummary.items():
                 actionTypeId = forceString(item.value('actionType_id'))
                 if actionTypeId not in presentActionTypes:
                     presentActionTypes.append(actionTypeId)
-            dlg.prepare(clientId, eventTypeId, eventDate, tissueTypeId, presentActionTypes = presentActionTypes)
+                    if not self.checkMaxOccursLimit(actionTypeId) and actionTypeId not in maxOccursLimitActionTypes:
+                        maxOccursLimitActionTypes.append(actionTypeId)
+            dlg.prepare(clientId, eventTypeId, eventDate, tissueTypeId, presentActionTypes = presentActionTypes, maxOccursLimitActionTypes = maxOccursLimitActionTypes)
             if dlg.warnAboutUnmatchedSpeciality:
                 widget = QtGui.qApp.activeModalWidget() or QtGui.qApp.mainWindow or None
                 QtGui.QMessageBox.critical( widget,
@@ -477,6 +504,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 self.chkPrimary.setChecked(getEventIsPrimary(eventTypeId)==0)
                 self.cmbContract.setCurrentIndex(0)
                 self.edtNextDate.setDate(getNextEventDate(self.eventTypeId, self.eventSetDateTime.date()))
+                self.setOrgStructAndPersonsInCmbPersons(eventTypeId)
                 self.prepareDiagnostics(dlg.diagnostics())
                 diagnosticResultId = QtGui.qApp.session("F131_DiagnosticResultIdByPurpose%d" % self.eventPurposeId)
                 if diagnosticResultId:
@@ -528,6 +556,8 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         result.setValue('setDate',        QVariant(self.eventSetDateTime))
         if forceDate(template.value('endDate')):
             result.setValue('endDate',        QVariant(template.value('endDate')))
+        else:
+            result.setValue('endDate', QVariant(self.eventDate))
         result.setValue('healthGroup_id', template.value('defaultHealthGroup_id'))
         result.setValue('MKB',            template.value('defaultMKB'))
         result.setValue('defaultMKB',     template.value('defaultMKB'))
@@ -601,6 +631,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             self.tabMedicalDiagnosis.load(self.itemId())
 #            self.loadActions(dlg.actions())
             self.updateMesMKB()
+            self.setOrgStructAndPersonsInCmbPersons(self.eventTypeId)
             self.tabMes.setRecord(record)
             self.loadActions()
             self.setFocusToWidget(self.tblInspections)
@@ -609,10 +640,24 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             self.setIsDirty(False)
             self.protectClosedEvent()
             iniExportEvent(self)
+            self.actSurveillancePlanningClients.setEnabled(bool(self.getDiagnosticIdList(self.clientId)))
         finally:
             dlg.deleteLater()
             self.btnRelatedEventHighlight()
 
+    def setOrgStructAndPersonsInCmbPersons(self, eventTypeId):
+        orgstructureListByEventtype = getOrgstructureListByEventtypeId(eventTypeId)
+        personListByEventtype = getPersonListByEventtypeId(eventTypeId)
+        self.cmbPerson.setOrgStructureList(orgstructureListByEventtype)
+        self.cmbPerson.setPersonIdList(personListByEventtype)
+        self.modelDiagnostics._cols[self.modelDiagnostics.getColIndex('person_id')].orgStructureIdList = orgstructureListByEventtype
+        self.modelDiagnostics._cols[self.modelDiagnostics.getColIndex('person_id')].personIdList = personListByEventtype
+        self.modelActionsSummary._cols[
+            self.modelActionsSummary.getColIndex('person_id')].orgStructureIdList = orgstructureListByEventtype
+        self.modelActionsSummary._cols[
+            self.modelActionsSummary.getColIndex('person_id')].personIdList = personListByEventtype
+
+        #self.modelDiagnostics._cols[2].F131flag = True
 
     def setLeavedAction(self, actionTypeIdValue, params = {}):
         pass
@@ -857,7 +902,9 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         # объединяем в один список
         items = []
         for group in rawSorted:
-            items.extend(group)
+            for item in group:
+                item._dirty = False
+                items.append(item)
         # и устанавливаем в модель:
         self.modelDiagnostics.setItems(items)
         self.modelDiagnostics.cols()[self.modelDiagnostics.getColIndex('healthGroup_id')].setFilter(getHealthGroupFilter(forceString(self.clientBirthDate.toString('yyyy-MM-dd')), forceString(self.eventSetDateTime.date().toString('yyyy-MM-dd'))))
@@ -868,6 +915,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             record = CEventEditDialog.getRecord(self)
         else:
             record = self.record()
+            record._dirty = True
         showTime = getEventShowTime(self.eventTypeId)
         self.getShowButtonAccount()
         self.getShowButtonTemperatureList()
@@ -1282,6 +1330,10 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 result = result and (checkEpic or self.checkValueMessage(
                     u"Необходимо заполнить Назначения после проведения диспансеризации", False, self.tabStatus))
                 self.setActionCons([u'appointments'])
+            checkRequireAction, ActionTypeIdList = self.checkRequireAction(self.eventTypeId, tabList, self.personSpecialityId, self.modelDiagnostics.items())
+            result = result and checkRequireAction
+            if ActionTypeIdList:
+                self.setActionConsbyIds(ActionTypeIdList)
             result = result and self.needOnkoDocs(ConsFlatCodeList)
             result = result and (self.cmbResult.value()   or self.checkInputMessage(u'результат',   False, self.cmbResult))
             result = result and self.checkEventResult()
@@ -1318,15 +1370,15 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         result = result and self.tabCash.checkDataLocalContract()
         result = result and self.checkSerialNumberEntered()
         result = result and self.checkTabNotesEventExternalId()
-        if result:
-            checkEventType, skipable, errorNames, ActionTypeIdList = self.checkEventType(self.eventTypeId, tabList)
-            result = result and (checkEventType or self.checkValueMessage(u"Требуется добавить следующие документы:\n{}".
-                                                                     format(errorNames), skipable, None))
-            if not result and ActionTypeIdList:
-                self.setActionConsbyIds(ActionTypeIdList)
+        #                                                self.modelDiagnostics)
+        result = result and (self.checkCorrectlyEnteredPersons(self.cmbPerson
+                                                              ) if not QtGui.qApp.checkGlobalPreference('23:checkChosenPerson',
+                                                                                                        u'не выполнять') else True)
         if self.edtEndDate.date():
             result = result and self.checkAndUpdateExpertise(self.edtEndDate.date(), self.cmbPerson.value())
             result = result and self.checkEventTypeNextEventDate(self.eventTypeId, endDateCheck, self.clientId)
+            if CFinanceType.getCode(self.eventFinanceId) == CFinanceType.CMI and QtGui.qApp.defaultKLADR()[:2] == u'23':
+                result = result and self.checkServiceDates(begDate, endDate)
         result = result and self.selectNomenclatureAddedActions(tabList)
         return result
 
@@ -1803,6 +1855,8 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     @pyqtSignature('QDate')
     def on_edtEndDate_dateChanged(self, date):
         self.eventDate = QDate(date)
+        for row in xrange(self.modelDiagnostics.rowCount()):
+            self.modelDiagnostics.setEndDate(row, date)
         self.cmbContract.setDate(self.getDateForContract())
         self.setEnabledChkCloseEvent(self.eventDate)
         self.cmbPerson.setEndDate(date)
@@ -1829,6 +1883,53 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     def on_cmbWorkOrganisation_currentIndexChanged(self):
         self.UpdateWorkOrganisationInfo()
 
+    @pyqtSignature('int')
+    def on_cmbResult_currentIndexChanged(self):
+        super(CF131Dialog, self).on_cmbResult_currentIndexChanged()
+
+        resultId = self.cmbResult.value()
+        if not resultId:
+            return
+
+        db = QtGui.qApp.db
+        tableResult = db.table('rbResult')
+        record = db.getRecordEx(tableResult, [tableResult['regionalCode']], [tableResult['id'].eq(resultId)])
+        if not record:
+            return
+
+        resultRegCode = forceString(record.value('regionalCode'))
+        if not resultRegCode:
+            return
+
+        group = ''
+        for healthGroup, regCodes in healthGroupToResults.items():
+            if resultRegCode in regCodes:
+                group = healthGroup
+                break
+
+        idDiagResult = None
+        tableDiagResult = db.table('rbDiagnosticResult')
+
+        resultFilter = ''
+        if hasattr(self, 'modelDiagnostics') and self.modelDiagnostics:
+            resultColIndex = self.modelDiagnostics.getColIndex('result_id')
+            if resultColIndex is not None:
+                resultCol = self.modelDiagnostics.cols()[resultColIndex]
+                resultFilter = getattr(resultCol, 'filter', '')
+
+        idDiagResult = db.getMax(tableDiagResult, where=resultFilter)
+
+        idHealthGroup = None
+        if group:
+            tableHealth = db.table('rbHealthGroup')
+            idHealthGroup = db.translate(tableHealth, 'code', group, 'id')
+
+            for item in self.modelDiagnostics.items():
+                if forceInt(item.value("diagnosisType_id")) == 1:
+                    if idHealthGroup:
+                        item.setValue('healthGroup_id', QVariant(idHealthGroup))
+                    if idDiagResult:
+                        item.setValue('result_id', QVariant(idDiagResult))
 
     @pyqtSignature('')
     def on_btnSelectWorkOrganisation_clicked(self):
@@ -1957,7 +2058,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         if forceBool(QtGui.qApp.preferences.appPrefs.get('fillDiagnosticsEventsResults', True)):
             CF131Dialog.defaultDiagnosticResultId = self.modelDiagnostics.resultId()
             defaultResultId = getEventResultId(CF131Dialog.defaultDiagnosticResultId, self.eventPurposeId)
-            if defaultResultId and isDefaultResultIdValid(defaultResultId, self.eventPurposeId, resultCond):
+            if defaultResultId and isDefaultResultIdValid(defaultResultId, self.eventPurposeId, resultCond) and not currentValue:
                 self.cmbResult.setValue(defaultResultId)
             else:
                 self.cmbResult.setValue(currentValue)
@@ -2169,6 +2270,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             newRecord.setValue('person_id', currentRecord.value('person_id'))
             newRecord.setValue('speciality_id', currentRecord.value('speciality_id'))
             newRecord.setValue('healthGroup_id', currentRecord.value('healthGroup_id'))
+            newRecord.setValue('result_id', currentRecord.value('result_id'))
             self.modelDiagnostics.insertRecord(currentRow+1, newRecord)
             self.tblInspections.setCurrentIndex(self.modelDiagnostics.index(currentRow+1, newRecord.indexOf('MKB')))
 
@@ -2198,6 +2300,8 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
     def autoInsertingActionByMES(self):
         """Автодобавление услуг по МЭС"""
+        if QtGui.qApp.checkGlobalPreference(u'23:f131plannerMESDispan', u'нет'):
+            return
         orgStructureId = QtGui.qApp.currentOrgStructureId()
         financeCode = forceStringEx(QtGui.qApp.db.translate('rbFinance', 'id', self.eventFinanceId, 'code'))
         if financeCode:
@@ -2341,6 +2445,8 @@ class CF131DiagnosticsModel(CMKBListInDocTableModel):
             self.addExtCol(CMKBExSubclassCol(u'РСК', 'exSubclassMKB', 20), QVariant.String).setToolTip(u'Расширенная субклассификация МКБ')
         if QtGui.qApp.isTNMSVisible():
             self.addCol(CTNMSCol(u'TNM-Ст', 'TNMS',  10))
+        if QtGui.qApp.isClinicalGroupDiagnosticVisible():
+            self.addCol(CEnumInDocTableCol(u'КГ', 'clinicalGroup', 30, [u'', u'1а - подозрение', u'1б - предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению'])).setToolTip(u'Клиническая группа')
         if self.isMKBMorphology:
             self.addExtCol(CMKBMorphologyCol(u'Морф.', 'morphologyMKB', 10, 'MKB_Morphology', filter='`group` IS NOT NULL'), QVariant.String)
         self.addCol(CDiseaseCharacter(     u'Хар',         'character_id',   7, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Характер')
@@ -2519,6 +2625,7 @@ class CF131DiagnosticsModel(CMKBListInDocTableModel):
                 value = toVariant(newMKB)
                 oldMKB = forceString(self.items()[row].value('MKB')) if 0 <= row < len(self.items()) else None
                 self.updateCharacterByMKB(row, newMKB)
+                self.updateClinicalGroup(row, oldMKB, newMKB, self.eventEditor.itemId(), self.eventEditor.clientId, self.eventEditor.eventSetDateTime.date())
                 self.updateToxicSubstancesByMKB(row, newMKB)
                 self.updateTNMS(index, self.items()[row], newMKB)
                 self.updateMKBTNMS(self.items()[row], newMKB)
@@ -2582,34 +2689,6 @@ class CF131DiagnosticsModel(CMKBListInDocTableModel):
                 self.emitRowChanged(row)
 
 
-    def inheritMKBTNMS(self, record, oldMKB, newMKB, clientId, eventSetDate):
-        if QtGui.qApp.isTNMSVisible() and not oldMKB and newMKB and (newMKB[:1] == 'C' or newMKB[:2] == 'D0'):
-            query = QtGui.qApp.db.query(u"""SELECT Diagnostic.* 
-                                            FROM Diagnostic 
-                                            left JOIN Diagnosis ON Diagnosis.id = Diagnostic.diagnosis_id
-                                            left JOIN rbDiagnosisType ON rbDiagnosisType.id = Diagnostic.diagnosisType_id
-                                          WHERE Diagnosis.client_id = {clientId} 
-                                            AND rbDiagnosisType.code = '1'
-                                            AND Diagnosis.MKB = '{mkb}'
-                                            AND Diagnostic.endDate <= '{date}'
-                                          ORDER BY Diagnostic.endDate DESC 
-                                          LIMIT 1""".format(clientId=clientId,
-                                                            mkb=forceString(newMKB),
-                                                            date=forceDate(eventSetDate).toString(
-                                                                'yyyy-MM-dd')))
-            if query.first():
-                recordOldDiagnostic = query.record()
-                record.setValue('TNMS', recordOldDiagnostic.value('TNMS'))
-                record.setValue('cTumor_id', recordOldDiagnostic.value('cTumor_id'))
-                record.setValue('cNodus_id', recordOldDiagnostic.value('cNodus_id'))
-                record.setValue('cMetastasis_id', recordOldDiagnostic.value('cMetastasis_id'))
-                record.setValue('cTNMphase_id', recordOldDiagnostic.value('cTNMphase_id'))
-                record.setValue('pTumor_id', recordOldDiagnostic.value('pTumor_id'))
-                record.setValue('pNodus_id', recordOldDiagnostic.value('pNodus_id'))
-                record.setValue('pMetastasis_id', recordOldDiagnostic.value('pMetastasis_id'))
-                record.setValue('pTNMphase_id', recordOldDiagnostic.value('pTNMphase_id'))
-
-
     def diagnosisTypeId(self, row):
         return forceRef(self.items()[row].value('diagnosisType_id'))
 
@@ -2661,7 +2740,11 @@ class CF131DiagnosticsModel(CMKBListInDocTableModel):
 
     def setSetDate(self, row, date):
         self.items()[row].setValue('setDate',  QVariant(date))
-        self.emitCellChanged(row, 3)
+        self.emitCellChanged(row, self.items()[row].indexOf('setDate'))
+
+    def setEndDate(self, row, date):
+        self.items()[row].setValue('endDate',  QVariant(date))
+        self.emitCellChanged(row, self.items()[row].indexOf('endDate'))
 
 
     def updateCharacterByMKB(self, row, MKB):
@@ -2694,3 +2777,8 @@ class CF131DiagnosticsModel(CMKBListInDocTableModel):
             return forceRef(items[0].value('result_id'))
         else:
             return None
+    
+    
+    def saveItems(self, masterId = None):
+        CMKBListInDocTableModel.saveItems(self, masterId)
+        self.prophylaxisPlanningSync()

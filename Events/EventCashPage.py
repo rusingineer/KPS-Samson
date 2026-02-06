@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,7 +17,7 @@ from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QTime, QVariant, pyq
 
 from library.interchange        import getDateEditValue, getLineEditValue, getRBComboBoxValue, getTextEditValue, setDateEditValue, setDatetimeEditValue, setLineEditValue, setRBComboBoxValue, setTextEditValue
 from library.DialogBase         import CConstructHelperMixin
-from library.InDocTable         import CDateInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CInDocTableModel, CRBInDocTableCol
+from library.InDocTable         import CDateTimeInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CInDocTableModel, CRBInDocTableCol
 from library.Utils              import forceBool, forceDouble, forceInt, forceRef, forceString, nameCase, splitDocSerial, toVariant, forceDate
 from RefBooks.Tables            import rbCashOperation, rbDocumentType
 from Events.Action              import CActionTypeCache
@@ -27,7 +27,7 @@ from Events.EventInfo           import CEventLocalContractInfo
 from Events.Utils import CFinanceType
 from Orgs.Orgs                  import CBankInDocTableCol, selectOrganisation
 from Events.ClientPayersList    import CClientPayersList
-from Users.Rights import urEditCoordinationAction, urAdmin, urRegTabWriteEventCash
+from Users.Rights import urEditCoordinationAction, urAdmin, urRegTabWriteEventCash,urDeleteEventCashPayments
 
 from Ui_EventCashPage import Ui_EventCashPageWidget
 
@@ -52,7 +52,8 @@ class CEventCashPage(QtGui.QWidget, Ui_EventCashPageWidget, CConstructHelperMixi
         self.tabActionsAndCash.setFocusProxy(self.tblAccActions)
         self.tblAccActions.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
 
-        self.tblPayments.addPopupDelRow()
+        if QtGui.qApp.userHasRight(urDeleteEventCashPayments):
+            self.tblPayments.addPopupDelRow()
         self.tblAccActionsPrepareColumns()
         self.tblAccActions.enableColsHide()
         self.tblAccActions.enableColsMove()
@@ -121,7 +122,7 @@ class CEventCashPage(QtGui.QWidget, Ui_EventCashPageWidget, CConstructHelperMixi
                     paymentItemSum = None
                     refundSum = - forceDouble(item.value('sum'))
                     for paymentItem in paymentItems:
-                        if forceDate(paymentItem.value('date')) == QDate.currentDate() and forceDouble(paymentItem.value('sum')) < 0:
+                        if forceDate(paymentItem.value('dateTime')) == QDate.currentDate() and forceDouble(paymentItem.value('sum')) < 0:
                             paymentItemSum = forceDouble(paymentItem.value('sum'))
                             break
                     if paymentItemSum:
@@ -859,7 +860,7 @@ class CPaymentsModel(CInDocTableModel):
         CInDocTableModel.__init__(self, 'Event_Payment', 'id', 'master_id', parent)
         self._parent = parent
         self.addCol(CInDocTableCol( u'Касса',     'cashBox', 15)).setToolTip(u'').setReadOnly()
-        self.addCol(CDateInDocTableCol( u'Дата',  'date',    15, canBeEmpty=True)).setToolTip(u'Дата платежа')
+        self.addCol(CDateTimeInDocTableCol( u'Дата и время',  'dateTime',    15, canBeEmpty=True)).setToolTip(u'Дата и время платежа')
         self.addCol(CRBInDocTableCol(   u'Операция', 'cashOperation_id', 10, rbCashOperation, addNone=True, preferredWidth=150))
         self.addCol(CFloatInDocTableCol(u'Сумма', 'sum',     15, precision=2)).setToolTip(u'Сумма платежа')
         self.addCol(CEnumInDocTableCol(u'Тип оплаты', 'typePayment', 12,  [u'наличный', u'безналичный', u'по реквизитам']))
@@ -868,6 +869,7 @@ class CPaymentsModel(CInDocTableModel):
         self.addCol(CBankInDocTableCol( u'Реквизиты банка', 'bank_id', 22))
         self.addCol(CInDocTableCol(u'Номер кредитной карты',  'numberCreditCard',    22))
         self.readOnly = False
+        self.deleteIdList = []
 
 
     def setReadOnly(self, value):
@@ -888,7 +890,7 @@ class CPaymentsModel(CInDocTableModel):
     def getEmptyRecord(self):
         result = CInDocTableModel.getEmptyRecord(self)
         result.setValue('cashBox',  toVariant(QtGui.qApp.cashBox()))
-        result.setValue('date',     toVariant(QDate.currentDate()))
+        result.setValue('dateTime',     toVariant(QDateTime.currentDateTime()))
         return result
 
 
@@ -900,6 +902,12 @@ class CPaymentsModel(CInDocTableModel):
 
 
     def removeRows(self, row, count, parentIndex = QModelIndex()):
+        if 0 <= row and row+count <= len(self._items):
+            deleteItems = self._items[row:row+count]
+            for item in deleteItems:
+                deleteItem = forceRef(item.value('id'))
+                if deleteItem and deleteItem not in self.deleteIdList:
+                    self.deleteIdList.append(deleteItem)
         result = CInDocTableModel.removeRows(self, row, count, parentIndex)
         self.emitSumChanged()
         return result
@@ -914,6 +922,34 @@ class CPaymentsModel(CInDocTableModel):
 
     def emitSumChanged(self):
         self.emit(SIGNAL('sumChanged()'))
+
+
+    def saveItems(self, masterId):
+        if self._items is not None:
+            db = QtGui.qApp.db
+            table = self._table
+            masterId = toVariant(masterId)
+            masterIdFieldName = self._masterIdFieldName
+            idFieldName = self._idFieldName
+            idList = []
+            for idx, record in enumerate(self._items):
+                record.setValue(masterIdFieldName, masterId)
+                if self._idxFieldName:
+                    record.setValue(self._idxFieldName, toVariant(idx))
+                if self._extColsPresent:
+                    outRecord = self.removeExtCols(record)
+                else:
+                    outRecord = record
+                id = db.insertOrUpdate(table, outRecord)
+                record.setValue(idFieldName, toVariant(id))
+                idList.append(id)
+                self.saveDependence(idx, id)
+            
+            filter = [table[masterIdFieldName].eq(masterId), 
+                      '('+table[idFieldName].inlist(self.deleteIdList)+')']
+            if self._filter:
+                filter.append(self._filter)
+            db.deleteRecord(table, filter)
 
 
 def getCurrentUserName():

@@ -265,12 +265,12 @@ class CReportBedFund(CReport):
             boldChars.setFontWeight(QtGui.QFont.Bold)
             col_num = 0
             for record in recordsList:
-                eventId = forceInt(record.value('eventId'))
+                eventId = forceRef(record.value('eventId'))
                 orgStructureName = forceString(record.value('orgStructureName'))
                 OSHBId = forceString(record.value('OSHBId'))
                 code = forceString(record.value('OSHBCode'))
                 name = forceString(record.value('OSHBName'))
-                relief = forceString(record.value('OSHBrelief'))
+                relief = forceInt(record.value('OSHBrelief'))
                 typeName = forceString(record.value('typeName'))
                 clientSex = forceInt(record.value('clientSex'))
                 if clientSex == 1:
@@ -300,18 +300,17 @@ class CReportBedFund(CReport):
                 table.setText(n, 4, relief)
                 table.setText(n, 5, typeName)
 
-                if fullName.replace(" ", "") == "":
-                    table.setText(n, 7, u'Свободно')
-                else:
+                if eventId:
                     table.setText(n, 7, u'Занято')
-
                     table.setText(n, 6, clientSex)
                     table.setText(n, 8, fullName)
                     table.setText(n, 9, age)
                     table.setText(n, 10, clientBegDate)
                     table.setText(n, 11, MKB)
+                else:
+                    table.setText(n, 7, u'Свободно')
 
-                if int(relief) > 1:
+                if relief > 1 or relief == 0 and eventId:
                     items = self.loadData(OSHBId, eventId, endDate)
                     if items:
                         for item in items:
@@ -328,8 +327,10 @@ class CReportBedFund(CReport):
                             table.setText(n, 9, calcAge(item[3]))
                             table.setText(n, 10, item[9])
                             table.setText(n, 11, item[10])
-
-                    ost = int(relief) - (len(items) + 1)
+                    if relief == 0:
+                        ost = 1
+                    else:
+                        ost = relief - (len(items) + 1)
                     for _ in xrange(ost):
                         n = table.addRow()
                         table.setText(n, 0, u"   ")

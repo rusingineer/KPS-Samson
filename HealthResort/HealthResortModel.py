@@ -1242,7 +1242,7 @@ ClientE.patrName, CAST( ClientE.id AS CHAR)) FROM Client AS ClientE WHERE Client
         orgStructureIdList = []
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
             if orgStructureIdList:
                 movingOSIdList = db.getIdList(tableOS, tableOS['id'], [tableOS['id'].inlist(orgStructureIdList), tableOS['type'].ne(4), tableOS['deleted'].eq(0)])
                 receivedOSIdList = db.getIdList(tableOS, tableOS['id'], [tableOS['id'].inlist(orgStructureIdList), tableOS['type'].eq(4), tableOS['deleted'].eq(0)])
@@ -1476,7 +1476,7 @@ class CReceivedModel(CMonitoringModel):
         self.statusObservation = statusObservation
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
         db = QtGui.qApp.db
         tableAPT = db.table('ActionPropertyType')
         tableAP = db.table('ActionProperty')
@@ -2674,7 +2674,7 @@ class CTransferModel(CMonitoringModel):
         self.statusObservation = statusObservation
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
         db = QtGui.qApp.db
         tableAPT = db.table('ActionPropertyType')
         tableAP = db.table('ActionProperty')
@@ -3183,7 +3183,7 @@ class CLeavedModel(CMonitoringModel):
 
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
         if leavedIndex == 1 or leavedIndex == 2:
             groupBY = u''
             cols = [tableAction['begDate'],
@@ -3615,7 +3615,7 @@ class CLeavedModel(CMonitoringModel):
                 cond.append(db.joinOr([tableAction['endDate'].isNull(), tableAction['endDate'].le(filterEndDate)]))
             if orgStructureId:
                 treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-                orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+                orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
             if orgStructureIdList:
                 cond.append(getDataOrgStructure(u'Отделение', orgStructureIdList, False))
             if conclusion and conclusion != u'не определено':
@@ -4162,7 +4162,7 @@ class CQueueModel(CMonitoringModel):
             return records
         if orgStructureId:
             treeItem = orgStructureId.internalPointer() if orgStructureId.isValid() else None
-            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem._id else []
+            orgStructureIdList = self.getOrgStructureIdList(orgStructureId) if treeItem and treeItem._id else []
             recordType = db.getRecordEx(tableOS, [tableOS['id']], [tableOS['deleted'].eq(0), tableOS['type'].eq(4), tableOS['id'].inlist(orgStructureIdList)])
             if recordType and forceRef(recordType.value('id')):
                 orgStructureIdList = []

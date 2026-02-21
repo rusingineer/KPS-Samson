@@ -1721,6 +1721,12 @@
      </property>
      <addaction name="actNotTemplate"/>
     </widget>
+    <widget class="QMenu" name="mnuHealthCenter">
+     <property name="title">
+      <string>Центр Здоровья</string>
+     </property>
+     <addaction name="actHealthCenterForm68"/>
+    </widget>
     <addaction name="mnuAdministrator"/>
     <addaction name="mnuStatReports"/>
     <addaction name="mnuAnaliticReports"/>
@@ -1746,6 +1752,7 @@
     <addaction name="mnuReportLaboratory"/>
     <addaction name="mnuReportTrauma"/>
     <addaction name="mnuReportSanstorium"/>
+    <addaction name="mnuHealthCenter"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="mnuWork"/>
@@ -6621,6 +6628,11 @@
   <action name="actExportVMPCases">
    <property name="text">
     <string>Экспорт талонов ВМП</string>
+   </property>
+  </action>
+  <action name="actHealthCenterForm68">
+   <property name="text">
+    <string>Отчётная форма №68</string>
    </property>
   </action>
   <action name="actStationaryF14KK4000">

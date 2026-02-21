@@ -477,13 +477,13 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # молекулярно-генетические исследования с целью выявления онкологических заболеваний
-                    elif identifier == 'ae':
+                    elif identifier == 'ag':
                         lineData = reportData.setdefault(45, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # гистологические исследования с целью выявления онкологических заболеваний
-                    elif identifier == 'ag':
+                    elif identifier == 'ah':
                         lineData = reportData.setdefault(46, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma

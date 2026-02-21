@@ -1238,7 +1238,7 @@ where t.typeFile = 'D'""")
             if pdict.has_key(rec_u['SN']):
                 for rep in [rep_item, rep_all]:
                     kat = forceInt(pdict[rec_u['SN']][0] == '1')
-                    rep['fl'][kat].add(tuple(pdict[rec_u['SN']]))
+                    rep['fl'][kat].add(tuple(pdict[rec_u['SN']][0:-1]))
                     rep['sn'][kat].add(rec_u['SN'])
                     if rec_u['KUSL'][:1] in (u'A', u'B'):
                         if rec_u['KUSL'] in self.pobr:
@@ -2227,7 +2227,7 @@ where t.typeFile = 'D'""")
             ('S_DOC', 'C', 10),  # серия УДЛ
             ('N_DOC', 'C', 15),  # номер УДЛ
             ('NAPR_MO', 'C', 6),  # код направившей МО
-            ('NAPR_N', 'C', 15),  # номер направления
+            ('NAPR_N', 'C', 40),  # номер направления
             ('NAPR_D', 'D'),  # дата выдачи направления
             ('NAPR_DP', 'D'),  # дата планируемой госпитализации
             ('TAL_N', 'C', 18),  # номер талона на ВМП
@@ -2353,8 +2353,8 @@ where t.typeFile = 'D'""")
             ('MKBXO', 'C', 6),  # код диагноза осложнения заболевания по МКБ–Х
             ('C_ZAB', 'C', 1),  # характер основного заболевания
             ('VP', 'C', 3),  # код условия оказания медицинской помощи
-            ('KRIT', 'C', 10),  # оценка состояния пациента по шкалам или схема лечения или длительность непрерывного проведения ИВЛ
-            ('KRIT2', 'C', 10),  # схема лекарственной терапии(только для комбинированных схем лечения)
+            ('KRIT', 'C', 20),  # оценка состояния пациента по шкалам или схема лечения или длительность непрерывного проведения ИВЛ
+            ('KRIT2', 'C', 20),  # схема лекарственной терапии(только для комбинированных схем лечения)
             ('KSLP', 'C', 40),  # список примененных КСЛП
             ('KSLP_IT', 'N', 4, 2),  # итоговое значение КСЛП для услуги КСГ рассчитанное в соответствии с Тарифным соглашением
             ('KUSL', 'C', 15),  # код медицинской услуги
@@ -2412,7 +2412,7 @@ where t.typeFile = 'D'""")
             ('CODE_MO', 'C', 5),  # код МО, оказавшей медицинскую помощь и выдавшей направление
             ('NS', 'N', 5, 0),  # номер реестра счетов
             ('SN', 'N', 12, 0),  # номер персонального счета
-            ('NAPR_N', 'C', 15),  # номер направления, (ККККК_ХХХХХХХ)
+            ('NAPR_N', 'C', 40),  # номер направления, (ККККК_ХХХХХХХ)
             ('NAPR_MO', 'C', 5),  # код МО, в которое направлен пациент
             ('NAPR_D', 'D'),  # дата направления
             ('DOC_SS', 'C', 14),  # СНИЛС врача сотрудника, выдавшего направление
@@ -3462,7 +3462,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 if NAPR_N:
                     if NAPR_MO_OMSCODE + '_' not in NAPR_N:
                         NAPR_N = '%s_%s' % (NAPR_MO_OMSCODE, NAPR_N)
-                    dbfRecord['NAPR_N'] = NAPR_N[:15]
+                    dbfRecord['NAPR_N'] = NAPR_N[:40]
                 dbfRecord['NAPR_D'] = pyDate(forceDate(record.value('NAPR_D')))
 
                 # Талон ВМП
@@ -3635,7 +3635,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             # оценка состояния по шкалам или схема лечения ЗНО или длительность ИВЛ
             if serviceCode[:1] == 'G' and csgKritId:
                 csgKritCode = forceString(db.translate('soc_spr80', 'id', csgKritId, 'code'))
-                dbfRecord['KRIT'] = csgKritCode[:10]
+                dbfRecord['KRIT'] = csgKritCode[:20]
             elif serviceCode[:1] == 'G' and kritActionid:
                 action = CAction(record=db.getRecord('Action', '*', kritActionid))
                 for propName in [u'Состояние пациента по ШРМ', u'Схема лечения ЗНО', u'Длительность ИВЛ',
@@ -3660,11 +3660,11 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                         kritDate = endDate
                     stmt = u"select NULL from soc_spr69 where ksgkusl = '{kusl}' and KRIT = '{krit}' and (dato is null or dato >= {date})"
                     if code and db.query(stmt.format(kusl=serviceCode, krit=code, date=db.formatDate(kritDate))).size() > 0:
-                        dbfRecord['KRIT'] = code[:10]
+                        dbfRecord['KRIT'] = code[:20]
                         break
                 # схема лекарственной терапии (только для комбинированных схем лечения)
                 if dbfRecord['KRIT'][:2] == u'sh' and action[u'Доп. схема лечения ЗНО']:
-                    dbfRecord['KRIT2'] = self.getKRITCode(forceRef(action[u'Доп. схема лечения ЗНО']))[:10]
+                    dbfRecord['KRIT2'] = self.getKRITCode(forceRef(action[u'Доп. схема лечения ЗНО']))[:20]
 
             # список примененных КСЛП и итоговое значение КСЛП для услуги КСГ
             dbfRecord['KSLP'] = forceString(record.value('KSLP'))[:40]
@@ -4109,7 +4109,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                     dbfRecord['CODE_MO'] = params['codeLpu'][:5]
                     dbfRecord['NS'] = self.processParams().get('iAccNumber')
                     dbfRecord['SN'] = eventId
-                    dbfRecord['NAPR_N'] = ('%s_%s' % (params['codeLpu'], forceString(directionAction[u'Номер направления'])))[:15]
+                    dbfRecord['NAPR_N'] = ('%s_%s' % (params['codeLpu'], forceString(directionAction[u'Номер направления'])))[:40]
                     if directionOrgCode:
                         dbfRecord['NAPR_MO'] = directionOrgCode[:6]
                     dbfRecord['NAPR_D'] = pyDate(endDate)

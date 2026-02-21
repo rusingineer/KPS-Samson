@@ -41,6 +41,7 @@ from Events.MKBInfo                 import CMKBInfo
 from Surveillance.ChangeDispanserPerson import CChangeDispanserPerson
 from Surveillance.SurveillancePlanningDialog import CSurveillancePlanningEditDialog
 from Surveillance.GroupChangeDispanserPerson import CGroupChangeDispanserPerson
+from Surveillance.SurveillanceRemoveAcute import CSurveillanceRemoveAcute, anyAcute
 
 from RefBooks.AccountingSystem.Info import CAccountingSystemInfo
 from Registry.AmbCardMixin          import CAmbCardMixin
@@ -413,8 +414,10 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         self.addObject('mnuDiagnosis', QtGui.QMenu(self))
         self.addObject('actChangePersonDN', QtGui.QAction(u'Изменить врача ДН', self))
         self.addObject('actGroupChangePersonDNMKB', QtGui.QAction(u'Изменить врача по ДН пациента по диагнозам', self))
+        self.addObject('actRemoveAcute', QtGui.QAction(u'Снять с ДН по острому диагнозу или фактору', self))
         self.mnuDiagnosis.addAction(self.actChangePersonDN)
         self.mnuDiagnosis.addAction(self.actGroupChangePersonDNMKB)
+        self.mnuDiagnosis.addAction(self.actRemoveAcute)
 
 
     def setupMonitoringMenu(self):
@@ -932,6 +935,7 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
         widgetIndex = self.tabDispensaireClients.currentIndex()
         self.actGroupChangePersonDNMKB.setEnabled(widgetIndex == 0 and (QtGui.qApp.isAdmin() or QtGui.qApp.userHasRight(urSurvChangePerson)))
         self.actChangePersonDN.setEnabled(widgetIndex == 0)
+        self.actRemoveAcute.setEnabled(bool(anyAcute(self.getCurrentClientsTable().currentItemId())))
 
 
     @pyqtSignature('')
@@ -1071,6 +1075,30 @@ class CSurveillanceDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, Ui_Surveil
                     
             clientId = tblClients.currentItemId()
             tblDiagnosis.model().loadData(clientId, self.filter)
+
+    
+    @pyqtSignature('')
+    def on_actRemoveAcute_triggered(self):
+        tblClients = self.getCurrentClientsTable()
+        dialog = CSurveillanceRemoveAcute(self)
+        if dialog.setClient(tblClients.currentItemId()):
+            if dialog.exec_():
+                tblDiagnosis = self.getCurrentDiagnosisTable()
+                oldClientId = tblClients.currentItemId()
+                modelClients = tblClients.model()
+                modelClients.loadData(self.filter)
+                
+                try:
+                    row = modelClients.idList().index(oldClientId)
+                except ValueError:
+                    return
+                idx = modelClients.index(row, 0, QModelIndex())
+                selectionModelClient = tblClients.selectionModel()
+                selectionModelClient.select(idx, QtGui.QItemSelectionModel.ClearAndSelect | QtGui.QItemSelectionModel.Rows)
+                selectionModelClient.setCurrentIndex(idx, QtGui.QItemSelectionModel.NoUpdate)
+                        
+                clientId = tblClients.currentItemId()
+                tblDiagnosis.model().loadData(clientId, self.filter)
 
 
     def surveillancePlanningShow(self, clientId, monitoringIdList=None, eventId=None):

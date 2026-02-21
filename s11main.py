@@ -874,6 +874,7 @@ from Reports.Form25dNumberChildrenByAgeAndSocStatus     import CForm25dNumberChi
 from Reports.ReportPreventiveMinors                     import CReportPreventiveMinors
 from Reports.ReportDrugAtitumorCure                     import CReportDrugAtitumorCure
 from Reports.ReportOnkoByStages                         import CReportOnkoByStages
+from Reports.HealthCenterForm68                         import CHealthCenterForm68
 
 from Resources.JobPlanner                               import CJobPlanner
 from Resources.JobsOperatingDialog                      import CJobsOperatingDialog
@@ -3852,6 +3853,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             if lpuCode != '45014':
                 self.mnuAccountingAnalysis.removeAction(self.actReportPaidServices)
         self.actRepServiceAttach.setVisible(QtGui.qApp.defaultKLADR()[:2] != u'23')
+        self.mnuHealthCenter.setEnabled(True)
 
         # Меню Справочники
         # Подменю Адреса
@@ -4254,6 +4256,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             if orgId:
                 if forceString(app.db.translate('Organisation', 'id', orgId, 'OGRN')) == u"1022302832078":
                     self.actImportCSVClient.setVisible(True)
+
 
 
     def setAdmittingEnabled(self, admitting, isAdmitting=False, isDuty=False):
@@ -7526,6 +7529,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actReportPassportT1200_triggered(self):
         CReportPassportT1200(self).exec_()
+
+    @pyqtSignature('')
+    def on_actHealthCenterForm68_triggered(self):
+        CHealthCenterForm68(self).exec_()
 
 
     @pyqtSignature('')

@@ -689,6 +689,14 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                     self.importDbf()
                 elif self.xmlFileNames and self.importFLK:
                     self.importXml()
+
+                try:
+                    for file in self.xmlFileNames.values():
+                        os.remove(file)
+                    for file in self.dbfFileNames.values():
+                        os.remove(file)
+                except:
+                    pass
                 
             elif QtGui.qApp.checkGlobalPreference(u'23:ImportAccountPayed', u'да'):
                 baseDir, name = os.path.split(forceString(fileName))

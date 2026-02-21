@@ -1636,12 +1636,12 @@ class CJobsOperatingDialog(CDialogBase, CRecordLockMixin, Ui_JobsOperatingDialog
     @pyqtSignature('')
     def on_actPrintClientNumberTicket_triggered(self):
 
-        index = self.tblJobTickets.currentIndex()
+        index = self.tblJobTicketActions.currentIndex()
         if not index.isValid():
             return
         row = index.row()
         context = CInfoContext()
-        actionId = self.modelJobTickets.getActionId(row)
+        actionId = self.modelJobTicketActions.idList()[row]
         actionInfo = context.getInstance(CActionInfo, actionId)
         data = {'action': actionInfo }
         templateRecord = QtGui.qApp.db.getRecordEx(u'rbPrintTemplate', u'id', u"deleted = 0 and  context like 'barcodeProbe' "  )

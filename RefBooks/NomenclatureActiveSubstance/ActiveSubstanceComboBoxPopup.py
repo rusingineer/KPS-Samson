@@ -191,7 +191,7 @@ class CActiveSubstanceTableModel(CTableModel):
         db = QtGui.qApp.db
         table = db.table('rbNomenclatureActiveSubstance')
         loadFields = []
-        loadFields.append(u'''DISTINCT code, name, mnnLatin''')
+        loadFields.append(u'''DISTINCT id, code, name, mnnLatin''')
         self._table = table
         self._recordsCache = CTableRecordCache(db, self._table, loadFields)
 

@@ -79,7 +79,7 @@ class CPersonTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Сотрудник', ['name'], 40))
-        self._fieldNames = ['vrbPersonWithSpecialityAndOrgStr.code', 'vrbPersonWithSpecialityAndOrgStr.name']
+        self._fieldNames = ['vrbPersonWithSpecialityAndOrgStr.id', 'vrbPersonWithSpecialityAndOrgStr.code', 'vrbPersonWithSpecialityAndOrgStr.name']
         self.setTable('vrbPersonWithSpecialityAndOrgStr')
 
 

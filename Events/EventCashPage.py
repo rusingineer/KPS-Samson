@@ -27,6 +27,7 @@ from Events.EventInfo           import CEventLocalContractInfo
 from Events.Utils import CFinanceType
 from Orgs.Orgs                  import CBankInDocTableCol, selectOrganisation
 from Events.ClientPayersList    import CClientPayersList
+from Registry.Utils import getClientDocument
 from Users.Rights import urEditCoordinationAction, urAdmin, urRegTabWriteEventCash,urDeleteEventCashPayments
 
 from Ui_EventCashPage import Ui_EventCashPageWidget
@@ -678,30 +679,34 @@ class CEventCashPage(QtGui.QWidget, Ui_EventCashPageWidget, CConstructHelperMixi
                     setDateEditValue(self.edtDocDate, record, 'date')
                     setLineEditValue(self.edtRegAddress, record, 'regAddress')
         else:
-            info = self.eventEditor.clientInfo
-            if info:
-                self.edtLastName.setText(info['lastName'])
-                self.edtFirstName.setText(info['firstName'])
-                self.edtPatrName.setText(info['patrName'])
-                regAddress = info['regAddress']
-                self.edtRegAddress.setText(regAddress if regAddress else '')
-                self.edtBirthDate.setDate(info['birthDate'])
-                record = info['documentRecord']
-                if record:
-                    setRBComboBoxValue(self.cmbDocType, record, 'documentType_id')
-                    serialLeft, serialRight = splitDocSerial(forceString(record.value('serial')))
-                    self.edtDocSerialLeft.setText(serialLeft)
-                    self.edtDocSerialRight.setText(serialRight)
-                    setLineEditValue(self.edtDocNumber, record, 'number')
-                    setLineEditValue(self.edtDocOrigin, record, 'origin')
-                    setDateEditValue(self.edtDocDate, record, 'date')
-                else:
-                    self.cmbDocType.setValue(None)
-                    self.edtDocSerialLeft.setText('')
-                    self.edtDocSerialRight.setText('')
-                    self.edtDocNumber.setText('')
-                    self.edtDocOrigin.setText('')
-                    self.edtDocDate.setDate(None)
+            self.edtLastName.setText(self.eventEditor.clientLastName)
+            self.edtFirstName.setText(self.eventEditor.clientFirstName)
+            self.edtPatrName.setText(self.eventEditor.clientPatrName)
+            self.edtBirthDate.setDate(self.eventEditor.clientBirthDate)
+
+            regAddress = ''
+            query = QtGui.qApp.db.query('SELECT getClientRegAddress({0}) AS regAddress'.format(self.eventEditor.clientId))
+            while query.next():
+                record = query.record()
+                regAddress = forceString(record.value('regAddress'))
+            self.edtRegAddress.setText(regAddress if regAddress else '')
+
+            documentRecord = getClientDocument(self.eventEditor.clientId)
+            if documentRecord:
+                setRBComboBoxValue(self.cmbDocType, documentRecord, 'documentType_id')
+                serialLeft, serialRight = splitDocSerial(forceString(documentRecord.value('serial')))
+                self.edtDocSerialLeft.setText(serialLeft)
+                self.edtDocSerialRight.setText(serialRight)
+                setLineEditValue(self.edtDocNumber, documentRecord, 'number')
+                setLineEditValue(self.edtDocOrigin, documentRecord, 'origin')
+                setDateEditValue(self.edtDocDate, documentRecord, 'date')
+            else:
+                self.cmbDocType.setValue(None)
+                self.edtDocSerialLeft.setText('')
+                self.edtDocSerialRight.setText('')
+                self.edtDocNumber.setText('')
+                self.edtDocOrigin.setText('')
+                self.edtDocDate.setDate(None)
 
 
     @pyqtSignature('')

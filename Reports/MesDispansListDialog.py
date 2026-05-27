@@ -29,7 +29,7 @@ class CMesDispansTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',          ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['mes.MES.code', 'mes.MES.name']
+        self._fieldNames = ['mes.MES.id', 'mes.MES.code', 'mes.MES.name']
         self.setTable('mes.MES')
 
 

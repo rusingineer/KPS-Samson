@@ -844,14 +844,14 @@ def getDuplicatesResolveMethod(parent, duplicatesResolveMethod, msg):
 
 
 def clearTable(table):
-    if not table.name() == 'soc_spr69' and not table.name() =='mes.SPR69':
-        QtGui.qApp.db.deleteRecordSimple(table, 'True')
+    db = QtGui.qApp.db
+    name = table.name()
+    db.query('SET SQL_SAFE_UPDATES = 0;')
+    if not name == 'soc_spr69' and not name =='mes.SPR69':
+        db.deleteRecordSimple(table, 'True')
     else:
-        QtGui.qApp.db.query(u'''
-                    SET SQL_SAFE_UPDATES = 0;
-                    DELETE FROM {} WHERE datn >= STR_TO_DATE(CONCAT(year(CURDATE()), '-01-01'), '%Y-%m-%d');
-                    SET SQL_SAFE_UPDATES = 1;
-                '''.format(table.name()))
+        db.query(u'''DELETE FROM {} WHERE datn >= STR_TO_DATE(CONCAT(year(CURDATE()), '-01-01'), '%Y-%m-%d');'''.format(name))
+    db.query('SET SQL_SAFE_UPDATES = 1;')
     
 #############################################################################################################################
 #SPR01, SPR02, F032

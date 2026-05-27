@@ -534,6 +534,22 @@ def getAddressId(address):
     return addressId
 
 
+def getClientAddressKLADRCode(client_id, address_type):
+    db = QtGui.qApp.db
+    KLADRCode = ''
+    tableCA = db.table('ClientAddress')
+    tableA = db.table('Address')
+    tableAH = db.table('AddressHouse')
+    table = tableCA.leftJoin(tableA, tableA['id'].eq(tableCA['address_id']))
+    table = table.leftJoin(tableAH, tableAH['id'].eq(tableA['house_id']))
+    func = 'getClientRegAddressId({0})' if address_type == 0 else 'getClientLocAddressId({0})'
+    cond = [tableCA['id'].eq(func.format(client_id))]
+    record = db.getRecordEx(table, tableAH['KLADRCode'], where=cond)
+    if record:
+        KLADRCode = forceString(record.value('KLADRCode'))
+    return KLADRCode
+
+
 def getClientDocument(clientId):
     filter = '''Tmp.documentType_id IN (SELECT rbDocumentType.id FROM rbDocumentType LEFT JOIN rbDocumentTypeGroup ON rbDocumentTypeGroup.id=rbDocumentType.group_id WHERE rbDocumentTypeGroup.code = '1')'''
     return selectLatestRecord('ClientDocument', clientId, filter)
@@ -6024,9 +6040,10 @@ def getHousesList(records):
                 korp = []
                 target = house
                 while i < len( number ):
-                    if number[i] >= u'А' and number[i] <= u'Я' and i > 0:
-                        korp.append(number[i])
-                    elif number[i] == u'к':
+                    # if number[i] >= u'А' and number[i] <= u'Я' and i > 0:
+                    #     korp.append(number[i])
+                    # el
+                    if number[i] == u'к':
                         target=korp
                     elif number[i] == u'л' and number[i:i+5] == u'литер':
                         target = korp
@@ -6849,3 +6866,133 @@ def createEvent(clientId, removeDate):
 
     eventId = db.insertRecord('Event', newEventRecord)
     return eventId
+
+
+# Логичнее перенести в utils, т.к. используется в нескольких местах
+def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTime, scheduleItemId):
+    """
+    При записи на талон с typeRecord = 4 (ТМК MAX) создаёт связанное действие tmkDirectMax, после чего вызывает шаблон для создания направления TMK (startTMK)
+    """
+    # Локальные импорты во избежание цикличного импорта
+    from Events.Action import CActionTypeCache
+    from Events.Action import CAction
+    from library.PrintTemplates import getFirstPrintTemplate
+    from Events.EventInfo import CEventInfo
+    from Events.ActionInfo import CCookedActionInfo
+    from Events.ActionsModel import CActionRecordItem
+    from library.PrintTemplates import applyTemplate
+
+    db = QtGui.qApp.db
+    tableAction = db.table('Action')
+    tableEvent = db.table('Event')
+    tableEventType = db.table('EventType')
+    tableActionType = db.table('ActionType')
+    eventId = None
+
+    recordEventType = db.getRecordEx(tableEventType, [tableEventType['id']],
+                                     [tableEventType['context'].like(u'relatedAction%'),
+                                      tableEventType['deleted'].eq(0)], u'EventType.id')
+    eventTypeId = forceRef(recordEventType.value('id')) if recordEventType else None
+    if not eventTypeId:
+        QtGui.QMessageBox().warning(widget, u'Внимание!', u'Отсутствует тип события с контекстом "relatedAction"',
+                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        return False
+
+    actionTypeRecord = db.getRecordEx(tableActionType, [tableActionType['id']],
+                                     [tableActionType['flatCode'].eq(u'tmkDirectMax'),
+                                      tableActionType['deleted'].eq(0)], u'ActionType.id')
+    actionTypeId = forceRef(actionTypeRecord.value('id')) if actionTypeRecord else None
+
+    if not actionTypeId:
+        QtGui.QMessageBox().warning(widget, u'Внимание!', u'Отсутствует тип действия с кодом для отчёта "tmkDirectMax"',
+                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        return False
+
+    if actionTypeId:
+        prevEventId = eventId
+        recordEvent = tableEvent.newRecord()
+        recordEvent.setValue('createDatetime', toVariant(QDateTime().currentDateTime()))
+        recordEvent.setValue('createPerson_id', toVariant(QtGui.qApp.userId))
+        recordEvent.setValue('modifyDatetime', toVariant(QDateTime().currentDateTime()))
+        recordEvent.setValue('modifyPerson_id', toVariant(QtGui.qApp.userId))
+        recordEvent.setValue('setDate', toVariant(QDateTime().currentDateTime()))
+        recordEvent.setValue('eventType_id', toVariant(eventTypeId))
+        recordEvent.setValue('client_id', toVariant(clientId))
+        recordEvent.setValue('prevEvent_id', toVariant(prevEventId))
+        eventId = db.insertRecord(tableEvent, recordEvent)
+
+        if eventId:
+            recordEvent.setValue('id', toVariant(eventId))
+
+        QtGui.qApp.setCounterController(CCounterController(widget))
+        QtGui.qApp.setJTR(widget)
+        try:
+            actionType = CActionTypeCache.getById(actionTypeId)
+            defaultStatus = actionType.defaultStatus
+            newRecord = tableAction.newRecord()
+
+            newRecord.setValue('createDatetime', toVariant(QDateTime().currentDateTime()))
+            newRecord.setValue('createPerson_id', toVariant(QtGui.qApp.userId))
+            newRecord.setValue('modifyDatetime', toVariant(QDateTime().currentDateTime()))
+            newRecord.setValue('modifyPerson_id', toVariant(QtGui.qApp.userId))
+            newRecord.setValue('actionType_id', toVariant(actionTypeId))
+            newRecord.setValue('status', toVariant(defaultStatus))
+            newRecord.setValue('begDate', toVariant(QDateTime().currentDateTime()))
+            newRecord.setValue('directionDate', toVariant(QDateTime().currentDateTime()))
+            newRecord.setValue('plannedEndDate', toVariant(directionDateTime))
+            newRecord.setValue('setPerson_id', toVariant(QtGui.qApp.userId))
+            newRecord.setValue('person_id', toVariant(directionPersonId))
+            newRecord.setValue('id', toVariant(None))
+            newRecord.setValue('event_id', toVariant(eventId))
+
+            newAction = CAction(record=newRecord)
+            newAction.updatePresetValuesConditions({'clientId': clientId, 'eventTypeId': eventTypeId})
+            newAction.initPresetValues()
+
+            if not newAction:
+                QtGui.QMessageBox().warning(widget, u'Внимание!',
+                                            u'Ошибка при сохранении связанного действия',
+                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                return False
+
+            newAction.save(idx=0, checkModifyDate=False)
+
+
+            template = getFirstPrintTemplate('startTMK')
+
+            if not template:
+                QtGui.QMessageBox().warning(widget, u'Внимание!',
+                                            u'Ошибка при создании напрвления ТМК',
+                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                return False
+
+            context = CInfoContext()
+
+            eventInfo = context.getInstance(CEventInfo, eventId)
+            eventInfo.actions._idList.append(newAction.getId())
+            eventInfo.actions._items.append(
+                CCookedActionInfo(context, newAction.getRecord(), newAction))
+            eventInfo.actions._loaded = True
+            action = eventInfo.actions[0]
+            currentActionIndex = 0
+
+            eventActions = eventInfo.actions
+
+            data = {'event': eventInfo,
+                    'action': action,
+                    'client': eventInfo.client,
+                    'actions': eventActions,
+                    'currentActionIndex': currentActionIndex,
+                    'currentAction': CActionRecordItem(newRecord, newAction),
+                    'scheduleItemId': scheduleItemId
+                    }
+            applyTemplate(widget, template.id, data)
+
+            return True
+
+        finally:
+            QtGui.qApp.unsetJTR(widget)
+            QtGui.qApp.delAllCounterValueIdReservation()
+            QtGui.qApp.setCounterController(None)
+
+    return False

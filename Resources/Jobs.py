@@ -224,9 +224,8 @@ class CJobsModel(CRecordListModel):
 
     def insertItem(self, row, prototypeRow):
         items = self.items()
-        proto = items[prototypeRow]
-        self.beginInsertRows(QModelIndex(), row,  row)
-        items.insert(row, self.getEmptyItem(proto.date))
+        self.beginInsertRows(QModelIndex(), row, row)
+        items.insert(row, self.getEmptyItem(items[prototypeRow if len(items) > prototypeRow else -1].date))
         self.endInsertRows()
 
 

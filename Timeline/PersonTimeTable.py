@@ -131,7 +131,7 @@ class CPersonTimeTableModel(CRecordListModel):
                 if self.overlapInTemplate:
                     break
                 scheduleDayPeriods = groupByDay.get(day)
-                if len(scheduleDayPeriods) > 1:
+                if scheduleDayPeriods and len(scheduleDayPeriods) > 1:
                     for schedulePeriod in scheduleDayPeriods:
                         self.overlapInTemplate = isShedulesOverlap(schedulePeriod, scheduleDayPeriods, isUseScheduleItems=True)
                         if self.overlapInTemplate:
@@ -211,12 +211,10 @@ class CPersonTimeTableModel(CRecordListModel):
 
 
     def insertItem(self, row, prototypeRow):
-        items = self._items
-        day = items[prototypeRow].day
-        self.beginInsertRows(QModelIndex(), row,  row)
-        items.insert(row, self.getEmptyItem(day))
+        items = self.items()
+        self.beginInsertRows(QModelIndex(), row, row)
+        items.insert(row, self.getEmptyItem(items[prototypeRow if len(items) > prototypeRow else -1].day))
         self.endInsertRows()
-
 
 
     def delItem(self, row):

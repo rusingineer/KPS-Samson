@@ -141,21 +141,25 @@ def getSchedulesListForDate(scheduleItems, excludedSchedule, isTemplate, isDict=
     return schedulesList
 
 
-def isShedulesOverlap(excludedSchedule, scheduleItems, isTemplate=False, begTime=None, endTime=None, newAppointmentType=None, isInesrtFromClipboard=False, isUseScheduleItems=False):
+# returnSchedule - будет возвращать вторым аргументом тот период с которым произошло пересечение
+def isShedulesOverlap(excludedSchedule, scheduleItems, isTemplate=False, begTime=None, endTime=None, newAppointmentType=None, isInesrtFromClipboard=False, isUseScheduleItems=False, returnSchedule=False):
     """
     Проверка пересечения периодов в контексте одного дня.
     """
-    if QtGui.qApp.isReStagingInQueue():
-        return False
+    if not returnSchedule:
+        if QtGui.qApp.isReStagingInQueue():
+            return False
 
-    isDict = True if isinstance(excludedSchedule, dict) else False
+        isDict = True if isinstance(excludedSchedule, dict) else False
 
-    if not newAppointmentType:
-        appointmentType = excludedSchedule.appointmentType if not isDict else excludedSchedule.get('appointmentType')
+        if not newAppointmentType:
+            appointmentType = excludedSchedule.appointmentType if not isDict else excludedSchedule.get('appointmentType')
+        else:
+            appointmentType = newAppointmentType
+        if appointmentType == 2:
+            return False
     else:
-        appointmentType = newAppointmentType
-    if appointmentType == 2:
-        return False
+        isDict = True if isinstance(excludedSchedule, dict) else False
 
     begTime = begTime if begTime else excludedSchedule.begTime if not isDict else excludedSchedule.get('begTime')
     endTime = endTime if endTime else excludedSchedule.endTime if not isDict else excludedSchedule.get('endTime')
@@ -180,7 +184,9 @@ def isShedulesOverlap(excludedSchedule, scheduleItems, isTemplate=False, begTime
     for schedule in schedulesList:
         overlap = (schedule.begTime < begTime < schedule.endTime) or (schedule.begTime < endTime <= schedule.endTime) or (begTime <= schedule.begTime and endTime >= schedule.endTime)
         overlap = overlap if not isUseScheduleItems else overlap and schedule != excludedSchedule
-        if overlap:
+        if overlap and returnSchedule:
+            return True, schedule
+        elif overlap:
             return True
 
     return False
@@ -210,6 +216,9 @@ class CTimeTableModel(CRecordListModel):
         self.onSetWorkPlanSkippedDays = []
         self.idToPaste = -1
 
+        self.foundedNotFreeToChangeList = []
+        self.notSavedItems = []
+
         # статистика:
         self.numDays =  self.numAbsenceDays = self.numServDays = \
         self.numAmbDays  = self.numAmbFact  = self.numAmbPlan  = self.numAmbTime = \
@@ -217,6 +226,9 @@ class CTimeTableModel(CRecordListModel):
         self.numExpDays  = self.numExpFact  = self.numExpPlan  = self.numExpTime = 0
         self.readOnly = False
         self._parent = parent
+
+        # удалённые периоды для проверки на запись пациента при завершении редактирования
+        self._deletedSchedules = []
 
 
     def setReadOnly(self, value):
@@ -251,7 +263,7 @@ class CTimeTableModel(CRecordListModel):
     def cellReadOnly(self, index):
         column = index.column()
         schedule = self.getItem(index.row())
-        if not schedule.isFreeToChange():
+        if not schedule.isFreeToChange() or schedule in self.foundedNotFreeToChangeList:
             if (not column == self.getColIndex('appointmentPurpose_id') and column <= self.getColIndex(
                     'capacity')) or column == self.getColIndex('activity_id'):  # 6 - это capacity
                 return u'Изменение запрещено, так как в очереди уже есть пациенты'
@@ -288,6 +300,14 @@ class CTimeTableModel(CRecordListModel):
             row = index.row()
             schedule = self._items[row]
             if not schedule.isFreeToChange():
+                return False
+            elif not schedule.isFreeToChange_CustomWithoutItems():
+                # QtGui.QMessageBox.information(self._parent,
+                #                               u'Внимание!',
+                #                               u'Обнаружен записанный пациент!',
+                #                               QtGui.QMessageBox.Ok)
+                self.foundedNotFreeToChangeList.append(schedule)
+                schedule.checkAndUpdateItems()
                 return False
             if column == self.getColIndex('begTime'):
                 begTime = forceTime(value)
@@ -330,13 +350,26 @@ class CTimeTableModel(CRecordListModel):
             row = index.row()
             schedule = self._items[row]
             if value != schedule.appointmentPurposeId:
+                if not schedule.isFreeToChange():
+                    isFreeToChange = False
+                elif not schedule.isFreeToChange_CustomWithoutItems():
+                    self.foundedNotFreeToChangeList.append(schedule)
+                    # QtGui.QMessageBox.information(self._parent,
+                    #                               u'Внимание!',
+                    #                               u'Обнаружен записанный пациент!',
+                    #                               QtGui.QMessageBox.Ok)
+                    isFreeToChange = False
+                else:
+                    isFreeToChange = True
+                if not isFreeToChange:
+                    schedule.checkAndUpdateItems()
                 checkValue = schedule.capacity
                 checkCapacity = True
                 if schedule.duration not in (QTime(0, 0), QTime()):
                     checkValue = schedule.duration
                     checkCapacity = False
                 if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
-                    checkResult = checkDurationAndCapacity(checkValue, self._parent, value, schedule.appointmentType, checkCapacity, schedule.begTime, schedule.endTime, False, schedule.isFreeToChange())
+                    checkResult = checkDurationAndCapacity(checkValue, self._parent, value, schedule.appointmentType, checkCapacity, schedule.begTime, schedule.endTime, False, isFreeToChange)
                     if not checkResult:
                         if schedule.items:
                             if forceRef(value):
@@ -367,7 +400,7 @@ class CTimeTableModel(CRecordListModel):
                             return CRecordListModel.setData(self, index, value, role)
 
                     else:
-                        if schedule.isFreeToChange() and checkResult not in (0, QTime(0,0)):
+                        if isFreeToChange and checkResult not in (0, QTime(0,0)):
                             schedule.cleanItems()
                             if checkCapacity:
                                 schedule.capacity = checkResult
@@ -397,6 +430,18 @@ class CTimeTableModel(CRecordListModel):
         if column == self.getColIndex('appointmentType'):
             row = index.row()
             schedule = self._items[row]
+            if not schedule.isFreeToChange():
+                isFreeToChange = False
+            elif not schedule.isFreeToChange_CustomWithoutItems():
+                self.foundedNotFreeToChangeList.append(schedule)
+                # QtGui.QMessageBox.information(self._parent,
+                #                               u'Внимание!',
+                #                               u'Обнаружен записанный пациент!',
+                #                               QtGui.QMessageBox.Ok)
+                schedule.checkAndUpdateItems()
+                return False
+            else:
+                isFreeToChange = True
             if value != schedule.appointmentType and value != schedule.atHome:
                 if isShedulesOverlap(schedule, self._items, newAppointmentType=value):
                     QtGui.QMessageBox.information(self._parent,
@@ -413,9 +458,9 @@ class CTimeTableModel(CRecordListModel):
                     if (checkCapacity and checkValue != 0) or (checkCapacity == False and checkValue not in (QTime(0, 0), QTime())):
                         checkResult = checkDurationAndCapacity(checkValue, self._parent, schedule.appointmentPurposeId, value, checkCapacity,
                                                                schedule.begTime, schedule.endTime, False,
-                                                               schedule.isFreeToChange())
+                                                               isFreeToChange)
                         if checkResult:
-                            if schedule.isFreeToChange() and checkResult not in (0, QTime(0, 0)):
+                            if isFreeToChange and checkResult not in (0, QTime(0, 0)):
                                 schedule.cleanItems()
                                 if checkCapacity:
                                     schedule.capacity = checkResult
@@ -471,12 +516,50 @@ class CTimeTableModel(CRecordListModel):
         return result
 
 
+    # Это всё как ни крути "костыли". Данный аспект самсона требует некоторого переосмысления.
+    # Тк невозможно усмотреть все "дыры" сразу и необходимы постоянные правки.
+    # Все эти проверки бьют по производительности и добавляют новые запросы к, итак, их большому количеству
     def saveData(self):
         if self.personId:
+            itemsToSave = []
             idList = []
+            self.notSavedItems = []
+            isNeedReset = False
+
+            # _deletedSchedules - это что-то типа корзины, при удалении строки она записывается в этот список и перед
+            # сохранением необходимо проверить необходимость восстановления этой строки (если юзер удалил строку до того
+            # как кто-то записался при редактировании)
+            for delSchedule in self._deletedSchedules:
+                # проверка на произведённую запись
+                itemRestored = delSchedule.checkAndUpdateItems(showMessage=False)
+                if itemRestored:
+                    # в связи с тем что необходимо убрать пересечения периодов необходима и эта проверка
+                    changed = self.checkOverlapForDeletedOrRestoredSchedules(delSchedule)
+                    if changed:
+                        isNeedReset = True
+
             for item in self.items():
-                item.save()
-                idList.append(item.id)
+                if not list(filter(lambda i: i.date == item.date and i.id is not None, self.items())):
+                    if item not in self.foundedNotFreeToChangeList and item.isFreeToChangeCustomWithoutItemsNoId():
+                        item.save()
+                    else:
+                        item.restoreValuesFromRecord()
+                        self.notSavedItems.append(item)
+                else:
+                    itemRestored = item.checkAndUpdateItems(showMessage=False)
+                    if itemRestored:
+                        changed = self.checkOverlapForDeletedOrRestoredSchedules(item, deleted=False, alreadySavedIds=itemsToSave)
+                        if changed:
+                            isNeedReset = True
+                        self.notSavedItems.append(item) if item not in self.notSavedItems else None
+                itemsToSave.append(item)
+
+            for savedItem in itemsToSave:
+                savedItem.save()
+                idList.append(savedItem.id)
+
+            self._deletedSchedules = []
+            self.foundedNotFreeToChangeList = []
 
             db = QtGui.qApp.db
             table = db.table('Schedule')
@@ -487,6 +570,63 @@ class CTimeTableModel(CRecordListModel):
                                           'NOT '+table['id'].inlist(idList)
                                          ],
                                   )
+            # перезагрузка ui если необходимо вернуть отображение в таблице (необходимо например при срабатывании
+            # сохранения при открытии окна "Номерки")
+            if isNeedReset:
+                self.reset()
+
+# не хочется конечно комментировать происходящее в функции, но нужно подробнее расписать работу этой адской функции
+    def checkOverlapForDeletedOrRestoredSchedules(self, schedule, deleted=True, alreadySavedIds=None):
+        isNeedReset = False
+
+        overlapResult = isShedulesOverlap(schedule, self.items(), returnSchedule=True)
+
+        # добавил возвращение периода с которым произошло пересечение, но только если оно есть так-что
+        # добавил обработку обратного сценария
+        if isinstance(overlapResult, tuple):
+            overlap, overlapSchedule = overlapResult
+        else:
+            overlap, overlapSchedule = overlapResult, None
+
+        # это значит что есть пересечение, есть период и этот период новый (вероятно созданный вместо удалённого)
+        # во вторых проверяем чтоб не было id, а если его нет, то и записаться точно не могли
+        if overlap and overlapSchedule:
+            if overlapSchedule in self.items():
+                # если нет id, то меняем свободно на старый период
+                if overlapSchedule.id is None:
+                    row = self.items().index(overlapSchedule)
+                    #self.items()[row] = schedule
+                    self.items().pop(row)
+                    if deleted:
+                        self.items().insert(row, schedule)
+                    elif not deleted:
+                        oldRow = self.items().index(schedule)
+                        #self.items().pop(oldRow)
+                        if (alreadySavedIds is not None and overlapSchedule in alreadySavedIds) and oldRow > row:
+                            alreadySavedIds.remove(overlapSchedule)
+                else:
+                    if deleted:
+                        row = self.getRowForDate(overlapSchedule.date)
+                        self.items().insert(row, schedule)
+                    overlapSchedule.restoreValuesFromRecord()
+                isNeedReset = True
+                self.checkOverlapForDeletedOrRestoredSchedules(overlapSchedule, deleted=False, alreadySavedIds=alreadySavedIds)
+        # в ином случае просто верну период в строки таблицы с той датой
+        elif deleted:
+            row = self.getRowForDate(schedule.date)
+            if row:
+                if self.items()[row].isEmpty():
+                    self.items()[row] = schedule
+                else:
+                    self.items().insert(row, schedule)
+                # флаг для понимания нужно ли делать релоад таблицы для отображения возвращения значения в ui
+                isNeedReset = True
+
+        if isNeedReset:
+            if schedule not in self.notSavedItems:
+                self.notSavedItems.append(schedule)
+            #self.checkOverlapForDeletedOrRestoredSchedules(schedule, deleted=False, alreadySavedIds=alreadySavedIds)
+        return isNeedReset
 
 
     def updateStatistics(self):
@@ -551,9 +691,8 @@ class CTimeTableModel(CRecordListModel):
 
     def insertItem(self, row, prototypeRow):
         items = self.items()
-        proto = items[prototypeRow]
-        self.beginInsertRows(QModelIndex(), row,  row)
-        items.insert(row, self.getEmptyItem(proto.date))
+        self.beginInsertRows(QModelIndex(), row, row)
+        items.insert(row, self.getEmptyItem(items[prototypeRow if len(items) > prototypeRow else -1].date))
         self.endInsertRows()
 
 
@@ -719,7 +858,7 @@ class CTimeTableModel(CRecordListModel):
     def _filterOutSchedules(self, schedules, removeExistingSchedules):
         # removeExistingSchedules: удалять незанятые элементы графика
         if removeExistingSchedules:
-            filterExpr = lambda schedule: not schedule.isFreeToChange_Custom()
+            filterExpr = lambda schedule: not schedule.isFreeToChange_CustomWithoutItems()
         else:
             filterExpr = lambda schedule: schedule.appointmentType
         return filter(filterExpr, schedules)
@@ -775,7 +914,9 @@ class CTimeTableModel(CRecordListModel):
                         templates = templateByDay[(day-1)%periodLength]
                     else:
                         templates = []
-                    groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates, removeExistingSchedules)
+                    existingSchedules = self._filterOutSchedules(groupByDay[day], removeExistingSchedules)
+                    self.recordDeletedItems(existingSchedules)
+                    groupByDay[day] = self._addSchedulesFromTemplates(existingSchedules, date, templates, removeExistingSchedules)
             elif period in (3, 4, 5, 6): # неделя, две, три или четыре
                 # В соответствии с ISO 8601, недели начинаются с понедельника
                 # и первый четверг года всегда находится в первой неделе этого года.
@@ -788,7 +929,9 @@ class CTimeTableModel(CRecordListModel):
                         templates = templateByDay[idx]
                     else:
                         templates = []
-                    groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, templates, removeExistingSchedules)
+                    existingSchedules = self._filterOutSchedules(groupByDay[day], removeExistingSchedules)
+                    self.recordDeletedItems(existingSchedules)
+                    groupByDay[day] = self._addSchedulesFromTemplates(existingSchedules, date, templates, removeExistingSchedules)
             self._setGroupByDay(groupByDay)
             if not self.month == endDate.month():
                 nextDate = QDate(self.year, self.month, 1).addMonths(1)
@@ -814,7 +957,9 @@ class CTimeTableModel(CRecordListModel):
         groupByDay = self._getGroupByDay()
         for date in dates:
             day = date.day()
-            groupByDay[day] = self._addSchedulesFromTemplates(self._filterOutSchedules(groupByDay[day], removeExistingSchedules), date, sheduleTemplates, removeExistingSchedules)
+            existingSchedules = self._filterOutSchedules(groupByDay[day], removeExistingSchedules)
+            self.recordDeletedItems(existingSchedules)
+            groupByDay[day] = self._addSchedulesFromTemplates(existingSchedules, date, sheduleTemplates, removeExistingSchedules)
         self._setGroupByDay(groupByDay)
         if self.onSetWorkPlanSkippedDays:
             QtGui.QMessageBox.information(self._parent,
@@ -848,12 +993,28 @@ class CTimeTableModel(CRecordListModel):
                 self.emitRowChanged(i) # допустим, что мигания не будет
 
 
+    def recordDeletedItemByRow(self, row):
+        if row is not None:
+            item = self.getItem(row)
+            self._deletedSchedules.append(item) if item.id is not None else None
+
+
+    def recordDeletedItems(self, items):
+        if not items:
+            return
+        if not isinstance(items, list):
+            items = [items]
+        items = filter(lambda item: item.id is not None, items)
+        self._deletedSchedules.extend(items)
+
+
 class CTimeTableView(CInDocTableView):
     mimeType = 'application/x-s11/ScheduleList'
 
     def __init__(self, parent):
         CInDocTableView.__init__(self, parent)
         self.verticalHeader().show()
+        self.verticalHeader().setVisible(False)
         self.verticalHeader().setResizeMode(QtGui.QHeaderView.Fixed)
         self.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
 
@@ -932,7 +1093,8 @@ class CTimeTableView(CInDocTableView):
         rows = self.getSelectedRows()
         rows.sort(reverse=True)
         for row in rows:
-            if self.model().getItem(row).isFreeToChange_Custom():
+            if self.model().getItem(row).isFreeToChange_CustomWithoutItems():
+                self.model().recordDeletedItemByRow(row)
                 rowAfterDelete = self.model().delItem(row)
                 if row != rowAfterDelete:
                     cnt += 1

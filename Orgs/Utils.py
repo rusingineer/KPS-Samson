@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -46,6 +46,7 @@ __all__ = [ 'CNet',
             'getOrganisationInfo',
             'getOrganisationParent',
             'getOrganisationShortName',
+            'getOrgNameBySnils',
             'getOrgStructureActionTypeIdSet',
             'getOrgStructureAddressIdList',
             'getOrgStructureDescendants',
@@ -73,6 +74,24 @@ def getOrganisationShortName(id):
         return forceString(result)
     else:
         return ''
+
+
+def getOrgNameBySnils(snils):
+    db = QtGui.qApp.db
+
+    tablePerson = db.table('Person')
+    tableOrganisation = db.table('Organisation')
+    tableQuery = tablePerson.leftJoin(tableOrganisation, tableOrganisation['id'].eq(tablePerson['org_id']))
+    records = db.getRecordListGroupBy(tableQuery,
+                                      [tableOrganisation['shortName']],
+                                      [tablePerson['SNILS'].eq(snils), tablePerson['deleted'].eq(0)],
+                                      'Person.org_id')
+    orgName = u''
+    for record in records:
+        orgName = forceString(record.value('shortName'))
+        break
+
+    return orgName
 
 
 def getMedicalAidProfileIdName(id):

@@ -103,6 +103,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
             self.logDir = os.path.join(unicode(QDir().toNativeSeparators(QDir().homePath())), '.AriadnaExchange')
         self.initLogger()
         self.typeReports = 0
+        self.newImportConfirm = False
         self.webDAVInterface = CWebDAVInterface()
 
 
@@ -171,6 +172,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
         self.connectionName = forceString(self.preferences.appPrefs.get('connectionName', 'AriadnaExchange'))
         self.typeReports = forceInt(self.preferences.appPrefs.get('typeReports', 0))
+        self.newImportConfirm = forceBool(self.preferences.appPrefs.get('newImportConfirm', False))
 
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
@@ -620,7 +622,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 referral = self.getReferralByNumber(observation.order.id)
             if not referral:
                 self.log(u'Загрузка результата {0}'.format(observation.order.id), u'Направление не найдено в БД', level=1)
-                self.applyResults(observation.order.id)
+                self.applyResults(observation.order.hisId if self.newImportConfirm else observation.order.id)
                 return
             if referral.actionId:
                 self.db.query('CALL getAppLock_(%s, %d, %d, %s, %s, @res)' % (quote('Event'), referral.eventId, 0, 1, quote('AriadnaExchange')))
@@ -919,15 +921,15 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                                                                 referral.eventId,
                                                                                                 referral.actionId),
                                                                                             level=1)
-                                    self.applyResults(observation.order.id)
+                                    self.applyResults(observation.order.hisId if self.newImportConfirm else observation.order.id)
                                 else:
-                                    self.applyOnExpiration(observation.order.id, observation.observationDates.finish)
+                                    self.applyOnExpiration(observation.order.hisId if self.newImportConfirm else observation.order.id, observation.observationDates.finish)
 
 
         except Exception as e:
             self.log('error', anyToUnicode(e), 2)
             self.log('error', u'ошибка при загрузке результата {0}'.format(observation.order.id), 2)
-            self.applyOnExpiration(observation.order.id, observation.observationDates.finish)
+            self.applyOnExpiration(observation.order.hisId if self.newImportConfirm else observation.order.id, observation.observationDates.finish)
         finally:
             # снимаем блокировку
             if lockId:
@@ -997,11 +999,14 @@ WHERE `as`.urn = 'urn:oid:1.2.643.5.1.13.13.11.1358'"""
     def applyResults(self, orderId):
         headers = self.getHeaders()
         json_data = {'orderId': forceString(orderId), 'delivered': True}
-        response = requests.post(self.url + '/results', headers=headers, json=json_data, timeout=self.timeout)
+        if self.newImportConfirm:
+            url = self.url + '/results/delivered'
+        else:
+            url = self.url + '/results'
+        response = requests.post(url, headers=headers, json=json_data, timeout=self.timeout)
         self.log('applyResults response code', anyToUnicode(response.status_code), 2)
         self.log('applyResults  Last sent', json_data, 2)
-        if response.status_code == 200:
-            self.log('applyResults  response content', response.content.decode('utf-8'), 2)
+        self.log('applyResults  response content', response.content.decode('utf-8'), 2)
         return response
 
     def applyOnExpiration(self, orderId, finishDate):
@@ -1011,14 +1016,18 @@ WHERE `as`.urn = 'urn:oid:1.2.643.5.1.13.13.11.1358'"""
                 self.log('expiration', u'Результат закрыт по сроку давности {0}'.format(orderId), 2)
                 headers = self.getHeaders()
                 json_data = {'orderId': forceString(orderId), 'delivered': True}
-                response = requests.post(self.url + '/results', headers=headers, json=json_data, timeout=self.timeout)
+                if self.newImportConfirm:
+                    url = self.url + '/results/delivered'
+                else:
+                    url = self.url + '/results'
+                response = requests.post(url, headers=headers, json=json_data, timeout=self.timeout)
                 self.log('expiration response code', anyToUnicode(response.status_code), 2)
                 self.log('expiration Last sent', json_data, 2)
-                if response.status_code == 200:
-                    self.log('expiration response content', response.content.decode('utf-8'), 2)
+                self.log('expiration response content', response.content.decode('utf-8'), 2)
                 return response
             except Exception as e:
                 self.log('error', anyToUnicode(e), 2)
+        return None
 
 
 def formatSex(sex):

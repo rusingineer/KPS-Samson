@@ -28,13 +28,17 @@ class CRep060Y(CReport):
     def getSetupDialog(self, parent):
         result = CReportSetupDialog(parent)
         result.setEventTypeVisible(False)
+        result.setTimePeriodVisible(True)
         result.setOnlyPermanentAttachVisible(False)
         result.setTitle(self.title())
+        result.resize(result.minimumSize())
         return result
         
     def selectData(self, params):    
         begDate = params.get('begDate', QDate())
         endDate = params.get('endDate', QDate())
+        begTime = params.get('begTime', QTime())
+        endTime = params.get('endTime', QTime())
         if not endDate or endDate.isNull():
             return None
         db = QtGui.qApp.db
@@ -103,11 +107,11 @@ class CRep060Y(CReport):
     AND e.deleted=0 
     AND at.deleted=0 
     AND c.deleted=0 
-    AND DATE(a.begDate) BETWEEN {} AND {}
+    AND a.begDate BETWEEN {} AND {}
   GROUP BY e.id
   ORDER BY noticeNumber
-        '''.format(db.formatDate(begDate),
-               db.formatDate(endDate),)
+        '''.format(("'"+ (db.formatDate(begDate).replace("'", "") + ' ' + db.formatTime(begTime).replace("'","") + "'")) ,
+                   ("'"+ (db.formatDate(endDate).replace("'", "") + ' ' + db.formatTime(endTime).replace("'","") + "'")),)
         db = QtGui.qApp.db
         return db.query(stmt)
         

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -133,7 +133,7 @@ class CAttachedFile:
         self.isLost = False
 
 
-    def setRecord(self, record, tableName='Action_FileAttach'):
+    def setRecord(self, record, tableName='Action_FileAttach', sign_records=None, pt_records=None):
         self._record = record
         self.id = forceRef(record.value('id'))
         self.comment = forceString(record.value('comment'))
@@ -145,8 +145,8 @@ class CAttachedFile:
                              forceRef(record.value('orgSigner_id')),
                              forceDateTime(record.value('orgSigningDatetime')))
         self.respSigner_name = forceString(record.value('respSigner_name'))
-        self.loadAdditionalSignatures(self.id)
-        self.loadHtmlTemplate(self.id, tableName)
+        self.loadAdditionalSignatures(self.id, sign_records)
+        self.loadHtmlTemplate(self.id, tableName, pt_records)
         if not self.htmlTemplate:
             html = forceString(record.value('html'))
             self.htmlTemplate = html if html else None
@@ -181,11 +181,14 @@ class CAttachedFile:
         return record
 
 
-    def loadAdditionalSignatures(self, masterId):
-        db = QtGui.qApp.db
-        table = db.table('Action_FileAttach_Signature')
-        cond = db.joinAnd([table['deleted'].eq(0), table['master_id'].eq(masterId)])
-        records = db.getRecordList(table, '*', cond)
+    def loadAdditionalSignatures(self, masterId, sign_records=None):
+        if sign_records is None:
+            db = QtGui.qApp.db
+            table = db.table('Action_FileAttach_Signature')
+            cond = db.joinAnd([table['deleted'].eq(0), table['master_id'].eq(masterId)])
+            records = db.getRecordList(table, '*', cond)
+        else:
+            records = sign_records
         self.additionalSignatures = []
         self.additionalSignaturesList = []
 
@@ -208,10 +211,14 @@ class CAttachedFile:
                                                                     ))
 
 
-    def loadHtmlTemplate(self, masterId, tableName='Action_FileAttach'):
-        db = QtGui.qApp.db
-        table = db.table(tableName + '_PrintTemplate')
-        record = db.getRecord(table, '*', masterId)
+    def loadHtmlTemplate(self, masterId, tableName='Action_FileAttach', pt_records=None):
+        if pt_records is None:
+            db = QtGui.qApp.db
+            table = db.table(tableName + '_PrintTemplate')
+            record = db.getRecord(table, '*', masterId)
+        else:
+            record = pt_records[0] if pt_records else None
+            
         if record:
             html = record.value('html').toByteArray()
             self.templateId = forceRef(record.value('template_id'))
@@ -386,13 +393,28 @@ class CAttachedFilesLoader:
             return []
 
     @staticmethod
-    def loadItemsFromRecords(interface, records):
+    def loadItemsFromRecords(interface, records, sign_records=None, print_template_records=None):
         if interface:
             result = []
             for record in records:
+                fileAttachId = forceRef(record.value('id'))
                 path = forceString(record.value('path'))
                 item = interface.createAttachedFileItem(path)
-                item.setRecord(record)
+                fileAttachSignRecords = None
+                if sign_records is not None:
+                    fileAttachSignRecords = []
+                    for attachId, recordSign in sign_records:
+                        if attachId == fileAttachId:
+                            fileAttachSignRecords.append(recordSign)
+                fileAttachPTRecords = None
+                if print_template_records is not None:
+                    fileAttachPTRecords = []
+                    for attachId, recordPT in print_template_records:
+                        if attachId == fileAttachId:
+                            fileAttachPTRecords.append(recordPT)
+                            break
+
+                item.setRecord(record, sign_records=fileAttachSignRecords, pt_records=fileAttachPTRecords)
                 result.append(item)
             return result
         else:
@@ -784,7 +806,7 @@ class CAttachedFilesModel(QAbstractTableModel):
         for localFile in localFileList:
             fileItem = self.interface.uploadFile(localFile)
             if fileItem:
-                self.beginInsertRows(QModelIndex(), len(self.items), len(self.items)+1)
+                self.beginInsertRows(QModelIndex(), len(self.items), len(self.items) + 1)
                 self.items.append( fileItem )
                 self.endInsertRows()
         self.changed.emit()
@@ -797,7 +819,7 @@ class CAttachedFilesModel(QAbstractTableModel):
         fileItem.setOrgSignature(orgSignatureBytes, QtGui.qApp.userId, QDateTime().currentDateTime())
         if html:
             fileItem.setHtmlTemplate(html)
-        self.beginInsertRows(QModelIndex(), 1, len(self.items)+1)
+        self.beginInsertRows(QModelIndex(), len(self.items), len(self.items) + 1)
         self.items.append(fileItem)
         self.endInsertRows()
         self.changed.emit()

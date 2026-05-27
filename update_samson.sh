@@ -5,7 +5,7 @@
 NOWDATE=$(date +%Y%m%d-%T)
 f=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 outdir="/opt/client/install/update"
-mkdir -p $outdir
+mkdir -p "$outdir"
 outfile="$outdir/update.log"
 echo "
 [$(date +%Y%m%d-%T)] СТАРТ update_samson.sh v8!" >> $outfile
@@ -23,7 +23,7 @@ homedir=$HOME
 #if [ -f "$homedir/Рабочий стол/Samson_AutoUP.desktop" ] ; then desktop="$homedir/Рабочий стол"; fi ;
 #if [ -f "$homedir/Desktop/Samson_AutoUP.desktop" ] ; then desktop="$homedir/Desktop"; fi ;
 desktop=`xdg-user-dir DESKTOP`
-mkdir $desktop
+mkdir -p "$desktop"
 echo "homedir = $homedir" >> "$outfile"
 echo "desktop = $desktop" >> "$outfile"
 file=$homedir/.config/samson-vista/S11App.ini
@@ -111,6 +111,9 @@ END_SCRIPT
 	chmod +x /opt/client/*.sh
 	chmod +x /opt/client/install/bin/*.sh 
 	
+	echo "[$(date +%Y%m%d-%T)] делаем резервную копию файла настроек МИС"
+	cp $file $file-$NOWDATE >> "$outfile" 2>&1
+
 	# Дополнительная установка
 	echo "[$(date +%Y%m%d-%T)] Дополнительная установка скриптом Dopinstall.sh..."
 	echo "[$(date +%Y%m%d-%T)] Запуск Dopinstall.sh" >> "$outfile"

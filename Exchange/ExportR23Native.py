@@ -39,7 +39,7 @@ from library.Identification import getIdentification
 from library.PrintInfo import CInfoContext
 from library.TableModel import CCol
 from library.Utils import calcAgeInDays, forceBool, forceDate, forceDouble, forceInt, forceRef, forceString, \
-    forceStringEx, formatSex, nameCase, pyDate, toVariant, formatSNILS, trim, formatName, formatDate
+    forceStringEx, formatSex, nameCase, pyDate, toVariant, formatSNILS, trim, formatName, formatDate, calcAgeInYears
 from library.dbfpy.dbf import Dbf
 
 N008dict = {u'Эпителиальный': 1, u'Неэпителиальный': 2, u'Светлоклеточный': 3,
@@ -286,7 +286,8 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
         'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
         'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
-        'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009'
+        'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009', 'B04.004.010', 'B04.015.010',
+        'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
     ]
 
     def __init__(self, parent):
@@ -355,6 +356,10 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             self.posServices.add(item)
         # ТТ 2037 "добавить в счет-фактуру и форму счет итоговый услугу пренатального скрининга"
         self.posServices.add('B03.032.002')
+        # ТТ 4353 "Счета. Внести правки в расчеты формы счет"
+        # добавить лабораторные услуги в расчет
+        for item in ['A26.05.019.001', 'A26.05.019.003', 'A12.05.120', 'A09.05.041', 'A09.05.042', 'A04.14.001.005']:
+            self.posServices.add(item)
 
         # Для определения обращений
         self.pobr = set()
@@ -1087,15 +1092,18 @@ where t.typeFile = 'D'""")
                     elif event['hasHomeServiсe']:
                         cel = '1.2'  # активное посещение
                     elif event['hasDNService']:
-                        eventTypeId = event['eventTypeId']
-                        value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
-                        if value is None:
-                            value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
-                            self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
-                        if value == 'dnwork':
-                            cel = '4.1'  # Диспансерное наблюдение работающих по месту осуществления служебной деятельности
-                        elif value == 'dneducate':
-                            cel = '4.2'  # Диспансерное наблюдение по месту обучения в образовательной организации
+                        if rec_p['DATO'] < datetime.date(2026, 2, 1):
+                            eventTypeId = event['eventTypeId']
+                            value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                            if value is None:
+                                value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                                self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                            if value == 'dnwork':
+                                cel = '4.1'  # Диспансерное наблюдение работающих по месту осуществления служебной деятельности
+                            elif value == 'dneducate':
+                                cel = '4.2'  # Диспансерное наблюдение по месту обучения в образовательной организации
+                            else:
+                                cel = '1.3'  # диспансерное наблюдение
                         else:
                             cel = '1.3'  # диспансерное наблюдение
                     elif event['hasChronSchoolService']:
@@ -1248,7 +1256,7 @@ where t.typeFile = 'D'""")
                             event = self.eventsDict.get(rec_u['SN'], None)
                             if event and event['hasObrService']:
                                 rep['cpo'][kat] += 1
-                                if keyvalue == 'FAP':
+                                if keyvalue == 'FAP' or rec_u['KUSL'] in ['A26.05.019.001', 'A26.05.019.003', 'A12.05.120', 'A09.05.041', 'A09.05.042', 'A04.14.001.005']:
                                     rep['sum_pos'] += rec_u['SUMM']
                             else:
                                 rep['cp'][kat] += 1
@@ -2368,6 +2376,9 @@ where t.typeFile = 'D'""")
             ('OUT_MO', 'C', 5),  # код МО, оказавшей услугу
             ('DOC_SS', 'C', 14),  # СНИЛС врача оказавшего услугу
             ('SPEC', 'C', 9),  # код специальности специалиста, оказавшего услугу
+            ('DET', 'N', 1, 0),  # признак детского профиля
+            ('PR_PR', 'N', 1, 0),  # причина оплаты за прерванный случай лечения
+            ('KOEF_PR', 'N', 4, 2),  # доля оплаты прерванного случая лечения
             ('PROFIL', 'C', 3),  # профиль оказанной медицинской помощи
             ('VMP', 'C', 2),  # вид медицинской помощи
             ('COMMENT', 'C', 10),
@@ -2749,8 +2760,28 @@ where t.typeFile = 'D'""")
             left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0
             left join ActionProperty ap on ap.type_id = apt.id and ap.action_id = a.id and ap.deleted = 0
             left join ActionProperty_String aps ON ap.id = aps.id
-            where a.event_id = Event.id AND a.deleted = 0 AND s.infis IN ('A08.20.017.002', 'A08.20.040', 'A01.20.003', 'A26.20.034.001')
-                AND apt.shortName = 'extirpation' ORDER BY 1 desc LIMIT 1), '') ELSE '' END
+            where a.event_id = Event.id AND a.deleted = 0 AND s.infis IN ('A08.20.017.002', 'A08.20.040', 'A01.20.003', 'A26.20.034.001', 'A26.20.009.002', 'A26.20.068')
+                AND apt.shortName = 'extirpation' ORDER BY 1 desc LIMIT 1), '') ELSE '' END,
+  CASE WHEN Client.sex = 2 AND mt.regionalCode in ('211', '244') AND Event.execDate >= '2026-01-01' THEN 
+       IFNULL((SELECT IF(aps.value = 'положительный результат ВПЧ', 's', NULL)
+          FROM Action a
+          LEFT JOIN ActionType at ON a.actionType_id = at.id
+          LEFT JOIN rbService s ON at.nomenclativeService_id = s.id
+          left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0
+          left join ActionProperty ap on ap.type_id = apt.id and ap.action_id = a.id and ap.deleted = 0
+          left join ActionProperty_String aps ON ap.id = aps.id
+          where a.event_id = Event.id AND a.deleted = 0 AND s.infis = 'A26.20.009.002'
+              AND apt.shortName = 'HPV' ORDER BY 1 desc LIMIT 1), '') ELSE '' END,
+  CASE WHEN mt.regionalCode in ('211', '261') AND Event.execDate >= '2026-02-01' THEN 
+       IFNULL((SELECT IF(aps.value = 'первое прохождение профосмотра или диспансеризации', 't', NULL)
+          FROM Action a
+          LEFT JOIN ActionType at ON a.actionType_id = at.id
+          LEFT JOIN rbService s ON at.nomenclativeService_id = s.id
+          left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0
+          left join ActionProperty ap on ap.type_id = apt.id and ap.action_id = a.id and ap.deleted = 0
+          left join ActionProperty_String aps ON ap.id = aps.id
+          where a.event_id = Event.id AND a.deleted = 0 AND s.infis IN ('A05.10.002.003','A05.10.004.009','A12.26.005','A02.26.015')
+              AND apt.shortName = 'firstexam' ORDER BY 1 desc LIMIT 1), '') ELSE '' END
   ) AS Q_G,
   IFNULL(ActionOrg.infisCode, '') AS outOrgCode,
   IF(ActionOrg.infisCode is null or
@@ -2818,6 +2849,8 @@ where t.typeFile = 'D'""")
   IF(rbItemService.infis in ('B01.047.015', 'B01.031.008'), 1, 0) as homeService,
   Account_Item.usedCoefficients as KSLP,
   Account_Item.usedCoefficientsValue as KSLP_IT,
+  Account_Item.interruptReason as PR_PR,
+  Account_Item.interruptCoeff as KOEF_PR,
   Diagnostic.cTumor_id,
   Diagnostic.cNodus_id,
   Diagnostic.cMetastasis_id,
@@ -2853,7 +2886,13 @@ IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.inf
         FROM ActionType AT1
         WHERE AT1.flatCode = 'appointments'
         AND AT1.deleted = 0)), NULL) as appointmentsActionId,
-  IF(Account_Item.price > 0,
+IF(Account_Item.sum > 0
+        AND Event.execDate >= '2026-02-01'
+        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
+        OR
+        Account_Item.price > 0 
+        AND NOT (Event.execDate >= '2026-02-01'
+                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
   (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2866,7 +2905,13 @@ IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.inf
         FROM ActionType AT1
         WHERE AT1.flatCode = 'ControlListOnko'
         AND AT1.deleted = 0)), NULL) as ControlListOnkoId, 
-IF(Account_Item.price > 0,
+IF(Account_Item.sum > 0
+        AND Event.execDate >= '2026-02-01'
+        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
+        OR
+        Account_Item.price > 0 
+        AND NOT (Event.execDate >= '2026-02-01'
+                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
  (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2879,7 +2924,13 @@ IF(Account_Item.price > 0,
         FROM ActionType AT1
         WHERE AT1.flatCode = 'Gistologia'
         AND AT1.deleted = 0)), NULL) as GistologiaId,
-IF(Account_Item.price > 0,
+IF(Account_Item.sum > 0
+        AND Event.execDate >= '2026-02-01'
+        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
+        OR
+        Account_Item.price > 0 
+        AND NOT (Event.execDate >= '2026-02-01'
+                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
   (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2893,7 +2944,7 @@ IF(Account_Item.price > 0,
         WHERE AT1.flatCode = 'Immunohistochemistry'
         AND AT1.deleted = 0)), NULL) AS ImmunohistochemistryId,
         IF(rbAccountType.regionalCode in ('5', '9' 'd', 'h', 'l', 'p'), (select min(prev.date) from Account_Item prev where prev.event_id = Account_Item.event_id and prev.reexposeItem_id is not null), NULL) as DVOZVRAT,
-IF(soc_V036.parameter in (1,3), 
+IF( EXISTS(SELECT NULL FROM soc_V036 WHERE soc_V036.serviceCode = rbItemService.infis and soc_V036.begDate <= Event.execDate and (soc_V036.endDate >= Event.execDate OR soc_V036.endDate is NULL) AND soc_V036.parameter in (1,3)) , 
  (SELECT
         GROUP_CONCAT(A1.id)
       FROM Action A1
@@ -2955,7 +3006,7 @@ IF(COALESCE(rbItemService.infis, rbEventService.infis) like 'G%%' and IF(Event.e
              AND (css.endDate >= Event.execDate OR css.endDate IS NULL) limit 1), '000') AS SOC,
   IF(mt.regionalCode in ('11', '12'), 
     (SELECT
-        A1.id
+        MAX(A1.id)
       FROM Action A1
       WHERE A1.event_id = Event.id
       AND A1.deleted = 0
@@ -3057,8 +3108,6 @@ FROM Account_Item
   LEFT JOIN ActionType ON ActionType.id = Action.actionType_id
   LEFT JOIN OrgStructure ON OrgStructure.id = ExecPerson.orgStructure_id
   LEFT JOIN rbService AS rbItemService ON rbItemService.id = Account_Item.service_id
-  LEFT JOIN soc_V036 on soc_V036.serviceCode = rbItemService.infis and soc_V036.begDate <= Event.execDate
-   and (soc_V036.endDate >= Event.execDate OR soc_V036.endDate is NULL)
   LEFT JOIN rbSpeciality ON ExecPerson.speciality_id = rbSpeciality.id
   LEFT JOIN rbSpeciality PersonSpeciality ON PersonSpeciality.id = Person.speciality_id
   LEFT JOIN Organisation AS ActionOrg ON Action.org_id = ActionOrg.id
@@ -3749,6 +3798,13 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['DOC_SS'] = formatSNILS(forceString(record.value('execPersonSNILS')))[:14]
             specialityCode = forceString(record.value('specialityCode'))[:9]
             dbfRecord['SPEC'] = specialityCode
+
+            if forceDate(record.value('endDate')) >= QDate(2026, 1, 1):
+                age = calcAgeInYears(birthDate, begDate)
+                dbfRecord['DET'] = 1 if age < 18 else 0
+                pr_pr = forceInt(record.value('PR_PR'))
+                dbfRecord['PR_PR'] = pr_pr
+                dbfRecord['KOEF_PR'] = forceDouble(record.value('KOEF_PR')) if pr_pr else 1.0
 
             if endDate >= QDate(2025, 1, 1) and VP in ['211', '244', '261', '233'] or endDate >= QDate(2025, 2, 1) and VP in ['262']:
                 value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)

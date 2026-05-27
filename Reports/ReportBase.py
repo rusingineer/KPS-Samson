@@ -290,10 +290,10 @@ class CReportBase(object):
 
         result['busyness'] = getPrefInt(prefs, 'business', 0) # учитывать занятость, 0-не учитывать, 1-только занятые, 2-только не занятые
 
-        result['deathPlace']    = getPrefString(prefs, 'deathPlace', '')
-        result['deathCause']    = getPrefString(prefs, 'deathCause', '')
-        result['deathFoundBy']  = getPrefString(prefs, 'deathFoundBy', '')
-        result['deathFoundation']= getPrefString(prefs, 'deathFoundation', '')
+        result['deathPlace']    = getPrefInt(prefs, 'deathPlace', 0)
+        result['deathCause']    = getPrefInt(prefs, 'deathCause', 0)
+        result['deathFoundBy']  = getPrefInt(prefs, 'deathFoundBy', 0)
+        result['deathFoundation']= getPrefInt(prefs, 'deathFoundation', 0)
 
         result['chkClientId'] = getPrefBool(prefs, 'chkClientId', False)
         result['chkEventId'] = getPrefBool(prefs, 'chkEventId', False)

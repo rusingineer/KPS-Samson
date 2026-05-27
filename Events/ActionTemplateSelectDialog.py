@@ -307,7 +307,7 @@ class CPropertiesTableModel(QAbstractTableModel):
         :type action: CAction
         """
         def normalizeString(string):
-             return string.strip().lower().replace(u'ё', u'е')
+             return string.strip().lower().replace(u'ё', u'е') if string else string
         self._action = action
         self._propertyList = []
         self._notCopyableList = []

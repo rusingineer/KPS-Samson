@@ -208,6 +208,9 @@ class CStrComboBox(CBaseMultivalue, CROComboBox):
             event.accept()
         elif event.key() in (Qt.Key_Enter, Qt.Key_Return):
             event.accept()
+        elif event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+            self.setCurrentIndex(-1)
+            event.accept()
         else:
             QtGui.QComboBox.keyPressEvent(self, event)
 

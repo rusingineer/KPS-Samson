@@ -406,3 +406,10 @@ class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin)
         self.loadDialogPreferences()
         result = QtGui.QDialog.exec_(self)
         return result
+
+    
+    def deleteLater(self):
+        if hasattr(self, 'safeDelete'):
+            self.safeDelete()
+        else:
+            QtGui.QDialog.deleteLater(self)

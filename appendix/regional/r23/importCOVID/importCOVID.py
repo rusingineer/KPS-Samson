@@ -17,6 +17,11 @@ import os
 import sys
 from optparse import OptionParser
 
+import platform
+if platform.system() != 'Windows':
+    pathtail = '/appendix/regional/r23/importCOVID/importCOVID.py'
+    sys.path.insert(0, os.path.realpath(__file__).replace(pathtail, ''))
+    
 from PyQt4 import QtGui, QtCore, QtSql
 from PyQt4.QtCore import QDir, qInstallMsgHandler, QVariant, pyqtSignature, Qt, QTime, QDateTime
 

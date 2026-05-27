@@ -39,7 +39,7 @@ from Registry.ResourcesDock import (CActivityModel,
                                     isAppointmentEnabledForClient,
                                     isReferralRequired, isAppointmentEnabledForDate, checkInterofficeRecord
                                     )
-from Registry.Utils                       import getClientAddressEx, CCheckNetMixin, getClientAttachEx
+from Registry.Utils                       import getClientAddressEx, CCheckNetMixin, getClientAttachEx, createRelatedActionTMK
 from Timeline.Schedule import CSchedule, CScheduleItem, getScheduleItemIdListForClient, getScheduleItemIdFinance, \
     getExceptionSpecialty, getScheduleItemIdListForClient_OMS
 
@@ -146,6 +146,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         self.addObject('actFindArea',       QtGui.QAction(u'Найти участок', self))
         self.addObject('actAmbCreateOrder', QtGui.QAction(u'Поставить в очередь', self))
         self.addObject('actAmbCreateOrderUrgent', QtGui.QAction(u'Поставить в очередь неотложно', self))
+        self.addObject('actAmbCreateOrderTMK', QtGui.QAction(u'Поставить в очередь на ТМК', self))
         self.addObject('actAmbReserveOrder', QtGui.QAction(u'Выполнить бронирование', self))
         self.addObject('actAmbUnreserveOrder', QtGui.QAction(u'Отменить бронирование', self))
         self.addObject('actRegistrySuspenedAppointment', QtGui.QAction(u'Зарегистрировать пациента в Журнале отложной записи', self))
@@ -191,7 +192,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         self.setPersonnelWidgetMode(self.groupingSpeciality)
 
         self.treeOrgStructure.createPopupMenu([self.actFindArea])
-        self.tblAmbQueue.createPopupMenu([self.actAmbCreateOrder, self.actAmbCreateOrderUrgent, self.actAmbReserveOrder, self.actAmbUnreserveOrder])
+        self.tblAmbQueue.createPopupMenu([self.actAmbCreateOrder, self.actAmbCreateOrderUrgent, self.actAmbCreateOrderTMK, self.actAmbReserveOrder, self.actAmbUnreserveOrder])
         self.setOrgStructureWidgetMode(self.activityListIsShown)
 
         self.cmbAppointmentType.setValue(CSchedule.atAmbulance)
@@ -662,7 +663,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         return capacity, busy, appointmentPurposeId
 
 
-    def createOrder(self, row, scheduleItemId, date, personId, clientId, isUrgent = 0):
+    def createOrder(self, row, scheduleItemId, date, personId, clientId, isUrgent = 0, recordType = None):
         if scheduleItemId and clientId and self.checkApplicable(personId, clientId, date):
             specialityId = self.getPersonSpecialityId(personId)
             orgStructureId = self.getPersonOrgStructureId(personId)
@@ -718,6 +719,8 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                                     i.checked = False
                                     i.complaint = complaint
                                     i.isUrgent = isUrgent
+                                    if recordType:
+                                        i.recordType = recordType
                                     if referral:
                                         i.srcOrgId = referral.srcOrgId
                                         i.srcPerson = referral.srcPerson
@@ -725,6 +728,10 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                                         i.srcNumber = referral.srcNumber
                                         i.srcDate = referral.srcDate
                                     scheduleItemId = i.save()
+                                    if recordType and recordType == 4 and scheduleItemId:
+                                        if not createRelatedActionTMK(self, clientId, personId, i.time, scheduleItemId):
+                                            db.rollback()
+                                            return False
                                     QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
                             if not dataChanged:
                                 db.commit()
@@ -839,6 +846,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         clientIsNotAlive = forceDateTime(QtGui.qApp.db.translate('Client', 'id', currentClientId, 'deathDate'))
         self.actAmbCreateOrder.setEnabled(bool(currentClientId) and not clientIsNotAlive)
         self.actAmbCreateOrderUrgent.setEnabled(bool(currentClientId) and not clientIsNotAlive)
+        self.actAmbCreateOrderTMK.setEnabled(bool(currentClientId) and not clientIsNotAlive)
         if QtGui.qApp.defaultKLADR()[:2] != u'23':
             self.actAmbReserveOrder.setVisible(True)
             self.actAmbUnreserveOrder.setVisible(True)
@@ -848,11 +856,11 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             self.actAmbReserveOrder.setVisible(False)
             self.actAmbUnreserveOrder.setVisible(False)
 
-    def ambCreateOrder(self, row, clientId, isUrgent = 0):
+    def ambCreateOrder(self, row, clientId, isUrgent = 0, recordType = None):
         clientIsNotAlive = forceDateTime(QtGui.qApp.db.translate('Client', 'id', clientId, 'deathDate'))
         if clientId and row >= 0 and not clientIsNotAlive:
             scheduleItemId, date, time, index, personId, office, begTime, endTime = self.modelAmbQueue.getTimeTableDetails(row)
-            if clientId and self.createOrder(row, scheduleItemId, date, personId, clientId, isUrgent):
+            if clientId and self.createOrder(row, scheduleItemId, date, personId, clientId, isUrgent, recordType):
                 printOrderByScheduleItem(self, scheduleItemId, clientId)
 #                printOrder(self, clientId, 0, date, office, personId, index+1, time, False, unicode(formatTimeRange((begTime, endTime))), '')
 
@@ -1020,6 +1028,16 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
         clientId = QtGui.qApp.currentClientId()
         row = self.tblAmbQueue.currentIndex().row()
         self.ambCreateOrder(row, clientId, isUrgent=1)
+        self.on_actAmbUnreserveOrder_triggered()
+        QtGui.qApp.emitCurrentClientInfoChanged()
+        self.updateQueueTable()
+
+
+    @pyqtSignature('')
+    def on_actAmbCreateOrderTMK_triggered(self):
+        clientId = QtGui.qApp.currentClientId()
+        row = self.tblAmbQueue.currentIndex().row()
+        self.ambCreateOrder(row, clientId, recordType=4)
         self.on_actAmbUnreserveOrder_triggered()
         QtGui.qApp.emitCurrentClientInfoChanged()
         self.updateQueueTable()

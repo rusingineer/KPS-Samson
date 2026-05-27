@@ -163,6 +163,7 @@ class CIdentityPatientServiceDialog(CDialogBase, Ui_IdentityPatientServiceDialog
                     currentPolicyRecord.remove(currentPolicyRecord.indexOf('compulsoryServiceStop'))
                     currentPolicyRecord.remove(currentPolicyRecord.indexOf('voluntaryServiceStop'))
                     currentPolicyRecord.remove(currentPolicyRecord.indexOf('area'))
+                    currentPolicyRecord.remove(currentPolicyRecord.indexOf('enp'))
                     db.updateRecord(tableClientPolicy, currentPolicyRecord)
             elif messageBox.clickedButton() == btnUpdate:
                 if newInsurerId and newInsurerId != oldInsurerId:
@@ -179,6 +180,7 @@ class CIdentityPatientServiceDialog(CDialogBase, Ui_IdentityPatientServiceDialog
                 currentPolicyRecord.remove(currentPolicyRecord.indexOf('compulsoryServiceStop'))
                 currentPolicyRecord.remove(currentPolicyRecord.indexOf('voluntaryServiceStop'))
                 currentPolicyRecord.remove(currentPolicyRecord.indexOf('area'))
+                currentPolicyRecord.remove(currentPolicyRecord.indexOf('enp'))
                 db.updateRecord(tableClientPolicy, currentPolicyRecord)
 
     def getDataFromService(self):

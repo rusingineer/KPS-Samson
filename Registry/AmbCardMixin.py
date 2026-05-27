@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -211,6 +211,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         #CConstructHelperMixin.__init__(self) что это?
         self.__ambCardVisitIsInitialised = False
         self.__ambCardFilesIsInitialised = False
+        self.__ambCardKBiRIsInitialised = False
         self.ambCardMonitoringIsInitialised = False
         self.__ambCardDiagnosticsFilter = {}
         self.__ambCardVisitsFilter = {}
@@ -219,7 +220,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.signerIdList = []
         self.authorIdList = []
         self.eventEditor = None
-        self.actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(flatCode = u'111/y-20')
+        self.actionTypeIdListByKBiR = None
         #self.btnAmbCardJournal.clicked.connect(self.on_btnAmbCardJournal_clicked)
 
     def preSetupUi(self):
@@ -248,14 +249,14 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.addModels('AmbCardSurveyActionsSort', CAmbCardSortFilterProxyTableModel(self, self.modelAmbCardSurveyActions))
         self.addModels('AmbCardSurveyActionProperties', CActionPropertiesTableModel(self))
         self.addModels('AmbCardMonitoring', CAmbCardMonitoringModel(self))
-        self.addModels('AmbCardKBiRActions', CAmbCardStatusActionsTableModel(self))
-        self.addModels('AmbCardKBiRActionsSort', CAmbCardSortFilterProxyTableModel(self, self.modelAmbCardKBiRActions))
-        self.addModels('AmbCardPreviousPregnancy', CPreviousPregnancyModel(self))
-        self.addModels('AmbCardPreviousPregnancyChildren', CPreviousPregnancyChildrenModel(self))
-        self.addModels('AmbCardSOPSvORNM', CSOPSvORNMTableModel(self))
-        self.addModels('AmbCardNVNBVARRS', CNVNBVARRSTableModel(self))
-        self.addModels('AmbCardNVNBAR', CNVNBARTableModel(self))
-        self.addModels('AmbCardNVNBSGVB', CNVNBSGVBTableModel(self))
+        # self.addModels('AmbCardKBiRActions', CAmbCardStatusActionsTableModel(self))
+        # self.addModels('AmbCardKBiRActionsSort', CAmbCardSortFilterProxyTableModel(self, self.modelAmbCardKBiRActions))
+        # self.addModels('AmbCardPreviousPregnancy', CPreviousPregnancyModel(self))
+        # self.addModels('AmbCardPreviousPregnancyChildren', CPreviousPregnancyChildrenModel(self))
+        # self.addModels('AmbCardSOPSvORNM', CSOPSvORNMTableModel(self))
+        # self.addModels('AmbCardNVNBVARRS', CNVNBVARRSTableModel(self))
+        # self.addModels('AmbCardNVNBAR', CNVNBARTableModel(self))
+        # self.addModels('AmbCardNVNBSGVB', CNVNBSGVBTableModel(self))
 
         self.addObject('actDiagnosticsShowPropertyHistory',   QtGui.QAction(u'Показать журнал значения свойства', self))
         self.addObject('actDiagnosticsShowPropertiesHistory', QtGui.QAction(u'Показать журнал значения свойств...', self))
@@ -271,13 +272,13 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.addObject('actSurveyShowPropertiesHistory',      QtGui.QAction(u'Показать журнал значения свойств...', self))
         self.addObject('actAmbCardPrintEvents',               QtGui.QAction(u'Напечатать список диагнозов', self))
         self.addObject('actAmbCardPrintVisits',               QtGui.QAction(u'Напечатать список визитов', self))
-        self.addObject('actAmbCardPrintVisitsHistory',        getPrintAction(self, 'visitsHistory', u'Напечатать визиты по шаблону', False))
-        self.addObject('actAmbCardPrintCaseHistory',          getPrintAction(self, 'caseHistory', u'Напечатать карту'))
+        # self.addObject('actAmbCardPrintVisitsHistory',        getPrintAction(self, 'visitsHistory', u'Напечатать визиты по шаблону', False))
+        # self.addObject('actAmbCardPrintCaseHistory',          getPrintAction(self, 'caseHistory', u'Напечатать карту'))
         self.addObject('actAmbCardActionTypeGroupId',         QtGui.QAction(u'Фильтровать по группе Действия', self))
         self.addObject('actAmbCardOpenActionELMK',            QtGui.QAction(u'Открыть обращение ЭЛМК', self))
         self.addObject('actAmbCardPrintAction',               getPrintAction(self, None, u'Напечатать по шаблону', False))
         self.addObject('actAmbCardPrintActions',              QtGui.QAction(u'Напечатать список мероприятий', self))
-        self.addObject('actAmbCardPrintActionsHistory',       getPrintAction(self, 'actionsHistory', u'Напечатать карту мероприятий', False))
+        # self.addObject('actAmbCardPrintActionsHistory',       getPrintAction(self, 'actionsHistory', u'Напечатать карту мероприятий', False))
         self.addObject('actAmbCardCopyAction',                QtGui.QAction(u'Копировать свойства', self))
         self.addObject('actAmbCardCopyAsNewAction', QtGui.QAction(u'Скопировать документ в текущее обращение', self))
 
@@ -312,21 +313,21 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.setModels(self.tblAmbCardSurveyActionProperties, self.modelAmbCardSurveyActionProperties, self.selectionModelAmbCardSurveyActionProperties)
         self.tblAmbCardSurveyActionProperties.setSourceModel(self.modelAmbCardSurveyActionProperties)
         self.setModels(self.tblAmbCardMonitoring, self.modelAmbCardMonitoring, self.selectionModelAmbCardMonitoring)
-        self.setModels(self.tblAmbCardKBiRActions, self.modelAmbCardKBiRActionsSort, self.selectionModelAmbCardKBiRActionsSort)
-        self.tblAmbCardKBiRActions.setSourceModel(self.modelAmbCardKBiRActions)
-        self.setModels(self.tblAmbCardPreviousPregnancy, self.modelAmbCardPreviousPregnancy, self.selectionModelAmbCardPreviousPregnancy)
-        self.setModels(self.tblAmbCardPreviousPregnancyChildren, self.modelAmbCardPreviousPregnancyChildren, self.selectionModelAmbCardPreviousPregnancyChildren)
-        self.setModels(self.tblAmbCardSOPSvORNM, self.modelAmbCardSOPSvORNM, self.selectionModelAmbCardSOPSvORNM)
-        self.setModels(self.tblAmbCardNVNBVARRS, self.modelAmbCardNVNBVARRS, self.selectionModelAmbCardNVNBVARRS)
-        self.setModels(self.tblAmbCardNVNBAR, self.modelAmbCardNVNBAR, self.selectionModelAmbCardNVNBAR)
-        self.setModels(self.tblAmbCardNVNBSGVB, self.modelAmbCardNVNBSGVB, self.selectionModelAmbCardNVNBSGVB)
+        # self.setModels(self.tblAmbCardKBiRActions, self.modelAmbCardKBiRActionsSort, self.selectionModelAmbCardKBiRActionsSort)
+        # self.tblAmbCardKBiRActions.setSourceModel(self.modelAmbCardKBiRActions)
+        # self.setModels(self.tblAmbCardPreviousPregnancy, self.modelAmbCardPreviousPregnancy, self.selectionModelAmbCardPreviousPregnancy)
+        # self.setModels(self.tblAmbCardPreviousPregnancyChildren, self.modelAmbCardPreviousPregnancyChildren, self.selectionModelAmbCardPreviousPregnancyChildren)
+        # self.setModels(self.tblAmbCardSOPSvORNM, self.modelAmbCardSOPSvORNM, self.selectionModelAmbCardSOPSvORNM)
+        # self.setModels(self.tblAmbCardNVNBVARRS, self.modelAmbCardNVNBVARRS, self.selectionModelAmbCardNVNBVARRS)
+        # self.setModels(self.tblAmbCardNVNBAR, self.modelAmbCardNVNBAR, self.selectionModelAmbCardNVNBAR)
+        # self.setModels(self.tblAmbCardNVNBSGVB, self.modelAmbCardNVNBSGVB, self.selectionModelAmbCardNVNBSGVB)
 
         self.tblAmbCardStatusActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction, self.actAmbCardOpenActionELMK])
         self.tblAmbCardDiagnosticActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
         self.tblAmbCardCureActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
         self.tblAmbCardMiscActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
         self.tblAmbCardSurveyActions.createPopupMenu([self.actAmbCardActionTypeGroupId, self.actAmbCardCopyAction])
-        self.tblAmbCardKBiRActions.createPopupMenu([self.actAmbCardActionTypeGroupId, ])
+        # self.tblAmbCardKBiRActions.createPopupMenu([self.actAmbCardActionTypeGroupId, ])
 
         self.cmbAmbCardDiagnosticsPurpose.setTable('rbEventTypePurpose', True)
         self.cmbAmbCardDiagnosticsSpeciality.setTable('rbSpeciality', True)
@@ -338,6 +339,13 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.cmbAmbCardMiscGroup.setClass(3)
         self.cmbAmbCardSurveyGroup.setClass(None)
         self.cmbAmbCardSurveyGroup.setServiceType(CActionServiceType.survey)
+        
+        # # словарь для создания пунктов меню для btnActionPrint
+        # self.action_menu_dict = {
+        #     'Events': [self.actAmbCardPrintEvents, self.actAmbCardPrintCaseHistory],
+        #     'Actions': [self.actAmbCardPrintAction, self.actAmbCardPrintActions, self.actAmbCardPrintActionsHistory],
+        #     'Visits': [self.actAmbCardPrintVisits, self.actAmbCardPrintVisitsHistory]
+        # }
 
         self.tabAmbCardContent.setCurrentIndex(0)
 
@@ -358,7 +366,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.connect(self.tblAmbCardDiagnosticActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblAmbCardCureActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblAmbCardMiscActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
-        self.connect(self.tblAmbCardKBiRActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
+        # self.connect(self.tblAmbCardKBiRActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
         self.connect(self.tblAmbCardVisits.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.onHeaderAmbCardVisitsColClicked)
         self.connect(self.btnAmbCardJournal,  SIGNAL('clicked()'),  self.on_btnAmbCardJournalClicked)
         self.connect(self.btnAmbCardGraph,  SIGNAL('clicked()'),  self.on_btnAmbCardGraphClicked)
@@ -369,12 +377,12 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.tblAmbCardDiagnosticActions.enableColsHide()
         self.tblAmbCardCureActions.enableColsHide()
         self.tblAmbCardMiscActions.enableColsHide()
-        self.tblAmbCardKBiRActions.enableColsHide()
+        # self.tblAmbCardKBiRActions.enableColsHide()
         self.tblAmbCardStatusActions.enableColsMove()
         self.tblAmbCardDiagnosticActions.enableColsMove()
         self.tblAmbCardCureActions.enableColsMove()
         self.tblAmbCardMiscActions.enableColsMove()
-        self.tblAmbCardKBiRActions.enableColsMove()
+        # self.tblAmbCardKBiRActions.enableColsMove()
         self.tblAmbCardSurveyActions.enableColsHide()
         self.tblAmbCardSurveyActions.enableColsMove()
         self.tblAmbCardAttachedFiles.setFlags(CAttachFilesTableFlag.canRead)
@@ -397,15 +405,72 @@ class CAmbCardMixin(CConstructHelperMixin):
         # self.connect(self.cmdAmbCardVisitButtonBox, SIGNAL('clicked(QAbstractButton*)'), self.on_cmdAmbCardVisitButtonBox_clicked)
         # self.connect(self.tabAmbCardContent, SIGNAL('currentChanged(int)'), self.on_tabAmbCardContent_currentChanged)
 
-        # словарь для создания пунктов меню для btnActionPrint
-        self.action_menu_dict = {
-            'Events': [self.actAmbCardPrintEvents, self.actAmbCardPrintCaseHistory],
-            'Actions': [self.actAmbCardPrintAction, self.actAmbCardPrintActions, self.actAmbCardPrintActionsHistory],
-            'Visits': [self.actAmbCardPrintVisits, self.actAmbCardPrintVisitsHistory]
-        }
-        self.ambCardContentTabEnabled()
+        # self.ambCardContentTabEnabled()
         self.cmbAmbCardFilesAuthor.setTable('vrbPerson')
         self.cmbAmbCardFilesSigner.setTable('vrbPerson')
+        # self.modelAmbCardSOPSvORNM.setEventEditor(self)
+        # self.modelAmbCardNVNBVARRS.setEventEditor(self)
+        # self.modelAmbCardNVNBAR.setEventEditor(self)
+        # self.modelAmbCardNVNBSGVB.setEventEditor(self)
+        # self.modelAmbCardNVNBAR.setReadOnly(True)
+        # self.setInitDate()
+        # self.setWidgetsVisible(False)
+        # self.setComoboBoxWheel()
+        # self.setReferenceComboBoxes()
+        # self.setKBirReadOnly(True)
+        # self.tblAmbCardNVNBVARRS.resizeRowsToContents()
+        # self.tblAmbCardNVNBVARRS.resizeColumnsToContents()
+        # rowHeight = self.tblAmbCardNVNBVARRS.rowHeight(0)
+        # headerHeight = self.tblAmbCardNVNBVARRS.horizontalHeader().height()
+        # margin = 2 * self.tblAmbCardNVNBVARRS.frameWidth()
+        # maxHeight = headerHeight + rowHeight * 7 + margin
+        # self.tblAmbCardNVNBVARRS.setMaximumHeight(headerHeight + rowHeight * 7 + margin)
+        # self.tblAmbCardNVNBAR.setMaximumHeight(headerHeight + rowHeight * 5 + margin)
+        # self.tblAmbCardSOPSvORNM.setMaximumHeight(headerHeight + rowHeight * 4 + margin)
+        #
+        # self.modelAmbCardPreviousPregnancy.setReadOnly(True)
+        # self.modelAmbCardPreviousPregnancyChildren.setReadOnly(True)
+        # self.modelAmbCardNVNBSGVB.setReadOnly(True)
+        # self.modelAmbCardSOPSvORNM.setReadOnly(True)
+        # self.modelAmbCardNVNBVARRS.setReadOnly(True)
+        # self.modelAmbCardNVNBAR.setReadOnly(True)
+        
+        self.tblAmbCardDiagnostics.setSortingEnabled(True)
+        self.tblAmbCardStatusActions.setSortingEnabled(True)
+        self.tblAmbCardStatusActionProperties.setSortingEnabled(True)
+        self.tblAmbCardDiagnosticActions.setSortingEnabled(True)
+        self.tblAmbCardDiagnosticActionProperties.setSortingEnabled(True)
+        self.tblAmbCardCureActions.setSortingEnabled(True)
+        self.tblAmbCardCureActionProperties.setSortingEnabled(True)
+        self.tblAmbCardMiscActions.setSortingEnabled(True)
+        self.tblAmbCardMiscActionProperties.setSortingEnabled(True)
+        self.tblAmbCardSurveyActions.setSortingEnabled(True)
+        self.tblAmbCardSurveyActionProperties.setSortingEnabled(True)
+        self.tblAmbCardVisits.setSortingEnabled(True)
+        # self.tblAmbCardKBiRActions.setSortingEnabled(True)
+
+
+    def initKBiR(self):
+        self.addModels('AmbCardKBiRActions', CAmbCardStatusActionsTableModel(self))
+        self.addModels('AmbCardKBiRActionsSort', CAmbCardSortFilterProxyTableModel(self, self.modelAmbCardKBiRActions))
+        self.addModels('AmbCardPreviousPregnancy', CPreviousPregnancyModel(self))
+        self.addModels('AmbCardPreviousPregnancyChildren', CPreviousPregnancyChildrenModel(self))
+        self.addModels('AmbCardSOPSvORNM', CSOPSvORNMTableModel(self))
+        self.addModels('AmbCardNVNBVARRS', CNVNBVARRSTableModel(self))
+        self.addModels('AmbCardNVNBAR', CNVNBARTableModel(self))
+        self.addModels('AmbCardNVNBSGVB', CNVNBSGVBTableModel(self))
+        self.setModels(self.tblAmbCardKBiRActions, self.modelAmbCardKBiRActionsSort, self.selectionModelAmbCardKBiRActionsSort)
+        self.tblAmbCardKBiRActions.setSourceModel(self.modelAmbCardKBiRActions)
+        self.setModels(self.tblAmbCardPreviousPregnancy, self.modelAmbCardPreviousPregnancy, self.selectionModelAmbCardPreviousPregnancy)
+        self.setModels(self.tblAmbCardPreviousPregnancyChildren, self.modelAmbCardPreviousPregnancyChildren, self.selectionModelAmbCardPreviousPregnancyChildren)
+        self.setModels(self.tblAmbCardSOPSvORNM, self.modelAmbCardSOPSvORNM, self.selectionModelAmbCardSOPSvORNM)
+        self.setModels(self.tblAmbCardNVNBVARRS, self.modelAmbCardNVNBVARRS, self.selectionModelAmbCardNVNBVARRS)
+        self.setModels(self.tblAmbCardNVNBAR, self.modelAmbCardNVNBAR, self.selectionModelAmbCardNVNBAR)
+        self.setModels(self.tblAmbCardNVNBSGVB, self.modelAmbCardNVNBSGVB, self.selectionModelAmbCardNVNBSGVB)
+        self.tblAmbCardKBiRActions.createPopupMenu([self.actAmbCardActionTypeGroupId, ])
+        self.connect(self.tblAmbCardKBiRActions.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
+        self.tblAmbCardKBiRActions.enableColsHide()
+        self.tblAmbCardKBiRActions.enableColsMove()
         self.modelAmbCardSOPSvORNM.setEventEditor(self)
         self.modelAmbCardNVNBVARRS.setEventEditor(self)
         self.modelAmbCardNVNBAR.setEventEditor(self)
@@ -425,38 +490,30 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.tblAmbCardNVNBVARRS.setMaximumHeight(headerHeight + rowHeight * 7 + margin)
         self.tblAmbCardNVNBAR.setMaximumHeight(headerHeight + rowHeight * 5 + margin)
         self.tblAmbCardSOPSvORNM.setMaximumHeight(headerHeight + rowHeight * 4 + margin)
-        
+
         self.modelAmbCardPreviousPregnancy.setReadOnly(True)
         self.modelAmbCardPreviousPregnancyChildren.setReadOnly(True)
-        
-        self.tblAmbCardDiagnostics.setSortingEnabled(True)
-        self.tblAmbCardStatusActions.setSortingEnabled(True)
-        self.tblAmbCardStatusActionProperties.setSortingEnabled(True)
-        self.tblAmbCardDiagnosticActions.setSortingEnabled(True)
-        self.tblAmbCardDiagnosticActionProperties.setSortingEnabled(True)
-        self.tblAmbCardCureActions.setSortingEnabled(True)
-        self.tblAmbCardCureActionProperties.setSortingEnabled(True)
-        self.tblAmbCardMiscActions.setSortingEnabled(True)
-        self.tblAmbCardMiscActionProperties.setSortingEnabled(True)
-        self.tblAmbCardSurveyActions.setSortingEnabled(True)
-        self.tblAmbCardSurveyActionProperties.setSortingEnabled(True)
-        self.tblAmbCardVisits.setSortingEnabled(True)
+        self.modelAmbCardNVNBSGVB.setReadOnly(True)
+        self.modelAmbCardSOPSvORNM.setReadOnly(True)
+        self.modelAmbCardNVNBVARRS.setReadOnly(True)
+        self.modelAmbCardNVNBAR.setReadOnly(True)
         self.tblAmbCardKBiRActions.setSortingEnabled(True)
+        self.__ambCardKBiRIsInitialised = True
 
 
     def ambCardContentTabEnabled(self):
         if hasattr(self, 'tabAmbCardKBiR'):
             indexAmbCardKBiR = self.tabAmbCardContent.indexOf(self.tabAmbCardKBiR)
-            clientSex = None
-            clientId = self.currentClientId()
-            if hasattr(self, 'currentClientSex'):
-                clientSex = self.currentClientSex()
-            elif clientId and not clientSex:
-                clientSex, clientAge = getClientSexAge(clientId, QDate.currentDate())
-#            self.tabAmbCardContent.setTabEnabled(indexAmbCardKBiR, clientSex != 1)
-            if indexAmbCardKBiR == -1 and clientSex != 1:
+#             clientSex = None
+#             clientId = self.currentClientId()
+#             if hasattr(self, 'currentClientSex'):
+#                 clientSex = self.currentClientSex()
+#             elif clientId and not clientSex:
+#                 clientSex, clientAge = getClientSexAge(clientId, QDate.currentDate())
+# #            self.tabAmbCardContent.setTabEnabled(indexAmbCardKBiR, clientSex != 1)
+            if indexAmbCardKBiR == -1 and self.currentClientSex() != 1:
                 self.tabAmbCardContent.addTab(self.tabAmbCardKBiR, u'Карты беременной и роженицы')
-            elif indexAmbCardKBiR > -1 and clientSex == 1:
+            elif indexAmbCardKBiR > -1 and self.currentClientSex() == 1:
                 self.tabAmbCardContent.removeTab(self.tabAmbCardContent.indexOf(self.tabAmbCardKBiR))
 
     def on_mnuPopup_aboutToShow(self):
@@ -490,7 +547,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         
         
     def resetWidgets(self):
-        self.ambCardContentTabEnabled()
+        # self.ambCardContentTabEnabled()
         self.getComboBoxesFilterParamsByClient(self._clientId)
         self.on_cmdAmbCardDiagnosticsButtonBox_reset()
         self.on_cmdAmbCardStatusButtonBox_reset()
@@ -499,7 +556,8 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.on_cmdAmbCardMiscButtonBox_reset()
         self.on_cmdAmbCardVisitButtonBox_reset()
         self.on_cmdAmbCardSurveyButtonBox_reset()
-        self.on_cmdAmbCardKBiRButtonBox_reset()
+        if self.__ambCardKBiRIsInitialised:
+            self.on_cmdAmbCardKBiRButtonBox_reset()
 
         self.on_cmdAmbCardDiagnosticsButtonBox_apply()
         self.on_cmdAmbCardStatusButtonBox_apply()
@@ -508,7 +566,8 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.on_cmdAmbCardMiscButtonBox_apply()
         self.on_cmdAmbCardSurveyButtonBox_apply()
         self.on_cmdAmbCardFilesButtonBox_apply()
-        self.on_cmdAmbCardKBiRButtonBox_apply()
+        if self.__ambCardKBiRIsInitialised:
+            self.on_cmdAmbCardKBiRButtonBox_apply()
 
         self.__ambCardVisitIsInitialised = False
         self.__ambCardFilesIsInitialised = False
@@ -1393,6 +1452,13 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.lblAmbCardNVNBPUDCA.setVisible(value)
         self.cmbAmbCardNVNBPUDCA.setVisible(value)
         self.edtAmbCardSkinStatus.setVisible(value)
+        self.edtAmbCardODPOBSBPR_1.setVisible(value)
+        self.edtAmbCardODPOBSBPR_2.setVisible(value)
+        self.edtAmbCardODPOBSBPR_3.setVisible(value)
+        self.edtAmbCardODPOBSBPR_4.setVisible(value)
+        self.edtAmbCardODPOBSBPR_5.setVisible(value)
+        self.edtAmbCardCloseReason.setVisible(value)
+        self.lblAmbCardCloseReason.setVisible(value)
         
     
     def setODPOBRPPGRFVisible(self, value):
@@ -1435,6 +1501,8 @@ class CAmbCardMixin(CConstructHelperMixin):
     
     def setReferenceComboBoxes(self):
         db = QtGui.qApp.db
+        if not self.actionTypeIdListByKBiR:
+            self.actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(flatCode=u'111/y-20')
         refComboBoxes = self.getReferenceComboBoxes()
         for cmb, code in refComboBoxes.items():
             obj = None
@@ -1718,6 +1786,8 @@ class CAmbCardMixin(CConstructHelperMixin):
                 self.frame_43AmbCard.setVisible(True)
             self.edtAmbCardLastMenstruationDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ПМ', QDate))
             self.edtAmbCardFirstUSIDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ', QDate))
+            self.edtAmbCardFirstUSITermWeeks.setValue(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ:Н', int))
+            self.edtAmbCardFirstUSITermDays.setValue(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ:Д', int))
             self.edtAmbCardFirstStirringFetusDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ПШП', QDate))
             # tabFirstExaminationPregnant
             self.edtAmbCardODPOBDO.setDate(self.getPropertyValue(items, u'ОД:ПОБ:ДО', QDate))
@@ -1780,6 +1850,19 @@ class CAmbCardMixin(CConstructHelperMixin):
             isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34', [u'прижата',u'подвижна'])
             self.chkAmbCardODPOBGCH1_1.setChecked(isODPOBGCH == 1)
             self.chkAmbCardODPOBGCH2_1.setChecked(isODPOBGCH == 2)
+            isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:1', [u'Над входом в малый таз', u'Не определяется'])
+            self.chkAmbCardODPOBMT1_1.setChecked(isODPOBMT == 1)
+            self.chkAmbCardODPOBMT1_2.setChecked(isODPOBMT == 2)
+            isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:1', [u'Ясное',u'Ритмичное',u'Другое'])
+            for isODPOBSBPR in isODPOBSBPRList:
+                if isODPOBSBPR == 1:
+                    self.chkAmbCardODPOBSBPR1_1.setChecked(True)
+                elif isODPOBSBPR == 2:
+                    self.chkAmbCardODPOBSBPR2_1.setChecked(True)
+                elif isODPOBSBPR == 3:
+                    self.chkAmbCardODPOBSBPR3_1.setChecked(True)
+                    self.edtAmbCardODPOBSBPR_1.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:1', unicode))
+            self.edtAmbCardEstimatedWeight_1.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:1', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:1', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_1.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_1.setChecked(isODPOBRPPGRF == 2)
@@ -1791,6 +1874,19 @@ class CAmbCardMixin(CConstructHelperMixin):
             isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:2', [u'прижата',u'подвижна'])
             self.chkAmbCardODPOBGCH1_2.setChecked(isODPOBGCH == 1)
             self.chkAmbCardODPOBGCH2_2.setChecked(isODPOBGCH == 2)
+            isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:2', [u'Над входом в малый таз', u'Не определяется'])
+            self.chkAmbCardODPOBMT1_2.setChecked(isODPOBMT == 1)
+            self.chkAmbCardODPOBMT2_2.setChecked(isODPOBMT == 2)
+            isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:2', [u'Ясное',u'Ритмичное',u'Другое'])
+            for isODPOBSBPR in isODPOBSBPRList:
+                if isODPOBSBPR == 1:
+                    self.chkAmbCardODPOBSBPR1_2.setChecked(True)
+                elif isODPOBSBPR == 2:
+                    self.chkAmbCardODPOBSBPR2_2.setChecked(True)
+                elif isODPOBSBPR == 3:
+                    self.chkAmbCardODPOBSBPR3_2.setChecked(True)
+                    self.edtAmbCardODPOBSBPR_2.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:2', unicode))
+            self.edtAmbCardEstimatedWeight_2.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:2', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:2', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_2.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_2.setChecked(isODPOBRPPGRF == 2)
@@ -1802,6 +1898,19 @@ class CAmbCardMixin(CConstructHelperMixin):
             isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:3', [u'прижата',u'подвижна'])
             self.chkAmbCardODPOBGCH1_3.setChecked(isODPOBGCH == 1)
             self.chkAmbCardODPOBGCH2_3.setChecked(isODPOBGCH == 2)
+            isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:3', [u'Над входом в малый таз', u'Не определяется'])
+            self.chkAmbCardODPOBMT1_3.setChecked(isODPOBMT == 1)
+            self.chkAmbCardODPOBMT2_3.setChecked(isODPOBMT == 2)
+            isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:3', [u'Ясное',u'Ритмичное',u'Другое'])
+            for isODPOBSBPR in isODPOBSBPRList:
+                if isODPOBSBPR == 1:
+                    self.chkAmbCardODPOBSBPR1_3.setChecked(True)
+                elif isODPOBSBPR == 2:
+                    self.chkAmbCardODPOBSBPR2_3.setChecked(True)
+                elif isODPOBSBPR == 3:
+                    self.chkAmbCardODPOBSBPR3_3.setChecked(True)
+                    self.edtAmbCardODPOBSBPR_3.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:3', unicode))
+            self.edtAmbCardEstimatedWeight_3.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:3', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:3', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_3.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_3.setChecked(isODPOBRPPGRF == 2)
@@ -1813,6 +1922,19 @@ class CAmbCardMixin(CConstructHelperMixin):
             isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:4', [u'прижата',u'подвижна'])
             self.chkAmbCardODPOBGCH1_4.setChecked(isODPOBGCH == 1)
             self.chkAmbCardODPOBGCH2_4.setChecked(isODPOBGCH == 2)
+            isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:4', [u'Над входом в малый таз', u'Не определяется'])
+            self.chkAmbCardODPOBMT1_4.setChecked(isODPOBMT == 1)
+            self.chkAmbCardODPOBMT2_4.setChecked(isODPOBMT == 2)
+            isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:4', [u'Ясное',u'Ритмичное',u'Другое'])
+            for isODPOBSBPR in isODPOBSBPRList:
+                if isODPOBSBPR == 1:
+                    self.chkAmbCardODPOBSBPR1_4.setChecked(True)
+                elif isODPOBSBPR == 2:
+                    self.chkAmbCardODPOBSBPR2_4.setChecked(True)
+                elif isODPOBSBPR == 3:
+                    self.chkAmbCardODPOBSBPR3_4.setChecked(True)
+                    self.edtAmbCardODPOBSBPR_4.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:4', unicode))
+            self.edtAmbCardEstimatedWeight_4.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:4', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:4', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_4.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_4.setChecked(isODPOBRPPGRF == 2)
@@ -1824,6 +1946,19 @@ class CAmbCardMixin(CConstructHelperMixin):
             isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:5', [u'прижата',u'подвижна'])
             self.chkAmbCardODPOBGCH1_5.setChecked(isODPOBGCH == 1)
             self.chkAmbCardODPOBGCH2_5.setChecked(isODPOBGCH == 2)
+            isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:5', [u'Над входом в малый таз', u'Не определяется'])
+            self.chkAmbCardODPOBMT1_5.setChecked(isODPOBMT == 1)
+            self.chkAmbCardODPOBMT2_5.setChecked(isODPOBMT == 2)
+            isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:5', [u'Ясное',u'Ритмичное',u'Другое'])
+            for isODPOBSBPR in isODPOBSBPRList:
+                if isODPOBSBPR == 1:
+                    self.chkAmbCardODPOBSBPR1_5.setChecked(True)
+                elif isODPOBSBPR == 2:
+                    self.chkAmbCardODPOBSBPR2_5.setChecked(True)
+                elif isODPOBSBPR == 3:
+                    self.chkAmbCardODPOBSBPR3_5.setChecked(True)
+                    self.edtAmbCardODPOBSBPR_5.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:5', unicode))
+            self.edtAmbCardEstimatedWeight_5.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:5', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:5', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_5.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_5.setChecked(isODPOBRPPGRF == 2)
@@ -2131,6 +2266,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardNVNBDGK2.setChecked(isNVNBDGK == 2)
             self.edtAmbCardNVNBDGO.setText(self.getPropertyValue(items, u'НВНБ:ДГ:4', QString))
             self.edtAmbCardNVNBDZ.setDate(self.getPropertyValue(items, u'НВНБ:ДГ:5', QDate))
+            self.edtAmbCardPreHospitalizationTermWeeks.setValue(self.getPropertyValue(items, u'ОД:ОДП:ДГ:6', int))
             self.edtAmbCardNVNBP1.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:1', int))
             self.edtAmbCardNVNBP2.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:2', int))
             self.edtAmbCardNVNBP3.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:3', int))
@@ -2276,6 +2412,15 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSkinStatus1.setChecked(isSkinStatus == 1)
             self.chkAmbCardSkinStatus2.setChecked(isSkinStatus == 2)
             self.edtAmbCardSkinStatus.setText(self.getPropertyValue(items, u'ОД:СКП:2', QString))
+            self.edtAmbCardCloseReason.setText(self.getPropertyValue(items, u'НВНБ:ПЗ', QString))
+            date = self.edtAmbCardNVNBDZKDate.date()
+            if date and date.isValid():
+                self.lblAmbCardCloseReason.setVisible(True)
+                self.edtAmbCardCloseReason.setVisible(True)
+            else:
+                self.lblAmbCardCloseReason.setVisible(False)
+                self.edtAmbCardCloseReason.setVisible(False)    
+                self.edtAmbCardCloseReason.setText('')
 
 
     def getChkPropertyValue(self, items, shortName, widgetType):
@@ -2876,6 +3021,17 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.setProperty(QVariant(self.chkAmbCardNVNBIBRM13.isChecked()), u'НВНБ:ИБРМ:15:1')
 
 
+    @pyqtSlot(QDate)
+    def on_edtAmbCardNVNBDZKDate_dateChanged(self, date):
+        if date and date.isValid():
+            self.lblAmbCardCloseReason.setVisible(True)
+            self.edtAmbCardCloseReason.setVisible(True)
+        else:
+            self.lblAmbCardCloseReason.setVisible(False)
+            self.edtAmbCardCloseReason.setVisible(False)    
+            self.edtAmbCardCloseReason.setText('')
+
+
     def on_chkAmbCardFilesDate_toggled(self, checked):
         self.chkAmbCardFilesDate.setChecked(checked)
         self.edtAmbCardFilesBegDate.setEnabled(checked)
@@ -3193,17 +3349,23 @@ class CAmbCardMixin(CConstructHelperMixin):
 
     # @pyqtSignature('int')
     def on_tabAmbCardContent_currentChanged(self, index):
-        if index != self.tabAmbCardContent.indexOf(self.tabAmbCardMonitoring) and self.ambCardMonitoringIsInitialised:
-            self.savePreferencesLoc()
         if index == 0:
-            name_menu_tab = 'Events'
+            if not hasattr(self, 'actAmbCardPrintCaseHistory'):
+                self.addObject('actAmbCardPrintCaseHistory', getPrintAction(self, 'caseHistory', u'Напечатать карту'))
+            actionList = [self.actAmbCardPrintEvents, self.actAmbCardPrintCaseHistory]
         elif index == 6:
-            name_menu_tab = 'Visits'
+            if not hasattr(self, 'actAmbCardPrintVisitsHistory'):
+                self.addObject('actAmbCardPrintVisitsHistory', getPrintAction(self, 'visitsHistory', u'Напечатать визиты по шаблону', False))
+            actionList = [self.actAmbCardPrintVisits, self.actAmbCardPrintVisitsHistory]
         else:
-            name_menu_tab = 'Actions'
+            if not hasattr(self, 'actAmbCardPrintActionsHistory'):
+                self.addObject('actAmbCardPrintActionsHistory', getPrintAction(self, 'actionsHistory', u'Напечатать карту мероприятий', False))
+            actionList = [self.actAmbCardPrintAction, self.actAmbCardPrintActions, self.actAmbCardPrintActionsHistory]
+
         menu = QtGui.QMenu()
-        for itm in self.action_menu_dict[name_menu_tab]:
+        for itm in actionList:
             menu.addAction(itm)
+
         self.btnAmbCardPrint.setMenu(menu)
         self.btnAmbCardGraph.setVisible(index == self.tabAmbCardContent.indexOf(self.tabAmbCardSurvey))
         if index == self.tabAmbCardContent.indexOf(self.tabAmbCardVisit):
@@ -3230,7 +3392,9 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.updateAmbCardPrintActionAction(self.tblAmbCardCureActions.currentIndex())
         elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardMisc):
             self.updateAmbCardPrintActionAction(self.tblAmbCardMiscActions.currentIndex())
-
+        elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardKBiR):
+            if not self.__ambCardKBiRIsInitialised:
+                self.initKBiR()
         self.actAmbCardPrintActions.setVisible(index in (1, 2, 3, 4, 8))
 
     def updateAmbCardMonitoring(self, clientId):

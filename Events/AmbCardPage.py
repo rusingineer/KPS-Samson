@@ -145,7 +145,9 @@ class CAmbCardPage(QtGui.QWidget, CAmbCardMixin, Ui_AmbCardPage):
     @pyqtSignature('int')
     def on_cmbAmbCardNVNBIBRM_currentIndexChanged(self, *args): CAmbCardMixin.on_cmbAmbCardNVNBIBRM_currentIndexChanged(self, *args)
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelAmbCardPreviousPregnancy_currentRowChanged(self, *args): CAmbCardMixin.on_selectionModelAmbCardPreviousPregnancy_currentRowChanged(self, *args)
+    def on_selectionModelAmbCardPreviousPregnancy_currentRowChanged(self, *args): CAmbCardMixin.on_selectionModelAmbCardPreviousPregnancy_currentRowChanged(self, *args)    
+    @pyqtSignature('QDate')
+    def on_edtAmbCardNVNBDZKDate_dateChanged(self, *args): CAmbCardMixin.on_edtAmbCardNVNBDZKDate_dateChanged(self, *args)
         
         
     @pyqtSignature('')
@@ -174,6 +176,7 @@ class CAmbCardPage(QtGui.QWidget, CAmbCardMixin, Ui_AmbCardPage):
         self._clientId = clientId
         self._clientSex = clientSex
         self._clientAge = clientAge
+        self.ambCardContentTabEnabled()
         self.tabRadiationDose.setClientId(clientId)
 
     def currentClientId(self):

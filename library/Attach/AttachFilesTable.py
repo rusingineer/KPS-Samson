@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,14 +16,12 @@
 #############################################################################
 
 import os.path
-from base64 import b64encode
 
 import sip
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QMetaObject, QSize, QUrl, QDateTime, QTimer, QByteArray
+from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QMetaObject, QSize, QUrl, QDateTime, QTimer
 from Registry.Utils import getClientMiniInfo
 from Reports.ReportView import CReportViewDialog
-from library.MSCAPI import MSCApi
 
 
 from Users.Rights   import ( urCanAttachFile,
@@ -40,12 +38,9 @@ from Users.Rights   import ( urCanAttachFile,
 
 
 from .AttachFilesTableFlag import CAttachFilesTableFlag
-from .AttachedFile import CAttachedFile
-from ..CertComboBox import extractCertInfo
+from .Utils import prepareSignedReport, convertSignatureToCMS
 from ..MSCAPI import MSCApi
-from ..PrintInfo import CInfoContext
 from ..Utils import toVariant, forceString, forceRef, anyToUnicode, forceBool, savePatientDocuments
-from ..userCertPlate import CCertInfoPlate
 
 
 class CAttachFilesTable(QtGui.QTableView):
@@ -433,7 +428,7 @@ class CAttachFilesTable(QtGui.QTableView):
         if fileItem._record:
             respSigner = forceRef(fileItem._record.value('respSigner_id'))
             hasId = forceBool(fileItem._record.value('id'))
-        self.actOpenWithSignatures.setEnabled(fileOk and self.canOpen(fileItem) and forceBool(fileItem.htmlTemplate) and hasId)
+        self.actOpenWithSignatures.setEnabled(fileOk and self.canOpen(fileItem) and forceBool(fileItem.htmlTemplate))
         self.actAddKey.setEnabled(fileOk and self.canSave() and bool(respSigner) and hasId)
         self.actRename.setEnabled(fileOk and self.canRename(fileItem))
         self.actComment.setEnabled(fileOk and self.canRename(fileItem))
@@ -457,133 +452,27 @@ class CAttachFilesTable(QtGui.QTableView):
 
     @pyqtSignature('')
     def on_actOpenWithSignatures_triggered(self):
-        db = QtGui.qApp.db
-        imageMainList = ['</body><br>']
         fileItem = self.getCurrentFileItem()
         fileOk = bool(fileItem) and not fileItem.isLost
         if fileOk and self.canOpen(fileItem):
-            attachRecord = fileItem._record
-            html = fileItem.htmlTemplate
-            filePath = forceString(attachRecord.value('path'))
-            if forceBool(filePath):
-                fileName = filePath.split('/')[4]
+            resp_signatures = []
+            if fileItem.additionalSignaturesList:
+                for additionalSign in fileItem.additionalSignaturesList:
+                    resp_signatures.append(additionalSign.signatureBytes)
+            if fileItem.respSignature:
+                resp_signatures.append(fileItem.respSignature.signatureBytes)
+
+            if fileItem.orgSignature:
+                org_signature = fileItem.orgSignature.signatureBytes
             else:
-                fileName = u'Просмотр файла с подписями'
-
-            fileId = forceString(attachRecord.value('id'))
-            if u'<!--sign_' in html:
-                listCert = []
-                org_signatureBytes = None
-                signatureBytesList = self.getFileRespSignaturesBytes(fileId)
-
-                signatureBytes = attachRecord.value('respSignatureBytes').toByteArray().data()
-                api = MSCApi(QtGui.qApp.getCsp())
-                if signatureBytes:
-                    listCert.append([self.getAttachCerts(signatureBytes)[0], api.signatureAsStore(signatureBytes).listCerts()[0].snils()])
-                if attachRecord.value('orgSignatureBytes').toByteArray():
-                    org_signatureBytes = self.getAttachCerts(attachRecord.value('orgSignatureBytes').toByteArray().data())
-
-                for signBytes in signatureBytesList:
-                    imageList = self.getAttachCerts(signBytes)
-                    for image in imageList:
-                        if image != '</body><br>':
-                            listCert.append([image, api.signatureAsStore(signBytes).listCerts()[0].snils()])
-
-                for cert in listCert:
-                    html = html.replace('<!--sign_' + str(cert[1]) + '-->', cert[0])
-                    certSnils = str(cert[1])[:3] + '-' + str(cert[1])[3:6] + '-' + str(cert[1])[6:9] + ' ' + str(cert[1])[9:]
-                    html = html.replace('<!--sign_' + certSnils + '-->', cert[0])
-
-                if org_signatureBytes:
-                    if u'<!--sign_mo-->' in html:
-                        html = html.replace('<!--sign_mo-->', org_signatureBytes[0])
-                    else:
-                        html = u'{0} {1}'.format(html, org_signatureBytes[0])
-
-
-
-            else:
-                signatureBytesList = self.getFileRespSignaturesBytes(fileId)
-
-                signatureBytes = attachRecord.value('respSignatureBytes').toByteArray().data()
-                signatureBytesList.append(signatureBytes)
-
-                for signBytes in signatureBytesList:
-                    imageList = self.getAttachCerts(signBytes)
-                    for image in imageList:
-                        if image != '</body><br>':
-                            imageMainList.append(image)
-                if attachRecord.value('orgSignatureBytes').toByteArray():
-                    org_signatureBytes = self.getAttachCerts(attachRecord.value('orgSignatureBytes').toByteArray().data())
-                    if org_signatureBytes:
-                        imageMainList.append(org_signatureBytes[0])
-
-                imageString = u'<br>'
-                index = 1
-                for image in imageMainList:
-                    imageString += image
-                    if index % 2 == 0:
-                        imageString += u'<br>'
-                    index += 1
-                html = html.replace('<!---->', '')
-                html = u'{0} {1}'.format(html, imageString)
+                org_signature = None
+                
+            html = prepareSignedReport(fileItem.htmlTemplate, resp_signatures, org_signature)
 
             view = CReportViewDialog(self)
-            view.setWindowTitle(u'{0}'.format(fileName))
+            view.setWindowTitle(u'{0}'.format(fileItem.newName))
             view.setText(html)
             view.exec_()
-
-
-    def getFileRespSignaturesBytes(self, id):
-        db = QtGui.qApp.db
-        respSignatureBytesList = []
-        tableAFAS = db.table('Action_FileAttach_Signature')
-        records = db.getRecordList(tableAFAS,
-                                   [tableAFAS['signatureBytes']],
-                                   [tableAFAS['master_id'].eq(id), tableAFAS['deleted'].eq(0)])
-        for record in records:
-            respSignatureBytes = record.value('signatureBytes').toByteArray().data()
-            respSignatureBytesList.append(respSignatureBytes)
-        return respSignatureBytesList
-
-
-    def getAttachCerts(self, signatureBytes):
-        certList = []
-        imageList = []
-
-        if signatureBytes:
-            try:
-                api = MSCApi(QtGui.qApp.getCsp())
-            except:
-                QtGui.qApp.logCurrentException()
-                return
-            try:
-                with api.signatureAsStore(signatureBytes) as store:
-                    for crt in store.listCerts():
-                        certList.append(crt)
-            except Exception:
-                QtGui.qApp.logCurrentException()
-        if certList:
-            for cert in certList:
-                snils = forceString(cert.snils())
-
-                if forceString(cert.org()):
-                    orgName = forceString(cert.org())
-                else:
-                    orgNameBySnils = self.getOrgNameBySnils(snils)
-                    if orgNameBySnils:
-                        orgName = orgNameBySnils
-                    else:
-                        orgName = u''
-
-                resolutionScale = 4.0 # настоящий размер/четкость картинки
-                plate = CCertInfoPlate.fromCert(cert, orgName=orgName, scale=resolutionScale)
-                imgScale = 0.7 # уменьшаем в документе, чтобы помещалось 2 штуки в страницу A4
-                imgWidth = int(plate.originalSize.width() * imgScale)
-                imgHeight = int(plate.originalSize.height() * imgScale)
-                imageString = u'<img src="data:image/png;base64,{0}" width="{1}" height="{2}">'.format(b64encode(plate.bytes), imgWidth, imgHeight)
-                imageList.append(imageString)
-        return imageList
 
 
     def getOrgNameBySnils(self, snils):
@@ -905,41 +794,3 @@ class CAttachFilesTable(QtGui.QTableView):
                 QTimer.singleShot(0, lambda: QtGui.qApp.call(ofr, self.__signAsOrg, (model, row, fileItem)))
                 self.window().close()
 
-    # @pyqtSignature('')
-    # def on_actGetObject_triggered(self):
-    #     recordItem = self.getCurrentFileItem()._record
-    #     itemMasterId = forceRef(recordItem.value('master_id'))
-    #     itemTable = forceString(recordItem.value('objectTableName'))
-    #     clientId = self.parent().parent().parent().parent()._ambCardFilesUserId
-    #     if itemTable == 'Event':
-    #         pass
-    #     elif itemTable == 'Action':
-    #         pass
-    #     elif itemTable == 'Client':
-    #         # dialog = CClientEditDialog(self)
-    #         # try:
-    #         #     if clientId:
-    #         #         dialog.load(clientId)
-    #         #         dialog.exec_()
-    #         # finally:
-    #         #     dialog.destroy()
-    #         #     sip.delete(dialog)
-    #         #     del dialog
-    #         pass
-    #     elif itemTable == 'ProphylaxisPlanning':
-    #         # dialogPS = CSurveillancePlanningEditDialog(self)
-    #         # try:
-    #         #     dialogPS.load(itemMasterId)
-    #         #     dialogPS.exec_()
-    #         # finally:
-    #         #     dialogPS.destroy()
-    #         #     sip.delete(dialogPS)
-    #         #     del dialogPS
-    #         pass
-
-
-def convertSignatureToCMS(signatureBytes):
-    max_count = 64  # 64 символа на одну строку
-    data = b64encode(signatureBytes)
-    lines = [data[i - max_count:i] for i in xrange(max_count, len(data) + max_count, max_count)]
-    return '-----BEGIN CMS-----\r\n' + '\r\n'.join(lines) + '\r\n-----END CMS-----\r\n'

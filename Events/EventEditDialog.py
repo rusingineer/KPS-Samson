@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -58,7 +58,8 @@ from library.Utils import (
     formatSex,
     toDateTimeWithoutSeconds,
     toVariant,
-    trim, pyDate
+    trim,
+    pyDate
 )
 
 from Accounting.Tariff            import CTariff
@@ -102,7 +103,6 @@ from Events.Utils import (
     checkTissueJournalStatusByActions,
     getAvailableCharacterIdByMKB,
     getClosingMKBValueForAction,
-    getDeathDate,
     getEventActionFinance,
     getEventActionsControlRequired,
     getEventAidTypeCode,
@@ -138,7 +138,6 @@ from Events.Utils import (
     getEventShowButtonTemperatureList,
     getEventShowButtonNomenclatureExpense,
     getEventShowButtonJobTickets,
-    checkAttachOnDate,
     getEventProfileId)
 from library.TimeoutLogout         import CTimeoutLogout
 from HospitalBeds.CheckPeriodActions     import CCheckPeriodActionsForEvent # WFT?
@@ -153,13 +152,15 @@ from RefBooks.Finance.Info        import CFinanceInfo
 from Registry.ClientEditDialog    import CClientEditDialog
 from Registry.ClientDocumentTracking import CDocumentLocationInfo
 from Registry.ShowContingentsClientDialog import CShowContingentsClientDialog
-from Registry.Utils               import (
-                                          CCheckNetMixin,
-                                          CClientInfo,
-                                          getClientInfo,
-                                          getClientWork,
-                                          getClientBanner
-                                         )
+from Registry.Utils import (
+    CCheckNetMixin,
+    CClientInfo,
+    getClientWork,
+    getClientBanner,
+    getClientCompulsoryPolicy,
+    getClientVoluntaryPolicy,
+    getClientAddressKLADRCode
+)
 from Registry.ClientVaccinationCard import openClientVaccinationCard
 from Reports.ReportBase           import CReportBase, createTable
 from Reports.ReportView           import CReportViewDialog
@@ -213,13 +214,17 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
         CMapActionTypeIdToServiceIdList.__init__(self)
         self.orgId           = None
         self.clientId        = None
+        self.clientLastName = None
+        self.clientFirstName = None
+        self.clientPatrName = None
         self.clientSex       = None
         self.clientBirthDate = None
         self.clientDeathDate = None
         self.clientAge       = None
+        self.clientAgeCurrYearEnd = None
+        self.clientAgePrevYearEnd = None
         self.clientWorkOrgId = None
         self.clientPolicyInfoList = []
-        self.clientInfo      = None
         self.clientType      = CEventEditDialog.ctOther
 
         self.personId        = None
@@ -245,6 +250,8 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
         self.actionTypeDepositIdList = []
         self.isHBDialog = False
         self.isHBEditEvent = False
+        self.isTerritorialBelonging = None
+        self.mruDescr = None
         self.valueForAllActionEndDate = None
         self.res = None
         self.primaryEntranceCheck = True
@@ -1850,8 +1857,8 @@ LIMIT 1))))'''%(str(eventId)))
                 QtGui.qApp.resetAllCounterValueIdReservation()
                 self._checkNotCreatedActions()
             QtGui.qApp.unsetJTR(self)
-        if self.itemId() and self.clientInfo:
-            QtGui.qApp.addMruEvent(self.itemId(), self.getMruDescr())
+        if self.itemId() and self.mruDescr:
+            QtGui.qApp.addMruEvent(self.itemId(), self.mruDescr)
         if result == self.saveAndCreateAccount:
             try:
                 from Accounting.InstantAccountDialog import createInstantAccount
@@ -2658,14 +2665,6 @@ LIMIT 1))))'''%(str(eventId)))
             return None
 
 
-    def getMruDescr(self):
-        return u'%s:\t%s, %s, %s' % (self.eventTypeName,
-                           formatNameInt(self.clientInfo['lastName'], self.clientInfo['firstName'], self.clientInfo['patrName']),
-                           forceString(self.clientInfo['birthDate']),
-                           formatSex(self.clientInfo['sexCode']),
-                          )
-
-
     def getDefaultMKBValue(self, defaultMKB, setPersonId):
         defaultValue = '', ''
         diagnostics = None
@@ -3246,74 +3245,89 @@ LIMIT 1))))'''%(str(eventId)))
 
 
     def updateClientInfo(self):
-        def getPolicyInfo(policyRecord):
-            if policyRecord:
-                insurerId = forceRef(policyRecord.value('insurer_id'))
-                policyTypeId = forceRef(policyRecord.value('policyType_id'))
-            else:
-                insurerId = None
-                policyTypeId = None
-            return insurerId, policyTypeId
-        if self.clientId:
-            self.clientDeathDate = getDeathDate(self.clientId)
         date = self.eventDate
         if not date and self.eventSetDateTime:
             date = self.eventSetDateTime.date()
-        self.clientInfo = getClientInfo(self.clientId, date=date, consents={'begDate': self.eventSetDateTime.date() \
-            if self.eventSetDateTime else QDate(), 'endDate': self.eventDate if self.eventDate else QDate()}, eventId=self.itemId())
+        if not date:
+            date = QDate.currentDate()
+
+        compulsoryPolicyRecord = None
+        voluntaryPolicyRecord = None
+
+        # возраст определяем на дату начала лечения
+        dateAge = self.eventSetDateTime.date() if self.eventSetDateTime else QDate.currentDate()
+
+        # обновление блока информации о пациенте
         self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, date))
-        if self.clientInfo.id:
-            self.clientSex       = self.clientInfo.sexCode
-            self.clientBirthDate = self.clientInfo.birthDate
-            baseDate = date if date else QDate.currentDate()
-            #возраст определяем на дату начала лечения
-            dateAge = self.eventSetDateTime.date() if self.eventSetDateTime else QDate.currentDate()
-            self.clientAge       = calcAgeTuple(self.clientBirthDate, dateAge)
-            self.clientAgePrevYearEnd = calcAgeTuple(self.clientBirthDate, QDate(dateAge.year()-1, 12, 31))
+
+        # получение данных пациента
+        db = QtGui.qApp.db
+        record = db.getRecord('Client', ['lastName', 'firstName', 'patrName', 'birthDate', 'sex', 'deathDate'], self.clientId)
+        if record:
+            self.clientLastName = forceString(record.value('lastName'))
+            self.clientFirstName = forceString(record.value('firstName'))
+            self.clientPatrName = forceString(record.value('patrName'))
+            self.clientSex = forceInt(record.value('sex'))
+            self.clientBirthDate = forceDate(record.value('birthDate'))
+            self.clientDeathDate = forceDate(record.value('deathDate'))
+            self.clientAge = calcAgeTuple(self.clientBirthDate, dateAge)
+            self.clientAgePrevYearEnd = calcAgeTuple(self.clientBirthDate, QDate(dateAge.year() - 1, 12, 31))
             self.clientAgeCurrYearEnd = calcAgeTuple(self.clientBirthDate, QDate(dateAge.year(), 12, 31))
+
+            self.mruDescr = u'%s:\t%s, %s, %s' % (self.eventTypeName,
+                                  formatNameInt(self.clientLastName,
+                                                self.clientFirstName,
+                                                self.clientPatrName),
+                                  forceString(self.clientBirthDate),
+                                  formatSex(self.clientSex),
+                                  )
+
         self.actShowAttachedToClientFiles.setMasterId(self.clientId)
         self.resetActionTemplateCache()
+
+        # обновляем данные в комбобоксе "Договор"
         if hasattr(self, 'cmbContract'):
+            self.clientPolicyInfoList = []
             workRecord = getClientWork(self.clientId)
             self.setWorkRecord(workRecord)
             self.clientWorkOrgId = forceRef(workRecord.value('org_id')) if workRecord else None
-            self.clientPolicyInfoList = []
-            policyRecord = self.clientInfo.get('compulsoryPolicyRecord')
-            if policyRecord:
-                self.clientPolicyInfoList.append(getPolicyInfo(policyRecord))
-            policyRecord = self.clientInfo.get('voluntaryPolicyRecord')
-            if policyRecord:
-                self.clientPolicyInfoList.append(getPolicyInfo(policyRecord))
+
+            compulsoryPolicyRecord = getClientCompulsoryPolicy(self.clientId, date, self.itemId())
+            if compulsoryPolicyRecord:
+                self.clientPolicyInfoList.append([forceRef(compulsoryPolicyRecord.value('insurer_id')), forceRef(compulsoryPolicyRecord.value('policyType_id'))])
+
+            voluntaryPolicyRecord = getClientVoluntaryPolicy(self.clientId, date)
+            if voluntaryPolicyRecord:
+                self.clientPolicyInfoList.append([forceRef(voluntaryPolicyRecord.value('insurer_id')), forceRef(voluntaryPolicyRecord.value('policyType_id'))])
+
             self.cmbContract.setClientInfo(self.clientId, self.clientSex, self.clientAge, self.clientWorkOrgId, self.clientPolicyInfoList)
             if not self.itemId() and not self.cmbContract.value():
                 self.cmbContract.setCurrentIndex(0)
+
+        # обновляем видимость недели беременности
         if hasattr(self, 'edtPregnancyWeek'):
             pregnancyVisible = bool((self.clientSex == 2) and self.clientAge and self.clientAge[3] >= 12)
             self.lblPregnancyWeek.setVisible(pregnancyVisible)
             self.edtPregnancyWeek.setVisible(pregnancyVisible)
-        if hasattr(self, 'tabMes'):
-            self.tabMes.setClientInfo(baseDate, self.clientSex, self.clientBirthDate, self.clientAge, self.clientAgePrevYearEnd, self.clientAgeCurrYearEnd)
 
+        # обновляем данные во вкладке "Стандарт"
+        if hasattr(self, 'tabMes'):
+            self.tabMes.setClientInfo(date, self.clientSex, self.clientBirthDate, self.clientAge, self.clientAgePrevYearEnd, self.clientAgeCurrYearEnd)
+
+        # Определяем тип пациента
         clientKLADRCode = ''
         self.isTerritorialBelonging = isEventTerritorialBelonging(self.eventTypeId)
         if self.isTerritorialBelonging == CEventEditDialog.ctLocAddress:
-            locAddressInfo = self.clientInfo.get('locAddressInfo')
-            if locAddressInfo:
-                clientKLADRCode = locAddressInfo.KLADRCode
+            clientKLADRCode = getClientAddressKLADRCode(self.clientId, CEventEditDialog.ctLocAddress)
         elif self.isTerritorialBelonging == CEventEditDialog.ctInsurer:
-            financeCode = forceString(QtGui.qApp.db.translate('rbFinance', 'id', self.eventFinanceId, 'code')) if self.eventFinanceId else u''
-            if financeCode == u'3':
-                record = self.clientInfo.voluntaryPolicyRecord
-                if record:
-                    clientKLADRCode = forceString(record.value('area'))
+            if CFinanceType.getCode(self.eventFinanceId) == 3:
+                if voluntaryPolicyRecord:
+                    clientKLADRCode = forceString(voluntaryPolicyRecord.value('area'))
             else:
-                record = self.clientInfo.compulsoryPolicyRecord
-                if record:
-                    clientKLADRCode = forceString(record.value('area'))
+                if compulsoryPolicyRecord:
+                    clientKLADRCode = forceString(compulsoryPolicyRecord.value('area'))
         if not clientKLADRCode:
-            regAddressInfo = self.clientInfo.get('regAddressInfo')
-            if regAddressInfo:
-                clientKLADRCode = regAddressInfo.KLADRCode
+            clientKLADRCode = getClientAddressKLADRCode(self.clientId, CEventEditDialog.ctRegAddress)
 
         if KLADRMatch(clientKLADRCode, QtGui.qApp.defaultKLADR()):
             self.clientType = CEventEditDialog.ctLocal
@@ -6136,7 +6150,7 @@ LIMIT 1))))'''%(str(eventId)))
         self.tabCure.loadActions(items.get(2, []))
         self.tabMisc.loadActions(items.get(3, []))
         self.modelActionsSummary.regenerate()
-        self.tabCash.modelAccActions.regenerate()
+        self.tabCash.modelAccActions.regenerateOnLoad()
         for i in [0,1,2,3]:
             for item in items.get(i, []):
                 item.record._dirty = False
@@ -6201,13 +6215,38 @@ LIMIT 1))))'''%(str(eventId)))
 
         # массовая загрузка прикрепленных файлов
         mapFileAttach = {}
+        mapFileAttachIdToActionId = {}
+        mapFileAttachSign = {}
+        mapFileAttachPT = {}
         tableFileAttach = db.table('Action_FileAttach')
         fileAttachRecords = db.getRecordList(tableFileAttach, '*',
                                              [tableFileAttach['master_id'].inlist(actionTypeMap.keys()),
                                               tableFileAttach['deleted'].eq(0)])
         for recordFileAttach in fileAttachRecords:
             actionId = forceRef(recordFileAttach.value('master_id'))
+            fileAttachId = forceRef(recordFileAttach.value('id'))
+            mapFileAttachIdToActionId[fileAttachId] = actionId
             mapFileAttach.setdefault(actionId, []).append(recordFileAttach)
+
+        if mapFileAttachIdToActionId:
+            # массовая загрузка дополнительных подписей
+            tableFileAttachSign = db.table('Action_FileAttach_Signature')
+            fileAttachSignRecords = db.getRecordList(tableFileAttachSign, '*',
+                                                 [tableFileAttachSign['master_id'].inlist(mapFileAttachIdToActionId.keys()),
+                                                  tableFileAttachSign['deleted'].eq(0)])
+            for recordFileAttachSign in fileAttachSignRecords:
+                fileAttachId = forceRef(recordFileAttachSign.value('master_id'))
+                actionId = mapFileAttachIdToActionId.get(fileAttachId)
+                mapFileAttachSign.setdefault(actionId, []).append((fileAttachId, recordFileAttachSign))
+
+            # массовая загрузка шаблонов печати прикрепленных файлов
+            tableFileAttachPT = db.table('Action_FileAttach_PrintTemplate')
+            fileAttachPTRecords = db.getRecordList(tableFileAttachPT, '*',
+                                                     [tableFileAttachPT['id'].inlist(mapFileAttachIdToActionId.keys())])
+            for recordFileAttachPT in fileAttachPTRecords:
+                fileAttachId = forceRef(recordFileAttachPT.value('id'))
+                actionId = mapFileAttachIdToActionId.get(fileAttachId)
+                mapFileAttachPT.setdefault(actionId, []).append((fileAttachId, recordFileAttachPT))
 
         # массовая загрузка свойств действий
         tableActionProperty = db.table('ActionProperty')
@@ -6239,14 +6278,22 @@ LIMIT 1))))'''%(str(eventId)))
             reservationId = mapReservation.get(actionId, -1)
             executionPlanRecord = mapExecutionPlan.get(actionId, [])
             fileAttachRecords = mapFileAttach.get(actionId, [])
+            fileAttachSignRecords = mapFileAttachSign.get(actionId, [])
+            fileAttachPTRecords = mapFileAttachPT.get(actionId, [])
             personId = forceRef(record.value('person_id'))
             specialityId = personSpecialityMap.get(personId, -1)
             mapActionValueRecords = dict()
             for prop in propertyRecords:
                 mapActionValueRecords[forceRef(prop.value('id'))] = mapValues.get(forceRef(prop.value('id')), [])
-            action = CAction(actionType=actionType, record=record, propertyRecords=propertyRecords,
-                             valueRecords=mapActionValueRecords, reservationId=reservationId, executionPlanRecord=executionPlanRecord,
-                             fileAttachRecords=fileAttachRecords, specialityId=specialityId)
+            addition_data = {"propertyRecords": propertyRecords,
+                             "valueRecords": mapActionValueRecords,
+                             "reservationId": reservationId,
+                             "executionPlanRecord": executionPlanRecord,
+                             "fileAttachRecords": fileAttachRecords,
+                             "fileAttachSignRecords": fileAttachSignRecords,
+                             "fileAttachPTRecords": fileAttachPTRecords,
+                             "specialityId": specialityId}
+            action = CAction(actionType=actionType, record=record, addition_data=addition_data)
             items.setdefault(action.getType().class_, []).append(CActionRecordItem(action.getRecord(), action))
 
         return items

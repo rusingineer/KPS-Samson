@@ -96,7 +96,7 @@ class CRBSearchPopupView(QtGui.QFrame):
             self.cmbValue = self._cmb.getValue()
         if event.type() == QEvent.Close:
             if self.cmbValue:
-                self._cmb.setFilter()
+                #self._cmb.setFilter() tt2789 ??
                 self._cmb.setValue(self.cmbValue)
         if obj == self.table:
             if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Return, Qt.Key_Enter, Qt.Key_Select):
@@ -111,6 +111,9 @@ class CRBSearchComboBox(CRBComboBox):
     u"""Combobox для таблицы справочника с возможностью поиска"""
     def __init__(self, parent=None):
         CRBComboBox.__init__(self, parent)
+        self.isSearchOnTop = True
+        self.iSearchCodeVisible = True
+        self.iSearchNameVisible = True
         self.popupView = CRBSearchPopupView(self, self.popupView)
 
 
@@ -128,6 +131,13 @@ class CRBSearchComboBox(CRBComboBox):
             frame = self.popupView
             #для комбобоксов с предустановленными фильтрами
             frame.filter = '' if not self._filier else self._filier
+            frame.edtCode.setVisible(self.iSearchCodeVisible)
+            frame.lblCode.setVisible(self.iSearchCodeVisible)
+            frame.edtName.setVisible(self.iSearchNameVisible)
+            frame.lblName.setVisible(self.iSearchNameVisible)
+            if not self.isSearchOnTop:
+                frame.layout().removeWidget(frame.table)
+                frame.layout().insertWidget(0,frame.table)
             sizeHint = view.sizeHint()
             selectionModel = view.selectionModel()
             selectionModel.setCurrentIndex(self._model.index(self.currentIndex(), 1),

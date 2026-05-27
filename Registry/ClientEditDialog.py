@@ -51,6 +51,7 @@ from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
 from library.interchange                      import setComboBoxValue, setLineEditValue, setSpinBoxValue, setTextEditValue
 from library.ItemsListDialog                  import CItemEditorBaseDialog
 from library.LineEditWithRegExpValidator      import CLineEditWithRegExpValidator
+from library.SafeCleanupMixin import SafeCleanupMixin
 from library.TableModel                     import (
                                                     CTableModel,
                                                     CCol,
@@ -113,7 +114,7 @@ from RefBooks.ObservationSubgroup.ObservationSubgroupComboBox import CObservatio
 from Registry.Ui_ClientEditDialog             import Ui_Dialog
 from datetime import date, timedelta
 
-class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
+class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
     prevAddress = None
     prevWork    = None
 
@@ -2824,9 +2825,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
         for row in xrange(rowCount):
             record = self.modelSocStatuses.getRecordByRow(row)
             socStatusTypeId = forceRef(record.value('socStatusType_id'))
-            if socStatusTypeId is None and not forceBool(record.value('socStatusIsHolded')):
-                # У соцстатуса не заполнен тип и нет закрепления
-                return self.checkValueMessage(u'Не указан тип для незакреплённого класса соц. статуса', False, table, row, 1)
+            if socStatusTypeId is None:
+                return self.checkValueMessage(u'Не указан тип соц.статуса', False, table, row, 1)
         citizenshipGP = QtGui.qApp.isCitizenshipControl()
         if citizenshipGP:
             documentTypeId = self.cmbDocType.value()
@@ -4582,32 +4582,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     self.modelPolicies.insertRecord(row, newRecord)
                     self.setPolicyRecord(newRecord, True)
                     self.setClientEnp(descr.kindCode, descr.ENP)
-                    socStatusExist = False
-                    socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
-                    if socStatusCode:
-                        socStatusCodeId = forceInt(db.translate('rbSocStatusType', 'code', socStatusCode, 'id'))
-                    else:
-                        socStatusCodeId = None
-                    socStatusTypeIds = db.getIdList(table='rbSocStatusType', where="code in (035, 065)")
-                    for modelRow, item in enumerate(self.modelSocStatuses.items()):
-                        typeId = forceInt(item.value('socStatusType_id'))
-                        classId = forceInt(item.value('socStatusClass_id'))
-                        if (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId != typeId:
-                            socStatusExist = True
-                            if socStatusCodeId:
-                                item.setValue('socStatusClass_id', QVariant(socStatusClassId))
-                                item.setValue('socStatusType_id', QVariant(socStatusCodeId))
-                            else:
-                                self.modelSocStatuses.removeRow(modelRow)
-                            item.changed = True
-                        elif (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId == typeId:
-                            socStatusExist = True
-                    if not socStatusExist and socStatusCodeId and socStatusClassId:
-                        record = self.modelSocStatuses.getEmptyRecord()
-                        record.setValue('socStatusClass_id', QVariant(socStatusClassId))
-                        record.setValue('socStatusType_id', QVariant(socStatusCodeId))
-                        record.changed = True
-                        self.modelSocStatuses.addRecord(record)
+
+                    if socStatusCode and socStatusCode != '000':
+                        # tt4203 - не обнуляем данные соц статусов класса svo
+                        self.setClientSocStatus(db, socStatusCode)
+
                 elif msgbox.clickedButton() == btnUpdate:
                     self.cmbCompulsoryPolisCompany.setValue(hicId)
                     if descr.policySerial:
@@ -4626,32 +4605,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
                     row = self.modelPolicies.getCurrentCompulsoryPolicyRow(descr.policySerial, descr.policyNumber)
                     self.modelPolicies.setValue(row, 'checkDate', toVariant(QDateTime().currentDateTime()))
                     self.setClientEnp(descr.kindCode, descr.ENP)
-                    socStatusExist = False
-                    socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
-                    if socStatusCode:
-                        socStatusCodeId = forceInt(db.translate('rbSocStatusType', 'code', socStatusCode, 'id'))
-                    else:
-                        socStatusCodeId = None
-                    socStatusTypeIds = db.getIdList(table='rbSocStatusType', where="code in (035, 065)")
-                    for modelRow, item in enumerate(self.modelSocStatuses.items()):
-                        typeId = forceInt(item.value('socStatusType_id'))
-                        classId = forceInt(item.value('socStatusClass_id'))
-                        if (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId != typeId:
-                            socStatusExist = True
-                            if socStatusCodeId:
-                                item.setValue('socStatusClass_id', QVariant(socStatusClassId))
-                                item.setValue('socStatusType_id', QVariant(socStatusCodeId))
-                            else:
-                                self.modelSocStatuses.removeRow(modelRow)
-                            item.changed = True
-                        elif (typeId in socStatusTypeIds and classId == socStatusClassId) and socStatusCodeId == typeId:
-                            socStatusExist = True
-                    if not socStatusExist and socStatusCodeId and socStatusClassId:
-                        record = self.modelSocStatuses.getEmptyRecord()
-                        record.setValue('socStatusClass_id', QVariant(socStatusClassId))
-                        record.setValue('socStatusType_id', QVariant(socStatusCodeId))
-                        record.changed = True
-                        self.modelSocStatuses.addRecord(record)
+
+                    if socStatusCode and socStatusCode != '000':
+                        # tt4203 - не обнуляем данные соц статусов класса svo
+                        self.setClientSocStatus(db, socStatusCode)
+
                 self.syncPolicy(True)
                 return True
         else:
@@ -4667,6 +4625,77 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog):
             self.searchPolicyInFederalService(servicesURL)
 
         return False
+
+
+    def setClientSocStatus(self, db, socStatusCode):
+        def checkSocStatusTypeClassAssoc(db, statusCode, svoClassId):
+            # проверка, есть ли в rbSocStatusType тип соц статуса с кодом statusCode
+            # с проставленной связью c классом svo
+            tableAssoc = db.table('rbSocStatusClassTypeAssoc')
+            tableType = db.table('rbSocStatusType')
+            table = tableType.leftJoin(tableAssoc, tableType['id'].eq(tableAssoc['type_id']))
+            record = db.getRecordEx(
+                table, tableType['id'],
+                [
+                    tableType['code'].eq(statusCode),
+                    tableAssoc['class_id'].eq(svoClassId)
+                ]
+            )
+            if record:
+                return True, forceInt(record.value('id'))
+            else:
+                return False, None
+
+        socStatusSvoClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
+
+        checkSocStatus, socStatusCodeId = checkSocStatusTypeClassAssoc(db, socStatusCode, socStatusSvoClassId)
+        if not checkSocStatus:
+            # если код соц статуса не занесён в rbSocStatusType,
+            # то создаём с названием 'отсутствующая запись справочника "Социальная категория"'
+            tableSocStatusType = db.table('rbSocStatusType')
+            socStatusTypeRecord = tableSocStatusType.newRecord()
+            socStatusTypeRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusTypeRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusTypeRecord.setValue('code', toVariant(socStatusCode))
+            socStatusTypeRecord.setValue('name', toVariant(u'отсутствующая запись справочника "Социальная категория"'))
+            socStatusTypeRecord.setValue('shortName', toVariant(''))
+            socStatusTypeRecord.setValue('socCode', toVariant(''))
+            socStatusTypeRecord.setValue('regionalCode', toVariant(socStatusCode))
+            db.insertRecord(tableSocStatusType, socStatusTypeRecord)
+
+            socStatusCodeId = forceInt(socStatusTypeRecord.value('id'))
+
+            # и относим к классу соц статуса с кодом svo
+            tableSocStatusClassTypeAssoc = db.table('rbSocStatusClassTypeAssoc')
+            socStatusClassTypeAssocRecord = tableSocStatusClassTypeAssoc.newRecord()
+            socStatusClassTypeAssocRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusClassTypeAssocRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+            socStatusClassTypeAssocRecord.setValue('class_id', toVariant(socStatusSvoClassId))
+            socStatusClassTypeAssocRecord.setValue('type_id', toVariant(socStatusCodeId))
+            db.insertRecord(tableSocStatusClassTypeAssoc, socStatusClassTypeAssocRecord)
+
+        socStatusExist = False
+        tableAssoc = db.table('rbSocStatusClassTypeAssoc')
+        socStatusTypeIds = db.getIdList(tableAssoc, idCol='type_id', where=tableAssoc['class_id'].eq(socStatusSvoClassId))
+
+        for modelRow, item in enumerate(self.modelSocStatuses.items()):
+            typeId = forceInt(item.value('socStatusType_id'))
+            classId = forceInt(item.value('socStatusClass_id'))
+            deleted = forceInt(item.value('deleted'))
+            if (typeId in socStatusTypeIds and classId == socStatusSvoClassId) and socStatusCodeId != typeId and not deleted:
+                # если уже существует не удалённый соц статус с другим кодом, то помечаем его удалённым
+                # socStatusExist = True
+                item.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
+                item.setValue('deleted', QVariant(1))
+                item.changed = True
+            elif (typeId in socStatusTypeIds and classId == socStatusSvoClassId) and socStatusCodeId == typeId:
+                socStatusExist = True
+        if not socStatusExist and socStatusCodeId and socStatusSvoClassId:
+            record = self.modelSocStatuses.getEmptyRecord()
+            record.setValue('socStatusClass_id', QVariant(socStatusSvoClassId))
+            record.setValue('socStatusType_id', QVariant(socStatusCodeId))
+            record.changed = True
+            self.modelSocStatuses.addRecord(record)
 
 
     def setClientEnp(self, policyKindCode, enp):
@@ -6401,7 +6430,7 @@ class CContactInDocTableCol(CInDocTableCol):
         self.recordContactTypeCache = params.get('contactTypeCaches', [])
         db = QtGui.qApp.db
         table = db.table('rbContactType')
-        self._phoneNumberIdList = db.getDistinctIdList('rbContactType', 'id', [table['code'].inlist([1, 2, 3])])
+        self._phoneNumberIdList = db.getDistinctIdList('rbContactType', 'id', [table['code'].inlist([1, 2, 3, 'max'])])
 #        self._emailIdList = db.getDistinctIdList('rbContactType', 'id', [table['code'].inlist([4])])
 
 

@@ -247,6 +247,7 @@ class CODIIExchange(QtCore.QCoreApplication):
     def openDatabase(self):
         self.db = None
         try:
+            self.log(u'Запуск функции', u'openDatabase', 3)
             self.db = database.connectDataBase(self.preferences.dbDriverName,
                                                self.preferences.dbServerName,
                                                self.preferences.dbServerPort,
@@ -259,6 +260,7 @@ class CODIIExchange(QtCore.QCoreApplication):
             self.log('error', anyToUnicode(e), 2)
 
     def prepare(self):
+        self.log(u'Запуск функции', u'prepare', 3)
         self.userId = forceRef(self.db.translate('Person', 'login', u'Админ СОЦ', 'id'))
         self.fhirUrl = forceString(self.preferences.appPrefs.get('url', self.defaultFhirUrl))
         self.terminologyUrl = forceString(self.preferences.appPrefs.get('terminology_url', self.defaultTerminologyUrl))
@@ -415,19 +417,19 @@ class CODIIExchange(QtCore.QCoreApplication):
 
     def createPPMisIdentifier(self, value):
         return createIdentifier(self.misIdentifierUrn,
-                                'SAMSON:%s:%s' % (self.orgCode, value),
+                                '%s:%s' % (self.orgCode, value),
                                 createDispReference('urn:oid:'+self.misOid)
                                 )
 
     def createMisIdentifier(self, value, use=None):
         return createIdentifier('urn:oid:'+self.misOid,
-                                'SAMSON:%s:%s' % (self.orgCode, value),
+                                '%s:%s' % (self.orgCode, value),
                                 use=use
                                 )
 
     def createPPMisIdentifierNoURN(self, value):
         return createIdentifier(self.misIdentifierUrn,
-                                'SAMSON:%s:%s' % (self.orgCode, value),
+                                '%s:%s' % (self.orgCode, value),
                                 # self.createDispReference('urn:oid:'+self.misOid)
                                 createDispReference(self.misOid)
                                 )
@@ -866,6 +868,7 @@ class CODIIExchange(QtCore.QCoreApplication):
     def main(self):
         self.loadPreferences()
         if self.preferences:
+            self.log(u'Запуск функции', u'main (Начало процесса)', 3)
             self.openDatabase()
             if self.db:
                 self.registerDocumentTables()
@@ -904,6 +907,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                         try:
                             res_mess = self.sendOrder(referral)
                             if not self.checkWebServiceConnect(res_mess):
+                                self.log(u'main', u'(окончание процесса)', 3)
                                 return
                         except:
                             self.logCurrentException()
@@ -913,6 +917,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                         try:
                             res_mess = self.sendLocalResult(result)
                             if not self.checkWebServiceConnect(res_mess):
+                                self.log(u'main', u'(окончание процесса)', 3)
                                 return
                         except:
                             self.logCurrentException()
@@ -930,8 +935,10 @@ class CODIIExchange(QtCore.QCoreApplication):
                             except:
                                 self.logCurrentException()
         self.closeDatabase()
+        self.log(u'main', u'(окончание процесса)', 3)
 
     def checkWebServiceConnect(self, res_mess):
+        self.log(u'Запуск функции', u'checkWebServiceConnect', 3)
         if res_mess and (
                 res_mess.find("Max retries exceeded with url") > 0 or
                 res_mess.find("Gateway Time-out for url") > 0
@@ -972,6 +979,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                 _file.setOrgSignature(binary.data.decode('base64'), personId, QDateTime.currentDateTime())
 
     def sendOrder(self, referral):
+        self.log(u'Запуск функции', u'sendOrder', 3)
         note = ''
 
         actionId = referral.actionId
@@ -1090,6 +1098,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return note
 
     def sendLocalResult(self, result):
+        self.log(u'Запуск функции', u'sendLocalResult', 3)
         note = ""
 
         actionId = result.actionId
@@ -1324,6 +1333,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return True
 
     def searchResultBatch(self, taskList):
+        self.log(u'Запуск функции', u'searchResultBatch', 3)
         if not taskList:
             self.log(u'Запрос результатов', u'список номеров направлений пуст!', level=1)
             return None
@@ -1358,6 +1368,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return bundle
 
     def saveResult(self, entry, refferals):
+        self.log(u'Запуск функции', u'saveResult', 3)
         for referral in refferals.values():
             if referral.externalId == entry.resource.basedOn[0].reference:
                 break
@@ -1539,6 +1550,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return personId
 
     def selectReferrals(self, actionId=None):
+        self.log(u'Запуск функции', u'selectReferrals', 3)
         referrals = {}
         minDate = datetime.datetime.now() - datetime.timedelta(days=self.days)
 
@@ -1590,6 +1602,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return referrals
 
     def selectResults(self, actionId=None):
+        self.log(u'Запуск функции', u'selectResults', 3)
         results = {}
         minDate = datetime.datetime.now() - datetime.timedelta(days=self.days+7)
 
@@ -1662,6 +1675,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return results
 
     def selectReferralsForResult(self, actionId=None):
+        self.log(u'Запуск функции', u'selectReferralsForResult', 3)
         minDate = datetime.datetime.now() - datetime.timedelta(90)
         referrals = {}
         taskList = set()
@@ -1929,6 +1943,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         return identifier
 
     def registerDocumentTables(self):
+        self.log(u'Запуск функции', u'registerDocumentTables', 3)
         database.registerDocumentTable('Account')
         database.registerDocumentTable('Action')
         database.registerDocumentTable('Action_FileAttach')

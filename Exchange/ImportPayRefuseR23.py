@@ -1287,6 +1287,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                             record.remove(record.indexOf('compulsoryServiceStop'))
                             record.remove(record.indexOf('voluntaryServiceStop'))
                             record.remove(record.indexOf('area'))
+                            record.remove(record.indexOf('enp'))
                             self.db.updateRecord(self.tableClientPolicy, record)
 
                             msg.append(u'Добавлен'
@@ -1309,6 +1310,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                             record.remove(record.indexOf('compulsoryServiceStop'))
                             record.remove(record.indexOf('voluntaryServiceStop'))
                             record.remove(record.indexOf('area'))
+                            record.remove(record.indexOf('enp'))
                             self.db.updateRecord(self.tableClientPolicy, record)
                             self.err2log(u'<b><font color=blue>Обновлен</font></b>'
                                          u' полис %s №%s (%d) -> %s №%s (%d).' %
@@ -1514,16 +1516,17 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             tableAssoc = self.db.table('rbSocStatusClassTypeAssoc')
             tableType = self.db.table('rbSocStatusType')
             table = tableType.leftJoin(tableAssoc, tableType['id'].eq(tableAssoc['type_id']))
-            if self.db.getRecordEx(
-                table, '*',
+            record = self.db.getRecordEx(
+                table, tableType['id'],
                 [
                     tableType['code'].eq(statusCode),
                     tableAssoc['class_id'].eq(svoClassId)
                 ]
-            ):
-                return True
+            )
+            if record:
+                return True, forceInt(record.value('id'))
             else:
-                return False
+                return False, None
 
         socStatusSvoClassId = forceInt(self.db.translate('rbSocStatusClass', 'code', 'svo', 'id'))
         tableSocStatus = self.db.table('ClientSocStatus')
@@ -1532,7 +1535,8 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             # если код соц статуса не 000, то проверим, есть ли он в rbSocStatusType и связан ли с классом svo
             # checkAssocOk = checkSocStatusTypeClassAssoc(flkSocStatus, socStatusSvoClassId)
 
-            if not checkSocStatusTypeClassAssoc(flkSocStatus, socStatusSvoClassId):
+            checkFlkSocStatus, flkSocStatusTypeId = checkSocStatusTypeClassAssoc(flkSocStatus, socStatusSvoClassId)
+            if not checkFlkSocStatus:
                 # если код соц статуса не занесён в rbSocStatusType,
                 # то создаём с названием 'отсутствующая запись справочника "Социальная категория"'
                 tableSocStatusType = self.db.table('rbSocStatusType')
@@ -1546,7 +1550,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                 socStatusTypeRecord.setValue('regionalCode', toVariant(flkSocStatus))
                 self.db.insertRecord(tableSocStatusType, socStatusTypeRecord)
 
-                insertedTypeId = forceInt(socStatusTypeRecord.value('id'))
+                flkSocStatusTypeId = forceInt(socStatusTypeRecord.value('id'))
 
                 # и относим к классу соц статуса с кодом svo
                 tableSocStatusClassTypeAssoc = self.db.table('rbSocStatusClassTypeAssoc')
@@ -1554,7 +1558,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
                 socStatusClassTypeAssocRecord.setValue('createDatetime', toVariant(QDateTime.currentDateTime()))
                 socStatusClassTypeAssocRecord.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
                 socStatusClassTypeAssocRecord.setValue('class_id', toVariant(socStatusSvoClassId))
-                socStatusClassTypeAssocRecord.setValue('type_id', toVariant(insertedTypeId))
+                socStatusClassTypeAssocRecord.setValue('type_id', toVariant(flkSocStatusTypeId))
                 self.db.insertRecord(tableSocStatusClassTypeAssoc, socStatusClassTypeAssocRecord)
 
                 self.err2log(u'<b><font color=green>Добавляем в справочник "Социальный статус: типы"</font></b>'u' соц статус %s - %s.' % (flkSocStatus, u'отсутствующая запись справочника "Социальная категория"'))
@@ -1567,8 +1571,9 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
         else:
             curSvoSocStatusCode = None
 
-        if clientSvoSocStatusRow and flkSocStatus == '000':
+        if clientSvoSocStatusRow and flkSocStatus == '000' and False:
             # если у пациента уже был соц статус по классу svo, а от флк пришёл соц статус 000 - помечаем его удалённым
+            # tt4203 - не обнуляем данные соц статусов класса svo
 
             clientSvoSocStatusRow.setValue('modifyDatetime', toVariant(QDateTime.currentDateTime()))
             clientSvoSocStatusRow.setValue('deleted', toVariant(1))
@@ -1585,8 +1590,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             socStatusRecord.setValue('deleted', toVariant(0))
             socStatusRecord.setValue('client_id', toVariant(clientId))
             socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
-            socStatusRecord.setValue('socStatusType_id', toVariant(
-                forceInt(self.db.translate('rbSocStatusType', 'code', flkSocStatus, 'id'))))
+            socStatusRecord.setValue('socStatusType_id', toVariant(flkSocStatusTypeId))
             socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
             socStatusRecord.setValue('note', toVariant(''))
 
@@ -1607,8 +1611,7 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             socStatusRecord.setValue('deleted', toVariant(0))
             socStatusRecord.setValue('client_id', toVariant(clientId))
             socStatusRecord.setValue('socStatusClass_id', toVariant(socStatusSvoClassId))
-            socStatusRecord.setValue('socStatusType_id', toVariant(
-                forceInt(self.db.translate('rbSocStatusType', 'code', flkSocStatus, 'id'))))
+            socStatusRecord.setValue('socStatusType_id', toVariant(flkSocStatusTypeId))
             socStatusRecord.setValue('begDate', toVariant(QDate(0, 0, 0)))
             socStatusRecord.setValue('note', toVariant(''))
 

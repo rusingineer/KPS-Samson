@@ -187,10 +187,10 @@ class CReport(CReportBase):
 
         permanentAttach = params.get('permanentAttach', None)
 
-        deathPlace = params.get('deathPlace', '')
-        deathCause = params.get('deathCause', '')
-        deathFoundBy = params.get('deathFoundBy', '')
-        deathFoundation = params.get('deathFoundation', '')
+        deathPlace = params.get('deathPlace', None)
+        deathCause = params.get('deathCause', None)
+        deathFoundBy = params.get('deathFoundBy', None)
+        deathFoundation = params.get('deathFoundation', None)
 
         vidPom = params.get('vidPom', None)
         naselenie = params.get('naselenie', None)
@@ -205,6 +205,7 @@ class CReport(CReportBase):
         equipmentId = params.get('equipmentId', None)
         cashPayments = params.get('cashPayments', False)
         filterClientId = params.get('filterClientId', None)
+        excludeSelectedOrg = params.get('excludeSelectedOrg', None)
 
         rows = []
         if filterClientId:
@@ -449,14 +450,14 @@ class CReport(CReportBase):
         if permanentAttach and permanentAttach>0:
             lpu=forceString(db.translate('Organisation', 'id', permanentAttach, 'shortName'))
             rows.append(u'прикрепление: '+lpu)
-        if deathPlace:
-            rows.append(u'смерть последовала: '+deathPlace)
-        if deathCause:
-            rows.append(u'смерть произошла: '+deathCause)
-        if deathFoundBy:
-            rows.append(u'причина смерти установлена: '+deathFoundBy)
-        if deathFoundation:
-            rows.append(u'основание установления причины смерти: '+deathFoundation)
+        if deathPlace is not None:
+            rows.append(u'смерть наступила: '+ forceString(db.translate('rbDeathPlaceType', 'id', deathPlace, 'name')))
+        if deathCause is not None:
+            rows.append(u'смерть произошла: '+ forceString(db.translate('rbDeathCauseType', 'id', deathCause, 'name')))
+        if deathFoundBy is not None:
+            rows.append(u'причина смерти установлена: '+forceString(db.translate('rbEmployeeTypeDeterminedDeathCause', 'id', deathFoundBy, 'name')))
+        if deathFoundation is not None:
+            rows.append(u'основание установления причины смерти: '+ forceString(db.translate('rbGroundsForDeathCause', 'id', deathFoundation, 'name')))
         if typeFinanceId is not None:
             rows.append(u'тип финансирования: '+ forceString(db.translate('rbFinance', 'id', typeFinanceId, 'name')))
         if tariff is not None:

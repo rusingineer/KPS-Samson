@@ -611,6 +611,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             Contract.finance_id,
             IF(Client.birthDate > Event.setDate - interval 18 year, 1, 0) isChild,
                 SUM(IF(ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null, 1, 0)) AS countAll, 
+                SUM(IF(Client.birthDate > Event.setDate - INTERVAL 17 YEAR, 1, 0)) AS countChild,
                 CASE 
                     WHEN Event.setDate<'2022-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value not like 'умер%' or ActionProperty_String.value is null)
                         and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 60 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 55 year), 1, 0))
@@ -625,7 +626,8 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 END as countSenior,
                 SUM(IF(ActionProperty_String.value like 'переведен в дневной стационар%', 1, 0)) AS countTransfer,
                 SUM(IF(ActionProperty_String.value like '%другой стационар%', 1, 0)) AS countOtherTransfer,
-                SUM(IF(ActionProperty_String.value like 'умер%', 1, 0)) AS countDeath, 
+                SUM(IF(ActionProperty_String.value like 'умер%', 1, 0)) AS countDeath,
+                SUM(IF(ActionProperty_String.value LIKE 'умер%' AND Client.birthDate > Event.setDate - INTERVAL 17 YEAR, 1, 0)) AS countDeathChild, 
                 CASE 
                     WHEN Event.setDate<'2022-01-01T00:00:00' THEN SUM(IF((ActionProperty_String.value like 'умер%')
                         and (Client.sex = 1 and Client.birthDate <= Event.setDate - interval 60 year OR Client.sex = 2 and Client.birthDate <= Event.setDate - interval 55 year), 1, 0))
@@ -643,7 +645,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                                               group=['profile', 'Contract.finance_id', 'IF(Client.birthDate > Event.setDate - interval 18 year, 1, 0)'])
             return records
 
-        # койко-дни (столбцы 15-16)
+        # койко-дни (столбцы 17-19)
         def countBedDays(orgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, permamentBed, eventExpose):
             cond = [tableEvent['deleted'].eq(0),
                     tableClient['deleted'].eq(0),
@@ -727,6 +729,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 age = forceInt(record.value('age'))
                 setDate = forceDate(record.value('setDate'))
                 isChild = (age < 18)
+                isChildForCount = (age <= 17)
                 isSenior = isRetirementAge(sex, age, setDate)
                 if profile in profileWithAgeList:
                     ageCond = '<18' if isChild else '>=18'
@@ -736,14 +739,16 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 if _financeId == CFinanceType.cash:
                     keys.append(('CASH', ''))
                 for key in keys:
-                    days = mapProfileCountDays.setdefault(key, [0,0])
+                    days = mapProfileCountDays.setdefault(key, [0,0,0])
                     mapProfileCountDays[key][0] = days[0] + dayCount
                     if isSenior:
                         mapProfileCountDays[key][1] = days[1] + dayCount
+                    if isChildForCount:
+                        mapProfileCountDays[key][2] = days[2] + dayCount
             return mapProfileCountDays
 
 
-        # реанимационные койко-дни (столбцы 15-16)
+        # реанимационные койко-дни (столбцы 17-19)
         def countReanimBedDays(orgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, permamentBed, eventExpose):
             cond = [tableEvent['deleted'].eq(0),
                     tableAction['actionType_id'].inlist(getActionTypeIdListByFlatCode('moving%')),
@@ -826,14 +831,17 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 age = forceInt(record.value('age'))
                 setDate = forceDate(record.value('setDate'))
                 isSenior = isRetirementAge(sex, age, setDate)
-                days = mapProfileCountDays.setdefault((profile, ''), [0, 0])
+                isChildForCount = (age <= 17)
+                days = mapProfileCountDays.setdefault((profile, ''), [0, 0, 0])
                 mapProfileCountDays[(profile, '')][0] = days[0] + dayCount
                 if isSenior:
                     mapProfileCountDays[(profile, '')][1] = days[1] + dayCount
+                if isChildForCount:
+                    mapProfileCountDays[(profile, '')][2] = days[2] + dayCount
             return mapProfileCountDays
 
 
-        # койко-дни закрытия на ремонт (столбец 17)
+        # койко-дни закрытия на ремонт (столбец 20)
         def involuteBedDays(orgStructureIdList, bedsSchedule, begDatePeriod, endDatePeriod, permamentBed):
             cols = [tableRbHospitalBedProfile['regionalCode'], tableOSHBI['begDate'], tableOSHBI['endDate'],
                     u'''IF(cast(case when OrgStructure_HospitalBed.age like '%-%г' then substring_index(OrgStructure_HospitalBed.age, '-', -1)
@@ -894,7 +902,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
 
         mapMainRows = createMapCodeToRowIdx([row[3] for row in MainRows3100])
         profileWithAgeList = [key[0] for key in mapMainRows.keys() if key[1]]
-        rowSize = 15
+        rowSize = 18
         reportMainData = [[0] * rowSize for row in xrange(len(MainRows3100))]
 
         endDate = params.get('endDate', QDate())
@@ -945,13 +953,16 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 ('6%', [u'', u'из общего числа поступивших (из гр.6)', u'0–17 лет (включительно)', u'', u'8'], CReportBase.AlignRight),
                 ('6%', [u'', u'', u'старше трудоспособного возраста', u'', u'9'], CReportBase.AlignRight),
                 ('6%', [u'', u'выписано пациентов, чел.', u'всего', u'', u'10'], CReportBase.AlignRight),
-                ('6%', [u'', u'', u'в том числе старше трудоспособного возраста', u'', u'11'], CReportBase.AlignRight),
-                ('6%', [u'', u'из них в дневные стационары (всех типов)', u'', u'', u'12'], CReportBase.AlignRight),
-                ('6%', [u'', u'умерло, чел.', u'всего', u'', u'13'], CReportBase.AlignRight),
-                ('6%', [u'', u'', u'в том числе старше трудоспособного возраста', u'', u'14'], CReportBase.AlignRight),
-                ('6%', [u'Проведено пациентами койко-дней', u'всего', u'', u'', u'15'], CReportBase.AlignRight),
-                ('6%', [u'', u'в том числе старше трудоспособного возраста', u'', u'', u'16'], CReportBase.AlignRight),
-                ('6%', [u'Койко-дни закрытия на ремонт', u'', u'', u'', u'17'], CReportBase.AlignRight)
+                ('6%', [u'', u'', u'детей (0-17 лет)', u'', u'11'], CReportBase.AlignRight),
+                ('6%', [u'', u'', u'в том числе старше трудоспособного возраста', u'', u'12'], CReportBase.AlignRight),
+                ('6%', [u'', u'из них в дневные стационары (всех типов)', u'', u'', u'13'], CReportBase.AlignRight),
+                ('6%', [u'', u'умерло, чел.', u'всего', u'', u'14'], CReportBase.AlignRight),
+                ('6%', [u'', u'', u'детей (0-17 лет)', u'', u'15'], CReportBase.AlignRight),
+                ('6%', [u'', u'', u'в том числе старше трудоспособного возраста', u'', u'16'], CReportBase.AlignRight),
+                ('6%', [u'Проведено пациентами койко-дней', u'всего', u'', u'', u'17'], CReportBase.AlignRight),
+                ('6%', [u'', u'детей (0-17 лет)', u'', u'', u'18'], CReportBase.AlignRight),
+                ('6%', [u'', u'в том числе старше трудоспособного возраста', u'', u'', u'19'], CReportBase.AlignRight),
+                ('6%', [u'Койко-дни закрытия на ремонт', u'', u'', u'', u'20'], CReportBase.AlignRight)
                ]
         table = createTable(cursor, cols)
         table.mergeCells(0, 0, 4, 1)
@@ -961,23 +972,35 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
         table.mergeCells(1, 3, 3, 1)#вставка
         table.mergeCells(1, 4, 3, 1)#среднегод
 
-        table.mergeCells(0, 5, 1, 9)#15в отчетном году
-        table.mergeCells(0, 14, 1, 2)#15проведено
-        table.mergeCells(1, 5, 3, 1)#5поступило
-        table.mergeCells(1, 6, 3, 1)#7из них сельск
-        table.mergeCells(0, 16, 4, 1)#15койкодни
-        table.mergeCells(1, 7, 1, 2)#7из общего числа
-        table.mergeCells(2, 7, 2, 1)#0-17
-        table.mergeCells(2, 8, 2, 1)#старше
-        table.mergeCells(1, 9, 1, 2)#9выписано
-        table.mergeCells(2, 9, 2, 1)#всего
-        table.mergeCells(2, 10, 2, 1)#10 в том числе
-        table.mergeCells(1, 11, 3, 1)#11 из них
-        table.mergeCells(1, 12, 1, 2)#12 умерло
-        table.mergeCells(2, 12, 2, 1)
-        table.mergeCells(2, 13, 2, 1)
-        table.mergeCells(1, 14, 3, 1)#15всего
-        table.mergeCells(1, 15, 3, 1)
+        # В отчетном году
+        table.mergeCells(0, 5, 1, 11)
+
+        table.mergeCells(1, 5, 3, 1)    #6 поступило больных - всего, чел.
+        table.mergeCells(1, 6, 3, 1)    #7 из них сельских жителей
+
+        table.mergeCells(1, 7, 1, 2)    #8 из общего числа поступивших (из гр.6)
+        table.mergeCells(2, 7, 2, 1)    #8 0–17 лет (включительно)
+        table.mergeCells(2, 8, 2, 1)    #9 старше трудоспособного возраста
+
+        table.mergeCells(1, 9, 1, 3)    #10 выписано пациентов, чел.
+        table.mergeCells(2, 9, 2, 1)    #10 всего
+        table.mergeCells(2, 10, 2, 1)   #11 детей (0-17 лет)
+        table.mergeCells(2, 11, 2, 1)   #12 в том числе старше трудоспособного возраста
+
+        table.mergeCells(1, 12, 3, 1)   #13 из них в дневные стационары (всех типов)
+
+        table.mergeCells(1, 13, 1, 3)   #14 умерло, чел.
+        table.mergeCells(2, 13, 2, 1)   #14 всего
+        table.mergeCells(2, 14, 2, 1)   #15 детей (0-17 лет)
+        table.mergeCells(2, 15, 2, 1)   #16 в том числе старше трудоспособного возраста
+
+        # Проведено койко-дней
+        table.mergeCells(0, 16, 1, 3)  # Проведено пациентами койко-дней
+        table.mergeCells(1, 16, 3, 1)  # 17 всего
+        table.mergeCells(1, 17, 3, 1)  # 18 детей (0-17 лет)
+        table.mergeCells(1, 18, 3, 1)  # 19 в том числе старше трудоспособного возраста
+
+        table.mergeCells(0, 19, 4, 1)  #20 Койко-дни закрытия на ремонт
 
         # вычисление столбца 3
         records = getPermamentHospitalBeds(begOrgStructureIdList, bedsSchedule, begDate, endDate, isPermanentBed)
@@ -1045,10 +1068,12 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             isChild = forceBool(record.value('isChild'))
             _financeId = forceRef(record.value('finance_id'))
             countAll = forceInt(record.value('countAll'))
+            countChild = forceInt(record.value('countChild'))
             countSenior = forceInt(record.value('countSenior'))
             countTransfer = forceInt(record.value('countTransfer'))
             countOtherTransfer = forceInt(record.value('countOtherTransfer'))
             countDeath = forceInt(record.value('countDeath'))
+            countDeathChild = forceInt(record.value('countDeathChild'))
             countDeathSenior = forceInt(record.value('countDeathSenior'))
             countTransfer3101 += countOtherTransfer
             if profile in profileWithAgeList:
@@ -1063,12 +1088,14 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             for row in rows:
                 reportLine = reportMainData[row]
                 reportLine[6] += countAll
-                reportLine[7] += countSenior
-                reportLine[8] += countTransfer
-                reportLine[9] += countDeath
-                reportLine[10] += countDeathSenior
+                reportLine[7] += countChild
+                reportLine[8] += countSenior
+                reportLine[9] += countTransfer
+                reportLine[10] += countDeath
+                reportLine[11] += countDeathChild
+                reportLine[12] += countDeathSenior
 
-        # вычисление столбцов 15-16
+        # вычисление столбцов 17-19
         mapProfileCountDays = countBedDays(begOrgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, isPermanentBed, eventExpose)
         for key in mapProfileCountDays.keys():
             if key[0] in reanimProfiles:
@@ -1079,8 +1106,9 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
                 rows.append(0)
             for row in rows:
                 reportLine = reportMainData[row]
-                reportLine[11] += days[0]
-                reportLine[12] += days[1]
+                reportLine[13] += days[0]
+                reportLine[14] += days[2]
+                reportLine[15] += days[1]
 
         mapProfileCountDays = countReanimBedDays(begOrgStructureIdList, bedsSchedule, begDateTime, endDateTime, stacType, financeId, isPermanentBed, eventExpose)
         for key in mapProfileCountDays.keys():
@@ -1088,8 +1116,9 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             days = mapProfileCountDays[key]
             for row in rows:
                 reportLine = reportMainData[row]
-                reportLine[11] += days[0]
-                reportLine[12] += days[1]
+                reportLine[13] += days[0]
+                reportLine[14] += days[2]
+                reportLine[15] += days[1]
 
         # вычисление столбца 17
         mapProfileInvoluteDays = involuteBedDays(begOrgStructureIdList, bedsSchedule, begDateTime, endDateTime, isPermanentBed)
@@ -1099,7 +1128,7 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             rows.append(0)
             for row in rows:
                 reportLine = reportMainData[row]
-                reportLine[13] += days
+                reportLine[16] += days
 
         t = QtGui.QTextBlockFormat()
         for row, rowDescr in enumerate(MainRows3100):
@@ -1124,6 +1153,9 @@ class CStationaryF30Moving_KK(CStationaryF30_KK):
             table.setText(i, 14, reportLine[11])
             table.setText(i, 15, reportLine[12])
             table.setText(i, 16, reportLine[13])
+            table.setText(i, 17, reportLine[14])
+            table.setText(i, 18, reportLine[15])
+            table.setText(i, 19, reportLine[16])
 
         cursor.movePosition(QtGui.QTextCursor.End)
         splitTitle(cursor, u'', u'Код по ОКЕИ: человек - 792')

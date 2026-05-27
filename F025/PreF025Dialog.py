@@ -432,6 +432,7 @@ FROM EventType_Action
     ON ActionType.`id` = EventType_Action.`actionType_id`
 WHERE (EventType_Action.`eventType_id` = %(eventTypeId)s)
 AND (ActionType.`deleted` = 0)
+AND (ActionType.showInForm != 0)
 
 %(speciality)s
 

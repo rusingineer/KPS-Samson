@@ -13,9 +13,13 @@ import Exchange.AttachService as AttachService
 class CHospitalOrderSelectDialog(CDialogBase, Ui_HospitalOrderSelectDialog):
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
+        self.bedProfileId = None
+        self.usok = None
+        self.organisationId = None
         self.addModels('CKDInformation', CCKDInformationModel(self))
 
         self.setupUi(self)
+        self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
         self.cmbHospitalBedProfile.setTable('rbHospitalBedProfile', addNone=True)
 
         view = self.tblCKDInformation

@@ -107,12 +107,7 @@ class CROComboBox(QtGui.QComboBox):
         if self.model().isReadOnly():
             event.accept()
         else:
-            key = event.key()
-            if key in (Qt.Key_Delete, Qt.Key_Backspace):
-                self.setCurrentIndex(-1)
-                event.accept()
-            else:
-                QtGui.QComboBox.keyPressEvent(self, event)
+            QtGui.QComboBox.keyPressEvent(self, event)
 
 
     def eventFilter(self, watched, event):

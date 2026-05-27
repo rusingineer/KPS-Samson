@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -17,12 +17,12 @@ from PyQt4 import QtGui, QtSql
 
 from Events.Ui_DiagnosticServiceComboBoxPopup import Ui_DiagnosticServiceComboBoxPopup
 from RefBooks.DiagnosticService.Info import CDiagnosticServiceInfo
-from library.PrintInfo import CRBInfo
 from library.TableModel import CTableModel, CTextCol
 from library.Utils import forceRef, forceString, forceStringEx, addDotsEx, getPref, setPref
 
 from ActionPropertyValueType import CActionPropertyValueType
 from library.crbcombobox import CRBComboBox
+from library.database import CRecordCache
 
 
 class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
@@ -31,9 +31,6 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
     badDomain = u'Неверное описание области определения значения свойства действия типа "Инструментальные диагностические исследования":\n%(domain)s'
     badKey = u'Недопустимый ключ "%(key)s" в описание области определения значения свойства действия типа "Инструментальные диагностические исследования":\n%(domain)s'
     badValue = u'Недопустимое значение "%(val)s" ключа "%(key)s" в описание области определения значения свойства действия типа "Инструментальные диагностические исследования":\n%(domain)s'
-
-    # class CDiagnosticServiceInfo(CRBInfo):
-    #     tableName = 'rbDiagnosticService'
 
     class CPropEditor(CRBComboBox):
         def __init__(self, action, domain, parent, clientId, eventTypeId):
@@ -100,6 +97,7 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
         CActionPropertyValueType.__init__(self, domain)
         self.rawDomain = domain
         self.domain = self.parseDomain(domain)
+        self.cache = CRecordCache()
 
     def parseDomain(self, domain):
         codeList = []
@@ -139,7 +137,12 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
     convertQVariantToPyValue = convertDBValueToPyValue
 
     def toText(self, v):
-        return forceString(QtGui.qApp.db.translate('rbDiagnosticService', 'id', v, 'CONCAT(code,\' | \',name)'))
+        v = forceRef(v)
+        identifier = self.cache.get(v)
+        if identifier is None:
+            identifier = forceString(QtGui.qApp.db.translate('rbDiagnosticService', 'id', v, 'CONCAT(code,\' | \',name)'))
+            self.cache.put(v, identifier)
+        return identifier
 
     def toInfo(self, context, v):
         return CDiagnosticServiceInfo(context, v)

@@ -95,11 +95,13 @@ tar xzf /opt/client_lin.tar.gz -C /opt || echo "========== Обнаружена 
 
 echo "[$(date +%Y%m%d-%T)] Выдаем все права каталогу с клиентом"
 chmod -R 777 /opt/client
+user=`ls /home | grep -v '^lost+found$'`
+chown $user:$user -R /opt/client
 
-user=`ls /home`
 echo "[$(date +%Y%m%d-%T)] Создаем ярлык на рабочем столе"
 cp /opt/client/Samson_AutoUP.desktop "/home/$user/Рабочий стол/"
 chmod 777 "/home/$user/Рабочий стол/Samson_AutoUP.desktop"
+chown $user:$user "/home/$user/Рабочий стол/Samson_AutoUP.desktop"
 
 echo "[$(date +%Y%m%d-%T)] Настраиваем ЕМИС"
 mkdir -p /home/$user/.config/samson-vista
@@ -114,6 +116,7 @@ defaultKLADR=2300000000000
 orgId=
 ' > /home/$user/.config/samson-vista/S11App.ini
 chmod 777 /home/$user/.config/samson-vista/S11App.ini
+chown $user:$user -R /home/$user/.config
 
 echo "########################################"
 echo "############ Установка pip2 ############"

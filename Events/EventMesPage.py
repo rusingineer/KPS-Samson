@@ -533,7 +533,7 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
 
     @pyqtSignature('QModelIndex')
     def on_tblCSGs_doubleClicked(self, index):
-        if index.column() == 4: # CSG
+        if index.column() == 6: # CSG
             self.modelCSGs.setCsgFilterMKB(forceString(
                 self.modelCSGs.value(index.row(),'MKB')))
             self.modelCSGs.setCsgFilterEventProfileId(forceRef(
@@ -543,7 +543,7 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
 
     @pyqtSignature('QModelIndex')
     def on_tblCSGs_clicked(self, index):
-        if index.column() == 4: # CSG
+        if index.column() == 6: # CSG
             self.modelCSGs.setCsgFilterMKB(forceString(
                 self.modelCSGs.value(index.row(),'MKB')))
             self.modelCSGs.setCsgFilterEventProfileId(forceRef(

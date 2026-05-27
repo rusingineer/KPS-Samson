@@ -3464,22 +3464,8 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         return data
 
     def getEventIndex(self, table):
-        if table == self.tblPresence:
-            return self.modelPresence.eventColumn
-        if table == self.tblReceived:
-            return self.modelReceived.eventColumn
-        if table == self.tblDeath:
-            return 16
-        if table == self.tblTransfer:
-            return 19
-        if table == self.tblLeaved:
-            return self.modelLeaved.eventColumn
-        if table == self.tblReabyToLeave:
-            return 18
-        if table == self.tblQueue:
-            return 16
-        if table == self.tblRenunciation:
-            return 18
+        if table:
+            return table.model().eventColumn
         return None
 
 

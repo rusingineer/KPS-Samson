@@ -381,8 +381,24 @@ WHEN Event.execDate >= '2019-03-01' AND SUBSTR(rbService.infis, 1, 3) IN ('B01',
                         left join Action a on a.event_id = e.id and a.actionType_id = at.id
                         where e.id = Event.id and u.spec = SUBSTR(rbService.infis, 5, 3) and e.deleted = 0 and a.deleted = 0
                         AND rs.infis not in ('B02.001.005', 'B02.001.006', 'B02.031.010', 'B02.047.009', 'B02.047.010')) THEN 0
-WHEN mt.regionalCode IN ('232', '252', '262') AND Event.execDate >= '2019-03-01' AND SUBSTR(rbService.infis, 1, 7) NOT IN ('B04.031', 'B04.026') THEN 0
-WHEN mt.regionalCode = '261' AND ep.regionalCode = '8011' AND Event.execDate >= '2019-06-01' AND SUBSTR(rbService.infis, 1, 7) NOT IN ('B04.047', 'B04.026') AND
+# новая тарификация проф.мероприятий
+WHEN Event.execDate >= '2026-02-01' AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') THEN
+    # первые этапы не обнуляем
+    CASE WHEN ep.regionalCode IN ('8008', '8010', '8014', '102', '8012', '8013', '8017', '8018', '8020', '8022') THEN
+          # проф.мероприятия в вых. день
+          CASE WHEN (SELECT MAX(dow) FROM CalendarException WHERE deleted = 0 AND year(Action.endDate) between begYear AND endYear 
+               AND month(Action.endDate) = month and day(Action.endDate) = day) > 5 OR WEEKDAY(Action.endDate) >= 5 THEN round(ct.price * 1.03, 2) ELSE ct.price END
+        # на втором этапе
+        WHEN ep.regionalCode IN ('8009', '8015') THEN
+            # обнуляем простые услуги
+            CASE WHEN rbService.infis LIKE 'A%%' THEN 0
+                # проф.мероприятия в вых. день
+                WHEN (SELECT MAX(dow) FROM CalendarException WHERE deleted = 0 AND year(Action.endDate) between begYear AND endYear 
+                    AND month(Action.endDate) = month and day(Action.endDate) = day) > 5 OR WEEKDAY(Action.endDate) >= 5 THEN round(ct.price * 1.03, 2) 
+                ELSE ct.price END
+        ELSE ct.price END
+WHEN mt.regionalCode IN ('232', '252', '262') AND Event.execDate >= '2019-03-01' AND Event.execDate < '2026-02-01' AND SUBSTR(rbService.infis, 1, 7) NOT IN ('B04.031', 'B04.026') THEN 0
+WHEN mt.regionalCode = '261' AND ep.regionalCode = '8011' AND Event.execDate >= '2019-06-01' AND Event.execDate < '2026-02-01' AND SUBSTR(rbService.infis, 1, 7) NOT IN ('B04.047', 'B04.026') AND
   NOT EXISTS (SELECT
       a.id
     FROM Action a
@@ -393,7 +409,7 @@ WHEN mt.regionalCode = '261' AND ep.regionalCode = '8011' AND Event.execDate >= 
     WHERE a.event_id = Event.id
     AND a.deleted = 0
     AND s.infis IN ('B04.026.002', 'B04.047.002')) THEN 0
-WHEN mt.regionalCode = '211' AND
+WHEN mt.regionalCode = '211' AND Event.execDate < '2026-02-01' AND
   ep.regionalCode IN ('8008', '8014') AND
   SUBSTR(rbService.infis, 1, 7) NOT IN ('B04.026', 'B04.047') AND
   NOT EXISTS (SELECT
@@ -406,14 +422,14 @@ WHEN mt.regionalCode = '211' AND
     WHERE a.event_id = Event.id
     AND a.deleted = 0
     AND s.infis IN ('B04.026.001.062', 'B04.047.001.061')) THEN 0 
-WHEN Event.execDate >= '2019-05-01' and mt.regionalCode = '211' AND ep.regionalCode IN ('8009', '8015') 
+WHEN Event.execDate >= '2019-05-01' AND Event.execDate < '2026-02-01' and mt.regionalCode = '211' AND ep.regionalCode IN ('8009', '8015') 
     AND SUBSTR(rbService.infis, 1, 1) = 'A' THEN 0
 WHEN mt.regionalCode IN ('271', '272') AND
   Action.endDate >= '2017-01-01' AND
   substr(Insurer.area, 1, 2) = '%(defaultRegion)s' THEN 0
-WHEN mt.regionalCode = '233' AND rbService.infis IN ('B04.047.002', 'B04.047.004', 'B04.026.002')  THEN 0
-WHEN mt.regionalCode = '244' AND ep.regionalCode IN ('8020') AND SUBSTR(rbService.infis, 1, 1) = 'A' THEN 0
-WHEN Event.execDate >= '2020-01-01' and mt.regionalCode in ('211', '233', '244', '261', '232', '252', '262') 
+WHEN mt.regionalCode = '233' AND Event.execDate < '2026-02-01' AND rbService.infis IN ('B04.047.002', 'B04.047.004', 'B04.026.002')  THEN 0
+WHEN mt.regionalCode = '244' AND Event.execDate < '2026-02-01' AND ep.regionalCode IN ('8020') AND SUBSTR(rbService.infis, 1, 1) = 'A' THEN 0
+WHEN Event.execDate >= '2020-01-01' and Event.execDate < '2026-02-01' AND mt.regionalCode in ('211', '233', '244', '261', '232', '252', '262') 
          AND rbService.infis in ('B04.026.001.001', 'B04.026.001.002', 'B04.026.001.005', 'B04.026.001.006',
                                  'B04.026.001.009', 'B04.026.001.010', 'B04.026.001.027', 'B04.026.001.028',
                                  'B04.026.001.054', 'B04.026.001.063', 'B04.026.001.064', 'B04.026.001.066',

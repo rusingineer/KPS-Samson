@@ -473,6 +473,8 @@ from Registry.AttachOnlineService                       import CAttachOnlineServ
 from Reports.ActDeattachCheckReport                     import CActDeattachCheckReport
 from Reports.ActionPropertiesTestsReport                import CActionPropertiesTestsReport
 from Reports.ActReconciliationMutualSettlements         import CActReconciliationMutualSettlements
+from Reports.ActReportPatientSchoolJournal              import CactReportPatientSchoolJournal
+from Reports.ActReportMonthlySchoolJournal              import CactReportMonthlySchoolJournal
 from Reports.Analitic_referralMSE                       import CAnalitic_referralMSE
 from Reports.AnaliticReportsAdditionalSurgery           import CAnaliticReportsAdditionalSurgery
 from Reports.AnaliticReportsChildrenLeaved              import CAnaliticReportsChildrenLeaved
@@ -4508,7 +4510,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actUnlockMSE_triggered(self):
         if QtGui.qApp.userHasRight(urUnlockData) or QtGui.qApp.userHasRight(urAdmin):
-            dialog = CUnlockAppLockDialog(self, 'Action')
+            dialog = CUnlockAppLockDialog(self, 'Action', u'inspection_mse')
             dialog.setWindowTitle(u'Разблокировать направление на МСЭ')
             dialog.lblInfo.setText(u'Введите код эпизода')
 
@@ -4518,6 +4520,13 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             dialog = CUnlockAppLockDialog(self, 'ProphylaxisPlanning')
             dialog.setWindowTitle(u'Разблокировать ККДН')
             dialog.lblInfo.setText(u'Введите Id записи')
+
+    @pyqtSignature('')
+    def on_actUnlockKBIR_triggered(self):
+        if QtGui.qApp.userHasRight(urUnlockData) or QtGui.qApp.userHasRight(urAdmin):
+            dialog = CUnlockAppLockDialog(self, 'Action', u'111/y-20')
+            dialog.setWindowTitle(u'Разблокировать карту беременной и родильницы')
+            dialog.lblInfo.setText(u'Введите код эпизода')
 
     @pyqtSignature('')
     def on_actLogin_triggered(self):
@@ -7290,6 +7299,14 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actFormaF0144400_2021_triggered(self):
         CStationaryF144400_2021(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportPatientSchoolJournal_triggered(self):
+        CactReportPatientSchoolJournal(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportMonthlySchoolJournal_triggered(self):
+        CactReportMonthlySchoolJournal(self).exec_()
 
 
     @pyqtSignature('')

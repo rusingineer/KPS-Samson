@@ -82,7 +82,7 @@
     <widget class="CClientRelationComboBoxPatron" name="cmbClientRelationId"/>
    </item>
    <item row="1" column="1" colspan="2">
-    <widget class="CRBComboBox" name="cmbEventType"/>
+    <widget class="CRBSearchComboBox" name="cmbEventType"/>
    </item>
    <item row="0" column="1" colspan="2">
     <widget class="CPolyclinicComboBox" name="cmbOrg"/>
@@ -698,6 +698,11 @@
    <class>CMESComboBoxEx</class>
    <extends>QComboBox</extends>
    <header>library/MES/MESComboBoxEx.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CRBSearchComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/CRBSearchComboBox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

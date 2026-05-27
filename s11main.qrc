@@ -3,11 +3,11 @@
     <file>icons/Icon2.png</file>
     <file>icons/python-powered-w-70x28.png</file>
     <file>icons/gplv3-88x31.png</file>
-    <file>icons/redBullet.svg</file>
-    <file>icons/greenBullet.svg</file>
-    <file>icons/redAndGreenBullet.svg</file>
-    <file>icons/blueBullet.svg</file>
-    <file>icons/lightblueBullet.svg</file>
+    <file>icons/redBullet.png</file>
+    <file>icons/greenBullet.png</file>
+    <file>icons/redAndGreenBullet.png</file>
+    <file>icons/blueBullet.png</file>
+    <file>icons/lightblueBullet.png</file>
     <file>s11main_ru.qm</file>
     <file>icons/znak_16x16.png</file>
     <file>icons/znak_32x32.png</file>
@@ -20,5 +20,6 @@
     <file>icons/bell_3.png</file>
     <file>icons/visiblePassword.png</file>
     <file>icons/invisiblePassword.png</file>
+    <file>icons/orangeBullet.png</file>
   </qresource>
 </RCC>

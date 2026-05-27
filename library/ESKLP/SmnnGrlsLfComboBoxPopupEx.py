@@ -221,7 +221,7 @@ class CSmnnGrlsLfTableModel(CTableModel):
     def setTable(self, tableName):
         db = QtGui.qApp.db
         table = db.table('rbLfForm')
-        loadFields = [u'''DISTINCT rbLfForm.name, rbLfForm.dosage''']
+        loadFields = [u'''DISTINCT rbLfForm.id, rbLfForm.name, rbLfForm.dosage''']
         self._table = table
         self._recordsCache = CTableRecordCacheEx(db, self._table, loadFields, idFieldName = 'id')
 

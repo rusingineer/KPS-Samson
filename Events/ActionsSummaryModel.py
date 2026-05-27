@@ -620,6 +620,12 @@ class CAccActionsSummary(CActionsSummaryModel):
         self.updatePricesAndSums(top, len(self.items()) - 1 if bottom == 0 else bottom)
 
 
+    def regenerateOnLoad(self):
+        CActionsSummaryModel.regenerate(self)
+        self.addExtColsFields()
+        self.setCountFlag()
+
+
     def setData(self, index, value, role=Qt.EditRole, presetAction=None):
         column = index.column()
         row = index.row()
@@ -680,7 +686,7 @@ class CAccActionsSummary(CActionsSummaryModel):
                 val = forceInt(items[row].value('account'))
                 items[row].setValue('account',  QVariant(forceInt(not val)))
                 self.emitCellChanged(row, column)
-                self.updatePricesAndSums(0, len(self.items())-1)
+                self.updatePricesAndSums(row, row)
             return True
         return False
 
@@ -1006,22 +1012,28 @@ class CAccActionsSummary(CActionsSummaryModel):
 
 
     def updatePriceAndSum(self, row, item):
+        result = False
         actionTypeId = forceRef(item.value('actionType_id'))
-        amount = forceInt(item.value('amount'))
+        if not actionTypeId:
+            return result
+
+        amount = forceDouble(item.value('amount'))
         price = 0.0
-        if actionTypeId:
-            personId = forceRef(item.value('person_id'))
-            tariffCategoryId = self.eventEditor.getPersonTariffCategoryId(personId)
-            contractId = forceRef(item.value('contract_id'))
-            if contractId and contractId != self.eventEditor.contractId:
-                financeId = self.eventEditor.mapContractIdToFinance.get(contractId, None)
-                if not financeId:
-                    financeId = forceRef(QtGui.qApp.db.translate('Contract', 'id', contractId, 'finance_id'))
-                    self.eventEditor.mapContractIdToFinance[contractId] = financeId
-            else:
-                contractId = self.eventEditor.contractId
-                financeId = self.eventEditor.eventFinanceId
-            serviceIdList = self.eventEditor.getActionTypeServiceIdList(actionTypeId, financeId)
+        personId = forceRef(item.value('person_id'))
+        tariffCategoryId = self.eventEditor.getPersonTariffCategoryId(personId)
+        contractId = forceRef(item.value('contract_id'))
+        if contractId and contractId != self.eventEditor.contractId:
+            financeId = self.eventEditor.mapContractIdToFinance.get(contractId, None)
+            if not financeId:
+                financeId = forceRef(QtGui.qApp.db.translate('Contract', 'id', contractId, 'finance_id'))
+                self.eventEditor.mapContractIdToFinance[contractId] = financeId
+        else:
+            contractId = self.eventEditor.contractId
+            financeId = self.eventEditor.eventFinanceId
+
+        serviceIdList = self.eventEditor.getActionTypeServiceIdList(actionTypeId, financeId)
+        # Цену определять только если есть услуги
+        if serviceIdList:
             if forceInt(item.value('payStatus')) == 0:
                 date = forceDate(item.value('endDate'))
                 if not date and self.eventEditor.eventDate:
@@ -1034,30 +1046,36 @@ class CAccActionsSummary(CActionsSummaryModel):
                 if not date:
                     date = forceDate(item.value('directionDate'))
                 if date:
-                    # date = date.toPyDate()
                     tariffMap = self.getTariffDateMap(contractId, self.eventEditor.eventSetDateTime, financeId)
                     price = CContractTariffCache.getPriceToDate(tariffMap, serviceIdList, tariffCategoryId, date)
-                else:
-                    price = 0.0
             else:
-                price = self.getPriceAccountItem(contractId, forceRef(item.value('event_id')), forceRef(item.value('id')))
-        else:
-            price = 0.0
+                price = self.getPriceAccountItem(contractId, forceRef(item.value('event_id')),
+                                                 forceRef(item.value('id')))
+
         if forceDouble(self.items()[row].value('price')) != price:
             self.items()[row].setValue('price', toVariant(price))
             self.emitCellChanged(row, self.items()[row].indexOf('price'))
-        sum = price * forceDouble(item.value('amount')) if forceDouble(item.value('amount')) else price
+            result = True
+
+        sum = price * amount if amount else price
         if sum != forceDouble(self.items()[row].value('sum')):
             self.items()[row].setValue('sum', toVariant(sum))
             self.emitCellChanged(row, self.items()[row].indexOf('sum'))
-        if forceBool(item.value('account')):
-            self.items()[row].setValue('accSum', toVariant(sum))
-            self.items()[row].indexOf('accSum')
-            self.emitCellChanged(row, self.items()[row].indexOf('accSum'))
-        else:
+            result = True
+        if self.items()[row].value('accSum').isNull():
             self.items()[row].setValue('accSum', toVariant(0))
-            self.emitCellChanged(row, self.items()[row].indexOf('accSum'))
-        return True
+
+        if forceBool(item.value('account')):
+            if forceDouble(self.items()[row].value('accSum')) != sum:
+                self.items()[row].setValue('accSum', toVariant(sum))
+                self.emitCellChanged(row, self.items()[row].indexOf('accSum'))
+                result = True
+        else:
+            if forceDouble(self.items()[row].value('accSum')) != 0:
+                self.items()[row].setValue('accSum', toVariant(0))
+                self.emitCellChanged(row, self.items()[row].indexOf('accSum'))
+                result = True
+        return result
 
 
     def emitSumChanged(self):
@@ -1099,6 +1117,7 @@ class CFxxxActionsSummaryModel(CActionsSummaryModel):
                         acceptable = self.eventEditor.checkDiagnosis(unicode(mkb))
                         if not acceptable:
                             result = self.setData(self.index(index.row(), self.getColIndex('MKB')), toVariant(None), Qt.EditRole)
+        self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
         return result
 
 

@@ -229,7 +229,7 @@ class CSmnnTableModel(CTableModel):
     def setTable(self, tableName):
         db = QtGui.qApp.db
         tableEsklp_Smnn = db.table('esklp.Smnn')
-        loadFields = [u'''DISTINCT esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form, esklp.Smnn.UUID''']
+        loadFields = [u'''DISTINCT esklp.Smnn.id, esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form, esklp.Smnn.UUID''']
         self._table = tableEsklp_Smnn
         self._recordsCache = CTableRecordCacheEx(db, self._table, loadFields, idFieldName = 'UUID')
 

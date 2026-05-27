@@ -1137,12 +1137,19 @@ class CGroupActionsProxyModel(QtGui.QProxyModel, ActionTypeServiceMixin):
 
 
     def addRelatedActions(self, actionType_id, index=None):
+        from collections import OrderedDict
         actionTypes = CActionTypeCache.getById(actionType_id).getRelatedActionTypes()
+        order = CActionTypeCache.getById(actionType_id).getRelatedActionTypesOrder()
+        actionTypes = OrderedDict(sorted(actionTypes.items(), key=lambda x: order.get(x[0], 0)))
+        group = None
         if not index:
             index = self.index(self.rowCount()-2, 0)
         for actionType, isRequired in actionTypes.items():
             if isRequired:
+                group = self._mapProxyRow2Group[index.row()]
                 self.setData(self.index(index.row()+1, 0), actionType, self._mapProxyRow2Group[index.row()])
+        if group and not group.expanded:
+            self.touchGrouping(index.row())
    
     
     def loadItems(self, eventId):

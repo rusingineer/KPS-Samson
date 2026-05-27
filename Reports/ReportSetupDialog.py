@@ -327,7 +327,7 @@ class CReportSetupDialog(QtGui.QDialog, Ui_ReportSetupDialog):
             self.edtBegDate.setDate(params.get('begDate', QDate.currentDate()))
             self.edtEndDate.setDate(params.get('endDate', QDate.currentDate()))
         if self.timePeriodVisible:
-            self.edtBegTime.setTime(params.get('endTime', QTime.currentTime()))
+            self.edtBegTime.setTime(params.get('begTime', QTime.currentTime()))
             self.edtEndTime.setTime(params.get('endTime', QTime.currentTime()))
         if self.eventTypeVisible:
             self.cmbEventType.setValue(params.get('eventTypeId', None))

@@ -2223,16 +2223,18 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                             and u'Идентификатор направления' in actionType._propertiesByName
                             and u'Причина аннулирования' in actionType._propertiesByName
                             and u'Идентификатор талона' in actionType._propertiesByName)
-            self.btnAPQueueManagement.setEnabled(
-                enableQM and (action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
-            self.actAPQMSetAppointment.setEnabled(enableQM and (
-                    (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == '') or action[
-                u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
+            self.btnAPQueueManagement.setEnabled(enableQM and (
+                    action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
+            self.actAPQMSetAppointment.setEnabled(
+                enableQM and (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == ''))
             self.actAPQMCancelReferral.setEnabled(enableQM and (
                     action[u'Идентификатор направления'] is not None and action[
                 u'Идентификатор направления'] != ''))
             self.actAPQMCreateClaimForRefusal.setEnabled(
-                enableQM and (action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''))
+                enableQM and (action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''
+                              and action[
+                                  u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ'
+                              ))
             self.actImportAvailableProfiles.setEnabled(True)
             self.actAPQMCancelReferral.setVisible(True)
             self.actAPQMCreateClaimForRefusal.setVisible(True)

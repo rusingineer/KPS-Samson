@@ -274,6 +274,8 @@ class CPrikImportDialog(QtGui.QDialog, Ui_PrikImportDialog):
                                     record.setValue('endDate',       toVariant(dstop))
                                 record.remove(record.indexOf('compulsoryServiceStop'))
                                 record.remove(record.indexOf('voluntaryServiceStop'))
+                                record.remove(record.indexOf('area'))
+                                record.remove(record.indexOf('enp'))
                                 QtGui.qApp.db.updateRecord(table, record)
                             else:
                                 record = table.newRecord()

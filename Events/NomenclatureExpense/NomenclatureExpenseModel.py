@@ -79,7 +79,7 @@ _mapColumnIndex2FieldName = {
 
 class CExpenseNomenclatureComboBox(CNomenclatureComboBox):
     def __init__(self, parent):
-        CNomenclatureComboBox.__init__(self, parent)
+        CNomenclatureComboBox.__init__(self, parent, needInternationalNonproprietaryName=True)
 
 
     def setValue(self, value):

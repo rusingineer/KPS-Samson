@@ -1,9 +1,5 @@
 #!/bin/bash
-#----------------------
-#f=`pwd`
-f=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-NOWDATE=`date '+%Y-%m-%d_%T'`
+# Утилита преобразования типов данных значений свойств Действий
 
 export PYTHONPATH=/opt/client
-
 python2 /opt/client/Correct/Correct.py

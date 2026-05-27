@@ -123,7 +123,7 @@ tar xzf /opt/client_lin.tar.gz -C /opt || ERROR
 
 echo "[$(date +%Y%m%d-%T)] Выдаем все права каталогу с клиентом"
 chmod -R 777 /opt/client
-user=`ls /home`
+user=`ls /home | grep -v '^lost+found$'`
 chown $user:$user -R /opt/client
 
 echo "[$(date +%Y%m%d-%T)] Создаем ярлык на рабочем столе"

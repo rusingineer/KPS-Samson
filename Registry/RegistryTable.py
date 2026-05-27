@@ -1845,8 +1845,8 @@ class CActionsTableModel(CTableModel):
                 amount = 0.0
                 uet = 0.0
                 clients = set() # type: set[int]
-                record = db.getRecordEx(table, cols, tableA["id"].inlist(idListChunk))
-                if record:
+                records = db.getRecordList(table, cols, tableA["id"].inlist(idListChunk))
+                for record in records:
                     amount += forceDouble(record.value("amount"))
                     uet += forceDouble(record.value("uet"))
                     clients.add(forceInt(record.value("client_id")))
@@ -1860,8 +1860,8 @@ class CActionsTableModel(CTableModel):
                 None,
                 _getActionsTotal,
                 list(getListChunks(self.idList(), 300)),
-            )
-            if result is not None:
+            ) or []
+            if result:
                 # совмещаем результаты
                 for x in result:
                     amount += x["amount"]

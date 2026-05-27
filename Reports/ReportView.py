@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -34,14 +34,14 @@ from PyQt4.QtCore import (
     QSizeF,
     QString,
     QTemporaryFile,
-    QByteArray,
     QUrl,
     pyqtSlot, QObject, SIGNAL, QFileSystemWatcher)
 from PyQt4.QtGui import QPrintPreviewDialog
-import array
-from library.Utils import forceBool, forceString, forceInt
+
+from library.Attach.Utils import prepareSignedReport
 from library.PDF.fixPdf import fixPdf
 from library.SignaturePad import CSignaturePad
+from library.Utils import forceBool, forceString, forceInt
 
 from Users.Rights import urAdmin, urEditReportForm
 from Reports.Ui_ReportView import Ui_ReportViewDialog
@@ -997,14 +997,18 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         mainFileName = self.fileName
         ok, trail = self.signAndAttach()
         if ok:
-            if trail:
-                QtGui.QMessageBox.information(
-                    self,
-                    u'Подпиcать и прикрепить',
-                    u'Документ «%s» успешно сформирован, подписан и прикреплён' % mainFileName,
-                    QtGui.QMessageBox.Ok,
-                    QtGui.QMessageBox.Ok,
-                )
+            if trail[0]:
+                resp_signature, org_signature = trail[1], trail[2]
+                if QtGui.QMessageBox.question(
+                        self,
+                        u'Подпиcать и прикрепить',
+                        u'Документ «%s» успешно сформирован, подписан и прикреплён.\nПоказать документ с оттисками ЭЦП?' % mainFileName,
+                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                        QtGui.QMessageBox.Yes) == QtGui.QMessageBox.Yes:
+                    html = self.templateContent
+                    html = prepareSignedReport(html, [resp_signature], org_signature)
+                    self.setText(html)
+                    self.btnSignAndAttach.setEnabled(False)
             else:
                 QtGui.QMessageBox.information(
                     self,

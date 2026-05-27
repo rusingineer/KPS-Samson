@@ -27,7 +27,7 @@ from Events.Action                import CAction, CActionTypeCache
 from Events.ActionStatus          import CActionStatus
 from Events.AmbCardDialog         import CAmbCardDialog
 from Events.EventInfo             import CEventInfo
-from Events.ActionInfo            import CActionInfo
+from Events.ActionInfo            import CActionInfo, CActionInfoListEx
 from Events.EventJobTicketsEditor import CEventJobTicketsListEditor
 from Events.Utils                 import getActionTypeIdListByFlatCode
 from Orgs.OrgStructComboBoxes     import COrgStructureModel
@@ -1643,7 +1643,17 @@ class CJobsOperatingDialog(CDialogBase, CRecordLockMixin, Ui_JobsOperatingDialog
         context = CInfoContext()
         actionId = self.modelJobTicketActions.idList()[row]
         actionInfo = context.getInstance(CActionInfo, actionId)
-        data = {'action': actionInfo }
+        selectedItems = self.tblJobTickets.selectedItemIdList()
+        actionList = []
+        for idx in selectedItems:
+            jtRecord = self.modelJobTickets.getRecordById(idx)
+            if jtRecord:
+                actionIdList = CJobTicket(jtRecord).getActionIdList(self.filter.get('hideDoneActions', False))
+                actionList.extend(actionIdList)
+        actions = context.getInstance(CActionInfoListEx, actionList, isExecutionPlan=True)
+        data = {'action': actionInfo,
+                'actions': actions,
+                }
         templateRecord = QtGui.qApp.db.getRecordEx(u'rbPrintTemplate', u'id', u"deleted = 0 and  context like 'barcodeProbe' "  )
         templateId = forceInt(templateRecord.value('id')) if templateRecord else None
         if templateId:

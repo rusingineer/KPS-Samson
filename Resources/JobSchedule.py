@@ -56,8 +56,18 @@ class COrgStructureJobTemplate(CSqlRecordWrapper):
 class CJobTicket(CSqlRecordWrapper):
 
     def __init__(self, record = None):
+        if record:
+            is_used = forceBool(record.value('isUsed'))
+            record.remove(record.indexOf('isUsed'))
+        else:
+            is_used = False
         CSqlRecordWrapper.__init__(self, record)
-        self._isUsed = None
+        if self.id is None:
+            self._isUsed = False
+        elif self.resConnectionId:
+            self._isUsed = True
+        else:
+            self._isUsed = is_used
 
 
     def getEmptyRecord(self):
@@ -96,14 +106,14 @@ class CJobTicket(CSqlRecordWrapper):
 
 
     def getIsUsed(self):
-        if self._isUsed is None:
-            if self.id is None:
-                self._isUsed = False
-            elif self.resConnectionId:
-                self._isUsed = True
-            else:
-#                self._isUsed = forceBool(QtGui.qApp.db.translate('vJobTicket', 'id', self.id, 'isUsed'))
-                self._isUsed = forceBool(QtGui.qApp.db.translate('ActionProperty_Job_Ticket', 'value', self.id, 'id'))
+#         if self._isUsed is None:
+#             if self.id is None:
+#                 self._isUsed = False
+#             elif self.resConnectionId:
+#                 self._isUsed = True
+#             else:
+# #                self._isUsed = forceBool(QtGui.qApp.db.translate('vJobTicket', 'id', self.id, 'isUsed'))
+#                 self._isUsed = forceBool(QtGui.qApp.db.translate('ActionProperty_Job_Ticket', 'value', self.id, 'id'))
         return self._isUsed
 
 
@@ -147,9 +157,9 @@ class CJob(CSqlRecordWrapper):
         if id:
             db = QtGui.qApp.db
             table = db.table('Job_Ticket')
-            records = db.getRecordList(table, '*', [table['deleted'].eq(0),
-                                                    table['master_id'].eq(id),
-                                                   ],
+            records = db.getRecordList(table, '*, EXISTS(SELECT 1 FROM ActionProperty_Job_Ticket WHERE value = Job_Ticket.id) AS isUsed',
+                                       [table['deleted'].eq(0),
+                                        table['master_id'].eq(id)],
                                        'isExceedQuantity, idx, datetime'
                                       )
             for record in records:
@@ -159,7 +169,6 @@ class CJob(CSqlRecordWrapper):
 
     def updateStatistic(self):
         cntOutOfOrder = cntReserved = cntBusy = cntExecuted = 0
-
         for item in self.items:
             if item.isExceedQuantity:
                 cntOutOfOrder += 1

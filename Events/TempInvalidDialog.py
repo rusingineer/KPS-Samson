@@ -26,8 +26,7 @@ class CTempInvalidListDialog(CDialogBase, Ui_TempInvalidList):
 
 
     def setEventEditor(self, eventEditor):
-        shortName = formatShortName(eventEditor.clientInfo.lastName, eventEditor.clientInfo.firstName, eventEditor.clientInfo.patrName)
-        self.setWindowTitle(u'Трудоспособность %s' % shortName)
+        self.setWindowTitle(u'Трудоспособность %s' % formatShortName(eventEditor.clientLastName, eventEditor.clientFirstName, eventEditor.clientPatrName))
         isProtected = QtGui.qApp.userHasRight(urEditClosedEvent)
 
         self.grpTempInvalid.setEventEditor(eventEditor)

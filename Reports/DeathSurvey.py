@@ -22,7 +22,7 @@ from Reports.ReportBase import CReportBase, createTable
 from DeathList          import addCondForDeathCurcumstance, CDeathReportSetupDialog
 
 
-def selectData(begDate, endDate, place, cause, foundBy, foundation):
+def selectData(begDate, endDate, place, cause, foundBy, foundation, includeSelected, relegateOrgId, excludeSelected):
     stmt="""
 SELECT
   COUNT(*) AS cnt,
@@ -32,6 +32,7 @@ SELECT
   Event.result_id AS result_id
 FROM
   Event
+  LEFT JOIN Event_Death ed ON Event.id = ed.master_id
   LEFT JOIN EventType ON EventType.id = Event.eventType_id
   LEFT JOIN Client ON Client.id = Event.client_id
   LEFT JOIN ClientAddress ON ClientAddress.client_id = Client.id
@@ -53,11 +54,25 @@ GROUP BY autopsy, oncology, cardiology, result_id
     """
     db = QtGui.qApp.db
     tableEvent  = db.table('Event')
+    tableDeath     = db.table('Event_Death').alias('ed')
     cond = []
     cond.append(tableEvent['deleted'].eq(0))
     addDateInRange(cond, tableEvent['setDate'], begDate, endDate)
-    if place or cause or foundBy or foundation:
-        addCondForDeathCurcumstance(cond, tableEvent, place, cause, foundBy, foundation)
+    if place:
+        cond.append(tableDeath['deathPlaceType_id'].eq(place))
+    if cause:
+        cond.append(tableDeath['deathCauseType_id'].eq(cause))
+    if foundBy:
+        cond.append(tableDeath['employeeTypeDeterminedDeathCause_id'].eq(foundBy))
+    if foundation:
+        cond.append(tableDeath['groundsForDeathCause_id'].eq(foundation))
+    if includeSelected:
+        cond.append(tableEvent["relegateOrg_id"].isNotNull())
+    if relegateOrgId > 0:
+        if excludeSelected:
+            cond.append(tableEvent['relegateOrg_id'].ne(relegateOrgId))
+        else:
+            cond.append(tableEvent['relegateOrg_id'].eq(relegateOrgId))
 
     return db.query(stmt % (db.joinAnd(cond)))
 
@@ -83,8 +98,11 @@ class CDeathSurvey(CReport):
         cause = params.get('deathCause', '')
         foundBy = params.get('deathFoundBy', '')
         foundation = params.get('deathFoundation', '')
+        relegateOrgId = params.get('eventRelegateOrgId',0)
+        includeSelectedOrg = params.get('includeSelectedOrg',False)
+        excludeSelectedOrg = params.get('excludeSelectedOrg',False)
 
-        query = selectData(begDate, endDate, place, cause, foundBy, foundation)
+        query = selectData(begDate, endDate, place, cause, foundBy, foundation, includeSelectedOrg, relegateOrgId, excludeSelectedOrg)
 
         cntTotal = 0
         cntAutopsy = 0

@@ -393,6 +393,13 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.lblNVNBPUDCA.setVisible(value)
         self.cmbNVNBPUDCA.setVisible(value)
         self.edtSkinStatus.setVisible(value)
+        self.edtODPOBSBPR_1.setVisible(value)
+        self.edtODPOBSBPR_2.setVisible(value)
+        self.edtODPOBSBPR_3.setVisible(value)
+        self.edtODPOBSBPR_4.setVisible(value)
+        self.edtODPOBSBPR_5.setVisible(value)
+        self.edtCloseReason.setVisible(value)
+        self.lblCloseReason.setVisible(value)
 
 
     def setInitDate(self):
@@ -447,7 +454,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
     def _getEventRecord(self):
         if not self.recordEvent and self.eventId:
-            self.recordEvent = QtGui.qApp.db.getRecordEx('Event', 'id, execDate, isClosed', 'id=%d'%self.eventId)
+            self.recordEvent = QtGui.qApp.db.getRecordEx('Event', '*', 'id=%d'%self.eventId)
         return self.recordEvent
 
 
@@ -725,8 +732,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
 
     @pyqtSlot(int)
-    def on_tabWidget_currentChanged(self, index):
-        widget = self.tabWidget.widget(index)
+    def on_tabClient_currentChanged(self, index):
+        widget = self.tabClient.widget(index)
         if widget is not None:
             focusProxy = widget.focusProxy()
             if focusProxy:
@@ -963,6 +970,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 self.edtFetusCount.setValue(self.getPropertyValue(items, u'ОД:СНБ:Б:2', int))
                 self.edtLastMenstruationDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ПМ', QDate))
                 self.edtFirstUSIDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ', QDate))
+                self.edtFirstUSITermWeeks.setValue(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ:Н', int))
+                self.edtFirstUSITermDays.setValue(self.getPropertyValue(items, u'ОД:СНБ:ДУЗИ:Д', int))
                 self.edtFirstStirringFetusDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ПШП', QDate))
                 # tabFirstExaminationPregnant
                 if isCreate:
@@ -1029,6 +1038,19 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34', [u'прижата',u'подвижна'])
                 self.chkODPOBGCH1_1.setChecked(isODPOBGCH == 1)
                 self.chkODPOBGCH2_1.setChecked(isODPOBGCH == 2)
+                isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:1', [u'Над входом в малый таз', u'Не определяется'])
+                self.chkODPOBMT1_1.setChecked(isODPOBMT == 1)
+                self.chkODPOBMT1_2.setChecked(isODPOBMT == 2)
+                isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:1', [u'Ясное',u'Ритмичное',u'Другое'])
+                for isODPOBSBPR in isODPOBSBPRList:
+                    if isODPOBSBPR == 1:
+                        self.chkODPOBSBPR1_1.setChecked(True)
+                    elif isODPOBSBPR == 2:
+                        self.chkODPOBSBPR2_1.setChecked(True)
+                    elif isODPOBSBPR == 3:
+                        self.chkODPOBSBPR3_1.setChecked(True)
+                        self.edtODPOBSBPR_1.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:1', unicode))
+                self.edtEstimatedWeight_1.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:1', int))
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:1', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_1.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_1.setChecked(isODPOBRPPGRF == 2)
@@ -1041,6 +1063,19 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:2', [u'прижата',u'подвижна'])
                 self.chkODPOBGCH1_2.setChecked(isODPOBGCH == 1)
                 self.chkODPOBGCH2_2.setChecked(isODPOBGCH == 2)
+                isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:2', [u'Над входом в малый таз', u'Не определяется'])
+                self.chkODPOBMT1_2.setChecked(isODPOBMT == 1)
+                self.chkODPOBMT2_2.setChecked(isODPOBMT == 2)
+                isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:2', [u'Ясное',u'Ритмичное',u'Другое'])
+                for isODPOBSBPR in isODPOBSBPRList:
+                    if isODPOBSBPR == 1:
+                        self.chkODPOBSBPR1_2.setChecked(True)
+                    elif isODPOBSBPR == 2:
+                        self.chkODPOBSBPR2_2.setChecked(True)
+                    elif isODPOBSBPR == 3:
+                        self.chkODPOBSBPR3_2.setChecked(True)
+                        self.edtODPOBSBPR_2.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:2', unicode))
+                self.edtEstimatedWeight_2.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:2', int))
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:2', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_2.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_2.setChecked(isODPOBRPPGRF == 2)
@@ -1053,6 +1088,19 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:3', [u'прижата',u'подвижна'])
                 self.chkODPOBGCH1_3.setChecked(isODPOBGCH == 1)
                 self.chkODPOBGCH2_3.setChecked(isODPOBGCH == 2)
+                isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:3', [u'Над входом в малый таз', u'Не определяется'])
+                self.chkODPOBMT1_3.setChecked(isODPOBMT == 1)
+                self.chkODPOBMT2_3.setChecked(isODPOBMT == 2)
+                isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:3', [u'Ясное',u'Ритмичное',u'Другое'])
+                for isODPOBSBPR in isODPOBSBPRList:
+                    if isODPOBSBPR == 1:
+                        self.chkODPOBSBPR1_3.setChecked(True)
+                    elif isODPOBSBPR == 2:
+                        self.chkODPOBSBPR2_3.setChecked(True)
+                    elif isODPOBSBPR == 3:
+                        self.chkODPOBSBPR3_3.setChecked(True)
+                        self.edtODPOBSBPR_3.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:3', unicode))
+                self.edtEstimatedWeight_3.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:3', int))
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:3', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_3.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_3.setChecked(isODPOBRPPGRF == 2)
@@ -1065,6 +1113,19 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:4', [u'прижата',u'подвижна'])
                 self.chkODPOBGCH1_4.setChecked(isODPOBGCH == 1)
                 self.chkODPOBGCH2_4.setChecked(isODPOBGCH == 2)
+                isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:4', [u'Над входом в малый таз', u'Не определяется'])
+                self.chkODPOBMT1_4.setChecked(isODPOBMT == 1)
+                self.chkODPOBMT2_4.setChecked(isODPOBMT == 2)
+                isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:4', [u'Ясное',u'Ритмичное',u'Другое'])
+                for isODPOBSBPR in isODPOBSBPRList:
+                    if isODPOBSBPR == 1:
+                        self.chkODPOBSBPR1_4.setChecked(True)
+                    elif isODPOBSBPR == 2:
+                        self.chkODPOBSBPR2_4.setChecked(True)
+                    elif isODPOBSBPR == 3:
+                        self.chkODPOBSBPR3_4.setChecked(True)
+                        self.edtODPOBSBPR_4.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:4', unicode))
+                self.edtEstimatedWeight_4.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:4', int))
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:4', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_4.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_4.setChecked(isODPOBRPPGRF == 2)
@@ -1077,6 +1138,19 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBGCH = self.getChkPropertyValue(items, u'ОД:ПОБ:ПЧ34:5', [u'прижата',u'подвижна'])
                 self.chkODPOBGCH1_5.setChecked(isODPOBGCH == 1)
                 self.chkODPOBGCH2_5.setChecked(isODPOBGCH == 2)
+                isODPOBMT = self.getChkPropertyValue(items, u'ОД:ПОБ:МТ:5', [u'Над входом в малый таз', u'Не определяется'])
+                self.chkODPOBMT1_5.setChecked(isODPOBMT == 1)
+                self.chkODPOBMT2_5.setChecked(isODPOBMT == 2)
+                isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:5', [u'Ясное',u'Ритмичное',u'Другое'])
+                for isODPOBSBPR in isODPOBSBPRList:
+                    if isODPOBSBPR == 1:
+                        self.chkODPOBSBPR1_5.setChecked(True)
+                    elif isODPOBSBPR == 2:
+                        self.chkODPOBSBPR2_5.setChecked(True)
+                    elif isODPOBSBPR == 3:
+                        self.chkODPOBSBPR3_5.setChecked(True)
+                        self.edtODPOBSBPR_5.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:5', unicode))
+                self.edtEstimatedWeight_5.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:5', int))
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:5', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_5.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_5.setChecked(isODPOBRPPGRF == 2)
@@ -1351,6 +1425,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 self.chkNVNBDGK2.setChecked(isNVNBDGK == 2)
                 self.edtNVNBDGO.setText(self.getPropertyValue(items, u'НВНБ:ДГ:4', unicode))
                 self.edtNVNBDZ.setDate(self.getPropertyValue(items, u'НВНБ:ДГ:5', QDate))
+                self.edtPreHospitalizationTermWeeks.setValue(self.getPropertyValue(items, u'ОД:ОДП:ДГ:6', int))
                 self.edtNVNBP1.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:1', int))
                 self.edtNVNBP2.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:2', int))
                 self.edtNVNBP3.setValue(self.getPropertyValue(items, u'НВНБ:Пелв:3', int))
@@ -1492,6 +1567,15 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 self.chkSkinStatus1.setChecked(isSkinStatus == 1)
                 self.chkSkinStatus2.setChecked(isSkinStatus == 2)
                 self.edtSkinStatus.setText(self.getPropertyValue(items, u'ОД:СКП:2', unicode))
+                
+                self.edtCloseReason.setText(self.getPropertyValue(items, u'НВНБ:ПЗ', unicode))
+                date = self.edtNVNBDZKDate.date()
+                if date and date.isValid():
+                    self.lblCloseReason.setVisible(True)
+                    self.edtCloseReason.setVisible(True)
+                else:
+                    self.lblCloseReason.setVisible(False)
+                    self.edtCloseReason.setVisible(False)
             else:
                 if isCreate:
                     self.setProperty(QVariant(self.edtFirstAppearanceTermDate.date()), u'ОД:ОДП:ДПЯ')
@@ -1813,6 +1897,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             if eventRecord and self.isDirty():
                 eventRecord.setIsDirty(True)
                 db.updateRecord('Event', eventRecord)
+                self.recordEvent = None
+                eventRecord = self._getEventRecord()
             self.tabNotes.saveAttachedFiles(self.eventId)
         return id
 
@@ -1830,6 +1916,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             self.clientAge = calcAgeTuple(self.clientBirthDate, directionDate)
         self.actShowAttachedToClientFiles.setMasterId(self.clientId)
         self.tabAmbCard.setClientId(self.clientId, self.clientSex, self.clientAge)
+        self.tabAmbCard.resetWidgets()
         self.clientDeathDate = getDeathDate(self.clientId)
 
 
@@ -1960,23 +2047,32 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         result = result and self.checkPlannedEndDate()
         result = result and self.checkTabNotesEventExternalId()
         result = result and self.checkProperties()
+        if not self.personId:
+            result = result and self.checkValueMessage(u'"Внимание! Необходимо указать врача, наблюдающего данную беременность!', False, self.cmbPerson)
+
         return result
     
     
     def checkProperties(self):
-        currentDate = QDate.currentDate()
+        eventRecord = self._getEventRecord()
+        if eventRecord and forceRef(eventRecord.value('id')):
+            checkDate = forceDate(eventRecord.value('createDateTime'))
+            checkDateText = u'даты создания записи'
+        else:
+            checkDate = QDate.currentDate()
+            checkDateText = u'текущей даты'
         lastMenstruationDate = self.edtLastMenstruationDate.date()
         if not lastMenstruationDate.isValid():
             return self.checkInputMessage(u'Дату последней менструации', False, self.edtLastMenstruationDate)
-        elif abs(currentDate.daysTo(lastMenstruationDate)) > 294:
-            return self.checkValueMessage(u'Дата последней менструации не может быть меньше/больше 294 дней от текущей даты', False, self.edtLastMenstruationDate)
+        elif abs(checkDate.daysTo(lastMenstruationDate)) > 294:
+            return self.checkValueMessage(u'Дата последней менструации не может быть меньше/больше 294 дней от {}'.format(checkDateText), False, self.edtLastMenstruationDate)
             
         
         appointDate = self.edtAppointDate.date()
         if not appointDate.isValid():
             return self.checkInputMessage(u'Дату постановки на учёт по беременности', False, self.edtAppointDate)
-        elif abs(currentDate.daysTo(appointDate)) > 294:
-            return self.checkValueMessage(u'Дата постановки на учёт по беременности не может быть меньше/больше 294 дней от текущей даты', False, self.edtLastMenstruationDate)
+        elif abs(checkDate.daysTo(appointDate)) > 294:
+            return self.checkValueMessage(u'Дата постановки на учёт по беременности не может быть меньше/больше 294 дней от {}'.format(checkDateText), False, self.edtLastMenstruationDate)
         
         appointTermWeeks = self.edtAppointTermWeeks.value()
         if appointTermWeeks <= 0:
@@ -1985,8 +2081,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         estimadtedBirthsDate = self.edtEstimatedBirthsDate.date()
         if not estimadtedBirthsDate.isValid():
             return self.checkInputMessage(u'Предполагаемая дата родов', False, self.edtEstimatedBirthsDate)
-        elif abs(currentDate.daysTo(estimadtedBirthsDate)) > 294:
-            return self.checkValueMessage(u'Предполагаемая дата родов не может быть меньше/больше 294 дней от текущей даты', False, self.edtEstimatedBirthsDate)
+        elif abs(checkDate.daysTo(estimadtedBirthsDate)) > 294:
+            return self.checkValueMessage(u'Предполагаемая дата родов не может быть меньше/больше 294 дней от {}'.format(checkDateText), False, self.edtEstimatedBirthsDate)
         return True
             
     
@@ -2228,7 +2324,14 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(bool)
     def on_chkWithHelpVRT_toggled(self, checked):
         isChecked = self.chkWithHelpVRT.isChecked()
-        if isChecked:
+        if not isChecked:
+            self.chkCryopreserved.setChecked(False)
+            self.chkVRTNative.setChecked(False)
+            self.edtVRTNumber.setValue(0)
+            self.edtVRTDate.setDate(QDate())
+            self.edtEmbryosCount.setValue(0)
+            self.edtAgePatientCryopreservedDate.setValue(0)
+        elif isChecked:
             self.chkSpontaneously.setChecked(False)
             self.chkInduced.setChecked(False)
             self.setProperty(QVariant(self.chkWithHelpVRT.text()), u'ОД:СНБ:БН')
@@ -2700,6 +2803,321 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
 
     @pyqtSlot(bool)
+    def on_chkODPOBMT1_1_toggled(self, checked):
+        isChecked = self.chkODPOBMT1_1.isChecked()
+        if isChecked:
+            self.chkODPOBMT2_1.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT1_1.text()), u'ОД:ПОБ:МТ:1')
+        elif not self.chkODPOBMT2_1.isChecked():
+            self.setProperty(QVariant(), u'ОД:ПОБ:МТ:1')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT1_2_toggled(self, checked):
+        isChecked = self.chkODPOBMT1_2.isChecked()
+        if isChecked:
+            self.chkODPOBMT2_2.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT1_2.text()), u'ОД:ПОБ:МТ:2')
+        elif not self.chkODPOBMT2_2.isChecked():
+            self.setProperty(QVariant(), u'ОД:ПОБ:МТ:2')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT1_3_toggled(self, checked):
+        isChecked = self.chkODPOBMT1_3.isChecked()
+        if isChecked:
+            self.chkODPOBMT2_3.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT1_3.text()), u'ОД:ПОБ:МТ:3')
+        elif not self.chkODPOBMT2_3.isChecked():
+            self.setProperty(QVariant(), u'ОД:ПОБ:МТ:3')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT1_4_toggled(self, checked):
+        isChecked = self.chkODPOBMT1_4.isChecked()
+        if isChecked:
+            self.chkODPOBMT2_4.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT1_4.text()), u'ОД:ПОБ:МТ:4')
+        elif not self.chkODPOBMT2_4.isChecked():
+            self.setProperty(QVariant(), u'ОД:ПОБ:МТ:4')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT1_5_toggled(self, checked):
+        isChecked = self.chkODPOBMT1_5.isChecked()
+        if isChecked:
+            self.chkODPOBMT2_5.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT1_5.text()), u'ОД:ПОБ:МТ:5')
+        elif not self.chkODPOBMT2_5.isChecked():
+            self.setProperty(QVariant(), u'ОД:ПОБ:МТ:5')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT2_1_toggled(self, checked):
+        isChecked = self.chkODPOBMT2_1.isChecked()
+        if isChecked:
+            self.chkODPOBMT1_1.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT2_1.text()), u'ОД:ПОБ:МТ:1')
+        else:
+            if not self.chkODPOBMT1_1.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:МТ:1')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT2_2_toggled(self, checked):
+        isChecked = self.chkODPOBMT2_2.isChecked()
+        if isChecked:
+            self.chkODPOBMT1_2.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT2_2.text()), u'ОД:ПОБ:МТ:2')
+        else:
+            if not self.chkODPOBMT1_2.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:МТ:2')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT2_3_toggled(self, checked):
+        isChecked = self.chkODPOBMT2_3.isChecked()
+        if isChecked:
+            self.chkODPOBMT1_3.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT2_3.text()), u'ОД:ПОБ:МТ:3')
+        else:
+            if not self.chkODPOBMT1_3.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:МТ:3')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT2_4_toggled(self, checked):
+        isChecked = self.chkODPOBMT2_4.isChecked()
+        if isChecked:
+            self.chkODPOBMT1_4.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT2_4.text()), u'ОД:ПОБ:МТ:4')
+        else:
+            if not self.chkODPOBMT1_4.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:МТ:4')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBMT2_5_toggled(self, checked):
+        isChecked = self.chkODPOBMT2_5.isChecked()
+        if isChecked:
+            self.chkODPOBMT1_5.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBMT2_5.text()), u'ОД:ПОБ:МТ:5')
+        else:
+            if not self.chkODPOBMT1_5.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:МТ:5')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR1_1_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR1_1.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_1.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR1_1.text(), u'ОД:ПОБ:СПР1:1')
+        else:
+            if not self.chkODPOBSBPR3_1.isChecked() and not self.chkODPOBSBPR2_1.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:1')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR1_1.text(), u'ОД:ПОБ:СПР1:1')
+            self.edtODPOBSBPR_1.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR1_2_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR1_2.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_2.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR1_2.text(), u'ОД:ПОБ:СПР1:2')
+        else:
+            if not self.chkODPOBSBPR3_2.isChecked() and not self.chkODPOBSBPR2_2.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:2')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR1_2.text(), u'ОД:ПОБ:СПР1:2')
+            self.edtODPOBSBPR_2.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR1_3_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR1_3.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_3.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR1_3.text(), u'ОД:ПОБ:СПР1:3')
+        else:
+            if not self.chkODPOBSBPR3_3.isChecked() and not self.chkODPOBSBPR2_3.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:3')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR1_3.text(), u'ОД:ПОБ:СПР1:3')
+            self.edtODPOBSBPR_3.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR1_4_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR1_4.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_4.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR1_4.text(), u'ОД:ПОБ:СПР1:4')
+        else:
+            if not self.chkODPOBSBPR3_4.isChecked() and not self.chkODPOBSBPR2_4.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:4')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR1_4.text(), u'ОД:ПОБ:СПР1:4')
+            self.edtODPOBSBPR_4.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR1_5_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR1_5.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_5.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR1_5.text(), u'ОД:ПОБ:СПР1:5')
+        else:
+            if not self.chkODPOBSBPR3_5.isChecked() and not self.chkODPOBSBPR2_5.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:5')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR1_5.text(), u'ОД:ПОБ:СПР1:5')
+            self.edtODPOBSBPR_5.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR2_1_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR2_1.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_1.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR2_1.text(), u'ОД:ПОБ:СПР1:1')
+        else:
+            if not self.chkODPOBSBPR3_1.isChecked() and not self.chkODPOBSBPR1_1.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:1')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR2_1.text(), u'ОД:ПОБ:СПР1:1')
+            self.edtODPOBSBPR_1.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR2_2_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR2_2.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_2.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR2_2.text(), u'ОД:ПОБ:СПР1:2')
+        else:
+            if not self.chkODPOBSBPR3_2.isChecked() and not self.chkODPOBSBPR1_2.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:2')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR2_2.text(), u'ОД:ПОБ:СПР1:2')
+            self.edtODPOBSBPR_2.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR2_3_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR2_3.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_3.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR2_3.text(), u'ОД:ПОБ:СПР1:3')
+        else:
+            if not self.chkODPOBSBPR3_3.isChecked() and not self.chkODPOBSBPR1_3.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:3')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR2_3.text(), u'ОД:ПОБ:СПР1:3')
+            self.edtODPOBSBPR_3.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR2_4_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR2_4.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_4.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR2_4.text(), u'ОД:ПОБ:СПР1:4')
+        else:
+            if not self.chkODPOBSBPR3_4.isChecked() and not self.chkODPOBSBPR1_4.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:4')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR2_4.text(), u'ОД:ПОБ:СПР1:4')
+            self.edtODPOBSBPR_4.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR2_5_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR2_5.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR3_5.setChecked(False)
+            self.addValuePropertyList(self.chkODPOBSBPR2_5.text(), u'ОД:ПОБ:СПР1:5')
+        else:
+            if not self.chkODPOBSBPR3_5.isChecked() and not self.chkODPOBSBPR1_5.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:5')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR2_5.text(), u'ОД:ПОБ:СПР1:5')
+            self.edtODPOBSBPR_5.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR3_1_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR3_1.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR1_1.setChecked(False)
+            self.chkODPOBSBPR2_1.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBSBPR3_1.text()), u'ОД:ПОБ:СПР1:1')
+        else:
+            if not self.chkODPOBSBPR1_1.isChecked() and not self.chkODPOBSBPR2_1.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:1')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR3_1.text(), u'ОД:ПОБ:СПР1:1')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR3_2_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR3_2.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR1_2.setChecked(False)
+            self.chkODPOBSBPR2_2.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBSBPR3_2.text()), u'ОД:ПОБ:СПР1:2')
+        else:
+            if not self.chkODPOBSBPR1_2.isChecked() and not self.chkODPOBSBPR2_2.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:2')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR3_2.text(), u'ОД:ПОБ:СПР1:2')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR3_3_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR3_3.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR1_3.setChecked(False)
+            self.chkODPOBSBPR2_3.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBSBPR3_3.text()), u'ОД:ПОБ:СПР1:3')
+        else:
+            if not self.chkODPOBSBPR1_3.isChecked() and not self.chkODPOBSBPR2_3.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:3')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR3_3.text(), u'ОД:ПОБ:СПР1:3')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR3_4_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR3_4.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR1_4.setChecked(False)
+            self.chkODPOBSBPR2_4.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBSBPR3_4.text()), u'ОД:ПОБ:СПР1:4')
+        else:
+            if not self.chkODPOBSBPR1_4.isChecked() and not self.chkODPOBSBPR2_4.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:4')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR3_4.text(), u'ОД:ПОБ:СПР1:4')
+
+
+    @pyqtSlot(bool)
+    def on_chkODPOBSBPR3_5_toggled(self, checked):
+        isChecked = self.chkODPOBSBPR3_5.isChecked()
+        if isChecked:
+            self.chkODPOBSBPR1_5.setChecked(False)
+            self.chkODPOBSBPR2_5.setChecked(False)
+            self.setProperty(QVariant(self.chkODPOBSBPR3_5.text()), u'ОД:ПОБ:СПР1:5')
+        else:
+            if not self.chkODPOBSBPR1_5.isChecked() and not self.chkODPOBSBPR2_5.isChecked():
+                self.setProperty(QVariant(), u'ОД:ПОБ:СПР1:5')
+            else:
+                self.deletedValuePropertyList(self.chkODPOBSBPR3_5.text(), u'ОД:ПОБ:СПР1:5')
+
+
+    @pyqtSlot(bool)
     def on_chkODPOBRPPGRF1_1_toggled(self, checked):
         isChecked = self.chkODPOBRPPGRF1_1.isChecked()
         if isChecked:
@@ -2917,6 +3335,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(bool)
     def on_chkODGOSM4_toggled(self, checked):
         isChecked = self.chkODGOSM4.isChecked()
+        if not isChecked:
+            self.edtODGODSMText.setText('')
         if isChecked:
             self.chkODGOSM2.setChecked(False)
             self.chkODGOSM3.setChecked(False)
@@ -4155,6 +4575,9 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             if not self.chkNVNBDG1.isChecked():
                 self.setProperty(QVariant(), u'НВНБ:ДГ:1')
             self.edtNVNBDG2Text.setText('')
+            self.chkNVNBDGK1.setChecked(False)
+            self.chkNVNBDGK2.setChecked(False)
+            self.edtPreHospitalizationTermWeeks.setValue(0)
 
 
     @pyqtSlot(bool)
@@ -4714,6 +5137,16 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.setProperty(QVariant(self.edtFirstUSIDate.date()), u'ОД:СНБ:ДУЗИ')
 
 
+    @pyqtSlot(int)
+    def on_edtFirstUSITermWeeks_valueChanged(self, value):
+        self.setProperty(QVariant(self.edtFirstUSITermWeeks.value()), u'ОД:СНБ:ДУЗИ:Н')
+
+
+    @pyqtSlot(int)
+    def on_edtFirstUSITermDays_valueChanged(self, value):
+        self.setProperty(QVariant(self.edtFirstUSITermDays.value()), u'ОД:СНБ:ДУЗИ:Д')
+
+
     @pyqtSlot(QDate)
     def on_edtFirstStirringFetusDate_dateChanged(self, date):
         self.setProperty(QVariant(self.edtFirstStirringFetusDate.date()), u'ОД:СНБ:ПШП')
@@ -4835,6 +5268,13 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                     self.cmbPerson.setValue(QtGui.qApp.userId)
                 elif not self.cmbPerson.value():
                     self.cmbPerson.setValue(self.cmbSetPerson.value())
+        if date and date.isValid():
+            self.lblCloseReason.setVisible(True)
+            self.edtCloseReason.setVisible(True)
+        else:
+            self.lblCloseReason.setVisible(False)
+            self.edtCloseReason.setVisible(False)    
+            self.edtCloseReason.setText('')
 
 
     @pyqtSlot(int)
@@ -4912,6 +5352,14 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
 
     @pyqtSlot(int)
+    def on_edtPreHospitalizationTermWeeks_valueChanged(self, value):
+        value = self.edtPreHospitalizationTermWeeks.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ОДП:ДГ:6')
+
+
+    @pyqtSlot(int)
     def on_edtAppointTermDays_valueChanged(self, value):
         self.setProperty(QVariant(self.edtAppointTermDays.value()), u'ОД:ОДП:СПНУ:2')
 
@@ -4919,6 +5367,46 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(int)
     def on_edtEstimatedTermDate_valueChanged(self, value):
         self.setProperty(QVariant(self.edtEstimatedTermDate.value()), u'ОД:ОДП:ПДР:2')
+
+
+    @pyqtSlot(int)
+    def on_edtEstimatedWeight_1_valueChanged(self, value):
+        value = self.edtEstimatedWeight_1.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:ПМ:1')
+
+
+    @pyqtSlot(int)
+    def on_edtEstimatedWeight_2_valueChanged(self, value):
+        value = self.edtEstimatedWeight_2.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:ПМ:2')
+
+
+    @pyqtSlot(int)
+    def on_edtEstimatedWeight_3_valueChanged(self, value):
+        value = self.edtEstimatedWeight_3.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:ПМ:3')
+
+
+    @pyqtSlot(int)
+    def on_edtEstimatedWeight_4_valueChanged(self, value):
+        value = self.edtEstimatedWeight_4.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:ПМ:4')
+
+
+    @pyqtSlot(int)
+    def on_edtEstimatedWeight_5_valueChanged(self, value):
+        value = self.edtEstimatedWeight_5.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:ПМ:5')
 
 
     @pyqtSlot(int)
@@ -4940,60 +5428,102 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     def on_edtFetusCount_valueChanged(self, value):
         self.setProperty(QVariant(self.edtFetusCount.value()), u'ОД:СНБ:Б:2')
         if self.edtFetusCount.value() == 0:
-            self.frame_40.setVisible(False)
-            self.frame_41.setVisible(False)
-            self.frame_42.setVisible(False)
-            self.frame_43.setVisible(False)
+            self.setFetusFrameVisible(self.frame_40, False)
+            self.setFetusFrameVisible(self.frame_41, False)
+            self.setFetusFrameVisible(self.frame_42, False)
+            self.setFetusFrameVisible(self.frame_43, False)
         elif self.edtFetusCount.value() == 1:
-            self.frame_40.setVisible(False)
-            self.frame_41.setVisible(False)
-            self.frame_42.setVisible(False)
-            self.frame_43.setVisible(False)
+            self.setFetusFrameVisible(self.frame_40, False)
+            self.setFetusFrameVisible(self.frame_41, False)
+            self.setFetusFrameVisible(self.frame_42, False)
+            self.setFetusFrameVisible(self.frame_43, False)
         elif self.edtFetusCount.value() == 2:
-            self.frame_40.setVisible(True)
-            self.frame_41.setVisible(False)
-            self.frame_42.setVisible(False)
-            self.frame_43.setVisible(False)
+            self.setFetusFrameVisible(self.frame_40, True)
+            self.setFetusFrameVisible(self.frame_41, False)
+            self.setFetusFrameVisible(self.frame_42, False)
+            self.setFetusFrameVisible(self.frame_43, False)
         elif self.edtFetusCount.value() == 3:
-            self.frame_40.setVisible(True)
-            self.frame_41.setVisible(True)
-            self.frame_42.setVisible(False)
-            self.frame_43.setVisible(False)
+            self.setFetusFrameVisible(self.frame_40, True)
+            self.setFetusFrameVisible(self.frame_41, True)
+            self.setFetusFrameVisible(self.frame_42, False)
+            self.setFetusFrameVisible(self.frame_43, False)
         elif self.edtFetusCount.value() == 4:
-            self.frame_40.setVisible(True)
-            self.frame_41.setVisible(True)
-            self.frame_42.setVisible(True)
-            self.frame_43.setVisible(False)
+            self.setFetusFrameVisible(self.frame_40, True)
+            self.setFetusFrameVisible(self.frame_41, True)
+            self.setFetusFrameVisible(self.frame_42, True)
+            self.setFetusFrameVisible(self.frame_43, False)
         elif self.edtFetusCount.value() == 5:
-            self.frame_40.setVisible(True)
-            self.frame_41.setVisible(True)
-            self.frame_42.setVisible(True)
-            self.frame_43.setVisible(True)
+            self.setFetusFrameVisible(self.frame_40, True)
+            self.setFetusFrameVisible(self.frame_41, True)
+            self.setFetusFrameVisible(self.frame_42, True)
+            self.setFetusFrameVisible(self.frame_43, True)
+    
+    
+    def setFetusFrameVisible(self, frame, visible):
+        frameWidgets = {
+            self.frame_40: [self.edtODPOBSBP_2, self.chkODPOBGCH1_2, self.chkODPOBGCH2_2, self.cmbODPOBNVMTO_2, self.cmbODPOBPP_2, self.chkODPOBRPPGRF1_2, self.chkODPOBRPPGRF2_2, self.cmbODPOBCZVRP_2, self.chkODPOBMT1_2, self.chkODPOBMT2_2, self.chkODPOBSBPR1_2, self.chkODPOBSBPR2_2, self.chkODPOBSBPR3_2, self.edtODPOBSBPR_2, self.edtEstimatedWeight_2],
+            self.frame_41: [self.edtODPOBSBP_3, self.chkODPOBGCH1_3, self.chkODPOBGCH2_3, self.cmbODPOBNVMTO_3, self.cmbODPOBPP_3, self.chkODPOBRPPGRF1_3, self.chkODPOBRPPGRF2_3, self.cmbODPOBCZVRP_3, self.chkODPOBMT1_3, self.chkODPOBMT2_3, self.chkODPOBSBPR1_3, self.chkODPOBSBPR2_3, self.chkODPOBSBPR3_3, self.edtODPOBSBPR_3, self.edtEstimatedWeight_3],
+            self.frame_42: [self.edtODPOBSBP_4, self.chkODPOBGCH1_4, self.chkODPOBGCH2_4, self.cmbODPOBNVMTO_4, self.cmbODPOBPP_4, self.chkODPOBRPPGRF1_4, self.chkODPOBRPPGRF2_4, self.cmbODPOBCZVRP_4, self.chkODPOBMT1_4, self.chkODPOBMT2_4, self.chkODPOBSBPR1_4, self.chkODPOBSBPR2_4, self.chkODPOBSBPR3_4, self.edtODPOBSBPR_4, self.edtEstimatedWeight_4],
+            self.frame_43: [self.edtODPOBSBP_5, self.chkODPOBGCH1_5, self.chkODPOBGCH2_5, self.cmbODPOBNVMTO_5, self.cmbODPOBPP_5, self.chkODPOBRPPGRF1_5, self.chkODPOBRPPGRF2_5, self.cmbODPOBCZVRP_5, self.chkODPOBMT1_5, self.chkODPOBMT2_5, self.chkODPOBSBPR1_5, self.chkODPOBSBPR2_5, self.chkODPOBSBPR3_5, self.edtODPOBSBPR_5, self.edtEstimatedWeight_5],
+            self.frame_31: [self.edtNVNBIBRPUV, self.edtNVNBIBRPPRPD, self.chkNVNBIBRPD1, self.chkNVNBIBRPD2, self.chkNVNBIBRPD3, self.edtNVNBIBRPZMKB1, self.edtNVNBIBRPZMKB2, self.chkNVNBIBRPPRP1, self.chkNVNBIBRPPRP2, self.edtNVNBIBRPPRP, self.cmbNVNBIBRP1, self.edtNVNBIBRPO1_1, self.edtNVNBIBRPO5_1],
+            self.frame_33: [self.edtNVNBIBRPUV_2, self.edtNVNBIBRPPRPD_2, self.chkNVNBIBRPD1_2, self.chkNVNBIBRPD2_2, self.chkNVNBIBRPD3_2, self.edtNVNBIBRPZMKB1_2, self.edtNVNBIBRPZMKB2_2, self.chkNVNBIBRPPRP1_2, self.chkNVNBIBRPPRP2_2, self.edtNVNBIBRPPRP_2, self.cmbNVNBIBRP2, self.edtNVNBIBRPO1_2, self.edtNVNBIBRPO5_2],
+            self.frame_34: [self.edtNVNBIBRPUV_3, self.edtNVNBIBRPPRPD_3, self.chkNVNBIBRPD1_3, self.chkNVNBIBRPD2_3, self.chkNVNBIBRPD3_3, self.edtNVNBIBRPZMKB1_3, self.edtNVNBIBRPZMKB2_3, self.chkNVNBIBRPPRP1_3, self.chkNVNBIBRPPRP2_3, self.edtNVNBIBRPPRP_3, self.cmbNVNBIBRP3, self.edtNVNBIBRPO1_3, self.edtNVNBIBRPO5_3],
+            self.frame_35: [self.edtNVNBIBRPUV_4, self.edtNVNBIBRPPRPD_4, self.chkNVNBIBRPD1_4, self.chkNVNBIBRPD2_4, self.chkNVNBIBRPD3_4, self.edtNVNBIBRPZMKB1_4, self.edtNVNBIBRPZMKB2_4, self.chkNVNBIBRPPRP1_4, self.chkNVNBIBRPPRP2_4, self.edtNVNBIBRPPRP_4, self.cmbNVNBIBRP4, self.edtNVNBIBRPO1_4, self.edtNVNBIBRPO5_4],
+            self.frame_36: [self.edtNVNBIBRPUV_5, self.edtNVNBIBRPPRPD_5, self.chkNVNBIBRPD1_5, self.chkNVNBIBRPD2_5, self.chkNVNBIBRPD3_5, self.edtNVNBIBRPZMKB1_5, self.edtNVNBIBRPZMKB2_5, self.chkNVNBIBRPPRP1_5, self.chkNVNBIBRPPRP2_5, self.edtNVNBIBRPPRP_5, self.cmbNVNBIBRP5, self.edtNVNBIBRPO1_5, self.edtNVNBIBRPO5_5],
+        }
+        frame.setVisible(visible)
+        if frame in frameWidgets.keys() and not visible:
+            for widget in frameWidgets[frame]:
+                if isinstance(widget, QCheckBox):
+                   widget.setChecked(visible)
+                elif isinstance(widget, QtGui.QSpinBox):
+                    widget.setValue(0)
+                elif isinstance(widget, QComboBox):
+                    widget.setCurrentIndex(-1)
+                elif isinstance(widget, QtGui.QLineEdit):
+                    widget.setText('')
+                elif isinstance(widget, QtGui.QDoubleSpinBox):
+                    widget.setValue(0)
 
 
     @pyqtSlot(int)
     def on_edtODPOBSBP_valueChanged(self, value):
-        self.setProperty(QVariant(self.edtODPOBSBP.value()), u'ОД:ПОБ:СП12')
+        value = self.edtODPOBSBP.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:СП12')
 
 
     @pyqtSlot(int)
     def on_edtODPOBSBP_2_valueChanged(self, value):
-        self.setProperty(QVariant(self.edtODPOBSBP_2.value()), u'ОД:ПОБ:СП12:2')
+        value = self.edtODPOBSBP_2.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:СП12:2')
 
 
     @pyqtSlot(int)
     def on_edtODPOBSBP_3_valueChanged(self, value):
-        self.setProperty(QVariant(self.edtODPOBSBP_3.value()), u'ОД:ПОБ:СП12:3')
+        value = self.edtODPOBSBP_3.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:СП12:3')
 
 
     @pyqtSlot(int)
     def on_edtODPOBSBP_4_valueChanged(self, value):
-        self.setProperty(QVariant(self.edtODPOBSBP_4.value()), u'ОД:ПОБ:СП12:4')
+        value = self.edtODPOBSBP_4.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:СП12:4')
 
 
     @pyqtSlot(int)
     def on_edtODPOBSBP_5_valueChanged(self, value):
-        self.setProperty(QVariant(self.edtODPOBSBP_5.value()), u'ОД:ПОБ:СП12:5')
+        value = self.edtODPOBSBP_5.value()
+        if not value:
+            value = None
+        self.setProperty(QVariant(value), u'ОД:ПОБ:СП12:5')
 
 
     @pyqtSlot(int)
@@ -5180,41 +5710,41 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     def on_edtNVNBIBRP1_valueChanged(self, value):
         self.setProperty(QVariant(self.edtNVNBIBRP1.value()), u'НВНБ:ИБРП:КД')
         if self.edtNVNBIBRP1.value() == 0:
-            self.frame_31.setVisible(False)
-            self.frame_33.setVisible(False)
-            self.frame_34.setVisible(False)
-            self.frame_35.setVisible(False)
-            self.frame_36.setVisible(False)
+            self.setFetusFrameVisible(self.frame_31, False)
+            self.setFetusFrameVisible(self.frame_33, False)
+            self.setFetusFrameVisible(self.frame_34, False)
+            self.setFetusFrameVisible(self.frame_35, False)
+            self.setFetusFrameVisible(self.frame_36, False)
         elif self.edtNVNBIBRP1.value() == 1:
-            self.frame_31.setVisible(True)
-            self.frame_33.setVisible(False)
-            self.frame_34.setVisible(False)
-            self.frame_35.setVisible(False)
-            self.frame_36.setVisible(False)
+            self.setFetusFrameVisible(self.frame_31, True)
+            self.setFetusFrameVisible(self.frame_33, False)
+            self.setFetusFrameVisible(self.frame_34, False)
+            self.setFetusFrameVisible(self.frame_35, False)
+            self.setFetusFrameVisible(self.frame_36, False)
         elif self.edtNVNBIBRP1.value() == 2:
-            self.frame_31.setVisible(True)
-            self.frame_33.setVisible(True)
-            self.frame_34.setVisible(False)
-            self.frame_35.setVisible(False)
-            self.frame_36.setVisible(False)
+            self.setFetusFrameVisible(self.frame_31, True)
+            self.setFetusFrameVisible(self.frame_33, True)
+            self.setFetusFrameVisible(self.frame_34, False)
+            self.setFetusFrameVisible(self.frame_35, False)
+            self.setFetusFrameVisible(self.frame_36, False)
         elif self.edtNVNBIBRP1.value() == 3:
-            self.frame_31.setVisible(True)
-            self.frame_33.setVisible(True)
-            self.frame_34.setVisible(True)
-            self.frame_35.setVisible(False)
-            self.frame_36.setVisible(False)
+            self.setFetusFrameVisible(self.frame_31, True)
+            self.setFetusFrameVisible(self.frame_33, True)
+            self.setFetusFrameVisible(self.frame_34, True)
+            self.setFetusFrameVisible(self.frame_35, False)
+            self.setFetusFrameVisible(self.frame_36, False)
         elif self.edtNVNBIBRP1.value() == 4:
-            self.frame_31.setVisible(True)
-            self.frame_33.setVisible(True)
-            self.frame_34.setVisible(True)
-            self.frame_35.setVisible(True)
-            self.frame_36.setVisible(False)
+            self.setFetusFrameVisible(self.frame_31, True)
+            self.setFetusFrameVisible(self.frame_33, True)
+            self.setFetusFrameVisible(self.frame_34, True)
+            self.setFetusFrameVisible(self.frame_35, True)
+            self.setFetusFrameVisible(self.frame_36, False)
         elif self.edtNVNBIBRP1.value() == 5:
-            self.frame_31.setVisible(True)
-            self.frame_33.setVisible(True)
-            self.frame_34.setVisible(True)
-            self.frame_35.setVisible(True)
-            self.frame_36.setVisible(True)
+            self.setFetusFrameVisible(self.frame_31, True)
+            self.setFetusFrameVisible(self.frame_33, True)
+            self.setFetusFrameVisible(self.frame_34, True)
+            self.setFetusFrameVisible(self.frame_35, True)
+            self.setFetusFrameVisible(self.frame_36, True)
 
 
     @pyqtSlot(float)
@@ -5355,6 +5885,11 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(str)
     def on_edtPregravidarText_textChanged(self, text):
         self.setProperty(QVariant(self.edtPregravidarText.text()),u'ОД:СНБ:ПП:2')
+
+
+    @pyqtSlot(str)
+    def on_edtCloseReason_textChanged(self, text):
+        self.setProperty(QVariant(self.edtCloseReason.text()), u'НВНБ:ПЗ')
 
 
     @pyqtSlot()
@@ -5520,6 +6055,31 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(str)
     def on_edtSOPTROText_textChanged(self, text):
         self.setProperty(QVariant(self.edtSOPTROText.text()),u'СОП:ПЗ:ТО:2')
+
+
+    @pyqtSlot(str)
+    def on_edtODPOBSBPR_1_textChanged(self, text):
+        self.setProperty(QVariant(self.edtODPOBSBPR_1.text()),u'ОД:ПОБ:СПР2:1')
+
+
+    @pyqtSlot(str)
+    def on_edtODPOBSBPR_2_textChanged(self, text):
+        self.setProperty(QVariant(self.edtODPOBSBPR_2.text()),u'ОД:ПОБ:СПР2:2')
+
+
+    @pyqtSlot(str)
+    def on_edtODPOBSBPR_3_textChanged(self, text):
+        self.setProperty(QVariant(self.edtODPOBSBPR_3.text()),u'ОД:ПОБ:СПР2:3')
+
+
+    @pyqtSlot(str)
+    def on_edtODPOBSBPR_4_textChanged(self, text):
+        self.setProperty(QVariant(self.edtODPOBSBPR_4.text()),u'ОД:ПОБ:СПР2:4')
+
+
+    @pyqtSlot(str)
+    def on_edtODPOBSBPR_5_textChanged(self, text):
+        self.setProperty(QVariant(self.edtODPOBSBPR_5.text()),u'ОД:ПОБ:СПР2:5')
 
 
     @pyqtSlot(str)
@@ -5757,6 +6317,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.setProperty(QVariant(self.edtGenericCertificateNumber.text()), u'ОД:ОДП:РС:2')
         self.setProperty(QVariant(self.edtExchangeAndNotificationCardNumber.text()), u'ОД:ОДП:ОУК:1')
         self.setProperty(QVariant(self.edtPregravidarText.text()), u'ОД:СНБ:ПП:2')
+        self.setProperty(QVariant(self.edtCloseReason.text()), u'НВНБ:ПЗ')
         self.setProperty(QVariant(self.edtODPOBGText.toPlainText()), u'ОД:ПОБ:Ж:2')
         self.setProperty(QVariant(self.edtODPOBOLocalizationText.toPlainText()), u'ОД:ПОБ:О:2')
         self.setProperty(QVariant(self.edtODPOBULULocalizationText.toPlainText()), u'ОД:ПОБ:УЛУ:2')
@@ -5784,6 +6345,11 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.setProperty(QVariant(self.edtSOPDBText.text()), u'СОП:ПЗ:ДИ:2')
         self.setProperty(QVariant(self.edtSOPDSText.text()), u'СОП:ПЗ:НДУ:2')
         self.setProperty(QVariant(self.edtSOPTROText.text()), u'СОП:ПЗ:ТО:2')
+        self.setProperty(QVariant(self.edtODPOBSBPR_1.text()), u'ОД:ПОБ:СПР2:1')
+        self.setProperty(QVariant(self.edtODPOBSBPR_2.text()), u'ОД:ПОБ:СПР2:2')
+        self.setProperty(QVariant(self.edtODPOBSBPR_3.text()), u'ОД:ПОБ:СПР2:3')
+        self.setProperty(QVariant(self.edtODPOBSBPR_4.text()), u'ОД:ПОБ:СПР2:4')
+        self.setProperty(QVariant(self.edtODPOBSBPR_5.text()), u'ОД:ПОБ:СПР2:5')
         self.setProperty(QVariant(self.edtSOPSZText.text()), u'СОП:ПЗ:СЗ:2')
         self.setProperty(QVariant(self.edtSOPSZIText.text()), u'СОП:ПЗ:СЗИ:2')
         self.setProperty(QVariant(self.edtSOPVSTATUSNumberText.text()), u'СОП:ПЗ:ВИЧ:3')
@@ -5890,21 +6456,21 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
     @pyqtSlot(int)
     def on_cmbPerson_currentIndexChanged(self, value):
-        if forceRef(self.action.getRecord().value('person_id')) != value:
+        if self.action and forceRef(self.action.getRecord().value('person_id')) != value:
             self.action.setChanged(True)
         self.setPersonId(self.cmbPerson.value())
 
 
     @pyqtSlot(QDate)
     def on_edtDirectionDate_dateChanged(self, date):
-        if forceDate(self.action.getRecord().value('directionDate')) != date:
+        if self.action and forceDate(self.action.getRecord().value('directionDate')) != date:
             self.action.setChanged(True)
         self.edtDirectionTime.setEnabled(bool(date))
 
 
     @pyqtSlot(QDate)
     def on_edtBegDate_dateChanged(self, date):
-        if forceDate(self.action.getRecord().value('begDate')) != date:
+        if self.action and forceDate(self.action.getRecord().value('begDate')) != date:
             self.action.setChanged(True)
         self.edtBegTime.setEnabled(bool(date))
         self.updateAmount()
@@ -6500,6 +7066,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     def initAmbWidgets(self):
         return {
             self.edtPregravidarText: u'ОД:СНБ:ПП:2',
+            self.edtCloseReason: u'НВНБ:ПЗ',
             self.edtODPOBGText: u'ОД:ПОБ:Ж:2',
             self.edtODPOBOLocalizationText: u'ОД:ПОБ:О:2',
             self.edtODPOBULULocalizationText: u'ОД:ПОБ:УЛУ:2',
@@ -6526,6 +7093,11 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             self.edtSOPDBText: u'СОП:ПЗ:ДИ:2',
             self.edtSOPDSText: u'СОП:ПЗ:НДУ:2',
             self.edtSOPTROText: u'СОП:ПЗ:ТО:2',
+            self.edtODPOBSBPR_1: u'ОД:ПОБ:СПР2:1',
+            self.edtODPOBSBPR_2: u'ОД:ПОБ:СПР2:2',
+            self.edtODPOBSBPR_3: u'ОД:ПОБ:СПР2:3',
+            self.edtODPOBSBPR_4: u'ОД:ПОБ:СПР2:4',
+            self.edtODPOBSBPR_5: u'ОД:ПОБ:СПР2:5',
             self.edtSOPSZText: u'СОП:ПЗ:СЗ:2',
             self.edtSOPVSTATUSARVTText: u'СОП:ПЗ:АТ',
             self.edtSOPSZIText: u'СОП:ПЗ:СЗИ:2',

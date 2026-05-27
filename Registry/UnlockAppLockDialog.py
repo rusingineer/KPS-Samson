@@ -21,11 +21,12 @@ from library.Utils import forceString, forceBool, forceInt, forceStringEx
 
 
 class CUnlockAppLockDialog(Ui_UnlockAppLockDialog, CDialogBase):
-    def __init__(self, parent, tableName):
+    def __init__(self, parent, tableName, flatCode=None):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
         self.show()
         self.tableName = tableName
+        self.flatCode = flatCode
         self.addModels('CodeList', CCodeListModel(self))
         self.setModels(self.lvCode, self.modelCodeList, self.selectionModelCodeList)
         self.btnUnlockAll.setVisible(False)
@@ -56,6 +57,8 @@ class CUnlockAppLockDialog(Ui_UnlockAppLockDialog, CDialogBase):
             tableQuery = tableQuery.leftJoin(tableAction, tableAction['id'].eq(tableAppLockDetail['recordId']))
             tableQuery = tableQuery.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
             cond.append(tableActionType['flatCode'].eq('inspection_mse'))
+            if self.flatCode:
+                cond.append(tableActionType['flatCode'].eq(self.flatCode))
 
         recordList = db.getRecordList(tableQuery, cols, cond)
         lockedRecords = u'Заблокированы вашим пользователем:'
@@ -119,9 +122,9 @@ class CUnlockAppLockDialog(Ui_UnlockAppLockDialog, CDialogBase):
                 text = u'Эпизод ВУТ {0} не заблокирован!'.format(code)
         elif self.tableName == 'Action':
             if unlock:
-                text = u'Направление на МСЭ {0} разблокировано!'.format(code)
+                text = u'{} {} разблокировано!'.format(u'Направление на МСЭ' if self.flatCode == u'inspection_mse' else u'Карта беременной и родильницы', code)
             else:
-                text = u'Направление на МСЭ {0} не заблокировано!'.format(code)
+                text = u'{} {} не заблокировано!'.format(u'Направление на МСЭ' if self.flatCode == u'inspection_mse' else u'Карта беременной и родильницы', code)
         elif self.tableName == 'ProphylaxisPlanning':
             if unlock:
                 text = u'ККНД {0} разблокировано!'.format(code)
@@ -171,10 +174,10 @@ class CUnlockAppLockDialog(Ui_UnlockAppLockDialog, CDialogBase):
                 text = u'Эпизоды ВУТ не заблокированы!'
         elif self.tableName == 'Action':
             if unlock:
-                text = u'Все направления на МСЭ разблокированы!'
+                text = u'Все {} разблокированы!'.format(u'направления на МСЭ' if self.flatCode == u'inspection_mse' else u'карты беременной и родильницы')
                 self.recordsIdList = []
             else:
-                text = u'Направления на МСЭ не заблокированы!'
+                text = u'{} не заблокированы!'.format(u'Направления на МСЭ' if self.flatCode == u'inspection_mse' else u'Карты беременной и родильницы')
         elif self.tableName == 'ProphylaxisPlanning':
             if unlock:
                 text = u'Все ККДН разблокированы!'

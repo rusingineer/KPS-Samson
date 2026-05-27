@@ -136,7 +136,6 @@ def selectData(params):
 
     cols = [table['id'].alias('actionId'),
             table['endDate'],
-            u'''TIMESTAMPDIFF(DAY, Action.begDate, Action.endDate) AS duration''',
             tablePerson['name'].alias('personName'),
             tableOrganisation['shortName'].alias('orgName'),
             tableClient['id'].alias(u'clientId'),
@@ -145,6 +144,8 @@ def selectData(params):
             tableClient['sex'],
             table['MKB'],
             u'''(SELECT A.endDate FROM Action AS A WHERE A.prevAction_id = Action.id AND A.deleted = 0/* ORDER BY A.endDate DESC*/ LIMIT 1) AS prevEndDate''',
+            u'''(SELECT tip.isExternal FROM TempInvalid ti LEFT JOIN TempInvalid_Period tip ON tip.master_id = ti.id WHERE ti.id = Event.tempInvalid_id LIMIT 1) AS tipIsExternal''',
+            u'''(SELECT SUM(DATEDIFF(tip.endDate, tip.begDate) + 1) FROM TempInvalid ti LEFT JOIN TempInvalid_Period tip ON tip.master_id = ti.id WHERE ti.id = Event.tempInvalid_id) AS sumDays'''
             ]
     if params.get('isRegAddress', 0):
         cols.append(u'getClientRegAddress(Client.id) AS address')
@@ -167,10 +168,18 @@ def selectData(params):
     cols.append(getPropertyValueMSE(u'Степень ограничения способности к трудовой деятельности', u'restrictionMSE', u'ActionProperty_String'))
     cols.append(getPropertyValueMSE(u'Инвалидность установлена на срок до', u'disabilityMSE', u'ActionProperty_String'))
     cols.append(getPropertyValueMSE(u'Дата очередного освидетельствования', u'dateLastMSE', u'ActionProperty_String'))
-    cols.append(getPropertyValue(u'Эксперт 1', u'expert1', u'ActionProperty_String'))
-    cols.append(getPropertyValue(u'Эксперт 2', u'expert2', u'ActionProperty_String'))
-    cols.append(getPropertyValue(u'Эксперт 3', u'expert3', u'ActionProperty_String'))
-    cols.append(getPropertyValue(u'Эксперт 4', u'expert4', u'ActionProperty_String'))
+    cols.append(u"COALESCE ({0}, {1}) AS expert1".format(
+        getPropertyValue(u'Эксперт 1', u'expert1', u'ActionProperty_Person').replace(u'AS expert1', u''),
+        getPropertyValue(u'Эксперт 1', u'expert1', u'ActionProperty_String').replace(u'AS expert1', u'')))
+    cols.append(u"COALESCE ({0}, {1}) AS expert2".format(
+        getPropertyValue(u'Эксперт 2', u'expert2', u'ActionProperty_Person').replace(u'AS expert2', u''),
+        getPropertyValue(u'Эксперт 2', u'expert2', u'ActionProperty_String').replace(u'AS expert2', u'')))
+    cols.append(u"COALESCE ({0}, {1}) AS expert3".format(
+        getPropertyValue(u'Эксперт 3', u'expert3', u'ActionProperty_Person').replace(u'AS expert3', u''),
+        getPropertyValue(u'Эксперт 3', u'expert3', u'ActionProperty_String').replace(u'AS expert3', u'')))
+    cols.append(u"COALESCE ({0}, {1}) AS expert4".format(
+        getPropertyValue(u'Эксперт 4', u'expert4', u'ActionProperty_Person').replace(u'AS expert4', u''),
+        getPropertyValue(u'Эксперт 4', u'expert4', u'ActionProperty_String').replace(u'AS expert4', u'')))
     cols.append(u'''(SELECT rbSocStatusType.name
 FROM rbSocStatusType
 INNER JOIN rbSocStatusClassTypeAssoc ON rbSocStatusClassTypeAssoc.type_id = rbSocStatusType.id
@@ -331,8 +340,9 @@ class CTempInvalidBookF035(CReport):
                 socStatus = forceString(record.value('socStatus'))
                 work = forceString(record.value('work'))
                 socStatusWork = socStatus + ', ' + work if socStatus else work
-                duration = forceString(record.value('duration'))
-                duration = str(duration) + u' дн.' if duration else u'0 дн.'
+                externalLength = forceInt(record.value('sumDays'))
+
+                duration = str(externalLength) + u' дн.' if externalLength else u'0 дн.'
                 expertiseCharacter = forceString(record.value('expertiseCharacter'))
                 expertiseKind = forceString(record.value('expertiseKind'))
                 expertiseKindName = (u'Вид:' + expertiseKind) if expertiseKind else u''
@@ -359,12 +369,18 @@ class CTempInvalidBookF035(CReport):
                 dateLastMSEName = (u'Дата очередного освидетельствования: ' + dateLastMSE) if dateLastMSE else u''
                 expert1 = forceString(record.value('expert1'))
                 expert1 = getPersonName(expert1) if expert1.isdigit() else expert1
+                expert1 = expert1 + u',' if expert1.replace(u' ', u'') != u"" else expert1
                 expert2 = forceString(record.value('expert2'))
                 expert2 = getPersonName(expert2) if expert2.isdigit() else expert2
+                expert2 = expert2 + u',' if expert2.replace(u' ', u'') != u"" else expert2
                 expert3 = forceString(record.value('expert3'))
                 expert3 = getPersonName(expert3) if expert3.isdigit() else expert3
+                expert3 = expert3 + u',' if expert3.replace(u' ', u'') != u"" else expert3
                 expert4 = forceString(record.value('expert4'))
                 expert4 = getPersonName(expert4) if expert4.isdigit() else expert4
+                expert4 = expert4 + u',' if expert4.replace(u' ', u'') != u"" else expert4
+                expert = u'\n'.join(name for name in [expert1, expert2, expert3, expert4] if name)
+                expert = expert[:-1]
 
                 i = table.addRow()
                 table.setText(i, 0, cnt)
@@ -386,7 +402,7 @@ class CTempInvalidBookF035(CReport):
                 table.setText(i, 16, u'\n'.join(name for name in [resultMSEName, decisionMSEName] if name))
                 table.setText(i, 17, dateMSE)
                 table.setText(i, 18, u'\n'.join(name for name in [reasonMSEName, restrictionMSEName, disabilityMSEName, dateLastMSEName] if name))
-                table.setText(i, 19, u'\n'.join(name for name in [expert1, expert2, expert3, expert4] if name))
+                table.setText(i, 19, expert)
                 cnt += 1
 
         return doc

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -152,14 +152,15 @@ class CActionType(object):
     dmkbUserInput         = 5
     dmkbSyncPreDiag       = 6
 
-    def __init__(self, record, propertyTypeRecords=None):
+    def __init__(self, record, propertyTypeRecords=None, relatedActionTypeRecords=None):
         self._propertiesById = {}
         self._propertiesByName = {}
         self._propertiesByType = {}
         self._propertiesByTest = {}
         self._propertiesByShortName = {}
         self._relatedActionTypes = {}
-        self.initByRecord(record, propertyTypeRecords)
+        self._relatedActionTypesOrder = {}
+        self.initByRecord(record, propertyTypeRecords, relatedActionTypeRecords)
         self.PFOrgStructureLoaded = False
         self.PFSpecialityLoaded = False
         self.EquipmentLoaded = False
@@ -168,10 +169,9 @@ class CActionType(object):
         self.TestatorLoaded = False
         self.ExpansionLoaded = False
         self.NomenclatureLoaded = False
-        self.RelatedActionTypesLoaded = False
 
 
-    def initByRecord(self, record, propertyTypeRecords=None):
+    def initByRecord(self, record, propertyTypeRecords=None, relatedActionTypeRecords=None):
         self.id   = forceRef(record.value('id'))
         self.groupId = forceRef(record.value('group_id'))
         self.class_ = forceInt(record.value('class'))
@@ -245,7 +245,7 @@ class CActionType(object):
         self._hasJobTicketPropertyType = False
 
         self._initProperties(propertyTypeRecords)
-        self._loadRelatedActionTypes()
+        self._loadRelatedActionTypes(relatedActionTypeRecords)
         # self._loadPFOrgStructureRecordList()
         # self._loadPFSpecialityRecordList()
         # self._loadEquipmentRecordList()
@@ -324,10 +324,14 @@ class CActionType(object):
         self.QuotaTypeLoaded = True
     
     
-    def _loadRelatedActionTypes(self):
-        actionTypeList = QtGui.qApp.db.getRecordList('ActionType_Relations', 'related_id, isRequired', 'master_id=%d and related_id IS NOT NULL' % self.id)
+    def _loadRelatedActionTypes(self, relatedActionTypeRecords=None):
+        if relatedActionTypeRecords is None:
+            actionTypeList = QtGui.qApp.db.getRecordList('ActionType_Relations', 'related_id, isRequired, idx', 'master_id={} and related_id IS NOT NULL'.format(self.id), order = 'idx')
+        else:
+            actionTypeList = relatedActionTypeRecords
         for record in actionTypeList:
             self._relatedActionTypes[forceRef(record.value('related_id'))] = forceBool(record.value('isRequired'))
+            self._relatedActionTypesOrder[forceRef(record.value('related_id'))] = forceInt(record.value('idx'))
         self.RelatedActionTypesLoaded = True
 
 
@@ -363,6 +367,12 @@ class CActionType(object):
         if not self.RelatedActionTypesLoaded:
             self._loadRelatedActionTypes()
         return self._relatedActionTypes
+    
+    
+    def getRelatedActionTypesOrder(self):
+        if not self.RelatedActionTypesLoaded:
+            self._loadRelatedActionTypes()
+        return self._relatedActionTypesOrder
 
 
     def getTestatorIdList(self):
@@ -503,6 +513,7 @@ class CActionTypeCache(CDbEntityCache):
         if notFound:
             db = QtGui.qApp.db
             ptDict = dict()
+            relDict = dict()
             table = db.table('ActionType')
             tableAPT = db.table('ActionPropertyType')
             actionTypeRecords = db.getRecordList(table, '*', table['id'].inlist(notFound))
@@ -514,8 +525,16 @@ class CActionTypeCache(CDbEntityCache):
             for record in propertyTypeRecords:
                 ptDict.setdefault(forceRef(record.value('actionType_id')), []).append(record)
 
+            tableRelated = db.table('ActionType_Relations')
+            relatedRecords = db.getRecordList(tableRelated,
+                                                   '*',
+                                                   [tableRelated['master_id'].inlist(notFound)],
+                                                   'master_id, idx')
+            for record in relatedRecords:
+                relDict.setdefault(forceRef(record.value('master_id')), []).append(record)
+
             for record in actionTypeRecords:
-                actionType = CActionType(record, ptDict.get(forceRef(record.value('id')), []))
+                actionType = CActionType(record, ptDict.get(forceRef(record.value('id')), []), relDict.get(forceRef(record.value('id')), []))
                 cls.register(actionType)
                 result.append(actionType)
         return result
@@ -617,8 +636,7 @@ class CAction(object):
     actionFillProperties    = 1
     actionAddProperties     = 2
 
-    def __init__(self, actionType=None, record=None, propertyRecords=None, valueRecords=None, reservationId=None,
-                 executionPlanRecord=None, fileAttachRecords=None, specialityId=None, isShort=False):
+    def __init__(self, actionType=None, record=None, addition_data=None, isShort=False):
         self._actionType = actionType
         self._record = None
         self._masterId = None
@@ -656,7 +674,7 @@ class CAction(object):
         self.groupedNomenclature = False
         self._changed = False
         if record:
-            self.setRecord(record, propertyRecords, valueRecords, reservationId, executionPlanRecord, fileAttachRecords, specialityId)
+            self.setRecord(record, addition_data)
 
     def setValuePropertyToTemplateItems(self, items):
         self.valuePropertyToTemplateItems = items
@@ -768,8 +786,7 @@ class CAction(object):
         return cls(record=record, actionType=actionType)
 
 
-    def setRecord(self, record, propertyRecords=None, dictValues=None, reservationId=None,
-                  executionPlanRecord=None, fileAttachRecords=None, specialityId=None):
+    def setRecord(self, record, addition_data=None):
         # установить тип
         actionTypeId = forceRef(record.value('actionType_id'))
         if self._actionType:
@@ -781,14 +798,25 @@ class CAction(object):
         self._record = record
         self._masterId = forceRef(record.value('master_id'))
 
+        if not addition_data:
+            addition_data = dict()
+        propertyRecords = addition_data.get("propertyRecords", None)
+        valueRecords = addition_data.get("valueRecords", None)
+        reservationId = addition_data.get("reservationId", None)
+        specialityId = addition_data.get("specialityId", None)
+        executionPlanRecord = addition_data.get("executionPlanRecord", None)
+        fileAttachRecords = addition_data.get("fileAttachRecords", None)
+        fileAttachSignRecords = addition_data.get("fileAttachSignRecords", None)
+        fileAttachPTRecords = addition_data.get("fileAttachPTRecords", None)
+
         # инициализировать properties
         actionId = forceRef(record.value('id'))
         if actionId:
-            if propertyRecords:
+            if propertyRecords is not None:
                 for propertyRecord in propertyRecords:
                     propValueId = forceRef(propertyRecord.value('id'))
                     prop = CActionProperty(self._actionType, record=propertyRecord, actionId=actionId,
-                                           valueRecords=dictValues.get(propValueId, []))
+                                           valueRecords=valueRecords.get(propValueId, []))
                     self._propertiesById[prop._type.id] = prop
                     self._propertiesByName[prop._type.name] = prop
                     if prop._type.var:
@@ -843,7 +871,7 @@ class CAction(object):
         # спец. отметки
         status = forceInt(record.value('status'))
         personId = forceRef(record.value('person_id'))
-        if specialityId is None:
+        if specialityId is None and not addition_data.has_key("specialityId"):
             specialityId = self.getSpecialityId(personId)
         if not record.isNull('id') and status == CActionStatus.finished and personId and not QtGui.qApp.userHasRight(urAdmin):
             self._locked = not ( QtGui.qApp.userId == personId
@@ -877,7 +905,7 @@ class CAction(object):
                 if fileAttachRecords is None:
                     self._attachedFileItemList = CAttachedFilesLoader.loadItems(storageInterface, 'Action_FileAttach', actionId)
                 else:
-                    self._attachedFileItemList = CAttachedFilesLoader.loadItemsFromRecords(storageInterface, fileAttachRecords)
+                    self._attachedFileItemList = CAttachedFilesLoader.loadItemsFromRecords(storageInterface, fileAttachRecords, fileAttachSignRecords, fileAttachPTRecords)
                 self._attachedFileItemList_orig = self._attachedFileItemList[:]
 
 

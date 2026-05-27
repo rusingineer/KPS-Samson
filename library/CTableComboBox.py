@@ -578,11 +578,14 @@ class CTableComboBox(QtGui.QComboBox):
                 event.ignore()
             if key == Qt.Key_Delete:
                 self._searchString = ''
-                self.lookup()
+                self.setCurrentIndex(-1)
                 event.accept()
             elif key == Qt.Key_Backspace: # BS
                 self._searchString = self._searchString[:-1]
-                self.lookup()
+                if self._searchString:
+                    self.lookup()
+                else:
+                    self.setCurrentIndex(-1)
                 event.accept()
             elif key == Qt.Key_Space:
                 QtGui.QComboBox.keyPressEvent(self, event)

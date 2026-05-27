@@ -313,6 +313,10 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             self.posServices.add(item)
         # ТТ 2037 "добавить в счет-фактуру и форму счет итоговый услугу пренатального скрининга"
         self.posServices.add('B03.032.002')
+        # ТТ 4353 "Счета. Внести правки в расчеты формы счет"
+        # добавить лабораторные услуги в расчет
+        for item in ['A26.05.019.001', 'A26.05.019.003', 'A12.05.120', 'A09.05.041', 'A09.05.042', 'A04.14.001.005']:
+            self.posServices.add(item)
 
         # Для определения обращений
         self.pobr = set()

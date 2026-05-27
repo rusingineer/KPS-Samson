@@ -24,6 +24,7 @@ from Events.ExportMIS import iniExportEvent
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
 from Events.TeethEventInfo import CTeethEventInfo
 from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
+from F111.F111EditDialog import CF111EditDialog
 from Orgs.Utils import getOrgstructureListByEventtypeId, getPersonListByEventtypeId
 from library.Attach.AttachAction import getAttachAction
 from library.Calendar           import getNextWorkDay
@@ -51,7 +52,8 @@ from Events.Utils import checkDiagnosis, checkIsHandleDiagnosisIsChecked, CTable
     getEventIsPrimary, getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, \
     getEventShowVisitTime, getHealthGroupFilter, hasEventVisitAssistant, isEventLong, \
     setAskedClassValueForDiagnosisManualSwitch, getEventAidTypeRegionalCode, getNewResultCond, \
-    isDefaultResultIdValid, CFinanceType, mkbIsOnko, getEventTypeForm, mkbIsVIMIS
+    isDefaultResultIdValid, CFinanceType, mkbIsOnko, getEventTypeForm, mkbIsVIMIS, \
+    getActionTypeIdListByFlatCode
 from F025.PreF025Dialog         import CPreF025Dialog, CPreF025DagnosticAndActionPresets
 from Users.Rights               import urAccessF025planner, urAccessF090planner, urAdmin, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
 
@@ -1098,6 +1100,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 result = result and self.checkNeedTNMS(self.tblInspections, ['cTNMphase_id'], ['pTNMphase_id'])
                 result = result and self.checkServiceDates(begDate, endDate)
         result = result and self.selectNomenclatureAddedActions(tabList)
+        result = result and self.checkKBIR()
         return result
 
     
@@ -1241,7 +1244,89 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     def checkDiagnosis(self, MKB):
         diagFilter = self.getDiagFilter()
         return checkDiagnosis(self, MKB, diagFilter, self.clientId, self.clientSex, self.clientAge, self.edtBegDate.date())
-
+    
+    
+    def checkKBIR(self):
+        db = QtGui.qApp.db
+        endDate = self.edtEndDate.date()
+        isEnabled = False
+        if not endDate:
+            return True
+        elif endDate <= QDate(2025, 9, 1):
+            return True
+        specialityId = forceRef(db.translate('Person', 'id', self.cmbPerson.value(), 'speciality_id'))
+        tableIdentification = db.table('rbSpeciality_Identification')
+        tableAccounting = db.table('rbAccountingSystem')
+        queryTable = tableIdentification.leftJoin(tableAccounting, tableAccounting['id'].eq(tableIdentification['system_id']))
+        specialityIds = db.getDistinctIdList(queryTable, 'rbSpeciality_Identification.master_id', ['rbSpeciality_Identification.value in (8,16,206,207) and rbAccountingSystem.urn = "urn:oid:1.2.643.5.1.13.13.11.1066"'])
+        if forceInt(specialityId) not in specialityIds:
+            return True
+        eventEditor = self
+        if eventEditor and eventEditor.clientId and eventEditor.clientSex == 2:
+            db = QtGui.qApp.db
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
+            queryTable = tableEvent.innerJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            cond = [tableEventType['code'].like(u'KBiR%'),
+                    tableEvent['execDate'].isNull(),
+                    tableEvent['client_id'].eq(eventEditor.clientId),
+                    tableEvent['deleted'].eq(0),
+                    tableEventType['deleted'].eq(0)
+                    ]
+            recordEvent = db.getRecordEx(queryTable, [tableEvent['id'], tableEvent['setDate']], cond, u'Event.id DESC')
+            eventId = forceRef(recordEvent.value('id')) if recordEvent else None
+            model = self.tblInspections.model()
+            items = model.items()
+            if len(items) > 0:
+                item = items[0]
+                MKB = forceStringEx(item.value('MKB'))
+                if (MKB >= u'O00' and MKB <= u'O99.99') or (MKB >= u'Z30' and MKB <= u'Z39.99'):
+                    isEnabled = True
+            if not isEnabled:
+                return True
+            actionId = None
+            if isEnabled and eventId:
+                actionTypeIdListByKBiR = getActionTypeIdListByFlatCode(u'111/y-20')
+                if actionTypeIdListByKBiR:
+                    tableAction = db.table('Action')
+                    cond = [tableAction['event_id'].eq(eventId),
+                            tableAction['deleted'].eq(0),
+                            tableAction['actionType_id'].inlist(actionTypeIdListByKBiR),
+                            tableAction['endDate'].isNull()
+                            ]
+                    actionRecord = db.getRecordEx(tableAction, [tableAction['id']], cond, u'Action.begDate DESC')
+                    actionId = forceRef(actionRecord.value('id')) if actionRecord else None
+            if not actionId:
+                messageSaveKBIR = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                                                u'У пациентки указан диагноз, относящийся к беременности, но отсутствует открытая Карта беременной и родильницы. Создать карту?',
+                                                                QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                                                                self)
+                messageSaveKBIR.setDefaultButton(QtGui.QMessageBox.Cancel)
+                res = messageSaveKBIR.exec_()
+                if res == QtGui.QMessageBox.Ok:
+                    self.tblInspections.on_createF111()
+                    return False
+                else:
+                    return True
+            elif forceDate(recordEvent.value('setDate')).daysTo(endDate) > 294:
+                messageSaveKBIR = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                                                u'У пациентки указан диагноз, относящийся к беременности, но имеющаяся Карта беременной и родильницы начата более 294 дней назад. Открыть имеющуюся карту для просмотра?',
+                                                                QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                                                                self)
+                messageSaveKBIR.setDefaultButton(QtGui.QMessageBox.Cancel)
+                res = messageSaveKBIR.exec_()
+                if res == QtGui.QMessageBox.Ok:
+                    dialog = CF111EditDialog(self)
+                    try:
+                        dialog.load(actionId)
+                        if dialog.exec_():
+                            pass
+                    finally:
+                        dialog.deleteLater()
+                    return False
+                else:
+                    return True
+        return True
 
 
     def getDiagnosisTypeId(self, dt):

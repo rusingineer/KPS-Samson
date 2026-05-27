@@ -280,7 +280,12 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                                   'B04.004.003', 'B04.025.003', 'B04.015.006', 'B05.069.008', 'B04.057.003',
                                   'B04.025.004', 'B04.025.001', 'B04.058.001.001', 'B04.058.001.01',
                                   'B04.058.001', 'B04.058.010', 'B04.070.007', 'B04.023.004.010', 'B04.023.005.010', 
-                                  'B04.058.001.010'
+                                  'B04.058.001.010',
+                                  'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
+                                  'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
+                                  'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
+                                  'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009', 'B04.004.010', 'B04.015.010',
+                                  'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
                                 ) OR substr(s.infis, 1, 1) = 'V', TO_DAYS(a.begDate), TO_DAYS(a.endDate)) = TO_DAYS(e.setDate)
                 or TO_DAYS(v.date) = TO_DAYS(e.setDate)
                 or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')))
@@ -305,7 +310,12 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                                      'B04.004.003', 'B04.025.003', 'B04.015.006', 'B05.069.008', 'B04.057.003',
                                      'B04.025.004', 'B04.025.001', 'B04.058.001.001', 'B04.058.001.01',
                                      'B04.058.001', 'B04.058.010', 'B04.070.007', 'B04.023.004.010', 'B04.023.005.010', 
-                                     'B04.058.001.010'
+                                     'B04.058.001.010',
+                                     'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
+                                     'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
+                                     'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
+                                     'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009', 'B04.004.010', 'B04.015.010',
+                                     'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
                                    ) OR substr(s.infis, 1, 1) = 'V', TO_DAYS(a.begDate), TO_DAYS(a.endDate)) = TO_DAYS(e.setDate)
             union all
             select ct.id from Event e
@@ -405,7 +415,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 left join rbService s1 on s1.id = at1.nomenclativeService_id
                 LEFT join Organisation o1 ON e1.org_id = o1.id
                 left join Contract c1 on c1.id = IFNULL(a1.contract_id, e1.contract_id) and c1.deleted = 0
-                left join Contract_Tariff ct1 ON ct1.master_id = IFNULL(c1.priceList_id, c1.id)
+                left join Contract_Tariff ct1 ON ct1.master_id in (c1.id, c1.priceListExternal_id)
                     and ct1.service_id = s1.id and ct1.deleted = 0
                     and (ct1.endDate is not null and DATE(a1.endDate) between ct1.begDate and ct1.endDate
                     or DATE(a1.endDate) >= ct1.begDate and ct1.endDate is null)
@@ -420,7 +430,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 LEFT join Organisation o2 ON e2.org_id = o2.id
                 left join Contract c2 on c2.id = IFNULL(a2.contract_id, e2.contract_id) and c2.deleted = 0
                 left JOIN rbFinance f2 ON f2.id = c2.finance_id
-                left join Contract_Tariff ct2 ON ct2.master_id = IFNULL(c2.priceList_id, c2.id)
+                left join Contract_Tariff ct2 ON ct2.master_id in (c2.id, c2.priceListExternal_id)
                     and ct2.service_id = s2.id and ct2.deleted = 0
                     and (ct2.endDate is not null and DATE(a2.endDate) between ct2.begDate and ct2.endDate
                     or DATE(a2.endDate) >= ct2.begDate and ct2.endDate is null)
@@ -596,7 +606,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbService s2 on s2.id = at2.nomenclativeService_id
             left join Contract c2 on c2.id = IFNULL(a2.contract_id, e2.contract_id)
                 and c2.deleted = 0  -- and c2.finance_id = a2.finance_id
-            left join Contract_Tariff ct2 ON ct2.master_id = IFNULL(c2.priceList_id, c2.id)
+            left join Contract_Tariff ct2 ON ct2.master_id in (c2.id, c2.priceListExternal_id)
                 and ct2.service_id = s2.id and ct2.deleted = 0
                     and (ct2.endDate is not null and DATE(a2.endDate) between ct2.begDate and ct2.endDate
                     or DATE(a2.endDate) >= ct2.begDate and ct2.endDate is null)
@@ -930,7 +940,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                             'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
                             'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
                             'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
-                            'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009'
+                            'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.004.010', 'B04.015.010',
+                            'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
                         )
                 )
                     """
@@ -946,7 +957,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
              left join rbService s2 on s2.id = at2.nomenclativeService_id
              left join Contract c2 on c2.id = IFNULL(a2.contract_id, e2.contract_id)
                  and c2.deleted = 0 -- and c2.finance_id = a2.finance_id
-             left join Contract_Tariff ct2 ON ct2.master_id = IFNULL(c2.priceList_id, c2.id)
+            left join Contract_Tariff ct2 ON ct2.master_id in (c2.id, c2.priceListExternal_id)
                  and ct2.service_id = s2.id and ct2.deleted = 0
                      and (ct2.endDate is not null and DATE(a2.endDate) between ct2.begDate and ct2.endDate
                      or DATE(a2.endDate) >= ct2.begDate and ct2.endDate is null)
@@ -1211,7 +1222,7 @@ left join Organisation as Insurer on Insurer.id = ClientPolicy.insurer_id
 /*данные события*/
 left join Person on Person.id = Event.execPerson_id
 left join EventType on EventType.id = Event.eventType_id
-left JOIN EventType_Identification eti on eti.master_id = EventType.id AND eti.value IN ('ak', 'am', 'au', 'ae', 'ag', 'ah', 'ao', 'av')
+left JOIN EventType_Identification eti on eti.master_id = EventType.id AND eti.value IN ('ak', 'am', 'au', 'ae', 'ag', 'ah', 'ao', 'av') and eti.deleted=0
 left join rbResult as EventResult on EventResult.id = Event.result_id
 LEFT JOIN Diagnostic ON Diagnostic.event_id = Event.id
     AND Diagnostic.id = (SELECT MAX(d.id)

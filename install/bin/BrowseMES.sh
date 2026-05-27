@@ -1,9 +1,5 @@
 #!/bin/bash
-#----------------------
-#f=`pwd`
-f=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-NOWDATE=`date '+%Y-%m-%d_%T'`
+# Редактор МЕС
 
 export PYTHONPATH=/opt/client
-
 python2 /opt/client/appendix/mes/main.py

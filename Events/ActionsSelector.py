@@ -1749,8 +1749,12 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
                         actionType = CActionTypeCache.getById(actionTypeId)
                         if actionTypeId in mesExistsListId:
                             # ТТ 2691 исключение должно быть для услуг врачей терапевта B04.047 или врача общей практики B04.026
-                            if actionType.code.startswith('B04.047') or actionType.code.startswith('B04.026'):
-                                if bool(actionType.code.startswith('B04.047') and self.specialityRegionalCode in ['76', '206']) or bool(actionType.code.startswith('B04.026') and self.specialityRegionalCode in ['39', '224']):
+                            if actionType.code.startswith('B04.047') \
+                                or actionType.code.startswith('B04.026') \
+                                or actionType.code == 'B01.026.001' \
+                                or actionType.code == 'B01.047.005':
+                                if (bool(actionType.code.startswith('B04.047') or bool(actionType.code == 'B01.047.005')) and self.specialityRegionalCode in ['76', '206']) \
+                                    or (bool(actionType.code.startswith('B04.026') or bool(actionType.code == 'B01.026.001')) and self.specialityRegionalCode in ['39', '224']):
                                     mesExistsListId.pop(mesExistsListId.index(actionTypeId))
                                     notSelected += mesExistsListId
                                 else:

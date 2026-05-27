@@ -80,7 +80,8 @@ from Registry.Utils                       import (
                                                   getClientInfoEx,
                                                   getClientMiniInfo,
                                                   getClientInfo2,
-                                                  getClientAttachEx
+                                                  getClientAttachEx,
+                                                  createRelatedActionTMK
                                                  )
 from Reports.ReportBase       import CReportBase, createTable
 from Reports.ReportBeforeRecord           import CReportBeforeRecord
@@ -223,6 +224,7 @@ class CResourcesDockContent(QtGui.QWidget,
         self.addObject('actFindArea',       QtGui.QAction(u'Найти участок', self))
         self.addObject('actAmbCreateOrder', QtGui.QAction(u'Поставить в очередь', self))
         self.addObject('actAmbCreateOrderUrgent', QtGui.QAction(u'Поставить в очередь неотложно', self))
+        self.addObject('actAmbCreateOrderTMK', QtGui.QAction(u'Поставить в очередь на ТМК', self))
         self.addObject('actAmbDeleteOrder', QtGui.QAction(u'Удалить из очереди', self))
         self.addObject('actAmbChangeComplaint', QtGui.QAction(u'Изменить жалобы', self))
         self.addObject('actAmbChangeReferral',  QtGui.QAction(u'Изменить данные направления', self))
@@ -297,6 +299,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                              )
         self.tblAmbQueue.createPopupMenu([self.actAmbCreateOrder,
                                           self.actAmbCreateOrderUrgent,
+                                          self.actAmbCreateOrderTMK,
                                           self.actAmbDeleteOrder,
                                           '-',
                                           self.actAmbChangeComplaint,
@@ -866,6 +869,7 @@ class CResourcesDockContent(QtGui.QWidget,
                              tblQueue,
                              actCreateOrder,
                              actCreateOrderUrgent,
+                             actCreateOrderTMK,
                              actDeleteOrder,
                              actChangeComplaint,
                              actChangeReferral,
@@ -896,10 +900,13 @@ class CResourcesDockContent(QtGui.QWidget,
         variantPrintQueue = QtGui.qApp.ambulanceUserCheckable()
         clientIsInvited = modelQueue.getInvitation(currentRow)
 
+        overtimeItem = False
+
         if 0<=currentRow<len(modelQueue.scheduleItems):
             isEnableQueueingForItem = modelQueue.scheduleItems[currentRow].enableQueueing
         else:
             isEnableQueueingForItem = self.enableQueueing
+            overtimeItem = True
 
         actCreateOrder.setEnabled(bool(currentClientId)
                                   and itemPresent
@@ -911,6 +918,13 @@ class CResourcesDockContent(QtGui.QWidget,
                                   and not orderPresent
                                   and (self.enableQueueing and isEnableQueueingForItem)
                                   and not deathDate)
+        actCreateOrderTMK.setEnabled(bool(currentClientId)
+                                  and itemPresent
+                                  and not orderPresent
+                                  and (self.enableQueueing and isEnableQueueingForItem)
+                                  and not deathDate
+                                  and canFindClient and bool(currentClientId)
+                                  and not overtimeItem)
         actDeleteOrder.setEnabled(orderPresent)
         actChangeComplaint.setEnabled(orderPresent)
         actChangeReferral.setEnabled(orderPresent)
@@ -1025,14 +1039,16 @@ class CResourcesDockContent(QtGui.QWidget,
         return True
 
 
-    def createOrder(self, tblTimeTable, tblQueue, clientId, isUrgent=0):
-        def fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent=0):
+    def createOrder(self, tblTimeTable, tblQueue, clientId, isUrgent=0, recordType=None):
+        def fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent=0, recordType=None):
             scheduleItem.clientId = clientId
             scheduleItem.recordDatetime = QDateTime.currentDateTime()
             scheduleItem.recordPersonId = QtGui.qApp.userId
             scheduleItem.complaint = complaint
             scheduleItem.checked = False
             scheduleItem.isUrgent = isUrgent
+            if recordType:
+                scheduleItem.recordType = recordType
             if referral:
                 scheduleItem.srcOrgId        = referral.srcOrgId
                 scheduleItem.srcPerson       = referral.srcPerson
@@ -1048,6 +1064,7 @@ class CResourcesDockContent(QtGui.QWidget,
             activityId = None
             orgStructureId = self.getPersonOrgStructureId(personId)
             modelQueue = tblQueue.model()
+            modelQueue.updateData()
             row = tblQueue.currentIndex().row()
             if row == len(modelQueue.scheduleItems): # это плохо
                 if len(modelQueue.schedules) == 1:
@@ -1103,56 +1120,74 @@ class CResourcesDockContent(QtGui.QWidget,
 
                 if scheduleItem.id is None:
                     if self.lock('Schedule', scheduleItem.scheduleId):
+                        db.transaction()
                         try:
                             schedule.reloadItems()
                             #row = len(schedule.items)
                             scheduleItem.idx = schedule.items[-1].idx+1 if schedule.items else 0
-                            fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent)
+                            fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType)
                             scheduleItemId = scheduleItem.save()
+                            if recordType and recordType == 4 and scheduleItemId:
+                                if not createRelatedActionTMK(self, clientId, personId, scheduleItem.time, scheduleItemId):
+                                    db.rollback()
+                                    return False
                             if appointmentType == CSchedule.atHome:
                                 QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
                             else:
                                 QtGui.qApp.emitCurrentClientInfoSAChanged(scheduleItemId)
+                            db.commit()
+                            # self.updateTimeTableRow(tblTimeTable)
+                            # modelQueue.emitDataChanged(row)
+                            # modelQueue.updateData()
+                        except:
+                            db.rollback()
+                            raise
+                        finally:
                             self.updateTimeTableRow(tblTimeTable)
                             modelQueue.emitDataChanged(row)
                             modelQueue.updateData()
-                        finally:
                             self.releaseLock()
                     tblQueue.setCurrentIndex(modelQueue.index(row, 0))
                     return True
                 else:
                     if self.lock('Schedule_Item', scheduleItem.id):
-                        dataChanged = False
                         try:
                             modelQueue.updateData()
                             scheduleItem = modelQueue.getScheduleItem(row)
                             if scheduleItem.clientId or forceBool(scheduleItem.value('deleted')):
-                                dataChanged = True
-                            else:
-                                db.transaction()
-                                try:
-                                    fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent)
-                                    scheduleItemId = scheduleItem.save()
-                                    if appointmentType == CSchedule.atHome:
-                                        QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
-                                    else:
-                                        QtGui.qApp.emitCurrentClientInfoSAChanged(scheduleItemId)
-                                    db.commit()
-                                    self.updateTimeTableRow(tblTimeTable)
-                                    modelQueue.emitDataChanged(row)
-                                    return True
-                                except:
-                                    db.rollback()
-                                    raise
+                                messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
+                                                               u'Внимание!',
+                                                               u'Запись на это время невозможна, так как оно уже занято',
+                                                               QtGui.QMessageBox.Ok)
+                                messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+                                messageBox.exec_()
+                                return False
+
+                            db.transaction()
+                            try:
+                                fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType)
+                                scheduleItemId = scheduleItem.save()
+                                if recordType and recordType == 4 and scheduleItemId:
+                                    if not createRelatedActionTMK(self, clientId, personId, scheduleItem.time, scheduleItemId):
+                                        db.rollback()
+                                        return False
+                                if appointmentType == CSchedule.atHome:
+                                    QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
+                                else:
+                                    QtGui.qApp.emitCurrentClientInfoSAChanged(scheduleItemId)
+                                db.commit()
+                                # self.updateTimeTableRow(tblTimeTable)
+                                # modelQueue.emitDataChanged(row)
+                                return True
+                            except:
+                                db.rollback()
+                                raise
+                            finally:
+                                self.updateTimeTableRow(tblTimeTable)
+                                modelQueue.emitDataChanged(row)
+                                modelQueue.updateData()
                         finally:
                             self.releaseLock()
-                        if dataChanged:
-                            messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning,
-                                                           u'Внимание!',
-                                                           u'Запись на это время невозможна, так как оно уже занято',
-                                                           QtGui.QMessageBox.Ok)
-                            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
-                            messageBox.exec_()
         return False
 
 
@@ -1635,6 +1670,48 @@ class CResourcesDockContent(QtGui.QWidget,
         else:
             self.updatePersonnelByOrgStructure()
 
+    def isSwitchToUserSchedule(self):
+        """
+        Функция проверяет локальную настройку "Переходить в свой график при записи не к себе"
+
+            0 или None - Запись работает как обычно
+            1 - Отменяет запись на талон и переключает расписание выбранного врача на расписание врача под которым залогинен пользователь
+            2 - При записи спросит необходимо ли переключение на расписание залогиненого врача
+
+        True - В случае если необходимо переключение на расписание залогиненого врача
+        False - В случае если переключение ненужно
+        """
+        switchingToUserSchedule = QtGui.qApp.preferences.appPrefs.get('switchingToUserSchedule')
+        if not switchingToUserSchedule:
+            return False
+        userPersonId = QtGui.qApp.userId
+        personIndex = self.treeOrgPersonnel.currentIndex()
+        personId = self.modelPersonnel.getItemIdList(personIndex)
+        userPersonIndex = self.modelPersonnel.findPersonId(userPersonId)
+        userPersonOrgStructureIndex = self.modelOrgStructure.findItemId(QtGui.qApp.userOrgStructureId)
+
+        if (userPersonId in personId) or not(userPersonIndex and userPersonIndex.isValid()):
+            return False
+
+        if switchingToUserSchedule == 1:
+            if userPersonOrgStructureIndex and userPersonOrgStructureIndex.isValid():
+                self.treeOrgStructure.setCurrentIndex(userPersonOrgStructureIndex)
+            self.treeOrgPersonnel.setCurrentIndex(userPersonIndex)
+            return True
+        elif switchingToUserSchedule == 2:
+            if QtGui.QMessageBox().question(self,
+                                            u'Внимание!',
+                                            u'Перейти на повторный прием?',
+                                            QtGui.QMessageBox.No | QtGui.QMessageBox.Yes,
+                                            QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                if userPersonOrgStructureIndex and userPersonOrgStructureIndex.isValid():
+                    self.treeOrgStructure.setCurrentIndex(userPersonOrgStructureIndex)
+                self.treeOrgPersonnel.setCurrentIndex(userPersonIndex)
+                return True
+            else:
+                return False
+        else:
+            return False
 
     @pyqtSignature('int')
     def on_tabPlace_currentChanged(self, index):
@@ -1804,6 +1881,7 @@ class CResourcesDockContent(QtGui.QWidget,
         self.popupMenuAboutToShow(self.tblAmbQueue,
                                   self.actAmbCreateOrder,
                                   self.actAmbCreateOrderUrgent,
+                                  self.actAmbCreateOrderTMK,
                                   self.actAmbDeleteOrder,
                                   self.actAmbChangeComplaint,
                                   self.actAmbChangeReferral,
@@ -1865,6 +1943,15 @@ class CResourcesDockContent(QtGui.QWidget,
     @pyqtSignature('')
     def on_actAmbCreateOrderUrgent_triggered(self):
         if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), isUrgent = 1):
+            self.printOrder(self.tblAmbQueue)
+        QtGui.qApp.emitCurrentClientInfoChanged()
+
+
+    @pyqtSignature('')
+    def on_actAmbCreateOrderTMK_triggered(self):
+        if self.isSwitchToUserSchedule():
+            return
+        if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), recordType = 4):
             self.printOrder(self.tblAmbQueue)
         QtGui.qApp.emitCurrentClientInfoChanged()
 
@@ -2674,10 +2761,12 @@ class CQueueModel(QAbstractTableModel):
         elif role == Qt.ToolTipRole:
             if item and item.clientId:
                 cache = CRBModelDataCache.getData('vrbPersonWithSpeciality', True)
-                urgent = u''
+                additionalToolTip = u''
                 if item.isUrgent == 1:
-                    urgent = u' неотложно'
-                text = u'Записал: '+cache.getStringById(item.recordPersonId, CRBComboBox.showName) + urgent
+                    additionalToolTip = u' неотложно'
+                elif item.recordType == 4:
+                    additionalToolTip = u' (ТМК (MAX))'
+                text = u'Записал: '+cache.getStringById(item.recordPersonId, CRBComboBox.showName) + additionalToolTip
                 if item.complaint:
                     text += u'\nЖалобы: '+item.complaint
                 if item.note:
@@ -2699,18 +2788,20 @@ class CQueueModel(QAbstractTableModel):
         elif role == Qt.DecorationRole:
             if item and item.clientId and column == 0:
                 if item.isUrgent:
-                    return QVariant(QtGui.QIcon(':/new/prefix1/icons/blueBullet.svg'))
+                    return QVariant(QtGui.QIcon(':/new/prefix1/icons/blueBullet.png'))
+                elif item.recordType == 4:
+                    return QVariant(QtGui.QIcon(':/new/prefix1/icons/orangeBullet.png'))
                 else:
                     if item.recordClass == item.rcSamson:
                         if item.inWaitingArea:
-                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/greenBullet.svg'))
+                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/greenBullet.png'))
                         else:
                             return QVariant(QtGui.QColor(Qt.transparent))
                     else:
                         if item.inWaitingArea:
-                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/redAndGreenBullet.svg'))
+                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/redAndGreenBullet.png'))
                         else:
-                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/redBullet.svg'))
+                            return QVariant(QtGui.QIcon(':/new/prefix1/icons/redBullet.png'))
         return QVariant()
 
 

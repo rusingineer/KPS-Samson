@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -19,7 +19,7 @@ from PyQt4.QtGui import QTextBlockFormat
 from Events.EventInfo import CEventInfo
 from library.DialogBase         import CConstructHelperMixin
 from library.PrintInfo          import CInfoContext
-from library.PrintTemplates import CPrintAction, addButtonActions, additionalCustomizePrintButton, applyTemplate
+from library.PrintTemplates import CPrintAction, addButtonActions, additionalCustomizePrintButton, applyTemplate, getPrintTemplates
 from library.TableModel         import CTableModel, CCol, CDateCol, CRefBookCol, CSumCol
 from library.Utils              import forceDouble, forceInt, forceRef, forceString, formatDate
 
@@ -62,28 +62,35 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
         self.clientId = None
         self._onlyTotalDoseSumInfo = True
-        self.setSortable(self.tblRadiationDose, lambda: self.setClientId(self.clientId))
-
-    def setSortingIndicator(self, tbl, col, asc):
-        tbl.setSortingEnabled(True)
-        tbl.horizontalHeader().setSortIndicator(col, Qt.AscendingOrder if asc else Qt.DescendingOrder)
-
-    def setSortable(self, tbl, update_function=None):
-        def on_click(col):
-            hs = tbl.horizontalScrollBar().value()
-            model = tbl.model()
-            sortingCol = model.headerSortingCol.get(col, False)
-            model.headerSortingCol = {}
-            model.headerSortingCol[col] = not sortingCol
-            if update_function:
-                update_function()
-            else:
-                model.loadData()
-            self.setSortingIndicator(tbl, col, not sortingCol)
-            tbl.horizontalScrollBar().setValue(hs)
-        header = tbl.horizontalHeader()
+        self.btnRadiationDosePrintIsLoaded = False
+        header = self.tblRadiationDose.horizontalHeader()
+        header.setSortIndicatorShown(True)
         header.setClickable(True)
-        QObject.connect(header, SIGNAL('sectionClicked(int)'), on_click)
+        QObject.connect(header, SIGNAL('sectionClicked(int)'), self.onHeaderTblRadiationDoseClicked)
+
+
+    def showEvent(self, event):
+        if not self.btnRadiationDosePrintIsLoaded:
+            mnuPrint = QtGui.QMenu()
+            printSignalSheetAction = mnuPrint.addAction(u'Сигнальный лист')
+            printRadiationLoadAccountingAction = mnuPrint.addAction(u'Лист учета лучевых нагрузок')
+            mnuPrint.addSeparator()
+            for template in getPrintTemplates('radiationDose'):
+                mnuPrint.addAction(CPrintAction(template.name, template.id, None, self, self.on_btnRadiationDosePrint_printByTemplate))
+            printSignalSheetAction.triggered.connect(self._printSignalSheetReport)
+            printRadiationLoadAccountingAction.triggered.connect(self._printRadiationLoadAccountingReport)
+            self.btnRadiationDosePrint.setMenu(mnuPrint)
+            self.btnRadiationDosePrintIsLoaded = True
+        QtGui.QWidget.showEvent(self, event)
+
+
+    def onHeaderTblRadiationDoseClicked(self, col):
+        headerSortingCol = self.modelRadiationDose.headerSortingCol.get(col, False)
+        self.modelRadiationDose.headerSortingCol = {}
+        self.modelRadiationDose.headerSortingCol[col] = not headerSortingCol
+        self.modelRadiationDose.sortDataModel()
+        self.tblRadiationDose.horizontalHeader().setSortIndicator(col, Qt.DescendingOrder if not headerSortingCol else Qt.AscendingOrder)
+
 
     def setClientId(self, clientId):
         self.clientId = clientId
@@ -194,6 +201,69 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
         data = {'rows': listValues, 'client': event.client}
 
         QtGui.qApp.call(self, applyTemplate, (self, templateId, data))
+
+
+    @pyqtSignature('')
+    def _printSignalSheetReport(self):
+        def formatClientInfo(info):
+            return u'\n'.join([u'ФИО: %s'           % info.fullName,
+                               u'Дата рождения: %s' % formatDate(info.birthDate),
+                               u'Пол: %s'           % info.sex,
+                               u'Код: %d'           % info.id])
+
+        doc    = QtGui.QTextDocument()
+        cursor = QtGui.QTextCursor(doc)
+
+        cursor.setCharFormat(CReportBase.ReportTitle)
+        cursor.insertText(u'Сигнальный лист учета дозы рентгеновского облучения')
+        cursor.setCharFormat(CReportBase.TableBody)
+        cursor.insertBlock()
+        clientInfo = getClientInfoEx(self.clientId)
+        cursor.insertText(formatClientInfo(clientInfo))
+        cursor.insertBlock()
+
+        tableColumns = [
+            ('2%', [u'№' ], CReportBase.AlignLeft),
+            ('10%', [u'Дата' ], CReportBase.AlignLeft),
+            ('20%', [u'Вид рентгенологического исследования'], CReportBase.AlignLeft),
+            ('10%', [u'Количество'], CReportBase.AlignRight),
+            ('10%', [u'Количество снимков'], CReportBase.AlignRight),
+            ('15%', [u'Суммарная доза облучения'], CReportBase.AlignRight),
+            ('10%', [u'Единица измерения'], CReportBase.AlignRight),
+        ]
+        table = createTable(cursor, tableColumns)
+
+        for idRow, id in enumerate(self.modelRadiationDose.idList()):
+            values = [idRow+1,
+                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
+                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))),
+                      "%d" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Количество')))),
+                      "%d" % self.modelRadiationDose.getPhotosAccount(id),
+                      "%f" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза')))),
+                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Ед.из'))))
+                      ]
+
+            i = table.addRow()
+            for column, value in enumerate(values):
+                table.setText(i, column, value)
+
+        i = table.addRow()
+        table.setText(i, 0, u'Итого')
+        table.setText(i, 3, "%d" % self.modelRadiationDose.actionsSum())
+        table.setText(i, 4, "%d" % self.modelRadiationDose.photosSum())
+        table.setText(i, 5, "%f" % self.modelRadiationDose.dosesSum())
+        table.setText(i, 6, "%s" % self.modelRadiationDose.unitsSum())
+
+        cursor.movePosition(QtGui.QTextCursor.End)
+
+        result = '          '.join(['\n\n\n' + forceString(QDate.currentDate()), u'ФИО: %s' % getPersonName(QtGui.qApp.userId)])
+        cursor.insertText(result)
+        cursor.insertBlock()
+
+        view = CReportViewDialog(self)
+        view.setText(doc)
+        view.exec_()
+
 
     @pyqtSignature('')
     def on_btnRadiationDose_printByTemplate(self):

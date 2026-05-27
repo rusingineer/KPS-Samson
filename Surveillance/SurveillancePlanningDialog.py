@@ -3041,10 +3041,7 @@ class CMeasuresActionsCheckTableModel(CTableModel):
             mapActionValueRecords = dict()
             for prop in propertyRecords:
                 mapActionValueRecords[forceRef(prop.value('id'))] = mapValues.get(forceRef(prop.value('id')), [])
-            action = CAction(actionType=actionType, record=record, propertyRecords=propertyRecords,
-                             valueRecords=mapActionValueRecords, reservationId=reservationId,
-                             executionPlanRecord=executionPlanRecord, fileAttachRecords=fileAttachRecords,
-                             specialityId=specialityId)
+            action = CAction(actionType=actionType, record=record)
             # items.setdefault(action.getType().class_, []).append(CActionRecordItem(action.getRecord(), action))
             self._actionRecordItemCache[action.getId()] = CActionRecordItem(action.getRecord(), action)
 

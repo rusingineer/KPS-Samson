@@ -15,7 +15,7 @@
 #
 import re
 from PyQt4 import QtGui, QtCore
-from PyQt4.QtCore import QString,QVariant
+from PyQt4.QtCore import QString, QVariant, Qt
 
 from library.StrComboBox           import CStrComboBox
 from library.Utils                 import forceString
@@ -93,6 +93,12 @@ class CStringActionPropertyValueType(CActionPropertyValueType):
             CStrComboBox.__init__(self, parent)
             self.setDomain(domain)
             val = self._parse(domain)
+    
+        def keyPressEvent(self, event):
+            if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+                QtGui.QComboBox.keyPressEvent(self, event)
+            else:
+                CStrComboBox.keyPressEvent(self, event)
 
 
     @staticmethod

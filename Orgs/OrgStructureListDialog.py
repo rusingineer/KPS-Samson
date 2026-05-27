@@ -88,7 +88,7 @@ class COrgStructureTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код', ['code'], 5))
         self.addColumn(CTextCol(u'Наименование', ['name'], 40))
-        self._fieldNames = ['OrgStructure.code', 'OrgStructure.name']
+        self._fieldNames = ['OrgStructure.id', 'OrgStructure.code', 'OrgStructure.name']
         self.setTable('OrgStructure')
 
 

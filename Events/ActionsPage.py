@@ -11,6 +11,7 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
+from collections import OrderedDict
 import requests
 # Страница редактирования action одного класса в пределах event'а
 
@@ -745,20 +746,21 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 if u'consultationDirection'.lower() in actionType.flatCode.lower() or u'researchDirection'.lower() in actionType.flatCode.lower():
                     self.btnAPQueueManagement.setText(u'УО')
                     enableQM = bool(action
-                        and u'Идентификатор направления' in actionType._propertiesByName
-                        and u'Причина аннулирования' in actionType._propertiesByName
-                        and u'Идентификатор талона' in actionType._propertiesByName)
+                                    and u'Идентификатор направления' in actionType._propertiesByName
+                                    and u'Причина аннулирования' in actionType._propertiesByName
+                                    and u'Идентификатор талона' in actionType._propertiesByName)
                     self.btnAPQueueManagement.setEnabled(enableQM and (
-                                action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
-                    self.actAPQMSetAppointment.setEnabled(enableQM and (
-                                (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == '') or
-                                action[
-                                    u'Идентификатор талона'] == u'Направление для самостоятельной записи через ЕПГУ'))
+                            action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
+                    self.actAPQMSetAppointment.setEnabled(
+                        enableQM and (action[u'Идентификатор талона'] is None or action[u'Идентификатор талона'] == ''))
                     self.actAPQMCancelReferral.setEnabled(enableQM and (
-                                action[u'Идентификатор направления'] is not None and action[
-                            u'Идентификатор направления'] != ''))
+                            action[u'Идентификатор направления'] is not None and action[
+                        u'Идентификатор направления'] != ''))
                     self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and (
-                                action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''))
+                            action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''
+                            and action[
+                                u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ'
+                    ))
                     self.actImportAvailableProfiles.setEnabled(True)
                     self.actAPQMCancelReferral.setVisible(True)
                     self.actAPQMCreateClaimForRefusal.setVisible(True)
@@ -766,7 +768,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     self.actCreatingApplication.setVisible(False)
                     self.actImportAvailableProfiles.setVisible(True)
                     self.actViewingApplications.setVisible(False)
-                elif u'tmkDirection'.lower() in actionType.flatCode.lower():
+                elif u'tmkDirect'.lower() in actionType.flatCode.lower():
                     self.ActionTMK_BTN_Visible(action, actionType)
                 else:
                     self.btnAPQueueManagement.setEnabled(False)
@@ -1014,12 +1016,19 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         else:
             self.actCreatingApplication.setText(u'Создать направление')
 
+        if u'tmkDirectMax'.lower() in actionType.flatCode.lower():
+            if action._propertiesByShortName['direction_identifier']._value and len(action._propertiesByShortName['direction_identifier']._value)>0:
+                self.actCreatingApplication.setVisible(True)
+            else:
+                self.actCreatingApplication.setVisible(False)
+        else:
+            self.actCreatingApplication.setVisible(True)
+
         self.actAPQMCancelReferral.setVisible(False)
         self.actAPQMCreateClaimForRefusal.setVisible(False)
         self.actAPQMSetAppointment.setVisible(False)
         self.actImportAvailableProfiles.setVisible(False)
         self.btnAPQueueManagement.setEnabled(True)
-        self.actCreatingApplication.setVisible(True)
         self.actViewingApplications.setVisible(True)
 
 
@@ -1358,6 +1367,9 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             if action:
                 parentActionType = CActionTypeCache.getById(action.getType().id)
                 reqActionTypes = parentActionType.getRelatedActionTypes()
+                order = parentActionType.getRelatedActionTypesOrder()
+                reqActionTypes = OrderedDict(sorted(reqActionTypes.items(), key=lambda x: order.get(x[0], 0)))
+                group = None
                 if reqActionTypes:
                     actionTypes = []
                     required = False
@@ -1382,6 +1394,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                                                     True, self.tblAPActions, row=row, column=0):
                             if dlg.exec_():
                                 result = dlg.getSelectedList()
+                                result = sorted(result, key=lambda x: order.get(x, 0))
                                 for actionType in result:
                                     index = self.modelAPActions._actionModel.index(self.modelAPActions._actionModel.rowCount() - 1, 0)
                                     self.modelAPActions.setData(index, actionType, self.modelAPActions._mapProxyRow2Group[self.modelAPActions._mapModelRow2ProxyRow[row]])
@@ -1708,6 +1721,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.receivedFinanceId = forceRef(record.value('finance_id'))
             self.updateAmount()
             model.addRow(actionTypeId, actionType.amount)
+            self.setDirty()
             record, action = model.items()[-1]
             eventTypeId = self.eventEditor.getEventTypeId()
             if eventTypeId:
@@ -1791,6 +1805,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     self.eventEditor.cmbPerson.setValue(chiefId)
                 self.updateAmount()
                 model.addRow(actionTypeId, actionType.amount)
+                self.setDirty()
                 record, action = model.items()[-1]
                 if eventId:
                     record.setValue('event_id', toVariant(eventId))
@@ -1818,6 +1833,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             if actionTypeId:
                 self.updateAmount()
                 model.addRow(actionTypeId, actionType.amount)
+                self.setDirty()
                 record, action = model.items()[-1]
                 if self.eventActionFinance == 0:
                     record.setValue('finance_id', toVariant(self.receivedFinanceId))
@@ -3284,10 +3300,13 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             record, action = self.tblAPActions.model()._items[row]
         actionTypeId = forceRef(record.value('actionType_id'))
         actionTypes = CActionTypeCache.getById(actionTypeId).getRelatedActionTypes()
+        order = CActionTypeCache.getById(actionTypeId).getRelatedActionTypesOrder()
+        actionTypes = sorted(actionTypes.keys(), key=lambda x: order.get(x, 0))
         if actionTypes:
-            dlg = CAddRelatedAction(self, actionTypes.keys())
+            dlg = CAddRelatedAction(self, actionTypes)
             if dlg.exec_():
                 result = dlg.getSelectedList()
+                result = sorted(result, key=lambda x: order.get(x, 0))
                 group = self.modelAPActions._mapProxyRow2Group[row]
                 if not group.expanded:
                     self.modelAPActions.touchGrouping(row)
@@ -3354,32 +3373,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
 
             db = QtGui.qApp.db
             table = db.table('Action')
-            tableActionProperty = db.table('ActionProperty')
             record = db.getRecord(table, '*', actionId)
-
-            APRecords = db.getRecordList(tableActionProperty, '*',
-                                         [tableActionProperty['action_id'].eq(actionId),
-                                          tableActionProperty['deleted'].eq(0)])
-            dictValuesTable = {}
-            dictProperties = {}
-            dictValues = {}
-            for propertyRecord in APRecords:
-                propertyTypeId = forceRef(propertyRecord.value('type_id'))
-                if actionType.propertyTypeIdPresent(propertyTypeId):
-                    tableName = actionType.getPropertyTypeById(propertyTypeId).tableName
-                    dictValuesTable.setdefault(tableName, []).append(forceRef(propertyRecord.value('id')))
-                    dictProperties.setdefault(actionId, []).append(propertyRecord)
-            for key in dictValuesTable.keys():
-                valueTable = db.table(key)
-                valueRecords = db.getRecordList(valueTable, '*', valueTable['id'].inlist(dictValuesTable[key]))
-                for rec in valueRecords:
-                    dictValues.setdefault(forceRef(rec.value('id')), []).append(rec)
-
-            propertyRecords = dictProperties.get(actionId, [])
-            valDict = dict()
-            for prop in propertyRecords:
-                valDict[forceRef(prop.value('id'))] = dictValues.get(forceRef(prop.value('id')), [])
-            action = CAction(actionType=actionType, record=record, propertyRecords=propertyRecords, valueRecords=valDict)
+            action = CAction(actionType=actionType, record=record)
             model._actionModel.items()[row]._data = CActionRecordItem(action.getRecord(), action)
             self.onActionCurrentChanged()
             self._onActionChanged()

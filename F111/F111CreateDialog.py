@@ -196,6 +196,14 @@ class CF111CreateDialog(CF111EditDialog):
             self.tabNotes.setNotes(record)
             self.tabNotes.setEventEditor(self)
         self.on_btnBoxPregnancyRetrospect_apply()
+        date = self.edtNVNBDZKDate.date()
+        if date and date.isValid():
+            self.lblCloseReason.setVisible(True)
+            self.edtCloseReason.setVisible(True)
+        else:
+            self.lblCloseReason.setVisible(False)
+            self.edtCloseReason.setVisible(False)    
+            self.edtCloseReason.setText('')
 
 
     @pyqtSlot(int)

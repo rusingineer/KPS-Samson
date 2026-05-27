@@ -273,6 +273,7 @@
      <addaction name="actUnlockTempInvalid"/>
      <addaction name="actUnlockMSE"/>
      <addaction name="actUnlockProphylaxisPlanning"/>
+     <addaction name="actUnlockKBIR"/>
     </widget>
     <widget class="QMenu" name="menu_27">
      <property name="title">
@@ -1156,6 +1157,8 @@
       <addaction name="actReportBIRADS"/>
       <addaction name="actReportRoadMap"/>
       <addaction name="mnuUETAction"/>
+      <addaction name="actReportPatientSchoolJournal"/>
+      <addaction name="actReportMonthlySchoolJournal"/>
      </widget>
      <addaction name="actReportClients"/>
      <addaction name="mnuEventResult"/>
@@ -6620,6 +6623,11 @@
     <string>Деятельность МО (оперативный отчет)</string>
    </property>
   </action>
+  <action name="actUnlockKBIR">
+   <property name="text">
+    <string>Разблокировать карту беременной и родильницы</string>
+   </property>
+  </action>
   <action name="actImportVMPCases">
    <property name="text">
     <string>Импорт талонов ВМП</string>
@@ -6648,6 +6656,16 @@
   <action name="actStationaryF14KK4100">
    <property name="text">
     <string>(4100)</string>
+   </property>
+  </action>
+  <action name="actReportPatientSchoolJournal">
+   <property name="text">
+    <string>Журнал регистрации пациентов, обучающихся в Школах с ХНИЗ</string>
+   </property>
+  </action>
+  <action name="actReportMonthlySchoolJournal">
+   <property name="text">
+    <string>Отчет о работе школ для пациентов с ХНИЗ</string>
    </property>
   </action>
  </widget>

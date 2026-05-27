@@ -144,6 +144,9 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         self.setEnabledToEditRight()
 #        self.on_calendar_selectionChanged()
 
+    def showEvent(self, event):
+        self.tblTimeTable.verticalHeader().setVisible(True)
+
 
     def setEnabledToEditRight(self):
         rightEditTimeLine = QtGui.qApp.userHasRight(urAccessEditTimeLine)
@@ -167,6 +170,15 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         result = CDialogBase.exec_(self)
         if QtGui.qApp.userHasRight(urAccessEditTimeLine):
             QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.saveData)
+        if self.modelTimeTable.notSavedItems:
+            if QtGui.QMessageBox.question(self, u'Внимание!',
+                                          u'Во время редактирования расписания была произведена либо отменена запись пациента на дни: {0}.'
+                                          u'\nИзмененные данные на эти дни не будут сохранены!'
+                                          u'\nХотите вернуться?'.format(u' ,'.join(map(lambda item: str(item.date.day()), self.modelTimeTable.notSavedItems))),
+                                          QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                          QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                self.modelTimeTable.personId = None
+                self.exec_()
         return result
 
 
@@ -378,6 +390,11 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         if prevPersonId and self.isPersonAttach(prevPersonId):
             QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.setPersonAndMonth, personId, date.year(),
                                           date.month())
+            if self.modelTimeTable.notSavedItems:
+                QtGui.QMessageBox.information(self, u'Внимание!',
+                                              u'Во время редактирования расписания была произведена либо отменена запись пациента!'
+                                              u'\nНе будут сохранены следующие дни: {0}'.format(u' ,'.join(map(lambda item: str(item.date.day()), self.modelTimeTable.notSavedItems))),
+                                              QtGui.QMessageBox.Ok)
         else:
             QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.setPersonAndMonth, personId, date.year(),
                                           date.month(), isCanSaveData=False)
@@ -485,7 +502,12 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         row = currentIndex.row()
         schedule = self.modelTimeTable.items()[row]
         if schedule.appointmentType != CSchedule.atNone:
+            schedule.checkAndUpdateItems()
             QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.saveData)
+            # if schedule in self.modelTimeTable.notSavedItems:
+            #     QtGui.QMessageBox.information(self, u'Внимание!',
+            #                                     u'Во время редактирования текущего периода была произведена запись пациента!'
+            #                                     u'\nДанный период не будет сохранён!', QtGui.QMessageBox.Ok)
             lockId = self.lock('Schedule', schedule.id)
             if lockId:
                 try:
@@ -1181,6 +1203,11 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
         if not personId:
             return
         QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.saveData)
+        if self.modelTimeTable.notSavedItems:
+            QtGui.QMessageBox.information(self, u'Внимание!',
+                                        u'Во время редактирования расписания была произведена либо отменена запись пациента на дни: {0}.'
+                                        u'\nИзмененные данные на эти дни не будут сохранены!'.format(u' ,'.join(map(lambda item: str(item.date.day()), self.modelTimeTable.notSavedItems))),
+                                        QtGui.QMessageBox.Ok)
         begDate = self.modelTimeTable.begDate
         endDate = begDate.addDays(self.modelTimeTable.daysInMonth-1)
         report = CTimelineForPerson(self)
@@ -1199,6 +1226,11 @@ class CTimelineDialog(CDialogBase, CRecordLockMixin, Ui_TimelineDialog):
     def on_actPrintTimelineForOffices_triggered(self):
         from Reports.TimelineForOffices import CTimelineForOffices
         QtGui.qApp.callWithWaitCursor(self, self.modelTimeTable.saveData)
+        if self.modelTimeTable.notSavedItems:
+            QtGui.QMessageBox.information(self, u'Внимание!',
+                                            u'Во время редактирования расписания была произведена либо отменена запись пациента на дни: {0}.'
+                                            u'\nИзмененные данные на эти дни не будут сохранены!'.format(u' ,'.join(map(lambda item: str(item.date.day()), self.modelTimeTable.notSavedItems))),
+                                            QtGui.QMessageBox.Ok)
         begDate = self.modelTimeTable.begDate
         endDate = begDate.addDays(self.modelTimeTable.daysInMonth-1)
         report = CTimelineForOffices(self)
@@ -1608,6 +1640,7 @@ class CAbsenceDialog(CDialogBase, Ui_AbsenceDialog):
         CDialogBase.__init__(self, parent)
         self.setupUi(self)
         self.cmbReasonOfAbsence.setTable('rbReasonOfAbsence')
+        self._parent = parent
         QObject.connect(self.buttonBox, SIGNAL("accepted()"), self.apply)
         if not (QtGui.qApp.userHasRight(urAdmin) or QtGui.qApp.userHasRight(urCanChangePersonSubstitution)):
             self.lblSubstitutePerson.setEnabled(False)
@@ -1661,7 +1694,7 @@ class CAbsenceDialog(CDialogBase, Ui_AbsenceDialog):
             (({0} <= begDate and {1} <= begDate) 
             or ({0} >= endDate and {1} >= endDate))""".format(db.formatDate(self.edtBegDate.date()), 
                                                                db.formatDate(self.edtBegDate.date()), 
-                                                               self.tblPersonnel.currentItemId())
+                                                               self._parent.tblPersonnel.currentItemId())
         record = db.getRecordEx(table, cols="*", where=cond)
         if record:
             QtGui.QMessageBox.warning(self, u'Ошибка при сохранении',

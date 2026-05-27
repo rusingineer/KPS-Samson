@@ -59,8 +59,6 @@ class CJobPlanner(CDialogBase, Ui_JobPlannerDialog):
         self.mnuFill.addAction(self.actFillByFlexTemplate)
 
         self.setupUi(self)
-        # Кнопка применить
-        self.connect(self.btnApply, SIGNAL('clicked()'), self.saveData)
 #        self.btnPrint.setMenu(self.mnuPrint)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setModels(self.treeOrgStructure, self.modelOrgStructure, self.selectionModelOrgStructure)
@@ -184,6 +182,18 @@ class CJobPlanner(CDialogBase, Ui_JobPlannerDialog):
             return False
         QtGui.qApp.callWithWaitCursor(self, self.modelJobs.saveData)
         return True
+
+    @pyqtSignature('')
+    def on_btnApply_clicked(self):
+        if self.saveData():
+            buttons = QtGui.QMessageBox.Ok
+            messageBox = QtGui.QMessageBox()
+            messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+            messageBox.setWindowTitle(u'Внимание!')
+            messageBox.setText(u'Данные сохранены')
+            messageBox.setStandardButtons(buttons)
+            messageBox.setDefaultButton(QtGui.QMessageBox.Ok)
+            messageBox.exec_()
 
 
     def getBegDate(self):

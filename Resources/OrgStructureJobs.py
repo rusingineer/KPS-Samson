@@ -199,10 +199,9 @@ class COrgStructureJobsModel(CRecordListModel):
 
 
     def insertItem(self, row, prototypeRow):
-        items = self._items
-        day = items[prototypeRow].day
-        self.beginInsertRows(QModelIndex(), row,  row)
-        items.insert(row, self.getEmptyItem(day))
+        items = self.items()
+        self.beginInsertRows(QModelIndex(), row, row)
+        items.insert(row, self.getEmptyItem(items[prototypeRow if len(items) > prototypeRow else -1].day))
         self.endInsertRows()
 
 

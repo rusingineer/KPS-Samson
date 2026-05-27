@@ -99,6 +99,7 @@ class CScheduleItem(CSqlRecordWrapper):
     homeCallStatus = field('homeCallStatus',  forceInt)  #WFT?
     invitation     = field('invitation',      forceBool) #WFT?
     inWaitingArea  = field('inWaitingArea',   forceBool) #WFT?
+    recordType     = field('recordType',      forceInt)
     isUrgent       = field('isUrgent',        forceInt)
     enableQueueing = True
 
@@ -280,6 +281,137 @@ class CSchedule(CSqlRecordWrapper):
                 return False
         return True
 
+    def isFreeToChangeCustomWithoutItemsNoId(self):
+        db = QtGui.qApp.db
+        tableScheduleItem = db.table('Schedule_Item')
+        tableSchedule = db.table('Schedule')
+        table = tableSchedule.leftJoin(tableScheduleItem,
+                                       [tableSchedule['id'].eq(tableScheduleItem['master_id']),
+                                        tableScheduleItem['client_id'].isNotNull(),
+                                        tableScheduleItem['deleted'].eq(0)])
+        columns = [tableSchedule['id'].name(), tableScheduleItem['client_id'].name()]
+        cond = [tableSchedule['deleted'].eq(0),
+                tableSchedule['person_id'].eq(self.personId),
+                tableSchedule['date'].eq(self.date)]
+        record = db.getRecordEx(table, columns, cond, tableScheduleItem['client_id'].name() + ' DESC')
+        if record:
+            scheduleId = forceRef(record.value('id'))
+            clientId = forceRef(record.value('client_id'))
+            if scheduleId:
+                self.id = scheduleId
+            if clientId:
+                return False
+            else:
+                return True
+        else:
+            return True
+
+    def isFreeToChange_CustomWithoutItems(self):
+        if not self.id:
+            return True
+        db = QtGui.qApp.db
+        tableScheduleItem = db.table('Schedule_Item')
+        record = db.getRecordEx(tableScheduleItem,
+                                tableScheduleItem['client_id'].name(),
+                                [tableScheduleItem['deleted'].eq(0),
+                                 tableScheduleItem['master_id'].eq(self.id)],
+                                tableScheduleItem['client_id'].name()+' DESC')
+        if record and forceRef(record.value('client_id')):
+            return False
+        return True
+
+    def checkAndUpdateItems(self, showMessage=True):
+        """
+        1. Функция сравнивает количество записанных пациентов с БД, в случае
+        различия восстанавливает актуальное значение и возвращает True.
+        2. Функция сравнивает id в модели и БД, и в случае если например отчистили
+        талон (создалась копия), то меняет id текущего талона на новый. Во втором
+        случае я не буду возвращать True, т.к. это не блокировка сохранения, а
+        просто подмена записи на её копию.
+        """
+        if not self.id:
+            # Тут ноувэй нормально проверить запись, та и должна сработать отдельная проверка (noId) при сохранении,
+            # ну либо это доп. период в рамках дня
+            return False
+
+        db = QtGui.qApp.db
+        currentItems = filter(lambda i: i.clientId, self.items)
+
+        table = db.table('Schedule_Item')
+        #cols = [table['time'], table['client_id']]
+        cols = [u"SUM(IF(Schedule_Item.client_id IS NOT NULL, 1, 0)) AS clientsCount",
+                u"SUM(Schedule_Item.id) AS checksumOfIds",
+                u"GROUP_CONCAT(CONCAT(Schedule_Item.id, '=', Schedule_Item.time)) AS idList"]
+        cond = [table['deleted'].eq(0), table['master_id'].eq(self.id)]
+        record = db.getRecordEx(table, cols, cond)
+
+        if record:
+            clientsCount = forceInt(record.value('clientsCount'))
+            checksumOfDBIds = forceInt(record.value('checksumOfIds'))
+            idAndTimeListStr = forceString(record.value('idList'))
+        else:
+            clientsCount, checksumOfDBIds, idAndTimeListStr = 0, 0, u''
+
+        if clientsCount != len(currentItems):
+            if showMessage:
+                if clientsCount > 0:
+                    message = u'Обнаружен записанный пациент!'
+                else:
+                    message = u'Обнаружены изменения в периоде!'
+                QtGui.QMessageBox.information( None,
+                                              u'Внимание!',
+                                              message,
+                                              QtGui.QMessageBox.Ok)
+            self.restoreValuesFromRecord()
+            return True
+        else:
+            # внутри else по причине того, что если у нас есть запись пациента, то весь период будет взят из базы (вместе с items)
+            # для проверки изменений id'шников проще всего брать сумму id и сравнивать с базой (что-то типа контрольной суммы)
+
+            # Логика такова, через фильтр проверяем все талоны на отсутствие в базе (c del=0), после проходим
+            # по полученным талонам и по времени находим копию (время по идее не будет пересекаться в рамках периода),
+            # после чего присвоим новый id (нового свободного номерка, но по факту копии того) и восстановим из БД
+
+            checksumOfModelIds = sum(map(lambda i: i.id, self.items))
+            if checksumOfDBIds and idAndTimeListStr:
+                if checksumOfModelIds != checksumOfDBIds:
+                    if showMessage and checksumOfModelIds > 0:
+                        message = u'Обнаружены изменения в талонах периода!'
+                        QtGui.QMessageBox.information(None,
+                                                      u'Внимание!',
+                                                      message,
+                                                      QtGui.QMessageBox.Ok)
+                    self.findAndUpdateDeletedRecord(idAndTimeListStr)
+        return False
+
+    def restoreValuesFromRecord(self):
+        db = QtGui.qApp.db
+        table = db.table('Schedule')
+        record = db.getRecordEx(table, '*', table['id'].eq(self.id))
+        if record:
+            self.setRecord(record)
+        if not self.items:
+            self._loadItems()
+
+
+    def findAndUpdateDeletedRecord(self, idAndTimeListStr):
+        """
+        Проверяем на то что талон с записью был "отчищен" от записи пациента,
+        а при текущей логике при освобождении талона создаётся новый.
+        Если найден удалённый талон в модели, то мы ищем его не удалённую
+        копию в бд и по новому id указываем новый record.
+        :param idAndTimeListStr: - Это строка из БД вида: 'id=datetime,id=datetime,...'. Где datetime это колонка time в таб. Schedule_Item, ну и собственно id из неё же.
+        """
+        idAndTimeList = [i.split(u'=') for i in idAndTimeListStr.split(u',')]
+        idsList = [i[0] for i in idAndTimeList]
+        idToTimeDict = {i[1]: i[0] for i in idAndTimeList}
+        deletedItems = filter(lambda i: i.id not in idsList, self.items)
+        for deletedItem in deletedItems:
+            newItemId = idToTimeDict.get(unicode(deletedItem.time.toString('yyyy-MM-dd HH:mm:ss')))
+            if newItemId:
+                deletedItem.id = newItemId
+                deletedItem.reload()
+
     def getQueuedClientsCount(self):
         return sum(bool(item.clientId) for item in self.items)
 
@@ -324,6 +456,7 @@ def confirmAndFreeScheduleItem(widget, scheduleItemId, recordPersonId, clientId)
 def freeScheduleItemInt(record):
     db = QtGui.qApp.db
     table = db.table('Schedule_Item')
+    newRecordId = None
     if forceBool(record.value('overtime')):
         record.setValue('deleted', toVariant(1))
         record.setValue('checked', toVariant(0))
@@ -333,18 +466,21 @@ def freeScheduleItemInt(record):
         newRecord.setNull('id')
         newRecord.setValue('deleted', toVariant(1))
         newRecord.setNull('endOfReserve')
-        db.insertRecord(table, newRecord)
+        newRecordId = db.insertRecord(table, newRecord)
 
         record.setNull('client_id')
         record.setNull('recordPerson_id')
         record.setNull('recordDatetime')
         record.setNull('srcNumber')
+        record.setNull('recordType')
         record.setValue('recordClass', toVariant(CScheduleItem.rcSamson))
         record.setValue('complaint', toVariant(''))
         record.setValue('note', toVariant(''))
         record.setValue('checked', toVariant(0))
         record.setValue('homeCallStatus', toVariant(0))
     db.updateRecord(table, record)
+    
+    return newRecordId
 
 
 def freeScheduleItem(widget, scheduleItemId, clientId):
@@ -353,25 +489,26 @@ def freeScheduleItem(widget, scheduleItemId, clientId):
     # clientId передаётся для защиты от возможной порчи данных разными клиентами
     db = QtGui.qApp.db
     lockId = widget.lock('Schedule_Item', scheduleItemId)
-    try:
-        db.transaction()
+    if lockId:
         try:
-            oldRecord = db.getRecord('Schedule_Item', '*', scheduleItemId)
-            if forceRef(oldRecord.value('client_id')) == clientId and not forceBool(oldRecord.value('deleted')):
-                # всё чисто, никто не удалил и не изменил критическим образом запись
-                # для нормальной записи -
-                # делаем новую запись копией старой с пометкой удаления
-                # а старую очищаем
-                # для "внеочередной" записи (overtime)
-                # просто удаляем запись
-                freeScheduleItemInt(oldRecord)
-            db.commit()
-        except:
-            db.rollback()
-            QtGui.qApp.logCurrentException()
-            raise
-    finally:
-        widget.releaseLock(lockId)
+            db.transaction()
+            try:
+                oldRecord = db.getRecord('Schedule_Item', '*', scheduleItemId)
+                if forceRef(oldRecord.value('client_id')) == clientId and not forceBool(oldRecord.value('deleted')):
+                    # всё чисто, никто не удалил и не изменил критическим образом запись
+                    # для нормальной записи -
+                    # делаем новую запись копией старой с пометкой удаления
+                    # а старую очищаем
+                    # для "внеочередной" записи (overtime)
+                    # просто удаляем запись
+                    freeScheduleItemInt(oldRecord)
+                db.commit()
+            except:
+                db.rollback()
+                QtGui.qApp.logCurrentException()
+                raise
+        finally:
+            widget.releaseLock(lockId)
 
 
 def getScheduleItemIdListForClient(clientId, specialityId, date=None, appointmentType=None):

@@ -419,7 +419,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         elif isinstance(self.modelAccountItems.cols()[col], CLocEventColumn):
             resIdList = self.modelAccountItems.getEventColFormat(self.modelAccountItems.idList())
             nameKeys = resIdList.keys()
-            nameKeys.sort(reverse=self.isAscendingAccountItems)
+            nameKeys.sort(reverse= not self.isAscendingAccountItems)
             orderAIIdList = []
             for nameKey in nameKeys:
                 dataIdList = resIdList.get(nameKey, [])
@@ -431,7 +431,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         elif isinstance(self.modelAccountItems.cols()[col], CLocEventCodeColumn):
             resIdList = self.modelAccountItems.getEventCodeColFormat(self.modelAccountItems.idList())
             nameKeys = resIdList.keys()
-            nameKeys.sort(reverse=self.isAscendingAccountItems)
+            nameKeys.sort(reverse= not self.isAscendingAccountItems)
             orderAIIdList = []
             for nameKey in nameKeys:
                 dataIdList = resIdList.get(nameKey, [])
@@ -443,7 +443,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         elif isinstance(self.modelAccountItems.cols()[col], CLocMKBColumn):
             resIdList = self.modelAccountItems.getMKBColFormat(self.modelAccountItems.idList())
             nameKeys = resIdList.keys()
-            nameKeys.sort(reverse=self.isAscendingAccountItems)
+            nameKeys.sort(reverse= not self.isAscendingAccountItems)
             orderAIIdList = []
             for nameKey in nameKeys:
                 dataIdList = resIdList.get(nameKey, [])
@@ -457,7 +457,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         elif isinstance(self.modelAccountItems.cols()[col], CLocRKEYCol):
             resIdList = self.modelAccountItems.getRKEYColFormat(self.modelAccountItems.idList())
             nameKeys = resIdList.keys()
-            nameKeys.sort(reverse=self.isAscendingAccountItems)
+            nameKeys.sort(reverse= not self.isAscendingAccountItems)
             orderAIIdList = []
             for nameKey in nameKeys:
                 dataIdList = resIdList.get(nameKey, [])
@@ -470,7 +470,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         elif isinstance(self.modelAccountItems.cols()[col], CLocFKEYCol):
             resIdList = self.modelAccountItems.getFKEYColFormat(self.modelAccountItems.idList())
             nameKeys = resIdList.keys()
-            nameKeys.sort(reverse=self.isAscendingAccountItems)
+            nameKeys.sort(reverse= not self.isAscendingAccountItems)
             orderAIIdList = []
             for nameKey in nameKeys:
                 dataIdList = resIdList.get(nameKey, [])
@@ -609,6 +609,7 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.mnuAccounts.addSeparator()
         self.mnuAccounts.addAction(self.actDeleteAccountItemsWithoutFKEY)
         self.mnuAccounts.addAction(self.actDeleteAccountItemsWithoutRKEY)
+        self.mnuAccounts.addSeparator()
         self.mnuAccounts.addAction(self.actDeleteAccountItemsAllFKEY)
         self.mnuAccounts.addAction(self.actDeleteAccountItemsAllRKEY)
         self.mnuAccounts.addSeparator()
@@ -1705,6 +1706,11 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 self.currentFinanceId = forceRef(QtGui.qApp.db.translate(
                     'Contract', 'id', contractId, 'finance_id'))
         self.updateAccountInfo()
+        if self.tblAccountItems.horizontalHeader().isSortIndicatorShown():
+            # если уже производилась сортировка таблицы перс. счетов
+            # чтобы setAccountItemsSort не менял сортировку
+            self.isAscendingAccountItems = not self.isAscendingAccountItems
+            self.setAccountItemsSort(self.tblAccountItems.horizontalHeader().sortIndicatorSection())
 
     @pyqtSignature('')
     def on_btnApplyFilter_clicked(self):

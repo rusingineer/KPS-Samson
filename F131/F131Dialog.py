@@ -1357,12 +1357,13 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             result = result and self.checkExecPersonSpeciality(self.cmbPerson.value(), self.cmbPerson)
             result = result and self.checkDeposit(True)
 
-            if QtGui.qApp.defaultKLADR()[:2] == u'23':
-                eventProfileId = forceRef(QtGui.qApp.db.translate('EventType', 'id', self.eventTypeId, 'eventProfile_id'))
-                if eventProfileId:
-                    profileCode = forceString(QtGui.qApp.db.translate('rbEventProfile', 'id', eventProfileId, 'regionalCode'))
-                    if profileCode in ['8008', '8014'] or profileCode == '8011' and endDateCheck >= QDate(2019, 5, 1):
-                        result = result and self.checkExaminCompletion(profileCode, endDateCheck)
+            # ТТ 4230 "Профосмотры 2026. Отключить проверку на 85% услуг" Было принято решение совсем отключить этот рудимент
+            # if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            #     eventProfileId = forceRef(QtGui.qApp.db.translate('EventType', 'id', self.eventTypeId, 'eventProfile_id'))
+            #     if eventProfileId:
+            #         profileCode = forceString(QtGui.qApp.db.translate('rbEventProfile', 'id', eventProfileId, 'regionalCode'))
+            #         if profileCode in ['8008', '8014'] or profileCode == '8011' and endDateCheck >= QDate(2019, 5, 1):
+            #             result = result and self.checkExaminCompletion(profileCode, endDateCheck)
 
             #result = result and self.checkActionsDataEntered(begDate, endDate)
         else:
@@ -1534,91 +1535,93 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         return False
 
 
-    def checkExaminCompletion(self, profileCode, endDateCheck):
-        allServices = {}
-        examinService = None
-        checkDate =  self.getExecDateTime() if self.getExecDateTime().isValid() else self.getSetDateTime()
-        if profileCode in ['8008', '8014']:
-            if checkDate >= QDateTime(2019, 5, 1, 0, 0, 0):
-                examinCodes = ExaminCalc.examinList2019[1][1][0]
-            elif checkDate >= QDateTime(2018, 1, 1, 0, 0, 0):
-                examinCodes = ExaminCalc.examinList2018[1][1][0]
-            else:
-                examinCodes = ExaminCalc.examinList2017[1][1][0]
-
-            if checkDate >= QDateTime(2019, 5, 1, 0, 0, 0):
-                visitCodes = ExaminCalc.examinList2019[19][1][0]
-            elif checkDate >= QDateTime(2018, 1, 1, 0, 0, 0):
-                visitCodes = ExaminCalc.examinList2018[17][1][0]
-            else:
-                visitCodes = ExaminCalc.examinList2017[21][1][0]
-        elif profileCode == '8011':
-            examinCodes = ExaminCalc.examinListProf2019[1][1][0]
-            visitCodes = ExaminCalc.examinListProf2019[10][1][0]
-
-        for actionTab in [self.tabStatus, self.tabDiagnostic, self.tabCure, self.tabMisc]:
-            model = actionTab.tblAPActions.model()
-            for row, (record, action) in enumerate(model.items()):
-                if action and action._actionType.id:
-                    status = forceInt(record.value('status'))
-                    endDate = forceDate(record.value('endDate'))
-                    serviceId = action._actionType.nomenclativeServiceId
-                    if status == 2 and bool(endDate) and endDate.isValid() and serviceId:
-                        serviceCode = forceString(QtGui.qApp.db.translate('rbService', 'id', serviceId, 'infis'))
-                        orgId = forceRef(record.value('org_id'))
-                        external = (orgId and orgId != self.orgId)
-                        allServices[serviceCode] = (endDate, external)
-        for code in examinCodes:
-            if code in allServices:
-                examinService = allServices[code]
-        if examinService is None:
-            return self.checkValueMessage(u'Не проведено анкетирование!', False, self.tblActions)
-        mainCompleted = False
-        for code in visitCodes:
-            if code in allServices:
-                mainCompleted = True
-                break
-        if not mainCompleted:
-            return self.checkValueMessage(u'Не проведен прием врача-терапевта!', False, self.tblActions)
-        if examinService and examinService[1]:
-            return self.checkValueMessage(u'Анкетирование не может быть проведено в другой организации!', False, self.tblActions)
-        minDate = examinService[0]
-        
-        for code, (endDate, external) in allServices.iteritems():
-            allServices[code] = (endDate, (endDate < minDate))
-            
-        age = self.edtBegDate.date().year() - self.clientBirthDate.year()
-        (numTotal, numCompleted, numExternal, notCompletedList) = ExaminCalc.checkCompletion(age, self.clientSex, allServices, checkDate, profileCode)
-        if numCompleted < ceil(numTotal * 0.85):
-            return self.checkValueMessage(u'Выполнено меньше 85%% мероприятий (%d из %d); не проведено:\n%s' % (numCompleted, numTotal, '\n'.join(notCompletedList)), False, self.tblActions)
-
-        if numExternal > ceil(numTotal * 0.15) and endDateCheck < QDate(2021, 3, 1):
-
-            if profileCode in ['8008', '8014']:
-                serv026code = 'B04.026.001.062'
-                serv047code = 'B04.047.001.061'
-            else:
-                serv026code = 'B04.026.002'
-                serv047code = 'B04.047.002'
-
-            if serv026code in allServices or serv047code in allServices:
-                return True
-            serviceId026 = QtGui.qApp.db.translate('rbService', 'infis', serv026code, 'id')
-            serviceId047 = QtGui.qApp.db.translate('rbService', 'infis', serv047code, 'id')
-            actionTypeId026 = QtGui.qApp.db.translate('ActionType', 'nomenclativeService_id', serviceId026, 'id')
-            actionTypeId047 = QtGui.qApp.db.translate('ActionType', 'nomenclativeService_id', serviceId047, 'id')
-            if not (serviceId026 and serviceId047 and actionTypeId026 and actionTypeId047):
-                return self.checkValueMessage(u'Более 15% мероприятий проведено ранее, либо в других учреждениях, \nно тип мероприятия для приема терапевта при ранее оказанных услугах свыше 15% не найден.', False, self.tblActions)
-            if QtGui.QMessageBox.question(self,
-                                u'Внимание!',
-                                u'Более 15% мероприятий проведено ранее, либо в других учреждениях. Тип приема врача-терапевта будет изменен. Продолжить?',
-                                QtGui.QMessageBox.No|QtGui.QMessageBox.Yes,
-                                QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                self.changeExaminServiceCode = (actionTypeId026, actionTypeId047)
-                return True
-            else:
-                return False
-        return True
+    # ТТ 4230 "Профосмотры 2026. Отключить проверку на 85% услуг" Было принято решение совсем отключить этот рудимент
+    # def checkExaminCompletion(self, profileCode, endDateCheck):
+    #     allServices = {}
+    #     examinService = None
+    #     checkDate =  self.getExecDateTime() if self.getExecDateTime().isValid() else self.getSetDateTime()
+    #     if profileCode in ['8008', '8014']:
+    #         if checkDate >= QDateTime(2019, 5, 1, 0, 0, 0):
+    #             examinCodes = ExaminCalc.examinList2019[1][1][0]
+    #         elif checkDate >= QDateTime(2018, 1, 1, 0, 0, 0):
+    #             examinCodes = ExaminCalc.examinList2018[1][1][0]
+    #         else:
+    #             examinCodes = ExaminCalc.examinList2017[1][1][0]
+    #
+    #         if checkDate >= QDateTime(2019, 5, 1, 0, 0, 0):
+    #             visitCodes = ExaminCalc.examinList2019[19][1][0]
+    #         elif checkDate >= QDateTime(2018, 1, 1, 0, 0, 0):
+    #             visitCodes = ExaminCalc.examinList2018[17][1][0]
+    #         else:
+    #             visitCodes = ExaminCalc.examinList2017[21][1][0]
+    #     elif profileCode == '8011':
+    #         examinCodes = ExaminCalc.examinListProf2019[1][1][0]
+    #         visitCodes = ExaminCalc.examinListProf2019[10][1][0]
+    #
+    #     for actionTab in [self.tabStatus, self.tabDiagnostic, self.tabCure, self.tabMisc]:
+    #         model = actionTab.tblAPActions.model()
+    #         for row, (record, action) in enumerate(model.items()):
+    #             if action and action._actionType.id:
+    #                 status = forceInt(record.value('status'))
+    #                 endDate = forceDate(record.value('endDate'))
+    #                 serviceId = action._actionType.nomenclativeServiceId
+    #                 if status == 2 and bool(endDate) and endDate.isValid() and serviceId:
+    #                     serviceCode = forceString(QtGui.qApp.db.translate('rbService', 'id', serviceId, 'infis'))
+    #                     orgId = forceRef(record.value('org_id'))
+    #                     external = (orgId and orgId != self.orgId)
+    #                     allServices[serviceCode] = (endDate, external)
+    #     for code in examinCodes:
+    #         if code in allServices:
+    #             examinService = allServices[code]
+    #     if examinService is None:
+    #         return self.checkValueMessage(u'Не проведено анкетирование!', False, self.tblActions)
+    #     mainCompleted = False
+    #     for code in visitCodes:
+    #         if code in allServices:
+    #             mainCompleted = True
+    #             break
+    #     if not mainCompleted:
+    #         return self.checkValueMessage(u'Не проведен прием врача-терапевта!', False, self.tblActions)
+    #     if examinService and examinService[1]:
+    #         return self.checkValueMessage(u'Анкетирование не может быть проведено в другой организации!', False, self.tblActions)
+    #     minDate = examinService[0]
+    #
+    #     for code, (endDate, external) in allServices.iteritems():
+    #         allServices[code] = (endDate, (endDate < minDate))
+    #
+    #     if checkDate < QDate(2026, 2, 1):
+    #         age = self.edtBegDate.date().year() - self.clientBirthDate.year()
+    #         (numTotal, numCompleted, numExternal, notCompletedList) = ExaminCalc.checkCompletion(age, self.clientSex, allServices, checkDate, profileCode)
+    #         if numCompleted < ceil(numTotal * 0.85):
+    #             return self.checkValueMessage(u'Выполнено меньше 85%% мероприятий (%d из %d); не проведено:\n%s' % (numCompleted, numTotal, '\n'.join(notCompletedList)), False, self.tblActions)
+    #
+    #     if numExternal > ceil(numTotal * 0.15) and endDateCheck < QDate(2021, 3, 1):
+    #
+    #         if profileCode in ['8008', '8014']:
+    #             serv026code = 'B04.026.001.062'
+    #             serv047code = 'B04.047.001.061'
+    #         else:
+    #             serv026code = 'B04.026.002'
+    #             serv047code = 'B04.047.002'
+    #
+    #         if serv026code in allServices or serv047code in allServices:
+    #             return True
+    #         serviceId026 = QtGui.qApp.db.translate('rbService', 'infis', serv026code, 'id')
+    #         serviceId047 = QtGui.qApp.db.translate('rbService', 'infis', serv047code, 'id')
+    #         actionTypeId026 = QtGui.qApp.db.translate('ActionType', 'nomenclativeService_id', serviceId026, 'id')
+    #         actionTypeId047 = QtGui.qApp.db.translate('ActionType', 'nomenclativeService_id', serviceId047, 'id')
+    #         if not (serviceId026 and serviceId047 and actionTypeId026 and actionTypeId047):
+    #             return self.checkValueMessage(u'Более 15% мероприятий проведено ранее, либо в других учреждениях, \nно тип мероприятия для приема терапевта при ранее оказанных услугах свыше 15% не найден.', False, self.tblActions)
+    #         if QtGui.QMessageBox.question(self,
+    #                             u'Внимание!',
+    #                             u'Более 15% мероприятий проведено ранее, либо в других учреждениях. Тип приема врача-терапевта будет изменен. Продолжить?',
+    #                             QtGui.QMessageBox.No|QtGui.QMessageBox.Yes,
+    #                             QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+    #             self.changeExaminServiceCode = (actionTypeId026, actionTypeId047)
+    #             return True
+    #         else:
+    #             return False
+    #     return True
         
 
     def getAvailableDiagnostics(self):
@@ -1994,11 +1997,15 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
     @pyqtSignature('')
     def on_btnPlanning_clicked(self):
+        lenActions = len(self.modelActionsSummary.items())
         actionListToNewEvent = []
+        isDirty = self.isDirty()
         self.prepare(self.clientId, self.eventTypeId, self.orgId, self.personId, self.eventDate, self.eventDate, None, None, None, None, None, isEdit=True)
         self.initPrevEventTypeId(self.eventTypeId, self.clientId)
         self.initPrevEventId(None)
         self.addActions(actionListToNewEvent)
+        if lenActions != len(self.modelActionsSummary.items()) or isDirty:
+            self.setIsDirty(True)
 
         
     @pyqtSignature('int')

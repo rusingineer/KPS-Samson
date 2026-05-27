@@ -28,7 +28,7 @@ class CFinanceTypeTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код',              ['code'], 5))
         self.addColumn(CTextCol(u'Наименование',     ['name'], 40))
-        self._fieldNames = ['rbFinance.code', 'rbFinance.name']
+        self._fieldNames = ['rbFinance.id', 'rbFinance.code', 'rbFinance.name']
         self.setTable('rbFinance')
 
 

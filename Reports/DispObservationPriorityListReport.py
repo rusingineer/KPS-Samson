@@ -38,7 +38,15 @@ SELECT CONCAT_WS(' ', c.lastName, c.firstName, c.patrName) AS clientName,
        getClientContacts(c.id) as contacts,
        coalesce(getClientLocAddress(c.id), getClientRegAddress(c.id)) AS address,
        GROUP_CONCAT(DISTINCT cd.code) AS diagList,
-       o.name as orgStructureName
+       o.name as orgStructureName,
+       (select max(e1.execDate) 
+        FROM Event e1
+        LEFT JOIN EventType et on et.id = e1.eventTYpe_id       
+        LEFT JOIN rbEventTypePurpose etp on etp.id = et.purpose_id
+        LEFT JOIN Diagnostic di ON e1.id = di.event_id AND di.deleted = 0 and di.diagnosisType_id in (1, 2)
+        LEFT JOIN Diagnosis di1 ON di.diagnosis_id = di1.id AND di1.deleted = 0
+        where e1.client_id = c.id and etp.purpose = 6
+        and LOCATE(SUBSTRING(di1.MKB, 1, 3),  GROUP_CONCAT(DISTINCT cd.code), 1)>0 ) as dispDate
 FROM Event e
 LEFT JOIN Client c ON e.client_id = c.id
 LEFT JOIN ClientAttach as Attach on Attach.id = (
@@ -109,9 +117,10 @@ class CDispObservationPriorityListReport(CReport):
             ('30%', [u'ФИО пациента'], CReportBase.AlignLeft),
             ('7%', [u'Дата рождения'], CReportBase.AlignLeft),
             ('2%', [u'Пол'], CReportBase.AlignLeft),
-            ('15%', [u'Телефон'], CReportBase.AlignLeft),
-            ('35%', [u'Адрес'], CReportBase.AlignLeft),
+            ('13%', [u'Телефон'], CReportBase.AlignLeft),
+            ('28%', [u'Адрес'], CReportBase.AlignLeft),
             ('10%', [u'МКБ'], CReportBase.AlignLeft),
+            ('7%', [u' Дата последней явки по ДН'], CReportBase.AlignLeft),
             ]
 
         table = createTable(cursor, tableColumns)
@@ -124,7 +133,7 @@ class CDispObservationPriorityListReport(CReport):
                 row = table.addRow()
                 lastOrgStructureName = orgStructureName
                 table.setText(row, 0, lastOrgStructureName)
-                table.mergeCells(row, 0, 1, 7)
+                table.mergeCells(row, 0, 1, 8)
             row = table.addRow()
             rowNumber += 1
             table.setText(row, 0, rowNumber)
@@ -134,6 +143,7 @@ class CDispObservationPriorityListReport(CReport):
             table.setText(row, 4, forceString(record.value('contacts')))
             table.setText(row, 5, forceString(record.value('address')))
             table.setText(row, 6, forceString(record.value('diagList')))
+            table.setText(row, 7, formatDate(record.value('dispDate')))
 
         return doc
 

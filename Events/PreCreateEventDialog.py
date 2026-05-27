@@ -124,6 +124,8 @@ class CPreCreateEventDialog(CDialogBase, Ui_PreCreateEventDialog):
                                    False,
                                    filter
                                   )
+        self.cmbEventType.isSearchOnTop = False
+        self.cmbEventType.iSearchCodeVisible = False
         self.cmbTissueType.setTable('rbTissueType')
 
         self.cmbRelegateOrg.setFilter('isMedical != 0 and deleted = 0 and isActive = 1')

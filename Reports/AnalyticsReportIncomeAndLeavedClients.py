@@ -15,7 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate
 
-from library.Utils      import forceDate, forceInt, forceRef, forceString, formatName
+from library.Utils      import forceDate, forceInt, forceRef, forceString, formatName, forceDateTime
 
 from Orgs.Utils         import getOrgStructureFullName
 from Reports.Report     import CReport
@@ -594,8 +594,8 @@ class CAnalyticsReportIncomeAndLeavedClients(CReport):
                 self.mapValues(self._mapOrgStructureToClientValues, key, record, begDate, endDate)
 
     def mapValues(self, valuesDict, key, record, begDate, endDate):
-        movingActionBegDate = forceDate(record.value('movingActionBegDate'))
-        movingActionEndDate = forceDate(record.value('movingActionEndDate'))
+        movingActionBegDate = forceDateTime(record.value('movingActionBegDate'))
+        movingActionEndDate = forceDateTime(record.value('movingActionEndDate'))
         movingOrgStructureId = forceRef(record.value('movingOrgStructureId'))
         movingInOrgStructureId = forceRef(record.value('movingInOrgStructureId'))
 

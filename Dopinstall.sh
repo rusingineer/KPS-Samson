@@ -42,17 +42,17 @@ DIR=/opt/client/install
 #	pip2 install $DIR/psutil-5.7.1.tar.gz || echo "Ошибка выполнения pip2 install $DIR/psutil-5.7.1.tar.gz"
 #fi
 
-# Чиним проверку орфографии
-cat /etc/os-release > LinuxVersion
-if grep "RED OS" LinuxVersion ; then 
-	echo "====РЕД ОС====" 
-	echo "Чиним проверку орфографии"	
-	rm -f /usr/lib64/libhunspell.so
-	ln -s /usr/lib64/libhunspell-1.7.so.0.0.1 /usr/lib64/libhunspell.so
-fi
-
-# Установить шрифты
-bash $DIR/fonts/Font.sh || echo "Ошибка выполнения Font.sh"
+## Чиним проверку орфографии
+#cat /etc/os-release > LinuxVersion
+#if grep "RED OS" LinuxVersion ; then 
+#	echo "====РЕД ОС====" 
+#	echo "Чиним проверку орфографии"	
+#	rm -f /usr/lib64/libhunspell.so
+#	ln -s /usr/lib64/libhunspell-1.7.so.0.0.1 /usr/lib64/libhunspell.so
+#fi
+#
+## Установить шрифты
+#bash $DIR/fonts/Font.sh || echo "Ошибка выполнения Font.sh"
 
 
 ## Для ККБ1

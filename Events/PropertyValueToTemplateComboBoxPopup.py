@@ -309,7 +309,7 @@ class CPropertyValueToTemplateTableModel(CTableModel):
     def setTable(self, tableName):
         db = QtGui.qApp.db
         tableActionPropertyTemplate = db.table('ActionPropertyTemplate')
-        loadFields = [u'''DISTINCT ActionPropertyTemplate.code, ActionPropertyTemplate.name''']
+        loadFields = [u'''DISTINCT ActionPropertyTemplate.id, ActionPropertyTemplate.code, ActionPropertyTemplate.name''']
         self._table = tableActionPropertyTemplate
         self._recordsCache = CTableRecordCache(db, self._table, loadFields)
 

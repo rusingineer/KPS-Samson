@@ -201,7 +201,7 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
         table = db.table('EventType_Action')
         tableActionType = db.table('ActionType')
         join = table.leftJoin(tableActionType, tableActionType['id'].eq(table['actionType_id']))
-        cond = [table['eventType_id'].eq(eventTypeId), tableActionType['deleted'].eq(0)]
+        cond = [table['eventType_id'].eq(eventTypeId), tableActionType['deleted'].eq(0), tableActionType['showInForm'].ne(0)]
         if presentActionTypes:
             cond.append('''(IF(selectionGroup=1 and ActionType.id in ({}), False, True))'''.format(', '.join(presentActionTypes)))
         if maxOccursLimitActionTypes:

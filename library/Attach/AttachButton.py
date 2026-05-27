@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, SIGNAL, QSize, pyqtSignal
+from PyQt4.QtCore import Qt, QSize, pyqtSignal
 
 from .AttachedFile         import CAttachedFilesModel
 from .AttachFilesPopup     import CAttachFilesPopup
@@ -166,7 +166,7 @@ class CAttachButton(QtGui.QPushButton):
                 userCert = QtGui.qApp.getUserCert(api)
             except:
                 userCert = None
-            if userCert and execSnils not in [None, 'empty']:
+            if userCert and execSnils is not None and execSnils != 'empty':
                 userSnils = userCert.snils()
                 if forceInt(execSnils) == forceInt(userSnils):
                     try:
@@ -193,7 +193,7 @@ class CAttachButton(QtGui.QPushButton):
                                                   QtGui.QMessageBox.Ok,
                                                   QtGui.QMessageBox.Ok
                                                   )
-            elif userCert and execSnils is None:
+            elif userCert and (execSnils is None or execSnils == 'empty'):
                 try:
                     with userCert.provider() as master:  # для исключения массового запроса пароля
                         assert master  # silence pyflakes
@@ -245,7 +245,7 @@ class CAttachButton(QtGui.QPushButton):
                                             html,
                                             )
             self.update()
-            return bool(userSignatures[0])
+            return bool(userSignatures[0]), userSignatures[0], orgSignatures[0]
 
         if self.isEnabled() and QtGui.qApp.userHasRight(urCanAttachFile):
             return handler

@@ -25,7 +25,7 @@ from Reports.ReportBase import CReportBase, createTable
 from Reports.Utils      import getExistsStringPropertyCurrEvent
 
 
-def selectData(begDate, endDate, busyness, MKBFilter, MKBFrom, MKBTo, place, cause, foundBy, foundation):
+def selectData(begDate, endDate, busyness, MKBFilter, MKBFrom, MKBTo, place, cause, foundBy, foundation, includeSelected, relegateOrgId, excludeSelected):
     stmt="""
 SELECT
   Client.lastName,
@@ -47,6 +47,7 @@ SELECT
 FROM
   Event
   LEFT JOIN EventType ON EventType.id = Event.eventType_id
+  LEFT JOIN Event_Death ed ON Event.id = ed.master_id
   LEFT JOIN Client ON Client.id = Event.client_id
   LEFT JOIN ClientAddress ON ClientAddress.client_id = Client.id
                              AND ClientAddress.id = (SELECT MAX(id) FROM ClientAddress AS CA WHERE CA.Type=0 AND CA.client_id = Client.id)
@@ -72,18 +73,32 @@ ORDER BY Client.lastName, Client.firstName, Client.patrName, Client.sex, Event.s
     tableEvent     = db.table('Event')
     tableWork      = db.table('ClientWork')
     tableDiagnosis = db.table('Diagnosis').alias('FDiagnosis')
+    tableDeath     = db.table('Event_Death').alias('ed')
     cond = []
     cond.append(tableEvent['deleted'].eq(0))
     addDateInRange(cond, tableEvent['setDate'], begDate, endDate)
     if busyness == 1:
-        cond.append(tableWork['id'].isNotNull())
+        cond.append(db.joinAnd([tableWork['id'].isNotNull(),db.joinOr([tableWork['org_id'].isNotNull(), "(ClientWork.freeInput IS NOT NULL AND TRIM(ClientWork.freeInput) > '') " ])]))
     elif busyness == 2:
-        cond.append(tableWork['id'].isNull())
+        cond.append(db.joinOr([tableWork['id'].isNull(),db.joinAnd([tableWork['org_id'].isNull(),"(ClientWork.freeInput IS NULL OR TRIM(ClientWork.freeInput) = '') "])]))
     if MKBFilter == 1:
         cond.append(tableDiagnosis['MKB'].ge(MKBFrom))
         cond.append(tableDiagnosis['MKB'].le(MKBTo))
-    if place or cause or foundBy or foundation:
-        addCondForDeathCurcumstance(cond, tableEvent, place, cause, foundBy, foundation)
+    if place:
+        cond.append(tableDeath['deathPlaceType_id'].eq(place))
+    if cause:
+        cond.append(tableDeath['deathCauseType_id'].eq(cause))
+    if foundBy:
+        cond.append(tableDeath['employeeTypeDeterminedDeathCause_id'].eq(foundBy))
+    if foundation:
+        cond.append(tableDeath['groundsForDeathCause_id'].eq(foundation))
+    if includeSelected:
+        cond.append("(Event.relegateOrg_id IS NOT NULL)")
+    if relegateOrgId > 0:
+        if excludeSelected:
+            cond.append(" (Event.relegateOrg_id NOT IN ({0}))".format(relegateOrgId))
+        else:
+            cond.append("Event.relegateOrg_id IN ({0})".format(relegateOrgId))
     return db.query(stmt % (db.joinAnd(cond)))
 
 
@@ -137,10 +152,13 @@ class CDeathList(CReport):
         MKBFrom   = params.get('MKBFrom', 'A00')
         MKBTo     = params.get('MKBTo', 'Z99.9')
 
-        place = params.get('deathPlace', u'')
-        cause = params.get('deathCause', u'')
-        foundBy = params.get('deathFoundBy', u'')
-        foundation = params.get('deathFoundation', u'')
+        place = params.get('deathPlace', 0)
+        cause = params.get('deathCause', 0)
+        foundBy = params.get('deathFoundBy', 0)
+        foundation = params.get('deathFoundation', 0)
+        relegateOrgId = params.get('eventRelegateOrgId',0)
+        includeSelectedOrg = params.get('includeSelectedOrg',False)
+        excludeSelectedOrg = params.get('excludeSelectedOrg',False)
 
         tableColumns = [
             ('5%', [u'№'],       CReportBase.AlignRight),
@@ -163,7 +181,7 @@ class CDeathList(CReport):
         table = createTable(cursor, tableColumns)
 
         n = 0
-        query = selectData(begDate, endDate, busyness, MKBFilter, MKBFrom, MKBTo, place, cause, foundBy, foundation)
+        query = selectData(begDate, endDate, busyness, MKBFilter, MKBFrom, MKBTo, place, cause, foundBy, foundation, includeSelectedOrg, relegateOrgId, excludeSelectedOrg)
 
         while query.next():
             n += 1
@@ -198,14 +216,10 @@ class CDeathReportSetupDialog(QtGui.QDialog, Ui_DeathReportSetupDialog):
         self.setupUi(self)
         self.setBusynessEnabled(False)
         self.setMKBFilterEnabled(False)
-        try:
-            actionType = CActionTypeCache.getByFlatCode('deathCurcumstance')
-        except:
-            actionType = None
-        self.preparePropertyComboBox(self.cmbPlace, actionType, u'Смерть последовала')
-        self.preparePropertyComboBox(self.cmbCause, actionType, u'Смерть произошла')
-        self.preparePropertyComboBox(self.cmbFoundBy,    actionType, u'Причина установлена')
-        self.preparePropertyComboBox(self.cmbFoundation, actionType, u'Основание')
+        self.cmbPlace.setTable('rbDeathPlaceType')
+        self.cmbCause.setTable('rbDeathCauseType')
+        self.cmbFoundBy.setTable('rbEmployeeTypeDeterminedDeathCause')
+        self.cmbFoundation.setTable('rbGroundsForDeathCause')
 
 
     def setBusynessEnabled(self, mode=True):
@@ -244,10 +258,15 @@ class CDeathReportSetupDialog(QtGui.QDialog, Ui_DeathReportSetupDialog):
             self.edtMKBFrom.setText(params.get('MKBFrom', 'A00'))
             self.edtMKBTo.setText(params.get('MKBTo',   'Z99.9'))
 
-        self.cmbPlace.setValue(params.get('deathPlace', u''))
-        self.cmbCause.setValue(params.get('deathCause', u''))
-        self.cmbFoundBy.setValue(params.get('deathFoundBy', u''))
-        self.cmbFoundation.setValue(params.get('deathFoundation', u''))
+        self.cmbPlace.setValue(params.get('deathPlace', None))
+        self.cmbCause.setValue(params.get('deathCause', None))
+        self.cmbFoundBy.setValue(params.get('deathFoundBy', None))
+        self.cmbFoundation.setValue(params.get('deathFoundation', None))
+        if params.get('includeSelectedOrg', False) == True:
+            self.chkRelegateOrg.setChecked(True)
+            self.cmbRelegateOrg.setValue(params.get('eventRelegateOrgId',None))
+            if params.get('excludeSelectedOrg',False) == True:
+                self.chkExcludeSelected.setChecked(True)
 
 
     def params(self):
@@ -271,3 +290,16 @@ class CDeathReportSetupDialog(QtGui.QDialog, Ui_DeathReportSetupDialog):
     def on_cmbMKBFilter_currentIndexChanged(self, index):
         self.edtMKBFrom.setEnabled(index == 1)
         self.edtMKBTo.setEnabled(index == 1)
+
+    @pyqtSignature('bool')
+    def on_chkRelegateOrg_toggled(self, checked):
+        self.cmbRelegateOrg.setEnabled(checked)
+        if not checked:
+            self.cmbRelegateOrg.setCurrentIndex(0)
+            self.chkExcludeSelected.setChecked(checked)
+
+    @pyqtSignature('int')
+    def on_cmbRelegateOrg_currentIndexChanged(self, index):
+        self.chkExcludeSelected.setEnabled(index > 0)
+        if index == 0:
+            self.chkExcludeSelected.setChecked(False)

@@ -101,8 +101,11 @@ class CScheduleItemsDialog(CDialogBase, CRecordLockMixin, Ui_ScheduleItemsDialog
     def on_actRecordRelease_triggered(self):
         row = self.tblScheduleItems.currentIndex().row()
         if 0<=row<self.modelScheduleItems.rowCount():
-            freeScheduleItemInt(self.modelScheduleItems.getScheduleItem(row).getRecord())
-            self.modelScheduleItems.updateRow(row)
+            item = self.modelScheduleItems.getScheduleItem(row)
+            newItemId = freeScheduleItemInt(item.getRecord())
+            if newItemId:
+                item.id = newItemId
+            self.modelScheduleItems.reloadRow(row)
 
 
     @pyqtSignature('')
@@ -117,7 +120,7 @@ class CScheduleItemsDialog(CDialogBase, CRecordLockMixin, Ui_ScheduleItemsDialog
                       self.modelScheduleItems.getScheduleItem(row)
                      )
             if dlg.exec_():
-                self.modelScheduleItems.updateRow(row)
+                self.modelScheduleItems.reloadRow(row)
                 changedScheduleId = dlg.destScheduleId
                 changedScheduleItemId = dlg.destScheduleItemId
                 if self.schedule.id == changedScheduleId:
@@ -596,7 +599,9 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
                                   'checked'):
                     destRecord.setValue(fieldName, self.scheduleItem.value(fieldName))
                 db.updateRecord('Schedule_Item', destRecord)
-                freeScheduleItemInt(self.scheduleItem.getRecord())
+                newItemId = freeScheduleItemInt(self.scheduleItem.getRecord())
+                if newItemId:
+                    self.scheduleItem.id = newItemId
                 self.destScheduleId = forceRef(destRecord.value('master_id'))
                 self.destScheduleItemId = destScheduleItemId
             finally:

@@ -18,7 +18,7 @@ from PyQt4.QtCore import Qt, QEvent, pyqtSignature, SIGNAL
 
 from library.database   import CTableRecordCache
 from library.TableModel import CTableModel, CTextCol, CDateCol, CRefBookCol
-from library.Utils      import forceInt, getPref, setPref, forceStringEx
+from library.Utils      import forceInt, getPref, setPref, forceStringEx, forceRef
 
 from Registry.Ui_VisitComboBoxPopup import Ui_VisitComboBoxPopup
 
@@ -151,7 +151,7 @@ class CVisitTableModel(CTableModel):
 
         def format(self, values):
             eventTypeName = u''
-            eventId = values[0]
+            eventId = forceRef(values[0])
             record = self.cache.get(eventId)
             if not record and eventId:
                 db = QtGui.qApp.db
@@ -162,7 +162,7 @@ class CVisitTableModel(CTableModel):
                         table['deleted'].eq(0),
                         tableET['deleted'].eq(0)
                         ]
-                record = db.getRecordEx(queryTable, '*', cond)
+                record = db.getRecordEx(queryTable, 'EventType.code, EventType.name', cond)
                 self.cache[eventId] = record
             if record:
                 code = forceStringEx(record.value('code'))
@@ -193,7 +193,7 @@ class CVisitTableModel(CTableModel):
         db = QtGui.qApp.db
         table = db.table('Visit')
         loadFields = []
-        loadFields.append(u'''DISTINCT date, person_id, event_id''')
+        loadFields.append(u'''DISTINCT id, date, person_id, event_id''')
         self._table = table
         self._recordsCache = CTableRecordCache(db, self._table, loadFields)
 

@@ -54,7 +54,6 @@ class CExtendedMSEWidget(QtGui.QWidget, CConstructHelperMixin, Ui_ExtendedMSEWid
 
 
     def sendRequest(self):
-        db = QtGui.qApp.db
         if QtGui.QMessageBox().question(self, u'Внимание!',
                                         u'Получить информацию по запросу\n'
                                         u'в Web-сервере "Расширенное направление на МСЭ"?',
@@ -62,10 +61,7 @@ class CExtendedMSEWidget(QtGui.QWidget, CConstructHelperMixin, Ui_ExtendedMSEWid
                                         QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
             begDate = self.formatDate(self.edtBegDate.date())
             endDate = self.formatDate(self.edtEndDate.date().addDays(1))
-            dbName = QtGui.qApp.preferences.dbDatabaseName
             patientId = forceString(self.clientId)
-            if dbName in ('s11_01527', 's11_17020', 's11_11007', 's11_15001', 's11_13516', 's11_11031'):
-                patientId = '{0}_'.format(patientId)
             params = {
                     "patientID": patientId,
                     "lpuID": self.lpuGuid,

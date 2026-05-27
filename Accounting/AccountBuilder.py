@@ -1287,6 +1287,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         relative_id = forceInt(record.value('relative_id'))
         serviceId = self.getMesService(mesId)
         coeff = None
+        interruptReason = None
+        interruptCoeff = None
         tariffCategoryId = forceRef(record.value('tariffCategory_id'))
         personOrgStructId = forceRef(record.value('orgStructure_id'))
         tariffList = contractDescr.tariffEventByMES.get((eventTypeId, serviceId), None)
@@ -1316,7 +1318,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         amount = 1.0
                         groupAccountType, medicalAidTypeCode, eventProfileRegionalCode = self.getGroupAccountType(eventTypeId)
                         baseTariff = self.getBaseTariff(eventEndDate, medicalAidTypeCode)
-                        price, coeff, usedCoeffDict = evalPriceForKrasnodarA13(contractDescr, tariff, clientId, eventId, eventTypeId, eventBegDate, eventEndDate, relative_id, self.getServiceInfis(serviceId), baseTariff)
+                        price, coeff, usedCoeffDict, interruptReason, interruptCoeff = evalPriceForKrasnodarA13(contractDescr, tariff, clientId, eventId, eventTypeId, eventBegDate, eventEndDate, relative_id, self.getServiceInfis(serviceId), baseTariff)
                         sum = price = round(price, 2)
                         if usedCoeffDict:
                             coeffList = []
@@ -1369,6 +1371,9 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     accountItem.setValue('usedCoefficients', toVariant(usedCoefficients))
                     if usedCoefficients:
                         accountItem.setValue('usedCoefficientsValue', toVariant(coeff))
+                    if interruptReason:
+                        accountItem.setValue('interruptReason', toVariant(interruptReason))
+                        accountItem.setValue('interruptCoeff', toVariant(interruptCoeff))
                     newId = db.insertRecord(tableAccountItem, accountItem)
                     
                     # если перевыставляем, добавляем ссылку в перевыставленный счет
@@ -1610,15 +1615,15 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         if self.isOncology(eventId):
                             groupAccountType = 2 if groupAccountType == 1 else 4
 
-                    # актуально ли?! Травма для поликлиники 11007
-                    if orgInfisCode == '11007' and specialityCode == '79' and medicalAidTypeCode in ['271', '272'] and eventEndDate >= QDate(2019, 6, 1):
-                        eventMKB = self.mapEventIdToMKB.get(eventId, None)
-                        if eventMKB is None:
-                            eventMKB = getEventDiagnosis(eventId)
-                            self.mapEventIdToMKB[eventId] = eventMKB
-                        if eventMKB >=  'S00.00' and eventMKB <= 'T98.99':
-                            medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
-                            groupAccountType = 3
+                    # # актуально ли?! Травма для поликлиники 11007
+                    # if orgInfisCode == '11007' and specialityCode == '79' and medicalAidTypeCode in ['271', '272'] and eventEndDate >= QDate(2019, 6, 1):
+                    #     eventMKB = self.mapEventIdToMKB.get(eventId, None)
+                    #     if eventMKB is None:
+                    #         eventMKB = getEventDiagnosis(eventId)
+                    #         self.mapEventIdToMKB[eventId] = eventMKB
+                    #     if eventMKB >=  'S00.00' and eventMKB <= 'T98.99':
+                    #         medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
+                    #         groupAccountType = 3
                     
                     for tariff in tariffList:
                         if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, exposeDate, MKB):
@@ -1636,10 +1641,10 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             orgCode = None
                             account = accountFactory(clientId, eventEndDate if QtGui.qApp.defaultKLADR()[:2] == u'23' else exposeDate, eventId,  groupAccountType if QtGui.qApp.defaultKLADR()[:2] in ['23', '01'] else None, tariff.batch, reexpose, personOrgStructId)
                             if orgId:
-                                orgCode = self.mapOrgIdToInfis.get(lpuId, None)
+                                orgCode = self.mapOrgIdToInfis.get(orgId, None)
                                 if orgCode is None:
                                     orgCode = forceString(db.translate('Organisation', 'id', orgId, 'infisCode'))
-                                    self.mapOrgIdToInfis[lpuId] = orgCode
+                                    self.mapOrgIdToInfis[orgId] = orgCode
 
                             if QtGui.qApp.defaultKLADR()[:2] == u'23':
                                 # с 2017-09-01 для инокраевых пациентов в пол-ках с прикрепленным населением меняем УОМП
@@ -1653,8 +1658,9 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 elif medicalAidTypeCode in ('801', '802') and self.getServiceInfis(serviceId).startswith('B01.044') and eventEndDate >= QDate(2025, 2, 1):
                                     from Registry.Utils import getClientCompulsoryPolicy
                                     record = getClientCompulsoryPolicy(clientId, eventEndDate, eventId)
-                                    if forceString(db.translate('Organisation', 'id', forceRef(record.value('insurer_id')), "OKATO")) == '03000':
-                                        sum = 0
+                                    if record:
+                                        if forceString(db.translate('Organisation', 'id', forceRef(record.value('insurer_id')), "OKATO")) == '03000':
+                                            sum = 0
                                 # тарификация услуг обращения/посещения для поликлиники
                                 elif (eventEndDate >= QDate(2019, 3, 1) and medicalAidTypeCode in ['21', '22'] and self.getServiceInfis(serviceId)[:3] in ['B01', 'B02', 'B04', 'B05']\
                                         and serviceId not in self.ObrServiceIdList and self.serviceHasObr(eventId, self.getServiceInfis(serviceId)[4:7])
@@ -1669,9 +1675,32 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                                                          'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
                                                                          'B05.070.010', 'B05.070.011', 'B05.070.012']:
                                     price, sum = 0, 0
-                                # для ранее оказанных и внешних услуг - цена равна 0
-                                elif eventBegDate > exposeDate and not self.isTwoYearsDisp(eventId) or orgId and medicalAidTypeCode != '211' or orgId and orgCode not in self.omsCodes:
+                                # обнуление стоимости у краевых застрахованных участковой службы
+                                elif medicalAidTypeCode in ['271', '272'] and exposeDate >= QDate(2017, 1, 1) and account.payerId != contractDescr.payerId:
                                     price, sum = 0, 0
+                                # для ранее оказанных и внешних услуг - цена равна 0
+                                elif eventBegDate > exposeDate or orgId and medicalAidTypeCode != '211' or orgId and orgCode not in self.omsCodes:
+                                    price, sum = 0, 0
+                                # профилактические мероприятия с февраля 2026 новые правила тарификации
+                                # все простые услуги должны выставляться в поле Taru с ценой из договора, поле summ нулевые
+                                # а комплексная услуга в поле Taru c нулевой ценой, поле summ сумма всех простых услуг (пересчитывается в процедуре beforeUpdateAccount).
+                                elif (eventEndDate >= QDate(2026, 2, 1)
+                                      and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']
+                                      and eventProfileRegionalCode not in ['8009', '8015', '8016', '103', '8019', '8021']
+                                      and self.getServiceInfis(serviceId) not in ['B04.053.001.019', 'B04.057.001.030']):
+                                    # ТТ 3003 "Выставлять жидкостную цитологию с ценой"
+                                    # если в событии по РД нет на 1 этапе других услуг кроме A08.20.017.002, то она с ценой должна выставляться
+                                    if medicalAidTypeCode == '244' and self.getServiceInfis(serviceId) == "A08.20.017.002":
+                                        stmt = """SELECT Action.id
+                                            FROM Action
+                                            LEFT JOIN ActionType ON ActionType.id = Action.actionType_id
+                                            WHERE Action.event_id = {0} AND Action.id <> {1} AND Action.deleted = 0
+                                                AND ActionType.deleted = 0 AND ActionType.nomenclativeService_id IS NOT NULL""".format(eventId, actionId)
+                                        query = db.query(stmt)
+                                        if query.size() > 0:
+                                            sum = 0
+                                    else:
+                                         sum = 0
                                 # обнуление простых услуг для детских профосмотров
                                 elif medicalAidTypeCode in ['232', '252', '262'] and eventEndDate >= QDate(2019, 3, 1) and self.getServiceInfis(serviceId)[:7] not in ['B04.031', 'B04.026']:
                                     price, sum = 0, 0
@@ -1689,9 +1718,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 elif medicalAidTypeCode in ['211'] and eventProfileRegionalCode in ['8009', '8015']:
                                     if self.getServiceInfis(serviceId)[:1] == 'A':
                                         price, sum = 0, 0
-                                # обнуление стоимости у краевых застрахованных участковой службы
-                                elif medicalAidTypeCode in ['271', '272'] and exposeDate >= QDate(2017, 1, 1) and account.payerId != contractDescr.payerId:
-                                    price, sum = 0, 0
+
                                 # обнуление стоимости у услуг терапевта по углубленной диспансеризации
                                 elif medicalAidTypeCode == '233' and self.getServiceInfis(serviceId) in ['B04.047.002', 'B04.047.004', 'B04.026.002']:
                                     price, sum = 0, 0
@@ -1709,20 +1736,26 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                     else:
                                         price, sum = 0, 0
 
-                                if eventEndDate >= QDate(2020, 1, 1) and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262'] and sum > 0:
-                                    eventWeekProfile = wpFiveDays
-                                    # В случае проведения мероприятий в рамках профилактических осмотров,
-                                    # включая диспансеризацию в выходные дни
-                                    if eventEndDate >= QDate(2025, 1, 1) and medicalAidTypeCode == '244':
-                                        #  В репродуктивной применяется только к приёмам в выходной день
+                                # В случае проведения мероприятий в рамках профилактических осмотров,
+                                # включая диспансеризацию в выходные дни
+                                if medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']:
+                                    if eventEndDate >= QDate(2026, 2, 1) and price > 0:
                                         actionEndDate = forceDate(record.value('actionEndDate'))
-                                        if countWorkDays(actionEndDate, actionEndDate, eventWeekProfile) == 0 and "B04" in self.getServiceInfis(serviceId):
+                                        if countWorkDays(actionEndDate, actionEndDate, wpFiveDays) == 0:
                                             price = round(round(price, 2) * 1.03, 2)
-                                            sum = price * amount
-                                    else:
-                                        if countWorkDays(eventEndDate, eventEndDate, eventWeekProfile) == 0:
-                                            price = round(round(price, 2) * 1.03, 2)
-                                            sum = price * amount
+                                            if sum > 0:
+                                                sum = price
+                                    elif QDate(2020, 1, 1) <= eventEndDate < QDate(2026, 2, 1) and sum > 0:
+                                        if eventEndDate >= QDate(2025, 1, 1) and medicalAidTypeCode == '244':
+                                            #  В репродуктивной применяется только к приёмам в выходной день
+                                            actionEndDate = forceDate(record.value('actionEndDate'))
+                                            if countWorkDays(actionEndDate, actionEndDate, wpFiveDays) == 0 and "B04" in self.getServiceInfis(serviceId):
+                                                price = round(round(price, 2) * 1.03, 2)
+                                                sum = price * amount
+                                        else:
+                                            if countWorkDays(eventEndDate, eventEndDate, wpFiveDays) == 0:
+                                                price = round(round(price, 2) * 1.03, 2)
+                                                sum = price * amount
 
                                     # В случае проведения мобильными медицинскими бригадами полного комплекса мероприятий
                                     # в рамках профилактических осмотров, включая диспансеризацию
@@ -1925,6 +1958,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
 
     def exposeCsg23(self, contractDescr, accountFactory, csgId, reexposableEventIdList):
 
+        db = QtGui.qApp.db
+
         def getOperationCount(eventId, serviceId, eventEndDate):
             tableKSG = db.table('rbService')
             tableMKB = db.table('Diagnosis')
@@ -1956,6 +1991,99 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
             result = db.getCount(table, where=cond)
             return result
 
+        def getCombinedOperationLevel(eventId):
+            result = 0
+            stmt = u"""select s73.level 
+                    from Event e
+                    left join Action a on a.event_id = e.id
+                    inner join ActionType at on at.id = a.ActionType_id
+                    inner join rbService rs on rs.id = at.nomenclativeService_id
+                    inner join soc_spr73 s73 on s73.ksgkusl = rs.infis and s73.datn <= e.execDate and (s73.dato >= e.execDate or s73.dato is null)
+                    left join rbService rs2 on rs2.infis = s73.ksgkusl2
+                    left join ActionType at2 on at2.nomenclativeService_id = rs2.id and at2.deleted = 0
+                    left join Action a2 on a2.event_id = e.id and a2.ActionType_id = at2.id and a2.deleted = 0  AND a2.id <> a.id
+                    where a.event_id = {aEvent_id} and e.deleted = 0 and a.deleted = 0  
+                        and (s73.ksgkusl2 is not null and a2.id is not null)""".format(aEvent_id=eventId)
+            query = db.query(stmt)
+            if query.first():
+                result = forceInt(query.value(0))
+            return result
+
+        def getOperationPairedOrgansLevel(eventId):
+            result = 0
+            stmt = u"""select s73.level
+                    from Event e
+                    left join Action a on a.event_id = e.id
+                    inner join ActionType at on at.id = a.ActionType_id
+                    inner join rbService rs on rs.id = at.nomenclativeService_id
+                    inner join soc_spr73 s73 on s73.ksgkusl = rs.infis and s73.datn <= e.execDate and (s73.dato >= e.execDate or s73.dato is null) and s73.ksgkusl2 is null
+                    left join Action a2 on a2.event_id = e.id and a2.ActionType_id = at.id and a2.deleted = 0 AND a2.id <> a.id
+                    where e.id = {aEvent_id} and e.deleted = 0 and a.deleted = 0
+                        and (a.amount + ifnull(a2.amount, 0)) > 1""".format(aEvent_id=eventId)
+            query = db.query(stmt)
+            if query.first():
+                result = forceInt(query.value(0))
+            return result
+
+        def hasSupt(eventId):
+            result = ''
+            stmt = u"""SELECT ss.code
+        FROM Action A
+INNER JOIN ActionType AT ON A.actionType_id = AT.id
+LEFT JOIN ActionProperty ap ON ap.action_id = A.id AND ap.deleted = 0
+LEFT JOIN ActionPropertyType apt ON ap.type_id = apt.id AND apt.deleted = 0
+LEFT JOIN ActionProperty_Integer api ON ap.id = api.id
+LEFT JOIN soc_spr80 ss ON ss.id = api.value
+WHERE A.event_id = {0} AND A.deleted = 0 AND AT.flatCode  = 'KRIT'
+    AND apt.typeName = 'Доп. классиф. критерий'  AND ss.code like 'supt%'
+AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
+            LEFT JOIN ActionPropertyType apt2 ON ap2.type_id = apt2.id AND apt2.deleted = 0
+            LEFT JOIN ActionProperty_Integer api2 ON ap2.id = api2.id
+            LEFT JOIN soc_spr80 ss2 ON ss2.id = api2.value
+            WHERE  A.id = ap2.action_id AND ap2.deleted = 0  AND apt2.typeName = 'Доп. классиф. критерий'  AND ss2.code NOT LIKE 'supt%'
+            AND (ss2.drugName LIKE '%филграстим%' OR ss2.drugName LIKE '%деносумаб%' OR	ss2.drugName LIKE '%эмпэгфиграстим%'))""".format(eventId)
+            query = db.query(stmt)
+            if query.first():
+                result = forceString(query.value(0))
+            return result
+
+        #  проведение тестирования на выявление респираторных вирусных заболеваний (гриппа, новой коронавирусной инфекции COVID-19) в период госпитализации
+        def hasTestingCovid(eventId):
+            stmt = u"""select ai.id
+                    from Account_Item ai
+                    left join rbService rs on rs.id = ai.service_id
+                    where ai.event_id = {aEvent_id} and ai.deleted = 0
+                        and rs.infis in ('A26.30.157.001', 'A26.08.013.003', 'A26.08.013.004', 'A26.08.027.002',
+                                         'A26.08.046.002', 'A26.09.060.002', 'A26.09.044.002', 'A26.08.027.010',
+                                         'A26.08.046.010', 'A26.09.044.010', 'A26.09.060.010')""".format(aEvent_id=eventId)
+            query = db.query(stmt)
+            result = query.size()
+            return result
+
+        def hasRehabilitation(eventId):
+            stmt = u"""select Action.id 
+    FROM Action
+      LEFT JOIN ActionType at ON at.id = Action.actionType_id 
+        AND at.deleted = 0
+    where Action.deleted = 0 
+      AND Action.event_id = {aEvent_id}
+      AND at.flatCode = 'rehabilitation'
+      AND Action.status = 2;""".format(aEvent_id=eventId)
+            query = db.query(stmt)
+            result = query.size()
+            return result
+
+        def hasKSLPDetiCancelation(eventId):
+            stmt = u"""
+            SELECT NULL 
+            FROM Event 
+            WHERE Event.id = {aEvent_id}
+              AND Event.mesSpecification_id = (SELECT id FROM rbMesSpecification ms WHERE ms.code = 'kslp_deti' LIMIT 1);
+            """.format(aEvent_id=eventId)
+            query = db.query(stmt)
+            result = query.size()
+            return result
+
         db = QtGui.qApp.db
         record = db.getRecordEx('''Event_CSG
                                 INNER JOIN Event ON Event.id = Event_CSG.master_id
@@ -1978,6 +2106,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         tariffList = contractDescr.tariffEventByMES.get((None, serviceId), None)
         usedCoeffDict = {}
         coeff = 0
+        interruptReason = None
+        interruptCoeff = None
         if tariffList:
             eventId      = forceRef(record.value('event_id'))
             eventEndDate = forceDate(record.value('execDate'))
@@ -2004,6 +2134,12 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     if groupAccountType in [1, 7]:
                         if self.isOncology(eventId):
                             groupAccountType = 9 if groupAccountType == 1 else 10
+
+                    clientRecord = db.getRecord('Client', ['sex', 'birthDate'], clientId) if clientId else None
+                    age = 0
+                    if clientRecord:
+                        clientBirthDate = forceDate(clientRecord.value('birthDate'))
+                        age = calcAgeInYears(clientBirthDate, csgBegDate)
 
                     if medicalAidTypeCode in ('11', '12', '301', '302') and csgCode[3:] in ['st36.013', 'st36.014', 'st36.015'] and QDate(2024, 11, 1) <= eventEndDate < QDate(2026, 1, 1):
                         minDuration = 0
@@ -2036,10 +2172,132 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
                     elif csgCode[3:] in ['st02.003', 'st02.004'] and eventEndDate >= QDate(2025, 6, 1):
-                        ishodOb = isInterruptedCase(eventId)
                         minDuration = 1
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
+
+                        if medicalAidTypeCode in ['11', '12', '301', '302'] and QDate(2026, 2, 1) <= eventEndDate:
+                            # Предоставление спального места и питания законному представителю
+                            # (дети до 4 лет, дети старше 4 лет при наличии медицинских показаний)
+                            if relative_id and age < 18:
+                                childCoef = contractDescr.coefficients[0, 0][u'Дети'][eventEndDate]
+                                childGemOnkoCoef = contractDescr.coefficients[0, 0][u'ДетиГемОнко'][eventEndDate]
+                                # Предоставление спального места и питания законному представителю несовершеннолетних
+                                # (детей до 4 лет, детей старше 4 лет при наличии медицинских показаний),
+                                # получающих медицинскую помощь по профилю «Детская онкология» и (или) «Гематология»
+                                if hasCancerHemaBloodProfile(eventId):
+                                    coeff += childGemOnkoCoef
+                                    usedCoeffDict['sl002'] = childGemOnkoCoef
+                                elif not (hasKSLPDetiCancelation(eventId) > 0):
+                                    coeff += childCoef
+                                    usedCoeffDict['sl001'] = childCoef
+
+                            # Сложность лечения пациента, связанная с возрастом (лица старше 75 лет)
+                            # (в том числе, включая консультацию врача-гериатра)
+                            # Кроме случаев госпитализации на геронтологические профильные койки
+                            elif age >= 75 and not isGerontologicalKPK(eventId) and csgCode[3:7] != 'st37':
+                                seniorCoef = contractDescr.coefficients[0, 0][u'Старше75'][eventEndDate]
+                                if hasServiceInEvent(eventId, 'B01.007.001'):
+                                    coeff += seniorCoef
+                                    usedCoeffDict['sl003'] = seniorCoef
+
+                            # Наличие у пациента тяжелой сопутствующей патологии, осложнений заболеваний, сопутствующих заболеваний, влияющих на сложность лечения пациента
+                            if hasSevereMKB(eventId) > 0:
+                                severeMKBCoef = contractDescr.coefficients[0, 0][u'ТяжСопМКБ'][eventEndDate]
+                                coeff += severeMKBCoef
+                                usedCoeffDict['sl005'] = severeMKBCoef
+
+                            combinedOperationLevel = getCombinedOperationLevel(eventId)
+                            operationPairedOrgansLevel = getOperationPairedOrgansLevel(eventId)
+                            if combinedOperationLevel == 1 or operationPairedOrgansLevel == 1:
+                                combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет1'][eventEndDate]
+                                coeff += combinedCoeff
+                                usedCoeffDict['sl006'] = combinedCoeff
+                            elif combinedOperationLevel == 2 or operationPairedOrgansLevel == 2:
+                                combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет2'][eventEndDate]
+                                coeff += combinedCoeff
+                                usedCoeffDict['sl007'] = combinedCoeff
+                            elif combinedOperationLevel == 3 or operationPairedOrgansLevel == 3:
+                                combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет3'][eventEndDate]
+                                coeff += combinedCoeff
+                                usedCoeffDict['sl008'] = combinedCoeff
+                            elif combinedOperationLevel == 4 or operationPairedOrgansLevel == 4:
+                                combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет4'][eventEndDate]
+                                coeff += combinedCoeff
+                                usedCoeffDict['sl009'] = combinedCoeff
+                            elif combinedOperationLevel == 5 or operationPairedOrgansLevel == 5:
+                                combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет5'][eventEndDate]
+                                coeff += combinedCoeff
+                                usedCoeffDict['sl010'] = combinedCoeff
+
+                            # Проведение сопроводительной лекарственной терапии при злокачественных новообразованиях у взрослых
+                            # в стационарных условиях в соответствии с клиническими рекомендациями*
+                            if age >= 18 and medicalAidTypeCode in ['11'] and (
+                                    'st19.084' <= csgCode[3:] <= 'st19.089'
+                                    or 'st19.094' <= csgCode[3:] <= 'st19.102'
+                                    or 'st19.163' <= csgCode[3:] <= 'st19.181'):
+                                supt = hasSupt(eventId)
+                                if supt in ['supt01', 'supt07', 'supt08']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС1'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl015'] = onkoCoef
+                                elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС2'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl016'] = onkoCoef
+                                elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС3'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl017'] = onkoCoef
+
+                            # Проведение тестирования на выявление респираторных вирусных заболеваний
+                            # (гриппа, новой коронавирусной инфекции COVID-19) в период госпитализации**
+                            if csgCode[3:] not in ['st12.012', 'st12.015', 'st12.016', 'st12.017', 'st12.018', 'st12.019'] and hasTestingCovid(eventId) > 0:
+                                testingCovidCoef = contractDescr.coefficients[0, 0][u'ТестВир'][eventEndDate]
+                                coeff += testingCovidCoef
+                                usedCoeffDict['sl014'] = testingCovidCoef
+
+                            # проведение 1 этапа медицинской реабилитации
+                            if hasRehabilitation(eventId) > 0:
+                                rehabilitationCoef = contractDescr.coefficients[0, 0][u'реабилР'][eventEndDate]
+                                coeff += rehabilitationCoef
+                                usedCoeffDict['sl011'] = rehabilitationCoef
+
+                        elif medicalAidTypeCode in ['41'] and eventEndDate >= QDate(2025, 6, 1):
+                            # Проведение сопроводительной лекарственной терапии при злокачественных новообразованиях у взрослых в условиях дневного стационара в соответствии с клиническими рекомендациями*
+                            if age >= 18 and (
+                                    'ds19.058' <= csgCode[3:] <= 'ds19.062'
+                                    or 'ds19.067' <= csgCode[3:] <= 'ds19.078'
+                                    or 'ds19.135' <= csgCode[3:] <= 'ds19.156'):
+                                supt = hasSupt(eventId)
+                                if supt in ['supt01', 'supt07', 'supt08']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС1'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl018'] = onkoCoef
+                                elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС2'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl019'] = onkoCoef
+                                elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                                    onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС3'][eventEndDate]
+                                    coeff += onkoCoef
+                                    usedCoeffDict['sl020'] = onkoCoef
+
+                        # применяем КСЛП
+                        baseTariff = self.getBaseTariff(eventEndDate, medicalAidTypeCode)
+                        price = price + roundMath(baseTariff * coeff, 2)
+
+                        ishodOb = isInterruptedCase(eventId)
+                        if ishodOb == '108':
+                            interruptReason = '1'
+                        elif ishodOb in ['102', '202']:
+                            interruptReason = '4'
+                        elif ishodOb in ['103', '203']:
+                            interruptReason = '2'
+                        elif ishodOb in ['105', '205', '206']:
+                            interruptReason = '6'
+                        elif ishodOb == '107':
+                            interruptReason = '5'
 
                         if (minDuration > 1 and duration <= minDuration
                                 or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
@@ -2052,9 +2310,14 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                     and minDuration == 1 and duration <= 3
                                     and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
                             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
-                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate], 2)
+                                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
+                                price = roundMath(price * interruptCoeff, 2)
                             else:
-                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
+                                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate]
+                                price = roundMath(price * interruptCoeff, 2)
+                            if duration <= 3 and interruptReason is None:
+                                # длительность <= 3 дня и причина оплаты за прерванный случай ещё не была указана
+                                interruptReason = '8'
                         # оплата прерванных случаев свыше 3-х дней
                         elif (duration > minDuration and ishodOb and minDuration > 1
                               or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
@@ -2067,9 +2330,11 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                   and minDuration == 1
                                   and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
                             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
-                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate], 2)
+                                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
+                                price = roundMath(price * interruptCoeff, 2)
                             else:
-                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate], 2)
+                                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
+                                price = roundMath(price * interruptCoeff, 2)
 
                     sum = round(price*amount*coefficient, 2)
                     if usedCoeffDict:
@@ -2096,6 +2361,9 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     accountItem.setValue('usedCoefficients', toVariant(usedCoefficients))
                     if usedCoefficients:
                         accountItem.setValue('usedCoefficientsValue', toVariant(coeff))
+                    if interruptReason:
+                        accountItem.setValue('interruptReason', toVariant(interruptReason))
+                        accountItem.setValue('interruptCoeff', toVariant(interruptCoeff))
                     newId = db.insertRecord(tableAccountItem, accountItem)
 
                     # если перевыставляем, добавляем ссылку в перевыставленный счет
@@ -3231,10 +3499,16 @@ where Action.deleted = 0
             # получающих медицинскую помощь по профилю «Детская онкология» и (или) «Гематология»
             if hasCancerHemaBloodProfile(eventId):
                 coeff += childGemOnkoCoef
-                usedCoeffDict['2'] = childGemOnkoCoef
+                if eventEndDate < QDate(2026, 2, 1):
+                    usedCoeffDict['2'] = childGemOnkoCoef
+                else:
+                    usedCoeffDict['sl002'] = childGemOnkoCoef
             elif eventEndDate < QDate(2025, 1, 1) or not (hasKSLPDetiCancelation(eventId) > 0 and eventEndDate >= QDate(2025, 1, 1)):
                 coeff += childCoef
-                usedCoeffDict['1'] = childCoef
+                if eventEndDate < QDate(2026, 2, 1):
+                    usedCoeffDict['1'] = childCoef
+                else:
+                    usedCoeffDict['sl001'] = childCoef
         # Сложность лечения пациента, связанная с возрастом (лица старше 75 лет)
         # (в том числе, включая консультацию врача-гериатра)
         # Кроме случаев госпитализации на геронтологические профильные койки
@@ -3242,36 +3516,57 @@ where Action.deleted = 0
             seniorCoef = contractDescr.coefficients[0, 0][u'Старше75'][eventEndDate]
             if hasServiceInEvent(eventId, 'B01.007.001'):
                 coeff += seniorCoef
-                usedCoeffDict['3'] = seniorCoef
+                if eventEndDate < QDate(2026, 2, 1):
+                    usedCoeffDict['3'] = seniorCoef
+                else:
+                    usedCoeffDict['sl003'] = seniorCoef
 
         # Наличие у пациента тяжелой сопутствующей патологии, осложнений заболеваний, сопутствующих заболеваний, влияющих на сложность лечения пациента
         if hasSevereMKB(eventId) > 0:
             severeMKBCoef = contractDescr.coefficients[0, 0][u'ТяжСопМКБ'][eventEndDate]
             coeff += severeMKBCoef
-            usedCoeffDict['5'] = severeMKBCoef
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['5'] = severeMKBCoef
+            else:
+                usedCoeffDict['sl005'] = severeMKBCoef
 
         combinedOperationLevel = getCombinedOperationLevel(eventId)
         operationPairedOrgansLevel = getOperationPairedOrgansLevel(eventId)
         if combinedOperationLevel == 1 or operationPairedOrgansLevel == 1:
             combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет1'][eventEndDate]
             coeff += combinedCoeff
-            usedCoeffDict['6' if eventEndDate >= QDate(2024, 6, 4) else '9'] = combinedCoeff
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['6' if eventEndDate >= QDate(2024, 6, 4) else '9'] = combinedCoeff
+            else:
+                usedCoeffDict['sl006'] = combinedCoeff
         elif combinedOperationLevel == 2 or operationPairedOrgansLevel == 2:
             combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет2'][eventEndDate]
             coeff += combinedCoeff
-            usedCoeffDict['7' if eventEndDate >= QDate(2024, 6, 4) else '10'] = combinedCoeff
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['7' if eventEndDate >= QDate(2024, 6, 4) else '10'] = combinedCoeff
+            else:
+                usedCoeffDict['sl007'] = combinedCoeff
         elif combinedOperationLevel == 3 or operationPairedOrgansLevel == 3:
             combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет3'][eventEndDate]
             coeff += combinedCoeff
-            usedCoeffDict['8' if eventEndDate >= QDate(2024, 6, 4) else '11'] = combinedCoeff
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['8' if eventEndDate >= QDate(2024, 6, 4) else '11'] = combinedCoeff
+            else:
+                usedCoeffDict['sl008'] = combinedCoeff
         elif combinedOperationLevel == 4 or operationPairedOrgansLevel == 4:
             combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет4'][eventEndDate]
             coeff += combinedCoeff
-            usedCoeffDict['9' if eventEndDate >= QDate(2024, 6, 4) else '12'] = combinedCoeff
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['9' if eventEndDate >= QDate(2024, 6, 4) else '12'] = combinedCoeff
+            else:
+                usedCoeffDict['sl009'] = combinedCoeff
         elif combinedOperationLevel == 5 or operationPairedOrgansLevel == 5:
             combinedCoeff = contractDescr.coefficients[0, 0][u'ПарноСочет5'][eventEndDate]
             coeff += combinedCoeff
-            usedCoeffDict['10' if eventEndDate >= QDate(2024, 6, 4) else '13'] = combinedCoeff
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['10' if eventEndDate >= QDate(2024, 6, 4) else '13'] = combinedCoeff
+            else:
+                usedCoeffDict['sl010'] = combinedCoeff
 
         # Проведение сопроводительной лекарственной терапии при злокачественных новообразованиях у взрослых
         # в стационарных условиях в соответствии с клиническими рекомендациями*
@@ -3289,7 +3584,7 @@ where Action.deleted = 0
             onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС'][eventEndDate]
             coeff += onkoCoef
             usedCoeffDict['7'] = onkoCoef
-        elif eventEndDate >= QDate(2024, 6, 4) and age >= 18 and VP in ['11'] and (
+        elif QDate(2024, 6, 4) <= eventEndDate < QDate(2025, 1, 1) and age >= 18 and VP in ['11'] and (
                 'st19.084' <= serviceInfis[3:] <= 'st19.089'
                 or 'st19.094' <= serviceInfis[3:] <= 'st19.102'
                 or 'st19.144' <= serviceInfis[3:] <= 'st19.162'):
@@ -3306,6 +3601,40 @@ where Action.deleted = 0
                 onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС3'][eventEndDate]
                 coeff += onkoCoef
                 usedCoeffDict['17'] = onkoCoef
+        elif QDate(2025, 1, 1) <= eventEndDate and age >= 18 and VP in ['11'] and (
+                'st19.084' <= serviceInfis[3:] <= 'st19.089'
+                or 'st19.094' <= serviceInfis[3:] <= 'st19.102'
+                or 'st19.163' <= serviceInfis[3:] <= 'st19.181'):
+            supt = hasSupt(eventId)
+            if supt in ['supt01', 'supt07', 'supt08']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС1'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['15'] = onkoCoef
+            elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС2'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['16'] = onkoCoef
+            elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС3'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['17'] = onkoCoef
+        elif QDate(2026, 2, 1) <= eventEndDate and age >= 18 and VP in ['11'] and (
+                'st19.084' <= serviceInfis[3:] <= 'st19.089'
+                or 'st19.094' <= serviceInfis[3:] <= 'st19.102'
+                or 'st19.163' <= serviceInfis[3:] <= 'st19.181'):
+            supt = hasSupt(eventId)
+            if supt in ['supt01', 'supt07', 'supt08']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС1'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl015'] = onkoCoef
+            elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС2'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl016'] = onkoCoef
+            elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоКС3'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl017'] = onkoCoef
 
         # Проведение тестирования на выявление респираторных вирусных заболеваний
         # (гриппа, новой коронавирусной инфекции COVID-19) в период госпитализации**
@@ -3313,13 +3642,19 @@ where Action.deleted = 0
                                                                           'st12.017', 'st12.018', 'st12.019'] and hasTestingCovid(eventId) > 0:
             testingCovidCoef = contractDescr.coefficients[0, 0][u'ТестВир'][eventEndDate]
             coeff += testingCovidCoef
-            usedCoeffDict['14'] = testingCovidCoef
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['14'] = testingCovidCoef
+            else:
+                usedCoeffDict['sl014'] = testingCovidCoef
 
         # проведение 1 этапа медицинской реабилитации
         if eventEndDate >= QDate(2025, 1, 1) and hasRehabilitation(eventId) > 0:
             rehabilitationCoef = contractDescr.coefficients[0, 0][u'реабилР'][eventEndDate]
             coeff += rehabilitationCoef
-            usedCoeffDict['11'] = rehabilitationCoef
+            if eventEndDate < QDate(2026, 2, 1):
+                usedCoeffDict['11'] = rehabilitationCoef
+            else:
+                usedCoeffDict['sl011'] = rehabilitationCoef
 
     elif VP in ['41']:
         # Проведение сопроводительной лекарственной терапии при злокачественных новообразованиях у взрослых в условиях дневного стационара в соответствии с клиническими рекомендациями*
@@ -3337,7 +3672,7 @@ where Action.deleted = 0
             onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС'][eventEndDate]
             coeff += onkoCoef
             usedCoeffDict['8'] = onkoCoef
-        elif eventEndDate >= QDate(2024, 6, 4) and age >= 18 and (
+        elif QDate(2024, 6, 4) <= eventEndDate < QDate(2025, 1, 1) and age >= 18 and (
                 'ds19.058' <= serviceInfis[3:] <= 'ds19.062'
                 or 'ds19.067' <= serviceInfis[3:] <= 'ds19.078'
                 or 'ds19.116' <= serviceInfis[3:] <= 'ds19.134'):
@@ -3354,11 +3689,57 @@ where Action.deleted = 0
                 onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС3'][eventEndDate]
                 coeff += onkoCoef
                 usedCoeffDict['20'] = onkoCoef
+        elif QDate(2025, 1, 1) <= eventEndDate and age >= 18 and (
+                'ds19.058' <= serviceInfis[3:] <= 'ds19.062'
+                or 'ds19.067' <= serviceInfis[3:] <= 'ds19.078'
+                or 'ds19.135' <= serviceInfis[3:] <= 'ds19.156'):
+            supt = hasSupt(eventId)
+            if supt in ['supt01', 'supt07', 'supt08']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС1'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['18'] = onkoCoef
+            elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС2'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['19'] = onkoCoef
+            elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС3'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['20'] = onkoCoef
+        elif QDate(2026, 2, 1) <= eventEndDate and age >= 18 and (
+                'ds19.058' <= serviceInfis[3:] <= 'ds19.062'
+                or 'ds19.067' <= serviceInfis[3:] <= 'ds19.078'
+                or 'ds19.135' <= serviceInfis[3:] <= 'ds19.156'):
+            supt = hasSupt(eventId)
+            if supt in ['supt01', 'supt07', 'supt08']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС1'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl018'] = onkoCoef
+            elif supt in ['supt02', 'supt03', 'supt04', 'supt06']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС2'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl019'] = onkoCoef
+            elif supt in ['supt05', 'supt09', 'supt10', 'supt11', 'supt12']:
+                onkoCoef = contractDescr.coefficients[0, 0][u'онкоДС3'][eventEndDate]
+                coeff += onkoCoef
+                usedCoeffDict['sl020'] = onkoCoef
 
     # применяем КСЛП
     price = price + roundMath(baseTariff * coeff, 2)
 
     ishodOb = isInterruptedCase(eventId)
+    interruptReason = None
+    interruptCoeff = None
+    if ishodOb == '108':
+        interruptReason = '1'
+    elif ishodOb in ['102', '202']:
+        interruptReason = '4'
+    elif ishodOb in ['103', '203']:
+        interruptReason = '2'
+    elif ishodOb in ['105', '205', '206']:
+        interruptReason = '6'
+    elif ishodOb == '107':
+        interruptReason = '5'
     # для сверхкоротких случаев лечения (применяется для стационаров всех типов)
     if (minDuration > 1 and duration <= minDuration
             or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
@@ -3371,9 +3752,14 @@ where Action.deleted = 0
                 and minDuration == 1 and duration <= 3
                 and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
         if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
-            price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate], 2)
+            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
+            price = roundMath(price * interruptCoeff, 2)
         else:
-            price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
+            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate]
+            price = roundMath(price * interruptCoeff, 2)
+        if duration <= 3 and interruptReason is None:
+            # длительность <= 3 дня и причина оплаты за прерванный случай ещё не была указана
+            interruptReason = '8'
     # оплата прерванных случаев свыше 3-х дней
     elif (duration > minDuration and ishodOb and minDuration > 1
           or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
@@ -3386,11 +3772,13 @@ where Action.deleted = 0
               and minDuration == 1
               and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
         if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
-            price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate], 2)
+            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
+            price = roundMath(price * interruptCoeff, 2)
         else:
-            price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate], 2)
+            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
+            price = roundMath(price * interruptCoeff, 2)
 
-    return price, coeff, usedCoeffDict
+    return price, coeff, usedCoeffDict, interruptReason, interruptCoeff
     
 
 def evalPriceForMurmansk2015Hospital(contractDescr,

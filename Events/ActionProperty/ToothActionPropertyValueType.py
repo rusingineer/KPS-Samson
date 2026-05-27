@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import QVariant
+from PyQt4.QtCore import QVariant, Qt
 
 from library.StrComboBox    import CStrComboBox
 from library.Utils          import forceString, trim
@@ -41,6 +41,12 @@ class CToothActionPropertyValueType(CActionPropertyValueType):
             if self.rbComboBoxMark:
                 return unicode(self.currentIndex())
             return unicode(curText)
+    
+        def keyPressEvent(self, event):
+            if event.key() in (Qt.Key_Delete, Qt.Key_Backspace):
+                QtGui.QComboBox.keyPressEvent(self, event)
+            else:
+                CStrComboBox.keyPressEvent(self, event)
 
         value = text
 

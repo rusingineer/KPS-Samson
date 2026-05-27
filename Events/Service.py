@@ -228,7 +228,7 @@ class CTariffInfo(CInfo):
                     if isEvent_CSG:
                         price, coeff, usedCoeffDict = evalPriceEventCSGForKrasnodar(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, csgBegDate if csgBegDate else eventBegDate, execDate, relativeId, infis, baseTariff)
                     else:
-                        price, coeff, usedCoeffDict = evalPriceForKrasnodarA13(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, eventBegDate, execDate, relativeId, infis, baseTariff)
+                        price, coeff, usedCoeffDict, interruptReason, interruptCoeff = evalPriceForKrasnodarA13(self._contractDescr, self._tariff, clientId, eventId, eventTypeId, eventBegDate, execDate, relativeId, infis, baseTariff)
 
                     sum = round(price, 2)
                     return sum

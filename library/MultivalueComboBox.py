@@ -1191,8 +1191,8 @@ class CRecordMultivalueComboBox(CMultivalueComboBox):
 
 
     def _setHorisontalTable(self):
-        prefWidthCode = max(len(k) for k in self._mapId2Shown.keys())
-        prefWidthName = max(len(v) for v in self._mapId2Shown.values())
+        prefWidthCode = max(len(k) for k in self._mapId2Shown.keys()) if self._mapId2Shown.keys() else 10
+        prefWidthName = max(len(v) for v in self._mapId2Shown.values()) if self._mapId2Shown.values() else 10
         pv = self._popupView.view()
         pv.setColumnWidth(0, 30)
         pv.setColumnWidth(1, 80 + (prefWidthCode * 2))

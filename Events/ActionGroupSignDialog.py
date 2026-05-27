@@ -448,7 +448,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
                 #execPersonId=None,
             )
         except:
-            ok, trail = False, None
+            ok, trail = False, [None]
             QtGui.qApp.logCurrentException()
         if ok:
             # это хак: перемещаем запись с подписанным файлом из кнопки в действие
@@ -456,7 +456,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
             action._attachedFileItemList.extend(attachedFileRecordList)
             attachButton.setAttachedFileItemList([])
             self.signedCount += 1
-            if trail:
+            if trail[0]:
                 self.logBrowser.append(u'%s - документ «%s» успешно сформирован,'\
                                        u' подписан и прикреплён' % (actionInfoStr, mainFileName))
                 for filename in result.supplements.keys():

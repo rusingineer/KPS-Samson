@@ -283,4 +283,8 @@ class CActionPropertyType(object):
 
 
     def evalValue(self, variables):
-        return eval(self.co, functions, variables)
+        try:
+            result = eval(self.co, functions, variables)
+        except (ZeroDivisionError, TypeError):
+            result = None
+        return result

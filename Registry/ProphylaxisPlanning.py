@@ -1216,7 +1216,7 @@ class CProphylaxisPlanningTypeTableModel(CTableModel):
         self._specialValues = []
         self.addColumn(CTextCol(u'Код', ['code'], 5))
         self.addColumn(CTextCol(   u'Наименование',     ['name'], 40))
-        self._fieldNames = ['rbProphylaxisPlanningType.code', 'rbProphylaxisPlanningType.name']
+        self._fieldNames = ['rbProphylaxisPlanningType.id', 'rbProphylaxisPlanningType.code', 'rbProphylaxisPlanningType.name']
         self.setTable('rbProphylaxisPlanningType')
 
     def flags(self, index):

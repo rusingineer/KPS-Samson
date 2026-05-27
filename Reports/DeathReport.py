@@ -79,7 +79,7 @@ MainRows = [
     ]
 
 
-def selectData(begDate, endDate, place, cause, foundBy, foundation):
+def selectData(begDate, endDate, place, cause, foundBy, foundation, includeSelected, relegateOrgId, excludeSelected):
     stmt="""
 SELECT
   count(*) AS cnt,
@@ -88,6 +88,7 @@ SELECT
   IF(FDiagnosis.MKB IS NULL, PDiagnosis.MKB, FDiagnosis.MKB) AS MKB
 FROM
   Event
+  LEFT JOIN Event_Death ed ON Event.id = ed.master_id
   LEFT JOIN EventType ON EventType.id = Event.eventType_id
   LEFT JOIN Client ON Client.id = Event.client_id
   LEFT JOIN Diagnostic AS PDiagnostic ON PDiagnostic.event_id = Event.id
@@ -105,11 +106,26 @@ GROUP BY clientAge, clientSex, MKB
     """
     db = QtGui.qApp.db
     tableEvent  = db.table('Event')
+    tableDeath     = db.table('Event_Death').alias('ed')
     cond = []
     cond.append(tableEvent['deleted'].eq(0))
     addDateInRange(cond, tableEvent['setDate'], begDate, endDate)
-    if place or cause or foundBy or foundation:
-        addCondForDeathCurcumstance(cond, tableEvent, place, cause, foundBy, foundation)
+    if place:
+        cond.append(tableDeath['deathPlaceType_id'].eq(place))
+    if cause:
+        cond.append(tableDeath['deathCauseType_id'].eq(cause))
+    if foundBy:
+        cond.append(tableDeath['employeeTypeDeterminedDeathCause_id'].eq(foundBy))
+    if foundation:
+        cond.append(tableDeath['groundsForDeathCause_id'].eq(foundation))
+    # if relegateOrgId == 0 or relegateOrgId == QtGui.qApp.currentOrgId():
+    #     cond.append(db.joinOr([tableEvent['relegateOrg_id'].eq(QtGui.qApp.currentOrgId()),tableEvent['relegateOrg_id'].isNull()]))
+    # else:
+    if relegateOrgId > 0:
+        if excludeSelected:
+            cond.append(tableEvent['relegateOrg_id'].ne(relegateOrgId))
+        else:
+            cond.append(tableEvent['relegateOrg_id'].eq(relegateOrgId))
     return db.query(stmt % (db.joinAnd(cond)))
 
 
@@ -130,10 +146,13 @@ class CDeathReport(CReport):
     def build(self, params):
         begDate = params.get('begDate', QDate())
         endDate = params.get('endDate', QDate())
-        place = params.get('deathPlace', '')
-        cause = params.get('deathCause', '')
-        foundBy = params.get('deathFoundBy', '')
-        foundation = params.get('deathFoundation', '')
+        place = params.get('deathPlace', 0)
+        cause = params.get('deathCause', 0)
+        foundBy = params.get('deathFoundBy', 0)
+        foundation = params.get('deathFoundation', 0)
+        relegateOrgId = params.get('eventRelegateOrgId',0)
+        includeSelectedOrg = params.get('includeSelectedOrg',False)
+        excludeSelectedOrg = params.get('excludeSelectedOrg',False)
 
         rowSize = 8
         reportMainData = [ [0]*rowSize for row in xrange(len(MainRows)*2) ]
@@ -144,7 +163,7 @@ class CDeathReport(CReport):
 
 #        QtGui.qApp.beep()
 
-        query = selectData(begDate, endDate, place, cause, foundBy, foundation)
+        query = selectData(begDate, endDate, place, cause, foundBy, foundation, includeSelectedOrg, relegateOrgId, excludeSelectedOrg)
         while query.next():
             record   = query.record()
             cnt = forceInt(record.value('cnt'))

@@ -216,7 +216,7 @@ class CEditDialog(CDialogBase, Ui_EditDialog):
 class CAnatomicalLocalizationsIdentificationModel(CIdentificationModel):
     def __init__(self, parent):
         CIdentificationModel.__init__(self, parent, 'rbAnatomicalLocalizations_Identification', '')
-        self._cols[0].setFilter('domain = "rbAnatomicalLocalizations"')
+        self._cols[0].filter = 'domain = "rbAnatomicalLocalizations"'
         self._cols[2].canBeEmpty = True
         self.addHiddenCol('createDatetime')
         self.addHiddenCol('modifyDatetime')

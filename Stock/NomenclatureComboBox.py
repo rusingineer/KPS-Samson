@@ -51,7 +51,7 @@ from Ui_NomenclatureComboBoxPopup import Ui_NomenclatureComboBoxPopup
 
 
 class CNomenclatureComboBox(CRBComboBox):
-    def __init__(self, parent):
+    def __init__(self, parent, nomenclatureId = None, needInternationalNonproprietaryName = False):
         CRBComboBox.__init__(self, parent)
         self.setTable('rbNomenclature')
         self.defaultClassId = None
@@ -76,6 +76,7 @@ class CNomenclatureComboBox(CRBComboBox):
         self._additionalCond = u''
         self.isFinanceVisible = 0 # 0-как обычно, 1-не показывать, 2-показывать #0013272
         self.isOnlyMnnEsklpFormVisible = False
+        self.needInternationalNonproprietaryName = needInternationalNonproprietaryName
 
 
     def setIsFinanceVisible(self, value):
@@ -255,7 +256,7 @@ class CNomenclatureComboBox(CRBComboBox):
     def showPopup(self):
         nomenclatureId = self.getValue()
         if not self._popup:
-            self._popup = CNomenclatureComboBoxPopup(self, self._useClientUnitId, self._financeId, self._medicalAidKindId)
+            self._popup = CNomenclatureComboBoxPopup(self, self._useClientUnitId, self._financeId, self._medicalAidKindId, self.needInternationalNonproprietaryName)
             self.connect(self._popup, SIGNAL('itemsUpdated()'), self.updateItems)
             self.connect(self._popup, SIGNAL('itemSelected(QVariant)'), self.setQValue)
             self.connect(self._popup, SIGNAL('applySearch(QVariant)'), self.setFinanceMedicalAidKind)
@@ -453,10 +454,10 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
                        'applySearch(QVariant)'  # WTF?
                       )
 
-    def __init__(self, parent=None, useClientUnitId=False, defaultFinanceId=None, defaultMedicalAidKindId=None):
+    def __init__(self, parent=None, useClientUnitId=False, defaultFinanceId=None, defaultMedicalAidKindId=None, needInternationalNonproprietaryName=False):
         QtGui.QFrame.__init__(self, parent, Qt.Popup)
         self._parent = parent
-        self.addModels('', CNomenclatureModel(self, useClientUnitId, defaultFinanceId, defaultMedicalAidKindId))
+        self.addModels('', CNomenclatureModel(self, useClientUnitId, defaultFinanceId, defaultMedicalAidKindId, needInternationalNonproprietaryName=needInternationalNonproprietaryName))
         self.addModels('NomenclatureSortModel', CSortFilterProxyTableModel(self, self.model))
         self.model = self.modelNomenclatureSortModel.sourceModel()
         self.modelFeatures = CFeaturesModel(self)
@@ -469,7 +470,6 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
         self.actSelect.setShortcuts([Qt.Key_Return, Qt.Key_Enter, Qt.Key_Select])
         self.tblNomenclature.setContextMenuPolicy(Qt.ActionsContextMenu)
         self.tblNomenclature.addAction(self.actEdit)
-#        self.tblNomenclature.setModel(self.model)
         self.tblNomenclature.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.actSearch.setShortcuts([Qt.Key_Return, Qt.Key_Enter])
         self.tabSearch.addAction(self.actSearch)
@@ -511,7 +511,6 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
         # ввёл флаг: features в modelFeatures достоверен или нет
         self._featuresIsValid = True
         self.initSearch()
-#        self.cmbClass.installEventFilter(self)
         preferences = getPref(QtGui.qApp.preferences.windowPrefs, 'CNomenclatureComboBoxPopup', {})
         self.tblNomenclature.loadPreferences(preferences)
         self.tblNomenclature.enableColsHide()
@@ -707,7 +706,6 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
         self.edtMnnFilter.setText(self._mnnFilter)
         self.chkOnlyMnnEsklpForm.setChecked(self._defaultIsOnlyMnnEsklpForm)
         self._featuresIsValid = False
-#        self.modelFeatures.setValuableFeatures(self._defaultFeatures)
 
 
     @withWaitCursor
@@ -1026,7 +1024,6 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
         buttonCode = self.buttonBox.standardButton(button)
         if buttonCode == QtGui.QDialogButtonBox.Apply:
             self.applySearch()
-#            self.tabWidget.setCurrentIndex(0)
         elif buttonCode == QtGui.QDialogButtonBox.Reset:
             self.resetSearch()
         self._featuresIsValid = False
@@ -1127,7 +1124,7 @@ class CNomenclatureModel(CTableModel):
         def setMainStockId(self, mainStockId):
             self.mainStockId = mainStockId
 
-    def __init__(self, parent, useClientUnitId=False, financeId=None, medicalAidKindId=None, mainStockId=None):
+    def __init__(self, parent, useClientUnitId=False, financeId=None, medicalAidKindId=None, mainStockId=None, needInternationalNonproprietaryName=False):
         self.isOnlyExists = False
         self.qntCol = CNomenclatureModel.CQntCol(useClientUnitId, financeId, medicalAidKindId)
         self.mainStockQntCol = CNomenclatureModel.CMainStockQntCol(useClientUnitId, financeId, medicalAidKindId)
@@ -1145,10 +1142,13 @@ class CNomenclatureModel(CTableModel):
             ]
         if showMainStockRemainings:
             cols.append(self.mainStockQntCol)
+        if needInternationalNonproprietaryName:
+            cols.insert(2, CTextCol(u'МНН на русском', ['internationalNonproprietaryName'], 20))
         CTableModel.__init__(self, parent, cols, 'rbNomenclature' )
         self._mapColumnToOrder = {
             'code': 'rbNomenclature.code',
             'name': 'rbNomenclature.name',
+            'internationalNonproprietaryName': 'rbNomenclature.internationalNonproprietaryName',
             'mnnLatin': 'rbNomenclature.mnnLatin',
             'dosageValue': 'rbNomenclature.dosageValue',
             'lfForm_id': 'rbNomenclature.lfForm_id',

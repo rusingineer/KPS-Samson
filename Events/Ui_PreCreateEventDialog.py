@@ -58,7 +58,7 @@ class Ui_PreCreateEventDialog(object):
         self.cmbClientRelationId = CClientRelationComboBoxPatron(PreCreateEventDialog)
         self.cmbClientRelationId.setObjectName(_fromUtf8("cmbClientRelationId"))
         self.gridLayout.addWidget(self.cmbClientRelationId, 22, 1, 1, 2)
-        self.cmbEventType = CRBComboBox(PreCreateEventDialog)
+        self.cmbEventType = CRBSearchComboBox(PreCreateEventDialog)
         self.cmbEventType.setObjectName(_fromUtf8("cmbEventType"))
         self.gridLayout.addWidget(self.cmbEventType, 1, 1, 1, 2)
         self.cmbOrg = CPolyclinicComboBox(PreCreateEventDialog)
@@ -442,6 +442,7 @@ from Orgs.OrgComboBox import CPolyclinicComboBox
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from Registry.Utils import CClientRelationComboBoxPatron
+from library.CRBSearchComboBox import CRBSearchComboBox
 from library.DateEdit import CDateEdit
 from library.ICDCodeEdit import CICDCodeEditEx
 from library.MES.MESComboBoxEx import CMESComboBoxEx

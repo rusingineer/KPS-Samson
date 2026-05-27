@@ -56,7 +56,7 @@ def getQuery(orgStructure_id):
         left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
         left join soc_attachments on soc_attachments.lastName = Client.lastName
                                  and soc_attachments.firstName = Client.firstName
-                         /* убрана проверка отчества        AND IFNULL(Client.patrName, '') = IFNULL(soc_attachments.patrName, '') */
+                                 AND IFNULL(Client.patrName, '') = IFNULL(soc_attachments.patrName, '')
                                  and DATE(soc_attachments.birthDate) = Client.birthDate
                                  and soc_attachments.serviceMethod = 0
         where Client.deathDate is NULL AND Client.deleted = 0 {str_org:s}
@@ -119,7 +119,7 @@ def getQuery(orgStructure_id):
         left join OrgStructure as Parent5 on Parent5.id = Parent4.parent_id
         left join Client on Client.lastName = soc_attachments.lastName
                         and Client.firstName = soc_attachments.firstName
-                  /* убрана проверка отчества         AND IFNULL(Client.patrName, '') = IFNULL(soc_attachments.patrName, '')  */
+                        AND IFNULL(Client.patrName, '') = IFNULL(soc_attachments.patrName, '')
                         and Client.birthDate = DATE(soc_attachments.birthDate)
                         and Client.deleted = 0
         left JOIN ClientAttach on ClientAttach.id = (SELECT MAX(CAT.id) FROM ClientAttach AS CAT

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=importCOVID
+Name[ru]=ИмпортКОВИД
+Icon=/opt/client/icons/s11.png
+Exec=python2 /opt/client/appendix/regional/r23/importCOVID/importCOVID.py
+Path=/opt/client
+Terminal=false
+StartupNotify=false

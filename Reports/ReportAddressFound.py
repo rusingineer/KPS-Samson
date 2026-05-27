@@ -57,7 +57,7 @@ def getQuery1(orgStructure_id):
               AND OrgStructure.areaType > 0
                 %(str_org)s
               order by uch, village, street, house) t
-              group by t.ii, t.uch, t.village, t.street, t.FIO, t.post;
+              group by t.ii, t.uch, t.village, t.street, t.FIO, t.post, t.socr;
         """
     if orgStructure_id:
         str_org = 'and %(orgStructure_id)d in (OrgStructure.id, Parent1.id, Parent2.id, Parent3.id, Parent4.id, Parent5.id)' % {'orgStructure_id': orgStructure_id}
@@ -204,36 +204,51 @@ ________________________________________________________ муниципальн�
             net = forceString(record.value('net'))
             FIO = forceString(record.value('FIO'))
             post = forceString(record.value('post'))
-            while (len(d1)+len(d2))>100 or OMS is None:
-                i = 100
+            while d1 or d2 or OMS is None:
                 OMS = forceString(record.value('OMS'))
                 row = table.addRow()
+
                 table.setText(row, 0, OMS)
                 table.setText(row, 1, uch)
+
                 if net == u"взрослая":
                     net = u"взрослые"
                 elif net == u"детская":
                     net = u"дети"
+
                 table.setText(row, 2, net)
                 table.setText(row, 3, district)
                 table.setText(row, 4, village)
                 table.setText(row, 5, street)
                 table.setText(row, 8, FIO)
                 table.setText(row, 9, post)
-                if len(d2) > 100:
-                    while len(d2)>100 and not d2[:i].endswith(u','):
-                        i-=1 
-                    table.setText(row, 6, d2[:i-1] if len(d2)>100 else d2)
-                    d2 = d2[i:] if len(d2)>100 else d2
-                else:
-                    table.setText(row, 6, d2)  
-                    j = 100-len(d2)
-                    while len(d1)+len(d2)>100 and j>0 and not d1[:j].endswith(u','):
-                        j-=1 
-                    if j>0:
-                        table.setText(row, 7, d1[:j-1] if len(d1)+len(d2)>100 else d1) 
-                        d1 = d1[j:] if len(d1)+len(d2)>100 else d1
-                    d2 = ''
+
+                odd = u''
+                if d2:
+                    parts = d2.split(u',')
+                    while parts:
+                        candidate = parts[0] if not odd else odd + u',' + parts[0]
+                        if len(candidate) <= 100:
+                            odd = candidate
+                            parts.pop(0)
+                        else:
+                            break
+                    d2 = u','.join(parts)
+                    table.setText(row, 6, odd)
+
+                even = u''
+                space_left = 100 - len(odd)
+                if d1 and space_left > 0:
+                    parts = d1.split(u',')
+                    while parts:
+                        candidate = parts[0] if not even else even + u',' + parts[0]
+                        if len(candidate) <= space_left:
+                            even = candidate
+                            parts.pop(0)
+                        else:
+                            break
+                    d1 = u','.join(parts)
+                    table.setText(row, 7, even)
             OMS = None
                     
         cursor.movePosition(QtGui.QTextCursor.End)

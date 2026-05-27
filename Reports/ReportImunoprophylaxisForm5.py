@@ -42,6 +42,7 @@ def selectData(params):
     queryTable = queryTable.leftJoin(tableClient, tableClient['id'].eq(tableClientVaccination['client_id']))
 
     cond = []
+    cond.append(tableClientVaccination['deleted'].eq(0))
     if begDate:
         cond.append(tableClientVaccination['datetime'].ge(begDate))
     if endDate:

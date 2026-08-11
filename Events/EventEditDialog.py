@@ -3912,7 +3912,8 @@ LIMIT 1))))'''%(str(eventId)))
                 cond = [
                     QtGui.qApp.db.joinOr([tableService['infis'].inlist(CExportPage1.reabilitationKuslList),
                                           tableService['infis'].inlist(CExportPage1.diabetSchoolKuslList) if endDate >= QDate(2025, 3, 1) else '0',
-                                          tableService['infis'].inlist(CExportPage1.chronicDiseaseSchoolKuslList) if endDate >= QDate(2025, 10, 1) else '0'])
+                                          tableService['infis'].inlist(CExportPage1.chronicDiseaseSchoolKuslList) if endDate >= QDate(2025, 10, 1) else '0',
+                                          tableService['infis'].eq('B04.001.003') if endDate >= QDate(2025, 10, 1) else '0'])
                 ]
                 begDates = endDates = []
                 if isinstance(begDate, QDateTime):

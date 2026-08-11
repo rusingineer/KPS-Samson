@@ -15,10 +15,9 @@ VERSION="Версия скрипта 7 от 22.07.2026г"
 
 # Все пишем в лог рядом со скриптом
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Лог файл
-BACKUP_LOG="$SCRIPT_DIR/ALTLinux.log"
-# Перенаправляем stdout и stderr
-exec > >(tee -a "$BACKUP_LOG")
+BACKUP_LOG="$SCRIPT_DIR/ALTLinux.log" # Лог файл
+exec 3>&1                             # Сохраняем оригинальный stdout (терминал)
+exec > >(tee -a "$BACKUP_LOG")        # Всё остальное пишем в лог
 exec 2>&1
 
 # Дата и время
@@ -40,12 +39,22 @@ run() {
     fi
 }
 
-# Функцию логирования, для добавления даты
+# Функцию логирования, для добавления даты, log() вообще не использует stdout:
 log() {
-    printf '[%(%F %T)T] %s\n' -1 "$*"
+    printf '\033[1;33m[%(%F %T)T] %s\033[0m\n' -1 "$*" >&3 #цветной текст идёт только в терминал (>&3);
+    printf '[%(%F %T)T] %s\n' -1 "$*" >>"$BACKUP_LOG"      #обычный текст — сразу в лог (>>"$BACKUP_LOG")
 }
 
-#Выполняем в конце после exit
+# Если пользователь прервал выполнение
+interrupt() {
+    printf '\n' >&3
+    printf '\n' >>"$BACKUP_LOG"
+    log "✕✕✕ Выполнение прервано пользователем"
+    exit 130
+}
+trap interrupt INT TERM
+
+# Выполняем в конце после exit
 function exit-trap
 {
     local rc=$1
@@ -63,8 +72,9 @@ function exit-trap
 }
 trap 'exit-trap $?' EXIT
 
-log "======= Запущен скрипт установки ЛИН-клиента ЕМИС $VERSION =======" >> /root/.install.ver
-log "======= Запущен скрипт установки ЛИН-клиента ЕМИС $VERSION =======" 
+log "#########################################################################"
+log "Запущен скрипт установки ЛИН-клиента ЕМИС $VERSION" 
+log "#########################################################################"
 
 #================= Проверки =================
 if ! grep "ALT" /etc/os-release > /dev/null ; then
@@ -82,14 +92,6 @@ ping -c 3 8.8.8.8 || {
 	log "Отсутствует доступ к интернету, установка невозможна!"
 	exit 3
 	}
-	
-# Проверить наличие программ
-for cmd in apt-get tar; do
-    command -v "$cmd" >/dev/null || {
-        log "Команда $cmd не найдена!"
-        exit 4
-    }
-done
 
 #================= Установка =================
 log "###########################################"
@@ -153,7 +155,6 @@ systemctl stop avahi-daemon >/dev/null 2>&1 || true
 #systemctl disable cups-browsed  >/dev/null 2>&1 || true
 #systemctl stop cups-browsed  >/dev/null 2>&1 || true
 
-
 log "########################################"
 log "############ Установка ЕМИС ############"
 log "########################################"
@@ -171,6 +172,7 @@ FTPFILE="client_lin.tar.gz" #[файл]
 FTP="$(which ftp)"
 
 log "Скачиваем client_lin.tar.gz с сервера БД по ФТП..."
+### Или скачиваем по ssh
 $FTP -n $FTPS <<END_SCRIPT
  quote USER $FTPU
  quote PASS $FTPP
@@ -179,12 +181,10 @@ $FTP -n $FTPS <<END_SCRIPT
  get $FTPFILE
  quit
 END_SCRIPT
+
+log "Переносим клиента"
 run 12 mv client_lin.tar.gz /opt/ 
-### Или скачиваем по ssh
-### Скопировать с сервера каталог /var/ftp/pub/update/client_lin.tar.gz в директорию /opt
-#scp ftp@192.168.1.225:/var/ftp/pub/update/client_lin.tar.gz /opt/
-#  ## Пароль: ввести пароль от учетной записи "ftp" на сервере МИС (пасс у КМИАЦ "ftp")
-  
+
 log "Распаковываем клиента"
 run 13 tar xzf /opt/client_lin.tar.gz -C /opt 
 

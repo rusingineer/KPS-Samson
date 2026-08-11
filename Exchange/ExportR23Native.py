@@ -290,7 +290,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
         'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
         'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009', 'B04.004.010', 'B04.015.010',
-        'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
+        'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016'
     ]
 
     def __init__(self, parent):
@@ -1218,6 +1218,8 @@ where t.typeFile = 'D'""")
                             cel = '1.3'  # диспансерное наблюдение
                     elif event['hasChronSchoolService']:
                         cel = '1.9'  # Посещение школы для больных с хроническими заболеваниями
+                    elif event['hasPregnancySchoolService']:
+                        cel = '1.12'  # Посещение школы для беременных
                     elif event['hasPatronService']:
                         cel = '2.5'  # патронаж
                     elif rec_p['MKBX'] and rec_p['MKBX'][0] != 'Z':
@@ -3627,6 +3629,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                         'hasDNService': 0,
                                         'hasDiabetSchool': 0,
                                         'hasChronSchoolService': 0,
+                                        'hasPregnancySchoolService': 0,
                                         'VB_P': None}
             dbfRecord = dbfP.newRecord()
             if self.exportType != self.exportTypeAttachments:
@@ -4065,6 +4068,12 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             elif dbfRecord['KUSL'] in self.pobr or (dbfRecord['KUSL'] in CExportPage1.diabetSchoolKuslList and endDate >= QDate(2025, 3, 1)) or (dbfRecord['KUSL'] in CExportPage1.chronicDiseaseSchoolKuslList and endDate >= QDate(2025, 10, 1)):
                 dbfRecord['DATN'] = pyDate(servDate)
                 self.eventsDict[eventId]['hasChronSchoolService'] = 1
+            elif dbfRecord['KUSL'] == 'B04.001.003':
+                dbfRecord['DATN'] = pyDate(servDate)
+                if endDate >= QDate(2026, 1, 1):
+                    self.eventsDict[eventId]['hasPregnancySchoolService'] = 1
+                else:
+                    self.eventsDict[eventId]['hasChronSchoolService'] = 1
             else:
                 dbfRecord['DATN'] = pyDate(endDate)
 

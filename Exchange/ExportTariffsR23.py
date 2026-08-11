@@ -208,8 +208,8 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
             match = True
             if filter_begDate_valid:
                 if self.chkActive.isChecked():
-                    dataStart = QDate.fromString(self.modelTable.index(row, 8).data().toString(), "dd.MM.yyyy")
-                    dataEnd = QDate.fromString(self.modelTable.index(row, 9).data().toString(), "dd.MM.yyyy")
+                    dataStart = QDate.fromString(self.modelTable.index(row, self.modelTable.getColIndex('begDate')).data().toString(), "dd.MM.yyyy")
+                    dataEnd = QDate.fromString(self.modelTable.index(row, self.modelTable.getColIndex('endDate')).data().toString(), "dd.MM.yyyy")
                     match = match and ((dataEnd >= filter_begDateFrom and dataEnd <= filter_begDateTil) or not dataEnd) and dataStart <= filter_begDateTil
                 else:
                     dataStart = QDate.fromString(
@@ -217,7 +217,7 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
                         "dd.MM.yyyy")  # 8
                     match = match and dataStart >= filter_begDateFrom and dataStart <= filter_begDateTil
                 if match and not self.chkExportExternalTariff.isChecked():
-                    match = match and not self.modelTable.data(self.modelTable.index(row, 0), Qt.CheckStateRole).toBool()
+                    match = match and not self.modelTable.data(self.modelTable.index(row, self.modelTable.getColIndex('isExternal')), Qt.CheckStateRole).toBool()
             self.tblItems.setRowHidden(row, not match)
             if first_matched_row == -1 and match:
                 first_matched_row = row

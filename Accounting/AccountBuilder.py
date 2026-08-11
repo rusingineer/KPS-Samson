@@ -1275,7 +1275,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         Account_Item ON Account_Item.event_id = Event.id and Account_Item.visit_id is null and Account_Item.action_id is null \
         and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0",
             """Event.eventType_id, Event.cureMethod_id, Event.result_id, Event.client_id, Event.setDate, Event.execDate, Event.MES_id, Person.tariffCategory_id, rbMesSpecification.level, 
-            Account_Item.id as oldAccId, Event.relative_id, Person.orgStructure_id""",
+            Account_Item.id as oldAccId, Event.relative_id, Person.orgStructure_id
+            , IF(exists(SELECT 1 FROM mes.MES m WHERE substr(m.code, 4) = 'st02.001' AND m.id = Event.MES_id), IF(EXISTS(SELECT 1 FROM Event_CSG ec WHERE ec.master_id = Event.id AND substr(ec.CSGCode, 4) IN ('st02.003', 'st02.004')), 1, 0), NULL) AS hasChildbirthCsg""",
             eventId)
         eventTypeId  = forceRef(record.value('eventType_id'))
         cureMethodId = forceRef(record.value('cureMethod_id'))
@@ -1291,6 +1292,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
         interruptCoeff = None
         tariffCategoryId = forceRef(record.value('tariffCategory_id'))
         personOrgStructId = forceRef(record.value('orgStructure_id'))
+        hasChildbirthCsg = forceString(record.value('hasChildbirthCsg'))
         tariffList = contractDescr.tariffEventByMES.get((eventTypeId, serviceId), None)
         if tariffList is None and QtGui.qApp.defaultKLADR()[:2] == u'23':
             tariffList = contractDescr.tariffEventByMES.get((None, serviceId), None)
@@ -1318,7 +1320,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                         amount = 1.0
                         groupAccountType, medicalAidTypeCode, eventProfileRegionalCode = self.getGroupAccountType(eventTypeId)
                         baseTariff = self.getBaseTariff(eventEndDate, medicalAidTypeCode)
-                        price, coeff, usedCoeffDict, interruptReason, interruptCoeff = evalPriceForKrasnodarA13(contractDescr, tariff, clientId, eventId, eventTypeId, eventBegDate, eventEndDate, relative_id, self.getServiceInfis(serviceId), baseTariff)
+                        price, coeff, usedCoeffDict, interruptReason, interruptCoeff = evalPriceForKrasnodarA13(contractDescr, tariff, clientId, eventId, eventTypeId, eventBegDate, eventEndDate, relative_id, self.getServiceInfis(serviceId), baseTariff, hasChildbirthCsg)
                         sum = price = round(price, 2)
                         if usedCoeffDict:
                             coeffList = []
@@ -2093,7 +2095,10 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                                 '''Event.execDate, Event.cureMethod_id, Event.result_id, Event.eventType_id,
                                  Event.client_id, Event_CSG.CSGCode, Event_CSG.begDate, Event_CSG.endDate, Event_CSG.MKB, 
                                  Person.tariffCategory_id, rbMesSpecification.level, Event.relative_id,
-                                 rbService.id AS service_id, Event.id AS event_id, Account_Item.id as oldAccId, Event_CSG.krit, Person.orgStructure_id''',
+                                 rbService.id AS service_id, Event.id AS event_id, Account_Item.id as oldAccId, Event_CSG.krit, Person.orgStructure_id
+                                 , IF(substr(Event_CSG.CSGCode, 4) = 'st02.001', 
+                                 IF(EXISTS(SELECT 1 FROM Event_CSG ec WHERE ec.master_id = Event.id AND substr(ec.CSGCode, 4) IN ('st02.003', 'st02.004') 
+                                 UNION ALL SELECT 1 FROM mes.MES m WHERE m.id = Event.MES_id AND substr(m.code, 4) IN ('st02.003', 'st02.004')), 1, 0), NULL) AS hasChildbirthCsg''',
                                 db.table('Event_CSG')['id'].eq(csgId),
                                 'Action.id')
         serviceId = forceRef(record.value('service_id'))
@@ -2119,6 +2124,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
             tariffCategoryId = forceRef(record.value('tariffCategory_id'))
             csgKritId = forceRef(record.value('krit'))
             personOrgStructId = forceRef(record.value('orgStructure_id'))
+            hasChildbirthCsg = forceString(record.value('hasChildbirthCsg'))
 
             for tariff in tariffList:
                 if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, csgEndDate):
@@ -2168,8 +2174,8 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                             else:
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
-                    elif csgCode[3:] != 'st02.001' and eventEndDate >= QDate(2025, 6, 1):
-                        minDuration = 1
+                    elif hasChildbirthCsg != '1' and eventEndDate >= QDate(2025, 6, 1):
+                        minDuration = tariff.frags[-2][0] if len(tariff.frags) >= 3 else 3
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
 
@@ -3341,7 +3347,8 @@ def evalPriceForKrasnodarA13(contractDescr,
                              eventEndDate,
                              relative_id,
                              serviceInfis,
-                             baseTariff=0):
+                             baseTariff=0,
+                             hasChildbirthCsg=''):
     db = QtGui.qApp.db
     usedCoeffDict = {}
 
@@ -3738,42 +3745,43 @@ where Action.deleted = 0
     elif ishodOb == '107':
         interruptReason = '5'
     # для сверхкоротких случаев лечения (применяется для стационаров всех типов)
-    if (minDuration > 1 and duration <= minDuration
-            or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
-                and minDuration == 1 and duration <= 3
-                and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
-            or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
-                and minDuration == 1 and duration <= 3
-                and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
-            or (eventEndDate >= QDate(2025, 6, 1)
-                and minDuration == 1 and duration <= 3
-                and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
-        if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
-            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
-            price = roundMath(price * interruptCoeff, 2)
-        else:
-            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate]
-            price = roundMath(price * interruptCoeff, 2)
-        if duration <= 3 and interruptReason is None:
-            # длительность <= 3 дня и причина оплаты за прерванный случай ещё не была указана
-            interruptReason = '8'
-    # оплата прерванных случаев свыше 3-х дней
-    elif (duration > minDuration and ishodOb and minDuration > 1
-          or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
-              and minDuration == 1
-              and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
-          or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
-              and minDuration == 1
-              and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
-          or (eventEndDate >= QDate(2025, 6, 1)
-              and minDuration == 1
-              and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
-        if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
-            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
-            price = roundMath(price * interruptCoeff, 2)
-        else:
-            interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
-            price = roundMath(price * interruptCoeff, 2)
+    if hasChildbirthCsg != '1':
+        if (minDuration > 1 and duration <= minDuration
+                or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                    and minDuration == 1 and duration <= 3
+                    and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                    and minDuration == 1 and duration <= 3
+                    and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                or (eventEndDate >= QDate(2025, 6, 1)
+                    and minDuration == 1 and duration <= 3
+                    and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+            if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
+                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
+                price = roundMath(price * interruptCoeff, 2)
+            else:
+                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate]
+                price = roundMath(price * interruptCoeff, 2)
+            if duration <= 3 and interruptReason is None:
+                # длительность <= 3 дня и причина оплаты за прерванный случай ещё не была указана
+                interruptReason = '8'
+        # оплата прерванных случаев свыше 3-х дней
+        elif (duration > minDuration and ishodOb and minDuration > 1
+              or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                  and minDuration == 1
+                  and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+              or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                  and minDuration == 1
+                  and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
+              or (eventEndDate >= QDate(2025, 6, 1)
+                  and minDuration == 1
+                  and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+            if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
+                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
+                price = roundMath(price * interruptCoeff, 2)
+            else:
+                interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
+                price = roundMath(price * interruptCoeff, 2)
 
     return price, coeff, usedCoeffDict, interruptReason, interruptCoeff
     

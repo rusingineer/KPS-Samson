@@ -41,9 +41,10 @@ class CImageMapActionPropertyValueType(CActionPropertyValueType):
             actionType = action.getType()
             self.domain = domain
             self.propCode = u'<code>%s</code>' % domain
-            currIdx = self.parent().parent().currentIndex().row()
-            valueAction = action._properties[currIdx].getValue()
-            _valueAction = action._properties[currIdx].getValue().split('</code>') if valueAction else ''
+            tableView = self.parent().parent()
+            row = tableView.currentIndex().row()
+            valueAction = tableView.model().getProperty(row).getValue()
+            _valueAction = valueAction.split('</code>') if valueAction else ''
             self.propMark = _valueAction[1] if len(_valueAction) > 1 else ''
             self._value = QVariant(self.propCode + self.propMark)
             self.markSize = 1

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QObject, QVariant, SIGNAL
 
 from Events.Utils  import getEventContextData
-from library.Utils import forceString, forceRef
+from library.Utils import forceString
 
 from ActionPropertyValueType       import CActionPropertyValueType
 from StringActionPropertyValueType import CStringActionPropertyValueType
@@ -109,20 +109,16 @@ class CHtmlActionPropertyValueType(CActionPropertyValueType):
         from Events.ActionInfo import CCookedActionInfo
         from library.PrintInfo import CInfoContext
         from library.PrintTemplates import getPrintTemplates
-        if u'_urn_' in self.domain:
-            return self.CComboBoxPropEditor(action, self.domain, None, None, None).value()
-        elif getPrintTemplates(self.domain) > 0:
-            templates = getPrintTemplates(self.domain)
-            if len(templates) > 0:
-                context = CInfoContext()
-                action = CCookedActionInfo(context, action.getRecord(), action)
+        templates = getPrintTemplates(self.domain)
+        if len(templates) > 0:
+            context = CInfoContext()
+            action = CCookedActionInfo(context, action.getRecord(), action)
 
-                data = {'action': action}
-                templateName, template, templateType, printBlank = getTemplate(templates[0].id)
-                if templateType != htmlTemplate:
-                    template = u'<HTML><BODY>Поддержка шаблонов печати в формате' \
-                               u' отличном от html не реализована</BODY></HTML>'
-                templateResult = compileAndExecTemplate(templateName, template, data)
-                return templateResult.content
-            else:
-                return
+            data = {'action': action}
+            templateName, template, templateType, printBlank = getTemplate(templates[0].id)
+            if templateType != htmlTemplate:
+                template = u'<HTML><BODY>Поддержка шаблонов печати в формате' \
+                           u' отличном от html не реализована</BODY></HTML>'
+            templateResult = compileAndExecTemplate(templateName, template, data)
+            return templateResult.content
+        return None

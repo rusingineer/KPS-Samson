@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -49,18 +49,19 @@ class CReferenceMultiActionPropertyValueType(CActionPropertyValueType):
 
     def _initRB(self):
         import re
-        self._data = CRBModelDataCache.getData(self._tableName,
-                                               self._addNone,
-                                               self._filter,
-                                               self._order,
-                                               self._specialValues,
-                                               self._needCache)
-        for itemIndex in xrange(self._data.getCount()):
-            _id = self._data.getId(itemIndex)
-            shown = u' | '.join([unicode(self._data.getCode(itemIndex)), unicode(self._data.getName(itemIndex))])
+        if self._tableName:
+            self._data = CRBModelDataCache.getData(self._tableName,
+                                                   self._addNone,
+                                                   self._filter,
+                                                   self._order,
+                                                   self._specialValues,
+                                                   self._needCache)
+            for itemIndex in xrange(self._data.getCount()):
+                _id = self._data.getId(itemIndex)
+                shown = u' | '.join([unicode(self._data.getCode(itemIndex)), unicode(self._data.getName(itemIndex))])
 
-            self._mapId2Shown[str(_id)] = re.sub(r"\s+", " ", shown)
-            self._mapShown2Id[re.sub(r"\s+", " ", shown)] = unicode(_id)
+                self._mapId2Shown[str(_id)] = re.sub(r"\s+", " ", shown)
+                self._mapShown2Id[re.sub(r"\s+", " ", shown)] = unicode(_id)
 
 
     class CPropEditor(CRBMultivalueComboBox):

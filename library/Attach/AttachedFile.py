@@ -426,7 +426,7 @@ class CAttachedFilesLoader:
         recordMap = {}
         if interface and clientId:
             db = QtGui.qApp.db
-            cols = ['master_id', 'comment', 'path', 'createPerson_id', 'respSignatureBytes', 'respSigner_id',
+            cols = ['master_id', 'comment', 'path', 'createPerson_id', 'createDatetime', 'respSignatureBytes', 'respSigner_id',
                     'respSigningDatetime', 'orgSignatureBytes', 'orgSigner_id', 'orgSigningDatetime', 'id']
             tableCFA = db.table('Client_FileAttach')
             cond = [

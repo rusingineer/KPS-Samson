@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -95,6 +95,7 @@ class CESKLPSmnnComboBoxPopup(QtGui.QFrame, Ui_ESKLPSmnnComboBoxPopup):
         self.edtESKLPSmnn_mnn.setText(u'')
         self.edtESKLPSmnn_form.setText(u'')
         self.edtESKLPSmnn_ftg.setText(u'')
+        self.edtESKLPSmnn_trade_name.setText(u'')
         self.cmbESKLPSmnn_is_znvlp.setCurrentIndex(0)
         self.cmbESKLPSmnn_is_narcotic.setCurrentIndex(0)
         self.edtESKLPSmnn_Dosage_grls_value.setText(u'')
@@ -104,20 +105,27 @@ class CESKLPSmnnComboBoxPopup(QtGui.QFrame, Ui_ESKLPSmnnComboBoxPopup):
         self.setESKLPPopupUpdate(self.UUID)
 
     def checkParamsDialogFilter(self):
-        if not self.dialogInfo.get('ESKLPSmnnCode', u''):
-            if not self.dialogInfo.get('ESKLPSmnn_mnn', u''):
-                if not self.dialogInfo.get('ESKLPSmnn_form', u''):
-                    if not self.dialogInfo.get('ESKLPSmnn_ftg', u''):
-                        if not self.dialogInfo.get('ESKLPSmnn_is_znvlp', 0):
-                            if not self.dialogInfo.get('ESKLPSmnn_is_narcotic', 0):
-                                if not self.dialogInfo.get('ESKLPSmnn_Dosage_grls_value', u''):
-                                    return False
-        return True
+        defaults = {
+            'ESKLPSmnnCode': u'',
+            'ESKLPSmnn_mnn': u'',
+            'ESKLPSmnn_form': u'',
+            'ESKLPSmnn_trade_name': u'',
+            'ESKLPSmnn_ftg': u'',
+            'ESKLPSmnn_is_znvlp': 0,
+            'ESKLPSmnn_is_narcotic': 0,
+            'ESKLPSmnn_Dosage_grls_value': u'',
+        }
+        hasAnyValue = any(
+            self.dialogInfo.get(field, default)
+            for field, default in defaults.items()
+        )
+        return hasAnyValue
 
     def getParamsDialogFilter(self):
         self.dialogInfo = {'ESKLPSmnnCode': forceStringEx(self.edtESKLPSmnnCode.text()),
                            'ESKLPSmnn_mnn': forceStringEx(self.edtESKLPSmnn_mnn.text()),
                            'ESKLPSmnn_form': forceStringEx(self.edtESKLPSmnn_form.text()),
+                           'ESKLPSmnn_trade_name': forceStringEx(self.edtESKLPSmnn_trade_name.text()),
                            'ESKLPSmnn_ftg': forceStringEx(self.edtESKLPSmnn_ftg.text()),
                            'ESKLPSmnn_is_znvlp': forceInt(self.cmbESKLPSmnn_is_znvlp.currentIndex()),
                            'ESKLPSmnn_is_narcotic': forceInt(self.cmbESKLPSmnn_is_narcotic.currentIndex()),
@@ -147,6 +155,7 @@ class CESKLPSmnnComboBoxPopup(QtGui.QFrame, Ui_ESKLPSmnnComboBoxPopup):
         ESKLPSmnnCode = self.dialogInfo.get('ESKLPSmnnCode', u'')
         ESKLPSmnn_mnn = self.dialogInfo.get('ESKLPSmnn_mnn', u'')
         ESKLPSmnn_form = self.dialogInfo.get('ESKLPSmnn_form', u'')
+        ESKLPSmnn_trade_name = self.dialogInfo.get('ESKLPSmnn_trade_name', None)
         ESKLPSmnn_ftg = self.dialogInfo.get('ESKLPSmnn_ftg', u'')
         ESKLPSmnn_is_znvlp = self.dialogInfo.get('ESKLPSmnn_is_znvlp', 0)
         ESKLPSmnn_is_narcotic = self.dialogInfo.get('ESKLPSmnn_is_narcotic', 0)
@@ -159,6 +168,10 @@ class CESKLPSmnnComboBoxPopup(QtGui.QFrame, Ui_ESKLPSmnnComboBoxPopup):
             cond.append(tableEsklp_Smnn['mnn'].like(addDotsEx(ESKLPSmnn_mnn)))
         if ESKLPSmnn_form:
             cond.append(tableEsklp_Smnn['form'].like(addDotsEx(ESKLPSmnn_form)))
+        if ESKLPSmnn_trade_name:
+            tableESKLP_Klp = db.table('esklp.Klp')
+            queryTable = queryTable.leftJoin(tableESKLP_Klp, tableESKLP_Klp['smnn_id'].eq(tableEsklp_Smnn['id']))
+            cond.append(tableESKLP_Klp['trade_name'].contain(ESKLPSmnn_trade_name))
         if ESKLPSmnn_ftg:
             cond.append(tableEsklp_Smnn['ftg'].like(addDotsEx(ESKLPSmnn_ftg)))
         if ESKLPSmnn_is_znvlp:
@@ -215,6 +228,11 @@ class CESKLPSmnnComboBoxPopup(QtGui.QFrame, Ui_ESKLPSmnnComboBoxPopup):
             if Qt.ItemIsEnabled & self.tableModel.flags(index):
                 UUID = self.tblESKLPSmnn.currentItemId()
                 self.selectESKLPUUID(UUID)
+    
+    
+    @pyqtSignature('QString')
+    def on_edtESKLPSmnn_trade_name_textChanged(self, text):
+        self.tableModel.setTradeNameFilter(unicode(text))
 
 
 class CESKLPTableModel(CTableModel):
@@ -246,12 +264,50 @@ class CESKLPTableModel(CTableModel):
 
         def clearCache(self):
             self._cache = {}
+            
+            
+    class CTradeNameCol(CCol):
+        def __init__(self, title, fields, defaultWidth, alignment='l'):
+            CCol.__init__(self, title, fields, defaultWidth, alignment)
+            self._cache = {}
+            self.tradeNameFilter = None
+
+        def format(self, values):
+            smnnID = forceStringEx(values[0])
+            if smnnID:
+                tn_value = self._cache.get(smnnID, u'')
+                if tn_value:
+                    return toVariant(tn_value)
+                else:
+                    db = QtGui.qApp.db
+                    tableEsklp_Klp = db.table('esklp.Klp')
+                    recordList = db.getRecordList(tableEsklp_Klp, [tableEsklp_Klp['trade_name']],
+                                            [tableEsklp_Klp['smnn_id'].eq(smnnID),
+                                             tableEsklp_Klp['trade_name'].contain(self.tradeNameFilter) if self.tradeNameFilter else "True"])
+                    if recordList:
+                        tn_values = []
+                        for record in recordList:
+                            tn_value = forceStringEx(record.value('trade_name'))
+                            if tn_value not in tn_values:
+                                tn_values.append(tn_value)
+                        self._cache[smnnID] = '| '.join(tn_values)
+                        return toVariant(tn_value)
+            return CCol.invalid
+
+        def clearCache(self):
+            self._cache = {}
+        
+        def setTradeNameFilter(self, filter):
+            self.tradeNameFilter = filter
+
+    Col_TradeName = 3
 
     def __init__(self, parent):
         CTableModel.__init__(self, parent)
         self.addColumn(CTextCol(u'Код узла СМНН', ['code'], 30))
         self.addColumn(CTextCol(u'Наименование МНН на русском языке', ['mnn'], 30))
         self.addColumn(CTextCol(u'Название лекарственной формы', ['form'], 30))
+        self.addColumn(self.CTradeNameCol(u'Торговое наименование', ['id'], 10))
         self.addColumn(CTextCol(u'Название ФТГ', ['ftg'], 20))
         self.addColumn(CEnumCol(u'ЖНВЛП', ['is_znvlp'], [u'Нет', u'Да'], 4))
         self.addColumn(
@@ -266,6 +322,9 @@ class CESKLPTableModel(CTableModel):
         db = QtGui.qApp.db
         tableEsklp_Smnn = db.table('esklp.Smnn')
         loadFields = [
-            u'''DISTINCT esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form, esklp.Smnn.ftg, esklp.Smnn.is_znvlp, esklp.Smnn.is_narcotic, esklp.Smnn.UUID''']
+            u'''DISTINCT esklp.Smnn.id, esklp.Smnn.code, esklp.Smnn.mnn, esklp.Smnn.form, esklp.Smnn.ftg, esklp.Smnn.is_znvlp, esklp.Smnn.is_narcotic, esklp.Smnn.UUID''']
         self._table = tableEsklp_Smnn
         self._recordsCache = CTableRecordCacheEx(db, self._table, loadFields, idFieldName='UUID')
+    
+    def setTradeNameFilter(self, filter):
+        self.cols()[self.Col_TradeName].setTradeNameFilter(filter)

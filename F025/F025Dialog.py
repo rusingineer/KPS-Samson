@@ -16,7 +16,7 @@
 ##
 #############################################################################
 
-from PyQt4 import QtGui, QtSql
+from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL
 
 from Events.Action import CActionTypeCache, CAction
@@ -217,23 +217,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblVisits.setModel(None)
-        self.tblInspections.setModel(None)
-        self.tblActions.setModel(None)
-        self.grpTempInvalid.deleteLater()
-        self.grpAegrotat.deleteLater()
-        self.grpDisability.deleteLater()
-        self.grpVitalRestriction.deleteLater()
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabMes.deleteLater()
-        del self.modelVisits
-        del self.modelDiagnostics
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def getSuggestedPersonId(self):
@@ -423,7 +407,8 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                         item.setValue('character_id', toVariant(characterIdList[0]))
                     self.modelDiagnostics.items().append(item)
                 self.modelDiagnostics.reset()
-        self.prepareActions(presetActions, disabledActions, actionTypeIdValue, valueProperties, diagnos, financeId, protocolQuoteId, actionByNewEvent, plannedEndDate)
+        self.prepareActions(presetActions, disabledActions, actionTypeIdValue, valueProperties, diagnos, financeId,
+                            protocolQuoteId, actionByNewEvent, plannedEndDate, isEdit=isEdit)
         self.grpTempInvalid.pickupTempInvalid()
         self.grpAegrotat.pickupTempInvalid()
         self.grpDisability.pickupTempInvalid()
@@ -482,7 +467,14 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                                  externalId, assistantId, curatorId, None, [], relegateOrgId, relegatePersonId,
                                  diagnos, financeId, protocolQuoteId, actionByNewEvent, order, typeQueue, relegateInfo, plannedEndDate, isEdit)
 
-    def prepareActions(self, presetActions, disabledActions, actionTypeIdValue, valueProperties, diagnos, financeId, protocolQuoteId, actionByNewEvent, plannedEndDate=None):
+    def prepareActions(self, presetActions, disabledActions, actionTypeIdValue, valueProperties, diagnos, financeId,
+                       protocolQuoteId, actionByNewEvent, plannedEndDate=None, isEdit=False):
+
+        def addActionTypeRowAndEmitSignal(model, actionTypeId, amount):
+            model.addRow(actionTypeId, amount)
+            if isEdit:
+                model.emit(QtCore.SIGNAL('onAddNewAction(int)'), len(model.items()) - 1)
+
         def addActionType(actionTypeId, amount, idListActionType, idListActionTypeIPH, actionFinance, idListActionTypeMoving, plannedEndDate):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
@@ -492,7 +484,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                           self.tabMisc.modelAPActions]):
                 if actionTypeId in model.actionTypeIdList:
                     if actionTypeId in idListActionType and not actionByNewEvent:
-                        model.addRow(actionTypeId, amount)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -516,7 +508,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                         if actionFinance == 0:
                             record.setValue('finance_id', toVariant(financeId))
                     elif actionTypeId in idListActionTypeIPH:
-                        model.addRow(actionTypeId, amount)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -525,7 +517,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                             action[u'Диагноз'] = diagnos
                     #[self.eventActionFinance, self.receivedFinanceId, orgStructureTransfer, orgStructurePresence, oldBegDate, movingQuoting, personId]
                     elif actionByNewEvent and actionTypeId in idListActionTypeMoving:
-                        model.addRow(actionTypeId, amount)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -543,7 +535,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                         if actionByNewEvent[6]:
                             record.setValue('person_id', toVariant(actionByNewEvent[6]))
                     elif (actionByNewEvent and actionTypeId not in idListActionType) or not actionByNewEvent:
-                        model.addRow(actionTypeId, amount)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -831,6 +823,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.tabNotes.saveAttachedFiles(eventId)
         self.saveTrailerActions(eventId)
         self.setIsAssertNoMessage(False)
+        self.saveTempInvalid()
 
 
     def saveTrailerActions(self, eventId):

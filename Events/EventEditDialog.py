@@ -32,6 +32,7 @@ from PyQt4.QtSql import QSqlField
 
 from Events.ActionTypeListDialog import CActionTypeListDialog
 from Events.ActionsModel import CActionRecordItem
+from Events.CompletedEventsOMSWidget import CCompletedEventsOMSWidget
 from Surveillance.SurveillancePlanningDialog import CSurveillancePlanningEditDialog
 from library.Counter              import CCounterController
 from library.TableModel import CTextCol
@@ -138,7 +139,8 @@ from Events.Utils import (
     getEventShowButtonTemperatureList,
     getEventShowButtonNomenclatureExpense,
     getEventShowButtonJobTickets,
-    getEventProfileId)
+    getEventProfileId,
+    getEventTypeCheckCompletedEventsOMS)
 from library.TimeoutLogout         import CTimeoutLogout
 from HospitalBeds.CheckPeriodActions     import CCheckPeriodActionsForEvent # WFT?
 from KLADR.Utils                  import KLADRMatch
@@ -293,10 +295,7 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
 
 
     def destroy(self):
-        CItemEditorBaseDialog.destroy(self)
-        self.updateActionsAmount.disconnect()
-        if self.receivers(SIGNAL('updateActionsPriceAndUet()')) > 0:
-            self.updateActionsPriceAndUet.disconnect()
+        pass
 
 
     def widgetsVisible(self):
@@ -1082,6 +1081,11 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
 
         for actionsTab in self.getActionsTabsList():
             result = result and actionsTab.checkAPRelatedAction()
+        # TT4381 "Рассмотреть возможность автоматического добавления тд услуг по лабораторной диагностике из выбранных свойств"
+        if hasattr(self, 'tabDiagnostic'):
+            result = result and self.tabDiagnostic.checkAPLabDirection()
+        elif hasattr(self, 'tabActions'):
+            result = result and self.tabActions.checkAPLabDirection()
         # result = result and self.checkDeposit(True)
         for actionsTab in self.getActionsTabsList():
             result = result and actionsTab.checkAPDataEntered()
@@ -1841,6 +1845,7 @@ LIMIT 1))))'''%(str(eventId)))
 
 
     def exec_(self):
+        updateEventId = False
         if not QtGui.qApp.counterController():
             QtGui.qApp.setCounterController(CCounterController(self))
         QtGui.qApp.setJTR(self)
@@ -1853,6 +1858,7 @@ LIMIT 1))))'''%(str(eventId)))
             if result:
                 self.__jobTicketRecordsMap2PostUpdate()
                 QtGui.qApp.delAllCounterValueIdReservation()
+                updateEventId = self.checkCompletedEventsOMS()
             else:
                 QtGui.qApp.resetAllCounterValueIdReservation()
                 self._checkNotCreatedActions()
@@ -1860,13 +1866,19 @@ LIMIT 1))))'''%(str(eventId)))
         if self.itemId() and self.mruDescr:
             QtGui.qApp.addMruEvent(self.itemId(), self.mruDescr)
         if result == self.saveAndCreateAccount:
+            counterController = QtGui.qApp.counterController()
+            counterController.setIgnoreSequence(True)
             try:
                 from Accounting.InstantAccountDialog import createInstantAccount
                 createInstantAccount(self.itemId())
             except:
                 QtGui.qApp.logCurrentException()
+            counterController.setIgnoreSequence(False)
         QtGui.qApp.setCounterController(None)
         QtGui.qApp.disconnectClipboard()
+        if updateEventId:
+            from Events.CreateEvent import editEvent
+            editEvent(self, updateEventId)
         return result
 
     def _checkNotCreatedActions(self):
@@ -2709,8 +2721,10 @@ LIMIT 1))))'''%(str(eventId)))
             defaultMKBValue, defaultMorphologyMKBValue = result
         if bool(defaultMKBValue):
             record.setValue('MKB', QVariant(defaultMKBValue))
+            action._record.setValue('MKB', QVariant(defaultMKBValue))
         if bool(defaultMorphologyMKBValue):
             record.setValue('morphologyMKB', QVariant(defaultMorphologyMKBValue))
+            action._record.setValue('morphologyMKB', QVariant(defaultMorphologyMKBValue))
 
 
     def setClientId(self, clientId):
@@ -5659,6 +5673,7 @@ LIMIT 1))))'''%(str(eventId)))
 
     @pyqtSignature('int')
     def on_cmbResult_currentIndexChanged(self):
+        db = QtGui.qApp.db
         if QtGui.qApp.provinceKLADR()[:2] == u'23' and CFinanceType.getCode(self.eventFinanceId) == 2:
             if hasattr(self, 'modelDiagnostics'):
                 modelDiagnostics = self.modelDiagnostics
@@ -5672,7 +5687,6 @@ LIMIT 1))))'''%(str(eventId)))
                 endDateCheck = self.edtEndDate.date()
                 if not endDateCheck:
                     endDateCheck = self.edtBegDate.date()
-                db = QtGui.qApp.db
                 table = db.table('soc_checkSpr12')
                 cond = [table['code'].eq(ishodObrCode),
                         table['begDate'].le(endDateCheck),
@@ -5692,6 +5706,26 @@ LIMIT 1))))'''%(str(eventId)))
                     cond.append(table['regionalCode'].inlist(codeIshl))
 
                 modelDiagnostics.cols()[modelDiagnostics.getColIndex('result_id', None)].filter = db.joinAnd(cond)
+
+        if self.isVisible():
+            if hasattr(self, 'tabMisc'):
+                actionsTab = self.tabMisc
+            elif hasattr(self, 'tabActions'):
+                actionsTab = self.tabActions
+            else:
+                return
+            items = actionsTab.modelAPActions.items()
+            for item in items:
+                record, action = item
+                if record:
+                    if u'leaved' in action._actionType.flatCode.lower():
+                        prop = action.getProperty(u'Исход госпитализации')
+                        if prop:
+                            resultName = forceString(db.translate('rbResult', 'id', self.cmbResult.value(), 'name'))
+                            if resultName.lower() in (u'умер', u'смерть') and prop._value != u'умер':
+                                prop.setValue(u'умер')
+                            elif resultName.lower() == u'выписан' and prop._value != u'выписан':
+                                prop.setValue(u'выписан')
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -6322,6 +6356,190 @@ LIMIT 1))))'''%(str(eventId)))
                                    WHERE DC.diagnosis_id = Diagnosis.id AND DC.endDate <= %s AND DC.deleted = 0 AND rbDP.name LIKE '%s')'''%(db.formatDate(date), u'%снят%'))
             diagnosticIdList = db.getDistinctIdList(queryTable, [u'Diagnostic.id'], where=cond, order='Diagnostic.endDate DESC')
         return diagnosticIdList
+    
+    
+    def saveTempInvalid(self):
+        if hasattr(self, 'grpDisability'):
+            self.grpDisability.save()
+        if hasattr(self, 'grpTempInvalid'):
+            self.grpTempInvalid.save()
+        if hasattr(self, 'grpAegrotat'):
+            self.grpAegrotat.save()
+        if hasattr(self, 'grpVitalRestriction'):
+            self.grpVitalRestriction.save()
+    
+    
+    def checkCompletedEventsOMS(self):
+        u"""
+        Контроль законченных случаев по ОМС для сокращения 307-й ошибки в ЛПУ.
+        Этот метод выполняет ряд проверок, чтобы определить, соответствует ли текущее событие критериям,
+        чтобы запустить контроль.
+        Если все эти проверки пройдены и соответствующая запись найдена, метод создает и отображает CCompletedEventsOMSWidget.
+        return:
+            Найденный eventId, если виджет принят; в противном случае False.
+        """
+        if not getEventTypeCheckCompletedEventsOMS(self.eventTypeId):
+            return False
+        
+        if not getEventTypeForm(self.eventTypeId) in (u'025', u'030', u'043'):
+            return False
+        
+        if not hasattr(self.tabNotes, 'chkExpose') or not self.tabNotes.chkExpose.isChecked(): 
+            return False
+        
+        if not self.eventDate:
+            return False
+        
+        if not hasattr(self, 'cmbOrder') or self.cmbOrder.currentIndex()+1 != 1:
+            return False
+        
+        if not hasattr(self, 'cmbContract') or CFinanceType.getCode(self.eventFinanceId) != 2:
+            return False
+        
+        db = QtGui.qApp.db
+        tableAccountItem = db.table('Account_Item')
+        cond = [tableAccountItem['deleted'].eq(0),
+                tableAccountItem['refuseType_id'].isNull(),
+                tableAccountItem['event_id'].eq(self.itemId())
+                ]
+        record = db.getRecordEx(tableAccountItem, 'id', cond)
+        if record:
+            return False
+        
+        tableService = db.table('rbService')
+        tableActionService = db.table('ActionType_Service')
+        existRecord = None
+        actionTypes = []
+        for actionTab in self.getActionsTabsList():
+            serviceIds = []
+            model = actionTab.tblAPActions.model()
+            for record, action in model.items():
+                if forceDate(record.value('endDate')):
+                    if forceInt(record.value('status')) == 2:
+                        if not forceInt(record.value('org_id')):
+                            actionType = forceInt(record.value('actionType_id'))
+                            if not actionType in actionTypes:
+                                actionServiceRecords = db.getRecordList(tableActionService, '*', tableActionService['master_id'].eq(actionType))
+                                actionTypes.append(actionType)
+                                for actionServiceRecord in actionServiceRecords:
+                                    if CFinanceType.getCode(forceInt(actionServiceRecord.value('finance_id'))) in (0, 2):
+                                        serviceId = forceInt(actionServiceRecord.value('service_id'))
+                                        if serviceId not in serviceIds:
+                                            serviceIds.append(serviceId)
+            if serviceIds:
+                cond = [
+                    tableService['id'].inlist(serviceIds),
+                    db.joinAnd([tableService['name'].notlike(u'%беремен%'),
+                                tableService['name'].notlike(u'%обращение по поводу%'),
+                                tableService['name'].notlike(u'%патронаж%'),
+                                tableService['name'].notlike(u'%инокраев%')]),
+                    db.joinOr([u"""
+                    (rbService.infis LIKE 'B01%' AND SUBSTRING(rbService.infis, 5, 3) IN 
+                    ('001','002','004','005','007','008','010','014','015','018','023','025',
+                    '026','027','028','029','031','037','038','040','047','048','049','050',
+                    '053','057','058','063','064','065','067'))""",
+                    u"""(rbService.infis LIKE 'B02%' AND SUBSTRING(rbService.infis, 5, 3) IN ('001','031','047'))"""])
+                ]
+                existRecord = db.getRecordEx(tableService, 'id', cond)
+                if existRecord:
+                    break
+        if not existRecord:
+            return False
+        
+        
+        tableEvent = db.table('Event')
+        tableEventType = db.table('EventType')
+        tableDiagnosis = db.table('Diagnosis')
+        tableDiagnostic = db.table('Diagnostic')
+        tableRBDiagnosisType = db.table('rbDiagnosisType')
+        tablePerson = db.table('Person')
+        tableRBSpeciality = db.table('rbSpeciality')
+        tableOrgStructure = db.table('OrgStructure')
+        tableAction = db.table('Action')
+        tableActionType = db.table('ActionType')
+        tableRBFinance = db.table('rbFinance')
+        
+        table = tableEvent.leftJoin(tableAccountItem, tableEvent['id'].eq(tableAccountItem['event_id']))
+        table = table.leftJoin(tableDiagnostic, tableEvent['id'].eq(tableDiagnostic['event_id']))
+        table = table.leftJoin(tableDiagnosis, tableDiagnostic['diagnosis_id'].eq(tableDiagnosis['id']))
+        table = table.innerJoin(tableRBDiagnosisType, tableRBDiagnosisType['id'].eq(tableDiagnostic['diagnosisType_id']))
+        table = table.leftJoin(tablePerson, tablePerson['id'].eq(tableEvent['execPerson_id']))
+        table = table.leftJoin(tableRBSpeciality, tableRBSpeciality['id'].eq(tablePerson['speciality_id']))
+        table = table.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePerson['orgStructure_id']))
+        table = table.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+        table = table.innerJoin(tableAction, tableAction['event_id'].eq(tableEvent['id']))
+        table = table.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        table = table.leftJoin(tableActionService, tableActionService['master_id'].eq(tableActionType['id']))
+        table = table.leftJoin(tableRBFinance, tableRBFinance['id'].eq(tableActionService['finance_id']))
+        table = table.leftJoin(tableService, tableService['id'].eq(tableActionService['service_id']))
+        
+        cols = [tableEvent['id'],
+                tableEvent['execDate'],
+                tableDiagnosis['MKB'],
+                tableRBSpeciality['name'].alias('specialityName'),
+                tablePerson['lastName'],
+                tablePerson['firstName'],
+                tablePerson['patrName'],
+                tableOrgStructure['name'].alias('orgStructureName'),
+                tableEventType['checkCompletedEventsOMS'],
+                'MIN(Event.setDate) as setDate',
+                'MIN(Action.begDate) as minBegDate',
+                'MAX(Action.endDate) as maxEndDate'
+                ]
+        
+        MKBrecord = db.getRecordEx(table, tableDiagnosis['MKB'], [tableEvent['id'].eq(self.itemId()),
+                                                                    tableDiagnostic['deleted'].eq(0),
+                                                                    tableRBDiagnosisType['code'].eq(1),
+                                                                    tableDiagnosis['deleted'].eq(0)])
+        MKB = forceString(MKBrecord.value('MKB'))
+          
+        clientId = self.clientId
+        eventTypeId = self.eventTypeId
+        date = self.eventDate
+        contractId = self.cmbContract.value()
+        
+        cond = [
+            tableEvent['id'].ne(self.itemId()),
+            tableEvent['client_id'].eq(clientId),
+            tableEvent['eventType_id'].eq(eventTypeId),
+            tableEvent['deleted'].eq(0),
+            db.joinOr([tableEvent['execDate'].isNull(), tableEvent['execDate'].lt(date)]),
+            u"YEAR(Event.execDate) = YEAR({0}) AND MONTH(Event.execDate) = MONTH({0})".format(db.formatDate(date)),
+            tableEvent['contract_id'].eq(contractId),
+            tableEvent['expose'].eq(1),
+            tableAccountItem['id'].isNull(),
+            tableDiagnostic['deleted'].eq(0),
+            tableRBDiagnosisType['code'].eq(1),
+            tableDiagnosis['deleted'].eq(0),
+            tableDiagnosis['MKB'].eq(MKB),
+            u"""
+            (rbFinance.code is NULL or rbFinance.code = 2)
+            AND Action.status = 2
+            AND Action.endDate is not NULL
+            AND Action.org_id is NULL
+            AND rbService.name NOT LIKE '%беремен%'
+            AND rbService.name NOT LIKE '%обращение по поводу%'
+            AND rbService.name NOT LIKE '%патронаж%'
+            AND rbService.name NOT LIKE '%инокраев%'
+            AND (
+                (rbService.infis LIKE 'B01%' AND SUBSTRING(rbService.infis, 5, 3) IN 
+                ('001','002','004','005','007','008','010','014','015','018','023','025',
+                '026','027','028','029','031','037','038','040','047','048','049','050',
+                '053','057','058','063','064','065','067'))
+                OR
+                (rbService.infis LIKE 'B02%' AND SUBSTRING(rbService.infis, 5, 3) IN ('001','031','047')))
+                """
+        ]
+        
+        record = None
+        record = db.getRecordListGroupBy(table, cols, cond,"Action.event_id", 'Event.setDate', 1)
+        if record:
+            record = record[0]
+            widget = CCompletedEventsOMSWidget(record, self.itemId(), self)
+            if widget.exec_():
+                return widget.eventId
+        else:
+            return False
 
 
     def checkMaxOccursLimit(self, actionTypeId):

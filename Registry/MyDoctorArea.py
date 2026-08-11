@@ -19,7 +19,7 @@ from library.DialogBase import CConstructHelperMixin
 from library.ICDInDocTableCol import CICDExInDocTableCol
 from library.InDocTable import CRecordListModel, CTextInDocTableCol, CDateInDocTableCol, CBoolInDocTableCol
 from library.PrintTemplates import applyTemplate
-from library.Utils import forceRef, forceInt, forceBool, firstMonthDay, toVariant
+from library.Utils import forceDate, forceRef, forceInt, forceBool, firstMonthDay, forceString, toVariant
 
 from Events.AmbulatoryCardDialog import CAmbulatoryCardDialog
 from Events.CreateEvent import editEvent
@@ -40,6 +40,7 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.addObject('actOpenAmbulatoryCard', QtGui.QAction(u'Открыть амбулаторную карту', self))
         self.addObject('actEditTempInvalid', QtGui.QAction(u'Открыть эпизод ВУТ', self))
         self.addObject('actEditEvent', QtGui.QAction(u'Открыть событие', self))
+        self.addObject('actEditEventLeavedStationary', QtGui.QAction(u'Открыть событие', self))
         self.setupUi(self)
         self._currentClientId = None
         self._currentTempInvalidId = None
@@ -116,6 +117,10 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
             tbl.createPopupMenu([self.actFindClient])
             if tbl in [self.tblOpenedTempInvalidDocuments, self.tblForCloseTempInvalidDocuments]:
                 tbl.addPopupAction(self.actEditTempInvalid)
+            if tbl in [self.tblLeavedStationary]:
+                tbl.addPopupAction(self.actEditEventLeavedStationary)
+        
+        self.connect(self.tblLeavedStationary.popupMenu(), SIGNAL('aboutToShow()'), self.tblLeavedStationaryPopupMenuAboutToShow)
 
         self.tblBadTest.addPopupAction(self.actEditEvent)
         if QtGui.qApp.visibleMyDoctorArea:
@@ -186,6 +191,17 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         clientList = db.getDistinctIdList(queryTable, idCol=tableDiagnosis['client_id'], where=cond)
         if clientList:
             self.clientsWithDn = clientList
+
+
+    def tblLeavedStationaryPopupMenuAboutToShow(self):
+        eventId = None
+        currentItem = self.tblLeavedStationary.currentItem()
+        if currentItem:
+            eventId = forceRef(currentItem.value('eventId'))
+        if eventId:
+            self.actEditEventLeavedStationary.setEnabled(True)
+        else:
+            self.actEditEventLeavedStationary.setEnabled(False)
 
 
 
@@ -294,6 +310,16 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
             eventId = forceRef(currentItem.value('eventId'))
             if eventId:
                 editEvent(self, eventId, readOnly=True)
+
+
+    @pyqtSignature('')
+    def on_actEditEventLeavedStationary_triggered(self):
+        currentItem = self.tblLeavedStationary.currentItem()
+        if currentItem:
+            eventId = forceRef(currentItem.value('eventId'))
+            if eventId:
+                editEvent(self, eventId, readOnly=True)
+                
 
     def reloadData(self, date):
         try:
@@ -731,18 +757,23 @@ class CLeavedStationaryTableModel(CRecordListModel):
     def loadData(self, date=QDate().currentDate(), orgStructureIdList=None, isNarrowSpec=False, narrowPersonList=None):
         db = QtGui.qApp.db
         if isNarrowSpec and narrowPersonList:
-            table = db.table('ExternalNotification')
             tableClient = db.table('Client')
             tableMKB = db.table('MKB')
             tableEvent = db.table('Event')
             tableEventType = db.table('EventType')
+            tableMedicalAidType = db.table('rbMedicalAidType')
             tableDiagnostic = db.table('Diagnostic')
             tableDiagnosis = db.table('Diagnosis')
+            tableDiagnosisType = db.table('rbDiagnosisType')
+            tableClientAttach = db.table('ClientAttach')
+            tableOrganisation = db.table('Organisation')
+            tableOrgStructure = db.table('OrgStructure')
+            table = db.table('ExternalNotification')
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
             tableDispanser = db.table('rbDispanser')
-            tableMedicalAidType = db.table('rbMedicalAidType')
-            tableDiagnosisE = db.table('Diagnosis').alias('dgns')
-            tableDiagnosticE = db.table('Diagnostic').alias('dgn')
-            diagnosticQuery = tableDiagnosticE['person_id'].inlist(narrowPersonList)
+            
+            #Внешние
             queryTable = table.leftJoin(tableClient, tableClient['id'].eq(table['client_id']))
             queryTable = queryTable.leftJoin(tableMKB, tableMKB['DiagID'].eq(table['mkb']))
             queryTable = queryTable.leftJoin(tableEvent, tableEvent['client_id'].eq(tableClient['id']))
@@ -759,7 +790,7 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     tableDiagnostic['deleted'].eq(0),
                     tableMedicalAidType['code'].notInlist([1, 7]),
                     tableDispanser['code'].inlist([1, 2, 6]),
-                    tableDiagnostic['person_id'].inlist(narrowPersonList),
+                    tableDiagnosis['dispanserPerson_id'].inlist(narrowPersonList),
                     # tableEvent['execPerson_id'].inlist(narrowPersonList),
                     u"""NOT EXISTS(SELECT e.id FROM Event e 
                     LEFT JOIN Diagnostic dc ON dc.event_id = e.id
@@ -782,7 +813,8 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     """
                     ]
         
-            cols = ["CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
+            cols = ['NULL as eventId',
+                    "CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
                     tableClient['birthDate'],
                     table['endDate'],
@@ -793,11 +825,95 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     """EXISTS(SELECT NULL FROM Diagnosis d
                     left JOIN rbDispanser d1 ON d1.id = d.dispanser_id
                     WHERE d.client_id = Client.`id` AND d.deleted = 0 AND d.MKB = MKB.`DiagID` AND d1.observed = 1) AS 'DN'"""]
-            items = db.getRecordListGroupBy(queryTable, cols, where=cond, group='ExternalNotification.id', order='ExternalNotification.endDate desc')
+            
+            extItems = db.getRecordListGroupBy(queryTable, cols, where=cond, group='ExternalNotification.id', order='ExternalNotification.endDate desc')
+            
+            #Внутренние
+            queryTable = tableEvent.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+            queryTable = queryTable.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            queryTable = queryTable.leftJoin(tableClientAttach, db.joinAnd([
+                tableClientAttach['client_id'].eq(tableClient['id']),
+                u'ClientAttach.id = (SELECT MAX(ca.id) FROM ClientAttach ca WHERE ca.client_id=Client.id AND ca.deleted=0)'
+                ]))
+            queryTable = queryTable.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tableClientAttach['orgStructure_id']))
+            queryTable = queryTable.leftJoin(tableOrganisation, tableOrgStructure['organisation_id'].eq(tableOrganisation['id']))
+            queryTable = queryTable.leftJoin(tableMedicalAidType, tableMedicalAidType['id'].eq(tableEventType['medicalAidType_id']))
+            queryTable = queryTable.leftJoin(tableDiagnostic, tableDiagnostic['event_id'].eq(tableEvent['id']))
+            queryTable = queryTable.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+            queryTable = queryTable.leftJoin(tableDiagnosisType, tableDiagnosisType['id'].eq(tableDiagnostic['diagnosisType_id']))
+            queryTable = queryTable.leftJoin(tableMKB, tableMKB['DiagID'].eq(tableDiagnosis['MKB']))
+            
+            cond = [tableClient['deleted'].eq(0),
+                    tableEvent['deleted'].eq(0),
+                    tableEvent['execDate'].ge(date.addDays(-9)),
+                    tableEvent['execDate'].lt(date.addDays(1)),
+                    tableClientAttach['deleted'].eq(0),
+                    tableDiagnosisType['code'].inlist([1,2,6]),
+                    tableDiagnostic['endDate'].ge(date.addDays(-9)),
+                    tableDiagnostic['endDate'].lt(date.addDays(1)),
+                    tableDiagnosis['dispanserPerson_id'].inlist(narrowPersonList),
+                    u"""NOT EXISTS(SELECT e.id FROM Event e 
+                    LEFT JOIN Diagnostic dc ON dc.event_id = e.id
+                    LEFT JOIN rbDispanser rbd ON rbd.id = dc.dispanser_id
+                    WHERE rbd.code IN (3, 4, 5) AND dc.diagnosis_id = Diagnostic.diagnosis_id AND Event.execDate < e.setDate 
+                    AND e.id = Event.id
+                    )""",
+                    tableMedicalAidType['regionalCode'].inlist(['11', '12', '301', '302', '401', '402', '41', '42', '51', '52', '511', '522', '43', '111', '112'])]
+            
+            cols = [tableEvent['id'].alias('eventId'),
+                    "CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
+                    u"IF(Client.sex = 1, 'м', 'ж') as sex",
+                    tableClient['birthDate'],
+                    tableEvent['execDate'].alias('endDate'),
+                    tableEvent['setDate'],
+                    "CONCAT_WS(' - ', Diagnosis.MKB, MKB.DiagName) as mkb",
+                    tableEvent['client_id'],
+                    tableOrgStructure['id'],
+                    tableOrganisation['fullName'].alias('organisation_name'),
+                    
+                    """EXISTS(SELECT NULL FROM Diagnosis d 
+    left JOIN rbDispanser d1 ON d1.id = d.dispanser_id
+    WHERE d.client_id = Client.`id` AND d.deleted = 0 AND d.MKB = MKB.`DiagID` AND d1.observed = 1) AS 'DN'"""]
+             
+            intItems = db.getRecordListGroupBy(queryTable, cols, where=cond, group='Event.id', order='Event.execDate desc')
+            recordList = []
+            extRecordList = []
+            items = []
+            for item in intItems:
+                clientId = forceRef(item.value('client_id'))
+                MKB = forceString(item.value('mkb'))
+                begDate = forceDate(item.value('endDate'))
+                endDate = forceDate(item.value('setDate'))
+                recordList.append((clientId, MKB, begDate, endDate))
+                
+            for item in extItems:
+                clientId = forceRef(item.value('client_id'))
+                MKB = forceString(item.value('mkb'))
+                begDate = forceDate(item.value('endDate'))
+                endDate = forceDate(item.value('begDate'))
+                orgStructure = forceRef(item.value('orgStructure_id'))
+                if (clientId, MKB, begDate, endDate) not in recordList and (clientId, MKB, begDate, endDate, orgStructure) not in extRecordList:
+                    extRecordList.append((clientId, MKB, begDate, endDate, orgStructure))
+                    items.append(item) 
+            
+            for item in intItems:
+                items.append(item)  
+            
         else:
-            table = db.table('ExternalNotification')
             tableClient = db.table('Client')
             tableMKB = db.table('MKB')
+            tableEvent = db.table('Event')
+            tableEventType = db.table('EventType')
+            tableMedicalAidType = db.table('rbMedicalAidType')
+            tableDiagnostic = db.table('Diagnostic')
+            tableDiagnosis = db.table('Diagnosis')
+            tableDiagnosisType = db.table('rbDiagnosisType')
+            tableClientAttach = db.table('ClientAttach')
+            tableOrganisation = db.table('Organisation')
+            tableOrgStructure = db.table('OrgStructure')
+            table = db.table('ExternalNotification')
+            
+            #Внешние
             queryTable = table.leftJoin(tableClient, tableClient['id'].eq(table['client_id']))
             queryTable = queryTable.leftJoin(tableMKB, tableMKB['DiagID'].eq(table['mkb']))
             cond = [tableClient['deleted'].eq(0),
@@ -806,9 +922,11 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     table['category_display'].eq(u'стационарный'),
                     table['orgStructure_id'].inlist(orgStructureIdList)]
 
-            cols = ["CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
+            cols = ['NULL as eventId',
+                    "CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
                     tableClient['birthDate'],
+                    table['begDate'],
                     table['endDate'],
                     "CONCAT_WS(' - ', ExternalNotification.mkb, MKB.DiagName) as mkb",
                     table['client_id'],
@@ -817,7 +935,74 @@ class CLeavedStationaryTableModel(CRecordListModel):
                     """EXISTS(SELECT NULL FROM Diagnosis d 
     left JOIN rbDispanser d1 ON d1.id = d.dispanser_id
     WHERE d.client_id = Client.`id` AND d.deleted = 0 AND d.MKB = MKB.`DiagID` AND d1.observed = 1) AS 'DN'"""]
-            items = db.getRecordList(queryTable, cols, where=cond, order='ExternalNotification.endDate desc')
+            extItems = db.getRecordList(queryTable, cols, where=cond, order='DATE(ExternalNotification.endDate) desc, clientName')
+                
+            #Внутренние
+            queryTable = tableEvent.leftJoin(tableClient, tableClient['id'].eq(tableEvent['client_id']))
+            queryTable = queryTable.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+            
+            queryTable = queryTable.leftJoin(tableClientAttach, db.joinAnd([
+                tableClientAttach['client_id'].eq(tableClient['id']),
+                u'ClientAttach.id = (SELECT MAX(ca.id) FROM ClientAttach ca WHERE ca.client_id=Client.id AND ca.deleted=0)'
+                ]))
+            
+            queryTable = queryTable.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tableClientAttach['orgStructure_id']))
+            queryTable = queryTable.leftJoin(tableOrganisation, tableOrgStructure['organisation_id'].eq(tableOrganisation['id']))
+            queryTable = queryTable.leftJoin(tableMedicalAidType, tableMedicalAidType['id'].eq(tableEventType['medicalAidType_id']))
+            queryTable = queryTable.leftJoin(tableDiagnostic, tableDiagnostic['event_id'].eq(tableEvent['id']))
+            queryTable = queryTable.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnostic['diagnosis_id']))
+            queryTable = queryTable.leftJoin(tableDiagnosisType, tableDiagnosisType['id'].eq(tableDiagnostic['diagnosisType_id']))
+            queryTable = queryTable.leftJoin(tableMKB, tableMKB['DiagID'].eq(tableDiagnosis['MKB']))
+            
+            cond = [tableClient['deleted'].eq(0),
+                    tableEvent['deleted'].eq(0),
+                    tableEvent['execDate'].ge(date.addDays(-9)),
+                    tableEvent['execDate'].lt(date.addDays(1)),
+                    tableClientAttach['deleted'].eq(0),
+                    tableOrgStructure['id'].inlist(orgStructureIdList),
+                    tableDiagnosisType['code'].inlist([1,2,6]),
+                    tableDiagnostic['endDate'].ge(date.addDays(-9)),
+                    tableDiagnostic['endDate'].lt(date.addDays(1)),
+                    tableMedicalAidType['regionalCode'].inlist(['11', '12', '301', '302', '401', '402', '41', '42', '51', '52', '511', '522', '43', '111', '112'])]
+            
+            cols = [tableEvent['id'].alias('eventId'),
+                    "CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName",
+                    u"IF(Client.sex = 1, 'м', 'ж') as sex",
+                    tableClient['birthDate'],
+                    tableEvent['execDate'].alias('endDate'),
+                    tableEvent['setDate'],
+                    "CONCAT_WS(' - ', Diagnosis.MKB, MKB.DiagName) as mkb",
+                    tableEvent['client_id'],
+                    tableOrgStructure['id'],
+                    tableOrganisation['fullName'].alias('organisation_name'),
+                    """EXISTS(SELECT NULL FROM Diagnosis d 
+    left JOIN rbDispanser d1 ON d1.id = d.dispanser_id
+    WHERE d.client_id = Client.`id` AND d.deleted = 0 AND d.MKB = MKB.`DiagID` AND d1.observed = 1) AS 'DN'"""]
+             
+            intItems = db.getRecordList(queryTable, cols, where=cond, order='DATE(Event.execDate) desc, clientName')
+            recordList = []
+            extRecordList = []
+            items = []
+            for item in intItems:
+                clientId = forceRef(item.value('client_id'))
+                MKB = forceString(item.value('mkb'))
+                begDate = forceDate(item.value('endDate'))
+                endDate = forceDate(item.value('setDate'))
+                recordList.append((clientId, MKB, begDate, endDate))
+                
+            for item in extItems:
+                clientId = forceRef(item.value('client_id'))
+                MKB = forceString(item.value('mkb'))
+                begDate = forceDate(item.value('endDate'))
+                endDate = forceDate(item.value('begDate'))
+                orgStructure = forceRef(item.value('orgStructure_id'))
+                if (clientId, MKB, begDate, endDate) not in recordList and (clientId, MKB, begDate, endDate, orgStructure) not in extRecordList:
+                    extRecordList.append((clientId, MKB, begDate, endDate, orgStructure))
+                    items.append(item) 
+            
+            for item in intItems:
+                items.append(item)   
+                    
         self.setItems(items)
 
 

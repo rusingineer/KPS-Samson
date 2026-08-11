@@ -1892,7 +1892,7 @@ FROM
 LEFT JOIN mes.mrbService ON mes.MES_service.service_id = mes.mrbService.id
 LEFT JOIN rbService ON rbService.code = mes.mrbService.code
 LEFT JOIN ActionType ON ActionType.nomenclativeService_id = rbService.id
-WHERE ActionType.deleted = 0 AND ActionType.showInForm = 1
+WHERE ActionType.deleted = 0 AND mes.MES_service.deleted = 0 AND ActionType.showInForm = 1
   AND mes.MES_service.master_id = %d
 GROUP BY ActionType.code, ActionType.id
 ORDER BY mes.MES_service.groupCode, ActionType.code, mes.mrbService.name, mes.mrbService.id

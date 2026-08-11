@@ -582,10 +582,10 @@ class CEventTypeDescription(CDbEntityCache):
                                        'showButtonJobTickets',
                                        'relOrg_id',
                                        'relcounter_id',
-                                       # 'isPaymentApprovalAlwaysIncluded',
-                                       # 'defaultPayer',
+                                       'isPaymentApprovalAlwaysIncluded',
+                                       'defaultPayer',
                                        'availableOrders',
-                                       #'checkCompletedEventsOMS'
+                                       'checkCompletedEventsOMS'
                                        ), tableEventType['id'].eq(eventTypeId))
         if not record:
             record = QtSql.QSqlRecord()
@@ -682,7 +682,10 @@ class CEventTypeDescription(CDbEntityCache):
         self.keepVisitParity = forceBool(record.value('keepVisitParity'))
         self.isRestrictVisitTypeAgeSex = forceBool(record.value('isRestrictVisitTypeAgeSex'))
         self.mesSpecificationId = forceRef(record.value('mesSpecification_id'))
+        self.isPaymentApprovalAlwaysIncluded = forceBool(record.value('isPaymentApprovalAlwaysIncluded'))
+        self.defaultPayer = forceInt(record.value('defaultPayer'))
         self.availableOrders = forceString(record.value('availableOrders'))
+        self.checkCompletedEventsOMS = forceInt(record.value('checkCompletedEventsOMS'))
         self.plannedInspections = None
         self.mapPlannedInspectionSpecialityIdToServiceId = {}
         self.mapPlannedSpecialityIdVisitTypeIdList = {}
@@ -993,6 +996,10 @@ def getEventShowButtonJobTickets(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).showButtonJobTickets
 
 
+def getEventTypeCheckCompletedEventsOMS(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).checkCompletedEventsOMS
+
+
 def getEventShowActionsInPlanner(eventTypeId):
     description = CEventTypeDescription.get(eventTypeId)
     return (description.showStatusActionsInPlanner,
@@ -1174,9 +1181,11 @@ def getEventSetPerson(eventTypeId):
 def getEventActionsControlRequired(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).actionsControlEnabled
 
+def getEventDefaultPayer(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).defaultPayer
 
-# def getEventIsPaymentApprovalAlwaysIncluded(eventTypeId):
-#     return CEventTypeDescription.get(eventTypeId).isPaymentApprovalAlwaysIncluded
+def getEventIsPaymentApprovalAlwaysIncluded(eventTypeId):
+    return CEventTypeDescription.get(eventTypeId).isPaymentApprovalAlwaysIncluded
 
 def getEventAvailableOrders(eventTypeId):
     return CEventTypeDescription.get(eventTypeId).availableOrders

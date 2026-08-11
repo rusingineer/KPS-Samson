@@ -972,6 +972,8 @@ def createEvent(widget, form, clientId, eventTypeId, orgId, personId, eventDate,
                 if hasattr(dialog, 'tabMes') and hasattr(dialog.tabMes, 'cmbMes'):
                     dialog.tabMes.cmbMes.setValue(mesId)
                     dialog.autoInsertingActionByMES()
+            if hasattr(dialog, 'tabCash'):
+                dialog.tabCash.setDefaultValues()
             if form == u'090':
                 resultF090, eventF090Id, actionF090Id = createF090(dialog, dialog.getRecord())
                 if resultF090:

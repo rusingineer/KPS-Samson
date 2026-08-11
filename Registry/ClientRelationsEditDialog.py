@@ -55,10 +55,7 @@ class CClientRelationsEditDialog(CItemEditorBaseDialog, Ui_ClientRelationsEditDi
 
 
     def destroy(self):
-        self.tblDirectRelations.setModel(None)
-        self.tblBackwardRelations.setModel(None)
-        del self.modelDirectRelations
-        del self.modelBackwardRelations
+        pass
 
 
     def exec_(self):

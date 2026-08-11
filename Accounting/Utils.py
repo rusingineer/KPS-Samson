@@ -2321,6 +2321,8 @@ def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyD
     tableAction = db.table('vAction').alias('Action')
     tableAccountItem = db.table('Account_Item')
     tablePayRefuseType = db.table('rbPayRefuseType')
+    tableEventType = db.table('EventType')
+    tableMT = db.table('rbMedicalAidType')
     table = tableEvent.innerJoin(tableAction, tableEvent['id'].eq(tableAction['event_id']))
     table = table.leftJoin(tableAccountItem, [tableAccountItem['event_id'].eq(tableEvent['id']),
                                               tableAccountItem['action_id'].eq(tableAction['id']),
@@ -2328,17 +2330,19 @@ def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyD
                                               ]
                            )
     table = table.leftJoin(tablePayRefuseType, tablePayRefuseType['id'].eq(tableAccountItem['refuseType_id']))
+    table = table.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+    table = table.leftJoin(tableMT, tableMT['id'].eq(tableEventType['medicalAidType_id']))
     cond = [tableEvent['deleted'].eq(0),
             tableEvent['expose'].eq(1),
             tableAction['deleted'].eq(0)
             ]
     if onlyDispCOVID or onlyResearchOnCOVID:
-        tableEventType = db.table('EventType')
-        table = table.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
+        # tableEventType = db.table('EventType')
+        # table = table.leftJoin(tableEventType, tableEventType['id'].eq(tableEvent['eventType_id']))
         if onlyDispCOVID:
-            tableMAT = db.table('rbMedicalAidType')
-            table = table.leftJoin(tableMAT, tableMAT['id'].eq(tableEventType['medicalAidType_id']))
-            cond.append(tableMAT['regionalCode'].eq('233'))
+            # tableMAT = db.table('rbMedicalAidType')
+            # table = table.leftJoin(tableMAT, tableMAT['id'].eq(tableEventType['medicalAidType_id']))
+            cond.append(tableMT['regionalCode'].eq('233'))
         if onlyResearchOnCOVID:
             tableETI = db.table('EventType_Identification')
             tableAS = db.table('rbAccountingSystem')
@@ -2404,17 +2408,38 @@ def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyD
     cond.append(db.joinOr(contractCond))
     if contractDescr.dateOfActionExposition == 0:
         # 0 - событие не закончено, дата действия в договоре
-        cond.append(db.joinOr([db.joinAnd([tableAction['exposeDate'].ge(contractDescr.begDate),
-                                           tableAction['exposeDate'].lt(contractDescr.endDate.addDays(1))]),
-                               tableAction['contract_id'].eq(contractDescr.id)
-                               ]
-                              )
-                    )
+        cond.append(db.joinOr([
+            db.joinAnd([
+                db.if_(
+                    db.joinAnd([tableAction['status'].eq(CActionStatus.refused), tableMT['regionalCode'].inlist(['211', '261', '233', '244', '232', '252', '262'])]),
+                    tableAction['begDate'].ge(contractDescr.begDate),
+                    tableAction['exposeDate'].ge(contractDescr.begDate)
+                ),
+                db.if_(
+                    db.joinAnd([tableAction['status'].eq(CActionStatus.refused), tableMT['regionalCode'].inlist(['211', '261', '233', '244', '232', '252', '262'])]),
+                    tableAction['begDate'].lt(contractDescr.endDate.addDays(1)),
+                    tableAction['exposeDate'].lt(contractDescr.endDate.addDays(1))
+                )
+            ]),
+            tableAction['contract_id'].eq(contractDescr.id)
+        ])
+        )
     elif contractDescr.dateOfActionExposition == 1:
         # 1 - событие закончено, дата действия в договоре
         cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
-        cond.append(tableAction['exposeDate'].ge(contractDescr.begDate))
-        cond.append(tableAction['exposeDate'].lt(contractDescr.endDate.addDays(1)))
+        # cond.append(tableAction['exposeDate'].ge(contractDescr.begDate))
+        # cond.append(tableAction['exposeDate'].lt(contractDescr.endDate.addDays(1)))
+
+        cond.append(db.if_(
+            db.joinAnd([tableAction['status'].eq(CActionStatus.refused), tableMT['regionalCode'].inlist(['211', '261', '233', '244', '232', '252', '262'])]),
+            tableAction['begDate'].ge(contractDescr.begDate),
+            tableAction['exposeDate'].ge(contractDescr.begDate)
+        ))
+        cond.append(db.if_(
+            db.joinAnd([tableAction['status'].eq(CActionStatus.refused), tableMT['regionalCode'].inlist(['211', '261', '233', '244', '232', '252', '262'])]),
+            tableAction['begDate'].lt(contractDescr.endDate.addDays(1)),
+            tableAction['exposeDate'].lt(contractDescr.endDate.addDays(1))
+        ))
     else:
         # 2 - событие закончено, дата окончания события в договоре
         cond.append(tableEvent['execDate'].lt(endDate.addDays(1)))
@@ -2424,6 +2449,9 @@ def selectActions(contractDescr, personIdList, begDate, endDate, reexpose, onlyD
     subCond = [tableAction['status'].eq(CActionStatus.finished),
                db.joinAnd([tableAction['status'].eq(CActionStatus.withoutResult),
                            tableAction['takenTissueJournal_id'].isNotNull(),
+                           ]),
+               db.joinAnd([tableAction['status'].eq(CActionStatus.refused),
+                           tableMT['regionalCode'].inlist(['211', '261', '233', '244', '232', '252', '262'])
                            ])
                ]
     cond.append(db.joinOr(subCond))

@@ -204,7 +204,7 @@ def getClientVisits(clientId, filter, fieldName=u'', tblAmbCardVisits=None, orde
 
 
 class CAmbCardMixin(CConstructHelperMixin):
-    __pyqtSignals__ = ('actionSelected(int)'
+    __pyqtSignals__ = ('actionSelected(PyQt_PyObject)'
                        )
 
     def __init__(self):
@@ -890,38 +890,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                 tbl.addPopupAction(action)
 
     def destroy(self):
-        self.tblAmbCardDiagnostics.setModel(None)
-        self.tblAmbCardDiagnosticsVisits.setModel(None)
-        self.tblAmbCardDiagnosticsAccompDiagnostics.setModel(None)
-        self.tblAmbCardDiagnosticsActions.setModel(None)
-        self.tblAmbCardDiagnosticsActionProperties.setModel(None)
-        self.tblAmbCardStatusActions.setModel(None)
-        self.tblAmbCardStatusActionProperties.setModel(None)
-        self.tblAmbCardDiagnosticActions.setModel(None)
-        self.tblAmbCardDiagnosticActionProperties.setModel(None)
-        self.tblAmbCardCureActions.setModel(None)
-        self.tblAmbCardCureActionProperties.setModel(None)
-        self.tblAmbCardMiscActions.setModel(None)
-        self.tblAmbCardMiscActionProperties.setModel(None)
-        self.tblAmbCardAttachedFiles.setModel(None)
-        self.tblAmbCardMonitoring.setModel(None)
-        self.tblAmbCardKBiRActions.setModel(None)
-        del self.modelAmbCardDiagnostics
-        del self.modelAmbCardDiagnosticsVisits
-        del self.modelAmbCardDiagnosticsAccompDiagnostics
-        del self.modelAmbCardDiagnosticsActions
-        del self.modelAmbCardDiagnosticsActionProperties
-        del self.modelAmbCardStatusActions
-        del self.modelAmbCardStatusActionProperties
-        del self.modelAmbCardDiagnosticActions
-        del self.modelAmbCardDiagnosticActionProperties
-        del self.modelAmbCardCureActions
-        del self.modelAmbCardCureActionProperties
-        del self.modelAmbCardMiscActions
-        del self.modelAmbCardMiscActionProperties
-        del self.modelAmbCardFiles
-        del self.modelAmbCardMonitoring
-        del self.modelAmbCardKBiRActions
+        pass
 
     def updateAmbCardDiagnostics(self, filter, posToId=None, fieldName=None):
         """
@@ -3618,7 +3587,8 @@ class CAmbCardMixin(CConstructHelperMixin):
             row = table.currentIndex().row()
             if 0 <= row < (model.rowCount()):
                 actionId = model.idList()[row]
-        self.emit(SIGNAL('actionSelected(int)'), actionId)
+        if self.eventEditor:
+            self.eventEditor.emit(SIGNAL('actionSelected(PyQt_PyObject)'), CAction.getActionById(actionId))
 
 #    @pyqtSignature('int')
     def on_actAmbCardPrintActionsHistory_printByTemplate(self, templateId):
@@ -4059,20 +4029,24 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.tblAmbCardStatusActions.addPopupAction(self.actAmbCardCopyAsNewAction)
             self.tblAmbCardCureActions.addPopupAction(self.actAmbCardCopyAsNewAction)
 
+            self.tblAmbCardStatusActions.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+            self.tblAmbCardCureActions.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+
 
     def on_actAmbCardCopyAsNewAction_triggered(self):
         index = self.tabAmbCardContent.currentIndex()
         if index:
-            table = [self.tblAmbCardStatusActions,
-                     self.tblAmbCardDiagnosticActions,
-                     self.tblAmbCardCureActions,
-                     self.tblAmbCardMiscActions,
-                     ][index - 1]
-            actionIndex = table.currentIndex()
-            row = actionIndex.row()
-            if 0 <= row < (table.model().rowCount()):
-                record = actionIndex.model().getRecordByRow(row)
-                self.emit(SIGNAL('actionCopyAsNew(QSqlRecord, int)'), record, index - 1)
+            table = [ self.tblAmbCardStatusActions,
+                      self.tblAmbCardDiagnosticActions,
+                      self.tblAmbCardCureActions,
+                      self.tblAmbCardMiscActions,
+                    ][index-1]
+            for actionIndex in table.selectionModel().selectedRows():
+                row = actionIndex.row()
+                if 0 <= row < (table.model().rowCount()):
+                    record = actionIndex.model().getRecordByRow(row)
+                    self.emit(SIGNAL('actionCopyAsNew(QSqlRecord, int)'), record, index-1)
+            table.selectionModel().clearSelection()
 
 
 class CAmbCardMonitoringModel(QAbstractTableModel):

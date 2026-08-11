@@ -469,6 +469,7 @@ from Registry.SuspendedAppointment                      import CSuspenedAppointm
 from Registry.UnlockAppLockDialog                       import CUnlockAppLockDialog
 from Registry.IdentityPatientService                    import CIdentityPatientServiceDialog
 from Registry.AttachOnlineService                       import CAttachOnlineServiceDialog
+from Registry.CorrectorOutdatedStreets                  import CCorrectorOutdatedStreets
 
 from Reports.ActDeattachCheckReport                     import CActDeattachCheckReport
 from Reports.ActionPropertiesTestsReport                import CActionPropertiesTestsReport
@@ -697,6 +698,7 @@ from Reports.ReportNumberResidentsAddress               import CReportNumberResi
 from Reports.ReportOnPerson                             import CReportOnPerson
 from Reports.ReportOnServiceType                        import CReportOnServiceType
 from Reports.ReportOperationalMonitoring                import CReportOperationalMonitoring
+from Reports.ReportAFT_002                              import CReportAFT_002
 from Reports.ReportStomPersonSalary                     import CReportStomPersonSalaryEx
 from Reports.ReportOrgStructureSummary                  import CReportOrgStructureSummary
 from Reports.ReportPayers                               import CReportPayers
@@ -1073,7 +1075,8 @@ from Users.Rights import (urAccessAccountInfo,
                           urAccessRefPersnftnContingentKind,
                           urPlanningHospitalBedProfile, urAdminServiceTMK, urServiceTMKdirectionList,
                           urEditLoginPasswordProfileUser, urAccessLethality, urAccessClientAttachFederalService,
-                          urPersonSubstitution, urAccessEconomicAnalysis, urAccessCashBookOnlyJournal
+                          urPersonSubstitution, urAccessEconomicAnalysis, urAccessCashBookOnlyJournal,
+                          urStreetCorrect
                           )
 from Users.Tables import demoUserName, tblUser, usrLogin, usrRetired, tblLogin
 from Users.tryKerberosAuth                              import tryKerberosAuth
@@ -2161,6 +2164,10 @@ class CS11mainApp(CBaseApp):
 
     def filterPaymentByOrgStructure(self):
         return forceBool(QtGui.qApp.preferences.appPrefs.get('filterPaymentByOrgStructure', QVariant()))
+
+
+    def useNativeFileDialog(self):
+        return forceBool(QtGui.qApp.preferences.appPrefs.get('useNativeFileDialog', QVariant()))
 
 
     def emitCurrentClientInfoJLWChanged(self, scheduleItemId):
@@ -4181,6 +4188,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         self.actIdentityPatientService.setVisible(bool(servicesURL))
         self.actAttachOnlineService.setVisible(bool(servicesURL))
         self.actAttachOnlineService.setEnabled(isAdmin or app.userHasRight(urAccessClientAttachFederalService))
+        self.actStreetCorrect.setEnabled(app.userHasRight(urStreetCorrect))
 
         # Меню Настройки
         # self.actConnection.setEnabled(isAdmin or app.userHasRight(urAccessSetupDB))
@@ -6518,6 +6526,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CReportOperationalMonitoring(self).exec_()
 
     @pyqtSignature('')
+    def on_actReportAFT_002_triggered(self):
+        CReportAFT_002(self).exec_()
+
+    @pyqtSignature('')
     def on_actReportStomPersonSalary_triggered(self):
         CReportStomPersonSalaryEx(self).exec_()
 
@@ -7744,6 +7756,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actAttachOnlineService_triggered(self):
         CAttachOnlineServiceDialog(self).exec_()
+
+    @pyqtSignature('')
+    def on_actStreetCorrect_triggered(self):
+        CCorrectorOutdatedStreets(self).exec_()
 
     @pyqtSignature('')
     def on_actUO_triggered(self):

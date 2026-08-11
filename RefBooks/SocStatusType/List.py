@@ -14,10 +14,11 @@
 
 from library.interchange     import ( getLineEditValue, getRBComboBoxValue,
                                       setLineEditValue, setRBComboBoxValue,
+                                      setCheckBoxValue, getCheckBoxValue
                                     )
 from library.ItemEditorDialogWithIdentification import CItemEditorDialogWithIdentification
 from library.ItemsListDialog import CItemsListDialog
-from library.TableModel      import CRefBookCol, CTextCol
+from library.TableModel      import CRefBookCol, CTextCol, CBoolCol
 from library.InDocTable      import CInDocTableCol
 
 from RefBooks.Tables         import rbCode, rbName, rbSocStatusType
@@ -32,7 +33,8 @@ class CRBSocStatusTypeList(CItemsListDialog):
             CTextCol(u'Наименование', [rbName], 40),
             CTextCol(u'Краткое наименование', ['shortName'], 40),
             CTextCol(u'Код для отчетов', ['regionalCode'], 20),
-            CRefBookCol(u'Тип документа',['documentType_id'], 'rbDocumentType', 20)
+            CRefBookCol(u'Тип документа',['documentType_id'], 'rbDocumentType', 20),
+            CBoolCol(u'Требуется ввод документа', ['needFillOutDoc'], 20)
             ], rbSocStatusType, [rbCode, rbName])
         self.setWindowTitleEx(u'Типы социального статуса')
 
@@ -53,6 +55,7 @@ class CRBSocStatusTypeEditor(Ui_SocStatusTypeItemEditorDialog, CItemEditorDialog
         setLineEditValue(self.edtShortName, record, 'shortName')
         setLineEditValue( self.edtRegionalCode, record, 'regionalCode')
         setRBComboBoxValue(self.cmbDocumentType, record, 'documentType_id')
+        setCheckBoxValue(self.chkNeedFillOutDoc, record, 'needFillOutDoc')
         self.setIsDirty(False)
 
 
@@ -61,4 +64,5 @@ class CRBSocStatusTypeEditor(Ui_SocStatusTypeItemEditorDialog, CItemEditorDialog
         getLineEditValue( self.edtShortName, record, 'shortName')
         getLineEditValue( self.edtRegionalCode,  record, 'regionalCode')
         getRBComboBoxValue(self.cmbDocumentType, record, 'documentType_id')
+        getCheckBoxValue(self.chkNeedFillOutDoc, record, 'needFillOutDoc')
         return record

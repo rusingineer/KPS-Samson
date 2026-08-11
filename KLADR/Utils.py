@@ -12,6 +12,9 @@
 ##
 #############################################################################
 
+from PyQt4 import QtGui
+from library.Utils import forceBit
+
 _prefixLens = (0, 2, 5, 8, 11)
 
 def prefixLen(level):
@@ -49,3 +52,22 @@ def getLikeMaskForRegion(code):
     prefixLen = min(l for l in _prefixLens if len(prefix)<=l)
     prefix = prefix.ljust(prefixLen, '0')
     return prefix+'%' if prefixLen < 11 else code
+
+
+def checkIsActualSTREET(code):
+    ''' Null\0 в колонке IS_ACTUAL - улица не актуальная
+            return False
+        1 в колонке IS_ACTUAL - улица актуальная
+            return True'''
+    if code:
+        stmt = "select IS_ACTUAL from kladr.STREET where CODE = '{0}';".format(code)
+        query = QtGui.qApp.db.query(stmt)
+        while query.next():
+            record = query.record()
+            isActual = forceBit(record.value('IS_ACTUAL'))
+            if isActual is None:
+                return False
+            else:
+                return isActual
+    else:
+        return False

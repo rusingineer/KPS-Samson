@@ -218,7 +218,6 @@ class CAttachedFile:
             record = db.getRecord(table, '*', masterId)
         else:
             record = pt_records[0] if pt_records else None
-            
         if record:
             html = record.value('html').toByteArray()
             self.templateId = forceRef(record.value('template_id'))
@@ -591,6 +590,7 @@ class CAttachedFilesModel(QAbstractTableModel):
         self.interface = None
         self.tableName = None
         self.items = []
+        self._action = None
         self.personsCache = CTableRecordCache(QtGui.qApp.db, 'vrbPersonWithSpeciality', '*')
 
 
@@ -683,6 +683,8 @@ class CAttachedFilesModel(QAbstractTableModel):
             elif column == 3:
                 return QVariant(item.size)
             elif column == 4:
+                if item._record:
+                    return QVariant(item._record.value('createDatetime'))
                 return QVariant(item.lastModified)
             elif column == 5:
                 return QVariant(self._getPersonName(item.authorId))
@@ -800,6 +802,14 @@ class CAttachedFilesModel(QAbstractTableModel):
     def setAttachedFileItemList(self, attachedFileItemList):
         self.items = attachedFileItemList
         self.reset()
+        
+    
+    def setAction(self, action):
+        self._action = action
+
+    
+    def getAction(self):
+        return self._action
 
 
     def uploadFiles(self, localFileList):

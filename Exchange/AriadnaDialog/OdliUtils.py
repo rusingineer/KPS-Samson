@@ -21,6 +21,26 @@ def OrderMis(actionId):
         result['number'] = forceString(record.value('number'))
     return result
 
+# определить ariadna или alisa
+def getActionFlatCode(actionId):
+    db = QtGui.qApp.db
+    sql = u"""
+    SELECT at.flatCode AS flatCode
+    From Action a
+    INNER JOIN ActionType at ON at.id = a.actionType_id
+    WHERE a.id = {0}
+    """.format(forceInt(actionId))
+    query = db.query(sql)
+    if query.next():
+        record = query.record()
+        return forceString(record.value('flatCode'))
+    return u''
+
+def getExternalSystemIdByCode(code, default=-1):
+    db = QtGui.qApp.db
+    val = forceRef(db.translate('rbExternalSystem', 'code', code, 'id'))
+    return val if val else default
+
 
 def warninWindow(massege):
     buttons = QtGui.QMessageBox.Ok

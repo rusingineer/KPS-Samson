@@ -9,7 +9,11 @@ from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
 from Ui_ActDeattachCheckSetupDialog import Ui_ActDeattachCheckSetupDialog
 
-def getQuery(begDate, endDate, actType):
+def getQuery(begDate, endDate, actType, orgStructureIdList):
+    orgStructureIdListString = None
+    if len(orgStructureIdList) > 0:
+        orgStructureIdListString = u','.join([ forceString(el) for el in orgStructureIdList])
+
     if actType == 1:
         stmt = u"""
             select
@@ -20,13 +24,17 @@ def getQuery(begDate, endDate, actType):
                 coalesce(
                     (select concat_ws(' ',Organisation.infisCode, Organisation.shortName) from Organisation where Organisation.infisCode = ce.note order by id desc limit 1),
                     ce.note) as org,
-                ce.dateTime as date
+                ce.dateTime as date,
+                coalesce((select code from OrgStructure where  OrgStructure.id = ca.orgStructure_id), null) as uchastok
             from Client_Export ce
             left join Client on Client.id = ce.master_id
+            left join ClientAttach ca on ca.client_id = Client.id and ca.deleted = 0  and ca.endDate is NULL
             where date(ce.dateTime) between '%s' and '%s' and ce.system_id = 10 and ce.success = 1
             and ce.note not in (select bookkeeperCode from OrgStructure where deleted = 0)
-            order by ce.dateTime desc
         """
+        if orgStructureIdListString:
+            stmt += u"  and ca.orgStructure_id in (" + orgStructureIdListString + u") "
+        stmt += u" order by ce.dateTime desc "
     else:
         stmt = u"""
             select
@@ -39,12 +47,17 @@ def getQuery(begDate, endDate, actType):
                 coalesce(
                     (select concat_ws(' ',Organisation.infisCode, Organisation.shortName) from Organisation where Organisation.infisCode = sa.attach_mo order by id desc limit 1),
                      sa.attach_mo) as org,
-                sa.createDate as date
+                sa.createDate as date,
+                sa.attach_area as uchastok,
+              sa.client_id as clientid
              from soc_attachments sa
 
             where date(sa.createDate) between '%s' and '%s' and  sa.serviceMethod = 3
-            order by sa.lastName asc, sa.firstName asc, sa.patrName asc
-        """
+        
+            """
+        if orgStructureIdListString:
+            stmt += u"""  and exists(select 1 from OrgStructure os where os.id in (""" + orgStructureIdListString + u""") and sa.attach_area = os.code and os.areaType > 0 and os.deleted = 0) """
+        stmt +=  u" order by sa.lastName asc, sa.firstName asc, sa.patrName asc "
     stmt = stmt % (
         forceString(begDate.toString("yyyy-MM-dd")),
         forceString(endDate.toString("yyyy-MM-dd"))
@@ -62,6 +75,7 @@ class CActDeattachCheckSetupDialog(QDialog, Ui_ActDeattachCheckSetupDialog):
         result['begDate'] = self.edtBegDate.date()
         result['endDate'] = self.edtEndDate.date()
         result['actType'] = 1 if self.rbActType1.isChecked() else 2
+        result['orgStructure_id'] = self.cmbOrgStructure.value()
         return result
 
 
@@ -69,6 +83,7 @@ class CActDeattachCheckSetupDialog(QDialog, Ui_ActDeattachCheckSetupDialog):
         today = QtCore.QDate.currentDate()
         self.edtBegDate.setDate(params.get('begDate', today))
         self.edtEndDate.setDate(params.get('endDate', today))
+        self.cmbOrgStructure.setValue(params.get('orgStructure_id', None))
         if params.get('actType', 1) == 1:
             self.rbActType1.setChecked(True)
         else:
@@ -90,6 +105,7 @@ class CActDeattachCheckReport(CReport):
         result['begDate'] = getPrefDate(prefs, 'begDate', today)
         result['endDate'] = getPrefDate(prefs, 'endDate', today)
         result['actType'] = 1
+        result['orgStructure_id'] = getPref(prefs, 'orgStructure_id', None)
         return result
 
     def getSetupDialog(self, parent):
@@ -122,10 +138,24 @@ class CActDeattachCheckReport(CReport):
 
     def build(self, params):
         actType = params.get("actType", 1)
+        orgStructureId = params.get("orgStructure_id", None)
+
+        resultListOrgStructure = []
+        if orgStructureId:
+            listOfOrgStructuresUchRecord = QtGui.qApp.db.getRecordList(u"OrgStructure", u'id',
+                                                                       u' OrgStructure.areaType > 0 and OrgStructure.deleted = 0')
+            listOfOrgStructuresUch = []
+            for recordUch in listOfOrgStructuresUchRecord:
+                listOfOrgStructuresUch.append(forceInt(recordUch.value('id')))
+            tempRecOrgStructure = QtGui.qApp.db.getDescendants('OrgStructure', 'parent_id', orgStructureId, u'OrgStructure.areaType > 0 and OrgStructure.deleted = 0 ')
+            for tempRec in tempRecOrgStructure:
+                if forceInt(tempRec) in listOfOrgStructuresUch:
+                    resultListOrgStructure.append(forceInt(tempRec))
         query = getQuery(
             params.get("begDate",QtCore.QDate.currentDate()),
             params.get("endDate",QtCore.QDate.currentDate()),
-            actType
+            actType,
+            resultListOrgStructure
         )
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
@@ -158,22 +188,52 @@ class CActDeattachCheckReport(CReport):
         table = createTable(cursor, tableColumns)
 
         rowNumber = 0
+        dictOfRecords = {}
         while query.next():
             record = query.record()
-            row = table.addRow()
-            rowNumber += 1
-            columns = [rowNumber,
-                       forceString(record.value('fio')),
-                       '' if record.isNull('birthDate') else forceDate(record.value('birthDate')).toString(
+            orgStructure = forceString(record.value('uchastok'))
+            if orgStructure not in dictOfRecords.keys():
+                dictOfRecords[orgStructure] = []
+            dictOfRecords[orgStructure].append(record)
+
+        dictKeys = dictOfRecords.keys()
+        dictKeys = sorted(dictKeys, key=lambda x: (not x, x))
+        for key in dictKeys:
+            orgStructureName = u"Без участка"
+            if key and key not in (u'', u'0'):
+                orgStructureSql = u"Select name from OrgStructure where code in ('%s') and deleted = 0 " % (key)
+                orgStructureQuery = QtGui.qApp.db.query(orgStructureSql)
+                if orgStructureQuery.next():
+                    orgStructureName = forceString(orgStructureQuery.record().value('name'))
+
+            rowHeader = table.addRow()
+            table.mergeCells(rowHeader, 0, 1, len(tableColumns))
+            table.setText(rowHeader, 0, orgStructureName)
+            for elem in dictOfRecords[key]:
+                rowNumber += 1
+                row = table.addRow()
+
+                colFio = forceString(elem.value('fio'))
+                columns = [rowNumber,
+                           colFio,
+                       '' if elem.isNull('birthDate') else forceDate(elem.value('birthDate')).toString(
                            'dd.MM.yyyy'),
-                       forceString(record.value('org')),
-                       '' if record.isNull('date') else forceDateTime(record.value('date')).toString(
-                           'dd.MM.yyyy hh:mm:ss')
-                       ]
-            if actType == 1:
-                columns.insert(1, forceInt(record.value('clientid'))) #поле код для первого акта
-                columns.insert(3, formatSex(forceInt(record.value('sex'))))  # поле пол для первого акта
-            for idx, val in enumerate(columns):
-                table.setText(row, idx, val)
+                       forceString(elem.value('org')),
+                       '' if elem.isNull('date') else forceDateTime(elem.value('date')).toString(
+                           'dd.MM.yyyy hh:mm:ss')]
+                if actType == 1:
+                    colClientId = forceString(elem.value('clientid'))
+                    if forceString(elem.value('clientid')) and forceString(elem.value('clientid')) != u"":
+                        colClientId = u'''<a style="color:#000000;" href="karta_''' + forceString(
+                            elem.value('clientid')) + u'">' + forceString(elem.value('clientid')) + u"</a>"
+                    columns.insert(1, colClientId)  # поле код для первого акта
+                    columns.insert(3, formatSex(forceInt(elem.value('sex'))))  # поле пол для первого акта
+
+                colChangeMethod = 1
+                for idx, val in enumerate(columns):
+                    if idx == colChangeMethod and actType == 1:
+                        table.setHtml(row, idx, val)
+                    else:
+                        table.setText(row, idx, val)
 
         return doc

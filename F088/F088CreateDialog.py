@@ -137,6 +137,7 @@ class CF088CreateDialog(CF088EditDialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
 
         if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished or not self.cmbPerson.value() or QtGui.qApp.userId == self.cmbPerson.value() or QtGui.qApp.userHasRight(urEditOtherpeopleAction)):
             actionTemplateTreeModel = self.actionTemplateCache.getModel(actionType.id)

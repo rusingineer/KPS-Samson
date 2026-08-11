@@ -767,6 +767,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
         self.cmbAnalysisClientCodeType.setValue(None)
         self.chkAnalysisEventCode.setChecked(False)
         self.chkAnalysisService.setChecked(False)
+        self.chkAnalysisFKEY.setChecked(False)
+        self.chkAnalysisRKEY.setChecked(False)
         self.chkAnalysisCreateDate.setChecked(False)
         self.edtAnalysisCreateBegDate.setDate(firstYearDay(yesterday))
         self.edtAnalysisCreateEndDate.setDate(lastYearDay(yesterday))
@@ -856,6 +858,8 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                         filterChkEventCode = self.chkAnalysisEventCode.isChecked()
                         filterEventCode = forceStringEx(self.edtAnalysisEventCode.text()) if filterChkEventCode else ''
                         filterChkService = self.chkAnalysisService.isChecked()
+                        filterChkFKEY = self.chkAnalysisFKEY.isChecked()
+                        filterChkRKEY = self.chkAnalysisRKEY.isChecked()
 
                         if filterClientCode or filterEventCode or filterChkService:
                             tableEx = tableEx.leftJoin(tableAccountItem, db.joinAnd([tableAccountItem['master_id'].eq(tableEx['id']), tableAccountItem['deleted'].eq(0)]))
@@ -891,6 +895,36 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                             createDateBeg = self.edtAnalysisCreateBegDate.date()
                             createDateEnd = self.edtAnalysisCreateEndDate.date()
                             addDateInRange(cond, table['createDatetime'], createDateBeg, createDateEnd)
+
+                        if filterChkFKEY:
+                            # в реестре есть счета без FKEY
+                            cond.append(
+                                u"""EXISTS(
+                                    SELECT NULL
+                                    FROM Account_Item ai
+                                      LEFT JOIN soc_Account_RowKeys sark ON sark.typeFile = 'F'
+                                        AND sark.event_id = ai.event_id
+                                    WHERE ai.master_id = {0} AND sark.key IS NULL
+                                    LIMIT 1
+                                )
+                                """.format(table['id'])
+                            )
+
+                        if filterChkRKEY:
+                            # в реестре есть счета без RKEY
+                            cond.append(
+                                u"""EXISTS(
+                                    SELECT NULL
+                                    FROM Account_Item ai
+                                      LEFT JOIN soc_Account_RowKeys sark ON sark.typeFile = 'U'
+                                        AND sark.event_id = ai.event_id
+                                        AND sark.row_id = COALESCE(ai.action_id, ai.visit_id, ai.eventCSG_id, ai.event_id)
+                                    WHERE ai.master_id = {0} AND sark.key IS NULL
+                                    LIMIT 1
+                                )
+                                """.format(table['id'])
+                            )
+
                 elif workIndex == 2:
                     begDate = self.edtHistoryBegDate.date()
                     endDate = self.edtHistoryEndDate.date()
@@ -1296,11 +1330,70 @@ class CAccountingDialog(CDialogBase, Ui_AccountingDialog, CAccountBuilder):
                 progressDialog.deleteLater()
 
 
+    def clearCsg(self, contractId, begDate, endDate):
+        db = QtGui.qApp.db
+        db.transaction()
+        table = db.table('Event')
+        tableET = db.table('EventType')
+        tableMAT = db.table('rbMedicalAidType')
+        tableEventCSG = db.table('Event_CSG')
+        table = table.leftJoin(tableET, [tableET['id'].eq(table['eventType_id']), tableET['deleted'].eq(0)])
+        table = table.leftJoin(tableMAT, tableMAT['id'].eq(table['EventType.medicalAidType_id']))
+        table = table.leftJoin(tableEventCSG, tableEventCSG['master_id'].eq(table['Event.id']))
+        cond = []
+        cond.append(table['Event.deleted'].eq(0))
+        cond.append(table['Event.setDate'].dateGe(begDate))
+        cond.append(table['Event.execDate'].dateLe(endDate))
+        cond.append(table['Event.contract_id'].eq(contractId))
+        cond.append(table['rbMedicalAidType.regionalCode'].inlist(['111', '112', '401', '402']))
+        cond.append(db.joinOr([table['MES_id'].isNotNull(), table['Event_CSG.id'].isNotNull()]))
+
+        events_to_null = db.getRecordList(table, cols='Event.id, Event.MES_id', where=cond)
+        # events_to_null_ids = db.getIdList(table, idCol='Event.id', where=cond)
+        for record in events_to_null:
+            eventId = forceInt(record.value('id'))
+            record.setValue('MES_id', toVariant(None))
+            db.deleteRecordSimple(tableEventCSG, tableEventCSG['master_id'].eq(eventId))
+            db.updateRecord('Event', record)
+        db.commit()
+
+    def clearB01069013Services(self, contractId, begDate, endDate):
+        db = QtGui.qApp.db
+        db.transaction()
+        table = db.table('Event')
+        tableET = db.table('EventType')
+        tableMAT = db.table('rbMedicalAidType')
+        tableAction = db.table('Action')
+        tableActionType = db.table('ActionType')
+        tableService = db.table('rbService')
+        table = table.leftJoin(tableET, [tableET['id'].eq(table['eventType_id']), tableET['deleted'].eq(0)])
+        table = table.leftJoin(tableMAT, tableMAT['id'].eq(table['EventType.medicalAidType_id']))
+        table = table.leftJoin(tableAction, tableAction['event_id'].eq(table['Event.id']))
+        table = table.leftJoin(tableActionType, tableActionType['id'].eq(table['Action.actionType_id']))
+        table = table.leftJoin(tableService, tableService['id'].eq(table['ActionType.nomenclativeService_id']))
+        cond = []
+        cond.append(table['Event.deleted'].eq(0))
+        cond.append(table['Action.deleted'].eq(0))
+        cond.append(table['Event.setDate'].dateGe(begDate))
+        cond.append(table['Event.execDate'].dateLe(endDate))
+        cond.append(table['Event.contract_id'].eq(contractId))
+        cond.append(table['rbMedicalAidType.regionalCode'].inlist(['11','12','41','42','401','402']))
+        cond.append(table['rbService.infis'].eq(u'B01.069.013'))
+
+        actions_to_delete = db.getIdList(table, idCol='Action.id', where=cond)
+        db.deleteRecord(tableAction, tableAction['id'].inlist(actions_to_delete))
+        db.commit()
+
+
     def formByContract(self, progressDialog, contractId, orgStructureId, personIdList, begDate, endDate, reexpose, reexposeInSeparateAccount, checkMes, onlyDispCOVID, onlyResearchOnCOVID, onlyTFOMS):
         counterController = QtGui.qApp.counterController()
         if not counterController:
             QtGui.qApp.setCounterController(CCounterController(self))
         db = QtGui.qApp.db
+        # подчищаем лишние КСГ и B01.069.013
+        if QtGui.qApp.defaultKLADR()[:2] == u'23':
+            self.clearCsg(contractId, begDate, endDate)
+            self.clearB01069013Services(contractId, begDate, endDate)
         db.transaction()
         try:
             contractDescr = getContractDescr(contractId)

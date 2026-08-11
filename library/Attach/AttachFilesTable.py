@@ -40,7 +40,7 @@ from Users.Rights   import ( urCanAttachFile,
 from .AttachFilesTableFlag import CAttachFilesTableFlag
 from .Utils import prepareSignedReport, convertSignatureToCMS
 from ..MSCAPI import MSCApi
-from ..Utils import toVariant, forceString, forceRef, anyToUnicode, forceBool, savePatientDocuments
+from ..Utils import toVariant, forceString, forceRef, anyToUnicode, forceBool, savePatientDocuments, forceInt
 
 
 class CAttachFilesTable(QtGui.QTableView):
@@ -720,14 +720,50 @@ class CAttachFilesTable(QtGui.QTableView):
     def __signAsResp(model, row, fileItem):
         api = MSCApi(QtGui.qApp.getCsp())
         userCert = QtGui.qApp.getUserCert(api)
+        userSnils = userCert.snils()
+        record = fileItem._record
+        action = model.getAction() if hasattr(model, 'getAction') else None
+        db = QtGui.qApp.db
+        personId = None
+        personIdColName = 'person_id'
+        requireSignerPerson = forceInt(db.translate('rbPrintTemplate', 'id', fileItem.templateId, 'requireSignerPerson'))
+        if requireSignerPerson == 1:
+            personIdColName = 'setPerson_id'
+        if record:
+            actionId = forceRef(record.value('master_id'))  
+            personId = forceInt(db.translate('Action', 'id', actionId, personIdColName))
+        elif action:
+            actionRecord = action.getRecord()
+            personId = forceInt(actionRecord.value(personIdColName))
+            
+        if personId:
+            snils = forceString(db.translate('Person', 'id', personId, 'SNILS'))
+            if not len(snils) > 0:
+                snils = 'empty'
+        else:
+            snils = 'empty'
 
+        if forceInt(snils) != forceInt(userSnils):
+            if requireSignerPerson == 1:
+                informationText = (u'Внимание!\nПодпись в настройках не соответствует подписи назначившего!'
+                                    u'\nДокумент не подписан!')
+            else:
+                informationText = (u'Внимание!\nПодпись в настройках не соответствует подписи исполнителя!'
+                                    u'\nДокумент не подписан!')
+            QtGui.QMessageBox.information(None,
+                                        u'Прикрепить и подписать',
+                                        informationText,
+                                        QtGui.QMessageBox.Ok,
+                                        QtGui.QMessageBox.Ok
+                                        )
+            return
         interface = model.interface
         fileBytes = interface.downloadBytes(fileItem)
         signatureBytes = userCert.createDetachedSignature(fileBytes)
         fileItem.setRespSignature(signatureBytes, QtGui.qApp.userId, QDateTime.currentDateTime())
-        if fileItem._record:
-            fileItem._record._dirty = True
-            fileItem._record.changed = True
+        if record:
+            record._dirty = True
+            record.changed = True
         model.touchRow(row)
 
 

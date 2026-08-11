@@ -38,6 +38,7 @@ class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedP
         header.setSortIndicatorShown(True)
         header.setSortIndicator(0, Qt.AscendingOrder)
         QObject.connect(header, SIGNAL('sectionClicked(int)'), self.setSort)
+        self.editFIO.setText("")
         self.update()
 
     def getReportHeader(self):
@@ -76,9 +77,10 @@ class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedP
     def update(self):
         year = self.sbYear.value()
         month = self.cmbMonth.currentIndex() + 1
+        name = forceString(self.editFIO.text())
         self.disableControls()
         try:
-            self.modelExportedPlan.update(year, month)
+            self.modelExportedPlan.update(year, month, name)
             self.updateCountLabel()
         finally:
             self.enableControls()
@@ -90,10 +92,11 @@ class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedP
     def refresh(self):
         year = self.sbYear.value()
         month = self.cmbMonth.currentIndex() + 1
+        name = forceString(self.editFIO.text())
         self.disableControls()
         try:
             response = AttachService.updateExportedPlan(year, month)
-            self.modelExportedPlan.update(year, month)
+            self.modelExportedPlan.update(year, month, name)
             self.updateCountLabel()
         except Exception as e:
             QtGui.QMessageBox.critical(self, u'Произошла ошибка', exceptionToUnicode(e), QtGui.QMessageBox.Close)
@@ -181,6 +184,12 @@ class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedP
     @pyqtSignature('int')
     def on_cmbMonth_currentIndexChanged(self, index):
         self.update()
+
+    @pyqtSignature('QString')
+    def on_editFIO_textChanged(self, text):  # При вводе в текстовое поле сразу же формирует список по фамильно
+        year = self.sbYear.value()
+        month = self.cmbMonth.currentIndex() + 1
+        self.modelExportedPlan.update(year, month, forceString(text))
 
     @pyqtSignature('')
     def on_btnSelectNotFound_clicked(self):
@@ -291,7 +300,20 @@ class CExportedPlanModel(CTableModel):
             self.CDeleteCol(u'Удалить', ['id'], 20, self.deleteIdSet),
             ], 'disp_ExportedPlan')
 
-    def update(self, year, month):
+    def update(self, year, month, name):
+        db = QtGui.qApp.db
+        nameFilter = ""
+        if len(name) > 0:
+            clientNames = name.split(u' ', 2)
+            if len(clientNames) == 3:
+                nameFilter = u''' AND Client.lastName like '{0}%' AND Client.firstName like '{1}%' AND Client.patrName like '{2}%' '''.format(
+                    clientNames[0],
+                    clientNames[1],
+                    clientNames[2].strip())
+            elif len(clientNames) == 2:
+                nameFilter = u''' AND Client.lastName like '{0}%' AND Client.firstName like '{1}%' '''.format(clientNames[0], clientNames[1])
+            else:
+                nameFilter = u''' AND Client.lastName like '{0}%' '''.format(clientNames[0])
         db = QtGui.qApp.db
         stmt = u"""
             select ExpPlan.id,
@@ -319,8 +341,8 @@ class CExportedPlanModel(CTableModel):
                     where P.SNILS = replace(replace(ExpPlan.doc_ss, '-', ''), ' ', '')
                         and P.deleted = 0
                 )
-            where ExpPlan.year = %d and ExpPlan.mnth = %d and ExpPlan.kind = 3
-            """ % (year, month)
+            where ExpPlan.year = %d and ExpPlan.mnth = %d and ExpPlan.kind = 3 %s
+            """ % (year, month, nameFilter)
         orderColumnIndex, isAscending = self.order
         orderBy = self.orderByColumn[orderColumnIndex]
         orderBy += (' asc' if isAscending else ' desc')

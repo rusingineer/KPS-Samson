@@ -192,6 +192,8 @@ class CActionProperty(object):
         if self._value != value:
             self._changed = True
             self._cachedText = None
+            if self._record:
+                self._record.setIsDirty(True)
         self._value = value
 
 

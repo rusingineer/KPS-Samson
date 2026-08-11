@@ -199,6 +199,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.options = options
         self.db = None
         self.preferences = None
+        self._globalPreferences = {}
         self.mainWindow = None
         self.userHasRight = lambda x: True
         self.showingAttach = lambda: False
@@ -247,7 +248,6 @@ class CODIIExchange(QtCore.QCoreApplication):
     def openDatabase(self):
         self.db = None
         try:
-            self.log(u'Запуск функции', u'openDatabase', 3)
             self.db = database.connectDataBase(self.preferences.dbDriverName,
                                                self.preferences.dbServerName,
                                                self.preferences.dbServerPort,
@@ -260,7 +260,6 @@ class CODIIExchange(QtCore.QCoreApplication):
             self.log('error', anyToUnicode(e), 2)
 
     def prepare(self):
-        self.log(u'Запуск функции', u'prepare', 3)
         self.userId = forceRef(self.db.translate('Person', 'login', u'Админ СОЦ', 'id'))
         self.fhirUrl = forceString(self.preferences.appPrefs.get('url', self.defaultFhirUrl))
         self.terminologyUrl = forceString(self.preferences.appPrefs.get('terminology_url', self.defaultTerminologyUrl))
@@ -517,7 +516,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                                                    patientReference, encounterReference, practitionerRoleReference,
                                                    obsCondRefs, note)
         serviceRequestReference = addBundleEntry(bundle, serviceRequest, self.NS_SERVICE_REQUEST, actionId)
-        task = self.createTask(actionId, action.begDate.datetime, patientReference, organisationReference,
+        task = self.createTask(actionId, patientReference, organisationReference,
                                serviceRequestReference, serviceProviderReference, isPrimary)
         addBundleEntry(bundle, task, self.NS_TASK, actionId)
 
@@ -830,6 +829,24 @@ class CODIIExchange(QtCore.QCoreApplication):
         self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
         self.directIntegration = forceBool(self.preferences.appPrefs.get('directIntegration', False))
 
+    def loadGlobalPreferences(self):
+        if self.db:
+            try:
+                recordList = self.db.getRecordList('GlobalPreferences')
+            except:
+                recordList = []
+            for record in recordList:
+                code  = forceString(record.value('code'))
+                value = forceString(record.value('value'))
+                self._globalPreferences[code] = value
+
+
+    def checkGlobalPreference(self, code, chkValue, default=None):
+        value = self._globalPreferences.get(code, default)
+        if value:
+            return unicode(value).lower() == unicode(chkValue).lower()
+        return False
+
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
 
@@ -868,9 +885,9 @@ class CODIIExchange(QtCore.QCoreApplication):
     def main(self):
         self.loadPreferences()
         if self.preferences:
-            self.log(u'Запуск функции', u'main (Начало процесса)', 3)
             self.openDatabase()
             if self.db:
+                self.loadGlobalPreferences()
                 self.registerDocumentTables()
                 self.prepare()
                 if self.options.idOrder:
@@ -907,7 +924,6 @@ class CODIIExchange(QtCore.QCoreApplication):
                         try:
                             res_mess = self.sendOrder(referral)
                             if not self.checkWebServiceConnect(res_mess):
-                                self.log(u'main', u'(окончание процесса)', 3)
                                 return
                         except:
                             self.logCurrentException()
@@ -917,7 +933,6 @@ class CODIIExchange(QtCore.QCoreApplication):
                         try:
                             res_mess = self.sendLocalResult(result)
                             if not self.checkWebServiceConnect(res_mess):
-                                self.log(u'main', u'(окончание процесса)', 3)
                                 return
                         except:
                             self.logCurrentException()
@@ -935,10 +950,8 @@ class CODIIExchange(QtCore.QCoreApplication):
                             except:
                                 self.logCurrentException()
         self.closeDatabase()
-        self.log(u'main', u'(окончание процесса)', 3)
 
     def checkWebServiceConnect(self, res_mess):
-        self.log(u'Запуск функции', u'checkWebServiceConnect', 3)
         if res_mess and (
                 res_mess.find("Max retries exceeded with url") > 0 or
                 res_mess.find("Gateway Time-out for url") > 0
@@ -979,7 +992,6 @@ class CODIIExchange(QtCore.QCoreApplication):
                 _file.setOrgSignature(binary.data.decode('base64'), personId, QDateTime.currentDateTime())
 
     def sendOrder(self, referral):
-        self.log(u'Запуск функции', u'sendOrder', 3)
         note = ''
 
         actionId = referral.actionId
@@ -1012,8 +1024,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                     return None
 
                 bundleJson = bundle.as_json()
-                bundleStr = json.dumps(bundleJson)
-                bundleHash = md5(bundleStr).hexdigest()
+                bundleHash = md5(str(bundleJson)).hexdigest()
                 if bundleHash == exportHash:
                     self.log(u'Направление не отправлено, ошибки не исправлены. actionId={0} eventId={1} запрос'.format(actionId, referral.eventId), bundleJson, level=1)
                     # снимаем блокировку
@@ -1098,7 +1109,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return note
 
     def sendLocalResult(self, result):
-        self.log(u'Запуск функции', u'sendLocalResult', 3)
         note = ""
 
         actionId = result.actionId
@@ -1333,7 +1343,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return True
 
     def searchResultBatch(self, taskList):
-        self.log(u'Запуск функции', u'searchResultBatch', 3)
         if not taskList:
             self.log(u'Запрос результатов', u'список номеров направлений пуст!', level=1)
             return None
@@ -1368,7 +1377,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return bundle
 
     def saveResult(self, entry, refferals):
-        self.log(u'Запуск функции', u'saveResult', 3)
         for referral in refferals.values():
             if referral.externalId == entry.resource.basedOn[0].reference:
                 break
@@ -1550,7 +1558,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return personId
 
     def selectReferrals(self, actionId=None):
-        self.log(u'Запуск функции', u'selectReferrals', 3)
         referrals = {}
         minDate = datetime.datetime.now() - datetime.timedelta(days=self.days)
 
@@ -1602,7 +1609,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return referrals
 
     def selectResults(self, actionId=None):
-        self.log(u'Запуск функции', u'selectResults', 3)
         results = {}
         minDate = datetime.datetime.now() - datetime.timedelta(days=self.days+7)
 
@@ -1675,7 +1681,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return results
 
     def selectReferralsForResult(self, actionId=None):
-        self.log(u'Запуск функции', u'selectReferralsForResult', 3)
         minDate = datetime.datetime.now() - datetime.timedelta(90)
         referrals = {}
         taskList = set()
@@ -1721,7 +1726,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         tasks = ','.join(taskList)
         return referrals, tasks
 
-    def createTask(self, actionId, refferalDateTime, patientReference, organizationRef, serviceRequestRef, serviceProviderRef, isPrimary):
+    def createTask(self, actionId, patientReference, organizationRef, serviceRequestRef, serviceProviderRef, isPrimary):
         u"""
         Ресурс Task предназначен для передачи общей информации о заявке.
         """
@@ -1730,7 +1735,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         task.intent = 'original-order'
         task.focus = serviceRequestRef
         task.for_fhir = patientReference
-        task.authoredOn = dateTimeToFHIRDate(refferalDateTime)
+        task.authoredOn = dateTimeToFHIRDate(self.db.getCurrentDatetime())
         task.requester = organizationRef
         task.owner = serviceProviderRef
         return task
@@ -1943,7 +1948,6 @@ class CODIIExchange(QtCore.QCoreApplication):
         return identifier
 
     def registerDocumentTables(self):
-        self.log(u'Запуск функции', u'registerDocumentTables', 3)
         database.registerDocumentTable('Account')
         database.registerDocumentTable('Action')
         database.registerDocumentTable('Action_FileAttach')

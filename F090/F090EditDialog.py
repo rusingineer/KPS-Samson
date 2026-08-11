@@ -136,6 +136,7 @@ from Registry.ClientEditDialog       import CClientEditDialog
 from RefBooks.Vaccine.List           import CVaccinationTypeDelegate
 from F001.PreF001Dialog              import CPreF001Dialog
 from Users.Rights                    import urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry, urEditClosedEvent, urEditAfterInvoicingEvent
+from Events.ExportMIS                import iniExportEvent
 
 from F090.Ui_F090 import Ui_F090Dialog
 
@@ -361,7 +362,9 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
         self.addModels('DiagnosticActionProperties', CActionPropertiesTableModel(self))
         self.addModels('ClientDiagnosticActions', CClientDiagnosticActionsTableModel(self))
         self.addModels('ClientDiagnosticActionProperties', CActionPropertiesTableModel(self))
-        self.addModels('Export', CExportTableModel(self))
+        self.addModels('Export', CEventExportTableModel(self))
+        self.addModels('Export_FileAttach', CAdvancedExportTableModel(self))
+        self.addModels('Export_VIMIS', CAdvancedExportTableModel(self))
         self.addModels('Diagnostics', CInspectionsResultModel(self))
         self.addObject('actInfectionDiseasesInsert',QtGui.QAction(u'Добавить в медицинское заключение', self))
         self.addObject('actInfectionDiseasesCheckedAllRow',QtGui.QAction(u'Выбрать все', self))
@@ -408,6 +411,8 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
         self.setModels(self.tblClientDiagnosticActions, self.modelClientDiagnosticActions, self.selectionModelClientDiagnosticActions)
         self.setModels(self.tblClientDiagnosticActionProperties, self.modelClientDiagnosticActionProperties, self.selectionModelClientDiagnosticActionProperties)
         self.setModels(self.tblExport, self.modelExport, self.selectionModelExport)
+        self.setModels(self.tblExport_FileAttach, self.modelExport_FileAttach, self.selectionModelExport_FileAttach)
+        self.setModels(self.tblExport_VIMIS, self.modelExport_VIMIS, self.selectionModelExport_VIMIS)
         self.tblInspectionsResult.setModel(self.modelDiagnostics)
         self.tblClientDiseases.createPopupMenu([self.actInfectionDiseasesCheckedAllRow, self.actInfectionDiseasesClearCheckedAllRow, self.actInfectionDiseasesInsert])
         self.tblClientVaccinations.createPopupMenu([self.actClientVaccinationsCheckedAllRow, self.actClientVaccinationsClearCheckedAllRow, self.actVaccinationsInsert])
@@ -426,6 +431,8 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
         self.setupDirtyCather()
         self.contractTariffCache = CContractTariffCache()
         self.setIsDirty(False)
+        self.tblExport.enableColsHide()
+        self.tblExport.enableColsMove()
         self.actionTemplateCache = CActionTemplateCache(self, self.cmbPerson)
         self.modelMembersMSIPerson.setEventEditor(self)
         self.tabNotes.setEventEditor(self)
@@ -1835,6 +1842,7 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
         #self.btnAttachedFiles.setEnabled(not self.isProtected)
         canEdit = (not self.action.isLocked() if self.action else True) and not self.isProtected
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,
@@ -1890,11 +1898,12 @@ class CF090EditDialog(CItemEditorBaseDialog, Ui_F090Dialog):
         self.updateDiagnosticActions()
         #self.modelClientDiagnosticActions.loadItems(self.itemId(), self.clientId)
         actionId = self.itemId()
-        actionExportIdList = []
-        if actionId:
-            tableActionExport = db.table('Action_Export')
-            actionExportIdList = db.getDistinctIdList(tableActionExport, [tableActionExport['id']], [tableActionExport['master_id'].eq(actionId)])
-        self.modelExport.setIdList(actionExportIdList)
+        # actionExportIdList = []
+        # if actionId:
+        #     tableActionExport = db.table('Action_Export')
+        #     actionExportIdList = db.getDistinctIdList(tableActionExport, [tableActionExport['id']], [tableActionExport['master_id'].eq(actionId)])
+        # self.modelExport.setIdList(actionExportIdList)
+        iniExportEvent(self)
 #        self.tblInfectionDiseases.setRowHidden(1, True)
         self.tblInfectionDiseases.resizeColumnToContents(2)
 #        self.tblClientDiseases.setRowHidden(1, True)
@@ -6728,10 +6737,101 @@ class CExportTableModel(CTableModel):
         CTableModel.__init__(self, parent)
         self.addColumn(CDateTimeCol(u'Дата и время экспорта', ['dateTime'], 15))
         self.addColumn(CRefBookCol(u'Внешняя система', ['system_id'], 'rbExternalSystem', 20))
-        self.addColumn(CTextCol(u'Идентификатор внешней системы', ['externalId'], 6))
         self.addColumn(CEnumCol(u'Состояние', ['success'], [u'не прошёл', u'прошёл'], 15))
-        self.addColumn(CTextCol(u'Примечания', ['note'], 6))
-        self.setTable('Action_Export')
+        self.addColumn(CTextCol(u'Примечания',     ['note'],                                  6))
+        self.setTable('Action_FileAttach_Export')
+
+
+class CEventExportTableModel(CTableModel):
+    def __init__(self, parent):
+        CTableModel.__init__(self, parent)
+        self._parent = parent
+        self.firstExport = None
+        self.addColumn(CDateTimeCol(u'Дата и время экспорта', ['dateTime'], 40))
+        self.addColumn(CRefBookCol(u'Внешняя система', ['system_id'], 'rbExternalSystem', 50))
+        self.addColumn(CEnumCol(u'отправка в Региональный РЭМД', ['success'], [u'ошибка', u'успех'], 15))
+        self.addColumn(CTextCol(u'Идентификатор', ['externalId'], 6))
+        self.addColumn(CTextCol(u'Примечания',     ['note'], 10))
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        column = index.column()
+        row    = index.row()
+        record = self.getRecordByRow(row)
+        if forceInt(record.value('success')) == 1 and not self.firstExport:
+            self.firstExport = record
+        if role == Qt.DisplayRole: ### or role == Qt.EditRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.format(values)
+        elif role == Qt.TextAlignmentRole:
+            col = self._cols[column]
+            return col.alignment()
+        elif role == Qt.CheckStateRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.checked(values)
+        elif role == Qt.ForegroundRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.getForegroundColor(values)
+        elif role == Qt.DecorationRole:
+            if column == 2 and forceInt(record.value('success')) == 1:
+                return QVariant(QtGui.QColor('#9ACD32'))
+            elif column == 2 and forceInt(record.value('success')) == 0:
+                return QVariant(QtGui.QColor('#FF4500'))
+            elif column == 0 and self.firstExport == record:
+                execDate = forceDate(QtGui.qApp.db.translate('Event', 'id', forceInt(self._parent.itemId()), 'execDate'))
+                if column == 0 and execDate.daysTo(forceDate(record.value('dateTime'))) > 2:
+                    return QVariant(QtGui.QColor('#FFFF66'))
+        elif role == Qt.ToolTipRole:
+            if column == 2 and forceInt(record.value('success')) == 1:
+                return QVariant(u'Выгружено в ИЭМК')
+            elif column == 2 and forceInt(record.value('success')) == 0:
+                return QVariant(u'Случай обслуживания не выгружен')
+            elif column == 0 and self.firstExport == record:
+                execDate = forceDate(QtGui.qApp.db.translate('Event', 'id', forceInt(self._parent.itemId()), 'execDate'))
+                if column == 0 and execDate.daysTo(forceDate(record.value('dateTime'))) > 2:
+                    return QVariant(u'Случай был выгружен с нарушением сроков')
+        return QVariant()
+
+
+class CAdvancedExportTableModel(CTableModel):
+    def __init__(self, parent):
+        CTableModel.__init__(self, parent)
+        self._parent = parent
+
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        column = index.column()
+        row    = index.row()
+        record = self.getRecordByRow(row)
+        if role == Qt.DisplayRole: ### or role == Qt.EditRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.format(values)
+        elif role == Qt.TextAlignmentRole:
+            col = self._cols[column]
+            return col.alignment()
+        elif role == Qt.CheckStateRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.checked(values)
+        elif role == Qt.ForegroundRole:
+            (col, values) = self.getRecordValues(column, row)
+            return col.getForegroundColor(values)
+        elif role == Qt.DecorationRole:
+            if column == 5 and (forceInt(record.value('success')) == 1 or self.data(index) == u'успех'):
+                return QVariant(QtGui.QColor('#9ACD32'))
+            elif column == 5 and forceInt(record.value('success')) == 0:
+                return QVariant(QtGui.QColor('#FF4500'))
+            elif column == 3 and u'успеш' in forceString(record.value('Message')) and self.table().tableName == 'Information_Messages':
+                return QVariant(QtGui.QColor('#9ACD32'))
+            elif column == 3 and u'успеш' not in forceString(record.value('Message')) and self.table().tableName == 'Information_Messages':
+                return QVariant(QtGui.QColor('#FF4500'))
+        elif role == Qt.ToolTipRole:
+            if column == 5 and (forceInt(record.value('success')) == 1 or self.data(index) == u'успех'):
+                return QVariant(u'Выгружено в ИЭМК')
+            elif column == 5 and forceInt(record.value('success')) == 0:
+                return QVariant(u'Документ не выгружен')
+        return QVariant()
 
 
 class CRBInfectionTableDialog(CDialogBase):

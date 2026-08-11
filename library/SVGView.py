@@ -498,7 +498,7 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
             self.isSignAndAttachResult = True
 
 
-    def signAndAttach(self, templateId=None, snils=None, requireSignerPerson=0):
+    def signAndAttach(self, templateId=None, snils=None, requireSignerPerson=0, silent=False):
         if self.currentAction:
             templateId = self.templateId
             db = QtGui.qApp.db
@@ -548,7 +548,7 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
             if isinstance(supplement, unicode):
                 supplement = supplement.encode('utf-8')
             items.append((supplementFileName, supplement, templateId))
-        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson))
+        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson, silent))
 
 
     def getSupplementFileName(self, mainFileName, supplementName):

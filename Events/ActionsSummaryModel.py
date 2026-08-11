@@ -22,7 +22,7 @@ from library.InDocTable import CInDocTableModel, CBoolInDocTableCol, CDateInDocT
 from library.Utils import forceBool, forceDate, forceDateTime, forceDouble, forceInt, forceRef, forceString, toVariant, forceStringEx
 from library.crbcombobox import CRBComboBox, CRBModelDataCache
 
-from Events.Action import CActionTypeCache
+from Events.Action import CActionTypeCache, CActionType
 from Events.ActionStatus import CActionStatus
 from Events.ActionTypeComboBox import CActionTypeTableCol
 from Events.ContractTariffCache import CContractTariffCache
@@ -1174,4 +1174,9 @@ class CFxxxActionsSummaryModel(CActionsSummaryModel):
                     return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
                 else:
                     return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+            elif column == self.getColIndex('MKB'):
+                if actionType.defaultMKB in [CActionType.dmkbNotUsed, CActionType.dmkbSyncFinalDiag, CActionType.dmkbSyncSetPersonDiag]:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled
+                else:
+                    return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable
         return CActionsSummaryModel.flags(self, index)

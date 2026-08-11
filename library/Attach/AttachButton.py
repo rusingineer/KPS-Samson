@@ -129,6 +129,9 @@ class CAttachButton(QtGui.QPushButton):
 
     def setAttachedFileItemList(self, attachedFileItemList):
         self.modelFiles.setAttachedFileItemList(attachedFileItemList)
+    
+    def setAction(self, action):
+        self.modelFiles.setAction(action)
 
     def showPopup(self):
         popup = CAttachFilesPopup(self)
@@ -157,7 +160,7 @@ class CAttachButton(QtGui.QPushButton):
             self.modelFiles.uploadFiles([unicode(fn) for fn in ofr])
 
     def getSignAndAttachHandler(self):
-        def handler(items, execSnils=None, requireSignerPerson = 0):
+        def handler(items, execSnils=None, requireSignerPerson = 0, silent = False):
             userSignatures = []
             orgSignatures = []
             api = None
@@ -187,12 +190,13 @@ class CAttachButton(QtGui.QPushButton):
                     else:
                         informationText = (u'Внимание!\nПодпись в настройках не соответствует подписи исполнителя!'
                                            u'\nДокумент не подписан!')
-                    QtGui.QMessageBox.information(self,
-                                                  u'Прикрепить и подписать',
-                                                  informationText,
-                                                  QtGui.QMessageBox.Ok,
-                                                  QtGui.QMessageBox.Ok
-                                                  )
+                    if not silent:
+                        QtGui.QMessageBox.information(self,
+                                                    u'Прикрепить и подписать',
+                                                    informationText,
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok
+                                                    )
             elif userCert and (execSnils is None or execSnils == 'empty'):
                 try:
                     with userCert.provider() as master:  # для исключения массового запроса пароля

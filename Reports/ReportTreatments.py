@@ -65,7 +65,7 @@ def selectVisitsData(params):
              tableClient['deleted'].eq(0),
              tableVisit['deleted'].eq(0),
              tableOrgStructure['deleted'].eq(0),
-             tableEvent['setDate'].dateLe(tableVisit['date'])
+             tableEvent['setDate'].lt(tableVisit['date'].addDays(1))
             ]
 
     if begDate:

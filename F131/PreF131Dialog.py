@@ -62,10 +62,7 @@ class CPreF131Dialog(CDialogBase, Ui_PreF131Dialog):
 
 
     def destroy(self):
-        self.tblDiagnostics.setModel(None)
-        self.tblActions.setModel(None)
-        del self.__modelDiagnostics
-        del self.__modelActions
+        pass
 
 
     def setBegDateEvent(self, date):

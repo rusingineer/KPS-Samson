@@ -1020,7 +1020,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             self.isSignAndAttachResult = True
     
     
-    def signAndAttach(self, templateId = None, snils=None, requireSignerPerson=0):
+    def signAndAttach(self, templateId = None, snils=None, requireSignerPerson=0, silent=False):
         if self.currentAction:
             templateId = self.templateId
             db = QtGui.qApp.db
@@ -1075,7 +1075,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             if isinstance(supplement, unicode):
                 supplement = supplement.encode('utf-8')
             items.append((supplementFileName, supplement, templateId))
-        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson))
+        return QtGui.qApp.call(self, self.signAndAttachHandler, (items, snils, requireSignerPerson, silent))
 
     
     def getSignAndAttachResult(self):

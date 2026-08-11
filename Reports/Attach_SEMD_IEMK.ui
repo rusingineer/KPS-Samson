@@ -200,7 +200,7 @@ p, li { white-space: pre-wrap; }
             <item>
              <widget class="QCheckBox" name="chkFilterOrgStructure">
               <property name="text">
-               <string>Отделение</string>
+               <string>Подразделение</string>
               </property>
              </widget>
             </item>
@@ -456,6 +456,26 @@ p, li { white-space: pre-wrap; }
                </property>
               </item>
              </widget>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="chkFilterExportErrors">
+              <property name="text">
+               <string>Ошибки РЭМД</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="edtFilterExportErrors"/>
+            </item>
+            <item>
+             <widget class="QCheckBox" name="chkFilterSchematronErrors">
+              <property name="text">
+               <string>Ошибки по схематрону</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="edtFilterSchematronErrors"/>
             </item>
             <item>
              <spacer name="verticalSpacer_2">

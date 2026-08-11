@@ -75,14 +75,14 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
             relatedTaskId = forceRef(db.translate('soc_AttachMO_Task', 'relatedTask_id', taskId, 'id'))
             if status == u'in-progress':
                 if orderType == 1 and relatedTaskId:
-                    QtGui.QMessageBox().warning(self, u'Внимание!',
+                    QtGui.QMessageBox.warning(None, u'Внимание!',
                                                     u'Невозможно выполнить заявление на прикрепление, так как гражданин отозвал свое заявление!')
                     ReasonComment = u"Невозможно выполнить заявление на прикрепление, так как гражданин отозвал свое заявление"
                     ReasonCode = 1
                     self.AttachMO_Reject(taskId, ReasonComment, ReasonCode)
                     self.updateData(model, row, taskId)
                     return
-                if QtGui.QMessageBox().question(self, u'Внимание!', u'Выполнить заявление?',
+                if QtGui.QMessageBox.question(None, u'Внимание!', u'Выполнить заявление?',
                                                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                                 QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
 
@@ -105,10 +105,10 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                           left JOIN ClientAttach ca ON c.id = ca.client_id AND ca.id = getClientAttachId(c.id, 0)
                           left JOIN OrgStructure os ON os.id = ca.orgStructure_id
                           LEFT JOIN Person_Order po on po.orgStructure_id = os.id AND po.deleted = 0 and po.type = 6 AND po.documentType_id IS NOT NULL
-                                          and validFromDate <= now() and ((po.validToDate IS NULL OR LENGTH(po.validToDate) = 0) or po.validToDate >= now())
+                                          and validFromDate <= now() and ((po.validToDate IS NULL OR LENGTH(po.validToDate) = 0) or po.validToDate >= curdate())
                           left JOIN Person p ON p.id = po.master_id
                           left JOIN rbSpeciality s ON p.speciality_id = s.id
-                          WHERE c.id = {0} and p.retireDate is null AND p.retired = 0 limit 1""".format(clientId)
+                          WHERE c.id = {0} AND s.isHigh=1 and p.retireDate is null AND p.retired = 0 limit 1""".format(clientId)
 
                         query = db.query(stmt)
                         clientAttachId = None
@@ -129,37 +129,37 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                                             'practitionerSpecialityName': forceString(record.value('name'))}
 
                         if not clientAttachId:
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У пациента отсутствуют данные о прикреплении!')
                             return
                         if not orgStructId:
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У пациента должен быть выбран участок!')
                             return
                         if attachEndDate:
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У пациента должено быть действующее прикрепление к участку!')
                             return
                         if not practitioner.get('practitionerArea', None):
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У участка должен быть заполнен "Внутренний" код по ИнФИС!')
                             return
                         if not practitioner.get('practitionerSurname', None):
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У выбранного участка должен быть выбран участоковый врач!')
                         if not practitioner.get('practitionerName', None):
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У участкового врача должены быть заполнены фамилия и имя!')
                         if not practitioner.get('practitionerSNILS', None):
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У участкового врача должен быть заполнен СНИЛС')
                             return
                         if not practitioner.get('practitionerSpecialityName', None):
-                            QtGui.QMessageBox().warning(self, u'Информация',
+                            QtGui.QMessageBox.warning(None, u'Информация',
                                                             u'У участкового врача должна быть специальность')
                             return
 
-                        if QtGui.QMessageBox().question(self, u'Внимание!', u'Заявка выполнена успешно?',
+                        if QtGui.QMessageBox.question(None, u'Внимание!', u'Заявка выполнена успешно?',
                                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                                         QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
                             # прописываем пациента в заявление
@@ -192,10 +192,10 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                                 clientAttachId = forceRef(record.value('clientAttachId'))
                                 attachEndDate = forceDate(record.value('attachEndDate'))
                             if clientAttachId and not attachEndDate:
-                                QtGui.QMessageBox().warning(self, u'Информация',
+                                QtGui.QMessageBox.warning(None, u'Информация',
                                                                 u'У пациента есть действующее прикрепление!')
                                 return
-                        if QtGui.QMessageBox().question(self, u'Внимание!', u'Заявка выполнена успешно?',
+                        if QtGui.QMessageBox.question(None, u'Внимание!', u'Заявка выполнена успешно?',
                                                         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                                         QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
                             self.AttachMO_Complete(orderType, taskId, clientId)
@@ -203,12 +203,12 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                     elif orderType == 3:  # Отмена заявки
                         relatedTaskId = forceRef(model.value(row, 'relatedTask_id'))
                         if not relatedTaskId:
-                            QtGui.QMessageBox().warning(self, u'Внимание!',
+                            QtGui.QMessageBox.warning(None, u'Внимание!',
                                                             u'Для заявления на отмену нет связанного основного заявления!')
                             return
                         relationOrderType = forceInt(model.value(row, 'relationOrderType'))
                         if relationOrderType == 2:
-                            QtGui.QMessageBox().warning(self, u'Внимание!',
+                            QtGui.QMessageBox.warning(None, u'Внимание!',
                                                             u'Заявление на отмену открепления выполнить нельзя, его можно только отклонить!')
                             return
                         relationTaskStatus = forceString(model.value(row, 'relationTaskStatus'))
@@ -220,7 +220,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                             relatedRow = self.getRowById(relatedTaskId)
                             self.updateData(model, relatedRow, relatedTaskId)
                         elif relationTaskStatus != "rejected":
-                            QtGui.QMessageBox().warning(self, u'Внимание!',
+                            QtGui.QMessageBox.warning(None, u'Внимание!',
                                                             u'Для выполнении заявления на отмену необходимо отменить связанную основное заявление!')
                             return
                         self.AttachMO_Complete(orderType, taskId, clientId)
@@ -312,10 +312,10 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                         message = u"Произошла ошибка при распарсевании JSON ответа. Неверный формат JSON! Текст ошибки: " + unicode(
                             e)
             except Exception, e:
-                QtGui.QMessageBox().critical(self, u'Ошибка', u'Произошла ошибка: ' + unicode(e),
+                QtGui.QMessageBox.critical(None, u'Ошибка', u'Произошла ошибка: ' + unicode(e),
                                              QtGui.QMessageBox.Close)
             if message:
-                QtGui.QMessageBox().critical(self, u'Ошибка', message, QtGui.QMessageBox.Close)
+                QtGui.QMessageBox.critical(None, u'Ошибка', message, QtGui.QMessageBox.Close)
 
 
     def AttachMO_Reject(self, taskId, ReasonComment, ReasonCode):
@@ -351,18 +351,18 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                 if orderType == 3:
                     relatedTaskId = forceRef(model.value(row, 'relatedTask_id'))
                     if not relatedTaskId:
-                        QtGui.QMessageBox().warning(self, u'Внимание!',
+                        QtGui.QMessageBox.warning(None, u'Внимание!',
                                                         u'Для заявления на отмену нет связанного основного заявления!')
                         return
                     relationTaskStatus = forceString(model.value(row, 'relationTaskStatus'))
                     relationOrderType = forceInt(model.value(row, 'relationOrderType'))
 
                     if relationOrderType == 1 and relationTaskStatus != "completed":
-                        QtGui.QMessageBox().warning(self, u'Внимание!',
+                        QtGui.QMessageBox.warning(None, u'Внимание!',
                                                         u'Заявление на отмену заявления на прикрепление отклонить невозможно, его необходимо выполнить!')
                         return
                 elif orderType == 2:
-                    QtGui.QMessageBox().warning(self, u'Внимание!',
+                    QtGui.QMessageBox.warning(None, u'Внимание!',
                                                     u'Заявление на открепление отклонить невозможно, его необходимо выполнить!')
                     return
                 elif orderType == 1:
@@ -375,7 +375,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                             self.AttachMO_Reject(taskId, ReasonComment, ReasonCode)
                             self.updateData(model, row, taskId)
             else:
-                QtGui.QMessageBox().warning(self, u'Внимание!', u'Для этого статуса данное действие невозможно!')
+                QtGui.QMessageBox.warning(None, u'Внимание!', u'Для этого статуса данное действие невозможно!')
 
     def uploadTasks(self):
         """Кнопка выгрузить ожидающие"""
@@ -410,7 +410,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
         if taskStatus == 'in-progress':
             clientId = forceRef(model.value(row, 'client_id'))
             if clientId:
-                if QtGui.QMessageBox().question(self, u'Внимание!', u'Очистить информацию о пациенте в заявлении?',
+                if QtGui.QMessageBox.question(None, u'Внимание!', u'Очистить информацию о пациенте в заявлении?',
                                                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                                                 QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
                     patientId = forceRef(model.value(row, 'patient_id'))
@@ -422,7 +422,7 @@ class CAttachOnlineServiceDialog(CDialogBase, Ui_AttachOnlineServiceDialog):
                     taskId = forceRef(model.value(row, 'attachTaskId'))
                     self.updateData(model, row, taskId)
         else:
-            QtGui.QMessageBox().warning(self, u'Информация', u'Для этого статуса данное действие невозможно!')
+            QtGui.QMessageBox.warning(None, u'Информация', u'Для этого статуса данное действие невозможно!')
 
 
     def setInfoToFields(self, current, previous):
@@ -801,11 +801,11 @@ class CAttachOnlineReasonRejectDialog(CDialogBase, Ui_ReasonRejectDialog):
 
     def applyClicked(self):
         if not self.edtComment.text():
-            QtGui.QMessageBox().warning(self, u'Внимание!',
+            QtGui.QMessageBox.warning(None, u'Внимание!',
                                     u'Необходимо заполнить комментарий при отказе')
             return
         if not self.cmbReasonReject.value():
-            QtGui.QMessageBox().warning(self, u'Внимание!',
+            QtGui.QMessageBox.warning(None, u'Внимание!',
                                     u'Необходимо указать причину отказа')
             return
         self.execResult = 1
@@ -980,8 +980,11 @@ class CStatementsModel(CRecordListModel):
             if filters['statementType']:
                 cond.append(tableAttachTask['order_type'].eq(filters['statementType']))
             if filters['statementStatus']:
-                statusDict = {1: 'completed', 3: 'in-progress', 2: 'rejected'}
-                cond.append(tableAttachTask['status'].eq(statusDict[filters['statementStatus']]))
+                if filters['statementStatus'] < 4:
+                    statusDict = {1: 'completed', 3: 'in-progress', 2: 'rejected'}
+                    cond.append(tableAttachTask['status'].eq(statusDict[filters['statementStatus']]))
+                else:
+                    cond.append(" (WorkDays(soc_AttachMO_Task.createDateTime,soc_AttachMO_Task.uploadDate, 0,'')-1) > 2 ")
             if filters['patientSurname']:
                 cond.append(tableAttachPersonC['lastName'].like(filters['patientSurname']))
             if filters['patientName']:

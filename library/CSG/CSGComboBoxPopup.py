@@ -13,10 +13,11 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QDate, QEvent
+from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QDate, QEvent, QVariant
 
-from library.Utils import getPref, setPref
-from library.TableModel import CTableModel, CTextCol
+from library.database import CTableRecordCache
+from library.Utils import getPref, setPref, forceString, forceDate
+from library.TableModel import CTableModel, CTextCol, CDoubleCol
 
 from Ui_CSGComboBoxPopup import Ui_CSGComboBoxPopup
 
@@ -41,22 +42,28 @@ class CCSGComboBoxPopup(QtGui.QFrame, Ui_CSGComboBoxPopup):
         self.setupUi(self)
         self.tblCSG.setModel(self.tableModel)
         self.tblCSG.setSelectionModel(self.tableSelectionModel)
-        self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setDefault(True)
+        # self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setDefault(True)
 #       к сожалению в данном случае setDefault обеспечивает рамочку вокруг кнопочки
 #       но enter не работает...
-        self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setShortcut(Qt.Key_Return)
+#         self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setShortcut(Qt.Key_Return)
         self.eventBegDate = None
         self.clientSex = 0
         self.clientBirthDate = None
         self.MKB = ''
+        self.associatedMKB = None
+        self.complicationMKB = None
         self.codeMask = None
         self.eventProfileId = None
         self.csgId = None
+        self.krit = None
+        self.fractions = None
+        self.csgBegDate = None
+        self.csgEndDate = None
         self.eventEditor = eventEditor
         self.tblCSG.installEventFilter(self)
         preferences = getPref(QtGui.qApp.preferences.windowPrefs, 'CCSGComboBoxPopup', {})
         self.tblCSG.loadPreferences(preferences)
-        self.on_buttonBox_reset()
+        # self.on_buttonBox_reset()
 
 
     def mousePressEvent(self, event):
@@ -88,46 +95,46 @@ class CCSGComboBoxPopup(QtGui.QFrame, Ui_CSGComboBoxPopup):
         return QtGui.QFrame.eventFilter(self, watched, event)
 
 
-    @pyqtSignature('QAbstractButton*')
-    def on_buttonBox_clicked(self, button):
-        buttonCode = self.buttonBox.standardButton(button)
-        if buttonCode == QtGui.QDialogButtonBox.Apply:
-            self.on_buttonBox_apply()
-        elif buttonCode == QtGui.QDialogButtonBox.Reset:
-            self.on_buttonBox_reset()
+    # @pyqtSignature('QAbstractButton*')
+    # def on_buttonBox_clicked(self, button):
+    #     buttonCode = self.buttonBox.standardButton(button)
+    #     if buttonCode == QtGui.QDialogButtonBox.Apply:
+    #         self.on_buttonBox_apply()
+    #     elif buttonCode == QtGui.QDialogButtonBox.Reset:
+    #         self.on_buttonBox_reset()
 
 
-    def on_buttonBox_reset(self):
-        parent = self.parentWidget()
-        if parent.filterValues:
-            self.chkSex.setChecked(parent.filterValues.get('sex', True))
-            self.chkAge.setChecked(parent.filterValues.get('age', True))
-            self.chkCsgServices.setChecked(parent.filterValues.get('csgServices', True))
-            self.cmbMKB.setCurrentIndex(parent.filterValues.get('mkbCond', 2))
-            self.cmbEventProfile.setCurrentIndex(parent.filterValues.get('isEventProfile', 1))
-        else:
-            self.chkSex.setChecked(True)
-            self.chkAge.setChecked(True)
-            self.chkCsgServices.setChecked(True)
-            self.cmbMKB.setCurrentIndex(2)
-            self.cmbEventProfile.setCurrentIndex(1)
+    # def on_buttonBox_reset(self):
+    #     parent = self.parentWidget()
+    #     if parent.filterValues:
+    #         self.chkSex.setChecked(parent.filterValues.get('sex', True))
+    #         self.chkAge.setChecked(parent.filterValues.get('age', True))
+    #         self.chkCsgServices.setChecked(parent.filterValues.get('csgServices', True))
+    #         self.cmbMKB.setCurrentIndex(parent.filterValues.get('mkbCond', 2))
+    #         self.cmbEventProfile.setCurrentIndex(parent.filterValues.get('isEventProfile', 1))
+    #     else:
+    #         self.chkSex.setChecked(True)
+    #         self.chkAge.setChecked(True)
+    #         self.chkCsgServices.setChecked(True)
+    #         self.cmbMKB.setCurrentIndex(2)
+    #         self.cmbEventProfile.setCurrentIndex(1)
 
 
-    def on_buttonBox_apply(self):
-        parent = self.parentWidget()
-        useSex        = self.chkSex.isChecked()
-        useAge        = self.chkAge.isChecked()
-        useCsgServices = self.chkCsgServices.isChecked()
-        mkbCond    = self.cmbMKB.currentIndex()
-        isEventProfile = self.cmbEventProfile.currentIndex()
-        parent.filterValues = {'age': useAge,
-                               'sex': useSex,
-                               'csgServices': useCsgServices,
-                               'mkbCond': mkbCond,
-                               'isEventProfile': isEventProfile}
-        parent.model().dbdata.select(parent.filterValues)
-        idList = parent.model().dbdata.idList
-        self.setCSGIdList(idList)
+    # def on_buttonBox_apply(self):
+    #     parent = self.parentWidget()
+    #     useSex        = self.chkSex.isChecked()
+    #     useAge        = self.chkAge.isChecked()
+    #     useCsgServices = self.chkCsgServices.isChecked()
+    #     mkbCond    = self.cmbMKB.currentIndex()
+    #     isEventProfile = self.cmbEventProfile.currentIndex()
+    #     parent.filterValues = {'age': useAge,
+    #                            'sex': useSex,
+    #                            'csgServices': useCsgServices,
+    #                            'mkbCond': mkbCond,
+    #                            'isEventProfile': isEventProfile}
+    #     parent.model().dbdata.select(parent.filterValues)
+    #     idList = parent.model().dbdata.idList
+    #     self.setCSGIdList(idList)
 
 
     def setCSGIdList(self, idList):
@@ -137,12 +144,25 @@ class CCSGComboBoxPopup(QtGui.QFrame, Ui_CSGComboBoxPopup):
             self.tabWidget.setTabEnabled(0, True)
             self.tblCSG.setFocus(Qt.OtherFocusReason)
         else:
-            self.tabWidget.setCurrentIndex(1)
-            self.tabWidget.setTabEnabled(0, False)
-            self.chkSex.setFocus(Qt.OtherFocusReason)
+            # self.tabWidget.setCurrentIndex(1)
+            # self.tabWidget.setTabEnabled(0, False)
+            self.tblCSG.setIdList(idList)
+            self.tabWidget.setCurrentIndex(0)
+            self.tabWidget.setTabEnabled(0, True)
+            self.chkContractTariff.setFocus(Qt.OtherFocusReason)
+
+    @pyqtSignature('bool')
+    def on_chkContractTariff_toggled(self, checked):
+        parent = self.parentWidget()
+        parent.filterValues = {'showOnlyByContract': checked}
+        parent.model().dbdata.select(parent.filterValues)
+        idList = parent.model().dbdata.idList
+        self.setCSGIdList(idList)
 
 
-    def setup(self, clientSex, clientBirthDate, MKB, csgId, eventBegDate, mesServiceTemplate, codeMask = None, eventProfileId = None):
+    def setup(self, clientSex, clientBirthDate, MKB, csgId, eventBegDate, mesServiceTemplate, codeMask = None,
+              eventProfileId = None, krit = None, associatedMKB = None, complicationMKB = None, fractions = None,
+              csgBegDate = None, csgEndDate = None):
         self.clientSex = clientSex
         self.clientBirthDate = clientBirthDate
         self.MKB = MKB
@@ -151,6 +171,12 @@ class CCSGComboBoxPopup(QtGui.QFrame, Ui_CSGComboBoxPopup):
         self.codeMask = codeMask
         self.eventProfileId = eventProfileId
         self.mesServiceTemplate = mesServiceTemplate
+        self.krit = krit
+        self.associatedMKB = associatedMKB
+        self.complicationMKB = complicationMKB
+        self.fractions = fractions
+        self.csgBegDate = csgBegDate
+        self.csgEndDate = csgEndDate
         parent = self.parentWidget()
         idList = parent.model().dbdata.idList
         self.setCSGIdList(idList)
@@ -169,12 +195,172 @@ class CCSGComboBoxPopup(QtGui.QFrame, Ui_CSGComboBoxPopup):
 class CCSGTableModel(CTableModel):
     def __init__(self, parent):
         CTableModel.__init__(self, parent)
-        self.addColumn(CTextCol(u'Код',             ['code'],  20))
-        self.addColumn(CTextCol(u'Наименование',    ['name'],  40))
-        self.addColumn(CTextCol(u'Описание',        ['note'], 40))
-        self.setTable(TABLE_CSG)
+        self.addColumn(CTextCol(u'Код', ['infis'],  20))
+        self.addColumn(CTextCol(u'Наименование', ['name'],  40))
+        # self.addColumn(CTextCol(u'Описание',        ['note'], 40))
+        self.addColumn(CTextCol(u'Коэф. затратоёмкости', ['ksgkoef'], 70))
+        self.addColumn(CTextCol(u'Тариф', ['price'], 40))
+        self.addColumn(CTextCol(u'МКБ', ['mkb'], 40))
+        self.addColumn(CTextCol(u'Соп. МКБ', ['mkb2'], 40))
+        self.addColumn(CTextCol(u'МКБ осл.', ['mkb3'], 40))
+        self.addColumn(CTextCol(u'Услуга', ['kusl'], 60))
+        self.addColumn(CTextCol(u'Критерий', ['KRIT'], 35))
+        self.addColumn(CTextCol(u'Фракции', ['fr'], 35))
+        self.addColumn(self.CAgeCol(u'Возраст', ['age'], 50))
+        self.contractId = parent.parent()._contractId
+        self.mkb = parent.parent().MKB
+        self.associatedMKB = parent.parent().associatedMKB
+        self.complicationMKB = parent.parent().complicationMKB
+        self.krit = parent.parent().krit
+        clientAge = parent.parent().eventEditor.clientAge
+        self.age = []
+        if clientAge[0] < 29:
+            self.age = ['1', '4', '5']
+        elif 29 <= clientAge[0] < 91:
+            self.age = ['2', '4', '5']
+        elif clientAge[0] >= 91 and clientAge[3] == 0:
+            self.age = ['3', '4', '5']
+        elif clientAge[3] < 2:
+            self.age.extend(['4', '5'])
+        elif clientAge[3] < 18:
+            self.age.append('5')
+        elif clientAge[3] >= 18:
+            self.age.append('6')
+        self.clientSex = u'М' if parent.parent().clientSex == 1 else u'Ж'
+
+        self.fractions = parent.parent().fractions
+        self.fractions = forceString(self.fractions) if self.fractions else u''
+
+        self.csgBegDate = parent.parent().csgBegDate
+        self.csgEndDate = parent.parent().csgEndDate
+        if not self.csgBegDate and not self.csgEndDate:
+            self.csgBegDate = forceDate(parent.parent().eventEditor.edtBegDate.date())
+            self.csgEndDate = forceDate(parent.parent().eventEditor.edtEndDate.date())
+        if not self.csgEndDate:
+            self.csgEndDate = self.csgBegDate
+
+        duration = self.csgBegDate.daysTo(self.csgEndDate)
+        if duration <= 3:
+            self.duration = '1'
+        elif 4 <= duration <= 10:
+            self.duration = '2'
+        elif 11 <= duration <= 20:
+            self.duration = '3'
+        elif 21 <= duration <= 30:
+            self.duration = '4'
+        else:
+            self.duration = ''
+
+        db = QtGui.qApp.db
+        opATList = []
+        tabs = []
+        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabStatus'):
+            tabs.append(parent.parent().eventEditor.tabStatus)
+        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabCure'):
+            tabs.append(parent.parent().eventEditor.tabCure)
+        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabDiagnostic'):
+            tabs.append(parent.parent().eventEditor.tabDiagnostic)
+        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabMisc'):
+            tabs.append(parent.parent().eventEditor.tabMisc)
+        for tab in tabs:
+            for item in tab.modelAPActions._items:
+                opATList.append(item[1]._actionType.id)
+
+        tableActionType = db.table('ActionType')
+        tableService = db.table('rbService')
+        table = tableActionType.leftJoin(tableService,
+                                         tableService['id'].eq(tableActionType['nomenclativeService_id']))
+        recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
+        self.codeList = [forceString(r.value('infis')) for r in recordList]
+        self.setTable('rbService')
         self.date = QDate.currentDate()
 
+    def data(self, index, role=Qt.DisplayRole):
+        if not index.isValid():
+            return QVariant()
+        column = index.column()
+        row    = index.row()
+        if role == Qt.DisplayRole and column == 10 and row == 0:
+            # чтобы не выводить подпись возраста для пустой строки
+            (col, values) = self.getRecordValues(column, row)
+            values[0] = '-1'
+            return col.format(values)
+        else:
+            return CTableModel.data(self, index, role)
 
     def flags(self, index):
         return Qt.ItemIsEnabled|Qt.ItemIsSelectable
+
+    def setTable(self, table, recordCacheCapacity=300):
+        db = QtGui.qApp.db
+        tableSpr69 = db.table('soc_spr69').alias('s69')
+        tableTariff = db.table('Contract_Tariff')
+        self._table = db.forceTable(table)
+        self._table = self._table.innerJoin(
+            tableSpr69,
+            db.joinAnd([
+                tableSpr69['ksgkusl'].eq(self._table['infis']),
+                tableSpr69['datn'].le(self.csgEndDate),
+                db.joinOr([tableSpr69['dato'].ge(self.csgEndDate), tableSpr69['dato'].isNull()]),
+                db.joinOr([
+                    "'{0}' BETWEEN s69.mkbMin AND s69.mkbMax".format(forceString(self.mkb)),
+                    tableSpr69['mkb'].isNull()
+                ]),
+                db.joinOr([
+                    "'{0}' BETWEEN s69.mkb2Min AND s69.mkb2Max".format(forceString(self.associatedMKB)),
+                    tableSpr69['mkb2'].isNull()
+                ]),
+                db.joinOr([
+                    "'{0}' BETWEEN s69.mkb3Min AND s69.mkb3Max".format(forceString(self.complicationMKB)),
+                    tableSpr69['mkb3'].isNull()
+                ]),
+                db.joinOr([tableSpr69['KRIT'].eq(self.krit), tableSpr69['KRIT'].isNull()]),
+                db.joinOr([tableSpr69['age'].inlist(self.age), tableSpr69['age'].isNull()]),
+                db.joinOr([
+                    u"(cast('{0}' AS INT) BETWEEN cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', 1) AS INT) AND cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', -1) as INT))".format(self.fractions),
+                    tableSpr69['fr'].isNull()
+                ]),
+                db.joinOr([tableSpr69['kusl'].inlist(self.codeList), tableSpr69['kusl'].isNull()]),
+                db.joinOr([tableSpr69['dlit'].eq(self.duration), tableSpr69['dlit'].isNull()]),
+                db.joinOr([tableSpr69['pol'].eq(self.clientSex), tableSpr69['pol'].isNull()])
+            ])
+        )
+        self._table = self._table.leftJoin(
+            tableTariff, db.joinAnd([
+                tableTariff['service_id'].eq(self._table['id']),
+                tableTariff['master_id'].eq(self.contractId),
+                tableTariff['begDate'].le(self.csgEndDate),
+                db.joinOr([tableTariff['endDate'].ge(self.csgEndDate), tableTariff['endDate'].isNull()])
+            ])
+        )
+        loadFields = [self.idFieldName]
+        loadFields.extend(self._loadFields)
+        for col in self._cols:
+            loadFields.extend(col.fields())
+        loadFields = set(loadFields)
+        if '*' in loadFields:
+            loadFields = '*'
+        else:
+            loadFields = ', '.join([self._table[fieldName].name() for fieldName in loadFields])
+        self._recordsCache = CTableRecordCache(db, self._table, loadFields, recordCacheCapacity)
+
+
+    class CAgeCol(CTextCol):
+        def format(self, values):
+            age = forceString(values[0])
+            if age == '1':
+                return u'от 0 до 28 дней (или новорожденный)'
+            elif age == '2':
+                return u'от 29 дней до 90 дней'
+            elif age == '3':
+                return u'от 91 дня до 1 года'
+            elif age == '4':
+                return u'от 0 дней до 2 лет'
+            elif age == '5':
+                return u'от 0 дней до 18 лет'
+            elif age == '6':
+                return u'старше 18 лет'
+            elif age == '-1':
+                return u''
+            else:
+                return u'не учитывается'

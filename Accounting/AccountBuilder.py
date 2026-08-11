@@ -1576,7 +1576,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                 and Account_Item.refuseType_id is not null and Account_Item.reexposeItem_id is null and Account_Item.deleted = 0""",
             """Event.id as eventId, Event.setDate, Event.result_id, Event.eventType_id, Event.client_id, vAction.id, vAction.actionType_id, Event.eventType_id, 
             vAction.event_id, vAction.exposeDate, vAction.amount, vAction.MKB, Person.tariffCategory_id, Event.execDate, 
-            Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbSpeciality.regionalCode as specCode, vAction.endDate as actionEndDate, Person.orgStructure_id""",
+            Account_Item.id as oldAccId, Client.birthDate, vAction.org_id, rbSpeciality.regionalCode as specCode, vAction.begDate as actionBegDate, vAction.endDate as actionEndDate, vAction.status as actionStatus, Person.orgStructure_id""",
             actionId)
         if record:
             serviceIdList = self.getActionTypeServiceIdList(forceRef(record.value('actionType_id')), contractDescr.financeId)
@@ -1605,6 +1605,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     tariffCategoryId = forceRef(record.value('tariffCategory_id'))
                     specialityCode = forceString(record.value('specCode'))
                     personOrgStructId = forceRef(record.value('orgStructure_id'))
+                    actionStatus = forceInt(record.value('actionStatus'))
 
                     groupAccountType, medicalAidTypeCode, eventProfileRegionalCode = self.getGroupAccountType(eventTypeId)
                     # для группировки счетов по онкологии в стационарах в отдельные реестры
@@ -1626,6 +1627,11 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                     #         groupAccountType = 3
                     
                     for tariff in tariffList:
+                        if actionStatus == 6 and self.getServiceInfis(serviceId) in ('A08.20.017.002', 'A08.20.040', 'A01.20.003', 'A26.20.034.001', 'A26.20.009.002', 'A26.20.068'):
+                            # если услуга по проф с отказом, но относится к услугам с особым случаем virgio, то не выставляем
+                            return
+                        elif actionStatus == 6:
+                            exposeDate = forceDate(record.value('actionBegDate'))
                         if self.isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, exposeDate, MKB):
                             if tariff.enableCoefficients:
                                 mesDescr = self.getMesDescr(mesId)
@@ -1634,6 +1640,9 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                             else:
                                 coefficient, usedCoefficients = 1.0, None
                             amount, price, sum = tariff.evalAmountPriceSum(origAmount, coefficient)
+                            if actionStatus == 6:
+                                # обнуляем количество и тариф у отказанных услуг
+                                amount, price, sum = 0, 0, 0
                             uet = amount * tariff.uet if tariff.tariffType == CTariff.ttActionUET else 0
                             unitId = tariff.unitId
                             oldAccId = forceRef(record.value('oldAccId'))
@@ -1679,7 +1688,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 elif medicalAidTypeCode in ['271', '272'] and exposeDate >= QDate(2017, 1, 1) and account.payerId != contractDescr.payerId:
                                     price, sum = 0, 0
                                 # для ранее оказанных и внешних услуг - цена равна 0
-                                elif eventBegDate > exposeDate or orgId and medicalAidTypeCode != '211' or orgId and orgCode not in self.omsCodes:
+                                elif eventBegDate > exposeDate or orgId and medicalAidTypeCode not in ('222', '232', '211', '252', '233', '244', '261', '262') or orgId and orgCode not in self.omsCodes:
                                     price, sum = 0, 0
                                 # профилактические мероприятия с февраля 2026 новые правила тарификации
                                 # все простые услуги должны выставляться в поле Taru с ценой из договора, поле summ нулевые
@@ -1688,19 +1697,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                       and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']
                                       and eventProfileRegionalCode not in ['8009', '8015', '8016', '103', '8019', '8021']
                                       and self.getServiceInfis(serviceId) not in ['B04.053.001.019', 'B04.057.001.030']):
-                                    # ТТ 3003 "Выставлять жидкостную цитологию с ценой"
-                                    # если в событии по РД нет на 1 этапе других услуг кроме A08.20.017.002, то она с ценой должна выставляться
-                                    if medicalAidTypeCode == '244' and self.getServiceInfis(serviceId) == "A08.20.017.002":
-                                        stmt = """SELECT Action.id
-                                            FROM Action
-                                            LEFT JOIN ActionType ON ActionType.id = Action.actionType_id
-                                            WHERE Action.event_id = {0} AND Action.id <> {1} AND Action.deleted = 0
-                                                AND ActionType.deleted = 0 AND ActionType.nomenclativeService_id IS NOT NULL""".format(eventId, actionId)
-                                        query = db.query(stmt)
-                                        if query.size() > 0:
-                                            sum = 0
-                                    else:
-                                         sum = 0
+                                    sum = 0
                                 # обнуление простых услуг для детских профосмотров
                                 elif medicalAidTypeCode in ['232', '252', '262'] and eventEndDate >= QDate(2019, 3, 1) and self.getServiceInfis(serviceId)[:7] not in ['B04.031', 'B04.026']:
                                     price, sum = 0, 0

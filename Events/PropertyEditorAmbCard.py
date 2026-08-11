@@ -140,7 +140,8 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
 
     @pyqtSignature('')
     def on_actInsertPropertyText_triggered(self):
-        selectedIdList = [self.modelActionProperties.getCurrentActionId()]
+        currentActionId = self.modelActionProperties.getCurrentActionId()
+        selectedIdList = [currentActionId]
         actionDictValues = self.getSelectedActionProperties(selectedIdList)
         if actionDictValues:
             oldValue = self.edtPropertyText.toPlainText()
@@ -150,7 +151,8 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
             value = (oldValue + u'\n' + newValue) if oldValue else newValue
             self.edtPropertyText.setText(value)
             self.modelActionProperties.reset()
-            self.modelActions.enableIdList.remove(self.modelActionProperties.getCurrentActionId())
+            if currentActionId in self.modelActions.enableIdList:
+                self.modelActions.enableIdList.remove(currentActionId)
 
 
     def getSelectedActionProperties(self, selectedIdList):
@@ -267,10 +269,7 @@ class CPropertyEditorAmbCard(CDialogBase, Ui_PropertyEditorAmbCardDialog):
 
 
     def destroy(self):
-        self.tblActionProperties.setModel(None)
-        self.tblActions.setModel(None)
-        del self.modelActionProperties
-        del self.modelActions
+        pass
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_modelActionProperties_dataChanged(self, topLeft, bottomRight):

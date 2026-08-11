@@ -1795,6 +1795,7 @@ class CActionFileAttachModel(CFileAttachModel):
         self.addCol(CInDocTableCol(u'Отчество', 'patrName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата рождения', 'birthDate', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Врач', 'personFullName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Подразделение', 'orgStructName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата изменения', 'modifyDatetime', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан врачом', 'isRespSigned', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан МО', 'isOrgSigned', 20)).setReadOnly()
@@ -1842,6 +1843,8 @@ class CActionFileAttachModel(CFileAttachModel):
         tableActionTypeIdentification = db.table('ActionType_Identification').alias('ati')
         tableActionFLPrintTemplate = db.table('Action_FileAttach_PrintTemplate')
         tablePrintTemplate = db.table('rbPrintTemplate')
+        tableOrgStructure = db.table('OrgStructure')
+        tableSetOrgStruct = db.table('OrgStructure').alias('SetOrgStruct')
         tableQuery = tableActionFileAttach
         tableActionFileAttach.index_hint = 'USE INDEX(modifyDatetime, createDatetime, PRIMARY)'
         tableQuery = tableQuery.innerJoin(tableAction, db.joinAnd([tableAction['id'].eq(tableActionFileAttach['master_id']), tableAction['deleted'].eq(0)]))
@@ -1852,6 +1855,8 @@ class CActionFileAttachModel(CFileAttachModel):
         tableQuery = tableQuery.leftJoin(tablePrintTemplate, tablePrintTemplate['id'].eq(tableActionFLPrintTemplate['template_id']))
         tableQuery = tableQuery.leftJoin(tablePerson, tablePerson['id'].eq(tableAction['person_id']))
         tableQuery = tableQuery.leftJoin(tableSetPerson, tableSetPerson['id'].eq(tableAction['setPerson_id']))
+        tableQuery = tableQuery.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePerson['orgStructure_id']))
+        tableQuery = tableQuery.leftJoin(tableSetOrgStruct, tableSetOrgStruct['id'].eq(tableSetPerson['orgStructure_id']))
         if identify:
             tableQuery = tableQuery.leftJoin(tableActionTypeIdentification,
                                              tableActionTypeIdentification['master_id'].eq(tableActionType['id']))
@@ -1877,7 +1882,8 @@ class CActionFileAttachModel(CFileAttachModel):
                 u"IF(Action_FileAttach.respSigner_id IS NULL, 0, 1) AS isRespSigned",
                 u"IF(Action_FileAttach.orgSigner_id IS NULL, 0, 1) AS isOrgSigned",
                 tableEvent['org_id'],
-                u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetPerson.id,  Person.id) AS personId"
+                u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetPerson.id,  Person.id) AS personId",
+                u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetOrgStruct.name,  OrgStructure.name) AS orgStructName"
                 ]
         cond = [tableActionFileAttach['deleted'].eq(0)]
         if sign:
@@ -2063,6 +2069,7 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
         self.addCol(CInDocTableCol(u'Отчество', 'patrName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата рождения', 'birthDate', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Врач', 'personLastName', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Подразделение', 'orgStructName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата изменения', 'modifyDatetime', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан врачом', 'isRespSigned', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан МО', 'isOrgSigned', 20)).setReadOnly()
@@ -2083,9 +2090,11 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
         tablePP = db.table('ProphylaxisPlanning')
         tableClient = db.table('Client')
         tablePerson = db.table('Person')
+        tableOrgStructure = db.table('OrgStructure')
         query = tablePPFA.leftJoin(tablePP, tablePP['id'].eq(tablePPFA['master_id']))
         query = query.leftJoin(tableClient, tableClient['id'].eq(tablePP['client_id']))
         query = query.leftJoin(tablePerson, tablePerson['id'].eq(tablePP['person_id']))
+        query = query.leftJoin(tableOrgStructure, tableOrgStructure['id'].eq(tablePerson['orgStructure_id']))
 
         if personSNILS and personId:
             rec = db.getRecordEx(tablePerson, [tablePerson['SNILS']], [tablePerson['id'].eq(personId)])
@@ -2106,7 +2115,8 @@ class CProphylaxisPlanningFileAttachModel(CFileAttachModel):
                 tablePPFA['modifyDatetime'],
                 u"IF(ProphylaxisPlanning_FileAttach.respSigner_id IS NULL, 0, 1) AS isRespSigned",
                 u"IF(ProphylaxisPlanning_FileAttach.orgSigner_id IS NULL, 0, 1) AS isOrgSigned",
-                tablePerson['id'].alias('personId')
+                tablePerson['id'].alias('personId'),
+                tableOrgStructure['name'].alias('orgStructName')
                 ]
         cond = [tablePPFA['deleted'].eq(0),
                 tablePP['deleted'].eq(0),

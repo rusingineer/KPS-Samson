@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from PyQt4 import QtGui
 from EconomicAnalisysSetupDialog import getCond
-from library.Utils import forceString
+from library.Utils import forceString, forceRef, forceDate
+
 
 actionJoins = u"""
 FROM Action
@@ -309,7 +310,8 @@ and Visit.service_id is not null"""
 mesCondition = u"""
 WHERE Event.deleted = 0
 and Event.expose = 1
-AND Event.MES_id is not null"""
+AND Event.MES_id is not null
+AND MES.code LIKE 'G%%'"""
 
 csgCondition = u"""
 WHERE Event.deleted = 0
@@ -552,6 +554,10 @@ posType = u"""case
         when substr(rbService.infis, 1,3) = 'B04' and rbService.name like '%%прием%%' and rbService.name not like '%%диспансерн%%' then 3
         when (rbService.name like '%%на дому%%' or rbService.name like '%%патронаж%%') and substr(rbService.infis, 1, 3) in ('B01', 'B02') then 4
         end as colPosType"""
+posTypeHomeUrgent = u""" IF(rbService.name like '%%на дому%%' or rbService.name like  '%%неотложн%%', 1, 0) as colPosTypeHomeUrgent """
+posTypeHomeUrgentAND = u""" IF(rbService.name like '%%на дому%%' and rbService.name like  '%%неотложн%%', 1, 0) as colPosTypeHomeUrgentAND """
+posTypeHomeOnly = u""" IF(rbService.name like '%%на дому%%' and rbService.name not like  '%%неотложн%%', 1, 0) as colPosTypeHomeOnly """
+
 isAdult = u"age(Client.birthDate, Event.setDate) >= 18 as colIsAdult"
 stepECO = u"""(select aps.value
         from Action ECO_Step
@@ -591,6 +597,9 @@ colClient = [clientId] * 5
 colClientSex = [clientSex] * 5
 colAge = [age] * 5
 colPosType = [posType] * 5
+colPosTypeHomeUrgent = [posTypeHomeUrgent] * 5
+colPosTypeHomeUrgentAND = [posTypeHomeUrgentAND] * 5
+colPosTypeHomeOnly = [posTypeHomeOnly] * 5
 colIsAdult = [isAdult] * 5
 colClientBirthDate = [clientBirthDate] * 5
 colRegAddress = [regAddress] * 5
@@ -848,3 +857,160 @@ and %(cond)s
         stmt = stmt % {'defaultRegion': QtGui.qApp.provinceKLADR()[:2]}
         
     return stmt
+
+
+mapSpr13ToGroupAccountType = {'11': 1, '12': 1, '301': 1, '302': 1, '401': 2, '402': 2, '241': 3,
+                                          '242': 3, '201': 3, '202': 3, '21': 3, '22': 3, '31': 3, '32': 3,
+                                          '60': 3, '111': 3, '112': 3, '01': 3, '02': 3, '281': 3, '282': 3,
+                                          '271': 4, '272': 4, '261': 5, '211': 5, '233': 5, '244': 5, '262': 6, '252': 6,
+                                          '232': 6, '43': 7, '41': 7, '42': 7, '51': 7, '52': 7, '71': 7, '72': 7,
+                                          '90': 7, '411': 7, '422': 7, '511': 7, '522': 7, '801': 8, '802': 8}
+
+
+mapGroupAccountTypeToAccountType = {
+                1: '2', 2: 'i', 3: '2', 4: 'm',
+                5: 'a',  # старые типы реестров по дисп
+                6: 'e',  # медосмотры несовершеннолетних
+                7: '2', 8: '2', 9: 'q', 10: 'q',
+                11: 'a1',  # первый этап дисп
+                12: 'a2',  # второй этап дисп
+                13: 'a3',  # профосмотры взрослых
+                14: 'o',  # ДН
+                15: 'o',  # разовые посещения по подушевому
+                16: 'ak',  # по компьютерной томографии
+                17: 'am',  # по магнитно-резонансной томографии
+                18: 'au',  # по ультразвуковому исследованию ССС
+                19: 'ae',  # по эндоскопическим диаг. исследованиям
+                20: 'ag',  # по мол.-ген. иссл. с целью выявления онк. заб.
+                21: 'ah',  # по гист. исследованиям с целью выявления онк. заб.
+                22: 'ao',  # по экстракорпоральному оплодотворению
+                23: 'av',  # по коронавирусу
+                24: '4',  # ДН по полному подушевому
+                25: '4',  # разовые посещения по полному подушевому
+                26: 'a4',  # по углуб. дисп. взр.нас. I этап
+                27: 'a5',  # по углуб. дисп. взр.нас. II этап
+                28: 'e',  # Диспансеризация детей-сирот
+                29: 'e',  # диспансеризация детей остав-ся без попечения родит,
+                30: 'ap',  # по патологоанатомическим вскрытиям
+                31: 'a6',  # дисп. для оценки репрод. здоровья I этап
+                32: 'a7',  # дисп. для оценки репрод. здоровья II этап
+                33: 'ad'  # по диспансерному наблюдению на рабочих местах
+        }
+
+
+
+
+
+def getEventTypeMap():
+    eventTypeMap = {}
+    stmt = u"""SELECT et.id, eti.value
+                FROM EventType et
+                LEFT JOIN EventType_Identification eti ON et.id = eti.master_id AND eti.deleted = 0
+                LEFT JOIN rbAccountingSystem `as` ON eti.system_id = `as`.id
+                WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'au', 'ae', 'ag', 'ah', 'av', 'ap')"""
+    etQuery = QtGui.qApp.db.query(stmt)
+    while etQuery.next():
+        record = etQuery.record()
+        eventTypeId = forceRef(record.value('id'))
+        identifier = forceString(record.value('value'))
+        eventTypeMap[eventTypeId] = identifier
+    return eventTypeMap
+
+
+def getPregnancyServices():
+    pregnancyServices = set()
+    stmt = u"""SELECT rbService.infis
+                                        FROM rbService
+                                        WHERE rbService.name like '%беременной%'"""
+    pregnancyQuery = QtGui.qApp.db.query(stmt)
+    while pregnancyQuery.next():
+        record = pregnancyQuery.record()
+        pregnancyServices.add(forceString(record.value('infis')))
+    return pregnancyServices
+
+
+def getCodesSetAndMap():
+    """ Делает маппинг кодов омс """
+    omsCodesMap = {}
+    omsCodeSet = set()
+    stmt = u"SELECT id, getOMSCode(id) AS omsCode FROM OrgStructure WHERE deleted = 0"
+    omsQuery = QtGui.qApp.db.query(stmt)
+    while omsQuery.next():
+        record = omsQuery.record()
+        orgStructureId = forceRef(record.value('id'))
+        omsCode = forceString(record.value('omsCode'))
+        omsCodeSet.add(omsCode)
+        omsCodesMap[orgStructureId] = omsCode
+
+    return omsCodesMap, omsCodeSet
+
+
+def getSPRPFREFMap(omsCodeSet = None):
+    """ Делает маппинг справочника soc_SPRPFREF, и при необходимости записываем в набор кодов ОМС (omsCodeSet=set())  """
+    SPRPFREFMap = {}
+    CODE_UR = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode'))
+    if omsCodeSet:
+        omsCodeSet.add(CODE_UR)
+    stmt = u"SELECT * FROM soc_SPRPFREF WHERE CODE_UR = {0}".format(CODE_UR)
+    SPRPFREFQuery = QtGui.qApp.db.query(stmt)
+    while SPRPFREFQuery.next():
+        record = SPRPFREFQuery.record()
+        codeMO = forceString(record.value('CODE_MO'))
+        vs = forceString(record.value('VS'))
+        vp = forceString(record.value('VP'))
+        begDate = forceDate(record.value('DATN'))
+        endDate = forceDate(record.value('DATO'))
+        prref = SPRPFREFMap.setdefault((codeMO, vs, vp), [])
+        prref.append((begDate, endDate))
+
+    return SPRPFREFMap
+
+def getSpr98Map(omsCodeSet=None):
+    """ Делает маппинг справочника soc_spr98 """
+    spr98Map = {}
+    tableSPR98 = QtGui.qApp.db.table('soc_spr98')
+    spr98Records = QtGui.qApp.db.getRecordList(tableSPR98, where=[
+        QtGui.qApp.db.joinOr([((tableSPR98['code_mo'].inlist(omsCodeSet)) if omsCodeSet else (tableSPR98['code_mo'].isNull())), tableSPR98['code_mo'].isNull()])])
+    for record in spr98Records:
+        codeMO = forceString(record.value('code_mo'))
+        code = forceString(record.value('code'))
+        begDate = forceDate(record.value('begDate'))
+        endDate = forceDate(record.value('endDate'))
+        spr98 = spr98Map.setdefault((codeMO, code), [])
+        spr98.append((begDate, endDate))
+
+    return spr98Map
+
+
+def getVSbyGroupAccountType(VP, eventProfileCode, identifier=None):
+    """Возвращает вид счета по виду помощи, профилю события"""
+    groupAccountType = mapSpr13ToGroupAccountType.get(VP)
+    if groupAccountType == 5:
+        if eventProfileCode in ['8008', '8014', '8017']:
+            groupAccountType = 11
+        elif eventProfileCode in ['8009', '8015']:
+            groupAccountType = 12
+        elif eventProfileCode == '8011':
+            groupAccountType = 13
+        elif eventProfileCode == '8018':
+            groupAccountType = 26
+        elif eventProfileCode == '8019':
+            groupAccountType = 27
+        elif eventProfileCode == '8020':
+            groupAccountType = 31
+        elif eventProfileCode == '8021':
+            groupAccountType = 32
+    elif groupAccountType in [3, 7]:
+        newGroupAccountType = {'ak': 16, 'am': 17, 'au': 18, 'ae': 19, 'ag': 20, 'ah': 21, 'ao': 22, 'av': 23,
+                               'ap': 30, 'dnwork': 33, 'dneducate': 33}.get(identifier, None)
+        groupAccountType = newGroupAccountType if newGroupAccountType else groupAccountType
+    elif groupAccountType == 6:
+        if VP == '232':  # Диспансеризация детей-сирот
+            groupAccountType = 28
+        elif VP == '252':  # диспансеризация детей остав-ся без попечения родит
+            groupAccountType = 29
+    # vs = mapGroupAccountTypeToAccountType.get(groupAccountType)
+    return mapGroupAccountTypeToAccountType.get(groupAccountType)
+
+
+

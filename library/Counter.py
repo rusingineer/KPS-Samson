@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -34,6 +34,7 @@ class ProlongCounterWorker(QObject):
         self.timer = None
         self.idList = set()
         self.db = None
+        self.connectionName = None
 
     #def __del__(self): Будем полагаться на мусорщика и stop()
     #    if self.db:
@@ -56,6 +57,7 @@ class ProlongCounterWorker(QObject):
             result = forceBool(query.record().value(0))
         else:
             result = False
+        del query
         self.resetCounterValueCacheId_signal.emit(result)
 
     @hook
@@ -78,7 +80,7 @@ class ProlongCounterWorker(QObject):
             self.db = None
 
     def openDatabase(self):
-        connectionName = "ProlongCounterWorker_" + str(random.randint(0, 100000))
+        self.connectionName = "ProlongCounterWorker_" + str(random.randint(0, 100000))
         preferences = QtGui.qApp.preferences
         self.db = database.connectDataBase(preferences.dbDriverName,
                                            preferences.dbServerName,
@@ -86,7 +88,7 @@ class ProlongCounterWorker(QObject):
                                            preferences.dbDatabaseName,
                                            preferences.dbUserName,
                                            preferences.dbPassword,
-                                           connectionName=connectionName,
+                                           connectionName=self.connectionName,
                                            compressData=preferences.dbCompressData,
                                            logger=logging.getLogger('DB') if QtGui.qApp.logSql else None
                                            )
@@ -103,9 +105,7 @@ class ProlongCounterWorker(QObject):
         if self.timer:
             self.timer.stop()
         if self.db:
-            connectionName = self.db.db.connectionName()
             self.db.close()
-            QtSql.QSqlDatabase.removeDatabase(connectionName)
             self.db = None
         self.finished.emit()
 
@@ -132,7 +132,7 @@ class CCounterController(QObject):
         self.stop.connect(self.worker.stop)
         self.addValueCacheId.connect(self.worker.addValueCacheId)
         self.removeValueCacheId.connect(self.worker.removeValueCacheId)
-        #self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.thread.quit)
         self.getCounterValueCacheId_signal.connect(self.worker.getCounterValueCacheId)
         self.worker.gotCounterValueCacheId_signal.connect(self.gotCounterValueCacheId)
         self.resetCounterValueCacheId_result = None
@@ -141,13 +141,35 @@ class CCounterController(QObject):
         self.thread.start()
         self._ignoreSequence = False
 
-    def __del__(self):
+
+    def shutdown(self, timeout=5000):
+        for sig, slot in (
+            (self.worker.gotCounterValueCacheId_signal, self.gotCounterValueCacheId),
+            (self.worker.resetCounterValueCacheId_signal, self.catchResetCounterValueCacheId),
+        ):
+            sig.disconnect(slot)
+
+        connectionName = self.worker.connectionName # Получаем имя соединения
+        
         if self.thread.isRunning():
             self.stop.emit()
             self.thread.quit()
-            self.thread.wait(5000)
-            if self.thread.isRunning():
+            if not self.thread.wait(timeout):
                 self.thread.terminate()
+                self.thread.wait()
+                
+        if connectionName:
+            if QtSql.QSqlDatabase.contains(connectionName):
+                QtSql.QSqlDatabase.removeDatabase(connectionName)
+                
+        self.worker.deleteLater()
+        self.thread.deleteLater()
+
+
+    #def __del__(self):
+    #    if QtGui.QApplication.instance() is not None:
+    #        self.shutdown(timeout=100)
+
 
     def gotCounterValueCacheId(self, value):
         self.counterValueCacheId = value
@@ -171,11 +193,20 @@ class CCounterController(QObject):
         timer.setInterval(3000)
         timer.timeout.connect(loop.quit)
         self.worker.gotCounterValueCacheId_signal.connect(loop.quit)
-        self.getCounterValueCacheId_signal.emit(counterId, QVariant(date))
-        timer.start()
-        loop.exec_()
-        timer.timeout.disconnect(loop.quit) 
-        self.worker.gotCounterValueCacheId_signal.disconnect(loop.quit)
+        try:
+            self.getCounterValueCacheId_signal.emit(counterId, QVariant(date))
+            timer.start()
+            loop.exec_() 
+        finally:
+            try:
+                timer.timeout.disconnect(loop.quit) 
+            except Exception:
+                pass
+            try:
+                self.worker.gotCounterValueCacheId_signal.disconnect(loop.quit)
+            except Exception:
+                pass
+            
         if self.counterValueCacheId:
             self.reservation.add(self.counterValueCacheId)
             self.addValueCacheId.emit(self.counterValueCacheId)
@@ -261,7 +292,9 @@ def getCounterValueCacheId(db, counterId, date):
         if query.next():
             counterValueCacheId = forceRef(query.value(0))
             if counterValueCacheId:
+                del query
                 return counterValueCacheId
+        del query
 
 @hook
 def getCounterValue(counterId, date):

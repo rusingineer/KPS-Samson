@@ -212,10 +212,7 @@ class CNotificationRuleEditor(CItemEditorBaseDialog,
 
 
     def destroy(self):
-        u"""Удаляет созданные модели"""
-        self.tblNotificationKind.setModel(None)
-
-        del self.modelNotificationKind
+        pass
 
 
     @pyqtSignature('bool')

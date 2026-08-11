@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\Samson\UP_s11\client\Reports\TMKReports.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client_test\Reports\TMKReports.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Mar 26 09:40:42 2026
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -50,7 +51,7 @@ class Ui_tmkReports(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.groupBoxFilters.sizePolicy().hasHeightForWidth())
         self.groupBoxFilters.setSizePolicy(sizePolicy)
-        self.groupBoxFilters.setMaximumSize(QtCore.QSize(278, 16777215))
+        self.groupBoxFilters.setMaximumSize(QtCore.QSize(350, 16777215))
         self.groupBoxFilters.setObjectName(_fromUtf8("groupBoxFilters"))
         self.gridLayout_2 = QtGui.QGridLayout(self.groupBoxFilters)
         self.gridLayout_2.setMargin(4)
@@ -73,7 +74,7 @@ class Ui_tmkReports(object):
         self.chkBegDate.setChecked(False)
         self.chkBegDate.setObjectName(_fromUtf8("chkBegDate"))
         self.hrzLay.addWidget(self.chkBegDate)
-        self.edtBegDate = QtGui.QDateEdit(self.groupBoxFilters)
+        self.edtBegDate = CDateEdit(self.groupBoxFilters)
         self.edtBegDate.setEnabled(False)
         self.edtBegDate.setCalendarPopup(True)
         self.edtBegDate.setObjectName(_fromUtf8("edtBegDate"))
@@ -81,7 +82,7 @@ class Ui_tmkReports(object):
         self.chkEndDate = QtGui.QCheckBox(self.groupBoxFilters)
         self.chkEndDate.setObjectName(_fromUtf8("chkEndDate"))
         self.hrzLay.addWidget(self.chkEndDate)
-        self.edtEndDate = QtGui.QDateEdit(self.groupBoxFilters)
+        self.edtEndDate = CDateEdit(self.groupBoxFilters)
         self.edtEndDate.setEnabled(False)
         self.edtEndDate.setCalendarPopup(True)
         self.edtEndDate.setObjectName(_fromUtf8("edtEndDate"))
@@ -154,3 +155,4 @@ class Ui_tmkReports(object):
 
 from library.MultivalueComboBox import CMultivalueComboBox
 from library.TableView import CTableView
+from library.DateEdit import CDateEdit

@@ -166,8 +166,12 @@ class CStreetComboBox(QtGui.QComboBox):
 
     
     def setCode(self, code):
+        self._model.clearNoActualStreet()
         index = self._model.indexByCode(code)
-        self.setIndex(index)
+        self.setCurrentIndex(index)
+
+    def setCmbName(self, name):
+        self._model._cmbName = name
     
     
     def setIndex(self, index):
@@ -224,11 +228,6 @@ class CStreetComboBox(QtGui.QComboBox):
     def setCity(self, city):
         self._popupView.tableModel.searchString = ''
         self.setPrefix(city[0:-2])
-
-
-    def setCode(self, code):
-        rowIndex = self._model.indexByCode(code)
-        self.setCurrentIndex(rowIndex)
 
 
     def addNone(self, flag):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2016-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2016-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -12,13 +12,13 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QDateTime, QSize, QModelIndex, QVariant, SIGNAL, pyqtSignature, QEvent
+from PyQt4.QtCore import Qt, QDateTime, QSize, QModelIndex, QVariant, SIGNAL, pyqtSignature, QEvent, QTimer
 
 from Orgs.PersonComboBox import CPersonComboBox
 from library.InDocTable import CInDocTableModel, CRecordListModel, CDateInDocTableCol, CInDocTableCol
-from library.TableModel import CTableModel, CTextCol, CCol
+from library.TableModel import CTableModel, CTextCol
 from library.TableView  import CTableView
-from library.database   import decorateString, CTableRecordCache, checkViewURN
+from library.database import decorateString, CTableRecordCache, checkViewURN
 from library.Utils      import trim, forceRef, forceStringEx, forceBool, forceString, forceInt, toVariant, getPref, setPref
 from library.crbcombobox import CRBComboBox
 from library.Ui_IdentificationComboBoxExPopup import Ui_IdentificationComboBoxExPopup
@@ -26,8 +26,7 @@ from library.Ui_IdentificationComboBoxExPopup import Ui_IdentificationComboBoxEx
 __all__ = ( 'CIdentificationModel',
             'checkIdentification',
             'CAccountingSystemComboBox',
-            'CAccountingSystemInDocTableColHybrid',
-            # 'CAccountingSystemIdentification'
+            'CAccountingSystemInDocTableColHybrid'
           )
 
 
@@ -251,176 +250,12 @@ def identificationInfo(parent, actionTypeId, tableName, key):
     model.loadItems(actionTypeId)
     infoWidget.exec_()
 
-    
-
-# class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
-#     mapFilterToRecords = {}
-#     def __init__(self, title, fieldName, width, **params):
-#         CInDocTableCol.__init__(self, title, fieldName, width, **params)
-#         self.filter = params.get('filter', '')
-# 
-# 
-#     def getUrn(self, parent=None, systemid=None):
-#         if parent:
-#             system_id = parent.parent().currentItem().value('system_id').toString()
-#             stmt = u"""select urn from rbAccountingSystem where id =""" + forceString(system_id)
-#             db = QtGui.qApp.db
-#             query = db.query(stmt)
-#             if query.next():
-#                 rec_urn = query.record()
-#                 urn = forceString(rec_urn.value('urn'))
-#                 if urn and urn != '':
-#                     urn = urn.replace('urn:oid:', 'v')
-#                     return urn
-#             else:
-#                 return None
-#         elif systemid:
-#             stmt = u"""select urn from rbAccountingSystem where id =""" + forceString(systemid)
-#             db = QtGui.qApp.db
-#             query = db.query(stmt)
-#             if query.next():
-#                 rec_urn = query.record()
-#                 urn = forceString(rec_urn.value('urn'))
-#                 if urn and urn != '':
-#                     urn = urn.replace('urn:oid:', 'v')
-#                     return urn
-#             else:
-#                 return None
-# 
-# 
-#     def createEditor(self, parent):
-#         urn = self.getUrn(parent=parent)
-#         checkExistView = self.checkViewURN(urn)
-#         if checkExistView:
-#             editor = CAccountingSystemIdentification(parent)
-#             viewName = "`"+ urn + "`"
-#             recordList = self._getItems(urn=viewName)
-#             editor.setItems(recordList)
-#             prefs = getPref(QtGui.qApp.preferences.windowPrefs, u'CAccountingSystemIdentification_view', {})
-#             editor._view.loadPreferences(prefs)
-#         else:
-#             editor = QtGui.QLineEdit(parent)
-#             editor.setReadOnly(True)
-#         return editor
-# 
-#         
-#     def setEditorData(self, editor, value, record):
-#         if type(editor) == QtGui.QLineEdit:
-#             editor.setText(forceStringEx(value))
-#         else:
-#             editor.setValue(forceInt(value))
-# 
-# 
-#     def getEditorData(self, editor):
-#         if type(editor) == QtGui.QLineEdit:
-#             text = trim(editor.text())
-#             if text:
-#                 return toVariant(text)
-#             else:
-#                 return QVariant()
-#         else:
-#             data = toVariant(editor.value())
-#             prefs = editor._view.savePreferences()
-#             setPref(QtGui.qApp.preferences.windowPrefs, u'CAccountingSystemIdentification_view', prefs)
-#             return data
-# 
-#     def _getItems(self, urn=None):
-#         recordList = self.mapFilterToRecords.get(self.filter, None)
-#         if urn:
-#             if recordList is None:
-#                 recordList = QtGui.qApp.db.getRecordList(urn, 'code,title')
-#                 self.mapFilterToRecords[self.filter] = recordList
-#         else:
-#             if recordList is None:
-#                 recordList = QtGui.qApp.db.getRecordList('rbAccountingSystem', 'id,code,name,urn,isEditable,isDeletable', self.filter)
-#                 self.mapFilterToRecords[self.filter] = recordList
-#         return recordList
-# 
-#     def toString(self, val, record):
-#         system_id = forceInt(record.value(0))
-#         urn = self.getUrn(systemid=system_id)
-#         viewExists = self.checkViewURN(urn)
-#         if viewExists:
-#             urn = "`"+urn+"`"
-#             for item in self._getItems(urn=urn):
-#                 if forceInt(item.value('code')) == forceInt(val):
-#                     return forceString(item.value('title'))
-#         else:
-#             # for item in self._getItems():
-#             #     if forceInt(item.value('code')) == forceInt(val):
-#             return forceString(val)
-# 
-#     def checkViewURN(self, urn):
-#         db = QtGui.qApp.db
-#         stmt = u"""select * from information_schema.VIEWS v where v.TABLE_NAME like  '"""+ forceString(urn)+u"'"
-#         query = db.query(stmt)
-#         if query.next():
-#             return True
-#         else:
-#             return False
-
-# Столбец "Идентификатор" в виде ComboBox без поиска
-# class CAccountingSystemIdentification(QtGui.QComboBox):             # В теории
-#     def __init__(self, parent=None):
-#         QtGui.QComboBox.__init__(self, parent)
-#         self._model = CRecordListModel(self)
-#         # self._model.addCol(CInDocTableCol(u'ID', 'id', 20))
-#         self._model.addCol(CInDocTableCol(u'Код', 'code', 20))
-#         self._model.addCol(CInDocTableCol(u'Наименование', 'title', 20))
-#         self._view = CTableView(None)
-#         self._view.setModel(self._model)
-#         self.setView(self._view)
-#         self.setModel(self._model)
-#         self.setModelColumn(1)
-#         self._view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-#         self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-#         # self.tabWidget.addTab(self._view, u"Результат")                 # Это первая вкладка должна быть
-#         # self.layout_research = QtGui.QGridLayout()
-#         # self.label_code = QtGui.QLabel(u'Код: ')
-#         # self.code_field = QtGui.QLineEdit()
-#         # self.layout_research.addWidget(self.label_code, 0, 0, 1, 1)
-#         # self.layout_research.addWidget(self.code_field, 0, 1, 1, 1)
-#         # self.label_title = QtGui.QLabel(u'Наименование: ')
-#         # self.title_field = QtGui.QLineEdit()
-#         # self.layout_research.addWidget(self.label_title, 1, 0, 1, 1)
-#         # self.layout_research.addWidget(self.title_field, 1, 1, 1, 1)
-#         # self.vertical_spacer = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-#         # self.layout_research.addItem(self.vertical_spacer, 2, 0, 2, 3)
-#         # self.buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Reset)
-#         # self.layout_research.addWidget(self.buttonBox, 3, 3, 1, 1)
-#         # self.tabWidget.addTab(self.layout_research, u"Поиск")
-#
-#     def showPopup(self):
-#         width = self.parent().width()
-#         self.view().setMinimumWidth(width)
-#         self.view().setMaximumWidth(width)
-#         super(CAccountingSystemIdentification, self).showPopup()
-#
-#
-#     def value(self):
-#         row = self.currentIndex()
-#         return self._model.items()[row].value('code')
-#
-#
-#     def setValue(self, itemId):
-#         idList = [r.value('code') for r in self._model.items()]
-#         index = 0
-#         try:
-#             index = idList.index(itemId)
-#         except ValueError:
-#             index = 0
-#         self.setCurrentIndex(index)
-#
-#
-#     def setItems(self, recordList):
-#         self._model.setItems(recordList)
-
 
 class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
-    mapFilterToRecords = {}
     def __init__(self, title, fieldName, width, **params):
         CInDocTableCol.__init__(self, title, fieldName, width, **params)
         self.filter = params.get('filter', '')
+        self.mapValues = {}
 
 
     def createEditor(self, parent, option=None, index=None):
@@ -434,30 +269,18 @@ class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
             editor = CSprComboBoxEx(parent, tableName, temp_code)
             if tableName == u'`v1.2.643.5.1.13.13.11.1078`':
                 editor.setFilter(u"`v1.2.643.5.1.13.13.11.1078`.ACTUAL = 'true'")
-            # editor._code = forceString(parent.parent().currentItem().value('value_spr')) if forceString(parent.parent().currentItem().value('value_spr')) != '' \
-            #                            else forceString(parent.parent().currentItem().value('value'))
         else:
-            # editor = QtGui.QLineEdit(parent)
-            # editor.setReadOnly(True)
             editor = QtGui.QLabel(parent)
         return editor
 
     
     def setEditorData(self, editor, value, record):
-        # if type(editor) == QtGui.QLineEdit:
-        #     editor.setText(forceStringEx(value))
         if type(editor) == QtGui.QLabel:
             editor.setText(u'')
         else:
             editor.setValue(forceRef(value))
 
     def getEditorData(self, editor):
-        # if type(editor) == QtGui.QLineEdit:
-        #     text = trim(editor.text())
-        #     if text:
-        #         return toVariant(text)
-        #     else:
-        #         return QVariant()
         if type(editor) == QtGui.QLabel:
             return QVariant()
         else:
@@ -497,31 +320,22 @@ class CAccountingSystemInDocTableColHybrid(CInDocTableCol):
             else:
                 return None
 
-    def toString(self, val, record):
-        system_id = forceInt(record.value(0))
-        urn = self.getUrn(systemid=system_id)
-        viewExists = checkViewURN(urn) if urn else False
-        if viewExists:
-            urn = "`"+urn+"`"
-            for item in self._getItems(urn=urn):
-                if forceInt(item.value('id')) == forceInt(val):
-                    return forceString(item.value('name'))
-        else:
-            # for item in self._getItems():
-            #     if forceInt(item.value('code')) == forceInt(val):
-            return forceString(val)
 
-    def _getItems(self, urn=None):
-        recordList = self.mapFilterToRecords.get(self.filter, None)
-        if urn:
-            if recordList is None:
-                recordList = QtGui.qApp.db.getRecordList(urn, 'id,code,name')
-                self.mapFilterToRecords[self.filter] = recordList
-        else:
-            if recordList is None:
-                recordList = QtGui.qApp.db.getRecordList('rbAccountingSystem', 'id,code,name,urn,isEditable,isDeletable', self.filter)
-                self.mapFilterToRecords[self.filter] = recordList
-        return recordList
+    def toString(self, val, record):
+        system_id = forceRef(record.value(0))
+        value_text = ''
+        value_id = forceRef(val)
+        if value_id:
+            urn = self.getUrn(systemid=system_id)
+            if checkViewURN(urn) if urn else False:
+                urn = "`"+urn+"`"
+                view_record = self.mapValues.get((urn, value_id))
+                if not view_record:
+                    view_record = QtGui.qApp.db.getRecordEx(urn, 'id,code,name', where="id=%s" % value_id)
+                    self.mapValues[(urn, value_id)] = view_record
+                if view_record:
+                    value_text = forceString(view_record.value('name'))
+        return value_text
 
 
 class CSpr_ComboBox(CRBComboBox):
@@ -634,6 +448,18 @@ class CSprComboBoxEx(CSpr_ComboBox):
     #     pass
 
 
+class CheckedStmtIdList:
+    _mapListId = {}
+
+    @classmethod
+    def getIdList(cls, stmt):
+        return cls._mapListId.get(stmt, None)
+
+    @classmethod
+    def setIdList(cls, stmt, record):
+        cls._mapListId[stmt] = record
+
+
 class CSprComboBoxExPopup(QtGui.QFrame, Ui_IdentificationComboBoxExPopup):
     __pyqtSignals__ = ('sprCodeSelected(int)')
     
@@ -664,11 +490,20 @@ class CSprComboBoxExPopup(QtGui.QFrame, Ui_IdentificationComboBoxExPopup):
         self._parent = parent
         self._customFilter = None
         self._tableName = sprName
-        self._setSprOrderByColumn(2)
+        self.loadListIdFromComboBox()
+        # self._setSprOrderByColumn(2)
         self.tblSpr.horizontalHeader().setSortIndicator(1, Qt.AscendingOrder)
 
     # def getActualEmptyRecord(self):
     #     return self.tableModel.getActualEmptyRecord()
+
+    def loadListIdFromComboBox(self):
+        curId = self.tblSpr.currentItemId()
+        newList = [i for i in self._parent._model.d.buff]
+        newList.sort(key=lambda x: x[2])
+        listId = [i[0] for i in newList]
+        self.setSprIdList(listId, curId)
+        self.prevColumn = 2
     
     def getStringValue(self, id):
         return self.tableModel.getStringValue(id)
@@ -758,16 +593,21 @@ class CSprComboBoxExPopup(QtGui.QFrame, Ui_IdentificationComboBoxExPopup):
         self.edit_title.setText("")
         self.leCode.setText("")
 
+    def textFilter(self, code, title, id):
+        newCode = forceString(self.leCode.text())
+        newTitle = forceString(self.edit_title.text())
+        if code == newCode and title == newTitle:
+            crIdList = self.getSprIdList(self._tableName, code, title)
+            real_id = self.getSprRealId(self._tableName, id) if id else None
+            if real_id != None and len(real_id) > 0 :
+                self.setSprIdList(crIdList, forceInt(real_id[0]))
+            else:
+                self.setSprIdList(crIdList, real_id)
+
     def on_buttonBox_apply(self, id=None):
         code = forceString(self.leCode.text())
         title = forceString(self.edit_title.text())
-        
-        crIdList = self.getSprIdList(self._tableName, code, title)
-        real_id = self.getSprRealId(self._tableName, id) if id else None
-        if real_id != None and len(real_id) > 0 :
-            self.setSprIdList(crIdList, forceInt(real_id[0]))
-        else:
-            self.setSprIdList(crIdList, real_id)
+        QTimer.singleShot(400, lambda:  self.textFilter(code, title, id))
             
     def getSprIdList(self, tableName, code, title, orderByColumn=1):
         db = QtGui.qApp.db
@@ -802,15 +642,21 @@ class CSprComboBoxExPopup(QtGui.QFrame, Ui_IdentificationComboBoxExPopup):
             self.asc = True
             order+= u' '+ asc + u' '+orderName + asc
         order = str(order)
-        idList = db.getDistinctIdList(tableSpr, [tableSpr['id'].name(), tableSpr['code'].name(), tableSpr['name'].name()],
-                                      where=cond,
-                                      order=order,
-                                      #limit=1000 ???
-                                      )
-        # fakeIdList = self.tableModel.getSpecialValuesKeys()
-        # if fakeIdList:
-        #     return fakeIdList+idList
-        return idList
+        stmt = db.selectStmt(tableSpr, [tableSpr['id'].name(), tableSpr['code'].name(), tableSpr['name'].name()], where=cond, order=order,)
+        result = CheckedStmtIdList.getIdList(stmt)
+        if not result:
+            idList = db.getDistinctIdList(tableSpr, [tableSpr['id'].name(), tableSpr['code'].name(), tableSpr['name'].name()],
+                                          where=cond,
+                                          order=order,
+                                          #limit=1000 ???
+                                          )
+            # fakeIdList = self.tableModel.getSpecialValuesKeys()
+            # if fakeIdList:
+            #     return fakeIdList+idList
+            CheckedStmtIdList.setIdList(stmt, idList)
+            return idList
+        else:
+            return result
 
     def getSprRealId(self, tableName, code):
         db = QtGui.qApp.db

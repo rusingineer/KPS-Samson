@@ -56,6 +56,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
         self.options = options
         self.db = None
         self.preferences = None
+        self._globalPreferences = {}
         self.mainWindow = None
         self.userHasRight = lambda x: True
         self.userSpecialityId = None
@@ -155,6 +156,24 @@ class CAlisaExchange(QtCore.QCoreApplication):
         self.transferConsent = forceBool(self.preferences.appPrefs.get('transferConsent', False))
         self.clientAddressType = forceInt(self.preferences.appPrefs.get('clientAddressType', 0))
 
+    def loadGlobalPreferences(self):
+        if self.db:
+            try:
+                recordList = self.db.getRecordList('GlobalPreferences')
+            except:
+                recordList = []
+            for record in recordList:
+                code  = forceString(record.value('code'))
+                value = forceString(record.value('value'))
+                self._globalPreferences[code] = value
+
+
+    def checkGlobalPreference(self, code, chkValue, default=None):
+        value = self._globalPreferences.get(code, default)
+        if value:
+            return unicode(value).lower() == unicode(chkValue).lower()
+        return False
+
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
 
@@ -182,6 +201,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
         if self.preferences:
             self.openDatabase()
             if self.db:
+                self.loadGlobalPreferences()
                 self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AlisaLIS', 'id'))
                 self.mappingTestToServices()
                 self.db.query('CALL getAppLock_prepare()')
@@ -207,6 +227,7 @@ class CAlisaExchange(QtCore.QCoreApplication):
                     for referral in referrals:
                         self.sendOrders(referral)
                 else:
+                    self.processLisExchangeQueue()
                     referrals = self.getReferrals()
                     for referral in referrals:
                         self.sendOrders(referral)
@@ -846,6 +867,47 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
             finally:
                 if lockId:
                     self.db.query('CALL ReleaseAppLock(%d)' % lockId)
+
+    def processLisExchangeQueue(self):
+        """
+        обрабатывает очередь из LisExchangeQueue, как если бы запускали с ключами -o,-r
+        """
+        try:
+            query = self.db.query(u"""
+                SELECT id, taskType, number
+                FROM LisExchangeQueue
+                WHERE externalSystem_id = {extId}
+                ORDER BY createDatetime
+                """.format(extId=int(self.externalSystemId)))
+            ids_to_delete = []
+            while query.next():
+                qid = forceRef(query.value(0))
+                taskType = int(forceRef(query.value(1)) or 0)
+                number = forceString(query.value(2))
+
+                try:
+                    if taskType == 1: # send -o
+                        referral = self.getReferralByNumber(number)
+                        if referral:
+                            self.sendOrders(referral)
+                        else:
+                            self.log(u'Очередь ЛИС', u'направление {0} не найдено в БД'.format(number), 1)
+                        ids_to_delete.append(qid)
+                    elif taskType == 2: #result -r
+                        self.getResults(number)
+                        ids_to_delete.append(qid)
+                    else:
+                        self.log(u'Очередь ЛИС', u'Неизвестный taskType={0} для {1}'.format(taskType, number), 1)
+                        ids_to_delete.append(qid)
+                except Exception as e:
+                    self.log('error', anyToUnicode(e), 1)
+                for qid in ids_to_delete:
+                    try:
+                        self.db.query(u'DELETE FROM LisExchangeQueue WHERE id = {0}'.format(int(qid)))
+                    except Exception as e:
+                        self.log('error', anyToUnicode(e), 1)
+        except Exception as e:
+            self.log('error', anyToUnicode(e), 1)
 
 
     def getVerifierId(self, codePerson):

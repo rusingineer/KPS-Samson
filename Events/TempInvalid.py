@@ -16,17 +16,18 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QVariant, QDateTime
 
 from Events.EventInfo import CEventInfo
-from Events.Utils import sendTempInvalidDocuments
+from Events.Utils import sendTempInvalidDocuments, forceStringEx
 from library.DialogBase import CConstructHelperMixin
 from library.PrintInfo import CInfoContext
-from library.database   import CTableRecordCache
+from library.database   import CTableRecordCache, CRecordCache
 from library.InDocTable import CInDocTableModel, CBoolInDocTableCol, CRBInDocTableCol, CDateInDocTableCol, CEnumInDocTableCol, CInDocTableCol
-from library.Utils      import forceRef, forceString, toVariant
+from library.Utils      import forceDate, forceInt, forceRef, forceString, toVariant
 from library.PreferencesMixin import CPreferencesMixin
 from RefBooks.TempInvalidState    import CTempInvalidState
-from Registry.Utils     import getRightEditTempInvalid, getClientMiniInfo
+from Registry.Utils     import getRightEditTempInvalid, getClientMiniInfo, getTempInvalidDocumentIdList, getLastTempInvalidDocument, getClientName, getTempInvalidDocumentInfo
 from Events.TempInvalidEditDialog import CTempInvalidCreateDialog, CTempInvalidEditDialog, titleList, getTempInvalidIdOpen
 from Events.TempInvalidInfo import CTempInvalidInfo
+from Users.Rights import urRegWriteInsurOfficeMark
 
 from Events.Ui_TempInvalid import Ui_grpTempInvalid
 
@@ -79,12 +80,14 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
         table = self.tblTempInvalidPrivate
         model = self.modelTempInvalidPrivate
         self.actEditTempInvalidPrivate.setEnabled(bool(self.popupMenuTempInvalidId(table, model)))
+        self.actExpertDelete.setEnabled(getRightEditTempInvalid(forceInt(table.currentItem().value('id') if table.currentItem() else 0)))
 
 
     def on_popupMenuTempInvalidPatronage_aboutToShow(self):
         table = self.tblTempInvalidPatronage
         model = self.modelTempInvalidPatronage
         self.actEditTempInvalidPatronage.setEnabled(bool(self.popupMenuTempInvalidId(table, model)))
+        self.actExpertDeletePatronage.setEnabled(getRightEditTempInvalid(forceInt(table.currentItem().value('id') if table.currentItem() else 0)))
 
 
     def popupMenuTempInvalidId(self, table, model):
@@ -123,15 +126,20 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
         self.actShowClosedTempInvalidPrivate = QtGui.QAction(u'Отображать по событию', self)
         self.actShowClosedTempInvalidPrivate.setObjectName('actShowClosedTempInvalidPrivate')
         self.actShowClosedTempInvalidPrivate.setCheckable(True)
+        self.actExpertDelete = QtGui.QAction(u'Удалить эпизод', self)
+        self.actExpertDelete.setObjectName('actExpertDelete')
         self.actShowAllTempInvalidPrivate = QtGui.QAction(u'Отображать ретроспективно', self)
         self.actShowAllTempInvalidPrivate.setObjectName('actShowAllTempInvalidPrivate')
         self.actShowAllTempInvalidPrivate.setCheckable(True)
         self.tblTempInvalidPrivate._popupMenu.addAction(self.actShowClosedTempInvalidPrivate)
         self.tblTempInvalidPrivate._popupMenu.addAction(self.actShowAllTempInvalidPrivate)
+        self.tblTempInvalidPrivate._popupMenu.addAction(self.actExpertDelete)
         self.connect(self.actShowClosedTempInvalidPrivate, SIGNAL('triggered()'),
                      self.on_actShowClosedTempInvalidPrivate_triggered)
         self.connect(self.actShowAllTempInvalidPrivate, SIGNAL('triggered()'),
                      self.on_actShowAllTempInvalidPrivate_triggered)
+        self.connect(self.actExpertDelete, SIGNAL('triggered()'),
+                     self.on_actExpertDelete_triggered)
 
 
     def addPopupShowClosedTempInvalidPatronage(self):
@@ -143,12 +151,17 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
         self.actShowAllTempInvalidPatronage = QtGui.QAction(u'Отображать ретроспективно', self)
         self.actShowAllTempInvalidPatronage.setObjectName('actShowAlldTempInvalidPatronage')
         self.actShowAllTempInvalidPatronage.setCheckable(True)
+        self.actExpertDeletePatronage = QtGui.QAction(u'Удалить эпизод', self)
+        self.actExpertDeletePatronage.setObjectName('actExpertDelete')
         self.tblTempInvalidPatronage._popupMenu.addAction(self.actShowClosedTempInvalidPatronage)
         self.tblTempInvalidPatronage._popupMenu.addAction(self.actShowAllTempInvalidPatronage)
+        self.tblTempInvalidPatronage._popupMenu.addAction(self.actExpertDeletePatronage)
         self.connect(self.actShowClosedTempInvalidPatronage, SIGNAL('triggered()'),
                      self.on_actShowClosedTempInvalidPatronage_triggered)
         self.connect(self.actShowAllTempInvalidPatronage, SIGNAL('triggered()'),
                      self.on_actShowAllTempInvalidPatronage_triggered)
+        self.connect(self.actExpertDeletePatronage, SIGNAL('triggered()'),
+                     self.on_actExpertDeletePatronage_triggered)
 
 
     @pyqtSignature('')
@@ -181,6 +194,16 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
             self.actShowClosedTempInvalidPrivate.setChecked(False)
             policy = 'showAll'
         self.modelTempInvalidPrivate.setShowPolicy(policy)
+    
+    
+    @pyqtSignature('')
+    def on_actExpertDelete_triggered(self):
+        self.onExpertDocDelete(self.tblTempInvalidPrivate, self.modelTempInvalidPrivate)
+    
+    
+    @pyqtSignature('')
+    def on_actExpertDeletePatronage_triggered(self):
+        self.onExpertDocDelete(self.tblTempInvalidPatronage, self.modelTempInvalidPatronage)
 
 
     @pyqtSignature('')
@@ -199,6 +222,93 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
             self.actShowClosedTempInvalidPatronage.setChecked(False)
             policy = 'showAll'
         self.modelTempInvalidPatronage.setShowPolicy(policy)
+
+
+    def onExpertDocDelete(self, tbl, model):
+        tempInvalidId = forceInt(tbl.currentItem().value('id')) if tbl.currentItem() else 0
+        if getRightEditTempInvalid(tempInvalidId):
+            if QtGui.QMessageBox.question(self,
+                        u'Удаление документа', u'Вы действительно хотите удалить документ?',
+                        QtGui.QMessageBox.Yes|QtGui.QMessageBox.No,
+                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                db = QtGui.qApp.db
+                table = db.table('TempInvalid')
+                tableDocumentExport = db.table('TempInvalidDocument_Export')
+                if not tempInvalidId:
+                    return False
+                tempInvalidDocumentIdList = getTempInvalidDocumentIdList(tempInvalidId)
+                if tempInvalidDocumentIdList:
+                    cond = [tableDocumentExport['master_id'].inlist(tempInvalidDocumentIdList),
+                            tableDocumentExport['success'].eq(1)
+                            ]
+                    record = db.getRecordEx(tableDocumentExport, [tableDocumentExport['id']], cond)
+                    documentExportId = forceRef(record.value('id')) if record else None
+                    if documentExportId:
+                        QtGui.QMessageBox.warning(self,
+                                u'Внимание',
+                                u' Нельзя удалять эпизод,\n так как относящийся к нему документ экспортирован во внешние системы!',
+                                QtGui.QMessageBox.Ok,
+                                QtGui.QMessageBox.Ok)
+                        return False
+                record = db.getRecordEx(table, [table['insuranceOfficeMark'], table['prev_id'], table['client_id'], table['begDate'], table['endDate'], table['id']], [table['id'].eq(tempInvalidId), table['deleted'].eq(0)])
+                insuranceOfficeMark = 0
+                clientId = None
+                begDate = None
+                endDate = None
+                if record:
+                    insuranceOfficeMark = forceInt(record.value('insuranceOfficeMark'))
+                    clientId = forceRef(record.value('client_id'))
+                    begDate = forceDate(record.value('begDate'))
+                    endDate = forceDate(record.value('endDate'))
+                recordPrev = db.getRecordEx(table, [table['id'], table['begDate'], table['endDate']], [table['prev_id'].eq(tempInvalidId), table['deleted'].eq(0)])
+                prevTempInvalidId = None
+                begDateLast = None
+                endDateLast = None
+                if recordPrev:
+                    prevTempInvalidId = forceRef(recordPrev.value('id'))
+                    begDateLast = forceDate(recordPrev.value('begDate'))
+                    endDateLast = forceDate(recordPrev.value('endDate'))
+                if (not prevTempInvalidId) and (not insuranceOfficeMark or (insuranceOfficeMark and QtGui.qApp.userHasRight(urRegWriteInsurOfficeMark))):
+                    documentLastId, number, issueDate = getLastTempInvalidDocument(tempInvalidId)
+                    if not documentLastId:
+                        db.transaction()
+                        tablePeriod = db.table('TempInvalid_Period')
+                        tableResult = db.table('rbTempInvalidResult')
+                        tableDocument = db.table('TempInvalidDocument')
+                        prevId = forceRef(record.value('prev_id'))
+                        stateResult = 0
+                        if prevId:
+                            queryTable = tablePeriod.innerJoin(table, tablePeriod['master_id'].eq(table['id']))
+                            queryTable = queryTable.innerJoin(tableResult, tableResult['id'].eq(tablePeriod['result_id']))
+                            recordClosed = db.getRecordEx(queryTable, [tableResult['state']], [table['id'].eq(prevId), table['deleted'].eq(0)], 'TempInvalid_Period.endDate DESC')
+                            if recordClosed:
+                                stateResult = forceInt(recordClosed.value('state'))
+                            db.updateRecords(table.name(), table['state'].eq(stateResult), [table['id'].eq(prevId), table['deleted'].eq(0)])
+                        db.markRecordsDeleted(table, table['id'].eq(forceInt(record.value('id'))))
+                        tempInvalidDocumentIdList = getTempInvalidDocumentIdList(forceInt(record.value('id')))
+                        if tempInvalidDocumentIdList:
+                            db.markRecordsDeleted(tableDocument, tableDocument['id'].inlist(tempInvalidDocumentIdList))
+                            documentLastRecords = db.getRecordList(tableDocument, '*', [tableDocument['last_id'].inlist(tempInvalidDocumentIdList), tableDocument['deleted'].eq(0)])
+                            for documentLastRecord in documentLastRecords:
+                                documentLastRecord.setValue('last_id', toVariant(None))
+                                db.updateRecord(tableDocument, documentLastRecord)
+                        db.commit()
+                        model.removeRow(tbl.currentIndex().row())
+                        model.reset()
+                    else:
+                        clientName = getClientName(clientId)
+                        documentId, numberLast, issueDateLast, clientIdLast = getTempInvalidDocumentInfo(documentLastId)
+                        QtGui.QMessageBox.warning(self,
+                                                u'Внимание',
+                                                u' Нельзя удалять документ/эпизод (%s, %s, %s),\n так как в системе существует связанный с ним документ/эпизод (%s, %s, %s)!'%(number, forceString(issueDate), clientName, numberLast, forceString(issueDateLast), clientIdLast),
+                                                QtGui.QMessageBox.Ok,
+                                                QtGui.QMessageBox.Ok)
+                elif prevTempInvalidId:
+                    QtGui.QMessageBox.warning(self,
+                                            u'Внимание',
+                                            u' Нельзя удалять эпизод (%s - %s),\n так как в системе существует связанный с ним эпизод (%s - %s)!'%(forceString(begDate), forceString(endDate), forceString(begDateLast), forceString(endDateLast)),
+                                            QtGui.QMessageBox.Ok,
+                                            QtGui.QMessageBox.Ok)
 
 
     def protectFromEdit(self, isProtected):
@@ -368,6 +478,11 @@ class CTempInvalid(QtGui.QGroupBox, CConstructHelperMixin, CPreferencesMixin, Ui
 #            result._ok = False
         result._loaded = True
         return result
+    
+    
+    def save(self):
+        self.modelTempInvalidPrivate.save()
+        self.modelTempInvalidPatronage.save()
 
 
 class CTempInvalidModel(CInDocTableModel):
@@ -387,6 +502,34 @@ class CTempInvalidModel(CInDocTableModel):
 
         def invalidateRecordsCache(self):
             self.MKBCache.invalidate()
+
+    class CLocFSSExportStatusColumn(CInDocTableCol):
+        def __init__(self, title, fieldName, width, isExternal = 0,**params):
+            CInDocTableCol.__init__(self, title, fieldName, width, **params)
+            self.isExternal = isExternal
+
+        def toString(self, val, record):
+            tempInvalidId = forceRef(val)
+            exportFSS = u''
+            if tempInvalidId:
+                db = QtGui.qApp.db
+                tableTempInvalidDocument = db.table('TempInvalidDocument')
+                tableDocumentExport = db.table('TempInvalidDocument_Export')
+                tableExternalSystem = db.table('rbExternalSystem')
+                docIdRecord = db.getRecordEx(tableTempInvalidDocument, tableTempInvalidDocument['id'],
+                                                [tableTempInvalidDocument['master_id'].eq(tempInvalidId),
+                                                 tableTempInvalidDocument['deleted'].eq(0),
+                                                 tableTempInvalidDocument['isExternal'].eq(self.isExternal)],
+                                                order=u'TempInvalidDocument.id DESC')
+                docId = forceStringEx(docIdRecord.value('id')) if docIdRecord else None
+                if docId:
+                    queryTable = tableDocumentExport.innerJoin(tableExternalSystem, tableExternalSystem['id'].eq(tableDocumentExport['system_id']))
+                    record = db.getRecordEx(queryTable, [tableDocumentExport['note']],
+                                            [tableExternalSystem['code'].eq(u'СФР'),
+                                             tableDocumentExport['master_id'].eq(docId)],
+                                            order=u'TempInvalidDocument_Export.id DESC')
+                    exportFSS = forceStringEx(record.value('note')) if record else u''
+            return exportFSS
 
 
     def __init__(self, parent):
@@ -412,6 +555,8 @@ class CTempInvalidModel(CInDocTableModel):
         self.addCol(CDateInDocTableCol(u'Дата начала путевки',                   'begDatePermit',                                                           12)).setReadOnly(True)
         self.addCol(CDateInDocTableCol(u'Дата окончания путевки',                'endDatePermit',                                                           12)).setReadOnly(True)
         self.addCol(CRBInDocTableCol(u'Инвалидность',                            'disability_id',          15, 'rbTempInvalidRegime'                          )).setReadOnly(True)
+        self.addCol(CTempInvalidModel.CLocFSSExportStatusColumn(u'Cтатус передачи внешнего ЭЛН',                  'id',                                  10, 1)).setReadOnly(True)
+        self.addCol(CTempInvalidModel.CLocFSSExportStatusColumn(u'Cтатус передачи внутреннего ЭЛН',               'id',                                     10)).setReadOnly(True)
         self.eventEditor = None
         self.type_ = None
         self.docCode = None
@@ -459,6 +604,10 @@ class CTempInvalidModel(CInDocTableModel):
         self._showPolicy = showPolicy
         if reloadItems:
             self.loadItems(self.clientId)
+    
+    
+    def save(self):
+        pass
 
 
 class CTempInvalidPrivateModel(CTempInvalidModel):

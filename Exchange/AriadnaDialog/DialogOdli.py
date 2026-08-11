@@ -2,7 +2,6 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-from Exchange.AriadnaDialog.AriadnaExchangeClient import CAriadnaExchangeClient
 from Ui_Odli import Ui_DialogOdli
 from library.DialogBase import CDialogBase
 from library.TableModel import *
@@ -15,6 +14,8 @@ from PyQt4.QtCore import (
     Qt,
     pyqtSignature, QDir, )
 
+TASK_SEND_ORDER = 1
+TASK_GET_RESULT = 2
 
 class CTabName(CTableModel):
     def __init__(self, parent):
@@ -32,7 +33,8 @@ class CTabName(CTableModel):
 
     def setTable(self):
         db = QtGui.qApp.db
-        tableAction_Export = db.table('''Action_Export''').alias('ae')
+        tableAction_ExportA = db.table('''Action_Export''').alias('aeA')
+        tableAction_ExportL = db.table('''Action_Export''').alias('aeL')
         tableEvent = db.table('''Event''')
         tablePerson = db.table('''Person''')
         tableClient = db.table('''Client''')
@@ -45,20 +47,41 @@ class CTabName(CTableModel):
         tableEvPerson = db.table('Person').alias('doc')
 
         loadFields = []
-        loadFields.append(u''' concat_ws(' ',Person.lastName, Person.firstName,  Person.patrName) as EventPerson, concat_ws(' ',doc.lastName, doc.firstName,  doc.patrName) as ExpPerson,
-                                    case when Action.note <> '' then DATE_FORMAT(Action.begDate, '%Y-%m-%d %H:%i:%S') end as CreateDate,  
-                                    case when Action.`note` like 'Результат загружен из ЛИС%' or Action.`note` like 'Исследование отменено%' then DATE_FORMAT(ae.dateTime, '%Y-%m-%d %H:%i:%S') end as responseDataTime, 
-                                    concat_ws(' ',Client.lastName, Client.firstName,  Client.patrName) as clientName, 
-                                    case when Action.note <> '' then Action.note else 'Не выгружен' end as status,
-			 Event.client_id as clientId, 
-			aps.value as number, ActionType.name as analisis, OrgStructure.name as orgStructure''')
+        loadFields.append(u''' concat_ws(' ',Person.lastName, Person.firstName,  Person.patrName) as EventPerson, 
+                                concat_ws(' ',doc.lastName, doc.firstName,  doc.patrName) as ExpPerson,
+                                case 
+                                  when Action.note <> '' 
+                                  then DATE_FORMAT(Action.begDate, '%Y-%m-%d %H:%i:%S') end as CreateDate,  
+                                case 
+                                  when Action.`note` like 'Результат загружен из ЛИС%' or Action.`note` like 'Исследование отменено%' 
+                                  then DATE_FORMAT(
+                                        case
+                                          when ActionType.flatCode LIKE '%alisa%' then aeL.dateTime
+                                          else aeA.dateTime
+                                        end,
+                                        '%Y-%m-%d %H:%i:%S'
+                                  ) 
+                                end as responseDataTime, 
+                                concat_ws(' ',Client.lastName, Client.firstName,  Client.patrName) as clientName, 
+                                case 
+                                  when Action.note <> '' 
+                                  then Action.note else 'Не выгружен' end as status,
+			                    Event.client_id as clientId, 
+			                    aps.value as number, 
+			                    ActionType.name as analisis, 
+			                    OrgStructure.name as orgStructure''')
 
-        queryTable = tableAction.leftJoin(tableAction_Export, ''' Action.id = ae.master_id and ae.system_id = 18''')
+        ariadnaId = getExternalSystemIdByCode('AriadnaLIS', -1)
+        alisaId = getExternalSystemIdByCode('AlisaLIS', -1)
+
+        queryTable = tableAction.leftJoin(tableAction_ExportA, ''' Action.id = aeA.master_id and aeA.system_id = {0}'''.format(ariadnaId))
+        queryTable = queryTable.leftJoin(tableAction_ExportL,
+                                          ''' Action.id = aeL.master_id and aeL.system_id = {0}'''.format(alisaId))
         queryTable = queryTable.leftJoin(tableEvent, ''' Action.event_id = Event.id''')
         queryTable = queryTable.leftJoin(tablePerson, ''' Person.id = Event.execPerson_id''')
         queryTable = queryTable.leftJoin(tableClient, ''' Client.id = Event.client_id''')
         queryTable = queryTable.leftJoin(tableOrgStructure, ''' Person.orgStructure_id = OrgStructure.id''')
-        queryTable = queryTable.leftJoin(tableActionType, ''' ActionType.id = Action.actionType_id and ActionType.serviceType = 10 and ActionType.flatCode LIKE '%ariadna%' ''')
+        queryTable = queryTable.leftJoin(tableActionType, ''' ActionType.id = Action.actionType_id and ActionType.serviceType = 10 and (ActionType.flatCode LIKE '%ariadna%' or ActionType.flatCode LIKE '%alisa%') ''')
         queryTable = queryTable.leftJoin(tableActionPropertyType, u''' ActionType.id = apt.actionType_id and apt.deleted=0 and apt.name = 'Номер направления' ''')
         queryTable = queryTable.leftJoin(tableActionProperty, ''' Action.id = ap.action_id and ap.deleted=0 and ap.type_id = apt.id''')
         queryTable = queryTable.leftJoin(tableActionProperty_String, '''aps.id = ap.id''')
@@ -131,8 +154,7 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
                     from Action a
                      left JOIN Event e on e.id = a.event_id
                      left join Client on Client.id=e.client_id
-                     inner JOIN ActionType at ON at.id= a.actionType_id and at.serviceType = 10 and at.flatCode LIKE '%ariadna%'
-                     left join Action_Export ae on ae.master_id = a.id and ae.system_id = 18
+                     inner JOIN ActionType at ON at.id= a.actionType_id and at.serviceType = 10 and (at.flatCode LIKE '%ariadna%' or at.flatCode LIKE '%alisa%')
                      left join ActionPropertyType apt on apt.actionType_id = at.id and apt.deleted = 0 and apt.name = 'Номер направления'
                      left join ActionProperty ap on ap.action_id = a.id and ap.type_id = apt.id and ap.deleted = 0
                     left join ActionProperty_String aps on aps.id = ap.id
@@ -150,6 +172,54 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
         self.tblActionODLI.setIdList(self.resultTblName)
         self.lblRecordsCount.setText(formatRecordsCount(self.tblActionODLI.model().rowCount()))
 
+    def enqueueLisTask(self, actionId, taskType):
+        db = QtGui.qApp.db
+        orderInfo = OrderMis(actionId)
+        number = orderInfo.get('number')
+        eventId = orderInfo.get('eventId')
+
+        if not number:
+            warninWindow(u'У направления отсутствует номер. Невозможно поставить в очередь.')
+            return
+        flatCode = getActionFlatCode(actionId).lower()
+        if 'alisa' in flatCode:
+            extCode = 'AlisaLIS'
+        elif 'ariadna' in flatCode:
+            extCode = 'AriadnaLIS'
+        else:
+            warninWindow(u'Не удалось определить ЛИС для направления.')
+            return
+        externalSystemId = getExternalSystemIdByCode(extCode)
+        if not externalSystemId:
+            warninWindow(u'Не найдена внешняя система {0}'.format(extCode))
+            return
+        personId = QtGui.qApp.userId
+
+        try:
+            sql = u'''
+                INSERT INTO LisExchangeQueue
+                    (action_id, event_id, externalSystem_id, taskType, number, createDatetime, createPerson_id)
+                VALUES
+                    ({actionId}, {eventId}, {externalSystemId}, {taskType}, {number}, NOW(), {personId})'''.format(
+                actionId=actionId,
+                eventId=eventId,
+                externalSystemId=externalSystemId,
+                taskType=taskType,
+                number=number,
+                personId=('NULL' if not personId else int(personId))
+            )
+            db.query(sql)
+            if taskType == 1:
+                warninWindow(u'Выгрузка направления в ЛИС поставлена в очередь.')
+            if taskType == 2:
+                warninWindow(u'Загрузка результата из ЛИС поставлена в очередь.')
+        except Exception as e:
+            msg = forceString(e)
+            if 'Duplicate' in msg or 'duplicate' in msg:
+                warninWindow(u'Задача уже есть в очереди.')
+            else:
+                warninWindow((u'Ошибка постановки в очередь: {0}'.format(anyToUnicode(e))))
+
     @pyqtSignature('')
     def on_btnAply_clicked(self):
         self.updateTblName()
@@ -164,49 +234,20 @@ class DialogOdli(CDialogBase, Ui_DialogOdli):
         self.updateTblName()
 
     @pyqtSignature('')
-    def on_btnOk_clicked(self):
-        argv = [sys.argv[0]]
-        AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        msg = AriadnaExchangeClient.main()
-        if len(msg):
-            warninWindow(msg)
-        self.initLogger()
-        self.updateTblName()
-
-    @pyqtSignature('')
     def on_btnClose_clicked(self):
         self.close()
 
 
     @pyqtSignature('')
     def on_actResult_triggered(self):
-        result = OrderMis(self.tblActionODLI.currentItemId())
-
-        argv = [sys.argv[0]]
-
-        argv.append('-r')
-        argv.append(result['number'])
-        AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        msg = AriadnaExchangeClient.main()
-        if len(msg):
-            warninWindow(msg)
-        self.initLogger()
+        actionId = self.tblActionODLI.currentItemId()
+        self.enqueueLisTask(actionId, TASK_GET_RESULT)
         self.updateTblName()
 
     @pyqtSignature('')
     def on_actOrder_triggered(self):
-        result = OrderMis(self.tblActionODLI.currentItemId())
-
-        argv = [sys.argv[0]]
-
-        argv.append('-o')
-
-        argv.append(result['number'])
-        AriadnaExchangeClient = CAriadnaExchangeClient(argv)
-        msg = AriadnaExchangeClient.main()
-        if len(msg):
-            warninWindow(msg)
-        self.initLogger()
+        actionId = self.tblActionODLI.currentItemId()
+        self.enqueueLisTask(actionId, TASK_SEND_ORDER)
         self.updateTblName()
 
     @pyqtSignature('')

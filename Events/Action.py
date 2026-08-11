@@ -1253,6 +1253,10 @@ class CAction(object):
 
     def isChanged(self):
         return self._changed
+
+
+    def isPropertiesChanged(self):
+        return any([prop.isChanged() for prop in self._propertiesById.itervalues()])
     
     
     def nomenclatureClientReservationCancel(self):
@@ -1984,6 +1988,26 @@ class CAction(object):
         if canCopyPropertyList:
             self.setChanged(True)
         return canCopyPropertyList
+
+    def updatePropertyByPreparedValue(self, targetPropertyType, value, sourcePropertyType=None, checkPropsOnOwner=False):
+        '''
+            Копирование произвольного значения в свойство targetPropertyType
+            Всегда копировать значение в тeкстовые поля (String, Text)
+            Если указан sourcePropertyType - проверять соответствие типов
+        '''
+        try:
+            allRight = (targetPropertyType.isString() and isinstance(value, basestring)) or \
+                    (sourcePropertyType and sourcePropertyType.valueType == targetPropertyType.valueType)
+            if allRight:
+                targetProperty = self.getPropertyById(targetPropertyType.id)
+                allRight = targetPropertyType.valueType.isCopyable
+                if checkPropsOnOwner and allRight and targetPropertyType.canChangeOnlyOwner == 1:
+                    setPersonId = forceRef(self.getRecord().value('setPerson_id'))
+                    allRight = setPersonId == QtGui.qApp.userId
+                if allRight:
+                    targetProperty.setValue(value)
+        except:
+            QtGui.qApp.logCurrentException()
 
 
     def clone(self):

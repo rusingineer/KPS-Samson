@@ -17,7 +17,7 @@ from PyQt4 import QtGui
 
 from library.CSG.CSGComboBox import CCSGComboBox, CCSGDbData, defaultFilters
 from library.InDocTable      import CInDocTableCol
-from library.Utils           import forceString, forceDouble
+from library.Utils import forceString, forceDouble, forceInt
 
 u"""Столбики для редактирования КСГ"""
 
@@ -32,10 +32,16 @@ class CCSGInDocTableCol(CInDocTableCol):
         self._MESServiceTemplate=None
         self._eventBegDate = None
         self._MKB = None
+        self._associatedMKB = None
+        self._complicationMKB = None
         self._codeMask = None
         self._eventProfileId = None
         self._eventEditor = None
         self._filters = filter if filter else defaultFilters
+        self._krit = None
+        self._fractions = None
+        self._csgBegDate = None
+        self._csgEndDate = None
 
 
     def setEventEditor(self, eventEditor):
@@ -90,6 +96,12 @@ class CCSGInDocTableCol(CInDocTableCol):
         editor.setClientBirthDate(self._clientBirthDate)
         editor.setEventBegDate(self._eventBegDate)
         editor.setCodeMask(self._codeMask)
+        editor.setKrit(forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceInt(self._krit), 'code')))
+        editor.setAssociatedMKB(self._associatedMKB)
+        editor.setComplicationMKB(self._complicationMKB)
+        editor.setFractions(self._fractions)
+        editor.setCsgBegDate(self._csgBegDate)
+        editor.setCsgEndDate(self._csgEndDate)
         return editor
 
 
@@ -113,6 +125,14 @@ class CCSGInDocTableCol(CInDocTableCol):
         self._MKB = MKB
 
 
+    def setAssociatedMKB(self, associatedMKB):
+        self._associatedMKB = associatedMKB
+
+
+    def setComplicationMKB(self, complicationMKB):
+        self._complicationMKB = complicationMKB
+
+
     def setEventProfileId(self, eventProfileId):
         self._eventProfileId = eventProfileId
 
@@ -123,3 +143,19 @@ class CCSGInDocTableCol(CInDocTableCol):
 
     def setCsgServiceTemplate(self, MESServiceTemplate):
         self._MESServiceTemplate = MESServiceTemplate
+
+
+    def setKrit(self, krit):
+        self._krit = krit
+
+
+    def setFractions(self, fractions):
+        self._fractions = fractions
+
+
+    def setCsgBegDate(self, csgBegDate):
+        self._csgBegDate = csgBegDate
+
+
+    def setCsgEndDate(self, csgEndDate):
+        self._csgEndDate = csgEndDate

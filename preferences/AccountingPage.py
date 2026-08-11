@@ -36,9 +36,11 @@ class CAccountingPage(Ui_accountingPage, QtGui.QWidget):
         self.edtCachBox.setText(forceString(props.get('cashBox',  '')))
         self.chkFilterPaymentByOrgStructure.setChecked(forceBool(props.get('filterPaymentByOrgStructure', False)))
         self.edtPositionInvoice.setText(forceString(props.get('positionInvoice',  '')))
+        self.chkUseNativeFileDialog.setChecked(forceBool(props.get('useNativeFileDialog', False)))
 
 
     def getProps(self, props):
         props['cashBox']  = toVariant(self.edtCachBox.text())
         props['filterPaymentByOrgStructure'] = toVariant(bool(self.chkFilterPaymentByOrgStructure.isChecked()))
         props['positionInvoice']  = toVariant(self.edtPositionInvoice.text())
+        props['useNativeFileDialog'] = toVariant(bool(self.chkUseNativeFileDialog.isChecked()))

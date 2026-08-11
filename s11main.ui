@@ -311,6 +311,7 @@
     <addaction name="actUO"/>
     <addaction name="actPersonSubstitutionService"/>
     <addaction name="actDistantMonitoring"/>
+    <addaction name="actStreetCorrect"/>
     <addaction name="separator"/>
     <addaction name="mnuUnlockDialog"/>
    </widget>
@@ -770,6 +771,7 @@
      <addaction name="actECO"/>
      <addaction name="actForeignCitizens"/>
      <addaction name="actOperationalMonitoring"/>
+     <addaction name="actReportAFT_002"/>
     </widget>
     <widget class="QMenu" name="mnuEmergencyCall">
      <property name="title">
@@ -6618,6 +6620,11 @@
     <string>Выявленные онкологические заболевания</string>
    </property>
   </action>
+  <action name="actStreetCorrect">
+   <property name="text">
+    <string>Корректор неактуальных улиц</string>
+   </property>
+  </action>
   <action name="actReportActivityMO">
    <property name="text">
     <string>Деятельность МО (оперативный отчет)</string>
@@ -6666,6 +6673,11 @@
   <action name="actReportMonthlySchoolJournal">
    <property name="text">
     <string>Отчет о работе школ для пациентов с ХНИЗ</string>
+   </property>
+  </action>
+  <action name="actReportAFT_002">
+   <property name="text">
+    <string>Отчет для АФТ 002</string>
    </property>
   </action>
  </widget>

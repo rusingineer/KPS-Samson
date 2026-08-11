@@ -49,8 +49,7 @@ class CTreatmentControlDialog(CItemEditorBaseDialog, Ui_TreatmentControlDialog, 
 
 
     def destroy(self):
-        self.tblTreatmentControl.setModel(None)
-        del self.modelTreatmentControl
+        pass
 
 
     def done(self, result):

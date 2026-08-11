@@ -1129,6 +1129,7 @@ class CGroupActionsProxyModel(QtGui.QProxyModel, ActionTypeServiceMixin):
             index = self.index(proxyRow, 0)
             self.emit(SIGNAL('rowsInserted(QModelIndex, int, int)'), index, proxyRow, proxyRow+1)
             self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
+            self.emit(SIGNAL('onAddNewAction(int)'), modelRow)
             self.emitRowIndexActivated(proxyRow)
             if ifRelated:
                 self.addRelatedActions(forceRef(value), index)
@@ -1317,20 +1318,20 @@ class CGroupActionsProxyModel(QtGui.QProxyModel, ActionTypeServiceMixin):
         self._emitItemsCountChanged()
 
     def _removeRow(self, proxyRow, removeRelated = False, unbind = False):
+        tabs = {}
         if hasattr(self.eventEditor, 'tabStatus'):
-            tabs = {
-                0: self.eventEditor.tabStatus,
-                1: self.eventEditor.tabDiagnostic,
-                2: self.eventEditor.tabCure,
-                3: self.eventEditor.tabMisc
-            }
-        else:
-            tabs = {
-                0: self.eventEditor.tabActions,
-                1: self.eventEditor.tabActions,
-                2: self.eventEditor.tabActions,
-                3: self.eventEditor.tabActions
-            }
+            tabs[0] = self.eventEditor.tabStatus
+        if hasattr(self.eventEditor, 'tabDiagnostic'):
+            tabs[1] = self.eventEditor.tabDiagnostic
+        if hasattr(self.eventEditor, 'tabCure'):
+            tabs[2] = self.eventEditor.tabCure
+        if hasattr(self.eventEditor, 'tabMisc'):
+            tabs[3] = self.eventEditor.tabMisc
+        if not tabs:
+            tabs = {0: self.eventEditor.tabActions,
+                    1: self.eventEditor.tabActions,
+                    2: self.eventEditor.tabActions,
+                    3: self.eventEditor.tabActions}
         if proxyRow not in self._mapProxyRow2Group:
             return
         group = self._mapProxyRow2Group[proxyRow]
@@ -1353,9 +1354,10 @@ class CGroupActionsProxyModel(QtGui.QProxyModel, ActionTypeServiceMixin):
                                             QtGui.QMessageBox.Cancel)
             if res == QtGui.QMessageBox.Ok:
                 for itemClass in required:
-                    for item in tabs[itemClass].modelAPActions._groups.groupsIterator:
-                        if item.firstItem.action.getMasterId() == group.firstItem.id:
-                            tabs[itemClass].modelAPActions._removeRow(item._mapItem2Row[item.firstItem], removeRelated = True)
+                    if itemClass in tabs.keys():
+                        for item in tabs[itemClass].modelAPActions._groups.groupsIterator:
+                            if item.firstItem.action.getMasterId() == group.firstItem.id:
+                                tabs[itemClass].modelAPActions._removeRow(item._mapItem2Row[item.firstItem], removeRelated = True)
                 for item in reversed(sorted(group.proxyRows[1:])):
                     self._removeRow(item, removeRelated = True) 
             else:

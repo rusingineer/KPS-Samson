@@ -73,6 +73,7 @@ class COrgStructurePlanningHospitalBedProfile(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'OrgStructure_PlanningHospitalBedProfile', 'id', 'master_id', parent)
         self.addExtCol(self.CLocBookkeeperCodeInDocTableCol(u'ОМС код', 'master_id', 20), QVariant.String).setReadOnly()
+        self.addCol(CDateInDocTableCol(u'Дата создания', 'createDatetime',6,canBeEmpty=False))
         self.addCol(COrgStructureInDocTableCol(u'Подразделение', 'master_id', 20, addNone=False))
         self.addCol(
             CRBInDocTableCol(u'Профиль', 'profile_id', 20, 'rbHospitalBedProfile', showFields=CRBComboBox.showName))
@@ -225,6 +226,14 @@ class CLocItemDelegateProxy(CLocItemDelegate):
         index.model().sourceModel().afterUpdateEditorGeometry(editor, index)
 
 
+class CPlanningHospitalBedProfileProxy(CSortFilterProxyTableModel):
+    def __init__(self, parent, sourceModel):
+        CSortFilterProxyTableModel.__init__(self, parent, sourceModel)
+
+    def __getattr__(self, name):
+        return getattr(self.sourceModel(), name)
+
+
 class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfileDialog):
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
@@ -232,7 +241,7 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
         self.btnFill.setEnabled(QtGui.qApp.userHasRight(urPlanningHospitalBedProfileGen))
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.addModels('', COrgStructurePlanningHospitalBedProfile(parent))
-        self.addModels('Proxy', CSortFilterProxyTableModel(self, self.model))
+        self.addModels('Proxy', CPlanningHospitalBedProfileProxy(self, self.model))
         self.model = self.modelProxy.sourceModel()
         self.setModels(self.tblItems, self.modelProxy, self.selectionModelProxy)
         self.tblItems.enableColsMove()
@@ -346,6 +355,12 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
         else:
             self.modelProxy.removeFilter('date')
 
+        if self.chkDateCreate.isChecked():
+            self.modelProxy.setFilter('createDatetime', (QDateTime(self.edtBegDateCreate.date()),QDateTime(self.edtEndDateCreate.date())),
+                                      CSortFilterProxyTableModel.MatchBetween)
+        else:
+            self.modelProxy.removeFilter('createDatetime')
+
         if self.chkOrgStructure.isChecked():
             orgStructureIndex = self.cmbOrgStructure.model().index(self.cmbOrgStructure.currentIndex(), 0,
                                                                    self.cmbOrgStructure.rootModelIndex())
@@ -412,6 +427,7 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
                     newRecord.setValue('adultMan', 0)
                     newRecord.setValue('adultWoman', 0)
                     newRecord.setValue('children', 0)
+                    newRecord.setValue('createDatetime', QDateTime(QDate().currentDate()))
                     self.model.addRecord(newRecord)
                 tmpDate = tmpDate.addDays(1)
         self.model.reset()
@@ -424,6 +440,13 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
             self.btnFill.setEnabled(False)
         else:
             self.btnFill.setEnabled(checked)
+        self.onFilterUpdate()
+
+
+    @pyqtSignature('bool')
+    def on_chkDateCreate_toggled(self, checked):
+        self.edtBegDateCreate.setEnabled(checked)
+        self.edtEndDateCreate.setEnabled(checked)
         self.onFilterUpdate()
 
     @pyqtSignature('bool')
@@ -445,6 +468,16 @@ class CPlanningHospitalBedProfileDialog(CDialogBase, Ui_PlanningHospitalBedProfi
 
     @pyqtSignature('QDate')
     def on_edtEndDate_dateChanged(self, date):
+        self.onFilterUpdate()
+
+
+    @pyqtSignature('QDate')
+    def on_edtBegDateCreate_dateChanged(self, date):
+        self.onFilterUpdate()
+
+
+    @pyqtSignature('QDate')
+    def on_edtEndDateCreate_dateChanged(self, date):
         self.onFilterUpdate()
 
     @pyqtSignature('int')

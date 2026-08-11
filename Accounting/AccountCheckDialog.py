@@ -172,15 +172,36 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
-            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
-                and ct.service_id = s.id and ct.deleted = 0
-                and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
-                or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
-                and ct.tariffType = 13
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                  and ct1.service_id = s.id and ct1.deleted = 0
+                  and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
+                  or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  and ct2.service_id = s.id and ct2.deleted = 0
+                  and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
+                  or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
             left join Person p on p.id = e.execPerson_id
             left join OrgStructure o on o.id = p.orgStructure_id
-            where e.id = Event.id and e.MES_id is not null and substr(MES.code, 1, 1) = 'G' and ct.price is not null
-            and (trim(o.infisCode) = '' or o.infisCode is null))
+            where e.id = Event.id and e.MES_id is not null and MES.code LIKE 'G%' and ct.price is not null
+                and (trim(o.infisCode) = '' or o.infisCode is null)
+            union all
+            select ct.id from Event e
+            left join Event_CSG ec ON e.id = ec.master_id
+            left join rbService s on s.infis = ec.CSGCode
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                and ct1.service_id = s.id and ct1.deleted = 0
+                and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
+                or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                and ct2.service_id = s.id and ct2.deleted = 0
+                and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
+                or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            left join Person p on p.id = e.execPerson_id
+            left join OrgStructure o on o.id = p.orgStructure_id
+            where e.id = Event.id AND ec.CSGCode LIKE 'G%' and ec.id is not NULL and ct.price is not null 
+                and (trim(o.infisCode) = '' or o.infisCode is null))
             """
              ),
         ('227', 0):
@@ -222,11 +243,13 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event e on e.id = ai.event_id
             left join Action a on a.id = ai.action_id
             left join Visit v on v.id = ai.visit_id
+            left join Event_CSG ec on ec.id = ai.eventCSG_id
             LEFT JOIN rbService s ON s.id = ai.service_id
             where ai.deleted = 0 and ai.event_id = Event.id and ai.master_id in ({master_id})
             and (TO_DAYS(a.endDate) = TO_DAYS(e.execDate)
                 or TO_DAYS(v.date) = TO_DAYS(e.execDate)
-                or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')))
+                or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')
+                or TO_DAYS(ec.endDate) = TO_DAYS(e.execDate)))
             """
              ),
         ('241', 2):
@@ -257,12 +280,31 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
-            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
-                and ct.service_id = s.id and ct.deleted = 0
-                and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
-                or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
-                and ct.tariffType = 13 AND (ct.eventType_id = e.eventType_id or ct.eventType_id is null)
-            where e.id = Event.id and e.MES_id is not null and substr(MES.code, 1, 1) = 'G' and ct.price is not null)
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                  and ct1.service_id = s.id and ct1.deleted = 0
+                  and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
+                  or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  and ct2.service_id = s.id and ct2.deleted = 0
+                  and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
+                  or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            where e.id = Event.id and e.MES_id is not null and MES.code LIKE 'G%' and ct.price is not null
+            union all
+            select ct.id from Event e
+            left join Event_CSG ec ON e.id = ec.master_id
+            left join rbService s on s.infis = ec.CSGCode
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                and ct1.service_id = s.id and ct1.deleted = 0
+                and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
+                or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                and ct2.service_id = s.id and ct2.deleted = 0
+                and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
+                or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            where e.id = Event.id AND ec.CSGCode LIKE 'G%' and ec.id is not NULL and ct.price is not null 
+                and TO_DAYS(ec.endDate) = TO_DAYS(e.execDate))
             """
              ),
         ('242', 1):
@@ -271,6 +313,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event e on e.id = ai.event_id
             left join Action a on a.id = ai.action_id
             left join Visit v on v.id = ai.visit_id
+            left join Event_CSG ec on ec.id = ai.eventCSG_id
             LEFT JOIN rbService s ON s.id = ai.service_id
             where ai.deleted = 0 and ai.event_id = Event.id and ai.master_id in ({master_id})
             and (IF (s.infis IN ( 
@@ -288,7 +331,8 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                                   'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
                                 ) OR substr(s.infis, 1, 1) = 'V', TO_DAYS(a.begDate), TO_DAYS(a.endDate)) = TO_DAYS(e.setDate)
                 or TO_DAYS(v.date) = TO_DAYS(e.setDate)
-                or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')))
+                or (e.MES_id is not null and substr(s.infis, 1, 1) = 'G')
+                or TO_DAYS(ec.begDate) = TO_DAYS(e.setDate)))
             """
              ),
         ('242', 2):
@@ -333,12 +377,31 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
-            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
-                and ct.service_id = s.id and ct.deleted = 0
-                and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
-                or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
-                and ct.tariffType = 13 AND (ct.eventType_id = e.eventType_id or ct.eventType_id is null)
-            where e.id = Event.id and e.MES_id is not null and substr(MES.code, 1, 1) = 'G' and ct.price is not null)
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                  and ct1.service_id = s.id and ct1.deleted = 0
+                  and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
+                  or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  and ct2.service_id = s.id and ct2.deleted = 0
+                  and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
+                  or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            where e.id = Event.id and e.MES_id is not null and MES.code LIKE 'G%' and ct.price is not null
+            union all
+            select ct.id from Event e
+            left join Event_CSG ec ON e.id = ec.master_id
+            left join rbService s on s.infis = ec.CSGCode
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                and ct1.service_id = s.id and ct1.deleted = 0
+                and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
+                or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                and ct2.service_id = s.id and ct2.deleted = 0
+                and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
+                or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            where e.id = Event.id AND ec.CSGCode LIKE 'G%' and ec.id is not NULL and ct.price is not null 
+                and TO_DAYS(ec.begDate) = TO_DAYS(e.setDate))
             """
              ),
         ('243', 1):
@@ -529,7 +592,30 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                             left join rbService s2 on s2.id = ai2.service_id
                             where ai2.event_id = ai.event_id and ai2.master_id = ai.master_id)
                     and s69_2.datn <= DATE(e.execDate) and (s69_2.dato is null or s69_2.dato >= DATE(e.execDate))
-                where ai.event_id = Event.id and ai.deleted = 0 and substr(s.infis, 1, 1) = 'G' and (s69.ksgkusl is null or s69_2.ksgkusl is not null))
+                where ai.event_id = Event.id and ai.deleted = 0 and substr(s.infis, 1, 1) = 'G' and (s69.ksgkusl is null or s69_2.ksgkusl is not null)
+                union all 
+                select ec.id
+                from Account_Item ai
+                left join Event e on e.id = ai.event_id
+                left join Event_CSG ec ON ai.eventCSG_id = ec.id
+                left join soc_spr69 s69 on s69.ksgkusl = ec.CSGCode and (
+                  (
+                    (s69.mkb is NULL OR ec.MKB BETWEEN s69.mkbMin AND s69.mkbMax)
+                    and (s69.mkb2 is NULL OR ec.associatedMKB BETWEEN s69.mkb2Min AND s69.mkb2Max)
+                    and (s69.mkb3 is NULL OR ec.complicationMKB BETWEEN s69.mkb3Min AND s69.mkb3Max)
+                  ) 
+                  and (s69.kusl is null 
+                    or s69.kusl in (select s2.infis from Account_Item ai2
+                                        left join rbService s2 on s2.id = ai2.service_id
+                                        where ai2.event_id = ai.event_id and ai2.master_id = ai.master_id and ai2.deleted = 0)))
+                    and s69.datn <= DATE(e.execDate) and (s69.dato is null or s69.dato >= DATE(e.execDate))
+                left join soc_spr70 s70 on s70.ksgmkb = s69.ksgkusl and s70.datn <= DATE(e.execDate) and (s70.dato is null or s70.dato >= DATE(e.execDate))
+                left join soc_spr69 s69_2 on s69_2.ksgkusl = s70.ksgkusl and s69_2.kusl in (SELECT s2.infis from Account_Item ai2
+                            left join rbService s2 on s2.id = ai2.service_id
+                            where ai2.event_id = ai.event_id and ai2.master_id = ai.master_id)
+                    and s69_2.datn <= DATE(e.execDate) and (s69_2.dato is null or s69_2.dato >= DATE(e.execDate))
+                where ai.event_id = Event.id and ai.deleted = 0 AND ec.id is not NULL and (s69.ksgkusl is null or s69_2.ksgkusl is not null)
+                )
             """
              ),
         ('347', 2):
@@ -689,14 +775,35 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join mes.MES on MES.id = e.MES_id
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
-            left join Contract_Tariff ct on ct.master_id in (c.id, c.priceListExternal_id)
-                and ct.service_id = s.id and ct.deleted = 0
-                and (ct.endDate is not null and DATE(e.execDate) between ct.begDate and ct.endDate
-                or DATE(e.execDate) >= ct.begDate and ct.endDate is null)
-                and ct.tariffType = 13
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                  and ct1.service_id = s.id and ct1.deleted = 0
+                  and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
+                  or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  and ct2.service_id = s.id and ct2.deleted = 0
+                  and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
+                  or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
             left join Person p on p.id = e.execPerson_id
             left join rbSpeciality sp on p.speciality_id = sp.id
-            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and (sp.regionalCode = '' or sp.regionalCode is null))
+            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and (sp.regionalCode = '' or sp.regionalCode is null)
+            union all
+            select ct.id from Event e
+            left join Event_CSG ec ON e.id = ec.master_id
+            left join rbService s on s.infis = ec.CSGCode
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                and ct1.service_id = s.id and ct1.deleted = 0
+                and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
+                or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                and ct2.service_id = s.id and ct2.deleted = 0
+                and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
+                or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            left join Person p on p.id = e.execPerson_id
+            left join rbSpeciality sp on p.speciality_id = sp.id
+            where e.id = Event.id AND ec.CSGCode LIKE 'G%' and ec.id is not NULL and ct.price is not null
+                and (sp.regionalCode = '' or sp.regionalCode is null))
             """
              ),
         ('846', 0):
@@ -773,7 +880,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                 left join rbMedicalAidProfile ssp on ssp.id = spec.medicalAidProfile_id
                 left join soc_checkSpecProf csp on csp.specCode = spec.regionalCode and csp.profilCode = ssp.regionalCode
                 where ai.event_id = Event.id and ai.master_id in ({master_id}) and ai.deleted = 0
-                and csp.specCode is null)
+                and csp.specCode is null and spec.regionalCode <> '285')
             """
              ),
         ('911', 2):
@@ -792,7 +899,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbMedicalAidProfile ssp on ssp.id = spec.medicalAidProfile_id
             left join soc_checkSpecProf csp on csp.specCode = spec.regionalCode and csp.profilCode = ssp.regionalCode
             where e.id = Event.id and a.deleted = 0 and a.org_id is null and s.id is not null
-                and ct.price is not null and csp.specCode is null
+                and ct.price is not null and csp.specCode is null and spec.regionalCode <> '285'
             union all
             select ct.id from Event e
             left join Visit v on v.event_id = e.id
@@ -807,7 +914,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbMedicalAidProfile ssp on ssp.id = spec.medicalAidProfile_id
             left join soc_checkSpecProf csp on csp.specCode = spec.regionalCode and csp.profilCode = ssp.regionalCode
             where e.id = Event.id and v.deleted = 0 and s.id is not null
-               and ct.price is not null and csp.specCode is null
+               and ct.price is not null and csp.specCode is null and spec.regionalCode <> '285'
             union all
             select ct.id from Event e
             left join mes.MES on MES.id = e.MES_id
@@ -822,7 +929,27 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbSpeciality spec on p.speciality_id = spec.id
             left join rbMedicalAidProfile ssp on ssp.id = spec.medicalAidProfile_id
             left join soc_checkSpecProf csp on csp.specCode = spec.regionalCode and csp.profilCode = ssp.regionalCode
-            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and csp.specCode is null)
+            where e.id = Event.id and e.MES_id is not null AND LEFT(MES.code, 1) IN ('V', 'G') and csp.specCode is null 
+            and spec.regionalCode <> '285'
+            union all
+            select ct.id from Event e
+            left join Event_CSG ec ON e.id = ec.master_id
+            left join rbService s on s.infis = ec.CSGCode
+            LEFT JOIN Contract c ON c.id = e.contract_id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                and ct1.service_id = s.id and ct1.deleted = 0
+                and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
+                or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                and ct2.service_id = s.id and ct2.deleted = 0
+                and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
+                or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
+            left join Person p on p.id = e.execPerson_id
+            left join rbSpeciality spec on p.speciality_id = spec.id
+            left join rbMedicalAidProfile ssp on ssp.id = spec.medicalAidProfile_id
+            left join soc_checkSpecProf csp on csp.specCode = spec.regionalCode and csp.profilCode = ssp.regionalCode
+            where e.id = Event.id AND ec.CSGCode LIKE 'G%' and ec.id is not NULL and ct.price is not null
+                and csp.specCode is null and spec.regionalCode <> '285')
             """
              ),
         ('930', 0):
@@ -940,7 +1067,7 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
                             'B04.037.003.010', 'B04.037.004.010', 'B04.040.001.010', 'B04.001.003.010', 'B04.004.003.010',
                             'B04.008.007.010', 'B04.008.008.010', 'B04.015.001.010', 'B04.015.002.010', 'B04.015.006.010',
                             'B04.058.001.010', 'B04.058.001.011', 'B04.070.007.010', 'B04.023.003.010', 'B04.023.004.010',
-                            'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.004.010', 'B04.015.010',
+                            'B04.023.005.010', 'B04.025.004.010', 'B04.070.009.010', 'B04.070.009', 'B04.004.010', 'B04.015.010',
                             'B04.015.011', 'B04.037.010', 'B04.070.015', 'B04.070.016', 'B04.001.003'
                         )
                 )

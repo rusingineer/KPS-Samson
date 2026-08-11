@@ -287,6 +287,7 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.cmbDocumentType.currentIndexChanged.connect(self.cmbDocumentTypeChange)
         # self.edtDocumentNumber.setReadOnly(True)
         self.record = None
+        self._previewNumbers = {}
         self.cmbDocumentTypeChange()
 
 
@@ -308,12 +309,16 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
                                      tableRbDocumentTypeForTracking['id'].eq(docType))
                 counterId = forceRef(rec.value('counter_id'))
                 if counterId:
+                    if counterId in self._previewNumbers:
+                        self.edtDocumentNumber.setText(self._previewNumbers[counterId])
+                        return
                     date = self.edtDocumentDate.date()
                     counterController = QtGui.qApp.counterController()
                     if not counterController:
                         QtGui.qApp.setCounterController(CCounterController(self))
                     try:
                         number = QtGui.qApp.getDocumentNumber(self.clientId, counterId, date)
+                        self._previewNumbers[counterId] = number
                         self.edtDocumentNumber.setText(number)
                     except Exception, e:
                         QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
@@ -321,6 +326,7 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
                                                    u'Произошла ошибка при получении значения счетчика\n%s' % e,
                                                    QtGui.QMessageBox.Ok)
                     finally:
+                        QtGui.qApp.delAllCounterValueIdReservation()
                         if not counterController:
                             QtGui.qApp.setCounterController(None)
                 else:
@@ -360,6 +366,21 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         CItemEditorBaseDialog.setRecord(self, record)
         self.record = record
         setRBComboBoxValue(self.cmbDocumentType, record, 'documentTypeForTracking_id')
+        db = QtGui.qApp.db
+
+        tableRbDocumentTypeForTracking = db.table('rbDocumentTypeForTracking')
+        docType = self.cmbDocumentType.value()
+        rec = db.getRecordEx(
+            tableRbDocumentTypeForTracking,
+            tableRbDocumentTypeForTracking['counter_id'],
+            tableRbDocumentTypeForTracking['id'].eq(docType)
+        )
+
+        counterId = forceRef(rec.value('counter_id'))
+        number = forceString(self.record.value('documentNumber'))
+        if counterId and number:
+            self._previewNumbers[counterId] = number
+            
         setLineEditValue(self.edtDocumentNumber, record, 'documentNumber')
         setDateEditValue(self.edtDocumentDate, record, 'documentDate')
         self.modelDocumentLocationHistory.loadItems(self.itemId())
@@ -369,8 +390,39 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         record = CItemEditorBaseDialog.getRecord(self)
         record.setValue('client_id',  toVariant(self.clientId))
         getRBComboBoxValue(self.cmbDocumentType, record, 'documentTypeForTracking_id')
-        getLineEditValue(self.edtDocumentNumber, record, 'documentNumber')
         getDateEditValue(self.edtDocumentDate, record, 'documentDate')
+
+        docType = self.cmbDocumentType.value()
+        db = QtGui.qApp.db
+
+        tableRbDocumentTypeForTracking = db.table('rbDocumentTypeForTracking')
+        rec = db.getRecordEx(
+            tableRbDocumentTypeForTracking,
+            tableRbDocumentTypeForTracking['counter_id'],
+            tableRbDocumentTypeForTracking['id'].eq(docType)
+        )
+
+        counterId = forceRef(rec.value('counter_id'))
+
+        if counterId:
+            if counterId in self._previewNumbers:
+                self.edtDocumentNumber.setText(self._previewNumbers[counterId])
+                getLineEditValue(self.edtDocumentNumber, record, 'documentNumber')
+                return record
+            try:
+                counterController = QtGui.qApp.counterController()
+                if not counterController:
+                    QtGui.qApp.setCounterController(CCounterController(self))
+                date = self.edtDocumentDate.date()
+                number = QtGui.qApp.getDocumentNumber(self.clientId, counterId, date)
+                record.setValue('documentNumber', toVariant(number))
+            finally:
+                QtGui.qApp.delAllCounterValueIdReservation()
+                if not counterController:
+                    QtGui.qApp.setCounterController(None)
+        else:
+            getLineEditValue(self.edtDocumentNumber, record, 'documentNumber')
+        # getLineEditValue(self.edtDocumentNumber, record, 'documentNumber')
         return record
 
 
@@ -406,6 +458,7 @@ class CClientDocumentTrackingEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
                                            u'Произошла ошибка при получении значения счетчика\n%s' % e,
                                            QtGui.QMessageBox.Ok)
             finally:
+                QtGui.qApp.delAllCounterValueIdReservation()
                 if not counterController:
                     QtGui.qApp.setCounterController(None)
         else:

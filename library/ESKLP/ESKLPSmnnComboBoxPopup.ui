@@ -58,126 +58,27 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="0">
-        <widget class="QLabel" name="lblESKLPSmnnCode">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Код узла СМНН</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtESKLPSmnnCode</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtESKLPSmnnCode"/>
-       </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="lblESKLPSmnn_mnn">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Наименование МНН на русском языке (стандартизованное значение)</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtESKLPSmnn_mnn</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtESKLPSmnn_mnn"/>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="lblESKLPSmnn_form">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Название лекарственной формы (стандартизованное значение)</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtESKLPSmnn_form</cstring>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0">
-        <widget class="QLabel" name="lblESKLPSmnn_ftg">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>Название ФТГ</string>
-         </property>
-        </widget>
-       </item>
-       <item row="7" column="2">
-        <widget class="QDialogButtonBox" name="buttonBox">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="standardButtons">
-          <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
-         </property>
-         <property name="centerButtons">
-          <bool>false</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtESKLPSmnn_form"/>
-       </item>
-       <item row="4" column="0">
-        <widget class="QLabel" name="lblESKLPSmnn_is_znvlp">
-         <property name="text">
-          <string>ЖНВЛП</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="0">
+       <item row="6" column="0">
         <widget class="QLabel" name="lblESKLPSmnn_is_narcotic">
          <property name="text">
           <string>Наличие в лекарственном препарате наркотических средств</string>
          </property>
         </widget>
        </item>
-       <item row="6" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtESKLPSmnn_Dosage_grls_value"/>
-       </item>
-       <item row="6" column="0">
-        <widget class="QLabel" name="lblESKLPSmnn_Dosage_grls_value">
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_is_znvlp">
          <property name="text">
-          <string>Дозировка</string>
-         </property>
-         <property name="buddy">
-          <cstring>edtESKLPSmnn_Dosage_grls_value</cstring>
+          <string>ЖНВЛП</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtESKLPSmnn_ftg"/>
+       <item row="7" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnn_Dosage_grls_value"/>
        </item>
-       <item row="5" column="1" colspan="2">
+       <item row="2" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnn_form"/>
+       </item>
+       <item row="6" column="1" colspan="2">
         <widget class="QComboBox" name="cmbESKLPSmnn_is_narcotic">
          <item>
           <property name="text">
@@ -197,6 +98,19 @@
         </widget>
        </item>
        <item row="4" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnn_ftg"/>
+       </item>
+       <item row="7" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_Dosage_grls_value">
+         <property name="text">
+          <string>Дозировка</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtESKLPSmnn_Dosage_grls_value</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1" colspan="2">
         <widget class="QComboBox" name="cmbESKLPSmnn_is_znvlp">
          <item>
           <property name="text">
@@ -214,6 +128,102 @@
           </property>
          </item>
         </widget>
+       </item>
+       <item row="0" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnnCode"/>
+       </item>
+       <item row="1" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnn_mnn"/>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="lblESKLPSmnnCode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Код узла СМНН</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtESKLPSmnnCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_mnn">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Наименование МНН на русском языке (стандартизованное значение)</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtESKLPSmnn_mnn</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_form">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Название лекарственной формы (стандартизованное значение)</string>
+         </property>
+         <property name="buddy">
+          <cstring>edtESKLPSmnn_form</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="2">
+        <widget class="QDialogButtonBox" name="buttonBox">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="standardButtons">
+          <set>QDialogButtonBox::Apply|QDialogButtonBox::Reset</set>
+         </property>
+         <property name="centerButtons">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_ftg">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Название ФТГ</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lblESKLPSmnn_trade_name">
+         <property name="text">
+          <string>Торговое наименование</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtESKLPSmnn_trade_name"/>
        </item>
       </layout>
      </widget>

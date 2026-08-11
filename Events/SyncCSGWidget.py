@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -19,7 +19,7 @@ from Orgs.PersonComboBoxEx import CPersonFindInDocTableCol
 from library.DialogBase import CDialogBase
 from library.InDocTable import CRecordListModel, CInDocTableCol, CDateInDocTableCol
 from library.RecordLock import CRecordLockMixin
-from library.Utils import forceString, toVariant, forceRef, forceDate
+from library.Utils import forceString, toVariant, forceRef, forceDate, getPref, setPref, forceDateTime
 
 from Events.Ui_SyncCSGWidget import Ui_SyncCSGDialog
 
@@ -37,11 +37,11 @@ class CSyncCSGDialog(CDialogBase, CRecordLockMixin, Ui_SyncCSGDialog):
         self.recordList = []
         self._parent.cmbCSG.setItems()
         self.syncCSG()
-        if not self.recordList:
-            self.accept()
         self.modelActions.setItems(self.recordList)
-        self.tblActions.resizeColumnsToContents()
+        # self.tblActions.resizeColumnsToContents()
         self.modelActions.calculateMax()
+        preferences = getPref(QtGui.qApp.preferences.windowPrefs, 'SyncCSG_tblActions', {})
+        self.loadPreferences(preferences)
     
     
     def syncCSG(self):
@@ -50,6 +50,8 @@ class CSyncCSGDialog(CDialogBase, CRecordLockMixin, Ui_SyncCSGDialog):
             if forceString(record.value('CSGCode')):
                 haveToCheck = True
                 break
+        if not haveToCheck:
+            return
         for (record, action) in self._eventEditor.tabMisc.modelAPActions._items:
             newRecord = self.newActionRecord()
             if action.getType().flatCode == 'moving'and forceDate(record.value('endDate')) and forceRef(record.value('status')) == CActionStatus.finished:
@@ -66,7 +68,7 @@ class CSyncCSGDialog(CDialogBase, CRecordLockMixin, Ui_SyncCSGDialog):
                         if not self._parent.cmbCSG.mapActionToCSG.get(record, None):
                             csgRecord = self._parent.cmbCSG.mapIdToCSGRecord.get(id, None)
                             self._parent.cmbCSG.mapActionToCSG[record] = csgRecord
-                    elif haveToCheck and u'мэса нет' in unicode(self._eventEditor.tabMes.cmbMes.currentText()).lower():
+                    elif haveToCheck and (u'мэса нет' in unicode(self._eventEditor.tabMes.cmbMes.currentText()).lower() or not bool(self._eventEditor.tabMes.cmbMes.currentIndex())):
                         self.getCSG(record, newRecord)
                 else:
                     newRecord.setValue('CSGCode', self._parent.cmbCSG.mapActionToCSG[record].value('CSGCode'))
@@ -86,9 +88,10 @@ class CSyncCSGDialog(CDialogBase, CRecordLockMixin, Ui_SyncCSGDialog):
         for rec in self._eventEditor.tabMes.modelCSGs.items():
             if forceString(rec.value('CSGCode')) and forceDate(rec.value('begDate')) <= forceDate(record.value('begDate')) \
                 and forceDate(rec.value('endDate')) >= forceDate(record.value('endDate')):
-                    self._parent.cmbCSG.mapActionToCSG[record] = rec
-                    newRecord.setValue('CSGCode', forceString(rec.value('CSGCode')))
-                    break
+                    if forceString(rec.value('CSGCode')) not in ('G26st36.009', 'G26st36.025', 'G26st36.026', 'G26st36.050', 'G26st36.051', 'G26st36.052', 'G26st36.053', 'G26st36.054'):
+                        self._parent.cmbCSG.mapActionToCSG[record] = rec
+                        newRecord.setValue('CSGCode', forceString(rec.value('CSGCode')))
+                        break
         return newRecord
     
     
@@ -104,8 +107,18 @@ class CSyncCSGDialog(CDialogBase, CRecordLockMixin, Ui_SyncCSGDialog):
         return newRecord
     
     def closeEvent(self, event):
+        preferences = self.tblActions.savePreferences()
+        setPref(QtGui.qApp.preferences.windowPrefs, 'SyncCSG_tblActions', preferences)
         self.reject()
                    
+
+    def exec_(self):
+        self.loadDialogPreferences()
+        if not self.recordList:
+            return False
+        result = QtGui.QDialog.exec_(self)
+        return result
+
 
 class CActionsModel(CRecordListModel):
 
@@ -162,7 +175,7 @@ class CActionsModel(CRecordListModel):
         maxEndDates = {}
         for record in self.items():
             code = forceString(record.value('CSGCode'))
-            endDate = forceDate(record.value('endDate'))
+            endDate = forceDateTime(record.value('endDate'))
             if not endDate:
                 continue
 
@@ -172,7 +185,7 @@ class CActionsModel(CRecordListModel):
 
         for record in self.items():
             code = forceString(record.value('CSGCode'))
-            endDate = forceDate(record.value('endDate'))
+            endDate = forceDateTime(record.value('endDate'))
             if code not in maxEndDates or not endDate:
                 record.setValue('maxCSG', u'ДА')
                 continue

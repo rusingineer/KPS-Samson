@@ -136,5 +136,4 @@ class CCheckEnteredOpenEvents(CDialogBase, Ui_CheckEnteredOpenEventsDialog):
 
 
     def destroy(self):
-        self.tblOpenEvents.setModel(None)
-        del self.model
+        pass

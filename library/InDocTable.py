@@ -436,20 +436,50 @@ class CSPR80SearchInDocTableCol(CRBInDocTableCol):
         self.force = False
 
     def createEditor(self, parent):
-        csgRecord = self.parentModel.getRecordByRow(self.parentModel._parent.tblCSGs.currentIndex().row())
-        editor = CRBSearchComboBox(parent)
         db = QtGui.qApp.db
+        try:
+            csgRecord = self.parentModel.getRecordByRow(self.parentModel._parent.tblCSGs.currentIndex().row())
+            codeCSG = forceString(csgRecord.value('CSGCode'))
+            kritId = forceString(csgRecord.value('krit'))
+            kritType = forceInt(db.translate('soc_spr80', 'id', kritId, 'type')) if kritId else None
+        except:
+            csgRecord = None
+            codeCSG = None
+            kritId = None
+            kritType = None
+        if self.fieldName() == 'combSchema' and kritType != 1:
+            # если комб. схема и Event_CSG.krit не с типом 1
+            return
+        editor = CRBSearchComboBox(parent)
         tableSpr80 = db.table('soc_spr80')
-        begDateCSG = forceDate(csgRecord.value('begDate'))
-        endDateCSG = forceDate(csgRecord.value('endDate'))
+
+        begDateEvent = forceDate(self.parentModel._parent.eventEditor.eventSetDateTime)
+        endDateEvent = forceDate(self.parentModel._parent.eventEditor.eventDate)
+
         cond = []
-        cond.append(db.joinOr([tableSpr80['code'].like('amt___'), tableSpr80['code'].like('amt__'), tableSpr80['code'].inlist(['irs1', 'irs2'])]))
-        if not endDateCSG.isNull():
-            cond.append(tableSpr80['begDate'].le(endDateCSG))
-            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(endDateCSG)]))
+        # cond.append(db.joinOr([tableSpr80['code'].like('amt__'), tableSpr80['code'].inlist(['irs1', 'irs2'])]))
+        if not endDateEvent.isNull():
+            cond.append(tableSpr80['begDate'].le(endDateEvent))
+            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(endDateEvent)]))
         else:
-            cond.append(tableSpr80['begDate'].le(begDateCSG))
-            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(begDateCSG)]))
+            cond.append(tableSpr80['begDate'].le(begDateEvent))
+            cond.append(db.joinOr([tableSpr80['endDate'].isNull(), tableSpr80['endDate'].ge(begDateEvent)]))
+
+        if codeCSG:
+            tableSpr69 = db.table('soc_spr69')
+            csgCond = []
+            if not endDateEvent.isNull():
+                csgCond.append(tableSpr69['datn'].le(endDateEvent))
+                csgCond.append(db.joinOr([tableSpr69['dato'].isNull(), tableSpr69['dato'].ge(endDateEvent)]))
+            else:
+                csgCond.append(tableSpr69['datn'].le(begDateEvent))
+                csgCond.append(db.joinOr([tableSpr69['dato'].isNull(), tableSpr69['dato'].ge(begDateEvent)]))
+            csgCond.append(tableSpr69['ksgkusl'].eq(codeCSG))
+            kritList = db.getRecordList(tableSpr69, 'KRIT', csgCond)
+            cond.append(tableSpr80['code'].inlist([forceString(_.value('KRIT')) for _ in kritList]))
+
+        if self.fieldName() == 'combSchema':
+            cond.append(tableSpr80['type'].eq(1))
         self.filter = db.joinAnd(cond)
         editor.setTable(self.tableName, addNone=self.addNone, filter=self.filter)
         editor.setShowFields(self.showFields)

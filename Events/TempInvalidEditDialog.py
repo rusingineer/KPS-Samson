@@ -1051,6 +1051,7 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
         result = result and self.checkTempInvalidDisabilityDate()
         result = result and self.checkDataOther()
         result = result and self.checkTempInvalidDocumentClients()
+        result = result and self.checkTempInvalidDocumentClientsItems()
         result = result and self.checkActualMKB()
         result = result and self.checkDocumentsSNILS()
         result = result and self.checkPersonDocuments()
@@ -1130,11 +1131,13 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
 
 
     def checkReason(self):
+        docTypeCode = forceInt(self.cmbDoctype.code())
         code = self.cmbReason.code()
         name = self.cmbReason.name()
-        if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name)) and not self.edtBegDatePermit.date():
-            self.checkInputMessage(u'дату начала путёвки', False, self.edtBegDatePermit)
-            return False
+        if docTypeCode <= forceInt(CTempInvalidEditDialog.InabilitySheet):
+            if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name)) and not self.edtBegDatePermit.date():
+                self.checkInputMessage(u'дату начала путёвки', False, self.edtBegDatePermit)
+                return False
         if (code in [u'08', u'017', u'018', u'019'] or (code == u'05' and u'после' not in name and u'родам (до)' not in name and u'родам(до)' not in name)) and not self.edtEndDatePermit.date():
             self.checkInputMessage(u'дату окончания путёвки', False, self.edtEndDatePermit)
             return False
@@ -1339,6 +1342,32 @@ class CTempInvalidEditDialog(CItemEditorBaseDialog, Ui_TempInvalidEditDialog):
             if self.cmbReason.code() != u'03' and not isClientFill:
                 self.checkValueMessage(u'Так как причина ВУТ связана с уходом - заполните, пожалуйста, таблицу "Лица по уходу".', False, self.tblCare, 0, 0)
                 return False
+        return True
+
+
+    def checkTempInvalidDocumentClientsItems(self):
+        clientItems = self.modelCare.items()
+        for row, clientItem in enumerate(clientItems):
+            clientId = forceRef(clientItem.value('client_id'))
+            if clientId:
+                column = None
+                message = u""
+                if not forceRef(clientItem.value('tempInvalidRegime_id')):
+                    column = clientItem.indexOf('tempInvalidRegime_id')
+                    message = u"введён режим"
+                elif not forceString(clientItem.value('MKB')):
+                    column = clientItem.indexOf('MKB')
+                    message = u"введён диагноз"
+                elif not forceRef(clientItem.value('tempInvalidReason_id')):
+                    column = clientItem.indexOf('tempInvalidReason_id')
+                    message = u"введена причина"
+                if column and message:
+                    self.checkValueMessage(u'У пациента в таблице "Лица по уходу" не {}'.format(message),
+                                            False, 
+                                            self.tblCare, 
+                                            row, 
+                                            column)
+                    return False
         return True
 
 
@@ -3953,6 +3982,18 @@ class CTempInvalidDocumentsModel(CInDocTableModel):
                     return True
                 if column == CTempInvalidDocumentsModel.Col_PrevNumber and forceRef(self._items[row].value('prev_id')):
                     return True
+                if column == CTempInvalidDocumentsModel.Col_Electronic and forceBool(record.value('electronic')):
+                    idxZero = None
+                    idxOne = None
+                    for rowS, item in enumerate(self._items):
+                        if forceInt(item.value('idx')) == 0 and not idxZero:
+                            idxZero = item
+                        idxOne = record
+                        if idxOne and idxZero:
+                            if not forceInt(idxOne.value('prevNumber')) and forceInt(idxOne.value('prevNumber')) != forceInt(idxZero.value('number')):
+                                return False  
+                            else:
+                                return True
         elif column not in ( CTempInvalidDocumentsModel.Col_IsExternal,
                              CTempInvalidDocumentsModel.Col_Electronic,
                              CTempInvalidDocumentsModel.Col_IssueDate,
@@ -5211,7 +5252,7 @@ class CTempInvalidTransferSubjectSelector(Ui_TempInvalidTransferSubjectSelector,
                 self.parent().transfer_tempId_list = idList
 
                 self.close()
-                self.parent().close()
+                self.parent().accept()
         else:
             messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
                                            u'Не выбраны документы для передачи',

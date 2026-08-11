@@ -104,6 +104,8 @@ def selectData(params, AV=False):
     socStatusClassId  = params.get('socStatusClassId', None)
     socStatusTypeId   = params.get('socStatusTypeId', None)
     isComplaint       = params.get('isComplaint', False)
+    detailInternet    = params.get('detailInternet', False)
+    isReason          = params.get('isReason', False)
     begRecordDateTime = QDateTime(begRecordDate, begRecordTime)
     endRecordDateTime = QDateTime(endRecordDate, endRecordTime)
     begScheduleDateTime = QDateTime(begScheduleDate, begScheduleTime)
@@ -161,7 +163,7 @@ def selectData(params, AV=False):
     if userParams == 1:
         cond.append(u'''((Schedule_Item.`recordClass`=2) OR rbPost.code='6000')''')
     elif userParams == 2:
-        cond.append(tableScheduleItem['recordClass'].eq(3))
+        cond.append(tableScheduleItem['recordClass'].inlist([3,7]))
     if AV:
         isClientPhones = params.get('isClientPhones', False)
         isClientMail = params.get('isClientMail', False)
@@ -198,12 +200,13 @@ def selectData(params, AV=False):
                   +'ClientSocStatus.deleted=0 AND ClientSocStatus.client_id=Client.id AND '
                   +'ClientSocStatus.socStatusClass_id=%d' % socStatusClassId)
         cond.append('EXISTS('+subStmt+')')
-    colsComplaint = u' Schedule_Item.complaint, ' if isComplaint else u''
+    colsComplaint = u' Schedule_Item.complaint, ' if isComplaint or isReason else u''
 
     stmt =  u'''SELECT
              Schedule_Item.recordDatetime,
              IF(rbPost.code='6000', 2, Schedule_Item.recordClass) AS recordClass,
-             Schedule_Item.recordPerson_id AS recordPerson_id,
+             Schedule_Item.recordPerson_id AS recordPerson_id, Schedule_Item.system_guid as systemGuid,
+              Schedule_Item.appointmentPurpose_id as appointCode,
              IF(Schedule_Item.recordClass = 2, Schedule_Item.note, RP.name) AS recordPersonName,
              Client.lastName, Client.firstName, Client.patrName, Client.birthDate, Client.id AS clientId,
              %s
@@ -261,6 +264,7 @@ class CJournalBeforeRecord(CReport):
         appointmentPurposeId = params.get('appointmentPurposeId', None)
         socStatusClassId  = params.get('socStatusClassId', None)
         socStatusTypeId   = params.get('socStatusTypeId', None)
+        isReason     = params.get('isReason', False)
 
         begRecordDateTime = QDateTime(begRecordDate, begRecordTime)
         endRecordDateTime = QDateTime(endRecordDate, endRecordTime)
@@ -299,6 +303,8 @@ class CJournalBeforeRecord(CReport):
             description.append(u'профиль прав пользователя: ' + forceString(db.translate('rbUserProfile', 'id', recordPersonProfileId, 'name')))
         if detailCallCenter:
             description.append(u'Детализировать сall-центр')
+        if isReason:
+            description.append(u'Отображать столбец "Причина"')
 
         description.append(u'отчёт составлен: '+forceString(QDateTime.currentDateTime()))
         columns = [ ('100%', [], CReportBase.AlignLeft) ]
@@ -332,6 +338,9 @@ class CJournalBeforeRecord(CReport):
                         ('10%', [u'Врач'],          CReportBase.AlignLeft),
                         ('10%', [u'Время ожидания записи в днях'], CReportBase.AlignLeft),
                         ]
+        isReason = params.get('isReason', False)
+        if isReason:
+            tableColumns.append(('8%', [u'Причина'], CReportBase.AlignLeft))
         table = createTable(cursor, tableColumns)
         query = selectData(params)
         db = QtGui.qApp.db
@@ -339,18 +348,25 @@ class CJournalBeforeRecord(CReport):
         tableSSCT = db.table('rbSocStatusClassTypeAssoc')
         queryTable = tableSSC.innerJoin(tableSSCT, tableSSCT['class_id'].eq(tableSSC['id']))
         sstIdList = db.getDistinctIdList(queryTable, [tableSSCT['type_id']], [tableSSC['code'].eq('8')])
+        detailInternet = params.get('detailInternet', False)
         n = 1
+        appointCodeDB = None
+        appointCodeDBRecord = QtGui.qApp.db.getRecordEx('rbAppointmentPurpose', 'id', where="code = 'Service_UO'")
+        if appointCodeDBRecord is not None:
+            appointCodeDB = forceInt(appointCodeDBRecord.value('id'))
+            
         clientIdList = []
         reportLines = []
         while query.next():
-            reportLine = [u'']*11
+            reportLine = [u'']*len(tableColumns)
             record = query.record()
             recordClass = forceInt(record.value('recordClass'))
             recordDateTime = forceDateTime(record.value('recordDatetime'))
             recordPersonName = forceString(record.value('recordPersonName'))
             recordPersonId = forceRef(record.value('recordPerson_id'))
             scheduleDatetime = forceDateTime(record.value('scheduleDatetime'))
-
+            systemGuid       = forceString(record.value('systemGuid'))
+            appointCode      = forceInt(record.value('appointCode'))
             reportLine[0] = formatDateTime(recordDateTime)
             if recordClass == 1: # Инфомат
                 recordPersonName = u'Инфомат'
@@ -359,8 +375,17 @@ class CJournalBeforeRecord(CReport):
                     recordPersonName = u'Call-центр ' + recordPersonName
                 else:
                     recordPersonName = u'Call-центр'
-            elif recordClass == 3: # интернет
+            elif recordClass in (3, 7): # интернет
                 recordPersonName = u'Интернет'
+                if detailInternet:
+                    if systemGuid == u'075AEF71-C1C6-46B7-BE97-931037F03E2A':
+                        recordPersonName  += u' (Мессенджер MAX)'
+                    elif systemGuid == u'4001E5F6-E96D-4742-8561-C81C838E9064':
+                        recordPersonName += u' (Портал госуслуг)'
+                    elif systemGuid == u'D127D963-EB51-4624-8778-F0508CE67648':
+                        recordPersonName += u' (Кубань-онлайн)'
+                    elif appointCodeDB and appointCode == appointCodeDB:
+                        recordPersonName += u' (Сервис УО)'
             else:
                 if recordPersonId:
                     recordPersonName = recordPersonName
@@ -386,6 +411,8 @@ class CJournalBeforeRecord(CReport):
             reportLine[8] = formatDateTime(scheduleDatetime)
             reportLine[9] = forceString(record.value('personName'))
             reportLine[10] = formatDisassembledSeconds(max(0, recordDateTime.secsTo(scheduleDatetime)))
+            if isReason:
+                reportLine[11] = forceString(record.value('complaint'))
             reportLines.append(reportLine)
         clientSocStatuses = {}
         if clientIdList:
@@ -411,6 +438,8 @@ class CJournalBeforeRecord(CReport):
             table.setText(i, 9, reportLine[8])   #daysTo
             table.setText(i, 10, reportLine[9])
             table.setText(i, 11, reportLine[10])
+            if isReason:
+                table.setText(i, 12, reportLine[11])
             n += 1
         return doc
 
@@ -422,6 +451,8 @@ class CJournalBeforeRecordEx(CJournalBeforeRecord):
 
     def getSetupDialog(self, parent):
         result = CJournalBeforeRecordDialog(parent)
+        result.setDetailsInternetSource(True)
+        result.setReasonVisible(True)
         return result
 
 
@@ -536,6 +567,13 @@ class CJournalBeforeRecordDialog(CDialogBase, Ui_JournalBeforeRecordDialog):
         self.setClientIdVisible(False)
         self.setClientPhonesVisible(False)
         self.setClientMailVisible(False)
+        self.setDetailsInternetSource(False)
+        self.setReasonVisible(False)
+
+
+    def setDetailsInternetSource(self, value):
+        self.chkDetailInternet.setVisible(value)
+        self.chkDetailInternet.setChecked(value)
 
 
     def setClientIdVisible(self, value):
@@ -574,6 +612,11 @@ class CJournalBeforeRecordDialog(CDialogBase, Ui_JournalBeforeRecordDialog):
         self.chkComplaint.setVisible(value)
 
 
+    def setReasonVisible(self, value):
+        self.reasonVisible = value
+        self.chkReason.setVisible(value)
+
+
     def setParams(self, params):
         date = QDate.currentDate().addDays(-3)
         self.chkRecordPeriod.setChecked(params.get('useRecordPeriod', True))
@@ -595,6 +638,7 @@ class CJournalBeforeRecordDialog(CDialogBase, Ui_JournalBeforeRecordDialog):
         self.cmbRecordPerson.setValue(params.get('recordPersonId', None))
         self.cmbRecordPersonProfile.setValue(params.get('recordPersonProfileId', None))
         self.chkDetailCallCenter.setChecked(params.get('detailCallCenter', False))
+        self.chkDetailInternet.setChecked(params.get('detailInternet', False))
         self.cmbSorted.setCurrentIndex(params.get('detailSorted', 0))
         self.cmbUserParams.setCurrentIndex(params.get('userParams', 0))
         self.cmbAppointmentPurpose.setValue(params.get('appointmentPurposeId', None))
@@ -612,6 +656,8 @@ class CJournalBeforeRecordDialog(CDialogBase, Ui_JournalBeforeRecordDialog):
             self.chkClientPhones.setChecked(params.get('isClientPhones', True))
         if self.clientMailVisible:
             self.chkClientMail.setChecked(params.get('isClientMail', True))
+        if self.reasonVisible:
+            self.chkReason.setChecked(params.get('isReason', False))
 
 
     def params(self):
@@ -644,6 +690,8 @@ class CJournalBeforeRecordDialog(CDialogBase, Ui_JournalBeforeRecordDialog):
                     isClientId          = self.chkClientId.isChecked() if self.clientIdVisible else False,
                     isClientPhones      = self.chkClientPhones.isChecked() if self.clientPhonesVisible else False,
                     isClientMail        = self.chkClientMail.isChecked() if self.chkClientMail else False,
+                    detailInternet      = self.chkDetailInternet.isChecked(),
+                    isReason            = self.chkReason.isChecked() if self.reasonVisible else False,
                    )
 
 

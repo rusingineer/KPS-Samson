@@ -34,6 +34,7 @@ from Exchange.AriadnaModels.Phone import Phone
 from Exchange.AriadnaModels.Physician import Physician
 from Exchange.AriadnaModels.Province import Province
 from Exchange.AriadnaModels.Snils import Snils
+from Exchange.AriadnaModels.Condition import Condition
 from Registry.Utils import CClientInfo
 from library import database
 from library.Preferences import CPreferences
@@ -67,6 +68,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.options = options
         self.db = None
         self.preferences = None
+        self._globalPreferences = {}
         self.mainWindow = None
         self.userHasRight = lambda x: True
         self.userSpecialityId = None
@@ -174,6 +176,24 @@ class CAriadnaExchange(QtCore.QCoreApplication):
         self.typeReports = forceInt(self.preferences.appPrefs.get('typeReports', 0))
         self.newImportConfirm = forceBool(self.preferences.appPrefs.get('newImportConfirm', False))
 
+    def loadGlobalPreferences(self):
+        if self.db:
+            try:
+                recordList = self.db.getRecordList('GlobalPreferences')
+            except:
+                recordList = []
+            for record in recordList:
+                code  = forceString(record.value('code'))
+                value = forceString(record.value('value'))
+                self._globalPreferences[code] = value
+
+
+    def checkGlobalPreference(self, code, chkValue, default=None):
+        value = self._globalPreferences.get(code, default)
+        if value:
+            return unicode(value).lower() == unicode(chkValue).lower()
+        return False
+
     def currentOrgId(self):
         return forceRef(self.preferences.appPrefs.get('orgId', QVariant()))
 
@@ -213,6 +233,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
             self.initLogger()
             self.openDatabase()
             if self.db:
+                self.loadGlobalPreferences()
                 self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AriadnaLIS', 'id'))
 
                 # Путь к файлохранилищу берем из глобальных настроек в БД
@@ -244,6 +265,7 @@ class CAriadnaExchange(QtCore.QCoreApplication):
                 elif self.options.applyResult:
                     self.applyResults(self.options.applyResult)
                 else:
+                    self.processLisExchangeQueue()
                     i = 0
                     resCount = self.resultCount
                     while resCount == self.resultCount and i < 10: # ТТ 3299 Циклическая загрузка результатов
@@ -451,6 +473,27 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 observation.patient.externalIdentification = []
                 observation.patient.conditions = []
 
+                # необязательные свойства для observation.patient.conditions
+                # в последствии можно будет расширять для новых property в действиях (учитывая что последующие будут
+                # String и иметь ValueDomain: 'код.Название, ...')
+                # 'shortName': код параметра для передачи (groupCode)
+                patientConditionsType = {
+                    u'trimester': u'1',
+                    u'week': u'2',
+                    u'cycle_phase': u'3'
+                }
+
+                for conditionShortName, groupCode in patientConditionsType.items():
+                    prop = action._action.getPropertyByShortName(conditionShortName)
+                    if prop and prop.getValue():
+                        condition = Condition()
+                        conditionId = forceString(prop.getValue()).split(u'.')
+                        if conditionId and conditionId[0].isdigit():
+                            condition.groupCode = groupCode
+                            condition.id = conditionId[0]
+                            condition.code = conditionId[0]
+                            observation.patient.conditions.append(condition)
+
                 action = CActionInfo(context, referral.actionId)
 
                 observation.regDate = action.directionDate.toString(CAriadnaExchange.datetimeFormat)
@@ -459,6 +502,10 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 observation.order.date = action.directionDate.toString(CAriadnaExchange.datetimeFormat)
                 observation.order.hisId = forceString(action.id)
                 observation.order.medHistory = eventInfo.externalId if eventInfo.externalId else forceString(client.id)
+                # комментарий к биоматериалу
+                commentSpecimen = action._action.getPropertyByShortName('commentSpecimen')
+                if commentSpecimen and commentSpecimen.getValue():
+                    observation.order.commentSpecimen = forceString(commentSpecimen.getValue())
 
                 identifySpecimenTypes = action._action.getProperty(u'Биоматериал').getInfo(context).identify('urn:oid:1.2.643.5.1.13.13.11.1081')
                 if identifySpecimenTypes:
@@ -668,6 +715,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                 if res.bacteria:
                                     mapSIR = {1: 'S', 2: 'I', 3: 'R'}
                                     antibioticList = []
+                                    phenotypeList = []
+                                    resistanceMarkerList = []
                                     isMicrobiology = True
                                     if not finishDate:
                                         finishDate = rep.finishDate
@@ -684,7 +733,10 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                     <tr><td style="font-size: 10pt;">Выделенные микроорганизмы:</td></tr>"""
                                     subTable = u'''<tr><td>
                                     <table border="1" style=" margin-top:0px; margin-bottom:0px; margin-left:30px; margin-right:0px;" width="70%" cellspacing="0" cellpadding="0">
-                                    <tr><th>Антибиотикограмма **</th>'''
+                                    <tr><th>{0}</th>'''
+                                    subTableAntibiotic= u''
+                                    subTablePhenotype = u''
+                                    subTableResistanceMarkers = u''
                                     # первый проход
                                     i = 0
                                     for bacteria in res.bacteria:
@@ -698,14 +750,24 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             value = bacteria.resultValue
                                         htmlText += u'<tr><td style="font-size: 10pt;"><b>[{0}]</b> {1}<hr></td><td style="font-size: 10pt;">{2}<hr></td></tr>'.format(i, bacteria.name, value)
                                         if bacteria.antibiotics:
-                                            subTable += u'<th colspan="2">[{0}] МПК</th>'.format(i)
+                                            subTableAntibiotic += u'<th colspan="2">[{0}] МПК</th>'.format(i)
                                             for antibiotic in bacteria.antibiotics:
                                                 if antibiotic.code not in antibioticList:
                                                     antibioticList.append(antibiotic.code)
+                                        if bacteria.phenotypes:
+                                            subTablePhenotype += u'<th colspan="2">[{0}]</th>'.format(i)
+                                            for phenotype in bacteria.phenotypes:
+                                                if phenotype.id not in phenotypeList:
+                                                    phenotypeList.append(phenotype.id)
+                                        if bacteria.resistanceMarkers:
+                                            subTableResistanceMarkers += u'<th colspan="2">[{0}]</th>'.format(i)
+                                            for resistanceMarker in bacteria.resistanceMarkers:
+                                                if resistanceMarker.id not in resistanceMarkerList:
+                                                    resistanceMarkerList.append(resistanceMarker.id)
 
                                     htmlText += u'<tr></tr>'
                                     if antibioticList:
-                                        htmlText += subTable + u"</tr>"
+                                        htmlText += subTable.format(u'Антибиотикограмма **') + subTableAntibiotic + u"</tr>"
 
                                     # второй проход
                                     for antibioticCode in antibioticList:
@@ -728,6 +790,49 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                     if antibioticList:
                                         htmlText += u'<tr><td align="center">** S - Чувствительный при стандартном режиме дозирования  I - Чувствительный при увеличенной экспозиции  R - Резистентный</td></tr>'
                                     htmlText += u'</table></body></html>'
+
+                                    if phenotypeList:
+                                        htmlText += subTable.format(u'Фенотипические тесты') + subTablePhenotype + u"</tr>"
+
+                                    for phenotypeCode in phenotypeList:
+                                        rowText = u"<tr><td>{0}</td>"
+                                        phenotypeName = None
+                                        for bacteria in res.bacteria:
+                                            if bacteria.phenotypes:
+                                                tmp = u'<td colspan=2><table width=100%><tr><td align="center"></td></tr></table></td>'
+                                            else:
+                                                tmp = ''
+                                            for phenotype in bacteria.phenotypes:
+                                                if phenotypeCode == phenotype.id:
+                                                    if not phenotypeName:
+                                                        phenotypeName = phenotype.nameShort
+                                                    tmp = u'<td colspan=2><table width=100%><tr><td align="center">{0}</td></tr></table></td>'.format(escape(phenotype.value))
+                                                    break
+                                            rowText += tmp
+                                        htmlText += rowText.format(phenotypeName) + u'</tr>'
+                                    htmlText += u'</table></td></tr>'
+
+                                    if resistanceMarkerList:
+                                        htmlText += subTable.format(u'Маркеры резистентности') + subTableResistanceMarkers + u"</tr>"
+
+                                    for resistanceMarkerCode in resistanceMarkerList:
+                                        rowText = u"<tr><td>{0}</td>"
+                                        resistanceMarkerName = None
+                                        for bacteria in res.bacteria:
+                                            if bacteria.resistanceMarkers:
+                                                tmp = u'<td colspan=2><table width=100%><tr><td align="center"></td></tr></table></td>'
+                                            else:
+                                                tmp = ''
+                                            for resistanceMarker in bacteria.resistanceMarkers:
+                                                if resistanceMarkerCode == resistanceMarker.id:
+                                                    if not resistanceMarkerName:
+                                                        resistanceMarkerName = resistanceMarker.name
+                                                    tmp = u'<td colspan=2><table width=100%><tr><td align="center">{0}</td></tr></table></td>'.format(
+                                                        "&#9679;")
+                                                    break
+                                            rowText += tmp
+                                        htmlText += rowText.format(resistanceMarkerName) + u'</tr>'
+                                    htmlText += u'</table></td></tr>'
 
                                     prop = action.getPropertyByShortName(u'results')
                                     if prop:
@@ -1028,6 +1133,48 @@ WHERE `as`.urn = 'urn:oid:1.2.643.5.1.13.13.11.1358'"""
             except Exception as e:
                 self.log('error', anyToUnicode(e), 2)
         return None
+
+    def processLisExchangeQueue(self):
+        """
+        обрабатывает очередь из LisExchangeQueue, как если бы запускали с ключами -o,-r
+        """
+        try:
+            query = self.db.query(u"""
+                SELECT id, taskType, number
+                FROM LisExchangeQueue
+                WHERE externalSystem_id = {extId}
+                ORDER BY createDatetime
+                """.format(extId=int(self.externalSystemId)))
+            ids_to_delete = []
+            while query.next():
+                qid = forceRef(query.value(0))
+                taskType = int(forceRef(query.value(1)) or 0)
+                number = forceString(query.value(2))
+
+                try:
+                    if taskType == 1: # send -o
+                        referral = self.getReferralByNumber(number)
+                        if referral:
+                            self.sendOrders(referral)
+                        else:
+                            self.log(u'Очередь ЛИС', u'направление {0} не найдено в БД'.format(number), 1)
+                        ids_to_delete.append(qid)
+                    elif taskType == 2: #result -r
+                        processed = self.getResults(number, count=self.resultCount)
+                        if processed and int(processed) > 0:
+                            ids_to_delete.append(qid)
+                    else:
+                        self.log(u'Очередь ЛИС', u'Неизвестный taskType={0} для {1}'.format(taskType, number), 1)
+                        ids_to_delete.append(qid)
+                except Exception as e:
+                    self.logCurrentException()
+                for qid in ids_to_delete:
+                    try:
+                        self.db.query(u'DELETE FROM LisExchangeQueue WHERE id = {0}'.format(int(qid)))
+                    except Exception as e:
+                        self.logCurrentException()
+        except Exception as e:
+            self.logCurrentException()
 
 
 def formatSex(sex):

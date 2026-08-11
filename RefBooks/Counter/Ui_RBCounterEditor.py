@@ -67,6 +67,7 @@ class Ui_RBCounterEditor(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.edtCode.sizePolicy().hasHeightForWidth())
         self.edtCode.setSizePolicy(sizePolicy)
+        self.edtCode.setMaxLength(8)
         self.edtCode.setObjectName(_fromUtf8("edtCode"))
         self.gridLayout.addWidget(self.edtCode, 0, 1, 1, 1)
         self.edtPostfix = QtGui.QLineEdit(RBCounterEditor)
@@ -236,14 +237,4 @@ class Ui_RBCounterEditor(object):
         self.chkSequenceFlag.setText(_translate("RBCounterEditor", "&Флаг последовательности", None))
         self.lblReset.setText(_translate("RBCounterEditor", "&Сброс", None))
         self.btnFormatTest.setText(_translate("RBCounterEditor", "Сконструировать и проверить формат", None))
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    RBCounterEditor = QtGui.QDialog()
-    ui = Ui_RBCounterEditor()
-    ui.setupUi(RBCounterEditor)
-    RBCounterEditor.show()
-    sys.exit(app.exec_())
 

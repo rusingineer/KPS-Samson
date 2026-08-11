@@ -61,7 +61,7 @@
      </property>
      <property name="maximumSize">
       <size>
-       <width>278</width>
+       <width>350</width>
        <height>16777215</height>
       </size>
      </property>
@@ -107,7 +107,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QDateEdit" name="edtBegDate">
+           <widget class="CDateEdit" name="edtBegDate">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -124,7 +124,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QDateEdit" name="edtEndDate">
+           <widget class="CDateEdit" name="edtEndDate">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -239,6 +239,11 @@
    <class>CMultivalueComboBox</class>
    <extends>QComboBox</extends>
    <header>library/MultivalueComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
   </customwidget>
  </customwidgets>
  <resources/>

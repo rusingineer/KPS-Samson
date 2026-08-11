@@ -169,6 +169,7 @@ urAdminServiceTMK = 'adminServiceTMK' #Сервис: доступ к меню Т
 urServiceTMKdirectionList = 'serviceTMKdirectionList' #Сервис: доступ к меню ТМК-список направлений
 urPersonSubstitution = 'wPersonSubstitution' # Доступ к сервису замещения сотрудников
 urCanChangePersonSubstitution = 'canChangePersonSubstitution' # Право редактировать данные о замещающих сотрудниках
+urStreetCorrect = 'streetCorrect'   #имеет  доступ к Корректор неактуальных улиц
 
 # Расчет
 urAccessAccountInfo    = 'acc'                # имеет доступ к учётной информации (договора и счета)

@@ -39,12 +39,15 @@ def ExportTariffsR23(widget, tariffRecordList, begDate=None):
     appPrefs = QtGui.qApp.preferences.appPrefs
     fileName = forceString(appPrefs.get('ExportTariffsR23FileName', ''))
     exportAll = forceBool(appPrefs.get('ExportTariffsR23ExportAll', True))
+    exportExternal = forceBool(appPrefs.get('ExportTariffsR23ExportExternal', False))
+    exportExternalToZero = forceBool(appPrefs.get('ExportTariffsR23ExportExternalToZero', False))
     compressRAR = forceBool(appPrefs.get('ExportTariffsR23CompressRAR', False))
-    dlg = CExportTariffR23(fileName, exportAll, compressRAR, tariffRecordList, widget, begDate)
+    dlg = CExportTariffR23(fileName, exportAll, exportExternal, exportExternalToZero, compressRAR, tariffRecordList, widget, begDate)
     dlg.exec_()
     appPrefs['ExportTariffsR23FileName'] = toVariant(dlg.fileName)
     appPrefs['ExportTariffsR23ExportAll'] = toVariant(dlg.exportAll)
-    appPrefs['ExportTariffsR23CompressRAR'] = toVariant(dlg.compressRAR)
+    appPrefs['ExportTariffsR23ExportExternal'] = toVariant(dlg.exportExternal)
+    appPrefs['ExportTariffsR23ExportExternalToZero'] = toVariant(dlg.exportExternalToZero)
 
 
 class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CConstructHelperMixin):
@@ -76,9 +79,13 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
         self.tblItems.setFocus(Qt.OtherFocusReason)
         self.tblItems.setEnabled(not self.parent.exportAll)
         self.btnSelectAll.setEnabled(not self.parent.exportAll)
+        self.chkExportExternalTariff.setChecked(self.parent.exportExternal)
+        self.chkExportExternalTariffToZero.setChecked(self.parent.exportExternalToZero)
+        self.chkExportExternalTariffToZero.setEnabled(self.chkExportExternalTariff.isChecked())
         self.btnClearSelection.setEnabled(not self.parent.exportAll)
         self.chkExportAll.setChecked(self.parent.exportAll)
         if self.parent.exportAll:
+            self.setSelectedItemsExportAll()
             self.parent.selectedItems = range(self.modelTable.rowCount())
             self.chkActive.setEnabled(False)
             self.edtFilterBegDateFrom.setEnabled(False)
@@ -90,7 +97,7 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
 
     def selectedItemList(self):
         if self.parent.exportAll:
-            rows = self.parent.selectedItems
+            rows = [row for row in self.parent.selectedItems if not self.tblItems.isRowHidden(row)]
         else:
             rows = [index.row() for index in self.selectionModelTable.selectedRows() if not self.tblItems.isRowHidden(index.row())]
         rows.sort()
@@ -134,6 +141,7 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
         self.btnSelectAll.setEnabled(not self.parent.exportAll)
         self.btnClearSelection.setEnabled(not self.parent.exportAll)
         if self.chkExportAll.isChecked():
+            self.setSelectedItemsExportAll()
             self.parent.selectedItems = range(self.modelTable.rowCount())
             self.chkActive.setEnabled(False)
             self.edtFilterBegDateFrom.setEnabled(False)
@@ -152,7 +160,36 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
         self.tblItems.clearSelection()
         self.parent.selectedItems = []
         self.emit(SIGNAL('completeChanged()'))
-        self.applyFilter()    
+        self.applyFilter()
+
+    @pyqtSignature('')
+    def on_chkExportExternalTariff_clicked(self):
+        self.parent.exportExternal = self.chkExportExternalTariff.isChecked()
+        self.chkExportExternalTariffToZero.setEnabled(self.chkExportExternalTariff.isChecked())
+        if not self.chkExportExternalTariff.isChecked():
+            self.chkExportExternalTariffToZero.setChecked(False)
+            self.parent.exportExternalToZero = self.chkExportExternalTariffToZero.isChecked()
+        if self.chkExportAll.isChecked():
+            self.setSelectedItemsExportAll()
+        else:
+            self.tblItems.clearSelection()
+            self.parent.selectedItems = []
+            self.emit(SIGNAL('completeChanged()'))
+            self.applyFilter()
+
+    @pyqtSignature('')
+    def on_chkExportExternalTariffToZero_clicked(self):
+        self.parent.exportExternalToZero = self.chkExportExternalTariffToZero.isChecked()
+
+    def setSelectedItemsExportAll(self):
+        if self.chkExportAll.isChecked():
+            self.parent.selectedItems = range(self.modelTable.rowCount())
+            for row in self.parent.selectedItems:
+                match = True
+                if not self.chkExportExternalTariff.isChecked():
+                    match = match and not self.modelTable.data(self.modelTable.index(row, 0),
+                                                               Qt.CheckStateRole).toBool()
+                self.tblItems.setRowHidden(row, not match)
     
     
     def applyFilter(self):
@@ -175,8 +212,12 @@ class CExportTariffWizardPage1(QtGui.QWizardPage, Ui_ExportTariff_Wizard_1, CCon
                     dataEnd = QDate.fromString(self.modelTable.index(row, 9).data().toString(), "dd.MM.yyyy")
                     match = match and ((dataEnd >= filter_begDateFrom and dataEnd <= filter_begDateTil) or not dataEnd) and dataStart <= filter_begDateTil
                 else:
-                    dataStart = QDate.fromString(self.modelTable.index(row, 8).data().toString(), "dd.MM.yyyy")
+                    dataStart = QDate.fromString(
+                        self.modelTable.index(row, self.modelTable.getColIndex('begDate')).data().toString(),
+                        "dd.MM.yyyy")  # 8
                     match = match and dataStart >= filter_begDateFrom and dataStart <= filter_begDateTil
+                if match and not self.chkExportExternalTariff.isChecked():
+                    match = match and not self.modelTable.data(self.modelTable.index(row, 0), Qt.CheckStateRole).toBool()
             self.tblItems.setRowHidden(row, not match)
             if first_matched_row == -1 and match:
                 first_matched_row = row
@@ -231,7 +272,11 @@ class CExportTariffWizardPage2(QtGui.QWizardPage, Ui_ExportTariff_Wizard_2, CExp
 
             for i in selectedItems:
                 if not forceBool(tariffRecordList[i].value('deleted')):
-                    self.writeRecord(outFile, tariffRecordList[i])
+                    record = tariffRecordList[i]
+                    if self.wizard().page(0).chkExportExternalTariffToZero.isChecked() and forceBool(
+                            record.value('isExternal')):
+                        record.setValue('price', toVariant(0.00))
+                    self.writeRecord(outFile, record)
                     QtGui.qApp.processEvents()
                     self.progressBar.step()
 
@@ -351,13 +396,15 @@ class CExportTariffWizardPage2(QtGui.QWizardPage, Ui_ExportTariff_Wizard_2, CExp
 
 
 class CExportTariffR23(QtGui.QWizard):
-    def __init__(self, fileName, exportAll, compressRAR, tariffRecordList, parent=None, begDate=None):
+    def __init__(self, fileName, exportAll, exportExternal, exportExternalToZero, compressRAR, tariffRecordList, parent=None, begDate=None):
         QtGui.QWizard.__init__(self, parent, Qt.Dialog)
         self.setWizardStyle(QtGui.QWizard.ModernStyle)
         self.setWindowTitle(u'Экспорт тарифов договора для ЕИС Краснодара')
         self.selectedItems = []
         self.fileName= fileName
         self.exportAll = exportAll
+        self.exportExternal = exportExternal
+        self.exportExternalToZero = exportExternalToZero
         self.compressRAR = compressRAR
         self.begDate = begDate
         self.tariffRecordList = tariffRecordList

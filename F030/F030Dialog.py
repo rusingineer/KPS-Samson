@@ -211,24 +211,7 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblVisits.setModel(None)
-        self.tblPreliminaryDiagnostics.setModel(None)
-        self.tblFinalDiagnostics.setModel(None)
-        self.grpTempInvalid.deleteLater()
-        self.grpAegrotat.deleteLater()
-        self.grpDisability.deleteLater()
-        self.grpVitalRestriction.deleteLater()
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabMes.deleteLater()
-        del self.modelVisits
-        del self.modelPreliminaryDiagnostics
-        del self.modelFinalDiagnostics
-        self.tabAmbCard.deleteLater()
+        pass
 
     def getModelFinalDiagnostics(self):
         return self.modelFinalDiagnostics
@@ -770,6 +753,7 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.tabNotes.saveAttachedFiles(eventId)
         self.saveTrailerActions(eventId)
         self.setIsAssertNoMessage(False)
+        self.saveTempInvalid()
 
 
     def saveTrailerActions(self, eventId):

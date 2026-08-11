@@ -771,6 +771,8 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.chkChangePassword.setVisible(False)
         self.edtPassword.setVisible(False)
 
+        self.orderDocId = None
+
 
     def setLoginPasswordProfileEnable(self):
         isEnable = QtGui.qApp.userHasAnyRight([urEditLoginPasswordProfileUser])
@@ -781,20 +783,7 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
 
 
     def destroy(self):
-        self.tblEducationDocs.setModel(None)
-        self.tblOrderDocs.setModel(None)
-        self.tblPersonActivity.setModel(None)
-        self.tblPersonJobType.setModel(None)
-        self.tblTimeTable.setModel(None)
-        self.tblPersonContacts.setModel(None)
-
-        del self.modelEducationDocs
-        del self.modelOrderDocs
-        del self.modelPersonActivity
-        del self.modelPersonJobType
-        del self.modelTimeTable
-        del self.modelPersonContacts
-        del self.modelCombinedArea
+        pass
 
     def checkPersonOrderDocsMoving(self):
         is_uncorrect_row = False
@@ -922,6 +911,12 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.modelCombinedArea.setCurrentAreaId(self.cmbOrgStructure.value())
         self.modelEducationDocs.loadItems(id)
         self.modelOrderDocs.loadItems(id)
+        if self.orderDocId:
+            orderDocsIdList = self.modelOrderDocs.itemIdList()
+            row = orderDocsIdList.index(self.orderDocId) if self.orderDocId in orderDocsIdList else None
+            if row:
+                index = self.modelOrderDocs.index(row, 5)
+                self.tblOrderDocs.setCurrentIndex(index)
         self.modelPersonJobType.loadItems(id)
         self.modelTimeTable.loadItems(id, self.cmbTimelinePeriod.currentIndex(), self.edtTimelineCustomLength.value())
         self.modelPersonActivity.loadItems(id)
@@ -1248,6 +1243,11 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         self.modelTimeTable.setPeriod(period, customLength)
 
 
+    def setOrderDocId(self, id):
+        if id:
+            self.orderDocId = id
+
+
     @pyqtSignature('int')
     def on_cmbOrg_currentIndexChanged(self, index):
         orgId = self.cmbOrg.value()
@@ -1386,6 +1386,22 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
                 self.tblCombinedArea.showRow(row)
 
 
+    @pyqtSignature('bool')
+    def on_chkActual_toggled(self, checked):
+        currentDate = QDate.currentDate()
+        items = self.modelOrderDocs.items()
+        if checked:
+            for row, item in enumerate(items):
+                validToDate = forceDate(item.value('validToDate'))
+                if (not validToDate) or validToDate > currentDate:
+                    pass
+                else:
+                    self.tblOrderDocs.hideRow(row)
+        else:
+            for row, item in enumerate(items):
+                self.tblOrderDocs.showRow(row)
+
+
 class CEducationDocsModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Person_Education', 'id', 'master_id', parent)
@@ -1468,13 +1484,14 @@ class COrderDocsModel(CInDocTableModel):
         begDate = forceDate(record.value('validFromDate')).toString('yyyy-MM-dd')
         endDate = u'"' + forceDate(record.value('validToDate')).toString('yyyy-MM-dd') + u'"' if forceDate(
             record.value('validToDate')) else '   ADDDATE(CURDATE(), 36500  ) '
-        recScene = QtGui.qApp.db.getRecordEx('Person_Order', 'master_id',
+        recScene = QtGui.qApp.db.getRecordEx('Person_Order', 'id, master_id',
                                              "master_id <> %(master_id)s AND type=6 and (SELECT 1 FROM Person p INNER JOIN rbSpeciality s ON p.speciality_id = s.id  WHERE p.id = Person_Order.master_id AND p.deleted=0 AND isHigh=1) AND orgStructure_id = %(orgStructure_id)s AND deleted = 0 AND ((validToDate IS NULL and validFromDate BETWEEN '%(begDate)s' AND  %(endDate)s)  OR (validToDate IS NOT NULL AND (validFromDate BETWEEN '%(begDate)s' AND  %(endDate)s or validToDate BETWEEN '%(begDate)s' AND  %(endDate)s))) AND (validToDate IS NULL OR validToDate >= CURRENT_DATE()) " % {
                                                  'master_id': forceString(record.value('master_id')),
                                                  'orgStructure_id': forceString(record.value('orgStructure_id')),
                                                  'begDate': begDate, 'endDate': endDate})
         confirmation = 1
         if recScene:
+            personOrderId = forceRef(recScene.value('id'))
             personId = forceInt(recScene.value('master_id'))
             person = forceString(QtGui.qApp.db.translate('Person', 'id', personId, 'formatPersonName(id)'))
             messageBox = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание', u'Обнаружено пересечение периода прикрепления к участку\nОткрыть карточку врача ' + person + '?')
@@ -1491,6 +1508,8 @@ class COrderDocsModel(CInDocTableModel):
                         dialog = CPersonEditor(self.parent.parent())
                     try:
                         dialog.load(personId)
+                        dialog.tblMain.setCurrentIndex(dialog.tblMain.indexOf(dialog.tabMovements))
+                        dialog.setOrderDocId(forceRef(recScene.value('id')))
                         if dialog.exec_():
                             pass
                     finally:

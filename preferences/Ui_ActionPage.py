@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/work/kmivc-arch/Samson/client_test/preferences/ActionPage.ui'
+# Form implementation generated from reading ui file 'ActionPage.ui'
 #
-# Created by: PyQt4 UI code generator 4.12.3
+# Created: Thu Feb 19 14:36:13 2026
+#      by: PyQt4 UI code generator 4.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -31,11 +32,6 @@ class Ui_actionPage(object):
         self.gridLayout.setMargin(4)
         self.gridLayout.setSpacing(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        spacerItem = QtGui.QSpacerItem(20, 1, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem, 3, 0, 1, 1)
-        self.lblActionTemplatePriorityLoad = QtGui.QLabel(actionPage)
-        self.lblActionTemplatePriorityLoad.setObjectName(_fromUtf8("lblActionTemplatePriorityLoad"))
-        self.gridLayout.addWidget(self.lblActionTemplatePriorityLoad, 1, 0, 1, 1)
         self.cmbActionTemplatePriorityLoad = QtGui.QComboBox(actionPage)
         self.cmbActionTemplatePriorityLoad.setObjectName(_fromUtf8("cmbActionTemplatePriorityLoad"))
         self.cmbActionTemplatePriorityLoad.addItem(_fromUtf8(""))
@@ -44,18 +40,27 @@ class Ui_actionPage(object):
         self.chkOrgStructurePriorityForAddActions = QtGui.QCheckBox(actionPage)
         self.chkOrgStructurePriorityForAddActions.setObjectName(_fromUtf8("chkOrgStructurePriorityForAddActions"))
         self.gridLayout.addWidget(self.chkOrgStructurePriorityForAddActions, 0, 0, 1, 2)
+        spacerItem = QtGui.QSpacerItem(20, 1, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridLayout.addItem(spacerItem, 4, 0, 1, 1)
+        self.lblActionTemplatePriorityLoad = QtGui.QLabel(actionPage)
+        self.lblActionTemplatePriorityLoad.setObjectName(_fromUtf8("lblActionTemplatePriorityLoad"))
+        self.gridLayout.addWidget(self.lblActionTemplatePriorityLoad, 1, 0, 1, 1)
         self.chkEnableUserDictionary = QtGui.QCheckBox(actionPage)
         self.chkEnableUserDictionary.setObjectName(_fromUtf8("chkEnableUserDictionary"))
         self.gridLayout.addWidget(self.chkEnableUserDictionary, 2, 0, 1, 1)
+        self.chkAutoResizeColumns = QtGui.QCheckBox(actionPage)
+        self.chkAutoResizeColumns.setObjectName(_fromUtf8("chkAutoResizeColumns"))
+        self.gridLayout.addWidget(self.chkAutoResizeColumns, 3, 0, 1, 1)
 
         self.retranslateUi(actionPage)
         QtCore.QMetaObject.connectSlotsByName(actionPage)
 
     def retranslateUi(self, actionPage):
         actionPage.setWindowTitle(_translate("actionPage", "Ввод действий", None))
-        self.lblActionTemplatePriorityLoad.setText(_translate("actionPage", "Приоритет фокуса для загрузки шаблона действия", None))
         self.cmbActionTemplatePriorityLoad.setItemText(0, _translate("actionPage", "Добавить", None))
         self.cmbActionTemplatePriorityLoad.setItemText(1, _translate("actionPage", "Заполнить", None))
         self.chkOrgStructurePriorityForAddActions.setText(_translate("actionPage", "Приоритет подразделения для функции \"Добавить ...\"", None))
+        self.lblActionTemplatePriorityLoad.setText(_translate("actionPage", "Приоритет фокуса для загрузки шаблона действия", None))
         self.chkEnableUserDictionary.setText(_translate("actionPage", "Включить отображение Словаря пользователя", None))
+        self.chkAutoResizeColumns.setText(_translate("actionPage", "Автоматически подгонять ширину столбцов под размер окна", None))
 

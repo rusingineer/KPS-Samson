@@ -48,7 +48,7 @@ from library.RecordLock                     import CRecordLockMixin
 from library.Utils import (addDots, addDotsBefore, agreeNumberAndWord, copyFields, exceptionToUnicode, forceBool,
                            forceDate, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDays,
                            formatNum, formatRecordsCount, formatRecordsCount2, formatSex, formatSNILS, getPref, quote,
-                           smartDict, toVariant, trim, calcAgeTuple, getPrefBool, anyToUnicode)
+                           smartDict, toVariant, trim, calcAgeTuple, getPrefBool, anyToUnicode, unformatSNILS)
 
 from Accounting.AccountingDialog import CAccountingDialog
 from DataCheck.RegistryControlDoubles import CRegistryControlDoubles
@@ -324,6 +324,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.actaClients.setShortcut('F3')
         self.addObject('actBatchRegLocatCard',           QtGui.QAction(u'Изменить место нахождения карты пациентов', self))
         self.actBatchRegLocatCard.setShortcut('F5')
+        self.addObject('actSurveillancePlanningClientsByEvent', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
         self.addObject('actStatusObservationClient',     QtGui.QAction(u'Изменить статус наблюдения пациента', self))
         self.actStatusObservationClient.setShortcut('Shift+F5')
         self.addObject('actStatusObservationClientBrowserByEvent', QtGui.QAction(u'Изменить статус наблюдения пациента', self))
@@ -1154,6 +1155,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.tblEvents.addPopupAction(self.actUndoExpertise)
         self.tblEvents.addPopupAction(self.actMakePersonalAccount)
         self.tblEvents.addPopupAction(self.actStatusObservationClientByEvent)
+        self.tblEvents.addPopupAction(self.actSurveillancePlanningClientsByEvent)
         self.tblEvents.addPopupAction(self.actAddActionEvent)
         self.tblEvents.addPopupAction(self.actJobTicketsEvent)
         self.tblEvents.addPopupAction(self.actCreateRelatedAction)
@@ -1932,7 +1934,16 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
 
     def setBtnExpertEditEnabled(self):
         tableList = [self.tblExpertTempInvalid, self.tblExpertDisability, self.tblExpertVitalRestriction, self.getCurrentExpertMedicalCommissionTable()]
-        self.btnExpertEdit.setEnabled(getRightEditTempInvalid(tableList[self.tabWidgetTempInvalidTypes.currentIndex()].currentItemId()))
+        btnDeleteList = [self.actExpertTempInvalidDelete, self.actExpertDisabilityDelete, self.actExpertVitalRestrictionDelete, None]
+        if self.tabWidgetTempInvalidTypes.currentIndex() != 1:
+            active = getRightEditTempInvalid(tableList[self.tabWidgetTempInvalidTypes.currentIndex()].currentItemId())
+            self.btnExpertEdit.setEnabled(active)
+            if btnDeleteList[self.tabWidgetTempInvalidTypes.currentIndex()]:
+                btnDeleteList[self.tabWidgetTempInvalidTypes.currentIndex()].setEnabled(active)
+        else:
+            active = forceBool(tableList[self.tabWidgetTempInvalidTypes.currentIndex()].currentItemId())
+            self.btnExpertEdit.setEnabled(active)
+            btnDeleteList[self.tabWidgetTempInvalidTypes.currentIndex()].setEnabled(active)
 
 
     def setupCmbFilterAttachTypeCategory(self, category, filterDict=None):
@@ -4519,6 +4530,8 @@ LIMIT 1)))%s))'''%((u'''AND Diagnosis.MKB >= '%s' ''' % MKBFrom),
         self.updateClientInfo(clientId)
         if clientId:
             self.actSurveillancePlanningClients.setEnabled(bool(isSurveillanceActive(clientId, {}, {'begDate': QDate.currentDate()})))
+            if eventId:
+                self.actSurveillancePlanningClientsByEvent.setEnabled(bool(isSurveillanceActive(clientId, {'event_id': eventId}, {'begDate': QDate.currentDate(), 'event_id': eventId})))
         self.actEventEditClient.setEnabled(bool(clientId))
         self.actEventOpenClientVaccinationCard.setEnabled(bool(clientId) and QtGui.qApp.userHasAnyRight([urCanReadClientVaccination, urCanEditClientVaccination]))
         self.actCheckClientAttach.setEnabled(bool(clientId))
@@ -7036,33 +7049,43 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         else:
             QtGui.QMessageBox.critical(self, u'Ошибка', u'Выбрана неизвестная вкладка с Действиями')
 
-        lockIdList = []
-        excludedActionIdList = []
-        alreadyLockedCount = 0
-        lockErrorCount = 0
-        for actionId in actionIdList:
-            appLockId, message = self.tryLock('Action', actionId, shorted=1)
-            if appLockId:
-                lockIdList.append(appLockId)
-            else:
-                excludedActionIdList.append(actionId)
-                if message == u'Не удалось установить блокировку':
-                    lockErrorCount += 1
-                if message.startswith(u'Данные'):
-                    alreadyLockedCount += 1
-        if len(excludedActionIdList) > 0:
-            QtGui.QMessageBox.information(self, u'Внимание',
-                (u'Из списка были исключены Действия, заблокированные другими пользователями (%d шт)'
-                u' или блокировку на которые установить не удалось (%d шт)') % (alreadyLockedCount, lockErrorCount))
+        actionIdList = list(set(actionIdList))
 
-        actionIdList = list(set(actionIdList) - set(excludedActionIdList))
-        try:
-            dialog = CActionGroupSignDialog(self)
-            dialog.setActionIdList(actionIdList)
-            dialog.exec_()
-        finally:
-            for lockId in lockIdList:
-                self.releaseLock(lockId)
+        if QtGui.qApp.checkGlobalPreference(u'23:ActionGroupSignLockByRecord', u'да'):
+            try:
+                dialog = CActionGroupSignDialog(self, innerAppLock=True)
+                dialog.setActionIdList(actionIdList)
+                dialog.exec_()
+            except:
+                QtGui.qApp.logCurrentException()
+        else:
+            lockIdList = []
+            excludedActionIdList = []
+            alreadyLockedCount = 0
+            lockErrorCount = 0
+            for actionId in actionIdList:
+                appLockId, message = self.tryLock('Action', actionId, shorted=1)
+                if appLockId:
+                    lockIdList.append(appLockId)
+                else:
+                    excludedActionIdList.append(actionId)
+                    if message == u'Не удалось установить блокировку':
+                        lockErrorCount += 1
+                    if message.startswith(u'Данные'):
+                        alreadyLockedCount += 1
+            if len(excludedActionIdList) > 0:
+                QtGui.QMessageBox.information(self, u'Внимание',
+                    (u'Из списка были исключены Действия, заблокированные другими пользователями (%d шт)'
+                    u' или блокировку на которые установить не удалось (%d шт)') % (alreadyLockedCount, lockErrorCount))
+
+            actionIdList = list(set(actionIdList) - set(excludedActionIdList))
+            try:
+                dialog = CActionGroupSignDialog(self)
+                dialog.setActionIdList(actionIdList)
+                dialog.exec_()
+            finally:
+                for lockId in lockIdList:
+                    self.releaseLock(lockId)
     
     @pyqtSignature('')
     def on_actSimplifiedClientSearch_triggered(self):
@@ -9669,25 +9692,27 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                             if newEventTypeId:
                                 order = dialog.getOrder()
                                 contractId = dialog.getContractId()
-                                # eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
-                                # if eventTypeRecord:
-                                #     changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
-                                # else:
-                                #     changeExternalId = False
-                                # if changeExternalId:
-                                #     counterId = getEventCounterId(newEventTypeId)
-                                #     if counterId:
-                                #         try:
-                                #             externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
-                                #             record.setValue('externalId', externalId)
-                                #         except Exception as e:
-                                #             QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
-                                #                                     u'Внимание!',
-                                #                                     u'Произошла ошибка при получении значения счетчика\n%s' % e,
-                                #                                     QtGui.QMessageBox.Ok)
-                                #             return False
-                                #     else:
-                                #         record.setValue('externalId', '')
+                                eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
+                                if eventTypeRecord:
+                                    changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
+                                else:
+                                    changeExternalId = False
+                                if changeExternalId:
+                                    counterId = getEventCounterId(newEventTypeId)
+                                    if counterId:
+                                        try:
+                                            if not QtGui.qApp.counterController():
+                                                QtGui.qApp.setCounterController(CCounterController(self))
+                                            externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
+                                            record.setValue('externalId', externalId)
+                                        except Exception as e:
+                                            QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                                                    u'Внимание!',
+                                                                    u'Произошла ошибка при получении значения счетчика\n%s' % e,
+                                                                    QtGui.QMessageBox.Ok)
+                                            return False
+                                    else:
+                                        record.setValue('externalId', '')
                                 record.setValue('eventType_id', toVariant(newEventTypeId))
                                 if order > -1:
                                     record.setValue('order', toVariant(order+1))
@@ -9705,6 +9730,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                                         record.setValue('prevEvent_id', toVariant(prevEventId))
                             db.updateRecord(tableET, record)
                             self.updateEventListAfterEdit(eventId)
+                            QtGui.qApp.delAllCounterValueIdReservation()
                     finally:
                         dialog.deleteLater()
 
@@ -10857,7 +10883,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.setBtnExpertEditEnabled()
             self.btnExpertPrint.setEnabled(True)
             self.btnExpertFilter.setEnabled(True)
-            self.btnExpertNew.setEnabled(self.btnExpertEdit.isEnabled())
+            self.btnExpertNew.setEnabled(True)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -11189,6 +11215,12 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.actAddActionEvent.setEnabled(self.modelEvents.rowCount()>0)
         self.actJobTicketsEvent.setEnabled(self.modelEvents.rowCount()>0)
         self.actCreateRelatedAction.setEnabled(bool(self.currentClientId()))
+        selected = self.tblEvents.selectionModel().selectedRows()
+        clientId =  self.currentClientId()
+        if not selected or len(selected) > 1:
+            self.actSurveillancePlanningClientsByEvent.setEnabled(False)
+        elif eventId:
+                self.actSurveillancePlanningClientsByEvent.setEnabled(bool(isSurveillanceActive(clientId, {'event_id': eventId}, {'begDate': QDate.currentDate(), 'event_id': eventId})))
         # self.actSendEventFPUMP.setEnabled(forceString(QtGui.qApp.getGlobalPreference('useServiceGISOMS')) == u'да')
 
 
@@ -13071,7 +13103,7 @@ class CSchedulesModel(CRecordListModel):
                     tableScheduleItem['checked'],
                     tableScheduleItem['time'],
                     tableSchedule['appointmentType'],
-                    tableSchedule['appointmentPurpose_id'],
+                    tableScheduleItem['appointmentPurpose_id'],
                     tableSchedule['office'],
                     tableSchedule['person_id'],
                     tableSchedule['activity_id'],
@@ -13089,7 +13121,7 @@ class CSchedulesModel(CRecordListModel):
             if self.order:
                 if 'rbAppointmentPurpose.name' in self.order:
                     tableRBAppointmentPurpose = db.table('rbAppointmentPurpose')
-                    tableQuery = tableQuery.leftJoin(tableRBAppointmentPurpose, tableRBAppointmentPurpose['id'].eq(tableSchedule['appointmentPurpose_id']))
+                    tableQuery = tableQuery.leftJoin(tableRBAppointmentPurpose, tableRBAppointmentPurpose['id'].eq(tableScheduleItem['appointmentPurpose_id']))
                 if 'person' in self.order:
                     tableVRBPersonWithSpeciality = db.table('vrbPersonWithSpeciality')
                     tableQuery = tableQuery.leftJoin(tableVRBPersonWithSpeciality, tableVRBPersonWithSpeciality['id'].eq(tableSchedule['person_id']))
@@ -13240,7 +13272,7 @@ class CVisitsBySchedulesModel(CRecordListModel):
             tableQuery = []
             if self.order:
                 if 'rbAppointmentPurpose.name' in self.order:
-                    tableQuery.append(u' LEFT JOIN rbAppointmentPurpose ON rbAppointmentPurpose.id = Schedule.appointmentPurpose_id')
+                    tableQuery.append(u' LEFT JOIN rbAppointmentPurpose ON rbAppointmentPurpose.id = Schedule_Item.appointmentPurpose_id')
                 if 'person' in self.order:
                     tableQuery.append(u' LEFT JOIN vrbPersonWithSpeciality ON vrbPersonWithSpeciality.id = Schedule.person_id')
                     cols.append('vrbPersonWithSpeciality.name AS person')
@@ -13257,7 +13289,7 @@ class CVisitsBySchedulesModel(CRecordListModel):
                      COALESCE(vVisitExt.date,      Schedule_Item.time) AS date,
                      COALESCE(vVisitExt.person_id, Schedule.person_id) AS person_id,
                      Schedule.appointmentType,
-                     Schedule.appointmentPurpose_id,
+                     Schedule_Item.appointmentPurpose_id,
                      Schedule.office,
                      Schedule.activity_id,
                      Schedule_Item.recordPerson_id,

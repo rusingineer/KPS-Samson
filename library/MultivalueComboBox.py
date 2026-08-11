@@ -892,6 +892,8 @@ class CMultivalueComboBox(CBaseMultivalue, QtGui.QComboBox):
 
 
 class CRBMultivalueComboBox(CMultivalueComboBox):
+    valueChanged = QtCore.pyqtSignal(list)
+    
     def __init__(self, parent=None):
         CMultivalueComboBox.__init__(self, parent)
         self._tableName = ''
@@ -907,6 +909,12 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
         # Добавил возможность сортировка по столбцам
         QObject.connect(self._popupView._view.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
         self.colSorting = {}
+
+        # Добавил возможность отлавливать сигнал выбора чекбоксов, т.к. не нашел подобного (dataCheckedChanged
+        # срабатывал только после того как снимаешь все галочки)
+        self._model.dataChanged.connect(self._onDataChanged)
+        self.connect(self._popupView.btnClearAll, SIGNAL('clicked()'), self._emitDataChanged)
+        self.connect(self._popupView.btnCheckFiltered, SIGNAL('clicked()'), self._emitDataChanged)
 
     def setSort(self, col):
         preOrder = self.colSorting.get(col, None)
@@ -1033,6 +1041,23 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
 
     def value(self):
         return self._translateShownValue2Value(CMultivalueComboBox.value(self))
+
+
+    def _onDataChanged(self, topLeft = None, bottomRight = None):
+        values = []
+
+        for row in range(self._model.rowCount()):
+            index = self._model.index(row, 0)
+            state = self._model.data(index, QtCore.Qt.CheckStateRole)
+            if state == QtCore.Qt.Checked:
+                text = self._model.data(index, QtCore.Qt.DisplayRole)
+                values.append(forceString(text))
+
+        self.valueChanged.emit(values)
+
+
+    def _emitDataChanged(self):
+        self._onDataChanged(None, None)
 
 
 class CBaseMultivalueComboBoxProxyModel(QSortFilterProxyModel):

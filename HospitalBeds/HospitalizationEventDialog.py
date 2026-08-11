@@ -942,8 +942,7 @@ class CCheckPlanningOpenEvents(CDialogBase, Ui_CheckPlanningOpenEventsDialog):
 
 
     def destroy(self):
-        self.tblOpenActions.setModel(None)
-        del self.model
+        pass
 
 
 class CHospitalizationEventDialogTableModel(CTableModel):

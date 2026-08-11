@@ -395,6 +395,19 @@ def forceDouble(val):
     else:
         return float(val)
 
+def forceBit(val):
+    if isinstance(val, QVariant):
+        val = val.toByteArray().toHex()
+    if isinstance(val, QByteArray):
+        if val == QByteArray('01'):
+            return True
+        elif val == QByteArray('00'):
+            return False
+        else:
+            return None
+    else:
+        return None
+
 
 def formatBool(val):
     if forceBool(val):

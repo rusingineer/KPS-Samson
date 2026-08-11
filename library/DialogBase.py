@@ -16,6 +16,7 @@ import platform
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QEvent, QAbstractItemModel, SIGNAL
 from library.PreferencesMixin import CDialogPreferencesMixin
+from library.SafeCleanupMixin import SafeCleanupMixin
 from library.DateEdit import CDateEdit
 from library.database import CSqlRecord
 
@@ -53,7 +54,7 @@ class CConstructHelperMixin:
         # не забываем сделать widget.addAction(action) или self.addAction(action)
 
 
-class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin):
+class CDialogBase(QtGui.QDialog, CDialogPreferencesMixin, CConstructHelperMixin, SafeCleanupMixin):
     forListView  = 0
     forSelection = 1
 

@@ -5450,25 +5450,27 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                             if newEventTypeId:
                                 order = dialog.getOrder()
                                 contractId = dialog.getContractId()
-                                # eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
-                                # if eventTypeRecord:
-                                #     changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
-                                # else:
-                                #     changeExternalId = False
-                                # if changeExternalId:
-                                #     counterId = getEventCounterId(newEventTypeId)
-                                #     if counterId:
-                                #         try:
-                                #             externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
-                                #             record.setValue('externalId', externalId)
-                                #         except Exception as e:
-                                #             QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
-                                #                                     u'Внимание!',
-                                #                                     u'Произошла ошибка при получении значения счетчика\n%s' % e,
-                                #                                     QtGui.QMessageBox.Ok)
-                                #             return False
-                                #     else:
-                                #         record.setValue('externalId', '')
+                                eventTypeRecord = db.getRecordEx('EventType', 'changeExternalId', 'EventType.deleted=0 and EventType.id = {}'.format(newEventTypeId))
+                                if eventTypeRecord:
+                                    changeExternalId = forceBool(eventTypeRecord.value('changeExternalId'))
+                                else:
+                                    changeExternalId = False
+                                if changeExternalId:
+                                    counterId = getEventCounterId(newEventTypeId)
+                                    if counterId:
+                                        try:
+                                            if not QtGui.qApp.counterController():
+                                                QtGui.qApp.setCounterController(CCounterController(self))
+                                            externalId = QtGui.qApp.getDocumentNumber(clientId, counterId)
+                                            record.setValue('externalId', externalId)
+                                        except Exception as e:
+                                            QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                                                    u'Внимание!',
+                                                                    u'Произошла ошибка при получении значения счетчика\n%s' % e,
+                                                                    QtGui.QMessageBox.Ok)
+                                            return False
+                                    else:
+                                        record.setValue('externalId', '')
                                 record.setValue('eventType_id', toVariant(newEventTypeId))
                                 if order > -1:
                                     record.setValue('order', toVariant(order+1))

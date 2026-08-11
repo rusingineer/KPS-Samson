@@ -87,8 +87,7 @@ class CSelectPlanningOpenEvents(CDialogBase, Ui_SelectPlanningOpenEventsDialog):
 
 
     def destroy(self):
-        self.tblOpenActions.setModel(None)
-        del self.model
+        pass
 
 
 class CPlanningOpenEventsModel(QAbstractTableModel):

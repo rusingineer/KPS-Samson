@@ -18,7 +18,7 @@ from PyQt4.QtCore     import Qt, QAbstractItemModel, QAbstractListModel, QAbstra
 from library.database import decorateString
 from library.Utils    import forceInt, forceString, toVariant
 
-from KLADR.Utils      import prefixLen, fixLevel
+from KLADR.Utils import prefixLen, fixLevel, checkIsActualSTREET, forceBit
 
 tblKLADR  = 'kladr.KLADR'
 tblSTREET = 'kladr.STREET'
@@ -494,7 +494,7 @@ class CKLADRStreetSearchModel(QAbstractTableModel):
             table = db.table(tblSTREET)
             tableKLADR = db.table(tblKLADR)
             table = table.leftJoin(tableKLADR, 'kladr.KLADR.code = CONCAT(kladr.STREET.level4,\'00\')')
-            cond = ['actuality = \'00\' AND kladr.KLADR.CODE is not null']
+            cond = ['actuality = \'00\' AND kladr.KLADR.CODE is not null', 'kladr.STREET.IS_ACTUAL = 1']
             if searchString:
                 cond.append(u' CONCAT(kladr.STREET.NAME, \' \', kladr.STREET.SOCR) like \'{}\''.format('%'+searchString+'%'))
             if prefix:
@@ -551,17 +551,20 @@ class CStreetList(object):
     def __init__(self):
         self.prefix = ''
         self.okato = ''
+        self.nameCmb = ''
         self.codes = []
         self.names = []
+        self.noActualCode = []
         self.isLoaded = False
         self.filteredList = []
         self.oldSearchString = ''
 
 
-    def load(self, prefix, okato):
-        if self.prefix != prefix or self.okato != okato:
+    def load(self, prefix, okato, nameCmb):
+        if self.prefix != prefix or self.okato != okato or self.nameCmb != nameCmb:
             self.prefix = prefix.rstrip('0') if len(prefix.rstrip('0'))>2  and QtGui.qApp.getKladrResearch() else prefix
             self.okato = okato
+            self.nameCmb = nameCmb
             self.codes = []
             self.names = []
             if self.prefix or self.okato:
@@ -571,6 +574,7 @@ class CStreetList(object):
                 left join kladr.KLADR as k on k.code = CONCAT(kladr.STREET.level4,'00')
                 WHERE kladr.STREET.level4 like '%(prefix)s%%'
                   AND kladr.STREET.actuality = '00' AND k.code is not null
+                  AND kladr.STREET.IS_ACTUAL = 1
                   AND ('%(okato)s'=''
                        OR kladr.STREET.OCATD LIKE '%(okato)s%%'
                        OR kladr.STREET.OCATD = '' AND EXISTS(SELECT 1
@@ -588,12 +592,43 @@ class CStreetList(object):
                 querySTREET = db.query(stmt)
                 while querySTREET.next():
                     record = querySTREET.record()
+                    
                     self.codes.append(forceString(record.value(0)))
                     if QtGui.qApp.getKladrResearch():
                         self.names.append(forceString(record.value(1))+u'  ['+forceString(record.value(2))+u']')
                     else:
                         self.names.append(forceString(record.value(1)))
         self.isLoaded = True
+
+    def clearNoActualStreet(self):
+        if self.noActualCode:
+            for i in self.noActualCode:
+                idx = self.codes.index(i)
+                self.codes.pop(idx)
+                self.names.pop(idx)
+        self.noActualCode = []
+
+    def addStreet(self, code):
+        db = QtGui.qApp.db
+        stmt = """
+        select kladr.STREET.CODE, CONCAT(kladr.STREET.NAME, ' ', kladr.STREET.SOCR) AS NAME, CONCAT(k.NAME, ' ', k.SOCR) AS CITY, kladr.STREET.IS_ACTUAL as isactual
+FROM kladr.STREET
+left join kladr.KLADR as k on k.code = CONCAT(kladr.STREET.level4,'00')
+	where kladr.STREET.CODE = '{0}'; """.format(code)
+
+        querySTREET = db.query(stmt)
+        while querySTREET.next():
+            record = querySTREET.record()
+            isActualCode = forceBit(record.value(2))
+
+            if isActualCode is not True:
+                self.noActualCode.append(forceString(record.value(0)))
+                
+            self.codes.append(forceString(record.value(0)))
+            if QtGui.qApp.getKladrResearch():
+                self.names.append(forceString(record.value(1)) + u'  [' + forceString(record.value(2)) + u']')
+            else:
+                self.names.append(forceString(record.value(1)))
 
 
     def getLen(self):
@@ -653,12 +688,13 @@ class CStreetListCache(object):
     def __init__(self):
         self.map = self.__shared_map
 
-    def getList(self, prefix, okato):
+    def getList(self, prefix, okato, cmbName):
         fixedPrefix = prefix or ''
         fixedOkato  = okato or ''
-        result = self.map.setdefault((fixedPrefix, fixedOkato), CStreetList())
+        fixedCmbName = cmbName or ''
+        result = self.map.setdefault((fixedPrefix, fixedOkato, cmbName), CStreetList())
         if not result.isLoaded:
-            result.load(fixedPrefix, fixedOkato)
+            result.load(fixedPrefix, fixedOkato, fixedCmbName)
         return result
 
 
@@ -671,6 +707,7 @@ class CStreetModel(QAbstractItemModel):
         self.addNone = False
         self._prefix = ''
         self._okato  = ''
+        self._cmbName = ''
 
     
     def setAllSelectable(self, val):
@@ -701,13 +738,13 @@ class CStreetModel(QAbstractItemModel):
 
     def setPrefix(self, prefix):
         self._prefix = prefix
-        self.stringList = CStreetListCache().getList(self._prefix, self._okato)
+        self.stringList = CStreetListCache().getList(self._prefix, self._okato, self._cmbName)
         self.reset()
 
 
     def setOkato(self, okato):
         self._okato = okato
-        self.stringList = CStreetListCache().getList(self._prefix, self._okato)
+        self.stringList = CStreetListCache().getList(self._prefix, self._okato, self._cmbName)
         self.reset()
 
     
@@ -748,12 +785,20 @@ class CStreetModel(QAbstractItemModel):
     def codeList(self):
         return list(self.stringList.codes)
 
+    def clearNoActualStreet(self):
+        self.stringList.clearNoActualStreet()
+
 
     def indexByCode(self, code):
         if self.stringList is not None:
             if self.addNone:
                 if code:
-                    return self.stringList.indexByCode(code) + 1
+                    idx = self.stringList.indexByCode(code) + 1
+                    if idx == 0 and code != '00':
+                        self.stringList.addStreet(code)
+                        return self.stringList.indexByCode(code) + 1
+                    else:
+                        return self.stringList.indexByCode(code) + 1
                 else:
                     return 0
             else:

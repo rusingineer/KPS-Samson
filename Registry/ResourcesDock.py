@@ -900,13 +900,13 @@ class CResourcesDockContent(QtGui.QWidget,
         variantPrintQueue = QtGui.qApp.ambulanceUserCheckable()
         clientIsInvited = modelQueue.getInvitation(currentRow)
 
-        overtimeItem = False
+        overlapItem = False
 
         if 0<=currentRow<len(modelQueue.scheduleItems):
             isEnableQueueingForItem = modelQueue.scheduleItems[currentRow].enableQueueing
         else:
             isEnableQueueingForItem = self.enableQueueing
-            overtimeItem = True
+            overlapItem = True
 
         actCreateOrder.setEnabled(bool(currentClientId)
                                   and itemPresent
@@ -924,7 +924,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                   and (self.enableQueueing and isEnableQueueingForItem)
                                   and not deathDate
                                   and canFindClient and bool(currentClientId)
-                                  and not overtimeItem)
+                                  and not overlapItem)
         actDeleteOrder.setEnabled(orderPresent)
         actChangeComplaint.setEnabled(orderPresent)
         actChangeReferral.setEnabled(orderPresent)

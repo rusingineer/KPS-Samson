@@ -127,6 +127,7 @@ class CActionCreateDialog(CActionEditDialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
 
         if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished
                                                               or not self.cmbPerson.value()

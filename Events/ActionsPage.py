@@ -209,6 +209,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                      SIGNAL('delRows()'), self.modelAPActions.emitItemsCountChanged)
         self.connect(self.modelAPActions,
                      SIGNAL('onUpdateActionsAmount(PyQt_PyObject)'), self.onUpdateActionsAmount)
+        self.connect(self.modelAPActions, SIGNAL('onAddNewAction(int)'), self.onAddedNewAction)
         self.cmbAPMKB.connect(self.cmbAPMKB._lineEdit, SIGNAL('editingFinished()'), self.on_cmbAPMKB_editingFinished)
         self.connect(self.btnAPAttachedFiles, SIGNAL('changed()'), self.setDirty)
 
@@ -222,6 +223,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         self.connect(self.tblAPProps.valueDelegate, SIGNAL('editorCreated(QWidget *)'), self.on_tblAPProps_valueEditorCreated)
         self.connect(self.tblAPProps.valueDelegate, SIGNAL('closeEditor(QWidget *)'), self.on_tblAPProps_valueEditorClosed)
         self.wgtUserDictionary.setVisible(False)
+
+        self.lastActionLeavedResult = None
 
 
     def setDirty(self):
@@ -350,8 +353,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             self.eventEditor.tabMes.csgRowAboutToBeRemoved.connect(self.onCsgRowAboutToBeRemoved)
             self.eventEditor.tabMes.csgRowRemoved.connect(self.onCsgRowRemoved)
         if hasattr(self.eventEditor, 'tabAmbCard'):
-           self.connect(self.eventEditor.tabAmbCard, SIGNAL('actionSelected(int)'), self.createCopyAction)
            self.connect(self.eventEditor.tabAmbCard, SIGNAL('actionCopyAsNew(QSqlRecord, int)'), self.copyRecordAsNewAction)
+        self.connect(self.eventEditor, SIGNAL('actionSelected(PyQt_PyObject)'), self.createCopyAction)
 
 
     def onCsgRowRemoved(self):
@@ -746,9 +749,9 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 if u'consultationDirection'.lower() in actionType.flatCode.lower() or u'researchDirection'.lower() in actionType.flatCode.lower():
                     self.btnAPQueueManagement.setText(u'УО')
                     enableQM = bool(action
-                                    and u'Идентификатор направления' in actionType._propertiesByName
-                                    and u'Причина аннулирования' in actionType._propertiesByName
-                                    and u'Идентификатор талона' in actionType._propertiesByName)
+                        and u'Идентификатор направления' in actionType._propertiesByName
+                        and u'Причина аннулирования' in actionType._propertiesByName
+                        and u'Идентификатор талона' in actionType._propertiesByName)
                     self.btnAPQueueManagement.setEnabled(enableQM and (
                             action[u'Причина аннулирования'] is None or len(action[u'Причина аннулирования']) == 0))
                     self.actAPQMSetAppointment.setEnabled(
@@ -757,10 +760,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                             action[u'Идентификатор направления'] is not None and action[
                         u'Идентификатор направления'] != ''))
                     self.actAPQMCreateClaimForRefusal.setEnabled(enableQM and (
-                            action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''
-                            and action[
-                                u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ'
-                    ))
+                                action[u'Идентификатор талона'] is not None and action[u'Идентификатор талона'] != ''
+                                and action[
+                                    u'Идентификатор талона'] != u'Направление для самостоятельной записи через ЕПГУ'
+                                ))
                     self.actImportAvailableProfiles.setEnabled(True)
                     self.actAPQMCancelReferral.setVisible(True)
                     self.actAPQMCreateClaimForRefusal.setVisible(True)
@@ -857,6 +860,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 self.updatePropTable(action)
                 self.updatePrintButton(actionType)
                 self.btnAPAttachedFiles.setAttachedFileItemList(action.getAttachedFileItemList())
+                self.btnAPAttachedFiles.setAction(action)
 
                 if QtGui.qApp.userHasRight(urLoadActionTemplate) and action and (self.cmbAPStatus.value() != CActionStatus.finished
                                                                                  or not self.cmbAPPerson.value()
@@ -1194,6 +1198,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     actionTypeId = forceRef(record.value('actionType_id'))
                     actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
                     if u'leaved' in actionType.flatCode.lower():
+                        if not self.lastActionLeavedResult:
+                            self.lastActionLeavedResult = actionItem[u'Исход госпитализации'].lower()
                         noPresentLeaved = False
                         break
             if noPresentLeaved:
@@ -1399,6 +1405,56 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                     index = self.modelAPActions._actionModel.index(self.modelAPActions._actionModel.rowCount() - 1, 0)
                                     self.modelAPActions.setData(index, actionType, self.modelAPActions._mapProxyRow2Group[self.modelAPActions._mapModelRow2ProxyRow[row]])
                             return False
+        return True
+
+
+    def checkAPLabDirection(self):
+        # TT4381 "Рассмотреть возможность автоматического добавления тд услуг по лабораторной диагностике из выбранных свойств"
+        groups = []
+        # перебираем все действия вкладки
+        for row, parentItem in enumerate(self.modelAPActions.items()):
+            record, action = parentItem.record, parentItem.action
+            # Для всех измененных действия с кодом для отчетов 'alfalab'
+            if action and action.getType().flatCode == 'alfalab' and (action.isChanged() or action.checkRecordChanged() or action.isPropertiesChanged()):
+                actionTypeIds = action.getType().getRelatedActionTypes()
+                # При наличии настроенных подчиненных действий
+                if actionTypeIds:
+                    order = action.getType().getRelatedActionTypesOrder()
+                    # все отмеченные лабораторные услуги
+                    services = set()
+                    for prop in action.getProperties():
+                        if prop.type().testId:
+                            if not prop.type().isAssignable or (prop.type().isAssignable and prop.isAssigned()):
+                                serviceCode = prop.type().descr
+                                if serviceCode:
+                                    services.add(serviceCode)
+                    if services:
+                        existActionTypes = []
+                        for item in self.modelAPActions._mapProxyRow2Group[self.modelAPActions._mapModelRow2ProxyRow[row]].items:
+                            existActionTypes.append(item.action.getType().id)
+
+                        actionTypeIds = sorted(actionTypeIds.keys(), key=lambda x: order.get(x, 0))
+                        CActionTypeCache.getByIds(actionTypeIds)
+                        group = self.modelAPActions._mapProxyRow2Group[row]
+                        newActionTypes = []
+                        if not group.expanded:
+                            self.modelAPActions.touchGrouping(row)
+
+                        for actionTypeId in actionTypeIds:
+                            # исключая уже созданные подчиненные действия
+                            if actionTypeId in existActionTypes:
+                                continue
+                            actionType = CActionTypeCache.getById(actionTypeId)
+                            # у которых код совпадает с заказанной услугой
+                            if actionType.code in services:
+                                newActionTypes.append(actionTypeId)
+                        if newActionTypes:
+                            groups.append((group, newActionTypes))
+
+        # Добавляем подчиненные действия
+        for group, newActionTypes in groups:
+            for actionTypeId in newActionTypes:
+                self.modelAPActions.setData(self.modelAPActions._actionModel.index(self.modelAPActions._actionModel.rowCount()-1, 0), actionTypeId, group, related=False)
         return True
 
 
@@ -3198,8 +3254,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                 QtGui.qApp.db.rollback()
 
 
-    def createCopyAction(self, actionId):
-        self.setCopyAction(CAction.getActionById(actionId))
+    def createCopyAction(self, action):
+        self.setCopyAction(action)
 
 
     def setCopyAction(self, action):
@@ -3233,7 +3289,10 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 record, action = group.firstItem
             else:
                 record, action = model._items[row]
-            self.setCopyAction(action)
+            if self.eventEditor:
+                self.eventEditor.emit(SIGNAL('actionSelected(PyQt_PyObject)'), action)
+            else:
+                self.setCopyAction(action)
 
 
     @pyqtSignature('')
@@ -4454,6 +4513,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         record, action = items[row]
         actionTypeId = forceRef(record.value('actionType_id')) if record else None
         actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
+        form = getEventTypeForm(self.eventEditor.eventTypeId)
         if u'moving' in actionType.flatCode.lower():
             if action[u'Переведен в отделение']:
                 self.btnNextAction.setText(u'Перевод')
@@ -4476,6 +4536,69 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     self.eventEditor.cmbOrder.setCurrentIndex(1)
                 elif '1' in availableOrders and u'плановым показаниям' in action[u'Доставлен по'].lower():
                     self.eventEditor.cmbOrder.setCurrentIndex(0)
+        elif u'leaved' in actionType.flatCode.lower() and form in ('003', '027'):
+            if u'Исход госпитализации' in action._actionType._propertiesByName and action[u'Исход госпитализации'] is not None:
+                db = QtGui.qApp.db
+                tableRbResult = db.table('rbResult')
+                tableRbDiagnosticResult = db.table('rbDiagnosticResult')
+                tableResult = tableRbResult.leftJoin(tableRbDiagnosticResult, tableRbDiagnosticResult['result_id'].eq(tableRbResult['id']))
+                diagnosticRecord = None
+                endDateCheck = self.eventEditor.edtEndDate.date()
+                if not endDateCheck:
+                    endDateCheck = self.eventEditor.edtBegDate.date()
+
+                if u'умер' in action[u'Исход госпитализации'].lower():
+                    query = db.getRecordEx(tableResult,
+                                           [tableRbResult['id'].alias('resultId'), tableRbDiagnosticResult['id'].alias('diagResultId')],
+                                           [tableRbResult['name'].like(u'Умер'),
+                                            tableRbResult['eventPurpose_id'].eq(self.eventEditor.eventPurposeId),
+                                            db.joinOr([tableResult['begDate'].isNull(), tableResult['begDate'].le(endDateCheck)]),
+                                            db.joinOr([tableResult['endDate'].isNull(), tableResult['endDate'].gt(endDateCheck.addDays(1))])
+                                            ])
+                    if query:
+                        result = forceRef(query.value('resultId'))
+                        if self.eventEditor.cmbResult.value() != result:
+                            for record in self.eventEditor.modelFinalDiagnostics.items():
+                                if QtGui.qApp.db.translate('rbDiagnosisType', 'id',forceString(record.value('diagnosisType_id')), 'code') == '1':
+                                    diagnosticRecord = record
+                                    break
+                            if diagnosticRecord:
+                                diagnosticRecord.setValue('result_id', QVariant())
+                                self.eventEditor.modelFinalDiagnostics.emitResultChanged()
+                            self.eventEditor.setCmbResult(result)
+                            if diagnosticRecord:
+                                diagnosticResult = forceRef(query.value('diagResultId'))
+                                if diagnosticResult and not (self.lastActionLeavedResult and self.lastActionLeavedResult == u'умер'):
+                                    record.setValue('result_id', toVariant(diagnosticResult))
+                                    self.eventEditor.modelFinalDiagnostics.emitResultChanged()
+
+                elif u'выписан' in action[u'Исход госпитализации'].lower():
+                    query = QtGui.qApp.db.getRecordEx(tableResult, tableResult['id'],
+                                                      [tableResult['name'].like(u'Выписан'),
+                                                       tableResult['eventPurpose_id'].eq(self.eventEditor.eventPurposeId),
+                                                       db.joinOr([tableResult['begDate'].isNull(), tableResult['begDate'].le(endDateCheck)]),
+                                                       db.joinOr([tableResult['endDate'].isNull(), tableResult['endDate'].gt(endDateCheck.addDays(1))])
+                                                       ])
+                    if query:
+                        result = forceRef(query.value('id'))
+                        if self.eventEditor.cmbResult.value() != result:
+                            self.eventEditor.setCmbResult(result)
+                        for record in self.eventEditor.modelFinalDiagnostics.items():
+                            if QtGui.qApp.db.translate('rbDiagnosisType', 'id', forceString(record.value('diagnosisType_id')), 'code') == '1':
+                                if self.lastActionLeavedResult and action[u'Исход госпитализации'].lower() != self.lastActionLeavedResult and self.lastActionLeavedResult == u'умер':
+                                    record.setValue('result_id', QVariant())
+                                    self.eventEditor.modelFinalDiagnostics.emitResultChanged()
+                                    break
+
+                else:
+                    if self.lastActionLeavedResult and action[u'Исход госпитализации'].lower() != self.lastActionLeavedResult and self.lastActionLeavedResult == u'умер':
+                        for record in self.eventEditor.modelFinalDiagnostics.items():
+                            if QtGui.qApp.db.translate('rbDiagnosisType', 'id', forceString(record.value('diagnosisType_id')), 'code') == '1':
+                                record.setValue('result_id', QVariant())
+                                self.eventEditor.modelFinalDiagnostics.emitResultChanged()
+                                break
+
+                self.lastActionLeavedResult = action[u'Исход госпитализации'].lower()
             # if hasattr(self.eventEditor, 'tabNotes'):
             #     form = getEventTypeForm(self.eventEditor.eventTypeId)
             #     if form == '003':
@@ -4896,11 +5019,133 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if dialog.exec_():
             return True
         else:
-            for row, (record, action) in enumerate(self.modelAPActions._items):
-                if action.getType().flatCode == 'moving'and forceDate(record.value('endDate')) and forceRef(record.value('status')) == CActionStatus.finished:
-                    self.eventEditor.setFocusToWidget(self.tblAPActions, row, 0)
+            haveToCheck = False
+            for record in self.eventEditor.tabMes.modelCSGs.items():
+                if forceString(record.value('CSGCode')) and forceString(record.value('CSGCode')) not in ('G26st36.009', 'G26st36.025', 'G26st36.026', 'G26st36.050', 'G26st36.051', 'G26st36.052', 'G26st36.053', 'G26st36.054'):
+                    haveToCheck = True
                     break
-            return False
+            if haveToCheck:
+                for row, (record, action) in enumerate(self.modelAPActions._items):
+                    if action.getType().flatCode == 'moving'and forceDate(record.value('endDate')) and forceRef(record.value('status')) == CActionStatus.finished:
+                        self.eventEditor.setFocusToWidget(self.tblAPActions, row, 0)
+                        return False
+            return True
+
+
+    def checkDataInheritanceGlobalPreference(self):
+        return QtGui.qApp.checkGlobalPreference(u'23:DataInheritanceByModel',
+                                                u'да') and self.tblAPActions.model().actionTypeClass in (0,)
+
+    def onAddedNewAction(self, row):
+        if self.checkDataInheritanceGlobalPreference():
+            try:
+                self.copyDataInheritanceByModel(self.tblAPActions.model(), row)
+            except:
+                QtGui.qApp.logCurrentException()
+
+
+    def copyDataInheritanceByModel(self, model, currentRow):
+        '''
+            Копирование значений при добавлении нового типа действия.
+            Копируется с последнего найденного в списке отображения действия,
+            а так же с последнего в списке отображения свойства данного деиствия, если таких несколько
+            Пустые значения свойств не учитываются в поиске.
+            Тип целевого свойства - текст, либо обязан совпадать с типом свойства источника
+
+            Исторически значения заголовков берут из контекста печати. Необходим кэш
+            Оставляю историю только для действия, в свойствах только unit может вызвать проблемы. Будем посмотреть
+        '''
+
+        from library.PrintInfo import CInfoContext
+        from ActionInfo import CCookedActionInfo
+
+        # 0 < - для первой добавленной строки негде искать данные
+        if not 0 < currentRow < len(model.items()):
+            return
+
+        # сбор всех свойств с наследованием в типе действия
+        needResizeModel = False
+        currentAction = model.items()[currentRow][1]
+        currentActionPropertyTypeIn = [x[1] for x in currentAction.getType().getPropertiesById().items() if
+                                x[1].dataInheritanceExt.incoming]
+        # currentActionPropertyTypeIn.sort(key=lambda x: x.idx, reverse=True)
+        if not currentActionPropertyTypeIn:
+            return
+
+        cache = {}
+        cacheTitle = {}
+        context = CInfoContext()
+
+        # текстовые идентификаторы используемые в наследовании
+        for propertyType in currentActionPropertyTypeIn:
+            for name in propertyType.dataInheritanceExt.incoming:
+                if not name in cache:
+                    cache[name] = [None, None]
+        completed = len(cache)
+
+        # поиск значений всех наследуемых свойств в модели
+        for row in reversed(range(currentRow)):
+            if completed <= 0:
+                break
+            record, action = model.items()[row]
+            actionPropertyTypeOut = [x for x in action.getType().getPropertiesById().items() if
+                              any(key in cache for key in x[1].dataInheritanceExt.outgoing)]
+            actionPropertyTypeOut.sort(key=lambda x: x[1].idx, reverse=True)
+
+            for propertyType in actionPropertyTypeOut:
+                if completed <= 0:
+                    break
+                for name in propertyType[1].dataInheritanceExt.outgoing:
+                    if completed <= 0:
+                        break
+                    if not name in cache:
+                        continue
+                    if not any(cache.get(name, [None])):
+                        actionProp = action.getPropertyById(propertyType[0])
+                        if actionProp.getValue():
+                            cache[name] = [(record, action), actionProp]
+                            completed -= 1
+
+        # не найдено ни одного наследуемого значения
+        if completed == len(cache):
+            return
+
+        # заполнение значений свойств
+        for currentPropertyType in currentActionPropertyTypeIn:
+            # Копируемое значение не является составным. При копировании необходима проверка соответствия типов свойств,
+            if currentPropertyType.dataInheritanceExt.isSimple():
+                _, actionProp = cache.get(
+                    currentPropertyType.dataInheritanceExt.getIncomingSequence()[0].name())
+                if not actionProp:
+                    continue
+                val = actionProp.getTextScalar() if currentPropertyType.isString() else actionProp.getValue()
+                if val:
+                    currentAction.updatePropertyByPreparedValue(currentPropertyType, val,
+                                                                sourcePropertyType=actionProp.type())
+                    needResizeModel = True
+            # Копируемое значение является составным. целевое свойство должно быть текстом
+            else:
+                result = ''
+                for idx, item in enumerate(currentPropertyType.dataInheritanceExt.getIncomingSequence()):
+                    (record, action), actionProp = cache.get(item.name())
+                    if not actionProp:
+                        continue
+                    val = actionProp.getTextScalar()
+                    if val:
+                        title = ''
+                        if item.title():
+                            actionInfo = cacheTitle.get(action, None)
+                            #не хочу лишний раз дергать контекст без необходимости
+                            if item.hasAction() and not actionInfo:
+                                cacheTitle[action] = actionInfo = context.getInstance(CCookedActionInfo, record, action)
+                            title = item.formatTitle(actionInfo, actionProp.type())
+                        result += ('\n' if idx else '') + (title + ' - ' if title else '') + val
+                if result:
+                    currentAction.updatePropertyByPreparedValue(currentPropertyType, result)
+                    needResizeModel = True
+
+        if needResizeModel:
+            self.tblAPProps.resizeRowsToContents()
 
 
 # ##################################################################

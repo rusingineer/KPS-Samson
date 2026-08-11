@@ -173,10 +173,7 @@ class CPreF025Dialog(CDialogBase, Ui_PreF025Dialog, CMapActionTypeIdToServiceIdL
 
 
     def destroy(self):
-        self.tblDiagnostics.setModel(None)
-        self.tblActions.setModel(None)
-        del self.modelDiagnostics
-        del self.modelActions
+        pass
 
 
     def setBegDateEvent(self, date):

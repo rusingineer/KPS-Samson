@@ -317,6 +317,7 @@ class CPropertiesTableModel(QAbstractTableModel):
                 property = self._action.getPropertyById(id)
                 if property.type().valueType.isCopyable:
                     value = property.getValue()
+                    isAssigned = property.isAssigned()
                     if property.type().typeName == 'String':
                         applicableValues, regexps, err, methods = CStrComboBox.parse(property.type().valueDomain)
                         if not err and applicableValues:
@@ -329,7 +330,7 @@ class CPropertiesTableModel(QAbstractTableModel):
                             if tmpValue not in applicableValues:
                                 value = u''
                                 propertyApplicable = False
-                    checked = Qt.Unchecked if (value is None or value == u'') else Qt.Checked
+                    checked = Qt.Unchecked if ((value is None or value == u'') and not isAssigned) else Qt.Checked
                     #if property.type().canChangeOnlyOwner and checked:
                     #    record = action.getRecord()
                     #    if record:

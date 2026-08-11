@@ -515,7 +515,6 @@ class CTimeTableModel(CRecordListModel):
         result.personId = self.personId
         return result
 
-
     # Это всё как ни крути "костыли". Данный аспект самсона требует некоторого переосмысления.
     # Тк невозможно усмотреть все "дыры" сразу и необходимы постоянные правки.
     # Все эти проверки бьют по производительности и добавляют новые запросы к, итак, их большому количеству
@@ -546,6 +545,7 @@ class CTimeTableModel(CRecordListModel):
                         item.restoreValuesFromRecord()
                         self.notSavedItems.append(item)
                 else:
+                    itemRestored = item.checkAndUpdateItems(showMessage=False)
                     itemRestored = item.checkAndUpdateItems(showMessage=False)
                     if itemRestored:
                         changed = self.checkOverlapForDeletedOrRestoredSchedules(item, deleted=False, alreadySavedIds=itemsToSave)

@@ -251,11 +251,6 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
 # done
 
 
-        for actionsTab in self.getActionsTabsList():
-            self.connect(actionsTab, SIGNAL('APSetPersonIdChanged()'), self.on_APSetPersonIdChanged)
-        self.connect(self.modelActionsSummary, SIGNAL('APSetPersonIdChanged()'), self.on_APSetPersonIdChanged)
-
-
     # done
 
     def openMainActionInEditor(self):
@@ -302,15 +297,7 @@ class CF027Dialog(CProtocolEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuM
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblPreliminaryDiagnostics.setModel(None)
-        self.tblFinalDiagnostics.setModel(None)
-        self.tblActions.setModel(None)
-        self.tabMisc.deleteLater()
-        del self.modelPreliminaryDiagnostics
-        del self.modelFinalDiagnostics
-        del self.modelActionsSummary
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def keyPressEvent(self, event):

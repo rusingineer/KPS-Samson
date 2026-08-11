@@ -283,6 +283,10 @@ class CDeathReportSetupDialog(QtGui.QDialog, Ui_DeathReportSetupDialog):
         result['deathCause']      = self.cmbCause.value()
         result['deathFoundBy']    = self.cmbFoundBy.value()
         result['deathFoundation'] = self.cmbFoundation.value()
+        if self.chkRelegateOrg.isChecked():
+            result['eventRelegateOrgId'] = self.cmbRelegateOrg.value()
+            result['excludeSelectedOrg'] = self.chkExcludeSelected.isChecked()
+            result['includeSelectedOrg'] = self.chkRelegateOrg.isChecked()
         return result
 
 

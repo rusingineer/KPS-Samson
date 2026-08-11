@@ -109,29 +109,75 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
         self.importFLK = False
         self.tfomsOGRN = forceString(self.db.translate('Organisation', 'infisCode', '9007', 'OGRN'))
 
+    def getOpenFilesAndDirs(parent=None, caption='', directory='', filter='', initialFilter='', options=None):
+        def updateText():
+            # обновить содержимое виджета редактирования строки выбранными файлами
+            selected = []
+            for index in view.selectionModel().selectedRows():
+                selected.append('"{}"'.format(forceString(index.data())))
+            lineEdit.setText(' '.join(selected))
+
+        dialog = QtGui.QFileDialog(parent, windowTitle=caption)
+        dialog.setFileMode(dialog.ExistingFiles)
+        if options:
+            dialog.setOptions(options)
+        dialog.setOption(dialog.DontUseNativeDialog, True)
+        if directory:
+            dialog.setDirectory(directory)
+        if filter:
+            dialog.setNameFilter(filter)
+            if initialFilter:
+                dialog.selectNameFilter(initialFilter)
+
+        dialog.accept = lambda: QtGui.QDialog.accept(dialog)
+
+        stackedWidget = dialog.findChild(QtGui.QStackedWidget)
+        view = stackedWidget.findChild(QtGui.QListView)
+        view.selectionModel().selectionChanged.connect(updateText)
+
+        lineEdit = dialog.findChild(QtGui.QLineEdit)
+        # очищаем содержимое строки редактирования всякий раз, когда изменяется текущий каталог
+        dialog.directoryEntered.connect(lambda: lineEdit.setText(''))
+
+        dialog.exec_()
+        return dialog.selectedFiles()
+
 
     @pyqtSignature('')
     def on_btnSelectFile_clicked(self):
-        result = False
-        fstr = ""
-        if self.tabImportType.currentIndex() == 2:
-            result = QtGui.QMessageBox().question(self,
-                                        u'Внимание!',
-                                        u'Хотите выбрать всю папку с файлами?',
-                                        QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes
-        if not result:
-            if self.isPreControl:
-                filter = u'zip Archive (va*.zip)'
-            else:
-                filter = u'zip Archive (v*.zip)'
-            fileNames = QtGui.QFileDialog.getOpenFileNames(
-                self, u'Укажите файл с данными', self.edtFileName.text(), filter)
-            if len(fileNames):
-                fstr = " ".join(['"%s"' % QDir.toNativeSeparators(f) for f in fileNames])
+        fstr = forceStringEx(self.edtFileName.text())
+        if self.isPreControl:
+            filter = u'zip Archive (va*.zip)'
         else:
-            fstr = QtGui.QFileDialog.getExistingDirectory(
-                self, u'Укажите файл с данными', self.edtFileName.text())
+            filter = u'zip Archive (v*.zip)'
+        if QtGui.qApp.useNativeFileDialog():
+            # если используем нативный FileDialog (позволяет работать с сетевыми папками)
+
+            result = False
+            if self.tabImportType.currentIndex() == 2:
+                result = QtGui.QMessageBox().question(self,
+                                            u'Внимание!',
+                                            u'Хотите выбрать всю папку с файлами?',
+                                            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                                            QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes
+            if not result:
+                fileNames = QtGui.QFileDialog.getOpenFileNames(
+                    self, u'Укажите файл с данными', self.edtFileName.text(), filter)
+                if len(fileNames):
+                    fstr = " ".join(['"%s"' % QDir.toNativeSeparators(f) for f in fileNames])
+            else:
+                fstr = QtGui.QFileDialog.getExistingDirectory(
+                    self, u'Укажите файл с данными', self.edtFileName.text())
+        else:
+            # если используем Qt'шный FileDialog (позволяет одновременно работать и с файлами, и с папками, но не поддерживает сетевые папки)
+
+            dirPath = fstr.strip(u'"') if u' ' not in fstr else fstr.split(u' ')[0].strip(u'"')
+            fileNames = self.getOpenFilesAndDirs(
+                caption=u'Укажите файл с данными', directory=dirPath, filter=filter
+            )
+            if fileNames:
+                fstr = " ".join(['"%s"' % QDir.toNativeSeparators(f) for f in fileNames])
+
         self.edtFileName.setText(fstr)
 
 
@@ -639,16 +685,24 @@ class CImportPayRefuseR23Native(QtGui.QDialog, Ui_Dialog, CDBFimport):
             self.statistic = u'обработано: %d; оплаченых: %d; отказаных: %d; не найдено: %d'
         
         # print self.edtFileName.text()
-        if self.tabImportType.currentIndex() == 2 and os.path.isdir(self.edtFileName.text()):
-            if self.isPreControl:
-                filter = u'va*.zip'
-            else:
-                filter = u'v*.zip'
+        if self.isPreControl:
+            filter = u'va*.zip'
+        else:
+            filter = u'v*.zip'
+        if os.path.isdir(forceString(self.edtFileName.text())):
             dir = QDir(self.edtFileName.text())
             fileNames = dir.entryList([filter], QDir.Files)
             fileNames = [dir.absoluteFilePath(f) for f in fileNames]
         else:
-            fileNames = re.findall('"(.+?)"', self.edtFileName.text())
+            fileNamesList = re.findall('"(.+?)"', forceString(self.edtFileName.text()))
+            fileNames = []
+            for fileName in fileNamesList:
+                if os.path.isdir(fileName):
+                    dir = QDir(fileName)
+                    fileNamesDir = dir.entryList([filter], QDir.Files)
+                    fileNames.extend([dir.absoluteFilePath(f) for f in fileNamesDir])
+                else:
+                    fileNames.append(fileName)
 
         if not len(fileNames):
             return

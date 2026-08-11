@@ -482,6 +482,9 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
             tbl.addMoveRow()
             tbl.addPopupDelRow()
         
+        for tbl in (self.tblStatusActions, self.tblDiagnosticActions, self.tblCureActions, self.tblMiscActions):
+            tbl.addPopupDuplicateCurrentRow()
+        
         for mdl in (self.modelStatusActions, self.modelDiagnosticActions, self.modelCureActions, self.modelMiscActions,
                     self.modelOrgStruct, self.modelPersons,
                     self.modelActionType_status, self.modelActionType_diagnostic, self.modelActionType_cure, self.modelActionType_other):
@@ -530,6 +533,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         setRBComboBoxValue(self.cmbRelegateOrg,                        record, 'relOrg_id')
         setRBComboBoxValue( self.cmbVoucherCounter,                    record, 'voucherCounter_id')
         setCheckBoxValue(   self.chkRequiredCoordination,              record, 'isRequiredCoordination')
+        setCheckBoxValue(   self.chkIsPaymentApprovalAlwaysIncluded,   record, 'isPaymentApprovalAlwaysIncluded')
         setRBComboBoxValue( self.cmbFinance,                           record, 'finance_id')
         setCheckBoxValue(   self.chkCanHavePayableActions,             record, 'canHavePayableActions')
         setCheckBoxValue(   self.chkAddVisit,                          record, 'addVisit')
@@ -560,6 +564,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.cmbForm.setCurrentIndex(max(0, self.cmbForm.findData(record.value('form'))))
         setCheckBoxValue(   self.chkShowTime,                          record, 'showTime')
         setCheckBoxValue(   self.chkShowButtonAccount,                 record, 'showButtonAccount')
+        setCheckBoxValue(   self.chkChangeExternalID,                  record, 'changeExternalId')
         setCheckBoxValue(self.chkShowButtonTemperatureList, record, 'showButtonTemperatureList')
         setCheckBoxValue(self.chkShowButtonNomenclatureExpense, record, 'showButtonNomenclatureExpense')
         setCheckBoxValue(self.chkShowButtonJobTickets, record, 'showButtonJobTickets')
@@ -568,6 +573,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         setCheckBoxValue(   self.chkIsResolutionOfDirection,           record, 'isResolutionOfDirection')
         setCheckBoxValue(   self.chkMesRequired,                       record, 'mesRequired')
         setComboBoxValue(   self.cmbMesRequiredParams,                 record, 'mesRequiredParams')
+        setComboBoxValue(   self.cmbDefaultPayer,                      record, 'defaultPayer')
+        setComboBoxValue(   self.cmbCompletedEventsOMS,                record, 'checkCompletedEventsOMS')
         setCheckBoxValue(   self.chkCSGRequired,                       record, 'csgRequired')
         setCheckBoxValue(   self.chkIsTakenTissue,                     record, 'isTakenTissue')
         setLineEditValue(   self.edtMesCodeMask,                       record, 'mesCodeMask')
@@ -598,6 +605,8 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
         self.cmbCounter.setEnabled(self.chkExternalId.isChecked())
         self.cmbVoucherCounter.setEnabled(forceString(self.cmbForm.itemData(self.cmbForm.currentIndex())) == u'072')
+        self.cmbDefaultPayer.setEnabled(self.chkIsPaymentApprovalAlwaysIncluded.isChecked())
+        self.cmbCompletedEventsOMS.setEnabled(forceString(QtGui.qApp.db.translate('rbMedicalAidType', 'id', forceInt(self.cmbMedicalAidType.value()), 'regionalCode')) in (u'21', u'22', u'31', u'32'))
 
         setLineEditValue(   self.edtVisitServiceFilter, record, 'visitServiceFilter')
         action, text = parseModifier(record.value('visitServiceModifier'))
@@ -646,6 +655,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.modelActionType_cure.loadItems(id)
         self.modelActionType_other.loadItems(id)
         self.setIsDirty(False)
+        self.on_chkIsPaymentApprovalAlwaysIncluded_clicked(self.chkIsPaymentApprovalAlwaysIncluded.isChecked())
 
 
     def getRecord(self):
@@ -669,6 +679,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         getRBComboBoxValue(self.cmbRelegateOrg,                        record, 'relOrg_id')
         getRBComboBoxValue( self.cmbVoucherCounter,                    record, 'voucherCounter_id')
         getCheckBoxValue(   self.chkRequiredCoordination,              record, 'isRequiredCoordination')
+        getCheckBoxValue(   self.chkIsPaymentApprovalAlwaysIncluded,   record, 'isPaymentApprovalAlwaysIncluded')
         getRBComboBoxValue( self.cmbFinance,                           record, 'finance_id')
         getCheckBoxValue(   self.chkCanHavePayableActions,             record, 'canHavePayableActions')
         getComboBoxValue(   self.cmbWeekProfile,                       record, 'weekProfileCode')
@@ -699,6 +710,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         record.setValue('form', self.cmbForm.itemData(self.cmbForm.currentIndex()))
         getCheckBoxValue(   self.chkShowTime,                          record, 'showTime')
         getCheckBoxValue(   self.chkShowButtonAccount,                 record, 'showButtonAccount')
+        getCheckBoxValue(   self.chkChangeExternalID,                  record, 'changeExternalId')
         getCheckBoxValue(self.chkShowButtonTemperatureList, record, 'showButtonTemperatureList')
         getCheckBoxValue(self.chkShowButtonNomenclatureExpense, record, 'showButtonNomenclatureExpense')
         getCheckBoxValue(self.chkShowButtonJobTickets, record, 'showButtonJobTickets')
@@ -707,6 +719,10 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         getCheckBoxValue(   self.chkIsResolutionOfDirection,           record, 'isResolutionOfDirection')
         getCheckBoxValue(   self.chkMesRequired,                       record, 'mesRequired')
         getComboBoxValue(   self.cmbMesRequiredParams,                 record, 'mesRequiredParams')
+        getComboBoxValue(   self.cmbDefaultPayer,                      record, 'defaultPayer')
+        if not self.cmbCompletedEventsOMS.isEnabled():
+            self.cmbCompletedEventsOMS.setCurrentIndex(0)
+        getComboBoxValue(   self.cmbCompletedEventsOMS,                record, 'checkCompletedEventsOMS')
         getCheckBoxValue(   self.chkCSGRequired,                       record, 'csgRequired')
         getCheckBoxValue(   self.chkIsTakenTissue,                     record, 'isTakenTissue')
         getLineEditValue(   self.edtMesCodeMask,                       record, 'mesCodeMask')
@@ -861,6 +877,13 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.cmbVoucherCounter.setEnabled(forceString(self.cmbForm.itemData(self.cmbForm.currentIndex())) == u'072')
     
     
+    @pyqtSignature('int')
+    def on_cmbMedicalAidType_currentIndexChanged(self, index):
+        self.cmbCompletedEventsOMS.setEnabled(forceString(QtGui.qApp.db.translate('rbMedicalAidType', 'id', forceInt(self.cmbMedicalAidType.value()), 'regionalCode')) in (u'21', u'22', u'31', u'32'))
+        if not self.cmbCompletedEventsOMS.isEnabled():
+            self.cmbCompletedEventsOMS.setCurrentIndex(0)
+    
+    
     @pyqtSignature('QString')
     def on_cmbAvailableOrders_editTextChanged(self, value):
         checkedList = self.cmbAvailableOrders.checkedValueList()
@@ -995,6 +1018,12 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
     def on_btnVisitServiceFilterTest_pressed(self):
         if self.checkVisitServiceFilter():
             self.visitServiceFilterTestStr = testServiceFilter(self, self.edtVisitServiceFilter.text(), self.visitServiceFilterTestStr)
+
+    @pyqtSignature('bool')
+    def on_chkIsPaymentApprovalAlwaysIncluded_clicked(self, checked):
+        self.cmbDefaultPayer.setEnabled(checked)
+        if not checked:
+            self.cmbDefaultPayer.setCurrentIndex(0)
 #
 # ##########################################################################
 #

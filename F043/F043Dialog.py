@@ -17,7 +17,7 @@
 #############################################################################
 
 
-from PyQt4 import QtGui, QtSql
+from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, SIGNAL, pyqtSignature
 
 from Events.ExportMIS import iniExportEvent
@@ -326,27 +326,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblVisits.setModel(None)
-        self.tblDiagnostics.setModel(None)
-        self.tblClientDentitionHistory.setModel(None)
-        self.tblDentition.setModel(None)
-        self.tblActions.setModel(None)
-        self.grpTempInvalid.deleteLater()
-        self.grpAegrotat.deleteLater()
-        self.grpDisability.deleteLater()
-        self.grpVitalRestriction.deleteLater()
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabMes.deleteLater()
-        del self.modelVisits
-        del self.modelDiagnostics
-        del self.modelDentition
-        del self.modelClientDentitionHistory
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def getModelFinalDiagnostics(self):
@@ -540,7 +520,8 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
     #                    item.setValue('result_id', toVariant(resultId)) WTF?! почему rbResult.id = rbDiagnosticResult.id?   
                     self.modelDiagnostics.items().append(item)
                 self.modelDiagnostics.reset()
-        self.prepareActions(contractId, presetActions, disabledActions, movingActionTypeId, valueProperties, diagnos, financeId, protocolQuoteId, actionByNewEvent, plannedEndDate)
+        self.prepareActions(contractId, presetActions, disabledActions, movingActionTypeId, valueProperties, diagnos,
+                            financeId, protocolQuoteId, actionByNewEvent, plannedEndDate, isEdit=isEdit)
         self.grpTempInvalid.pickupTempInvalid()
         self.grpAegrotat.pickupTempInvalid()
         self.grpDisability.pickupTempInvalid()
@@ -554,7 +535,13 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
 
 
     def prepareActions(self, contractId, presetActions, disabledActions, actionTypeIdValue, valueProperties, diagnos, financeId,
-                       protocolQuoteId, actionByNewEvent, plannedEndDate):
+                       protocolQuoteId, actionByNewEvent, plannedEndDate, isEdit=False):
+
+        def addActionTypeRowAndEmitSignal(model, actionTypeId, amount, financeId, contractId):
+            model.addRow(actionTypeId, amount, financeId, contractId)
+            if isEdit:
+                model.emit(QtCore.SIGNAL('onAddNewAction(int)'), len(model.items()) - 1)
+                
         def addActionType(actionTypeId, amount, financeId, contractId, idListActionType, idListActionTypeIPH, actionFinance, idListActionTypeMoving, plannedEndDate):
             db = QtGui.qApp.db
             tableOrgStructure = db.table('OrgStructure')
@@ -564,7 +551,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                           self.tabMisc.modelAPActions]):
                 if actionTypeId in model.actionTypeIdList:
                     if actionTypeId in idListActionType and not actionByNewEvent:
-                        model.addRow(actionTypeId, amount, financeId, contractId)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount, financeId, contractId)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -588,7 +575,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                         if actionFinance == 0:
                             record.setValue('finance_id', toVariant(financeId))
                     elif actionTypeId in idListActionTypeIPH:
-                        model.addRow(actionTypeId, amount, financeId, contractId)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount, financeId, contractId)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -597,7 +584,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                             action[u'Диагноз'] = diagnos
                     #[self.eventActionFinance, self.receivedFinanceId, orgStructureTransfer, orgStructurePresence, oldBegDate, movingQuoting, personId]
                     elif actionByNewEvent and actionTypeId in idListActionTypeMoving:
-                        model.addRow(actionTypeId, amount, financeId, contractId)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount, financeId, contractId)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -615,7 +602,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
                         if actionByNewEvent[6]:
                             record.setValue('person_id', toVariant(actionByNewEvent[6]))
                     elif (actionByNewEvent and actionTypeId not in idListActionType) or not actionByNewEvent:
-                        model.addRow(actionTypeId, amount, financeId, contractId)
+                        addActionTypeRowAndEmitSignal(model, actionTypeId, amount, financeId, contractId)
                         i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                         self.onActionChanged(i)
                         record, action = model.items()[-1]
@@ -1360,6 +1347,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         self.saveBlankUsers(self.blankMovingIdList)
         self.tabNotes.saveAttachedFiles(eventId)
         self.saveTrailerActions(eventId)
+        self.saveTempInvalid()
 
 
     def saveTrailerActions(self, eventId):

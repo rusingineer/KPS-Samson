@@ -19,21 +19,21 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import *
 
-from library.Utils import *
 from Orgs.Utils import *
+from library import xlwt
 from library.database import *
 
 from library.Utils import *
 from Reports.Report import CReport
 from Reports.ReportBase import *
 from Reports.Ui_PeopleOfCancerSetupDialog import Ui_PeopleOfCancerSetupDialog
-
+from Reports.ReportPeopleOfCancer import CPeopleOfCancerSetupDialog
 
 def selectData(begDate, endDate, areaId, specialityId, invoice, personId, ageFrom, ageTo, eventTypeId):
     stmt = u"""
 SELECT Organisation.infisCode, Organisation.fullName, Client.lastname,Client.firstname,Client.patrname, Client.birthDate, 
-  ClientPolicy.number AS police, 
-  Client.SNILS, Diagnosis.MKB, rbSpeciality.name AS speciality_name,
+  IFNULL(ci.identifier, ClientPolicy.number) AS police, 
+  formatSNILS(Client.SNILS) as SNILS, Diagnosis.MKB, rbSpeciality.name AS speciality_name,
    case when rbMedicalAidType.regionalCode in ("11","12","301","302","401","402") then "Стационар"
 when rbMedicalAidType.regionalCode in ("41","42","411","422","51","52","511","522","71","72","90","43") then "Дневной стационар"
 when rbMedicalAidType.regionalCode in ("21","22","31","32","60","80","01","02","111","112","222","201","202","232","211","241","242","252","261","262","271","272","281","282","233") then "Поликлиника" end as conition_names,
@@ -48,6 +48,9 @@ END as name_service, date(Event.execDate) as begDate, date(Event.execDate) as en
   LEFT JOIN Diagnosis ON Diagnostic.diagnosis_id = Diagnosis.id
   LEFT JOIN Client ON Event.client_id = Client.id
   LEFT JOIN ClientPolicy ON ClientPolicy.id = getClientPolicyId(Client.id, 1)
+  LEFT JOIN ClientIdentification ci on ci.id = (SELECT cci.id from ClientIdentification cci 
+      INNER JOIN rbAccountingSystem on rbAccountingSystem.id=cci.accountingSystem_id WHERE cci.deleted=0 and 
+      cci.client_id=Client.id and rbAccountingSystem.code = 'ENP' LIMIT 1)  
   left JOIN Organisation ON Event.org_id = Organisation.id
   LEFT JOIN rbPolicyKind ON ClientPolicy.policyKind_id = rbPolicyKind.id
   LEFT JOIN EventType ON EventType.id=Event.eventType_id
@@ -59,8 +62,8 @@ WHERE
     %(cond)s %(cond2)s
     UNION
     SELECT Organisation.infisCode, Organisation.fullName, Client.lastname,Client.firstname,Client.patrname, Client.birthDate, 
-  ClientPolicy.number AS police, 
-  Client.SNILS, Diagnosis.MKB, rbSpeciality.name AS speciality_name, 
+  IFNULL(ci.identifier, ClientPolicy.number) AS police, 
+  formatSNILS(Client.SNILS) as SNILS, Diagnosis.MKB, rbSpeciality.name AS speciality_name, 
   case when rbMedicalAidType.regionalCode in ("11","12","301","302","401","402") then "Стационар"
 when rbMedicalAidType.regionalCode in ("41","42","411","422","51","52","511","522","71","72","90","43") then "Дневной стационар"
 when rbMedicalAidType.regionalCode in ("21","22","31","32","60","80","01","02","111","112","222","201","202","232","211","241","242","252","261","262","271","272","281","282","233") then "Поликлиника" end as conition_names,
@@ -77,6 +80,9 @@ END as name_service, date(Action.begDate) as begDate, date(Action.endDate) as en
   LEFT JOIN Diagnosis ON Diagnostic.diagnosis_id = Diagnosis.id
   LEFT JOIN Client ON Event.client_id = Client.id
   LEFT JOIN ClientPolicy ON ClientPolicy.id = getClientPolicyId(Client.id, 1)
+  LEFT JOIN ClientIdentification ci on ci.id = (SELECT cci.id from ClientIdentification cci 
+      INNER JOIN rbAccountingSystem on rbAccountingSystem.id=cci.accountingSystem_id WHERE cci.deleted=0 and 
+      cci.client_id=Client.id and rbAccountingSystem.code = 'ENP' LIMIT 1)
   left JOIN Organisation ON Event.org_id = Organisation.id
   LEFT JOIN rbPolicyKind ON ClientPolicy.policyKind_id = rbPolicyKind.id
   LEFT JOIN EventType ON EventType.id=Event.eventType_id
@@ -93,8 +99,6 @@ WHERE
     tableClientAttach = db.table('ClientAttach')
     tableClientDispanser = db.table('rbDispanser')
     tablePerson = db.table('Person')
-    tableAction = db.table('Action')
-    tableActionType = db.table('ActionType')
     tableEvent = db.table('Event')
     tableEventType = db.table('EventType')
     cond = []
@@ -185,6 +189,44 @@ class CPeopleWithDiseasesCirculatorySystem(CReport):
         return result
 
     def build(self, params):
+        def printHeader(sheet, rowNumber):
+            #table header
+            sheet.set_portrait(False)
+            sheet.set_print_scaling(70)
+
+            sheet.col(0).width = 256 * 5
+            sheet.col(1).width = 256 * 10
+            sheet.col(2).width = 256 * 30
+            sheet.col(3).width = 256 * 20
+            sheet.col(4).width = 256 * 20
+            sheet.col(5).width = 256 * 20
+            sheet.col(6).width = 256 * 10
+            sheet.col(7).width = 256 * 15
+            sheet.col(8).width = 256 * 15
+            sheet.col(9).width = 256 * 5
+            sheet.col(10).width = 256 * 15
+            sheet.col(11).width = 256 * 15
+            sheet.col(12).width = 256 * 10
+            sheet.col(13).width = 256 * 10
+            sheet.col(14).width = 256 * 10
+
+            styleHeader = xlwt.Style.easyxf(
+                "align: horizontal center, wrap true; font: bold true, name Times New Roman, height 220; borders: top thin, bottom thin, left thin, right thin;")
+            sheet.write(rowNumber, 0, u'№ п/п', style=styleHeader)
+            sheet.write(rowNumber, 1, u'Код юр. лица медицинской организации (SPR01)', style=styleHeader)
+            sheet.write(rowNumber, 2, u'Наименование медицинской организации', style=styleHeader)
+            sheet.write(rowNumber, 3, u'Фамилия', style=styleHeader)
+            sheet.write(rowNumber, 4, u'Имя', style=styleHeader)
+            sheet.write(rowNumber, 5, u'Отчество', style=styleHeader)
+            sheet.write(rowNumber, 6, u'Дата рождения', style=styleHeader)
+            sheet.write(rowNumber, 7, u'ЕНП', style=styleHeader)
+            sheet.write(rowNumber, 8, u'СНИЛС', style=styleHeader)
+            sheet.write(rowNumber, 9, u'МКБ-10 (SPR20)', style=styleHeader)
+            sheet.write(rowNumber, 10, u'Состоит под диспансерным наблюдением по специальности врача', style=styleHeader)
+            sheet.write(rowNumber, 11, u'Условие оказания помощи (SPR34)', style=styleHeader)
+            sheet.write(rowNumber, 12, u'Оказанная услуга (SPR18, по ОМС)', style=styleHeader)
+            sheet.write(rowNumber, 13, u'Дата начала оказания услуги', style=styleHeader)
+            sheet.write(rowNumber, 14, u'Дата окончания оказания услуги', style=styleHeader)
 
         begDate = params.get('begDate', QDate())
         endDate = params.get('endDate', QDate())
@@ -199,34 +241,9 @@ class CPeopleWithDiseasesCirculatorySystem(CReport):
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
 
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        # cursor.insertText(self.title())
-        # cursor.insertBlock()
-        # self.dumpParams(cursor, params)
-        # cursor.insertBlock()
-
-        tableColumns = [
-            ('5%', [u'№ п/п'], CReportBase.AlignCenter),
-            ('10%', [u'Код юр. лица медицинской организации'], CReportBase.AlignCenter),
-            ('10%', [u'Наименование медицинской организации'], CReportBase.AlignCenter),
-            ('10%', [u'Фамилия'], CReportBase.AlignCenter),
-            ('10%', [u'Имя'], CReportBase.AlignCenter),
-            ('10%', [u'Отчество'], CReportBase.AlignCenter),
-            ('10%', [u'Дата рождения'], CReportBase.AlignCenter),
-            ('10%', [u'ЕНП'], CReportBase.AlignCenter),
-            ('10%', [u'СНИЛС'], CReportBase.AlignCenter),
-            ('10%', [u'МКБ'], CReportBase.AlignCenter),
-            ('10%', [u'Состоит под диспансерным наблюдением по специальности врача'], CReportBase.AlignCenter),
-            ('10%', [u'Условие оказания помощи'], CReportBase.AlignCenter),
-            ('10%', [u'Оказанная услуга'], CReportBase.AlignCenter),
-            ('10%', [u'Дата начала оказания услуги'], CReportBase.AlignCenter),
-            ('10%', [u'Дата окончания оказания услуги'], CReportBase.AlignCenter),
-        ]
-
-        table = createTable(cursor, tableColumns)
+        cursor.setCharFormat(CReportBase.ReportBody)
 
         query = selectData(begDate, endDate, areaId, specialityId, invoice, personId, ageFrom, ageTo, eventTypeId)
-        counter = 1
         dict_with_data = dict()
         while query.next():
             record = query.record()
@@ -263,83 +280,52 @@ class CPeopleWithDiseasesCirculatorySystem(CReport):
                 'name_service': name_service
             })
 
-        for each_client in sorted(dict_with_data, key=lambda x: dict_with_data[x][0]["lastname"]):
-            # counter_line = 1
-            for each_act in dict_with_data[each_client]:
-                i = table.addRow()
-                # if counter_line:
-                table.setText(i, 0, counter)
-                    # counter_line = 0
-                table.setText(i, 1, each_act['infisCode'])
-                table.setText(i, 2, each_act['fullName'])
-                table.setText(i, 3, each_act['lastname'])
-                table.setText(i, 4, each_act['firstname'])
-                table.setText(i, 5, each_act['patrname'])
-                table.setText(i, 6, each_act['birthDate'])
-                enp = u'\xa0'+each_act['police']
-                table.setText(i, 7, enp)
-                table.setText(i, 8, each_act['SNILS'][:3] + '-' + each_act['SNILS'][3:6] + '-' + each_act['SNILS'][6:9]
-                              + ' ' + each_act['SNILS'][9:])
-                table.setText(i, 9, each_act['MKB'])
-                table.setText(i, 10, each_act['speciality_name'])
-                table.setText(i, 11, each_act['conition_names'])
-                table.setText(i, 12, each_act['name_service'])
-                table.setText(i, 13, each_act['begDate'])
-                table.setText(i, 14, each_act['endDate'])
-            # table.mergeCells(i - len(dict_with_data[each_client]) + 1, 0, len(dict_with_data[each_client]), 1)
-            counter += 1
+        workbook = xlwt.Workbook()
+        pageNumber = 1
+        sheet = workbook.add_sheet(u'Лист%d' % pageNumber)
+        printHeader(sheet, 0)
 
-        # for row, rowDescr in enumerate(MainRows):
-        #     reportLine = reportMainData[row]
-        #     i = table.addRow()
-        #     table.setText(i, 0, rowDescr[0])
-        #     table.setText(i, 1, rowDescr[1])
-        #     table.setText(i, 2, rowDescr[2])
-        #     table.setText(i, 3, reportLine[0])
-        #     table.setText(i, 4, reportLine[1])
-        #     table.setText(i, 5, reportLine[2])
-        #     table.setText(i, 6, reportLine[3])
+        styleRow = xlwt.Style.easyxf(
+            "align: horizontal center; font: name Times New Roman; borders: top thin, bottom thin, left thin, right thin;")
+        rowNumber = 0
+        rowsCount = 0
+        for each_client in sorted(dict_with_data, key=lambda x: dict_with_data[x][0]["lastname"]):
+            for each_act in dict_with_data[each_client]:
+                rowNumber += 1
+                if rowNumber == 65536:
+                    pageNumber += 1
+                    sheet = workbook.add_sheet(u'Лист%d' % pageNumber)
+                    rowNumber = 0
+                    printHeader(sheet, rowNumber)
+                    rowNumber += 1
+
+                sheet.write(rowNumber, 0, rowNumber, style=styleRow)
+                sheet.write(rowNumber, 1, each_act['infisCode'], style=styleRow)
+                sheet.write(rowNumber, 2, each_act['fullName'], style=styleRow)
+                sheet.write(rowNumber, 3, each_act['lastname'], style=styleRow)
+                sheet.write(rowNumber, 4, each_act['firstname'], style=styleRow)
+                sheet.write(rowNumber, 5, each_act['patrname'], style=styleRow)
+                sheet.write(rowNumber, 6, each_act['birthDate'], style=styleRow)
+                # enp = u'\xa0' + each_act['police']
+                sheet.write(rowNumber, 7, each_act['police'], style=styleRow)
+                sheet.write(rowNumber, 8, each_act['SNILS'], style=styleRow)
+                sheet.write(rowNumber, 9, each_act['MKB'], style=styleRow)
+                sheet.write(rowNumber, 10, each_act['speciality_name'], style=styleRow)
+                sheet.write(rowNumber, 11, each_act['conition_names'], style=styleRow)
+                sheet.write(rowNumber, 12, each_act['name_service'], style=styleRow)
+                sheet.write(rowNumber, 13, each_act['begDate'], style=styleRow)
+                sheet.write(rowNumber, 14, each_act['endDate'], style=styleRow)
+
+                rowsCount += 1
+
+        outDir = params.get('outDir', QtGui.qApp.getHomeDir())
+        fileName = os.path.join(forceStringEx(outDir), u"%s %s.xls" % (self.title(), unicode(
+            QDate.currentDate().toString('dd_MM_yyyy'))))
+        workbook.save(fileName)
+
+        cursor.insertBlock()
+        cursor.insertText(u'Сформировано %s строк' % rowsCount)
+        cursor.insertBlock()
+        cursor.insertText(u'Путь к файлу %s' % fileName)
 
         return doc
-
-
-class CPeopleOfCancerSetupDialog(QtGui.QDialog, Ui_PeopleOfCancerSetupDialog):
-    def __init__(self, parent=None):
-        QtGui.QDialog.__init__(self, parent)
-        self.setupUi(self)
-        self.edtBegDate.canBeEmpty()
-        self.cmbOrgStructure.setOrgId(QtGui.qApp.currentOrgId())
-        self.cmbOrgStructure.setValue(QtGui.qApp.currentOrgStructureId())
-        self.cmbSpeciality.setTable('rbSpeciality', addNone=True)
-        self.cmbdn.setTable('rbDispanser', addNone=True)
-        if QtGui.qApp.userSpecialityId:
-            self.cmbPerson.setValue(QtGui.qApp.userId)
-            self.cmbSpeciality.setValue(QtGui.qApp.userSpecialityId)
-
-    def setTitle(self, title):
-        self.setWindowTitle(title)
-
-    def setParams(self, params):
-        self.edtBegDate.setDate(params.get('begDate', QDate()))
-        self.edtEndDate.setDate(params.get('endDate', QDate.currentDate()))
-        self.cmbOrgStructure.setValue(params.get('areaId', None))
-        self.cmbSpeciality.setValue(params.get('specialityId', None))
-        self.cmbPerson.setValue(params.get('personId', None))
-        invoice = bool(params.get('invoice', True))
-        self.chkInvoice.setChecked(invoice)
-        self.edtAgeFrom.setValue(params.get('ageFrom', 0))
-        self.edtAgeTo.setValue(params.get('ageTo', 150))
-        self.cmbdn.setValue(params.get('eventTypeId', None))
-
-    def params(self):
-        result = {}
-        result['begDate'] = self.edtBegDate.date()
-        result['endDate'] = self.edtEndDate.date()
-        result['areaId'] = self.cmbOrgStructure.value()
-        result['specialityId'] = self.cmbSpeciality.value()
-        result['personId'] = self.cmbPerson.value()
-        result['invoice'] = self.chkInvoice.isChecked()
-        result['ageFrom'] = self.edtAgeFrom.value()
-        result['ageTo'] = self.edtAgeTo.value()
-        result['eventTypeId'] = self.cmbdn.value()
-        return result

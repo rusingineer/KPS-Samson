@@ -1879,7 +1879,60 @@ p, li { white-space: pre-wrap; }
              <number>1</number>
             </property>
             <item row="0" column="0">
-             <widget class="CTableView" name="tblExport"/>
+             <widget class="QTabWidget" name="tabWidget_2">
+              <property name="currentIndex">
+               <number>0</number>
+              </property>
+              <widget class="QWidget" name="tab_3">
+               <attribute name="title">
+                <string>Событие</string>
+               </attribute>
+               <layout class="QHBoxLayout" name="horizontalLayout_12">
+                <item>
+                 <widget class="CInDocExportTableView" name="tblExport"/>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="tab">
+               <attribute name="title">
+                <string>Документы</string>
+               </attribute>
+               <layout class="QHBoxLayout" name="horizontalLayout_20">
+                <item>
+                 <widget class="CInDocExportTableView" name="tblExport_FileAttach"/>
+                </item>
+               </layout>
+              </widget>
+              <widget class="QWidget" name="tab_2">
+               <attribute name="title">
+                <string>ВИМИС</string>
+               </attribute>
+               <layout class="QHBoxLayout" name="horizontalLayout_21">
+                <item>
+                 <widget class="CInDocExportTableView" name="tblExport_VIMIS">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="sizeIncrement">
+                   <size>
+                    <width>0</width>
+                    <height>-1</height>
+                   </size>
+                  </property>
+                  <property name="baseSize">
+                   <size>
+                    <width>0</width>
+                    <height>-1</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
+             </widget>
             </item>
            </layout>
           </widget>
@@ -1960,9 +2013,9 @@ p, li { white-space: pre-wrap; }
    <header>library/InDocTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CTableView</class>
+   <class>CInDocExportTableView</class>
    <extends>QTableView</extends>
-   <header>library/TableView.h</header>
+   <header location="global">library/InDocTable.h</header>
   </customwidget>
   <customwidget>
    <class>CStrComboBox</class>
@@ -2051,7 +2104,6 @@ p, li { white-space: pre-wrap; }
   <tabstop>cmbInfoResult</tabstop>
   <tabstop>edtVisitDateNextResult</tabstop>
   <tabstop>edtCommentResult</tabstop>
-  <tabstop>tblExport</tabstop>
   <tabstop>edtOffice</tabstop>
   <tabstop>edtPlannedEndTime</tabstop>
   <tabstop>edtEndDate</tabstop>

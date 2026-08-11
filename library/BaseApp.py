@@ -206,9 +206,17 @@ class CBaseApp(QtGui.QApplication):
 
 
     def applyDecorPreferences(self):
+        if self.mainWindow:
+            if self.preferences.useCustomFont:
+                self.setFont(self.preferences.font)
+            else:
+                self.setFont(self.defaultFont)
+                
         self.setStyle(self.preferences.decorStyle)
+        
         if self.preferences.decorStandardPalette:
             self.setPalette(self.style().standardPalette())
+            
         if self.mainWindow:
             state = Qt.WindowNoState
             if self.preferences.decorMaximizeMainWindow:
@@ -216,10 +224,6 @@ class CBaseApp(QtGui.QApplication):
             if self.preferences.decorFullScreenMainWindow:
                 state |= Qt.WindowFullScreen
             self.mainWindow.setWindowState(state)
-            if self.preferences.useCustomFont:
-                self.setFont(self.preferences.font)
-            else:
-                self.setFont(self.defaultFont)
 
 
     def registerDocumentTables(self):

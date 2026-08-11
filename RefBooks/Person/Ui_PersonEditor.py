@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_merge\RefBooks\Person\PersonEditor.ui'
+# Form implementation generated from reading ui file 'D:\work\_SVN\client_test\RefBooks\Person\PersonEditor.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Oct 02 10:01:21 2025
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -25,7 +26,7 @@ except AttributeError:
 class Ui_ItemEditorDialog(object):
     def setupUi(self, ItemEditorDialog):
         ItemEditorDialog.setObjectName(_fromUtf8("ItemEditorDialog"))
-        ItemEditorDialog.resize(1005, 664)
+        ItemEditorDialog.resize(1151, 688)
         ItemEditorDialog.setSizeGripEnabled(True)
         self.gridLayout_9 = QtGui.QGridLayout(ItemEditorDialog)
         self.gridLayout_9.setMargin(4)
@@ -448,6 +449,8 @@ class Ui_ItemEditorDialog(object):
         self.cmbShowTypeTemplate.addItem(_fromUtf8(""))
         self.cmbShowTypeTemplate.addItem(_fromUtf8(""))
         self.cmbShowTypeTemplate.addItem(_fromUtf8(""))
+        self.cmbShowTypeTemplate.addItem(_fromUtf8(""))
+        self.cmbShowTypeTemplate.addItem(_fromUtf8(""))
         self.gridLayout.addWidget(self.cmbShowTypeTemplate, 27, 1, 1, 6)
         self.chkIsHideQueue = QtGui.QCheckBox(self.tabCommon)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
@@ -705,7 +708,10 @@ class Ui_ItemEditorDialog(object):
         self.gridLayout_6.setObjectName(_fromUtf8("gridLayout_6"))
         self.tblOrderDocs = CInDocTableView(self.tabMovements)
         self.tblOrderDocs.setObjectName(_fromUtf8("tblOrderDocs"))
-        self.gridLayout_6.addWidget(self.tblOrderDocs, 0, 0, 1, 1)
+        self.gridLayout_6.addWidget(self.tblOrderDocs, 1, 0, 1, 1)
+        self.chkActual = QtGui.QCheckBox(self.tabMovements)
+        self.chkActual.setObjectName(_fromUtf8("chkActual"))
+        self.gridLayout_6.addWidget(self.chkActual, 0, 0, 1, 1)
         self.tblMain.addTab(self.tabMovements, _fromUtf8(""))
         self.tabActivity = QtGui.QWidget()
         self.tabActivity.setObjectName(_fromUtf8("tabActivity"))
@@ -974,6 +980,8 @@ class Ui_ItemEditorDialog(object):
         self.cmbShowTypeTemplate.setItemText(0, _translate("ItemEditorDialog", "показывать все доступные шаблоны", None))
         self.cmbShowTypeTemplate.setItemText(1, _translate("ItemEditorDialog", "показывать шаблоны текущего пользователя", None))
         self.cmbShowTypeTemplate.setItemText(2, _translate("ItemEditorDialog", "показывать шаблоны со СНИЛС текущего пользователя", None))
+        self.cmbShowTypeTemplate.setItemText(3, _translate("ItemEditorDialog", "показывать шаблоны по специальности", None))
+        self.cmbShowTypeTemplate.setItemText(4, _translate("ItemEditorDialog", "показывать шаблоны по подразделению", None))
         self.chkIsHideQueue.setText(_translate("ItemEditorDialog", "Скрыть в окне \"График\"", None))
         self.chkIsHideSchedule.setText(_translate("ItemEditorDialog", "Скрыть в окне \"Учёт рабочего времени\"", None))
         self.chkAvailableForExternal.setText(_translate("ItemEditorDialog", "Информация о сотруднике доступна для внешних систем", None))
@@ -1013,6 +1021,7 @@ class Ui_ItemEditorDialog(object):
         self.lblPersonContact.setText(_translate("ItemEditorDialog", "Контакты", None))
         self.tblMain.setTabText(self.tblMain.indexOf(self.tabPrivate), _translate("ItemEditorDialog", "Личные", None))
         self.tblMain.setTabText(self.tblMain.indexOf(self.tabQualification), _translate("ItemEditorDialog", "Квалификация", None))
+        self.chkActual.setText(_translate("ItemEditorDialog", "Актуальные", None))
         self.tblMain.setTabText(self.tblMain.indexOf(self.tabMovements), _translate("ItemEditorDialog", "Кадровые перемещения", None))
         self.tblMain.setTabText(self.tblMain.indexOf(self.tabActivity), _translate("ItemEditorDialog", "Вид деятельности", None))
         self.cmbTimelinePeriod.setItemText(0, _translate("ItemEditorDialog", "Один план", None))
@@ -1032,12 +1041,12 @@ class Ui_ItemEditorDialog(object):
         self.lblModifyPerson.setText(_translate("ItemEditorDialog", "Автор и дата последнего изменения записи:", None))
         self.lblCreatePerson.setText(_translate("ItemEditorDialog", "Автор и дата создания записи:", None))
 
-from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
 from Orgs.OrgComboBox import CPolyclinicComboBox
+from library.crbcombobox import CRBComboBox
+from library.DbComboBox import CDbComboBox
+from KLADR.kladrComboxes import CKLADRComboBox, CStreetComboBox
+from library.InDocTable import CInDocTableView
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from Timeline.PersonTimeTable import CPersonTimeTableView
-from library.DateEdit import CDateEdit
-from library.DbComboBox import CDbComboBox
-from library.InDocTable import CInDocTableView
 from library.LineEditWithRegExpValidator import CLineEditWithRegExpValidator
-from library.crbcombobox import CRBComboBox
+from library.DateEdit import CDateEdit

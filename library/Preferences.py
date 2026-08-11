@@ -13,7 +13,6 @@
 #############################################################################
 
 import os.path
-import shutil
 from PyQt4 import QtGui
 
 from PyQt4.QtCore import QDir, QSettings, QVariant
@@ -92,7 +91,7 @@ class CPreferences(object):
             else:
                 tmpSettings = QSettings(QSettings.IniFormat, QSettings.UserScope, 'samson-vista', 'tmp')
                 dir = os.path.dirname(unicode(QDir.toNativeSeparators(tmpSettings.fileName())))
-                iniFileName = os.path.join(dir, self.iniFileName)                   
+                iniFileName = os.path.join(dir, self.iniFileName)
             self.settings = QSettings(iniFileName, QSettings.IniFormat)
 
             # попытка угадать базу данных и сервер по имени конфига

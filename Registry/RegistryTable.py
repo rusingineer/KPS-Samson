@@ -1307,6 +1307,7 @@ class CAmbCardDiagnosticsActionsTableModel(CTableModel):
         self.addColumn(CDateCol(u'План',           ['plannedEndDate'],15))
         self.addColumn(CDateCol(u'Начато',         ['begDate'],       15))
         self.addColumn(CDateCol(u'Окончено',       ['endDate'],       15))
+        self.addColumn(CTextCol(u'МКБ',                        ['MKB'],                       15))
         self.addColumn(CRefBookCol(u'Назначил',    ['setPerson_id'], 'vrbPersonWithSpeciality', 20))
         self.addColumn(CRefBookCol(u'Выполнил',    ['person_id'],    'vrbPersonWithSpeciality', 20))
         self.addColumn(CTextCol(u'Каб',            ['office'],                                6))
@@ -1320,6 +1321,7 @@ class CAmbCardDiagnosticsActionsTableModel(CTableModel):
                                  u'plannedEndDate'     :u'Action.plannedEndDate',
                                  u'begDate'            :u'Action.begDate',
                                  u'endDate'            :u'Action.endDate',
+                                 u'MKB'                :u'Action.MKB',
                                  u'setPerson_id'       :u'vrbPersonWithSpeciality.name',
                                  u'person_id'          :u'vrbPersonWithSpeciality.name',
                                  u'office'             :u'Action.office',
@@ -2376,27 +2378,23 @@ class CExpertTempInvalidDocumentsTableModel(CTableModel):
     class CLocExportFSSCol(CCol):
         def __init__(self, title, fields, defaultWidth):
             CCol.__init__(self, title, fields, defaultWidth, 'l')
-            self.exportFSSCache = CRecordCache()
 
         def getExportFSS(self, documentId):
             exportFSS = u''
             if documentId:
-                exportFSS = forceStringEx(self.exportFSSCache.get(documentId))
-                if not exportFSS:
-                    db = QtGui.qApp.db
-                    tableTempInvalidDocument = db.table('TempInvalidDocument')
-                    tableDocumentExport = db.table('TempInvalidDocument_Export')
-                    tableExternalSystem = db.table('rbExternalSystem')
-                    queryTable = tableTempInvalidDocument.innerJoin(tableDocumentExport, tableDocumentExport['master_id'].eq(tableTempInvalidDocument['id']))
-                    queryTable = queryTable.innerJoin(tableExternalSystem, tableExternalSystem['id'].eq(tableDocumentExport['system_id']))
-                    if documentId:
-                        cond = [tableDocumentExport['master_id'].eq(documentId),
-                                tableExternalSystem['code'].eq(u'СФР'),
-                                tableTempInvalidDocument['deleted'].eq(0)
-                                ]
-                        record = db.getRecordEx(queryTable, [tableDocumentExport['note']], cond, order = u'TempInvalidDocument_Export.dateTime DESC')
-                        exportFSS = forceStringEx(record.value('note')) if record else u''
-                    self.exportFSSCache.put(documentId, exportFSS)
+                db = QtGui.qApp.db
+                tableTempInvalidDocument = db.table('TempInvalidDocument')
+                tableDocumentExport = db.table('TempInvalidDocument_Export')
+                tableExternalSystem = db.table('rbExternalSystem')
+                queryTable = tableTempInvalidDocument.innerJoin(tableDocumentExport, tableDocumentExport['master_id'].eq(tableTempInvalidDocument['id']))
+                queryTable = queryTable.innerJoin(tableExternalSystem, tableExternalSystem['id'].eq(tableDocumentExport['system_id']))
+                if documentId:
+                    cond = [tableDocumentExport['master_id'].eq(documentId),
+                            tableExternalSystem['code'].eq(u'СФР'),
+                            tableTempInvalidDocument['deleted'].eq(0)
+                            ]
+                    record = db.getRecordEx(queryTable, [tableDocumentExport['note']], cond, order = u'TempInvalidDocument_Export.id DESC')
+                    exportFSS = forceStringEx(record.value('note')) if record else u''
             return exportFSS
 
         def format(self, values):

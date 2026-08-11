@@ -14,10 +14,12 @@
 
 import datetime
 import hashlib
+import math
 import os.path
 import shutil
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from library import xlwt
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, pyqtSignature, QVariant, QAbstractTableModel, QDateTime, SIGNAL, QTextCodec, QFile
 
@@ -197,7 +199,7 @@ class CExportWizard(CAbstractExportWizard):
 
 
     def setAccountExposeDate(self):
-        if self.page1.exportType in [self.page1.exportTypeP28]:
+        if self.page1.exportType in [self.page1.exportTypeP29]:
             for accountId in self.page1.selectedAccountIds:
                 self.page1.accInfo = self.page1.mapAccountInfo[accountId]
                 accountRecord = self.db.getRecord('Account', '*', accountId)
@@ -211,16 +213,17 @@ class CExportWizard(CAbstractExportWizard):
 
 
 class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperMixin):
-    exportTypeP28 = 0  # Положение 28
-    exportTypePreControlP28 = 1  # предварительный контроль счетов
+    exportTypeP29 = 0  # Положение 29
+    exportTypePreControlP29 = 1  # предварительный контроль счетов
     exportTypeFLKXml = 2  # ФЛК реестров (xml)
     exportTypeAttachments = 3  # Прикрепленное население
     exportTypeInvoice = 4  # Файлы "Счёт" из реестров
     exportTypeInvoiceNil = 5  # Файлы "Счёт" с нулевыми суммами из реестров
     exportTypeFLK = 6  # дбф формат флк
-    exportTypeList = [u'Положение 28', u'Предварительный контроль счетов',
+    exportTypeGisOms = 7 # ГИС ОМС
+    exportTypeList = [u'Положение 29', u'Предварительный контроль счетов',
                       u'ФЛК реестров (xml)', u'Прикрепленное население', u'Файлы "Счёт" из реестров',
-                      u'Файлы "Счёт" с нулевыми суммами из реестров', u'дбф формат флк']
+                      u'Файлы "Счёт" с нулевыми суммами из реестров', u'дбф формат флк', u'ГИС ОМС (xml)']
     fieldListKeyP = ['SN', 'CODE_MO', 'PL_OGRN', 'FIO', 'IMA', 'OTCH', 'POL', 'DATR', 'KAT', 'SNILS', 'OKATO_OMS',
                      'SPV', 'SPS', 'SPN', 'INV', 'MSE', 'Q_G', 'NOVOR', 'VNOV_D', 'FAMP', 'IMP', 'OTP', 'POLP', 'DATRP',
                      'C_DOC', 'S_DOC', 'N_DOC', 'NAPR_MO', 'NAPR_N', 'NAPR_D', 'NAPR_DP', 'TAL_N', 'TAL_D', 'PR_D_N',
@@ -333,11 +336,14 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.mapDiseaseCharacter = {}
         self.mapMedicalAidTypeIdToName = {}
         self.mapEventTypeToTFOMSAccIdent = {}
+        self.mapOrgStructF033 = {}
+        self.mapOrganisationF033 = {}
 
-        self.chkMakeInvoice.setEnabled(self.exportType in [self.exportTypeP28])
+        self.chkMakeInvoice.setEnabled(self.exportType in [self.exportTypeP29])
         if self.exportType in [self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.chkMakeInvoice.setChecked(True)
-        self.edtRegistryNumber.setEnabled(self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil])
+        self.edtRegistryNumber.setEnabled(self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]
+                                          and self.exportType != self.exportTypeGisOms)
 
         if hasattr(self, 'progressBarAccount'):
             self.progressBarAccount.setMinimum(0)
@@ -383,6 +389,45 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             record = query.record()
             self.pregnancyServices.add(forceString(record.value('infis')))
 
+        # для определения значения поля LPU_1
+        stmt = u"""SELECT id, getOrgStructureF033Identification(OrgStructure.id) AS uid FROM OrgStructure;"""
+        query = self.db.query(stmt)
+        while query.next():
+            record = query.record()
+            self.mapOrgStructF033[forceRef(record.value('id'))] = forceString(record.value('uid'))
+
+
+    def showEvent(self, event):
+        """Вызывается при показе страницы"""
+        CAbstractExportPage1.showEvent(self, event)
+
+        db = QtGui.qApp.db
+        #record = db.getRecord('GlobalPreferences', 'value', u"code='IsExportGisOms'")
+        record = None
+        query = db.query("SELECT CODE, VALUE FROM GlobalPreferences WHERE CODE = 'IsExportGisOms'")
+        if query.first():
+            record = query.record()
+
+        isEnabled = False
+        if record:
+            value = forceString(record.value('value')).lower()
+            isEnabled = value in [u'да', u'yes', u'1', u'true']
+
+        view = self.cmbExportType.view()
+        model = self.cmbExportType.model()
+
+        if model.rowCount() > self.exportTypeGisOms:
+            view.setRowHidden(self.exportTypeGisOms, not isEnabled)
+
+            # Если текущий выбранный пункт - ГИС ОМС, и он скрыт,
+            # переключаем на первый видимый пункт
+            if not isEnabled and self.cmbExportType.currentIndex() == self.exportTypeGisOms:
+                # Ищем первый не скрытый индекс
+                for i in range(model.rowCount()):
+                    if not view.isRowHidden(i):
+                        self.cmbExportType.setCurrentIndex(i)
+                        break
+
 
     def setExportMode(self, flag):
         self.btnCancel.setEnabled(flag)
@@ -420,8 +465,25 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         if not result:
             lpuCode = self.processParams().get('codeLpu')
             if lpuCode:
-                result = u'%s.xml' % lpuCode
-                self.xmlFileName = result
+                if self.exportType == self.exportTypeGisOms:
+
+                    currentDate = QDate.currentDate()
+                    accNumber = '00001'
+                    if hasattr(self, 'accInfo') and self.accInfo.get('accNumber'):
+                        accNumber = str(self.accInfo.get('accNumber')).zfill(5)
+                    result = u'%d_%02d_%s_%s.xml' % (
+                        currentDate.year(),
+                        currentDate.month(),
+                        lpuCode,
+                        accNumber
+                    )
+                    self.xmlFileName = result
+
+                    #result = u'test_export.xml'
+                    #self.xmlFileName = result
+                else:
+                    result = u'%s.xml' % lpuCode
+                    self.xmlFileName = result
 
         return result
 
@@ -439,8 +501,10 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             if exdate.day < 8:
                 exdate = exdate - datetime.timedelta(days=8)
             result = u'%s%s.ZIP' % (exdate.strftime('%y%m'), lpuCode)
+        elif self.exportType == self.exportTypeGisOms:
+            return self.getXmlBaseName()
         else:
-            prefix = u'a' if self.exportType in [self.exportTypePreControlP28] else ''
+            prefix = u'a' if self.exportType in [self.exportTypePreControlP29] else ''
             result = u'%s%s%s%05d.ZIP' % (prefix, self.accInfo['payerCode'][:4], lpuCode[:5], self.accInfo['iAccNumber'])
         return result
 
@@ -457,12 +521,31 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.noExportedAccount = []
         self.ignoreErrors = self.chkIgnoreErrors.isChecked()
         self.exportType = self.cmbExportType.currentIndex()
-        self.mkInvoice = self.exportType in [self.exportTypeP28, self.exportTypeInvoice, self.exportTypeInvoiceNil] and self.chkMakeInvoice.isChecked()
+        self.mkInvoice = self.exportType in [self.exportTypeP29, self.exportTypeInvoice, self.exportTypeInvoiceNil] and self.chkMakeInvoice.isChecked()
         fileList = []
         self.noKeysDict = {}
         self.NoKeysDictD = {}
+        if self.exportType == self.exportTypeGisOms:
+            self.progressBar.hide()
+            self.progressBarAccount.reset()
+            self.progressBarAccount.setMaximum(100)
+            self.progressBarAccount.setValue(0)
+            self.progressBarAccount.show()
+
+            if self.selectedAccountIds:
+                accountId = self.selectedAccountIds[0]
+                self.progressBarAccount.setValue(50)
+                QtGui.qApp.processEvents()
+                if self._export(accountId):
+                    self.progressBarAccount.setValue(100)
+                    QtGui.qApp.processEvents()
+                    xmlFileName = self.getXmlBaseName()
+                    xmlFilePath = os.path.join(forceStringEx(self._parent.getTmpDir()), xmlFileName)
+                    fileList.append(xmlFilePath)
+
+            self._parent.page2.setFileList(fileList)
         # выгрузка нескольких реестров
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        elif self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.progressBarAccount.reset()
             self.progressBarAccount.setMaximum(len(self.selectedAccountIds))
             self.progressBarAccount.setValue(0)
@@ -478,22 +561,22 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     zf = ZipFile(zipFilePath, 'w', allowZip64=True)
                     exportType = self.exportType
 
-                    if exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+                    if exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                         prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M', 'L')
                     else:
                         prefixes = ('P')
 
                     #Добавляем фактуру
                     if self.mkInvoice:
-                        filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.html"))
-                        zf.write(filePath, "schfakt.html", ZIP_DEFLATED)
+                        filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.xls"))
+                        zf.write(filePath, "schfakt.xls", ZIP_DEFLATED)
 
-                    if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28]:
+                    if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29]:
                         for src in prefixes:
                             filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename(src + baseName))
                             zf.write(filePath, src+os.path.basename(self.getDbfBaseName()), ZIP_DEFLATED)
                     fileList.append(zipFilePath)
-            if self.exportType == self.exportTypePreControlP28 and self.noKeysFLKDict:
+            if self.exportType == self.exportTypePreControlP29 and self.noKeysFLKDict:
                 dial = CExportR23NoKeysDialog(self, self.noKeysFLKDict, title=u"Внимание!", message=u"При экспорте реестров обнаружены персональные счета, не прошедшие ФЛК (отсутствует FKEY).\nОтравьте реестры на ФЛК")
                 dial.exec_()
                 if not fileList:
@@ -505,9 +588,9 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     # self.abort()
             elif self.noExportedAccount:
                 message = ''
-                if self.exportType == self.exportTypePreControlP28:
+                if self.exportType == self.exportTypePreControlP29:
                     message = u'Не найдено персональных счетов с отсутствующими или некорректными ключами RKEY'
-                elif self.exportType == self.exportTypeP28:
+                elif self.exportType == self.exportTypeP29:
                     message = u'Не найдено персональных счетов с корректными ключами RKEY'
 
                 QtGui.QMessageBox.information(self,
@@ -516,11 +599,11 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                                               QtGui.QMessageBox.Ok,
                                               QtGui.QMessageBox.Ok)
             self._parent.page2.setFileList(fileList)
-            if self.exportType == self.exportTypeP28 and self.NoKeysDictD:
+            if self.exportType == self.exportTypeP29 and self.NoKeysDictD:
                 NoKeysD = [self.NoKeysDictD[key] for key in self.NoKeysDictD.keys()]
                 QtGui.QMessageBox.information(self, u'Внимание!',
                                               u'Для следующих медицинских сотрудников не получены RKEY или изменились данные:\n{0}'.format(u'\n'.join(NoKeysD)), QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-            if self.exportType == self.exportTypeP28 and self.noKeysDict:
+            if self.exportType == self.exportTypeP29 and self.noKeysDict:
                 dial = CExportR23NoKeysDialog(self, self.noKeysDict, title=u"Внимание!", message=u"При экспорте реестров обнаружены персональные счета, не прошедшие предварительный контроль (отсутствует RKEY).\nУдалите персональные счета из реестра и повторите экспорт")
                 dial.exec_()
         else:
@@ -629,6 +712,29 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
         self.noKeysSNILS = set()
         if self.exportType == self.exportTypeFLKXml:
             self.setProcessFuncList([self.processFLK])
+        elif self.exportType == self.exportTypeGisOms:
+            self.setProcessFuncList([self.processGisOms])
+            params['codeLpu'] = '00213300' # временно
+
+            self.setProcessParams(params)
+
+            CAbstractExportPage1.exportInt(self)
+
+            recordCount = len(self.eventsDict)
+
+            fileName = os.path.join(self.getTmpDir(), self.getXmlBaseName())
+            outFile = QFile(fileName)
+            outFile.open(QFile.WriteOnly | QFile.Text)
+            self.xmlWriter = CGisOmsXmlStreamWriter(self)
+            self.xmlWriter.setDevice(outFile)
+            self.xmlWriter.writeStartDocument()
+
+            self.xmlWriter.writeHeader(params, recordCount)
+            self._writeGisOmsEvents()
+
+            self.xmlWriter.writeFooter()
+            self.xmlWriter.device().close()
+            return True
         else:
             self.setProcessFuncList([self.process, self.processPerson])
 
@@ -636,13 +742,14 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
 
 
         # Запросы для выборки доп. сведений
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29]:
             tableAccountItem = self.db.table('Account_Item')
             itemsCond = [tableAccountItem['deleted'].eq(0), tableAccountItem['master_id'].eq(self.currentAccountId)]
 
             for msg, name, _class in (
                     (u'Запрос данных о приемах психологов...', 'psychologistInfo',  CPsychologistInfo),
                     (u'Запрос данных о введении противоопухолевых ЛП...', 'cancerMedicamentInfo', CCancerMedicamentInfo),
+                    (u'Запрос данных о видах занятости пациентов...', 'typeOfEmploymentInfo', CTypeOfEmploymentInfo),
                   ):
                 self.log(msg)
                 val = _class()
@@ -651,7 +758,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
 
         CAbstractExportPage1.exportInt(self)
         res = True
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             # Пересчет стоимости лечения стоматологии в 2018 году
             if self.accInfo['settleDate'] >= QDate(2018, 1, 1):
                 if not self.calcStom():
@@ -691,6 +798,9 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     xmlWriter.writeRecord(rec)
                 xmlWriter.writeFooter()
                 outFile.close()
+            elif self.exportType == self.exportTypeGisOms:
+                self.xmlWriter.writeFooter()
+                self.xmlWriter.device().close()
             else:
                 #  выгружаем dbf
                 dbfName = os.path.join(self.getTmpDir(), 'P' + self.getDbfBaseName())
@@ -727,7 +837,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                     rkey = rkeysDict.get((fileType, hashKey), '')
                     if not rkey:
                         self.noKeysSNILS.add(forceString(rec[keyField]))
-                    if self.exportType == self.exportTypePreControlP28:
+                    if self.exportType == self.exportTypePreControlP29:
                         rkey = ''
                 else:
                     rkey = rkeysDict.get((fileType, forceString(rec[keyField])), '')
@@ -737,7 +847,7 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                 # else:
                 #     fkey = True
 
-                if rkey == '' or self.exportType == self.exportTypeP28:
+                if rkey == '' or self.exportType == self.exportTypeP29:
                     _rec = dbf.newRecord()
                     _rec.fieldData = rec.fieldData[:]
                     _rec['RKEY'] = rkey
@@ -867,7 +977,7 @@ from tmp_internalKeys t
 left JOIN soc_Account_RowKeys sark ON t.alt_row_id = sark.alt_row_id AND t.typeFile = sark.typeFile
 where t.typeFile = 'D' and ifnull(sark.`key`, '') = ''""")
         # Врачи без ключей
-        if self.exportType == self.exportTypeP28:
+        if self.exportType == self.exportTypeP29:
             queryD = self.db.query(u"""select snils from tmp_DWithoutkeys""")
             while queryD.next():
                 recordD = queryD.record()
@@ -1287,38 +1397,94 @@ where t.typeFile = 'D'""")
         reps = self.getInvoiceData()
         casecount = len(reps['-1']['sn'][0]) + len(reps['-1']['sn'][1])
         summ = reps['-1']['summ'][0] + reps['-1']['summ'][1]
-        invoice = QtGui.QTextDocument()
-        # Рисуем фактуру
-        fnt = invoice.defaultFont()
-        fnt.setPointSize(8)
-        invoice.setDefaultFont(fnt)
-        invoice_cursor = QtGui.QTextCursor(invoice)
-        fmtdiv = QtGui.QTextBlockFormat()
-        invoice_cursor.insertBlock(fmtdiv)
-        invoice_cursor.insertHtml("@@@@=@@@@")
 
-        fmt = QtGui.QTextBlockFormat()
-        fmt.setAlignment(Qt.AlignRight)
-        invoice_cursor.insertBlock(fmt)
-        invoice_cursor.insertHtml(u"Приложение № 1<br>")
-        invoice_cursor.insertHtml(u"к постановлению Правительства Российской Федерации<br>")
-        invoice_cursor.insertHtml(u"от 26 декабря 2011 г. № 1137<br>")
-        invoice_cursor.insertHtml(u"(в ред. Постановления Правительства РФ от 19.08.2017 № 981)")
+        wb = xlwt.Workbook(encoding='utf-8')
+        sheet = wb.add_sheet(u'Счет-фактура')
+        sheet.portrait = False
+        sheet.fit_num_pages = 1
+        sheet.fit_width_to_pages = 1
+        sheet.fit_height_to_pages = 0
+        sheet.header_str = ''
+        sheet.footer_str = ''
 
-        fmt.setAlignment(Qt.AlignCenter)
-        invoice_cursor.insertBlock(fmt)
-        invoice_num  = forceString(accNumber)
+        # page_breaks = []
+
+        styleTitlePrefix = xlwt.easyxf(
+            'font: height 120;'
+            'align: horiz right, vert center, wrap on;'
+        )
+        styleTitle = xlwt.easyxf(
+            'font: height 200, bold on;'
+            'align: horiz center, vert center, wrap on;'
+        )
+        styleTableHeader = xlwt.easyxf(
+            'font: height 140, bold on;'
+            'align: horiz center, vert center, wrap on;'
+            'borders: left thin, right thin, top thin, bottom thin;'
+        )
+        styleTableCellAlignCenter = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz center, vert center, wrap on;'
+            'borders: left thin, right thin, top thin, bottom thin;'
+        )
+        styleTableCellAlignLeft = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz left, vert center, wrap on;'
+            'borders: left thin, right thin, top thin, bottom thin;'
+        )
+        styleTableCellFooterAlignLeft = xlwt.easyxf(
+            'font: height 160, bold on, italic on;'
+            'align: horiz left, vert center, wrap on;'
+            'borders: left thin, right thin, top thin, bottom thin;'
+        )
+
+        styleBaseAlignCenter = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz center, vert center;'
+        )
+        styleBaseAlignLeft = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz left, vert center, wrap on;'
+        )
+        styleBaseAlignLeftBorderBottom = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz left, vert center, wrap on;'
+            'borders: bottom thin;'
+        )
+        styleBaseAlignCenterBorderBottom = xlwt.easyxf(
+            'font: height 160;'
+            'align: horiz center, vert center, wrap on;'
+            'borders: bottom thin;'
+        )
+
+        # на базе красивой формы из консультанта
+        colsCount = 84
+        colsWidth = 256 * 2
+
+        for idx in range(colsCount):
+            sheet.col(idx).width = colsWidth
+
+        # СЧЕТ - ФАКТУРА
+        invoice_num = forceString(accNumber)
         invoice_date = forceString(accDate)
 
-        invoice_cursor.insertHtml(u"<b>СЧЕТ-ФАКТУРА № %s от %s</b><br>" % ('_'*3, invoice_date.rjust(10,'_')))
-        invoice_cursor.insertHtml(u"<b>ИСПРАВЛЕНИЕ № %s от %s</b><br>" % ('_'*3, '_'*10))
-        invoice_cursor.insertHtml(u"к реестру счетов № %s от %s за %s %s %s<br>" % (invoice_num, invoice_date, str(periodDate.year()), monthName[periodDate.month()], accTypeName))
-        fmt.setAlignment(Qt.AlignLeft)
-        invoice_cursor.insertBlock(fmt)
-        table = createTable(invoice_cursor, [ ('30%', [], CReportBase.AlignLeft), ('70%', [], CReportBase.AlignLeft) ],
-                             headerRowCount=11, border=0, cellPadding=2, cellSpacing=0)
-        fmt = QtGui.QTextCharFormat()
-        fmt.setFontUnderline(True)
+        startRow = 1
+        sheet.write_merge(startRow, startRow, 75, colsCount-1, u'Приложение № 1', styleTitlePrefix)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 64, colsCount-1, u'к постановлению Правительства Российской Федерации', styleTitlePrefix)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 64, colsCount-1, u'от 26 декабря 2011 г. № 1137', styleTitlePrefix)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 64, colsCount-1, u'(в ред. Постановления Правительства РФ от 19.08.2017 № 981)', styleTitlePrefix)
+        startRow += 3
+        sheet.write_merge(startRow, startRow, 0, colsCount-1, u'СЧЕТ-ФАКТУРА № ___ от %s' % invoice_date, styleTitle)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, colsCount-1, u'ИСПРАВЛЕНИЕ № ___ от __________', styleTitle)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, colsCount-1, u'к реестру счетов № %s от %s за %s %s %s' % (
+        invoice_num, invoice_date, str(periodDate.year()), monthName[periodDate.month()], accTypeName),
+                          styleBaseAlignCenter)
+
         db = QtGui.qApp.db
         # Формируем запросы
         tableOrganisation = db.table('Organisation')
@@ -1362,429 +1528,471 @@ where t.typeFile = 'D'""")
                                     tableOrganisation['id'].eq(payerId),
                                     order='Organisation_Account.id desc'
         )
-        table.setText(0, 0, u'Продавец:')
-        # table.setText(0, 1, forceString(record.value('fullName')) + ' ' + forceString(record.value('OrgStructureName')), fmt)
-        table.setText(0, 1, forceString(record.value('fullName')), fmt)
-        table.setText(1, 0, u'Адрес:')
-        table.setText(1, 1, forceString(record.value('Address')), fmt)
-        table.setText(2, 0, u'ИНН/КПП продавца:')
-        table.setText(2, 1, forceString(record.value('INN'))+'/'+forceString(record.value('KPP')), fmt)
-        table.setText(3, 0, u'Грузоотправитель и его адрес:')
-        table.setText(3, 1, forceString(record.value('Address')), fmt)
-        table.setText(4, 0, u'Грузополучатель и его адрес:')
-        table.setText(4, 1, forceString(record_pay.value('Address')) if record_pay else '', fmt)
-        table.setText(5, 0, u'К платежному-расчетному документу №:')
-        table.setText(5, 1, '', fmt)
-        table.setText(6, 0, u'Покупатель:')
-        table.setText(6, 1, forceString(record_pay.value('fullName')) if record_pay else '', fmt)
-        table.setText(7, 0, u'Адрес:')
-        table.setText(7, 1, forceString(record_pay.value('Address')) if record_pay else '', fmt)
-        table.setText(8, 0, u'ИНН/КПП покупателя:')
-        table.setText(8, 1, (forceString(record_pay.value('INN'))+'/'+forceString(record_pay.value('KPP')))  if record_pay else '', fmt)
-        table.setText(9, 0, u'Валюта: наименование, код:')
-        table.setText(9, 1, u'Российский рубль, 383', fmt)
-        table.mergeCells(10, 0, 1, 2)
-        table.setText(10, 0, u'Идентификатор государственного контракта, договора (соглашения) (при наличии)')
-        tableColumns = [
-            ('48%', [u'Наименование товара (описание выполненных работ, оказанных услуг), имущественного права', u''], CReportBase.AlignLeft),
-            ('2%',  [u'Код вида товара', u''], CReportBase.AlignLeft),
-            ('5%',  [u'Единица измерения', u'код'], CReportBase.AlignLeft),
-            ('5%',  [u'', u'условное обозначение (национальное)'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество (объем)', u''], CReportBase.AlignRight),
-            ('5%',  [u'Цена (тариф) за единицу измерения', u''], CReportBase.AlignCenter ),
-            ('5%',  [u'Стоимость товаров (работ, услуг), имущественных прав без налога - всего', u''], CReportBase.AlignCenter),
-            ('5%',  [u'В том числе сумма акциза', u''], CReportBase.AlignCenter),
-            ('5%',  [u'Налоговая ставка', u''], CReportBase.AlignCenter),
-            ('5%',  [u'Сумма налога, предъявляемая покупателю', u''], CReportBase.AlignCenter ),
-            ('5%',  [u'Стоимость товаров (работ, услуг), имущественных прав с налогом - всего', u''], CReportBase.AlignCenter),
-            ('5%',  [u'Страна происхождения товара', u'цифровой код'], CReportBase.AlignLeft),
-            ('5%',  [u'', u'краткое наименование'], CReportBase.AlignCenter),
-            ('5%',  [u'Регистрационный номер таможенной декларации', u''], CReportBase.AlignLeft)
-            ]
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertBlock()
-        table = createTable (invoice_cursor, tableColumns, headerRowCount=5, border=1, cellPadding=1, cellSpacing=0)
-        for i in range(0, 14):
-            if i not in [2, 3, 11, 12]:
-                table.mergeCells(0, i, 2, 1)
-        table.mergeCells(0, 2, 1, 2)
-        table.mergeCells(0, 11, 1, 2)
-        fmt = QtGui.QTextBlockFormat()
-        fmt.setAlignment(Qt.AlignCenter)
-        chr = QtGui.QTextCharFormat()
-        chr.setFontWeight(QtGui.QFont.Bold)
-        table.cellAt(1, 2).setFormat(chr)
-        table.cellAt(1, 3).setFormat(chr)
-        table.setText(2, 0, u'1', blockFormat=fmt)
-        table.setText(2, 1, u'1a', blockFormat=fmt)
-        table.setText(2, 2, u'2', blockFormat=fmt)
-        table.setText(2, 3, u'2a', blockFormat=fmt)
-        table.setText(2, 4, u'3', blockFormat=fmt)
-        table.setText(2, 5, u'4', blockFormat=fmt)
-        table.setText(2, 6, u'5', blockFormat=fmt)
-        table.setText(2, 7, u'6', blockFormat=fmt)
-        table.setText(2, 8, u'7', blockFormat=fmt)
-        table.setText(2, 9, u'8', blockFormat=fmt)
-        table.setText(2, 10, u'9', blockFormat=fmt)
-        table.setText(2, 11, u'10', blockFormat=fmt)
-        table.setText(2, 12, u'10a', blockFormat=fmt)
-        table.setText(2, 13, u'11', blockFormat=fmt)
 
-        table.setHtml(3, 0, u'Сводный счет за пролеченных больных:<br>- случаев лечения')
-        table.setText(3, 1, u'-', blockFormat=fmt)
-        table.setText(3, 2, u'-', blockFormat=fmt)
-        table.setText(3, 3, u'-', blockFormat=fmt)
-        table.setText(3, 4, str(casecount), blockFormat=fmt)
-        table.setText(3, 5, u'-', blockFormat=fmt)
-        table.setText(3, 6, u'%.2f' % summ, blockFormat=fmt)
-        table.setText(3, 7, u'без акциза', blockFormat=fmt)
-        table.setText(3, 8, u'без НДС', blockFormat=fmt)
-        table.setText(3, 9, u'без НДС', blockFormat=fmt)
-        table.setText(3, 10, u'%.2f' % summ, blockFormat=fmt)
-        table.setText(3, 11, u'-', blockFormat=fmt)
-        table.setText(3, 12, u'-', blockFormat=fmt)
-        table.setText(3, 13, u'-', blockFormat=fmt)
-        table.mergeCells(4, 0, 1, 6)
-        table.setHtml(4, 0, u'<b><i>Всего к оплате:</i></b>')
-        table.cellAt(4, 5).setFormat(chr)
-        table.setText(4, 6, u'%.2f' % summ, blockFormat=fmt)
-        table.cellAt(4, 10).setFormat(chr)
-        table.setText(4, 10, u'%.2f' % summ, blockFormat=fmt)
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertBlock()
-        table = createTable(invoice_cursor, [('12%', [], CReportBase.AlignLeft),
-                                             ('10%', [], CReportBase.AlignLeft),
-                                             ('10%', [], CReportBase.AlignLeft),
-                                             ('5%',  [], CReportBase.AlignLeft),
-                                             ('12%', [], CReportBase.AlignLeft),
-                                             ('10%', [], CReportBase.AlignLeft),
-                                             ('10%', [], CReportBase.AlignLeft)
-                                             ],
-                             headerRowCount=3, border=0, cellPadding=2, cellSpacing=0)
-        fmt.setAlignment(Qt.AlignLeft|Qt.AlignBottom)
-        table.setText(0, 0, u"Руководитель организации\nили иное уполномоченное лицо")
-        table.setText(0, 1, u"_"*35)
-        table.setText(0, 2, self._getChiefName(QtGui.qApp.currentOrgId()), blockFormat=fmt)
-        table.setText(0, 4, u"Главный бухгалтер\nили иное уполномоченное лицо")
-        table.setText(0, 5, u"_"*35)
-        table.setText(0, 6, forceString(record.value('accountant')), blockFormat=fmt)
-        fmt.setAlignment(Qt.AlignCenter|Qt.AlignTop)
-        table.setText(1, 1, u"(подпись)", blockFormat=fmt)
-        table.setText(1, 5, u"(подпись)", blockFormat=fmt)
-        table.setText(2, 0, u"Индивидуальный предприниматель\nили иное уполномоченное лицо")
-        table.setText(2, 1, u"_"*35)
-        table.setText(2, 2, u"_"*35)
-        table.setText(2, 4, u"_"*35)
-        table.setText(2, 5, u"_"*35)
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertBlock()
-        # Отчет о пролеченных пациентах
-        invoice_cursor.insertBlock(fmtdiv)
-        invoice_cursor.insertHtml("$$$$=$$$$@@@@=@@@@")
+        startRow += 1
+        sheet.write_merge(startRow, startRow + 1, 0, 17, u'Продавец:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 1, 18, 75, forceString(record.value('fullName')), styleBaseAlignLeftBorderBottom)
+        startRow += 2
+        sheet.write_merge(startRow, startRow, 0, 17, u'Адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record.value('Address')), styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'ИНН/КПП продавца:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record.value('INN')) + '/' + forceString(record.value('KPP')),
+                          styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'Грузоотправитель и его адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record.value('Address')), styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'Грузополучатель и его адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record_pay.value('Address')) if record_pay else '', styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'К платежному-расчетному документу №:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, '', styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'Покупатель:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record_pay.value('fullName')) if record_pay else '',
+                          styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'Адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, forceString(record_pay.value('Address')) if record_pay else '',
+                          styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'ИНН/КПП покупателя:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, (forceString(record_pay.value('INN')) + '/' + forceString(
+            record_pay.value('KPP'))) if record_pay else '', styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 17, u'Валюта: наименование, код:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 18, 75, u'Российский рубль, 383', styleBaseAlignLeftBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 31,
+                          u'Идентификатор государственного контракта, договора (соглашения) (при наличии)',
+                          styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow, 32, 75, '', styleBaseAlignLeftBorderBottom)
 
-        fmt =QtGui.QTextBlockFormat()
-        fmt.setAlignment(Qt.AlignCenter)
-        invoice_cursor.insertBlock(fmt)
-        if isOutArea:
-            invoice_cursor.insertHtml(u"<br><br><br><b>Отчет о пролеченных больных, застрахованных вне территории Краснодарского края</b><br>")
-        else:
-            invoice_cursor.insertHtml(u"<br><br><br><b>Отчет о пролеченных больных, застрахованных на территории Краснодарского края</b><br>")
-        invoice_cursor.insertHtml(u"<br><br>к реестру счетов № %s от %s за %s %s %s<br>" % (invoice_num,invoice_date,str(periodDate.year()), monthName[periodDate.month()], accTypeName))
-        table = createTable (invoice_cursor, [ ('30%', [], CReportBase.AlignLeft), ('70%', [], CReportBase.AlignLeft) ], headerRowCount=2, border=0, cellPadding=2, cellSpacing=0)
-        table.setText(0, 0, u'Медицинская организация:')
-        # table.setText(0, 1, forceString(record.value('fullName')) + ' ' +forceString(record.value('OrgStructureName')))
-        table.setText(0, 1, forceString(record.value('fullName')))
-        table.setText(1, 0, u'Плательщик:')
-        table.setText(1, 1, forceString(record_pay.value('fullName')) if record_pay else '')
         tableColumns = [
-            ('38%', [u'Вид медицинской помощи'],CReportBase.AlignCenter),
-            ('5%',  [u'Количество физ. лиц'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество персональных счетов'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество СОМП'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество койко-дней'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество посещений'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество УЕТ'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество пациенто-дней'], CReportBase.AlignCenter),
-            ('5%',  [u'Количество простых, слож-ных и ком-плексных услуг'], CReportBase.AlignCenter),
-            ('10%', [u'Сумма, руб.'], CReportBase.AlignCenter),
+            (25, [u'Наименование товара (описание выполненных работ, оказанных услуг), имущественного права', u'', u'1']),
+            (3,  [u'Код вида товара', u'', u'1a']),
+            (3,  [u'Единица измерения', u'код', u'2']),
+            (3,  [u'', u'условное обозначение (национальное)', u'2a']),
+            (4,  [u'Количество (объем)', u'', u'3']),
+            (4,  [u'Цена (тариф) за единицу измерения', u'', u'4']),
+            (11,  [u'Стоимость товаров (работ, услуг), имущественных прав без налога - всего', u'', u'5']),
+            (3,  [u'В том числе сумма акциза', u'', u'6']),
+            (3,  [u'Налоговая ставка', u'', u'7']),
+            (4,  [u'Сумма налога, предъявляемая покупателю', u'', u'8']),
+            (11,  [u'Стоимость товаров (работ, услуг), имущественных прав с налогом - всего', u'', u'9']),
+            (3,  [u'Страна происхождения товара', u'цифровой код', u'10']),
+            (3,  [u'', u'краткое наименование', u'10a']),
+            (4,  [u'Регистрационный номер таможенной декларации', u'', u'11'])
             ]
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertBlock()
-        table = createTable (invoice_cursor,tableColumns, headerRowCount=len(reps)*3+1, border=1, cellPadding=1, cellSpacing=0)
-        fmtc = QtGui.QTextBlockFormat()
-        fmtc.setAlignment(Qt.AlignCenter)
-        fmtl = QtGui.QTextBlockFormat()
-        fmtl.setAlignment(Qt.AlignLeft)
-        rownum = 1
+
+        startRow += 2
+        startCol = 0
+        for idx, col in enumerate(tableColumns):
+            endCol = startCol + col[0] - 1
+            if idx not in (2, 3, 11, 12):
+                sheet.write_merge(startRow, startRow+4, startCol, endCol, col[1][0], styleTableHeader)
+            elif idx in (2, 3):
+                if idx == 2:
+                    sheet.write_merge(startRow, startRow+1, startCol, endCol + tableColumns[idx+1][0], col[1][0], styleTableHeader)
+                sheet.write_merge(startRow+2, startRow+4, startCol, endCol, col[1][1], styleTableHeader)
+            elif idx in (11, 12):
+                if idx == 11:
+                    sheet.write_merge(startRow, startRow+1, startCol,  endCol + tableColumns[idx+1][0], col[1][0], styleTableHeader)
+                sheet.write_merge(startRow+2, startRow+4, startCol, endCol, col[1][1], styleTableHeader)
+            sheet.write_merge(startRow+5, startRow+5, startCol, endCol, col[1][2], styleTableHeader)
+            startCol += col[0]
+
+        startRow += 6
+        startCol = 0
+        for idx, col in enumerate(tableColumns):
+            endCol = startCol + col[0] - 1
+            styleCell = styleTableCellAlignCenter
+            txt = u'-'
+            if idx == 0:
+                txt = u'Сводный счет за пролеченных больных:\n- случаев лечения'
+                styleCell = styleTableCellAlignLeft
+            elif idx == 4:
+                txt = str(casecount)
+            elif idx in (6, 10):
+                txt = u'%.2f' % summ
+            elif idx == 7:
+                txt = u'без акциза'
+            elif idx in (8, 9):
+                txt = u'без НДС'
+            sheet.write_merge(startRow, startRow+1, startCol, endCol, txt, styleCell)
+            startCol += col[0]
+
+        startRow += 2
+        startCol = 0
+        endCol = sum(col[0] for idx, col in enumerate(tableColumns) if idx < 6)
+        sheet.write_merge(startRow, startRow, startCol, endCol - 1, u'Всего к оплате:', styleTableCellFooterAlignLeft)
+        startCol = endCol
+        for idx, col in enumerate(tableColumns[6:]):
+            endCol = startCol + col[0]
+            txt = u''
+            if idx+6 in (6, 10):
+                txt = u'%.2f' % summ
+            sheet.write_merge(startRow, startRow, startCol, endCol - 1, txt, styleTableCellAlignCenter)
+            startCol = endCol
+
+        startRow += 2
+        sheet.write_merge(startRow , startRow + 1, 0, 15, u'Руководитель организации\nили иное уполномоченное лицо',
+                          styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 1, 17, 23, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow + 2, startRow + 2, 17, 23, u'(подпись)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow + 1, 25, 35, self._getChiefName(QtGui.qApp.currentOrgId()),
+                          styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow, startRow + 1, 40, 55, u'Главный бухгалтер\nили иное уполномоченное лицо',
+                          styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 1, 58, 63, u'', styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow + 2, startRow + 2, 58, 63, u'(подпись)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow + 1, 65, 75, forceString(record.value('accountant')),
+                          styleBaseAlignCenterBorderBottom)
+        startRow += 3
+        sheet.write_merge(startRow , startRow + 1, 0, 15, u'Индивидуальный предприниматель\nили иное уполномоченное лицо',
+                          styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 1, 17, 23, u'', styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow + 2, startRow + 2, 17, 23, u'(подпись)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow + 1, 25, 35, u'',
+                          styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow, startRow + 1, 40, 55, u'',
+                          styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow, startRow + 1, 58, 63, u'', styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(startRow + 2, startRow + 2, 58, 63, u'(подпись)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow + 1, 65, 75, u'',
+                          styleBaseAlignCenterBorderBottom)
+
+        startRow += 3
+        # page_breaks.append((startRow, 0, 255))
+
+        sheet = wb.add_sheet(u'Отчет')
+        sheet.portrait = False
+        sheet.fit_num_pages = 1
+        sheet.fit_width_to_pages = 1
+        sheet.fit_height_to_pages = 0
+        sheet.header_str = ''
+        sheet.footer_str = ''
+        startRow = 0
+
+        for idx in range(colsCount):
+            sheet.col(idx).width = colsWidth
+
+        #Отчет о пролеченных больных, застрахованных вне территории Краснодарского края
+        startRow += 2
+        sheet.write_merge(startRow, startRow, 0, colsCount - 1,
+                          u'Отчет о пролеченных больных, застрахованных %s территории Краснодарского края' % (
+                              u'вне' if isOutArea else u'на'), styleTitle)
+        sheet.write_merge(startRow + 1, startRow + 1, 0, colsCount-1, u'к реестру счетов № %s от %s за %s %s %s' % (
+        invoice_num, invoice_date, str(periodDate.year()), monthName[periodDate.month()], accTypeName),
+                          styleBaseAlignCenter)
+        startRow += 3
+        sheet.write_merge(startRow, startRow + 1, 0, 17, u'Медицинская организация:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 1, 18, 75, forceString(record.value('fullName')), styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow + 2, startRow + 2, 0, 17, u'Плательщик:', styleBaseAlignLeft)
+        sheet.write_merge(startRow + 2, startRow + 2, 18, 75, forceString(record_pay.value('fullName')) if record_pay else '', styleBaseAlignLeftBorderBottom)
+
+        tableColumns = [
+            (25, [u'Вид медицинской помощи']),
+            (6,  [u'Количество физ. лиц']),
+            (6,  [u'Количество персональных счетов']),
+            (6,  [u'Количество СОМП']),
+            (6,  [u'Количество койко-дней']),
+            (6,  [u'Количество посещений']),
+            (6,  [u'Количество УЕТ']),
+            (6,  [u'Количество пациенто-дней']),
+            (6,  [u'Количество простых, слож-ных и ком-плексных услуг']),
+            (11, [u'Сумма, руб.']),
+            ]
+        startRow += 4
+        startCol = 0
+        for idx, col in enumerate(tableColumns):
+            endCol = startCol + col[0] - 1
+            sheet.write_merge(startRow, startRow + 1, startCol, endCol, col[1][0], styleTableHeader)
+            startCol += col[0]
+
+        startRow += 2
         for key in sorted(reps):
             rep = reps[key]
-            table.setText(rownum, 0, rep['name'], blockFormat=fmtl)
-            table.setText(rownum, 1, len(rep['fl'][0]) + len(rep['fl'][1]), blockFormat=fmtc)
-            table.setText(rownum, 2, len(rep['sn'][0]) + len(rep['sn'][1]), blockFormat=fmtc)
-            table.setText(rownum, 3, rep['somp'][0] + rep['somp'][1], blockFormat=fmtc)
-            table.setText(rownum, 4, rep['kd'][0] + rep['kd'][1], blockFormat=fmtc)
-            table.setText(rownum, 5, rep['cp'][0] + rep['cpo'][0] + rep['cp'][1] + rep['cpo'][1], blockFormat=fmtc)
-            table.setText(rownum, 6, rep['uet'][0] + rep['uet'][1], blockFormat=fmtc)
-            table.setText(rownum, 7, rep['pd'][0] + rep['pd'][1], blockFormat=fmtc)
-            table.setText(rownum, 8, rep['kolu'][0] + rep['kolu'][1], blockFormat=fmtc)
-            table.setText(rownum, 9, '%.2f' % (rep['summ'][0] + rep['summ'][1]), blockFormat=fmtc)
 
-            rownum += 1
-            table.setText(rownum, 0, u'---По работающим', blockFormat=fmtl)
-            table.setText(rownum, 1, len(rep['fl'][1]), blockFormat=fmtc)
-            table.setText(rownum, 2, len(rep['sn'][1]), blockFormat=fmtc)
-            table.setText(rownum, 3, rep['somp'][1], blockFormat=fmtc)
-            table.setText(rownum, 4, rep['kd'][1], blockFormat=fmtc)
-            table.setText(rownum, 5, rep['cp'][1] + rep['cpo'][1], blockFormat=fmtc)
-            table.setText(rownum, 6, rep['uet'][1], blockFormat=fmtc)
-            table.setText(rownum, 7, rep['pd'][1], blockFormat=fmtc)
-            table.setText(rownum, 8, rep['kolu'][1], blockFormat=fmtc)
-            table.setText(rownum, 9, '%.2f' % rep['summ'][1], blockFormat=fmtc)
+            startCol = 0
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[0][0] - 1, rep['name'],
+                              styleTableCellAlignLeft)
+            startCol += tableColumns[0][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[1][0] - 1,
+                              len(rep['fl'][0]) + len(rep['fl'][1]), styleTableCellAlignCenter)
+            startCol += tableColumns[1][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[2][0] - 1,
+                              len(rep['sn'][0]) + len(rep['sn'][1]), styleTableCellAlignCenter)
+            startCol += tableColumns[2][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[3][0] - 1,
+                              rep['somp'][0] + rep['somp'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[3][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[4][0] - 1,
+                              rep['kd'][0] + rep['kd'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[4][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[5][0] - 1,
+                              rep['cp'][0] + rep['cpo'][0] + rep['cp'][1] + rep['cpo'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[5][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[6][0] - 1,
+                              '%.2f' % (rep['uet'][0] + rep['uet'][1]), styleTableCellAlignCenter)
+            startCol += tableColumns[6][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[7][0] - 1,
+                              rep['pd'][0] + rep['pd'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[7][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[8][0] - 1,
+                              rep['kolu'][0] + rep['kolu'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[8][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[9][0] - 1,
+                              '%.2f' % (rep['summ'][0] + rep['summ'][1]), styleTableCellAlignCenter)
 
-            rownum += 1
-            table.setText(rownum, 0, u'---По неработающим', blockFormat=fmtl)
-            table.setText(rownum, 1, len(rep['fl'][0]), blockFormat=fmtc)
-            table.setText(rownum, 2, len(rep['sn'][0]), blockFormat=fmtc)
-            table.setText(rownum, 3, rep['somp'][0], blockFormat=fmtc)
-            table.setText(rownum, 4, rep['kd'][0], blockFormat=fmtc)
-            table.setText(rownum, 5, rep['cp'][0] + rep['cpo'][0], blockFormat=fmtc)
-            table.setText(rownum, 6, rep['uet'][0], blockFormat=fmtc)
-            table.setText(rownum, 7, rep['pd'][0], blockFormat=fmtc)
-            table.setText(rownum, 8, rep['kolu'][0], blockFormat=fmtc)
-            table.setText(rownum, 9, '%.2f' % rep['summ'][0], blockFormat=fmtc)
-            rownum += 1
+            startRow += 1
+            startCol = 0
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[0][0] - 1, u'---По работающим',
+                              styleTableCellAlignLeft)
+            startCol += tableColumns[0][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[1][0] - 1,
+                              len(rep['fl'][1]), styleTableCellAlignCenter)
+            startCol += tableColumns[1][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[2][0] - 1,
+                              len(rep['sn'][1]), styleTableCellAlignCenter)
+            startCol += tableColumns[2][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[3][0] - 1,
+                              rep['somp'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[3][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[4][0] - 1,
+                              rep['kd'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[4][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[5][0] - 1,
+                              rep['cp'][1] + rep['cpo'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[5][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[6][0] - 1,
+                              rep['uet'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[6][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[7][0] - 1,
+                              rep['pd'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[7][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[8][0] - 1,
+                              rep['kolu'][1], styleTableCellAlignCenter)
+            startCol += tableColumns[8][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[9][0] - 1,
+                              '%.2f' % rep['summ'][1], styleTableCellAlignCenter)
 
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertHtml(u"<br> От плательщика:<br><br>"+u'_'*35+u'&nbsp;'*4+u'_'*35+u'&nbsp;'*4+u'_'*30+u'&nbsp;'*4+u"'___'________202_г<br>")
-        invoice_cursor.insertHtml(u'&nbsp;'*15+u'должность'+u'&nbsp;'*55+u'подпись'+u'&nbsp;'*55+u'(Ф.И.О.)<br>')
-        invoice_cursor.insertHtml(u"<br> Копию акта получил:<br><br>"+u'_'*35+u'&nbsp;'*4+u'_'*35+u'&nbsp;'*4+u'_'*30+u'&nbsp;'*4+u"'___'________202_г<br>")
-        invoice_cursor.insertHtml(u'&nbsp;'*15+u'должность'+u'&nbsp;'*55+u'подпись'+u'&nbsp;'*55+u'(Ф.И.О.)<br><br><br>')
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
+            startRow += 1
+            startCol = 0
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[0][0] - 1, u'---По неработающим',
+                              styleTableCellAlignLeft)
+            startCol += tableColumns[0][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[1][0] - 1,
+                              len(rep['fl'][0]), styleTableCellAlignCenter)
+            startCol += tableColumns[1][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[2][0] - 1,
+                              len(rep['sn'][0]), styleTableCellAlignCenter)
+            startCol += tableColumns[2][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[3][0] - 1,
+                              rep['somp'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[3][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[4][0] - 1,
+                              rep['kd'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[4][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[5][0] - 1,
+                              rep['cp'][0] + rep['cpo'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[5][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[6][0] - 1,
+                              rep['uet'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[6][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[7][0] - 1,
+                              rep['pd'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[7][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[8][0] - 1,
+                              rep['kolu'][0], styleTableCellAlignCenter)
+            startCol += tableColumns[8][0]
+            sheet.write_merge(startRow, startRow, startCol, startCol + tableColumns[9][0] - 1,
+                              '%.2f' % rep['summ'][0], styleTableCellAlignCenter)
+
+            startRow += 1
+
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'От плательщика:', styleBaseAlignLeft)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 17, 23, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 25, 40, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 42, 58,
+                          u'"        "                                         202    г.',
+                          styleBaseAlignCenterBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'(должность)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow, 17, 23, u'подпись', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow, 25, 40, u'(Ф.И.О)', styleBaseAlignCenter)
+
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'Копию акта получил:', styleBaseAlignLeft)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 17, 23, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 25, 40, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow, 42, 58,
+                          u'"        "                                         202    г.',
+                          styleBaseAlignCenterBorderBottom)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, 15, u'(должность)', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow, 17, 23, u'подпись', styleBaseAlignCenter)
+        sheet.write_merge(startRow, startRow, 25, 40, u'(Ф.И.О)', styleBaseAlignCenter)
+
+        startRow += 2
+        # page_breaks.append((startRow, 0, 255))
 
         # Счет
-        invoice_cursor.insertBlock(fmtdiv)
-        invoice_cursor.insertHtml("$$$$=$$$$####=####")
+        colsCount = 42
+        colsWidthCoef = 2.5
+        colsWidth = int(256 * colsWidthCoef)
 
-        invoice_cursor.insertBlock()
-        table = createTable(invoice_cursor, [('15%', [], CReportBase.AlignLeft),
-                                              ('30%', [], CReportBase.AlignLeft),
-                                              ('15%', [], CReportBase.AlignLeft),
-                                              ('30%', [], CReportBase.AlignLeft)
-                                            ], headerRowCount=3, border=0, cellPadding=0, cellSpacing=0)
-        chr.setFontWeight(QtGui.QFont.Bold)
-        table.cellAt(0, 0).setFormat(chr)
-        table.cellAt(0, 2).setFormat(chr)
-        chr.setFontUnderline(True)
-        chr.setFontWeight(QtGui.QFont.Normal)
-        table.cellAt(0, 1).setFormat(chr)
-        table.cellAt(0, 3).setFormat(chr)
-        table.setText(0, 0, u'Поставщик:')
-        # table.setText(0, 1, forceString(record.value('fullName')) + ' ' + forceString(record.value('OrgStructureName')))
-        table.setText(0, 1, forceString(record.value('fullName')))
-        table.setText(0, 2, u'Плательщик:')
-        table.setText(0, 3, forceString(record_pay.value('fullName')) if record_pay else '')
-        chr.setFontWeight(QtGui.QFont.Bold)
-        table.cellAt(1, 0).setFormat(chr)
-        table.cellAt(1, 2).setFormat(chr)
-        chr.setFontUnderline(True)
-        chr.setFontWeight(QtGui.QFont.Normal)
-        table.cellAt(1, 1).setFormat(chr)
-        table.cellAt(1, 3).setFormat(chr)
-        table.setText(1, 0, u'Расчетный счет:')
+        sheet = wb.add_sheet(u'Счет')
+        sheet.portrait = True
+        sheet.fit_num_pages = 1
+        sheet.fit_width_to_pages = 1
+        sheet.fit_heigth_to_pages = 1
+        sheet.header_str = ''
+        sheet.footer_str = ''
+        startRow = 0
+
+        for idx in range(colsCount):
+            sheet.col(idx).width = colsWidth
+
+        startRow += 1
+        defaultRowHeight = sheet.row(startRow).height
+
+        sheet.write_merge(startRow, startRow + 3, 0, 4, u'Поставщик:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 3, 5, 19, forceString(record.value('fullName')),
+                          styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow + 3, 21, 25, u'Плательщик:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 3, 26, colsCount - 1, forceString(record_pay.value('fullName')) if record_pay else '',
+                          styleBaseAlignLeftBorderBottom)
+        startRow += 4
         pacc_str = u""
         pacc_val = forceString(record.value('personalAccount'))
         if pacc_val:
             pacc_str = u", л/с %s" % pacc_val
-        table.setText(1, 1, u'ИНН %s, КПП %s, %s, БИК: %s, Казначейский счет %s ЕКС %s%s' % (forceString(record.value('INN')),
+        sheet.write_merge(startRow, startRow + 4, 0, 4, u'Расчетный счет:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 4, 5, 19, u'ИНН %s, КПП %s, %s, БИК: %s, Казначейский счет %s ЕКС %s%s' % (forceString(record.value('INN')),
                                                               forceString(record.value('KPP')),
                                                               forceString(record.value('BankName')),
                                                               forceString(record.value('BIK')),
                                                               forceString(record.value('schet')),
                                                               forceString(record.value('corrAccount')),
-                                                              pacc_str))
-        table.setText(1, 2, u'Расчетный счет:')
+                                                              pacc_str),
+                          styleBaseAlignLeftBorderBottom)
         payerPersonalAccount = forceString(record_pay.value('personalAccount')) if record_pay else ''
         if payerPersonalAccount:
             payerPersonalAccount = u', л/с ' + payerPersonalAccount
         if record_pay and forceString(record_pay.value('BIK')) == '010349101':
-            payerAccountText = u'Казначейский счет %s ЕКС %s' % (forceString(record_pay.value('schet')), forceString(record_pay.value('corrAccount')))
+            payerAccountText = u'Казначейский счет %s ЕКС %s' % (
+            forceString(record_pay.value('schet')), forceString(record_pay.value('corrAccount')))
         else:
             payerAccount = forceString(record_pay.value('schet')) if record_pay else ''
             payerAccountText = u'р/с %s' % payerAccount
-        table.setText(1, 3, u'ИНН %s, КПП %s, %s, БИК: %s, %s %s' % (forceString(record_pay.value('INN')) if record_pay else '',
+        sheet.write_merge(startRow, startRow + 4, 21, 25, u'Расчетный счет:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 4, 26, colsCount - 1, u'ИНН %s, КПП %s, %s, БИК: %s, %s %s' % (forceString(record_pay.value('INN')) if record_pay else '',
                                                                      forceString(record_pay.value('KPP')) if record_pay else '',
                                                                      forceString(record_pay.value('BankName')) if record_pay else '',
                                                                      forceString(record_pay.value('BIK')) if record_pay else '',
                                                                      payerAccountText,
-                                                                     payerPersonalAccount))
+                                                                     payerPersonalAccount),
+                          styleBaseAlignLeftBorderBottom)
 
-        chr.setFontWeight(QtGui.QFont.Bold)
-        table.cellAt(2, 0).setFormat(chr)
-        table.cellAt(2, 2).setFormat(chr)
-        chr.setFontUnderline(True)
-        chr.setFontWeight(QtGui.QFont.Normal)
-        table.cellAt(2, 1).setFormat(chr)
-        table.cellAt(2, 3).setFormat(chr)
-        table.setText(2, 0, u'Адрес:')
-        table.setText(2, 1, forceString(record.value('Address')))
-        table.setText(2, 2, u'Адрес:')
-        table.setText(2, 3, forceString(record_pay.value('Address')) if record_pay else '')
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-
-        # lpuCode = forceString(self.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode'))
-        # ll = lpuCode[0] + lpuCode[1]
+        startRow += 5
+        sheet.write_merge(startRow, startRow + 2, 0, 4, u'Адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 2, 5, 19, forceString(record.value('Address')),
+                          styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(startRow, startRow + 2, 21, 25, u'Адрес:', styleBaseAlignLeft)
+        sheet.write_merge(startRow, startRow + 2, 26, colsCount - 1, forceString(record_pay.value('Address')) if record_pay else '',
+                          styleBaseAlignLeftBorderBottom)
+        startRow += 4
+        lpu = ''
         if forceString(QtGui.qApp.preferences.appPrefs.get('provinceKLADR', '00'))[:2] == '23':
             lpu = invoice_num
-        else:
-            lpu = '___'
-        fmt = QtGui.QTextBlockFormat()
-        fmt.setAlignment(Qt.AlignCenter)
-        invoice_cursor.insertBlock(fmt)
-        invoice_cursor.insertHtml(u"<br><b>СЧЕТ № %s от %s</b><br>" % (lpu, invoice_date.rjust(40,'_')))
-        invoice_cursor.insertHtml(u"к реестру счетов № %s от %s за %s %s %s<br>" % (invoice_num,invoice_date,str(periodDate.year()), monthName[periodDate.month()], accTypeName))
+        sheet.write_merge(startRow, startRow, 0, colsCount-1, u"СЧЕТ № %s от %s" % (lpu, invoice_date), styleTitle)
+        startRow += 1
+        sheet.write_merge(startRow, startRow, 0, colsCount-1, u'к реестру счетов № %s от %s за %s %s %s' % (
+        invoice_num, invoice_date, str(periodDate.year()), monthName[periodDate.month()], accTypeName),
+                          styleBaseAlignCenter)
         tableColumns = [
-            ('15%', [u'Предмет счета'],CReportBase.AlignCenter),
-            ('45%', [u'Наименование'], CReportBase.AlignCenter),
-            ('15%', [u'Един. изм.'], CReportBase.AlignCenter),
-            ('10%', [u'Количество'], CReportBase.AlignCenter),
-            ('15%', [u'Сумма, руб.'], CReportBase.AlignCenter)
+            (4, [u'Предмет счета']),
+            (24,  [u'Наименование']),
+            (5,  [u'Един. изм.']),
+            (4,  [u'Количество']),
+            (5,  [u'Сумма, руб.']),
             ]
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_cursor.insertBlock()
+        tableRows = [
+            [u'Стационар', [u'случаи', u'койко-день']],
+            [u'в том числе высокотехнологичная медицинская помощь', [u'случаи', u'койко-день']],
+            [u'Дневной стационар', [u'случаи', u'пациенто-день']],
+            [u'в т.ч. экстракорпоральное оплодотворение', [u'случаи', u'койко-день']],
+            [u'Стационар дневного пребывания', [u'случаи', u'пациенто-день']],
+            [u'Диспансеризация пребывающих в стационарных учреждениях детей-сирот и детей, находящихся в трудной жизненной ситуации',
+            [u'посещение']],
+            [u'Диспансеризация детей-сирот и детей, оставшихся без попечения родителей, в том числе усыновленных (удочеренных), принятых под опеку (попечительство), в приемную или патронажную семью',
+            [u'посещение']],
+            [u'Профилактические медицинские осмотры несовершеннолетних', [u'посещение']],
+            [u'Диспансеризация определенных групп взрослого населения', [u'посещение']],
+            [u'Профилактические медицинские осмотры взрослых', [u'посещение']],
+            [u'Посещение с профилактическими и иными целями', [u'посещение']],
+            [u'в том числе разовые посещения по заболеванию', [u'посещение']],
+            [u'Услуги сцинтиграфии, ОФЭКТ-КТ', [u'услуга']],
+            [u'Обращения в связи с заболеваниями', [u'обращение', u'посещение']],
+            [u'Поликлиника (прикрепленное население)', [u'человек']],
+            [u'Фельдшерско-акушерские пункты', [u'обращение', u'посещение', u'человек']],
+            [u'Неотложная помощь', [u'посещение']],
+            [u'Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:', [u'услуга']],
+            [u'компьютерная томография', [u'услуга']],
+            [u'магнитно-резонансная томография', [u'услуга']],
+            [u'ультразвуковое исследование сердечно-сосудистой системы', [u'услуга']],
+            [u'эндоскопические диагностические исследования', [u'услуга']],
+            [u'молекулярно-генетические исследования с целью выявления онкологических заболеваний', [u'услуга']],
+            [u'гистологические исследования с целью выявления онкологических заболеваний', [u'услуга']],
+            [u'Стоматология (посещение с профилактическими и иными целями)', [u'посещение']],
+            [u'в том числе разовые посещения по заболеванию', [u'посещение']],
+            [u'Стоматология (обращения в связи с заболеваниями)', [u'обращение', u'посещение']],
+            [u'Стоматология', [u'УЕТ']],
+            [u'Скорая медицинская помощь', [u'вызов', u'человек']],
+        ]
+        startRow += 1
+        startCol = 0
+        for idx, col in enumerate(tableColumns):
+            endCol = startCol + col[0] - 1
+            sheet.write_merge(startRow, startRow + 1, startCol, endCol, col[1][0], styleTableHeader)
+            sheet.write_merge(startRow + 2, startRow + 2, startCol, endCol, str(idx+1), styleTableHeader)
+            startCol += col[0]
 
-        table = createTable(invoice_cursor, tableColumns, 41, border=1, cellPadding=0, cellSpacing=0)
+        # totalRows = sum(len(row[1]) for row in tableRows)
+        startRow += 3
+        totalRows = 0
+        for idx, tableRow in enumerate(tableRows):
+            if len(tableRow[0]) > tableColumns[1][0] * colsWidthCoef:
+                row = sheet.row(startRow + totalRows)
+                row.height_mismatch = True
+                row.height = int(defaultRowHeight * math.ceil(len(tableRow[0]) / (tableColumns[1][0] * colsWidthCoef)))
+            totalRows += len(tableRow[1])
 
-        for i in range(0, 5):
-            table.setText(1, i, str(i + 1), blockFormat=fmtc)
-        table.mergeCells(2, 0, 39, 1)
-        row_number = 2
-
-        table.setText(row_number, 0, u'Медицинская помощь, оказанная застрахованным гражданам', blockFormat=fmtc)
-        table.setText(row_number, 1, u'Стационар', blockFormat=fmtl)
-        table.setText(row_number, 2, u'Случаи', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'койко-день', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'в том числе высокотехнологичная медицинская помощь', blockFormat=fmtl)
-        table.setText(row_number, 2, u'Случаи', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'койко-день', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Дневной стационар', blockFormat=fmtl)
-        table.setText(row_number, 2, u'Случаи', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'пациенто-день', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'в т.ч. экстракорпоральное оплодотворение', blockFormat=fmtl)
-        table.setText(row_number, 2, u'Случаи', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'пациенто-день', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Стационар дневного пребывания', blockFormat=fmtl)
-        table.setText(row_number, 2, u'Случаи', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'пациенто-день', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Диспансеризация пребывающих в стационарных учреждениях детей-сирот и детей, находящихся в трудной жизненной ситуации', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Диспансеризация детей-сирот и детей, оставшихся без попечения родителей, в том числе усыновленных (удочеренных), принятых под опеку (попечительство), в приемную или патронажную семью', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Профилактические медицинские осмотры несовершеннолетних', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Диспансеризация определенных групп взрослого населения', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Профилактические медицинские осмотры взрослых', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Посещение с профилактическими и иными целями', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'в том числе разовые посещения по заболеванию', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Услуги сцинтиграфии, ОФЭКТ-КТ', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Обращения в связи с заболеваниями', blockFormat=fmtl)
-        table.setText(row_number, 2, u'обращение', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Поликлиника (прикрепленное население)', blockFormat=fmtl)
-        table.setText(row_number, 2, u'человек', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Фельдшерско-акушерские пункты', blockFormat=fmtl)
-        table.setText(row_number, 2, u'обращение', blockFormat=fmtc)
-        table.mergeCells(row_number, 1, 3, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 2, u'человек', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Неотложная помощь', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'компьютерная томография', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'магнитно-резонансная томография', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'ультразвуковое исследование сердечно-сосудистой системы', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'эндоскопические диагностические исследования', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'молекулярно-генетические исследования с целью выявления онкологических заболеваний', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'гистологические исследования с целью выявления онкологических заболеваний', blockFormat=fmtl)
-        table.setText(row_number, 2, u'услуга', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Стоматология (посещение с профилактическими и иными целями)', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'в том числе разовые посещения по заболеванию', blockFormat=fmtl)
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Стоматология (обращения в связи с заболеваниями)', blockFormat=fmtl)
-        table.setText(row_number, 2, u'обращение', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'посещение', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Стоматология', blockFormat=fmtl)
-        table.setText(row_number, 2, u'УЕТ', blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 1, u'Скорая медицинская помощь', blockFormat=fmtl)
-        table.setText(row_number, 2, u'вызов', blockFormat=fmtc)
-        table.mergeCells(row_number, 4, 2, 1)
-        table.mergeCells(row_number, 1, 2, 1)
-        row_number += 1
-        table.setText(row_number, 2, u'человек', blockFormat=fmtc)
+        startCol = 0
+        sheet.write_merge(startRow, startRow + totalRows - 1, startCol, startCol + tableColumns[0][0] - 1,
+                          u'Медицинская помощь, оказанная застрахованным гражданам', styleTableCellAlignCenter)
 
 
+
+        currentRow = startRow
+        startCol = startCol + tableColumns[0][0]
+        for col2, col3 in tableRows:
+            sheet.write_merge(currentRow, currentRow + len(col3) - 1, startCol, startCol + tableColumns[1][0] - 1, col2,
+                              styleTableCellAlignLeft)
+            for idx, col in enumerate(col3):
+                sheet.write_merge(currentRow + idx, currentRow + idx, startCol + tableColumns[1][0],
+                                  startCol + tableColumns[1][0] + tableColumns[2][0] - 1, col,
+                                  styleTableCellAlignCenter)
+            currentRow += len(col3)
+
+        currentTableRow = 0
         summ = 0.0
         # Стационар
         kolsn = 0
@@ -1795,11 +2003,16 @@ where t.typeFile = 'D'""")
                 kolsn += len(reps[key]['sn'][0]) + len(reps[key]['sn'][1])
                 kolkd += reps[key]['kd'][0] + reps[key]['kd'][1]
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
-        row_number = 2
-        table.setText(row_number, 3, kolsn, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolkd, blockFormat=fmtc)
+
+        currentRow = startRow
+        startCol3 = sum(col[0] for col in tableColumns[:3])
+        endCol3 = startCol3 + tableColumns[3][0] - 1
+        startCol4 = startCol3 + tableColumns[3][0]
+        endCol4 = startCol3 + tableColumns[3][0] + + tableColumns[4][0] - 1
+
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolsn, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolkd, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # в т.ч. ВМП
@@ -1811,11 +2024,11 @@ where t.typeFile = 'D'""")
                 kolsn += len(reps[key]['sn'][0]) + len(reps[key]['sn'][1])
                 kolkd += reps[key]['kd'][0] + reps[key]['kd'][1]
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolsn, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolkd, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolsn, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolkd, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
 
         # Дневной стационар
         kolsn = 0
@@ -1826,11 +2039,11 @@ where t.typeFile = 'D'""")
                 kolsn += len(reps[key]['sn'][0]) + len(reps[key]['sn'][1])
                 kolkd += reps[key]['pd'][0] + reps[key]['pd'][1]
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolsn, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolkd, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolsn, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolkd, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # ЭКО
@@ -1842,11 +2055,11 @@ where t.typeFile = 'D'""")
                 kolsn += len(reps[key]['sn'][0]) + len(reps[key]['sn'][1])
                 kolkd += reps[key]['pd'][0] + reps[key]['pd'][1]
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolsn, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolkd, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolsn, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolkd, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
 
         # Стационар дневного пребывания
         kolsn = 0
@@ -1857,12 +2070,11 @@ where t.typeFile = 'D'""")
                 kolsn += len(reps[key]['sn'][0]) + len(reps[key]['sn'][1])
                 kolkd += reps[key]['pd'][0] + reps[key]['pd'][1]
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolsn, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolkd, blockFormat=fmtc)
-
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolsn, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolkd, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Дисп. детей-сирот
@@ -1872,9 +2084,10 @@ where t.typeFile = 'D'""")
             if key == '232':
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Дисп. детей без попечения
@@ -1884,9 +2097,15 @@ where t.typeFile = 'D'""")
             if key == '252':
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+
+        # row = sheet.row(currentRow)
+        # row.height_mismatch = True
+        # row.height = row.height * 2
+
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Медосм. несовершеннолетних
@@ -1896,9 +2115,10 @@ where t.typeFile = 'D'""")
             if key == '262':
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Дисп. взрослых
@@ -1908,9 +2128,10 @@ where t.typeFile = 'D'""")
             if key in ['211', '233', '244']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Медосм. взрослых
@@ -1920,9 +2141,10 @@ where t.typeFile = 'D'""")
             if key == '261':
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Посещения с профилактическими и иными целями
@@ -1948,20 +2170,23 @@ where t.typeFile = 'D'""")
                 sum_obr += reps[key]['sum_obr']
                 kol_sci += reps[key]['kol_sci'][0] + reps[key]['kol_sci'][1]
                 sum_sci += reps[key]['sum_sci'][0] + reps[key]['sum_sci'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_pos, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, cpotw, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_posotw, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kol_sci, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_sci, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, obr, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_obr, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, cpo, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % sum_pos, styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, cpotw, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % sum_posotw, styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kol_sci, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % sum_sci, styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, obr, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % sum_obr, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, cpo, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Поликлиника (прикрепленное население)
@@ -1971,9 +2196,10 @@ where t.typeFile = 'D'""")
             if key in ['271', '272']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 fl += len(reps[key]['fl'][0]) + len(reps[key]['fl'][1])
-        row_number += 1
-        table.setText(row_number, 3, fl, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % 0, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, fl, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % 0, styleTableCellAlignCenter)
         summ += vpsumm
 
         # ФАП
@@ -1997,15 +2223,14 @@ where t.typeFile = 'D'""")
                 sum_posotw += reps[key]['sum_posotw'][0] + reps[key]['sum_posotw'][1]
                 sum_obr += reps[key]['sum_obr']
                 fl += len(reps[key]['fl'][0]) + len(reps[key]['fl'][1])
-        row_number += 1
-        table.setText(row_number, 3, obr, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_obr, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, kolpos + cpo, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % sum_pos, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, fl, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % 0, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, obr, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % sum_obr, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, kolpos + cpo, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol4, endCol4, '%.2f' % sum_pos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 2, currentRow + 2, startCol3, endCol3, fl, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 2, currentRow + 2, startCol4, endCol4, '%.2f' % 0, styleTableCellAlignCenter)
         summ += vpsumm
 
         # неотложная помощь
@@ -2015,9 +2240,10 @@ where t.typeFile = 'D'""")
             if key in ['111', '112', '241', '242']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Диагностические исследования (лабораторные исследования)
@@ -2030,9 +2256,10 @@ where t.typeFile = 'D'""")
             if key in ['ak', 'bk', 'ck', 'dk', 'am', 'bm', 'cm', 'dm']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cpo'][0] + reps[key]['cpo'][1] + reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # КТ
@@ -2042,9 +2269,10 @@ where t.typeFile = 'D'""")
             if key in ['ak', 'bk', 'ck', 'dk']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cpo'][0] + reps[key]['cpo'][1] + reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # МРТ
@@ -2054,9 +2282,10 @@ where t.typeFile = 'D'""")
             if key in ['am', 'bm', 'cm', 'dm']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['cpo'][0] + reps[key]['cpo'][1] + reps[key]['cp'][0] + reps[key]['cp'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # УЗИ ССС
@@ -2066,9 +2295,10 @@ where t.typeFile = 'D'""")
             if key in ['au', 'bu', 'cu', 'du']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['kolu'][0] + reps[key]['kolu'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # Эндоскопия
@@ -2078,9 +2308,10 @@ where t.typeFile = 'D'""")
             if key in ['ae', 'be', 'ce', 'de']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['kolu'][0] + reps[key]['kolu'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # МГИ
@@ -2090,9 +2321,10 @@ where t.typeFile = 'D'""")
             if key in ['ag', 'bg', 'cg', 'dg']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['kolu'][0] + reps[key]['kolu'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # гистология
@@ -2102,9 +2334,10 @@ where t.typeFile = 'D'""")
             if key in ['ah', 'bh', 'ch', 'dh']:
                 vpsumm += reps[key]['summ'][0] + reps[key]['summ'][1]
                 kolpos += reps[key]['kolu'][0] + reps[key]['kolu'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         # summ += vpsumm
 
         # Стоматология
@@ -2122,17 +2355,23 @@ where t.typeFile = 'D'""")
                 obr += reps[key]['obr'][0] + reps[key]['obr'][1]
                 cpo += reps[key]['cpo'][0] + reps[key]['cpo'][1]
                 cpotw += reps[key]['cpotw'][0] + reps[key]['cpotw'][1]
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, cpotw, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, obr, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, cpo, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, '%.2f' % uet, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, str(0.0), styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, cpotw, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, str(0.0), styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, obr, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, str(0.0), styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, cpo, styleTableCellAlignCenter)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, '%.2f' % uet, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
         # Скорая
@@ -2142,52 +2381,38 @@ where t.typeFile = 'D'""")
         #     if rep['vp'] in ('801', '802'):
         #         vpsumm += rep['tsumm']
         #         kolpos += rep['tcp']
-        row_number += 1
-        table.setText(row_number, 3, kolpos, blockFormat=fmtc)
-        table.setText(row_number, 4, '%.2f' % vpsumm, blockFormat=fmtc)
-        row_number += 1
-        table.setText(row_number, 3, 0, blockFormat=fmtc)
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, startCol3, endCol3, kolpos, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow + 1, currentRow + 1, startCol3, endCol3, 0, styleTableCellAlignCenter)
+        sheet.write_merge(currentRow, currentRow + 1, startCol4, endCol4, '%.2f' % vpsumm, styleTableCellAlignCenter)
         summ += vpsumm
 
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        fmt = QtGui.QTextBlockFormat()
-        fmt.setAlignment(Qt.AlignLeft)
-        invoice_cursor.insertBlock(fmt)
-        invoice_cursor.insertHtml(u"<br><b>Итого:</b> <u><i>%s (%s)</i></u>" % (summ, amountToWords(summ)))
-        invoice_cursor.movePosition(QtGui.QTextCursor.End)
-        invoice_person = forceString(QtGui.qApp.preferences.appPrefs.get('positionInvoice', u'Главный врач'))
-        invoice_person = invoice_person if invoice_person else u'Главный врач'
-        lpuCode = ''
-        if QtGui.qApp.db:
-            lpuCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode'))
-        invoice_cursor.insertHtml(
-            u"<br><br>" + u"&nbsp;" * 20 + invoice_person + '_' * 35  + "%30s" % self._getChiefName(QtGui.qApp.currentOrgId()) +
-            u"&nbsp;" * 40 + u"Гл. бухгалтер" + '_' * 35  + "%30s" % forceString(record.value('accountant'))
-        )
-        invoice_cursor.insertBlock(fmtdiv)
-        invoice_cursor.insertHtml("$$$$=$$$$")
-        invoice_writer = QtGui.QTextDocumentWriter()
-        filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.html"))
-        invoice_writer.setFileName(filePath)
-        invoice_writer.setFormat("HTML")
-        invoice_writer.write(invoice)
-        # Разрывы стрниц
-        f = open(filePath)
-        inv = f.read()
-        inv = inv.replace('$$$$=$$$$', r'</div>')
-        inv = inv.replace('@@@@=@@@@', r'<div style="page-break-after:always;">')
-        inv = inv.replace('####=####', r'<div">')
-        f.close()
+        currentRow += len(tableRows[currentTableRow][1])
+        currentTableRow += 1
+        sheet.write_merge(currentRow, currentRow, 0, colsCount - 1, u"Итого: %s (%s)" % (summ, amountToWords(summ)),
+                          styleTableCellFooterAlignLeft)
 
-        f = open(filePath, 'w')
-        f.seek(0)
-        f.write(inv)
-        f.close()
+        currentRow += 2
+        sheet.write_merge(currentRow , currentRow, 0, 5, u'Главный врач',
+                          styleBaseAlignLeft)
+        sheet.write_merge(currentRow, currentRow, 6, 10, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(currentRow, currentRow, 12, 19, self._getChiefName(QtGui.qApp.currentOrgId()),
+                          styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(currentRow, currentRow, 21, 26, u'Главный бухгалтер',
+                          styleBaseAlignLeft)
+        sheet.write_merge(currentRow, currentRow, 27, 31, u'', styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(currentRow, currentRow, 33, 40, forceString(record.value('accountant')),
+                          styleBaseAlignCenterBorderBottom)
+
+        # sheet.set_horz_page_breaks(page_breaks)
+        filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.xls"))
+        wb.save(filePath)
 
 # *****************************************************************************************
 
     def createDbf(self):
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             return (self.createDbfP(), self.createDbfU(),
                     self.createDbfD(), self.createDbfN(), self.createDbfR(),
                     self.createDbfO(), self.createDbfI(), self.createDbfC(),
@@ -2215,6 +2440,7 @@ where t.typeFile = 'D'""")
             ('DATR', 'D'),  # дата рождения
             ('WEI', 'N', 5, 1),  # Масса тела (кг)
             ('KAT', 'C', 1),  # категория граждан
+            ('VZ', 'C', 2),  # вид занятости
             ('SNILS', 'C', 14),  # СНИЛС (ХХХ-ХХХ-ХХХ ХХ)
             ('OKATO_OMS', 'C', 5),  # код ОКАТО территории страхования по ОМС
             ('SPV', 'N', 1),  # тип ДПФС
@@ -2255,6 +2481,7 @@ where t.typeFile = 'D'""")
             ('DS_ONK', 'C', 1),  # признак подозрения на злокачественное новообразование
             ('MKBX_PR', 'C', 1),  # Признак впервые установленного диагноза основного заболевания
             ('VMP', 'C', 2),  # вид медицинской помощи
+            ('USL_OK', 'N', 2),  # условия оказания медицинской помощи
             ('KSO', 'C', 2),  # способ оплаты медицинской помощи
             ('P_CEL', 'C', 4),  # цель посещения
             ('VB_P', 'C', 1),  # признак внутрибольничного перевода
@@ -2348,6 +2575,7 @@ where t.typeFile = 'D'""")
         dbf.addField(
             ('UID', 'N', 14),  # уникальный номер записи об оказанной медицинской услуге в пределах реестра
             ('CODE_MO', 'C', 5),  # код МО, оказавшей медицинскую помощь
+            ('LPU_1', 'C', 17),  # уникальный номер структурного подразделения МО по данным подсистемы ЕРМО ГИС ОМС
             ('NS', 'N', 5, 0),  # номер реестра счетов
             ('SN', 'N', 12, 0),  # номер персонального счета
             ('ISTI', 'C', 20),  # номер талона амбулаторного пациента / истории болезни / карты вызова СМП
@@ -2590,7 +2818,7 @@ where t.typeFile = 'D'""")
 
 
     def createQuery(self):
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil, self.exportTypeFLK]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil, self.exportTypeFLK, self.exportTypeGisOms]:
             return [self.createQueryAccount(), self.createQueryPerson()]
         elif self.exportType == self.exportTypeFLKXml:
             return [self.createQueryFLK()]
@@ -2643,10 +2871,15 @@ where t.typeFile = 'D'""")
   rbItemService.infis,
   IF(Account_Item.visit_id IS NOT NULL, rbVisitService.infis, rbEventService.infis)
   ) AS service,
+  IF(Account_Item.service_id IS NOT NULL,
+  rbItemService.name,
+  IF(Account_Item.visit_id IS NOT NULL, rbVisitService.name, rbEventService.name)
+  ) AS service_name,
   ExecPerson.SNILS AS execPersonSNILS,
+  ExecPerson.orgStructure_id AS execPersonOrgStructure,
   Visit.date AS visitDate,
   Action.begDate AS actionDate,
-  Action.endDate AS actionEndDate,
+  IF(Action.status = 6, Action.begDate, Action.endDate) AS actionEndDate,
   Diagnosis.MKB AS MKBXP,
   IF(rbEventProfile.regionalCode IN ('102', '103', '8008', '8009', '8010', '8011', '8012', '8013', '8014', '8015', '8016', '8017', '8018', '8019', '8020', '8021', '8022', '8023')
   OR mt.regionalCode IN ('31', '32', '11', '12'), IF(IFNULL(Action.MKB, '') <> '', Action.MKB, Diagnosis.MKB), Diagnosis.MKB) AS MKB,
@@ -2784,9 +3017,15 @@ where t.typeFile = 'D'""")
               AND apt.shortName = 'firstexam' ORDER BY 1 desc LIMIT 1), '') ELSE '' END
   ) AS Q_G,
   IFNULL(ActionOrg.infisCode, '') AS outOrgCode,
-  IF(ActionOrg.infisCode is null or
-      (mt.regionalCode = '211' 
-      and EXISTS(select 1 from OrgStructure o where o.bookkeeperCode = ActionOrg.infisCode and o.deleted = 0) AND ActionOrg.infisCode != ''), 0, 1) as IS_OUT,
+  ActionOrg.id as outOrgId,
+  CASE 
+    WHEN Action.status = 6 THEN 4 
+    WHEN ActionOrg.infisCode is null or
+        (mt.regionalCode IN ('222', '232', '211', '252', '233', '244', '261', '262') 
+        and EXISTS(select 1 from OrgStructure o where o.bookkeeperCode = ActionOrg.infisCode and o.deleted = 0) AND ActionOrg.infisCode != '')
+      THEN 0
+    ELSE 1
+  END as IS_OUT,
   repr.lastName AS FAMP,
   repr.firstName AS IMP,
   repr.patrName AS OTP,
@@ -2886,13 +3125,7 @@ IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.inf
         FROM ActionType AT1
         WHERE AT1.flatCode = 'appointments'
         AND AT1.deleted = 0)), NULL) as appointmentsActionId,
-IF(Account_Item.sum > 0
-        AND Event.execDate >= '2026-02-01'
-        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
-        OR
-        Account_Item.price > 0 
-        AND NOT (Event.execDate >= '2026-02-01'
-                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
+  IF(IF(mt.regionalCode in ('211', '261', '233', '244', '232', '252', '262'), Account_Item.sum > 0, Account_Item.price > 0),
   (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2905,13 +3138,7 @@ IF(Account_Item.sum > 0
         FROM ActionType AT1
         WHERE AT1.flatCode = 'ControlListOnko'
         AND AT1.deleted = 0)), NULL) as ControlListOnkoId, 
-IF(Account_Item.sum > 0
-        AND Event.execDate >= '2026-02-01'
-        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
-        OR
-        Account_Item.price > 0 
-        AND NOT (Event.execDate >= '2026-02-01'
-                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
+IF(IF(mt.regionalCode in ('211', '261', '233', '244', '232', '252', '262'), Account_Item.sum > 0, Account_Item.price > 0),
  (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -2924,13 +3151,7 @@ IF(Account_Item.sum > 0
         FROM ActionType AT1
         WHERE AT1.flatCode = 'Gistologia'
         AND AT1.deleted = 0)), NULL) as GistologiaId,
-IF(Account_Item.sum > 0
-        AND Event.execDate >= '2026-02-01'
-        AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262') 
-        OR
-        Account_Item.price > 0 
-        AND NOT (Event.execDate >= '2026-02-01'
-                AND mt.regionalCode IN ('211', '261', '233', '244', '232', '252', '262')),
+IF(IF(mt.regionalCode in ('211', '261', '233', '244', '232', '252', '262'), Account_Item.sum > 0, Account_Item.price > 0),
   (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -3016,7 +3237,10 @@ IF(COALESCE(rbItemService.infis, rbEventService.infis) like 'G%%' and IF(Event.e
           AT1.id
         FROM ActionType AT1
         WHERE AT1.flatCode = 'rehabilitation'
-        AND AT1.deleted = 0)), NULL) as rehabilitation
+        AND AT1.deleted = 0)), NULL) as rehabilitation,
+    org_addr.org_adr_gar AS ORG_ADR_GAR,
+    org_addr.org_address AS ORG_ADDRESS,
+    PersonProfile.id AS medicalAidProfile_id 
 FROM Account_Item
   LEFT JOIN Account ON Account_Item.master_id = Account.id
   LEFT JOIN rbAccountType on rbAccountType.id = Account.type_id
@@ -3027,6 +3251,16 @@ FROM Account_Item
   LEFT JOIN Event ON Event.id = Account_Item.event_id
   LEFT JOIN Organisation RelegateOrg on RelegateOrg.id = Event.relegateOrg_id
   LEFT JOIN Organisation currentOrg on currentOrg.id = Event.org_id
+  LEFT JOIN (
+            SELECT 
+                oi.master_id AS org_id,
+                oi.value AS org_adr_gar,
+                o.address AS org_address
+            FROM Organisation_Identification oi
+            LEFT JOIN Organisation o ON o.id = oi.master_id
+            WHERE oi.system_id = (SELECT id FROM rbAccountingSystem WHERE code = 'AOGUID')
+              AND oi.deleted = 0
+          ) org_addr ON org_addr.org_id = currentOrg.id
   LEFT JOIN Client ON Client.id = Event.client_id
   LEFT JOIN Client repr ON repr.id = Event.relative_id
   LEFT JOIN ClientPolicy ON ClientPolicy.id = IF(rbAccountType.regionalCode in ('ap', 'cp', 'dp'), getClientPolicyId(Client.id, 1), getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id))
@@ -3377,7 +3611,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
         elif VP == '90' and QDate(2018, 1, 1) <= endDate:
             VP = '41'
 
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM, dbfL) = dbf
         else:
             dbfP = dbf
@@ -3395,7 +3629,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                         'VB_P': None}
             dbfRecord = dbfP.newRecord()
             if self.exportType != self.exportTypeAttachments:
-                if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+                if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                     # номер реестра счетов (п. 1 примечаний) обязательное
                     dbfRecord['NS'] = self.processParams().get('iAccNumber') #if self.edtRegistryNumber.isEnabled() self.edtRegistryNumber.value()
                 else:# Для ФЛК берем номера из счетов, если их возможно преобразовать в число, если невозможно то берем от основного
@@ -3428,7 +3662,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['OTCH'] = forceString(record.value('patrName')).strip().upper()[:40]
             dbfRecord['POL'] = formatSex(record.value('sex')).upper() # пол (М/Ж)
             dbfRecord['DATR'] = pyDate(birthDate) # дата рождения
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 dbfRecord['KAT'] = forceInt(record.value('KAT'))
             dbfRecord['SNILS'] = formatSNILS(forceString(record.value('SNILS')))
 
@@ -3453,16 +3687,21 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['SPN'] = forceString(record.value('policyNumber'))[:20]
             Q_G = forceString(record.value('Q_G'))[:10]
 
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29]:
                 if params['psychologistInfo']:
                     psychologistInfo = params['psychologistInfo'].get(eventId, {})
                     if psychologistInfo:
                         psychStatus = psychologistInfo.get('psychoStatus', '')
                         Q_G += forceString(psychStatus[-1])
+                if params['typeOfEmploymentInfo'] and endDate >= QDate(2026, 1, 1):
+                    typeOfEmploymentInfo = params['typeOfEmploymentInfo'].get(eventId, {})
+                    if typeOfEmploymentInfo:
+                        VZ = typeOfEmploymentInfo.get('VZ', '')
+                        dbfRecord['VZ'] = forceString(VZ[-1])
 
             dbfRecord['Q_G'] = '2' if self.exportType in [self.exportTypeFLKXml, self.exportTypeFLK] and '2' in Q_G else Q_G
             C_DOC = forceInt(record.value('documentRegionalCode'))
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil, self.exportTypeFLKXml, self.exportTypeFLK]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil, self.exportTypeFLKXml, self.exportTypeFLK]:
                 if forceInt(record.value('policyKindCode')) == 3:
                     dbfRecord['ENP'] = forceString(record.value('policyNumber'))[:16]
                 elif forceInt(record.value('policyKindCode')) in (1, 2):
@@ -3474,7 +3713,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                             dbfRecord['ENP'] = enp[:16]
                     except:
                         QtGui.qApp.logCurrentException()
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 age = calcAgeInDays(birthDate, begDate)
                 if age < 31 and C_DOC != 3 and '2' in Q_G:
                     dbfRecord['NOVOR'] = '%s%s%s' % (forceInt(record.value('sex')), birthDate.toString('ddMMyy'), forceString(record.value('birthNumber')))
@@ -3499,7 +3738,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['S_DOC'] = forceString(record.value('documentSerial')).strip()[:10]
             dbfRecord['N_DOC'] = forceString(record.value('documentNumber')).strip()[:15]
 
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 MP = forceString(record.value('MP'))[:1]
                 # сведения о направлении на плановую госпитализацию
                 NAPR_MO = forceString(record.value('NAPR_MO'))
@@ -3528,7 +3767,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord['DATO'] = pyDate(endDate)
 
             # код исхода заболевания обязательное SPR11
-            if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+            if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
                 if dbfRecord['VS'] in ['ap', 'cp', 'dp']:
                     dbfRecord['ISHL'] = '307'
                 else:
@@ -3563,6 +3802,15 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                 dbfRecord['DVOZVRAT'] = pyDate(forceDate(record.value('DVOZVRAT')))
                 dbfRecord['DATE_PO'] = pyDate(forceDate(record.value('DATE_PO')))
                 dbfRecord['SOC'] = forceString(record.value('SOC'))
+                if endDate >= QDate(2026, 1, 1):
+                    if VP in ('11', '12', '301', '302', '401', '402'):
+                        dbfRecord['USL_OK'] = 1
+                    elif VP in ('41', '42', '43', '51', '52', '511', '522'):
+                        dbfRecord['USL_OK'] = 2
+                    elif VP in ('801', '802'):
+                        dbfRecord['USL_OK'] = 4
+                    else:
+                        dbfRecord['USL_OK'] = 3
             self.RecordListP.append(dbfRecord)
             self.exportedEvents.add(eventId)
 
@@ -3587,6 +3835,27 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             dbfRecord = dbfU.newRecord()
             dbfRecord['UID'] = UID
             dbfRecord['CODE_MO'] = params['codeLpu'][:5]
+            if endDate >= QDate(2026, 1, 1):
+                if not forceString(record.value('outOrgCode'))[:5]:
+                    dbfRecord['LPU_1'] = self.mapOrgStructF033.get(forceRef(record.value('execPersonOrgStructure')), '')
+                else:
+                    # если услуга внешняя, то берём UIDSPMO любого подразделения в нужной МО
+                    outOrgId = forceRef(record.value('outOrgId'))
+                    outOrgF033Code = self.mapOrganisationF033.get(outOrgId, None)
+                    if outOrgF033Code is None:
+                        stmt = """SELECT vF033.UIDSPMO FROM Organisation_Identification oi
+                                    LEFT JOIN `v1.2.643.2.69.1.1.1.64` v64 ON oi.value = v64.code 
+                                    LEFT JOIN `v1.2.643.5.1.13.13.99.3.45` vF033 ON IF(v64.oid IS NOT NULL, vF033.OID_SPMO LIKE CONCAT(v64.oid, '%'), vF033.OID_SPMO = v64.depart_oid)
+                                  WHERE oi.system_id = (SELECT id FROM rbAccountingSystem `as` WHERE urn = 'urn:oid:1.2.643.2.69.1.1.1.64' LIMIT 1)
+                                    AND oi.deleted = 0 
+                                    AND oi.master_id = {0}
+                                  ORDER BY oi.id DESC LIMIT 1
+                        """.format(outOrgId)
+                        query = self.db.query(stmt)
+                        if query.first():
+                            outOrgF033Code = forceString(query.record().value('UIDSPMO'))
+                            self.mapOrganisationF033[outOrgId] = outOrgF033Code
+                    dbfRecord['LPU_1'] = outOrgF033Code[:17]
             dbfRecord['NS'] = self.processParams().get('iAccNumber')
             dbfRecord['SN'] = eventId
             dbfRecord['ISTI'] = forceString(record.value('externalId'))[:20] if forceString(record.value('externalId')) else forceString(clientId)[:20]
@@ -4317,9 +4586,357 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
         outRecord['FKEY'] = ''
         self.RecordListP.append(outRecord)
 
+    def processGisOms(self, dbf, record, params):
+        eventId = forceRef(record.value('event_id'))
+
+        # Получаем данные талона ВМП
+        talonVMPid = forceRef(record.value('talonVMPid'))
+        talon_number = self._getTalonNumber(talonVMPid)
+        talon_date = forceDate(record.value('NAPR_D'))
+
+        # Получаем обычное направление
+        napr_number = forceString(record.value('NAPR_N'))
+        napr_date = forceDate(record.value('NAPR_D'))
+
+        vp = forceString(record.value('medicalAidTypeRegionalCode'))
+        service_code = forceString(record.value('service'))
+        service_name = forceString(record.value('service_name'))
+
+        is_vmp = vp in ['401', '402']
+        #is_stationary = vp in ['11', '12', '301', '302', '41', '42', '43', '51', '52']
+
+        if ((is_vmp and not service_code.startswith('V'))): # or (is_stationary and not service_code.startswith('G'))):
+            return
+
+        vmp_method = None
+        lech_hmp = None
+
+        if is_vmp:
+            mkb = forceString(record.value('MKBXP'))[:6]
+            eventDate = forceDate(record.value('endDate'))
+
+            vmp_method = self._getVMPMethod(service_name, mkb, eventDate)
+
+            if vmp_method:
+                lech_hmp_raw  = self._getVMPType(
+                    mkb,
+                    vmp_method['model_hmp'],
+                    vmp_method['metod_hmp'],
+                    eventDate
+                )
+                lech_hmp = self._mapLECHToStandard(lech_hmp_raw)
+            else:
+                lech_hmp = ''
+
+        if eventId not in self.eventsDict:
+            self.eventsDict[eventId] = {
+                'event_data': {
+                    'SN': eventId,
+                    'SPV': '3', #forceInt(record.value('policyKindCode')),
+                    'ENP': self._getEnp(record),
+                    'OKATO_OMS': forceString(record.value('insurerOKATO'))[:5],
+                    'PL_OGRN': forceString(record.value('PayerOGRN'))[-5:],
+                    'POL': formatSex(record.value('sex')).upper(),
+                    'DATR': forceDate(record.value('birthDate')),
+                    'SOC': forceString(record.value('SOC')) or '000',
+                    'FIO': forceString(record.value('lastName')).strip().upper()[:40],
+                    'IMA': forceString(record.value('firstName')).strip().upper()[:40],
+                    'OTCH': forceString(record.value('patrName')).strip().upper()[:40],
+                    'SNILS': formatSNILS(forceString(record.value('SNILS'))),
+                    'C_DOC': forceInt(record.value('documentRegionalCode')),
+                    'S_DOC': forceString(record.value('documentSerial')).strip()[:10],
+                    'N_DOC': forceString(record.value('documentNumber')).strip()[:15],
+                    'NAPR_D': napr_date,
+                    'NAPR_N': napr_number,
+                    'DATN': forceDate(record.value('begDate')),
+                    'DATO': forceDate(record.value('endDate')),
+                    'VP': vp,
+                    'RSLT': forceString(record.value('eventResultCode'))[:3],
+                    'ISHOD': forceString(record.value('diagnosticResultCode'))[:3],
+                    #'RSLT': forceString(record.value('diagnosticResultCode'))[:3],
+                    #'ISHOD': forceString(record.value('eventResultCode'))[:3],
+                    'ISTI': forceString(record.value('externalId'))[:20] or forceString(record.value('client_id'))[:20],
+                    'PODR': forceString(record.value('orgStructCode'))[:4],
+                    'PODR_NAME': forceString(self.db.translate('OrgStructure', 'infisCode',
+                                                               forceString(record.value('orgStructCode')), 'name')),
+                    'PROFIL': forceString(record.value('medicalAidProfileRegionalCode'))[:3],
+                    'PROFIL_K': self._getHospitalBedProfileCode(record),
+                    'MKBX': forceString(record.value('MKBXP'))[:6],
+                    'MKBXS': forceString(record.value('MKBXSP'))[:6],
+                    'C_ZAB': self._getDiseaseCharacter(record),
+                    'ADR_GAR': forceString(record.value('ORG_ADR_GAR')),
+                    'ADR_NAME': forceString(record.value('ORG_ADDRESS')),
+                    'IS_VMP': is_vmp,
+                    'LECH_HMP': lech_hmp,
+                    'TAL_NUM': talon_number,
+                    'TAL_D': talon_date,
+                    'VMP_METOD_HMP': vmp_method['metod_hmp'] if vmp_method else '',
+                    'VMP_VID_HMP': vmp_method['vid_hmp'] if vmp_method else '',
+                    'VMP_GR_HMP': vmp_method['gr_hmp'] if vmp_method else '',
+                    'VMP_MODEL_HMP': vmp_method['model_hmp'] if vmp_method else '',
+                    'SUMM': 0.0,
+                },
+                'services': []
+            }
+
+        # Добавляем услугу
+        service_data = {
+            'UID': forceRef(record.value('UID')),
+            'KUSL': forceString(record.value('service'))[:15],
+            'SUMM': forceDouble(record.value('sum')),
+            'METOD_HMP': vmp_method['metod_hmp'] if vmp_method else forceString(record.value('service')).lstrip('.'),
+        }
+        self.eventsDict[eventId]['services'].append(service_data)
+        self.eventsDict[eventId]['event_data']['SUMM'] += service_data['SUMM']
+
+        implants = self.getEventImplants(eventId)
+
+        if implants:
+            for implant in implants:
+                implant_data = {
+                    'DATE_MED': implant['DATE_MED'],
+                    'CODE_MEDDEV': self._getCodeMedDevByValue(implant['medkind_value']),
+                    'NUMBER_SER': implant['marknumber_value'],
+                }
+                self.eventsDict[eventId]['event_data'].setdefault('implants', []).append(implant_data)
+
+    def _getEnp(self, record):
+        """Получить ЕНП"""
+        if forceInt(record.value('policyKindCode')) == 3:
+            return forceString(record.value('policyNumber'))[:16]
+
+        clientId = forceRef(record.value('client_id'))
+        try:
+            enp = getClientIdentification('ENP', clientId)
+            return enp[:16] if enp else ''
+        except:
+            return ''
+
+    def getEventImplants(self, eventId):
+        """Получить все импланты для события"""
+        db = QtGui.qApp.db
+
+        query = db.query(
+            u"""SELECT 
+                a.id,
+                a.endDate AS DATE_MED,
+                medkind.value AS medkind_value,
+                marknumber.value AS marknumber_value
+            FROM Action a
+            INNER JOIN ActionType at ON a.actionType_id = at.id
+            LEFT JOIN (
+                SELECT ap.action_id, aps.value
+                FROM ActionProperty ap
+                INNER JOIN ActionPropertyType apt ON ap.type_id = apt.id 
+                    AND apt.shortName = 'medkind' AND apt.deleted = 0
+                INNER JOIN ActionProperty_String aps ON ap.id = aps.id
+                WHERE ap.deleted = 0
+            ) medkind ON medkind.action_id = a.id
+            LEFT JOIN (
+                SELECT ap.action_id, aps.value
+                FROM ActionProperty ap
+                INNER JOIN ActionPropertyType apt ON ap.type_id = apt.id 
+                    AND apt.shortName = 'marknumber' AND apt.deleted = 0
+                INNER JOIN ActionProperty_String aps ON ap.id = aps.id
+                WHERE ap.deleted = 0
+            ) marknumber ON marknumber.action_id = a.id
+            WHERE a.deleted = 0
+                AND at.deleted = 0
+                AND at.flatCode = 'Code_MDV'
+                AND a.event_id = %d
+            """ % eventId
+        )
+
+        implants = []
+        while query.next():
+            record = query.record()
+            medkind = forceString(record.value('medkind_value'))
+            marknumber = forceString(record.value('marknumber_value'))
+
+            if not medkind and not marknumber:
+                continue
+
+            implant_data = {
+                'id': forceRef(record.value('id')),
+                'DATE_MED': forceDate(record.value('DATE_MED')),
+                'medkind_value': medkind,
+                'marknumber_value': marknumber
+            }
+            implants.append(implant_data)
+
+        return implants
+
+    def _getCodeMedDevByValue(self, medkindValue):
+        """Получить код медицинского изделия по значению свойства medkind"""
+        if not medkindValue:
+            return ''
+
+        db = QtGui.qApp.db
+        query = db.query(
+            u"""SELECT ni.value 
+            FROM rbNomenclature n
+            INNER JOIN rbNomenclature_Identification ni ON ni.master_id = n.id
+            INNER JOIN rbAccountingSystem acc ON acc.id = ni.system_id
+            WHERE n.id = %s 
+                AND acc.code = 'AccTFOMS' 
+                AND ni.deleted = 0
+            LIMIT 1""" % medkindValue
+        )
+
+        if query.next():
+            record = query.record()
+            code = forceString(record.value('value'))
+            if code:
+                return code
+
+        return ''
+
+    def _getHospitalBedProfileCode(self, record):
+        """Получить код профиля койки"""
+        hospitalActionId = forceRef(record.value('hospitalActionId'))
+        if not hospitalActionId:
+            return ''
+
+        db = QtGui.qApp.db
+        action = CAction(record=db.getRecord('Action', '*', hospitalActionId))
+        bedId = forceRef(action[u'койка'])
+        if not bedId:
+            return ''
+
+        bedProfileId = self.getHospitalBedProfileId(bedId)
+        if not bedProfileId:
+            return ''
+
+        # Пробуем получить код из справочника V020
+        query = db.query(u"""
+                SELECT hi.value 
+                FROM rbHospitalBedProfile_Identification hi
+                WHERE hi.master_id = %d 
+                  AND hi.system_id = (SELECT id FROM rbAccountingSystem WHERE code = 'V020')
+                  AND hi.deleted = 0
+                LIMIT 1
+            """ % bedProfileId)
+
+        if query.next():
+            record_val = query.record()
+            return forceString(record_val.value(0))
+
+        bedCode = self.getHospitalBedProfileRegionalCode(bedProfileId)
+        if bedCode:
+            return bedCode[:2]
+
+        return ''
+
+    def _getDiseaseCharacter(self, record):
+        """Получить характер заболевания"""
+        diseaseCharacterId = forceRef(record.value('diseaseCharacterId'))
+        if diseaseCharacterId:
+            value = self.mapDiseaseCharacter.get(diseaseCharacterId)
+            if value is None:
+                value = getIdentification('rbDiseaseCharacter', diseaseCharacterId, 'AccTFOMS', raiseIfNonFound=False)
+                self.mapDiseaseCharacter[diseaseCharacterId] = value
+            return value[:1] if value else ''
+        return ''
+
+    def _getVMPMethod(self, service_name, mkb, eventDate):
+        """Получить данные о методе ВМП из rbVMPMethod"""
+        db = QtGui.qApp.db
+        date_str = db.formatDate(eventDate)
+
+        search_name = service_name[:119]
+
+        stmt = u"""
+            SELECT IDHM, HVID, HGR, IDMODP
+            FROM rbVMPMethod
+            WHERE hmname like '%{0}%' 
+                AND diag REGEXP '(^|;|, )?{1}(;|, |$)'
+                AND datebeg <= {2}
+                AND (dateend IS NULL OR dateend >= {2})
+            ORDER BY datebeg DESC
+        """.format(search_name, mkb, date_str)
+
+        query = db.query(stmt)
+
+        if query.next():
+            record = query.record()
+            return {
+                'metod_hmp': forceString(record.value('IDHM')),
+                'vid_hmp': forceString(record.value('HVID')),
+                'gr_hmp': forceString(record.value('HGR')),
+                'model_hmp': forceString(record.value('IDMODP')),
+            }
+        return None
+
+    def _getVMPType(self, mkb, model_hmp, metod_hmp, eventDate):
+        """Получить код вида лечения из rbVMPType"""
+        db = QtGui.qApp.db
+
+        # Если нет данных для поиска, возвращаем значение по умолчанию
+        if not metod_hmp or not model_hmp:
+            return ''
+
+        date_str = db.formatDate(eventDate)
+
+        stmt = u"""
+            SELECT ID_TREATMENT
+            FROM rbVMPType
+            WHERE icd_10 = '{0}'
+                AND id_model = {1}
+                AND id_method = {2}
+                AND date_begin <= {3}
+                AND (date_end IS NULL OR date_end >= {3})
+            ORDER BY date_begin DESC
+            LIMIT 1
+        """.format(mkb, model_hmp, metod_hmp, date_str)
+
+        query = db.query(stmt)
+
+        if query.next():
+            record = query.record()
+            return forceString(record.value('ID_TREATMENT'))
+        return ''
+
+    def _getTalonNumber(self, talonVMPid):
+        """Получить номер талона по id действия"""
+        if not talonVMPid:
+            return '', None
+
+        db = QtGui.qApp.db
+        stmt = u"""
+            SELECT aps.value AS talon_number
+            FROM Action a
+            LEFT JOIN ActionProperty ap ON a.id = ap.action_id AND ap.deleted = 0
+            LEFT JOIN ActionPropertyType apt ON ap.type_id = apt.id 
+                AND apt.name = 'Номер талона' AND apt.deleted = 0
+            LEFT JOIN ActionProperty_String aps ON ap.id = aps.id
+            WHERE a.id = %d 
+        """ % talonVMPid
+
+        query = db.query(stmt)
+        if query.next():
+            record = query.record()
+            return forceString(record.value('talon_number'))
+        return ''
+
+    def _mapLECHToStandard(self, lech_code):
+        mapping = {
+            '10': '1',  # хирургическое лечение
+            '7': '2',  # терапевтическое лечение
+            '1': '3',  # комбинированное лечение
+            '2': '4',  # лучевое лечение
+        }
+        return mapping.get(str(lech_code), '')
+
+    def _writeGisOmsEvents(self):
+        """Запись всех собранных событий в XML"""
+        for eventId, eventData in self.eventsDict.items():
+            if eventId not in self.exportedEvents:
+                self.xmlWriter.writeEvent(eventData['event_data'], eventData['services'])
+                self.exportedEvents.add(eventId)
+
 
     def processPerson(self, dbf, record, params):
-        if self.exportType in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
+        if self.exportType in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             (dbfP, dbfU, dbfD, dbfN, dbfR, dbfO, dbfI, dbfC, dbfE, dbfM, dbfL) = dbf
             row = dbfD.newRecord()
             snils = forceString(record.value('snils'))
@@ -4338,8 +4955,9 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
     def on_cmbExportType_currentIndexChanged(self, index):
         if index in [self.exportTypeInvoice, self.exportTypeInvoiceNil]:
             self.chkMakeInvoice.setChecked(True)
-        self.chkMakeInvoice.setEnabled(index in [self.exportTypeP28, self.exportTypePreControlP28])
-        self.edtRegistryNumber.setEnabled(index in [self.exportTypeP28, self.exportTypePreControlP28, self.exportTypeInvoice, self.exportTypeInvoiceNil])
+        self.chkMakeInvoice.setEnabled(index in [self.exportTypeP29, self.exportTypePreControlP29])
+        self.edtRegistryNumber.setEnabled(index in [self.exportTypeP29, self.exportTypePreControlP29, self.exportTypeInvoice, self.exportTypeInvoiceNil]
+                                          and index != self.exportTypeGisOms)
 
     @pyqtSignature('bool')
     def on_rbTFOMS_toggled(self, checked):
@@ -4349,6 +4967,750 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
     @pyqtSignature('bool')
     def on_rbSMO_toggled(self, checked):
         self.cmbPayer.setEnabled(checked)
+
+
+class CGisOmsXmlStreamWriter(CAbstractExportXmlStreamWriter):
+    """Запись данных экспорта в XML для ГИС ОМС"""
+
+    def __init__(self, parent):
+        CAbstractExportXmlStreamWriter.__init__(self, parent)
+        self.setCodec(QTextCodec.codecForName('UTF-8'))
+        self.recordCount = 0
+        self.codeMo = None
+
+    def _getKSGCodeAndGroupFromServices(self, services):
+        """Получить код КСГ и группу из услуг"""
+        for service in services:
+            kusl = forceString(service.get('KUSL', ''))
+            if kusl.startswith('G'):
+                ksg_code = kusl[3:]
+
+                db = QtGui.qApp.db
+                table = db.table('rbKSGGroup')
+                cond = [
+                    table['KSG'].like('%' + ksg_code + '%'),
+                ]
+                record = db.getRecordEx(table, [table['GR']], cond)
+                if record:
+                    ksg_group = forceString(record.value('GR'))
+                    return ksg_code, ksg_group
+        return '', ''
+
+    def _getDZPByGroupForKSG(self, ksg_code, ksg_group):
+        """Получить DZP для КСГ из справочника rbKSGGroup"""
+        if not ksg_code or not ksg_group:
+            return ''
+
+        db = QtGui.qApp.db
+        table = db.table('rbKSGGroup')
+
+        cond = [
+            table['KSG'].like('%' + ksg_code + '%'),
+            table['GR'].eq(ksg_group)
+        ]
+
+        record = db.getRecordEx(table, [table['DZP']], cond)
+        if record:
+            dzp = forceString(record.value('DZP'))
+            if dzp:
+                return dzp
+
+        return '1'
+
+    def _getKOEF_SPEC(self, koef_z, is_stationary, ksg_group, profil='000'):
+        """
+        Расчет коэффициента специфики (KOEF_SPEC)
+        """
+        koef_z_val = float(koef_z)
+        is_obstetrics_gynecology = (profil == '3')
+        is_rehabilitation = (ksg_group == '212')
+
+        if is_stationary:
+            if koef_z_val >= 2.0:
+                return '1.3' if is_obstetrics_gynecology else '1.2'
+            else:
+                if is_rehabilitation:
+                    return '1'
+                else:
+                    return '0.7'
+        else:
+            # Дневной стационар
+            if koef_z_val >= 3.0:
+                return '1.3' if is_obstetrics_gynecology else '1.2'
+            else:
+                if is_rehabilitation:
+                    return '1'
+                else:
+                    return '0.7'
+
+    def _getKZByCodeForKSG(self, ksg_code):
+        """Получить KZ для КСГ из справочника rbKSGGroup"""
+        if not ksg_code:
+            return ''
+
+        db = QtGui.qApp.db
+        table = db.table('rbKSGGroup')
+
+        cond = [
+            table['KSG'].like('%' + ksg_code + '%')
+        ]
+
+        record = db.getRecordEx(table, [table['KZ']], cond)
+        if record:
+            koef_z = float(forceString(record.value('KZ')))
+            return '{:.2f}'.format(koef_z)
+        return ''
+
+    def _getProfil(self, eventData, services):
+        """Получить PROFIL в зависимости от типа случая"""
+        vp = forceString(eventData.get('VP', ''))
+        is_vmp = vp in ['401', '402']
+        is_ksg_case = vp in ['11', '12', '301', '302', '41', '42', '43', '51', '52', '511', '522']
+
+        if is_vmp:
+            return forceString(eventData.get('PROFIL', '000'))
+
+        if is_ksg_case:
+            for service in services:
+                kusl = forceString(service.get('KUSL', ''))
+                if kusl.startswith('G'):
+                    ksg_code = kusl[3:]
+                    if ksg_code:
+                        db = QtGui.qApp.db
+                        query = db.query(
+                            "SELECT ProfileCode FROM rbKSGGroup WHERE KSG = '%s'" % ksg_code)
+                        if query.next():
+                            record = query.record()
+                            return forceString(record.value('ProfileCode'))
+                    break
+
+        return forceString(eventData.get('PROFIL', '000'))
+
+    def _getKSGGroup(self, ksg_code):
+        """Получить группу КСГ по коду услуги"""
+        #return {'st': '1', 'ds': '2'}.get(ksg_code[:2])
+        db = QtGui.qApp.db
+        table = db.table('rbKSGGroup')
+
+        cond = [
+            table['KSG'].like('%' + ksg_code + '%')
+        ]
+
+        record = db.getRecordEx(table, [table['GR']], cond)
+        if record:
+            return forceString(record.value('GR'))
+        return ''
+
+    def _getProfilForKSG(self, ksg_code):
+        """Получить код профиля из rbKSGGroup по коду КСГ"""
+        if not ksg_code:
+            return ''
+
+        db = QtGui.qApp.db
+        query = db.query(u"""
+            SELECT profil_code
+            FROM rbKSGGroup 
+            WHERE KSG = '%s'
+        """ % ksg_code)
+
+        if query.next():
+            record = query.record()
+            return forceString(record.value('profil_code'))
+        return ''
+
+    def _getCritValue(self, ksg_code, service_code, birth_date, event_date):
+        """
+        Получение значения CRIT из справочника soc_spr69 с учетом возраста
+        """
+        if not ksg_code or not service_code:
+            return ''
+
+        ksg_full = 'G26' + ksg_code
+
+        db = QtGui.qApp.db
+
+        query = db.query(
+            "SELECT age, KRIT FROM soc_spr69 WHERE ksgkusl LIKE '%s' AND kusl LIKE '%s'"
+            % (ksg_full, service_code)
+        )
+
+        results = []
+        while query.next():
+            record = query.record()
+            age_value = record.value('age')
+            krit_value = forceString(record.value('KRIT'))
+            results.append({'age': age_value, 'krit': krit_value})
+
+        if not results:
+            return ''
+
+        if len(results) == 1:
+            return results[0]['krit']
+
+        patient_age = self._calculateAgeAtDate(birth_date, event_date)
+
+        # age = 5 - младше 18 лет, age = 6 - 18 лет и старше
+        if patient_age < 18:
+            for result in results:
+                if result['age'] == 5:
+                    return result['krit']
+        else:
+            for result in results:
+                if result['age'] == 6:
+                    return result['krit']
+
+        return results[0]['krit']
+
+    def _getPriorityKSGCode(self, services, current_ksg_code, ds1=None, ds2=None):
+        """
+        Определяет правильный код КСГ с учетом приоритетов
+
+        Аргументы:
+            services: список услуг
+            current_ksg_code: текущий код КСГ
+            ds1: основной диагноз (МКБ-10)
+            ds2: дополнительный диагноз (МКБ-10)
+        """
+        # Проверяем наличие хирургических услуг (A16.*)
+        has_surgery = False
+        surgery_service_code = None
+
+        for service in services:
+            service_code = forceString(service.get('KUSL', ''))
+            if service_code.startswith('A16.'):
+                has_surgery = True
+                surgery_service_code = service_code
+                break
+
+        # Правило 1: Хирургия при полипах и гиперплазии эндометрия
+        if has_surgery:
+            # Услуга удаления полипа матки
+            if surgery_service_code == 'A16.20.084':  # Удаление полипа эндометрия/матки
+                # Если основной диагноз N84.* (полип)
+                if ds1 and ds1.startswith('N84'):
+                    return 'ds02.003'
+                # Если основной диагноз N92.* (обильные менструации) и дополнительный N84.* (полип)
+                if ds1 and ds1.startswith('N92') and ds2 and ds2.startswith('N84'):
+                    return 'ds02.003'
+
+            # Услуга гистерорезектоскопии
+            if surgery_service_code == 'A16.20.001':  # Гистерорезектоскопия
+                if ds1 and (ds1.startswith('N84') or ds1.startswith('N85') or ds1.startswith('N92')):
+                    return 'ds02.003'
+
+            # Другие хирургические услуги можно добавить по аналогии
+            # Например, операции на придатках
+            if surgery_service_code in ['A16.20.009', 'A16.20.010',
+                                        'A16.20.014']:  # удаление кисты, резекция яичника и т.д.
+                if ds1 and ds1.startswith('N83'):
+                    return 'ds02.001'  # или другая хирургическая КСГ
+
+        # Правило 2: Онкология (st19, ds19), исключая определенные КСГ
+        is_oncology_group = current_ksg_code.startswith(('st19.', 'ds19.'))
+        if is_oncology_group:
+            # Проверяем исключения: КСГ st08.*, ds08.* (диагностические)
+            is_exception = current_ksg_code.startswith(('st08.', 'ds08.'))
+            if not is_exception:
+                # Оставляем онкологическую КСГ
+                return current_ksg_code
+
+        # Правило 3: Медицинская реабилитация (st37, ds37) - временно отключено,
+        # так как список реабилитационных услуг не передан в этот класс
+        # Если понадобится, нужно передать список из CExportPage1.reabilitationKuslList
+
+        # Правило 4: Длительность 3 дня и менее для диагностических КСГ
+        # (обрабатывается в другом месте, так как здесь нет данных о длительности)
+
+        return current_ksg_code
+
+    def _calculateAgeAtDate(self, birth_date, event_date):
+        """Расчет возраста пациента в годах на дату события"""
+        if not birth_date or not event_date:
+            return 0
+
+        # Если это QDate
+        if hasattr(birth_date, 'year'):
+            b_year = birth_date.year()
+            b_month = birth_date.month()
+            b_day = birth_date.day()
+        else:
+            # Если это строка или другой формат
+            return 0
+
+        if hasattr(event_date, 'year'):
+            e_year = event_date.year()
+            e_month = event_date.month()
+            e_day = event_date.day()
+        else:
+            return 0
+
+        age = e_year - b_year
+        if (e_month < b_month) or (e_month == b_month and e_day < b_day):
+            age -= 1
+
+        return age
+
+
+    def _getDZPByGroup(self, gr_hmp):
+        """Получить долю заработной платы (DZP) по группе ВМП"""
+        mapping = {
+            '1': '0.38', '2': '0.44', '3': '0.19', '4': '0.20', '5': '0.25',
+            '6': '0.35', '7': '0.38', '8': '0.55', '9': '0.38', '10': '0.53',
+            '11': '0.32', '12': '0.29', '13': '0.23', '14': '0.20', '15': '0.20',
+            '16': '0.42', '17': '0.32', '18': '0.02', '19': '0.25', '20': '0.34',
+            '21': '0.29', '22': '0.59', '23': '0.41', '24': '0.27', '25': '0.42',
+            '26': '0.40', '27': '0.39', '28': '0.26', '29': '0.30', '30': '0.23',
+            '31': '0.49', '32': '0.40', '33': '0.39', '34': '0.28', '35': '0.10',
+            '36': '0.44', '37': '0.32', '38': '0.47', '39': '0.43', '40': '0.26',
+            '41': '0.38', '42': '0.25', '43': '0.22', '44': '0.34', '45': '0.22',
+            '46': '0.46', '47': '0.40', '48': '0.09', '49': '0.38', '50': '0.07',
+            '51': '0.17', '52': '0.42', '53': '0.57', '54': '0.21', '55': '0.13',
+            '56': '0.17', '57': '0.12', '58': '0.14', '59': '0.04', '60': '0.02',
+            '61': '0.12', '62': '0.38', '63': '0.22', '64': '0.06', '65': '0.04',
+            '66': '0.21', '67': '0.18', '68': '0.28', '69': '0.37', '70': '0.26',
+            '71': '0.49', '72': '0.10', '73': '0.15', '74': '0.12', '75': '0.15',
+            '76': '0.12', '77': '0.14', '78': '0.33', '79': '0.36', '80': '0.18',
+            '81': '0.23', '82': '0.30', '83': '0.24', '84': '0.13', '85': '0.36',
+            '86': '0.20', '87': '0.36', '88': '0.12'
+        }
+        return mapping.get(str(gr_hmp), '0.44')  # по умолчанию 0.44 (2-я группа)
+
+    def writeHeader(self, params=None, recordCount=0):
+        """Запись заголовка xml файла"""
+        currentDate = QDateTime.currentDateTime()
+
+        # Отчетный месяц
+        reportDate = QDate.currentDate()
+        lastDayOfMonth = QDate(reportDate.year(), reportDate.month(), reportDate.daysInMonth())
+
+        self.writeStartElement('ZL_LIST')
+
+        # ZGLV
+        self.writeStartElement('ZGLV')
+        self.writeTextElement('VERSION', '4.0')
+        self.writeTextElement('DATA', currentDate.toString('yyyy-MM-dd hh:mm:ss'))
+
+        # Формируем имя файла
+        fileName = u"{0}_{1:02d}_{2}_00001".format(
+            reportDate.year(),
+            reportDate.month(),
+            params.get('codeLpu', '00000000')
+        )
+        self.writeTextElement('FILENAME', fileName)
+        self.writeTextElement('SD_Z', str(recordCount))
+        self.writeEndElement()  # ZGLV
+
+        # OTPR
+        self.writeStartElement('OTPR')
+        self.writeTextElement('CODE_MO', params.get('codeLpu', '00000000'))
+        self.writeTextElement('YEAR', str(reportDate.year()))
+        self.writeTextElement('MONTH', str(reportDate.month()).zfill(2))
+        self.writeTextElement('DAY', str(lastDayOfMonth.day()).zfill(2))
+        self.writeEndElement()  # OTPR
+
+        self.codeMo = params.get('codeLpu', '00000000')
+
+    def writeEvent(self, eventData, services):
+        """Запись одного события с несколькими услугами"""
+        self.recordCount += 1
+
+        self.writeStartElement('ZAP')
+        self.writeTextElement('N_ZAP', str(self.recordCount))
+        self.writeTextElement('TYPE', 'PRIL4')
+
+        # PACIENT
+        self.writeStartElement('PACIENT')
+        self._writePacientElement(eventData)
+        self.writeEndElement()
+
+        # NPR
+        self.writeStartElement('NPR')
+        self._writeNprElement(eventData)
+        self.writeEndElement()
+
+        # Z_SL
+        self.writeStartElement('Z_SL')
+        self._writeZSlElement(eventData, services)
+        self.writeEndElement()
+
+        self.writeEndElement()  # ZAP
+
+    def _writePacientElement(self, record):
+        """Запись блока PACIENT"""
+        self.writeTextElement('VPOLIS', forceString(record.get('SPV', '3')))
+
+        enp = forceString(record.get('ENP', ''))
+        if enp:
+            self.writeTextElement('ENP', enp)
+
+        self.writeTextElement('SMO_OK', forceString(record.get('OKATO_OMS', '03000'))[:5])
+
+        smo = forceString(record.get('PL_OGRN', ''))[-5:]
+        self.writeTextElement('SMO', smo)
+
+        sex = forceString(record.get('POL', '')).upper()
+        self.writeTextElement('W', '1' if sex == 'М' else '2')
+
+        birthDate = record.get('DATR')
+        if birthDate:
+            self.writeTextElement('DR', self._formatDate(birthDate))
+        else:
+            self.writeTextElement('DR', '')
+
+        self.writeTextElement('NOVOR', '0')
+        self.writeTextElement('SOC', forceString(record.get('SOC', '000')))
+        self.writeTextElement('FAM', forceString(record.get('FIO', '')))
+        self.writeTextElement('IM', forceString(record.get('IMA', '')))
+        self.writeTextElement('OT', forceString(record.get('OTCH', '')))
+        self.writeTextElement('TEL', '')
+        self.writeTextElement('MR', '')
+
+        docType = forceString(record.get('C_DOC', ''))
+        if docType:
+            self.writeTextElement('DOCTYPE', docType)
+
+        docSerial = forceString(record.get('S_DOC', ''))
+        if docSerial:
+            self.writeTextElement('DOCSER', docSerial)
+
+        docNumber = forceString(record.get('N_DOC', ''))
+        if docNumber:
+            self.writeTextElement('DOCNUM', docNumber)
+
+        self.writeTextElement('DOCDATE', '')
+        self.writeTextElement('DOCORG', '')
+
+        snils = forceString(record.get('SNILS', ''))
+        if snils:
+            self.writeTextElement('SNILS', snils)
+
+        self.writeTextElement('OKATOG', '')
+        self.writeTextElement('OKATOP', '')
+        self.writeTextElement('COMENTP', '')
+
+    def _writeNprElement(self, eventData):
+        """Запись блока NPR"""
+        is_vmp = eventData.get('IS_VMP', False)
+        idnpr = forceString(eventData.get('NAPR_N', ''))
+        if not idnpr:
+            idnpr = str(eventData.get('SN', '0'))
+
+        if is_vmp:
+            talon_num = forceString(eventData.get('TAL_NUM', ''))
+            talon_date = eventData.get('TAL_D')
+        else:
+            talon_num = forceString(eventData.get('NAPR_N', ''))
+            talon_date = eventData.get('NAPR_D')
+
+        self.writeTextElement('IDNPR', idnpr)
+        self.writeTextElement('IDNPR_MIS', idnpr)
+
+        if talon_date:
+            self.writeTextElement('TAL_D', self._formatDate(talon_date))
+        else:
+            self.writeTextElement('TAL_D', '')
+
+        self.writeTextElement('TAL_NUM', talon_num)
+        self.writeTextElement('NPR_MO', self.codeMo)
+
+    def _writeZSlElement(self, eventData, services):
+        """Запись блока Z_SL"""
+        vp = forceString(eventData.get('VP', ''))
+        is_stationary = vp in ['11', '12', '301', '302']  # стационар
+        is_day_hospital = vp in ['41', '42', '43', '51', '52', '511', '522']  # дневной стационар
+
+        self.writeTextElement('IDCASE', forceString(eventData.get('SN', '')))
+        self.writeTextElement('IDCASE_MIS', forceString(eventData.get('SN', '')))
+
+        adr_gar = forceString(eventData.get('ADR_GAR', ''))
+        adr_name = forceString(eventData.get('ADR_NAME', ''))
+        self.writeTextElement('ADR_GAR', adr_gar)
+        self.writeTextElement('ADR_NAME', adr_name)
+
+        self.writeTextElement('USL_OK', self._mapVpToUslOk(vp))
+        self.writeTextElement('VIDPOM', self._mapVpToVidPom(vp))
+        self.writeTextElement('FOR_POM', '3')
+
+        begDate = eventData.get('DATN')
+        if begDate:
+            self.writeTextElement('DATE_Z_1', self._formatDate(begDate))
+
+        endDate = eventData.get('DATO')
+        if endDate:
+            self.writeTextElement('DATE_Z_2', self._formatDate(endDate))
+
+        if begDate and endDate:
+            if hasattr(begDate, 'daysTo'):
+                days = begDate.daysTo(endDate)
+            else:
+                days = (endDate.toPyDate() - begDate.toPyDate()).days
+            self.writeTextElement('KD_Z', str(days))
+        else:
+            self.writeTextElement('KD_Z', '0')
+
+        self.writeTextElement('RSLT', forceString(eventData.get('RSLT', '101')))
+        self.writeTextElement('ISHOD', forceString(eventData.get('ISHOD', '102')))
+        self.writeTextElement('IS_PRERV', '0')
+        if is_stationary or is_day_hospital:
+            if is_stationary:
+                koef_priv = '0.272'
+            else:
+                koef_priv = '0.323'
+            self.writeTextElement('KOEF_PRIV', koef_priv)
+
+            # Получаем исходный код КСГ из услуг (для KOEF_SPEC)
+            ksg_code_original = ''
+            for service in services:
+                kusl = forceString(service.get('KUSL', ''))
+                if kusl.startswith('G'):
+                    ksg_code_original = kusl[3:]
+                    break
+
+            profil = '000'
+            if ksg_code_original:
+                ksg_profil = self._getProfilForKSG(ksg_code_original)
+                if ksg_profil:
+                    profil = ksg_profil
+
+            koef_spec = self._getKOEF_SPEC(self._getKZByCodeForKSG(ksg_code_original), is_stationary,
+                                           self._getKSGGroup(ksg_code_original), profil)
+            self.writeTextElement('KOEF_SPEC', koef_spec)
+
+            # Сохраняем KOEF_SPEC в eventData для использования в _writeSlElement
+            eventData['KOEF_SPEC'] = koef_spec
+
+            if is_stationary:
+                sred_nfz = '125603.20'
+            else:
+                sred_nfz = '57485'
+            self.writeTextElement('SRED_NFZ', sred_nfz)
+
+        self.writeTextElement('KOEF_D', '1')
+
+        # Записываем SL и получаем итоговый код КСГ
+        self.writeStartElement('SL')
+        final_ksg_code = self._writeSlElement(eventData, services)
+        self.writeEndElement()
+
+        # Рассчитываем SUMV с учетом возможного изменения КСГ
+        if is_stationary or is_day_hospital:
+            # Определяем, какой код КСГ использовать для расчета
+            if final_ksg_code and final_ksg_code != ksg_code_original:
+                ksg_code_for_sumv = final_ksg_code
+            else:
+                ksg_code_for_sumv = ksg_code_original
+
+            # Получаем KOEF_Z для выбранного кода
+            koef_z = float(self._getKZByCodeForKSG(ksg_code_for_sumv))
+
+            # Рассчитываем сумму
+            sumv = float(sred_nfz) * float(koef_priv) * koef_z * float(koef_spec)
+            self.writeTextElement('SUMV', '{:.2f}'.format(sumv))
+        else:
+            self.writeTextElement('SUMV', forceString(eventData.get('SUMM', '0.00')))
+
+    def _writeSlElement(self, eventData, services):
+        """Запись блока SL со всеми услугами"""
+        vp = forceString(eventData.get('VP', ''))
+        is_vmp = vp in ['401', '402']  # ВМП
+        is_ksg_case = vp in ['11', '12', '301', '302', '41', '42', '43', '51', '52', '511', '522']  # ст и дс
+
+        self.writeTextElement('SL_ID', forceString(eventData.get('SN', '0')))
+        self.writeTextElement('PODR', forceString(eventData.get('PODR', '0000')))
+        self.writeTextElement('PODR_NAME', forceString(eventData.get('PODR_NAME', '')))
+        self.writeTextElement('OID_FRMO', '')
+
+        profil = forceString(eventData.get('PROFIL', '000'))
+
+        if is_ksg_case:
+            ksg_code = ''
+            for service in services:
+                kusl = forceString(service.get('KUSL', ''))
+                if kusl.startswith('G'):
+                    ksg_code = kusl[3:]
+                    break
+            if ksg_code:
+                ksg_profil = self._getProfilForKSG(ksg_code)
+                if ksg_profil:
+                    profil = ksg_profil
+
+        self.writeTextElement('PROFIL', profil)
+
+        profil_k = forceString(eventData.get('PROFIL_K', ''))
+        self.writeTextElement('PROFIL_K', profil_k)
+
+        self.writeTextElement('NHISTORY', forceString(eventData.get('ISTI', '')))
+
+        mkb = forceString(eventData.get('MKBX', ''))
+        self.writeTextElement('DS_GR', mkb[:3] if len(mkb) >= 3 else mkb)
+        self.writeTextElement('DS1', mkb)
+
+        final_ksg_code = ''
+
+        if is_ksg_case:
+            ksg_code = ''
+            for service in services:
+                kusl = forceString(service.get('KUSL', ''))
+                if kusl.startswith('G'):
+                    ksg_code = kusl[3:]
+                    break
+            if ksg_code:
+                # Получаем диагнозы для проверки
+                ds1 = forceString(eventData.get('MKBX', ''))
+                ds2 = forceString(eventData.get('MKBXS', ''))
+
+                # Применяем приоритетные правила
+                final_ksg_code = self._getPriorityKSGCode(services, ksg_code, ds1, ds2)
+                #ksg_code = self._getPriorityKSGCode(services, ksg_code)
+
+                self.writeStartElement('KSG_KPG')
+                self.writeTextElement('N_KSG', final_ksg_code)
+                self.writeTextElement('GR', self._getKSGGroup(final_ksg_code))
+                self.writeTextElement('VER_KSG', '2026')
+                self.writeTextElement('KOEF_Z', self._getKZByCodeForKSG(final_ksg_code))
+
+                crit_value = ''
+                birth_date = eventData.get('DATR')
+                event_date = eventData.get('DATO')
+
+                for service in services:
+                    service_code = forceString(service.get('KUSL', ''))
+                    if not service_code.startswith('G'):
+                        crit_value = self._getCritValue(final_ksg_code, service_code, birth_date, event_date)
+                        if crit_value:
+                            break
+                self.writeTextElement('CRIT', crit_value)
+                self.writeTextElement('SL_K', '0')
+                self.writeTextElement('IT_SL', '0')
+                self.writeEndElement()
+
+        mkbxs = forceString(eventData.get('MKBXS', ''))
+        if mkbxs:
+            self.writeTextElement('DS2', mkbxs)
+
+        #self.writeTextElement('ILLACT', forceString(eventData.get('C_ZAB', '2')))
+
+        if is_vmp:
+            gr_hmp = forceString(eventData.get('VMP_GR_HMP', '2'))
+            dzp = self._getDZPByGroup(gr_hmp)
+
+            self.writeTextElement('GR_HMP', gr_hmp)
+            self.writeTextElement('VID_HMP', forceString(eventData.get('VMP_VID_HMP', '000')))
+            self.writeTextElement('METOD_HMP', forceString(eventData.get('VMP_METOD_HMP', '')))
+            self.writeTextElement('MODEL_HMP', forceString(eventData.get('VMP_MODEL_HMP', '22222')))
+            self.writeTextElement('LECH_HMP', forceString(eventData.get('LECH_HMP', '19')))
+            self.writeTextElement('DZP', dzp)
+
+        if is_ksg_case and final_ksg_code:
+            ksg_group = self._getKSGGroup(final_ksg_code)
+
+            dzp = self._getDZPByGroupForKSG(final_ksg_code, ksg_group)
+            self.writeTextElement('DZP', dzp)
+
+        if is_ksg_case and final_ksg_code:
+            # КСГ изменилась - пересчитываем тариф
+            # Определяем параметры для расчета
+            if vp in ['11', '12', '301', '302']:  # стационар
+                sred_nfz = '125603.20'
+                koef_priv = '0.272'
+            else:  # дневной стационар
+                sred_nfz = '57485'
+                koef_priv = '0.323'
+
+            koef_z = float(self._getKZByCodeForKSG(final_ksg_code))
+            koef_spec = float(eventData.get('KOEF_SPEC', '1'))
+
+            tarif = float(sred_nfz) * float(koef_priv) * koef_z * koef_spec
+            self.writeTextElement('TARIF', '{:.2f}'.format(tarif))
+        else:
+            # КСГ не изменилась - пишем исходную сумму
+            summ = forceString(eventData.get('SUMM', '0.00'))
+
+        if is_vmp:
+            self.writeTextElement('NFZ', forceString(eventData.get('SUMM', '0.00')))
+
+        # USL
+        #self.writeStartElement('USL')
+        #self.writeTextElement('IDSERV', '1')
+
+        #kusl = forceString(service.get('KUSL', ''))
+        #if is_vmp:
+            # Для ВМП берем метод лечения
+        #    metod_hmp = forceString(service.get('METOD_HMP', kusl))
+        #    self.writeTextElement('VID_VME', metod_hmp)
+        #else:
+            # Для стационара берем код услуги
+        #    self.writeTextElement('VID_VME', kusl[3:])
+        #self.writeEndElement()
+
+        # Записываем все услуги (кроме КСГ)
+        serv_num = 1
+        for service in services:
+            kusl = forceString(service.get('KUSL', ''))
+
+            if kusl.startswith('G'):
+                continue
+
+            self.writeStartElement('USL')
+            self.writeTextElement('IDSERV', str(serv_num))
+
+            if is_vmp:
+                metod_hmp = forceString(service.get('METOD_HMP', kusl))
+                self.writeTextElement('VID_VME', metod_hmp)
+            elif is_ksg_case:
+                self.writeTextElement('VID_VME', kusl)
+            else:
+                self.writeTextElement('VID_VME', kusl)
+
+            self.writeEndElement()
+            serv_num += 1
+
+        implants = eventData.get('implants', [])
+
+        if implants:
+            for implant in implants:
+                self.writeStartElement('MED_DEV')
+                self.writeTextElement('DATE_MED', self._formatDate(implant.get('DATE_MED')))
+                self.writeTextElement('CODE_MEDDEV', implant.get('CODE_MEDDEV'))
+                self.writeTextElement('NUMBER_SER', implant.get('NUMBER_SER'))
+                self.writeEndElement()
+
+        return final_ksg_code
+
+    def _mapVpToUslOk(self, vp):
+        """Преобразование кода условия в USL_OK"""
+        mapping = {
+            '11': '1', '12': '1', '301': '1', '302': '1', '401': '1', '402': '1',
+            '41': '2', '42': '2', '43': '2', '51': '2', '52': '2',
+            '21': '3', '22': '3', '111': '3', '112': '3',
+            '801': '4', '802': '4',
+        }
+        #return '2'
+        return mapping.get(vp, '2')
+
+    def _mapVpToVidPom(self, vp):
+        """Преобразование кода условия в VIDPOM"""
+        mapping = {
+            '11': '31', '12': '31', '301': '31', '302': '31', '511': '31', '522': '31', # стационар
+            '401': '32', '402': '32',  # ВМП
+            '41': '31', '42': '31', '43': '31', '51': '31', '52': '31',  # дневной стационар
+            '21': '3', '22': '3',  # амбулаторно-поликлиническая
+            '111': '3', '112': '3',  # неотложная
+            '801': '3', '802': '3',  # скорая
+        }
+        return mapping.get(vp, '31')
+
+    def _formatDate(self, date):
+        """Вспомогательный метод для форматирования даты"""
+        if not date:
+            return ''
+        if hasattr(date, 'toString'):
+            return date.toString(Qt.ISODate)
+        return forceString(date)
+
+    def writeFooter(self, params=None):
+        """Закрывает теги в конце файла"""
+        self.writeEndElement()  # ZL_LIST
 
 
 class CExportPage2(CAbstractExportPage2, Ui_ExportR23NativePage2):
@@ -4377,7 +5739,7 @@ class CExportPage2(CAbstractExportPage2, Ui_ExportR23NativePage2):
         zf = ZipFile(zipFilePath, 'w', allowZip64=True)
         exportType = self._parent.page1.exportType
 
-        if exportType in [CExportPage1.exportTypeP28, CExportPage1.exportTypePreControlP28]:
+        if exportType in [CExportPage1.exportTypeP29, CExportPage1.exportTypePreControlP29]:
             prefixes = ('P', 'U', 'D', 'N', 'R', 'O', 'I', 'C', 'E', 'M', 'L')
         elif exportType in [CExportPage1.exportTypeInvoice, CExportPage1.exportTypeInvoiceNil]:
             prefixes = []
@@ -4386,8 +5748,8 @@ class CExportPage2(CAbstractExportPage2, Ui_ExportR23NativePage2):
 
         # Добавляем фактуру
         if self._parent.page1.mkInvoice:
-            filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.html"))
-            zf.write(filePath, "schfakt.html", ZIP_DEFLATED)
+            filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename("schfakt.xls"))
+            zf.write(filePath, "schfakt.xls", ZIP_DEFLATED)
 
         for src in prefixes:
             filePath = os.path.join(forceStringEx(self.getTmpDir()), os.path.basename(src + baseName))
@@ -4751,5 +6113,35 @@ LEFT JOIN rbAccountingSystem `as` ON `as`.code = 'AccTFOMS'
 LEFT JOIN rbNomenclature_Identification ni on ni.master_id = n.id AND ni.system_id = `as`.id AND ni.deleted = 0 and ni.checkDate <= a.begDate
 WHERE a.event_id IN (SELECT Account_Item.event_id FROM Account_Item WHERE {idList})
 AND a.deleted = 0 AND at.class = 2 AND ni.value is NOT NULL;
+""" .format(idList=self._idList)
+        return stmt
+
+
+class CTypeOfEmploymentInfo(CMultiRecordInfo):
+    def __init__(self):
+        CMultiRecordInfo.__init__(self)
+
+
+    def _stmt(self):
+        stmt = u"""SELECT 
+  Event.id AS eventId,
+  IF (
+    mat.regionalCode IN ('11','12','301','302','401','402', '41', '42', '411', '422', '51', '52', '511', '522', '71', '72', '90', '43'), 
+    '',
+    COALESCE(ssti.value, if(ssc.code = '9', '6', '6'))
+  ) AS VZ
+FROM Event 
+  LEFT JOIN EventType et ON et.id = Event.eventType_id
+  LEFT join rbMedicalAidType mat ON et.medicalAidType_id = mat.id
+  LEFT JOIN ClientSocStatus css on css.id = (
+    SELECT id FROM ClientSocStatus 
+    WHERE ClientSocStatus.client_id = Event.client_id AND ClientSocStatus.deleted = 0 
+      AND (ClientSocStatus.begDate <= Event.execDate OR ClientSocStatus.begDate IS NULL)
+      AND (ClientSocStatus.endDate >= Event.execDate OR ClientSocStatus.endDate IS NULL)    
+    ORDER BY ClientSocStatus.id DESC LIMIT 1)
+  LEFT JOIN rbSocStatusType sst on sst.id = css.socStatusType_id 
+  left JOIN rbSocStatusClass ssc ON ssc.id = css.socStatusClass_id
+  LEFT JOIN rbSocStatusType_Identification ssti ON sst.id = ssti.master_id AND ssti.system_id = (select id from rbAccountingSystem `as` where code = 'AccTFOMS' limit 1)
+WHERE Event.id IN (SELECT Account_Item.event_id FROM Account_Item WHERE {idList})
 """ .format(idList=self._idList)
         return stmt

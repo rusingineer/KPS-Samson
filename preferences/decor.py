@@ -101,7 +101,7 @@ class CDecorDialog(QtGui.QDialog, Ui_decorDialog):
 
 
     def font(self):
-        result = self.cmbFont.currentFont()
+        result = QtGui.QFont(self.cmbFont.currentFont()) 
         result.setPointSize(self.edtFontSize.value())
         return result
 

@@ -17,7 +17,7 @@
 #############################################################################
 from math import ceil
 
-from PyQt4 import QtGui, QtSql
+from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL, QEvent
 
 from Events.ActionsSelector import selectActionTypesEx
@@ -320,21 +320,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblWorkHurts.setModel(None)
-        self.tblWorkHurtFactors.setModel(None)
-        self.tblInspections.setModel(None)
-        self.tblActions.setModel(None)
-        del self.modelWorkHurts
-        del self.modelWorkHurtFactors
-        del self.modelDiagnostics
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabMes.deleteLater()
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def setupDiagnosticsMenu(self):
@@ -511,7 +497,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                     for item in self.modelDiagnostics.items():
                         if forceInt(item.value("diagnosisType_id")) == 1:
                             item.setValue('result_id', QVariant(diagnosticResultId))
-            self.prepareActions(dlg.actions())
+            self.prepareActions(dlg.actions(), isEdit=isEdit)
             self.setFocusToWidget(self.tblInspections)
             self.setIsDirty(False)
             self.tabNotes.setEventEditor(self)
@@ -581,14 +567,20 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.modelDiagnostics.reset()
 
 
-    def prepareActions(self, presetActions):
+    def prepareActions(self, presetActions, isEdit=False):
+
+        def addActionTypeRowAndEmitSignal(model, actionTypeId, amount):
+            model.addRow(actionTypeId, amount)
+            if isEdit:
+                model.emit(QtCore.SIGNAL('onAddNewAction(int)'), len(model.items()) - 1)
+                
         def addActionType(actionTypeId, amount):
             for iModel, model in enumerate([self.tabStatus.modelAPActions,
                           self.tabDiagnostic.modelAPActions,
                           self.tabCure.modelAPActions,
                           self.tabMisc.modelAPActions]):
                 if actionTypeId in model.actionTypeIdList:
-                    model.addRow(actionTypeId, amount)
+                    addActionTypeRowAndEmitSignal(model, actionTypeId, amount)
                     i = self.modelActionsSummary.itemIndex.index((iModel, model.rowCount()-2))
                     self.onActionChanged(i)
                     break
@@ -1533,7 +1525,6 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 if forceInt(item.value('selectionGroup')) == selectionGroup:
                     return True
         return False
-
 
     # ТТ 4230 "Профосмотры 2026. Отключить проверку на 85% услуг" Было принято решение совсем отключить этот рудимент
     # def checkExaminCompletion(self, profileCode, endDateCheck):

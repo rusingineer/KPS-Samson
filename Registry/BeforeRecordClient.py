@@ -76,8 +76,7 @@ class CQueue(CDialogBase, Ui_Dialog):
 
 
     def destroy(self):
-        self.tblScheduleItems.setModel(None)
-        del self.modelScheduleItems
+        pass
 
 
     @pyqtSignature('')

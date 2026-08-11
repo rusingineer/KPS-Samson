@@ -19,6 +19,7 @@ from PyQt4.QtCore import Qt, QDate, QVariant, SIGNAL, QDateTime
 from datetime import timedelta, datetime
 
 from Exchange import AttachService
+from KLADR.Utils import checkIsActualSTREET
 from RefBooks.DeathPlaceType.Info import CDeathPlaceTypeInfo
 from RefBooks.DocumentType.Descr import getDocumentTypeDescr
 from RefBooks.NomenclatureActiveSubstance.Info import CNomenclatureActiveSubstanceInfo
@@ -354,6 +355,32 @@ def selectLatestRecord(tableName, clientId, filter=''):
 
 def getClientAddress(clientId, addrType):
     return selectLatestRecord('ClientAddress', clientId,  'type=\'%d\'' % addrType)
+
+def getKLADRStreetForClientId(clientId, addrType):
+    db = QtGui.qApp.db
+
+    tableClientAddress = db.table('ClientAddress').alias('CA')
+    tableAddress = db.table('Address').alias('A')
+    tableAddressHouse = db.table('AddressHouse').alias('AH')
+
+    queryTable = tableClientAddress.leftJoin(tableAddress, tableClientAddress['address_id'].eq(tableAddress['id']))
+    queryTable = queryTable.leftJoin(tableAddressHouse, tableAddress['house_id'].eq(tableAddressHouse['id']))
+
+    cols = [tableAddressHouse['KLADRStreetCode']]
+
+    cond = []
+
+    if addrType == 0:
+        cond.append('CA.id = getClientRegAddressId({0})'.format(clientId))
+    elif addrType == 1:
+        cond.append('CA.id = getClientLocAddressId({0})'.format(clientId))
+
+    stmt = db.selectStmt(queryTable, cols, cond)
+    query = db.query(stmt)
+    while query.next():
+        record = query.record()
+        streetCode = forceString(record.value(0))
+        return streetCode
 
 def rblivingAreaName(livingId):
     db = QtGui.qApp.db
@@ -2145,12 +2172,28 @@ def getClientBanner(clientId, atDate=None):
 
     if showingRegAddress:
         regAddress = forceString(record.value('regAddress'))
+
+        if regAddress:
+            addrCode = getKLADRStreetForClientId(clientId, 0)
+            if addrCode:
+                isActualStreet = checkIsActualSTREET(addrCode)
+                if isActualStreet == False:
+                    regAddress = u"<font color=red>{0}</font>".format(regAddress)
+                
         if not regAddress:
             regAddress = u'не указан'
         bannerHTML.append(u'Адрес регистрации: <b>' + regAddress + '</b>')
 
     if showingLocAddress:
         locAddress = forceString(record.value('locAddress'))
+
+        if locAddress:
+            locCode = getKLADRStreetForClientId(clientId, 1)
+            if locCode:
+                isActualStreet = checkIsActualSTREET(locCode)
+                if isActualStreet == False:
+                    locAddress = u"<font color=red>{0}</font>".format(locAddress)
+                
         if not locAddress:
             locAddress = u'не указан'
         bannerHTML.append(u'Адрес проживания: <b>' + locAddress + '</b>' )
@@ -6040,10 +6083,9 @@ def getHousesList(records):
                 korp = []
                 target = house
                 while i < len( number ):
-                    # if number[i] >= u'А' and number[i] <= u'Я' and i > 0:
-                    #     korp.append(number[i])
-                    # el
-                    if number[i] == u'к':
+                    if number[i] >= u'А' and number[i] <= u'Я' and i > 0:
+                        korp.append(number[i])
+                    elif number[i] == u'к':
                         target=korp
                     elif number[i] == u'л' and number[i:i+5] == u'литер':
                         target = korp
@@ -6181,6 +6223,8 @@ class CDbSearchWidget(QtGui.QWidget):
 
 
 def getRightEditTempInvalid(tempInvalidId):
+    if not tempInvalidId:
+        return False
     app = QtGui.qApp
     db = QtGui.qApp.db
     tableTempInvalid = db.table('TempInvalid')

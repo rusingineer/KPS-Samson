@@ -949,6 +949,7 @@ class Ui_F090Dialog(object):
         self.line_16 = QtGui.QFrame(self.tabResult)
         self.line_16.setFrameShadow(QtGui.QFrame.Plain)
         self.line_16.setFrameShape(QtGui.QFrame.HLine)
+        self.line_16.setFrameShadow(QtGui.QFrame.Sunken)
         self.line_16.setObjectName(_fromUtf8("line_16"))
         self.gridLayout.addWidget(self.line_16, 1, 0, 1, 2)
         self.gridLayout_7.addLayout(self.gridLayout, 2, 0, 1, 1)
@@ -972,6 +973,7 @@ class Ui_F090Dialog(object):
         self.line_20 = QtGui.QFrame(self.tabResult)
         self.line_20.setFrameShadow(QtGui.QFrame.Plain)
         self.line_20.setFrameShape(QtGui.QFrame.HLine)
+        self.line_20.setFrameShadow(QtGui.QFrame.Sunken)
         self.line_20.setObjectName(_fromUtf8("line_20"))
         self.gridLayout_15.addWidget(self.line_20, 1, 0, 1, 3)
         self.gridLayout_7.addLayout(self.gridLayout_15, 5, 0, 1, 1)
@@ -985,6 +987,7 @@ class Ui_F090Dialog(object):
         self.line_4.setFrameShadow(QtGui.QFrame.Plain)
         self.line_4.setLineWidth(1)
         self.line_4.setFrameShape(QtGui.QFrame.HLine)
+        self.line_4.setFrameShadow(QtGui.QFrame.Sunken)
         self.line_4.setObjectName(_fromUtf8("line_4"))
         self.gridLayout_7.addWidget(self.line_4, 1, 0, 1, 1)
         self.tabWidget.addTab(self.tabResult, _fromUtf8(""))
@@ -994,9 +997,36 @@ class Ui_F090Dialog(object):
         self.gridLayout_55.setMargin(1)
         self.gridLayout_55.setSpacing(1)
         self.gridLayout_55.setObjectName(_fromUtf8("gridLayout_55"))
-        self.tblExport = CTableView(self.tabExport)
+        self.tabWidget_2 = QtGui.QTabWidget(self.tabExport)
+        self.tabWidget_2.setObjectName(_fromUtf8("tabWidget_2"))
+        self.tab_3 = QtGui.QWidget()
+        self.tab_3.setObjectName(_fromUtf8("tab_3"))
+        self.horizontalLayout_12 = QtGui.QHBoxLayout(self.tab_3)
+        self.horizontalLayout_12.setObjectName(_fromUtf8("horizontalLayout_12"))
+        self.tblExport = CInDocExportTableView(self.tab_3)
         self.tblExport.setObjectName(_fromUtf8("tblExport"))
-        self.gridLayout_55.addWidget(self.tblExport, 0, 0, 1, 1)
+        self.horizontalLayout_12.addWidget(self.tblExport)
+        self.tabWidget_2.addTab(self.tab_3, _fromUtf8(""))
+        self.tab = QtGui.QWidget()
+        self.tab.setObjectName(_fromUtf8("tab"))
+        self.horizontalLayout_20 = QtGui.QHBoxLayout(self.tab)
+        self.horizontalLayout_20.setObjectName(_fromUtf8("horizontalLayout_20"))
+        self.tblExport_FileAttach = CInDocExportTableView(self.tab)
+        self.tblExport_FileAttach.setObjectName(_fromUtf8("tblExport_FileAttach"))
+        self.horizontalLayout_20.addWidget(self.tblExport_FileAttach)
+        self.tabWidget_2.addTab(self.tab, _fromUtf8(""))
+        self.tab_2 = QtGui.QWidget()
+        self.tab_2.setObjectName(_fromUtf8("tab_2"))
+        self.horizontalLayout_21 = QtGui.QHBoxLayout(self.tab_2)
+        self.horizontalLayout_21.setObjectName(_fromUtf8("horizontalLayout_21"))
+        self.tblExport_VIMIS = CInDocExportTableView(self.tab_2)
+        self.tblExport_VIMIS.setMaximumSize(QtCore.QSize(16777215, 16777215))
+        self.tblExport_VIMIS.setSizeIncrement(QtCore.QSize(0, -1))
+        self.tblExport_VIMIS.setBaseSize(QtCore.QSize(0, -1))
+        self.tblExport_VIMIS.setObjectName(_fromUtf8("tblExport_VIMIS"))
+        self.horizontalLayout_21.addWidget(self.tblExport_VIMIS)
+        self.tabWidget_2.addTab(self.tab_2, _fromUtf8(""))
+        self.gridLayout_55.addWidget(self.tabWidget_2, 0, 0, 1, 1)
         self.tabWidget.addTab(self.tabExport, _fromUtf8(""))
         self.tabNotes = CEventNotesPageEx()
         self.tabNotes.setObjectName(_fromUtf8("tabNotes"))
@@ -1024,6 +1054,7 @@ class Ui_F090Dialog(object):
 
         self.retranslateUi(F090Dialog)
         self.tabWidget.setCurrentIndex(0)
+        self.tabWidget_2.setCurrentIndex(0)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), F090Dialog.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), F090Dialog.reject)
         QtCore.QMetaObject.connectSlotsByName(F090Dialog)
@@ -1081,8 +1112,7 @@ class Ui_F090Dialog(object):
         F090Dialog.setTabOrder(self.tblMembersMSIPerson, self.cmbInfoResult)
         F090Dialog.setTabOrder(self.cmbInfoResult, self.edtVisitDateNextResult)
         F090Dialog.setTabOrder(self.edtVisitDateNextResult, self.edtCommentResult)
-        F090Dialog.setTabOrder(self.edtCommentResult, self.tblExport)
-        F090Dialog.setTabOrder(self.tblExport, self.edtOffice)
+        F090Dialog.setTabOrder(self.edtCommentResult, self.edtOffice)
         F090Dialog.setTabOrder(self.edtOffice, self.edtPlannedEndTime)
         F090Dialog.setTabOrder(self.edtPlannedEndTime, self.edtEndDate)
         F090Dialog.setTabOrder(self.edtEndDate, self.edtEndTime)
@@ -1166,6 +1196,9 @@ class Ui_F090Dialog(object):
         self.lblVisitDateNextResult.setText(_translate("F090Dialog", "Дата проведения очередного периодического медицинского осмотра", None))
         self.lblCommentResult.setText(_translate("F090Dialog", "Комментарий", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabResult), _translate("F090Dialog", "Заключение", None))
+        self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_3), _translate("F090Dialog", "Событие", None))
+        self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab), _translate("F090Dialog", "Документы", None))
+        self.tabWidget_2.setTabText(self.tabWidget_2.indexOf(self.tab_2), _translate("F090Dialog", "ВИМИС", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabExport), _translate("F090Dialog", "Экспорт", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabNotes), _translate("F090Dialog", "Примечание", None))
 
@@ -1180,9 +1213,8 @@ from Orgs.PersonComboBoxEx import CPersonWithOrgListComboBoxEx
 from Registry.RegistryTable import CRegistryActionsTableView
 from library.DateEdit import CDateEdit
 from library.ICDCodeEdit import CICDCodeEditFocusEvent
-from library.InDocTable import CInDocTableView
+from library.InDocTable import CInDocTableView, CInDocExportTableView
 from library.ROCheckBox import CROCheckBox
 from library.StrComboBox import CStrComboBox
-from library.TableView import CTableView
 from library.TextBrowser import CTextBrowser
 from library.TimeEdit import CTimeEdit

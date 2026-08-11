@@ -15,13 +15,16 @@
 from PyQt4                      import QtGui
 from PyQt4.QtSql                import QSqlRecord, QSqlField
 from PyQt4.QtCore               import pyqtSignature, QDate, Qt, QVariant, SIGNAL, QByteArray
-from library.Utils              import (forceInt,
-                                        forceString,
-                                        forceDate,
-                                        toVariant,
-                                        getPrefInt,
-                                        getPref,
-                                        setPref)
+
+from library.Identification import getIdentificationByCode
+from library.RecordLock import CRecordLockMixin
+from library.Utils import (forceInt,
+                           forceString,
+                           forceDate,
+                           toVariant,
+                           getPrefInt,
+                           getPref,
+                           setPref)
 from Events.Utils               import getEventContextData
 from Events.Action              import CActionTypeCache
 from Events.ActionInfo          import CActionInfo
@@ -45,11 +48,12 @@ from Reports.ReportView         import CReportViewDialog
 from library.Attach.AttachButton import CAttachButton
 
 
-class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin):
+class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin, CRecordLockMixin):
     # currentAttachButton - CAttachButton для алгоритма подписи (signAndAttachHandler)
     # currentAction - CAction для обновления списка прикрепленных файлов
-    def __init__(self, parent=None, currentAttachButton=None, currentAction=None):
+    def __init__(self, parent=None, currentAttachButton=None, currentAction=None, innerAppLock=False, noFilters=False):
         QtGui.QWizard.__init__(self, parent)
+        CRecordLockMixin.__init__(self)
         self.setObjectName(u'CActionGroupSignDialog')
         self.setWizardStyle(QtGui.QWizard.ModernStyle)
         self.setWindowFlags(Qt.Window)
@@ -64,11 +68,17 @@ class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin):
         self.signAndAttachHandler = self.attachButton.getSignAndAttachHandler()
         self.currentAttachButton = currentAttachButton
         self.currentAction = currentAction
+
+        self.innerAppLock = innerAppLock if not self.currentAction else False
+        self.actionIdLockIdmap = {}
+        self.actionRecordMap = {}
+        self.allActionInfoLoaded = False
+        
         if u'cactiongroupsigndialog' in QtGui.qApp.preferences.windowPrefs:
             self.loadDialogPreferences()
         else:  # первый запуск
             self.setWindowState(self.windowState() | Qt.WindowMaximized)
-        self.addPage(CActionGroupSignPage1(self))
+        self.addPage(CActionGroupSignPage1(self, noFilters))
         self.addPage(CActionGroupSignPage2(self))
 
 
@@ -86,16 +96,24 @@ class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin):
                 actionInfo._record.setValue('id', toVariant(actionId))
             self.actionInfoMap[actionId] = actionInfo
 
+            self.actionRecordMap[actionId] = actionInfo._record
+
+        self.allActionInfoLoaded = True
+
 
     def setActionIdList(self, actionIdList):
         for actionId in actionIdList:
-            context = CInfoContext()
-            record = QtGui.qApp.db.getRecord('Action', 'status, person_id', actionId)
+            record = QtGui.qApp.db.getRecord('Action', '*', actionId)
             if not record:
                 continue
-            status = forceInt(record.value('status'))
-            personId = forceInt(record.value('person_id'))
-            self.actionInfoMap[actionId] = CActionInfo(context, actionId)
+            if not self.innerAppLock:
+                context = CInfoContext()
+                status = forceInt(record.value('status'))
+                personId = forceInt(record.value('person_id'))
+                self.actionInfoMap[actionId] = CActionInfo(context, actionId)
+                self.allActionInfoLoaded = True
+
+            self.actionRecordMap[actionId] = record
 
 
     def exec_(self):
@@ -116,20 +134,32 @@ class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin):
             self.currentAttachButton.setAttachedFileItemList(self.currentAction.getAttachedFileItemList())
         else:
             # действия нет, прикрепленные файлы сохраняем сразу же
-            eventIdList = set()
-            for actionInfo in self.actionInfoMap.itervalues():
-                action = actionInfo._action
-                action.save()
-                eventIdList.add(forceInt(actionInfo._record.value('event_id')))
-            db = QtGui.qApp.db
-            tableEvent = db.table('Event')
-            db.query('UPDATE Event SET modifyDatetime = NOW() WHERE ' + tableEvent['id'].inlist(list(eventIdList)))
+            if not self.innerAppLock:
+                eventIdList = set()
+                for actionInfo in self.actionInfoMap.itervalues():
+                    action = actionInfo._action
+                    action.save()
+                    eventIdList.add(forceInt(actionInfo._record.value('event_id')))
+                db = QtGui.qApp.db
+                tableEvent = db.table('Event')
+                db.query('UPDATE Event SET modifyDatetime = NOW() WHERE ' + tableEvent['id'].inlist(list(eventIdList)))
 
+        # в идеале снимать блокировки по каждому экшену, тогда экшен.сйэв и ивент.модифай надо переносить...
+        self.releaseActionLock()
+            
         return result
+
+    def releaseActionLock(self):
+        if self.innerAppLock:
+            for lockId in self._appLockIdList:
+                try:
+                    self.releaseLock(lockId)
+                except:
+                    QtGui.qApp.logCurrentException()
 
 
 class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstructHelperMixin):
-    def __init__(self, parent):
+    def __init__(self, parent, noFilters=False):
         QtGui.QWizardPage.__init__(self, parent)
         self.addModels('Actions', CActionsModel(self))
         self.setupUi(self)
@@ -146,23 +176,34 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
         self.tblActions.horizontalHeader().sectionClicked.connect(self.on_sortByColumn)
         self.tblActions.horizontalHeader().setSortIndicator(0, Qt.AscendingOrder)
         self.loadPreferences()
+        self.noFilters = noFilters
 
 
     def initializePage(self):
         begDates = []
         endDates = []
-        for actionInfo in self.wizard().actionInfoMap.itervalues():
-            if actionInfo.begDate.date:
-                begDates.append(actionInfo.begDate.date)
-            if actionInfo.endDate.date:
-                endDates.append(actionInfo.endDate.date)
+        if self.wizard().allActionInfoLoaded:
+            for actionInfo in self.wizard().actionInfoMap.itervalues():
+                if actionInfo.begDate.date:
+                    begDates.append(actionInfo.begDate.date)
+                if actionInfo.endDate.date:
+                    endDates.append(actionInfo.endDate.date)
+        else:
+            for record in self.wizard().actionRecordMap.itervalues():
+                if forceDate(record.value('begDate')):
+                    begDates.append(forceDate(record.value('begDate')))
+                if forceDate(record.value('endDate')):
+                    endDates.append(forceDate(record.value('endDate')))
         if len(begDates) > 0:
             self.setBegDateDefault = min(begDates)
             self.setEndDateDefault = max(begDates)
         if len(endDates) > 0:
             self.execBegDateDefault = min(endDates)
             self.execEndDateDefault = max(endDates)
-        self.on_btnResetFilters_clicked()
+        if self.noFilters:
+            self.disableAllFilters()
+        else:
+            self.on_btnResetFilters_clicked()
 
 
     def loadPreferences(self):
@@ -201,24 +242,45 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
 
     @pyqtSignature('')
     def on_btnResetFilters_clicked(self):
-        self.cmbActionStatus.setCurrentIndex(0)
-        self.chkSetDate.setChecked(True)
-        self.chkExecDate.setChecked(True)
-        self.chkPerson.setChecked(False)
-        self.cmbPerson.setValue(QtGui.qApp.userId)
-        self.chkSetPerson.setChecked(False)
-        self.cmbSetPerson.setValue(QtGui.qApp.userId)
-        self.chkWithoutDocuments.setChecked(True)
-        self.chkExportSuitable.setChecked(True)
-        self.edtSetBegDate.setDate(self.setBegDateDefault)
-        self.edtSetEndDate.setDate(self.setEndDateDefault)
-        self.edtExecBegDate.setDate(self.execBegDateDefault)
-        self.edtExecEndDate.setDate(self.execEndDateDefault)
+        try:
+            # функция обновляла вью кратно количеству виджетов
+            self.blockSignalsCustom(True)
+            self.cmbActionStatus.setCurrentIndex(0)
+            self.chkSetDate.setChecked(True)
+            self.chkExecDate.setChecked(True)
+            self.chkPerson.setChecked(False)
+            self.cmbPerson.setValue(QtGui.qApp.userId)
+            self.chkSetPerson.setChecked(False)
+            self.cmbSetPerson.setValue(QtGui.qApp.userId)
+            self.chkWithoutDocuments.setChecked(True)
+            self.chkExportSuitable.setChecked(True)
+            self.edtSetBegDate.setDate(self.setBegDateDefault)
+            self.edtSetEndDate.setDate(self.setEndDateDefault)
+            self.edtExecBegDate.setDate(self.execBegDateDefault)
+            self.edtExecEndDate.setDate(self.execEndDateDefault)
+        finally:
+            self.blockSignalsCustom(False)
         self.updateActionsList()
+
+    def blockSignalsCustom(self, state):
+        for wgt in (
+                self.cmbActionStatus,
+                self.chkSetDate,
+                self.chkExecDate,
+                self.cmbPerson,
+                self.cmbSetPerson,
+                self.chkWithoutDocuments,
+                self.chkExportSuitable,
+                self.edtSetBegDate,
+                self.edtSetEndDate,
+                self.edtExecBegDate,
+                self.edtExecEndDate
+        ):
+            wgt.blockSignals(state)
 
 
     def updateActionsList(self):
-        self.modelActions.load(self.wizard().actionInfoMap.itervalues(), self.getFilters())
+        self.modelActions.load(self.wizard(), self.getFilters())
         self.lblCountRecords.setText(u'Всего записей: ' + forceString(len(self.modelActions.items())))
         self.emit(SIGNAL('completeChanged()'))
 
@@ -306,6 +368,9 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
             return
         record = self.modelActions.getRecordByRow(currentIndex.row())
         actionId = forceInt(record.value('id'))
+
+        messageNotLocked = self.setActionLock(actionId)
+
         templateId = forceInt(record.value('templateId'))
         result, isError, type = getTempalteResult(self.wizard(), templateId, actionId)
         if type == svgTemplate:
@@ -314,6 +379,26 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
             self.txtReport.setHtml(htmlContent)
         else:
             self.txtReport.setHtml(result.content)
+
+        if self.wizard().innerAppLock and messageNotLocked:
+            QtGui.QMessageBox().warning(self.wizard(), u'Внимание!', messageNotLocked)
+    
+    def setActionLock(self, actionId):
+        messageNotLocked = u''
+        if self.wizard().innerAppLock and not self.wizard().actionIdLockIdmap.get(actionId, None):
+            try:
+                appLockId, messageNotLocked = self.wizard().tryLock('Action', actionId, shorted=1)
+                if appLockId:
+                    self.wizard().actionIdLockIdmap[actionId] = appLockId
+            except:
+                appLockId = None
+                QtGui.qApp.logCurrentException()
+            if appLockId is None:
+                messageNotLocked += u' При подписании данные могут отличаться от отображаемых!'
+            if not actionId < 0:
+                self.wizard().actionInfoMap[actionId] = CActionInfo(CInfoContext(), actionId)
+        return messageNotLocked
+    
     
     @pyqtSignature('QModelIndex,QModelIndex')
     def on_modelActions_dataChanged(self, topLeft, bottomRight):
@@ -379,13 +464,17 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         self.progressBar.setValue(0)
         self.signedCount = 0
         self.skippedCount = 0
+        self.signedExtCount = {}
         for record in self.records:
             if self.isAborted:
                 break
             if forceInt(record.value('isChecked')):
                 self.processRecord(record)
                 self.progressBar.setValue(self.progressBar.value() + 1)
-                self.lblStatus.setText(u'пропущено: %d, подписано и прикреплено: %d' % (self.skippedCount, self.signedCount))
+                self.lblStatus.setText(
+                    u'пропущено: %d, подписано и прикреплено: %d,%s' % (
+                    self.skippedCount, self.signedCount,
+                    u', '.join(u' подписано {}: {}'.format(key, value) for key, value in self.signedExtCount.items())))
             QtGui.qApp.processEvents()
         self.done = True
         self.btnAbort.setEnabled(False)
@@ -403,9 +492,15 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         else:
             actionInfoStr = '%s|%s' % (code, name)
 
+        if not self.setActionLock(actionId):
+            self.logBrowser.append(u'%s - не удалось установить блокировку' % (actionInfoStr))
+            self.skippedCount += 1
+            return
+
         if not QtGui.qApp.getAllowUnsignedAttachments() and not QtGui.qApp.isCspDefined():
             self.logBrowser.append(u'%s - запрещено прикреплять документ без подписи' % (actionInfoStr))
             self.skippedCount += 1
+            self.releaseActionLock(None, actionId)
             return
 
         try:
@@ -413,9 +508,10 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         except:
             result, isError = None, True
             QtGui.qApp.logCurrentException()
-        if isError:
+        if isError or result is None:
             self.logBrowser.append(u'%s - документ не сформирован' % (actionInfoStr))
             self.skippedCount += 1
+            self.releaseActionLock(None, actionId)
             return
 
         self.reportView.fileName = result.documentName
@@ -425,7 +521,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         self.reportView.templateContent = result.content
 
         attachButton = self.wizard().attachButton
-        actionInfo = self.wizard().actionInfoMap[actionId]
+        actionInfo = self.wizard().actionInfoMap.setdefault(actionId, CActionInfo(CInfoContext(), actionId))
         action = actionInfo._action
 
         db = QtGui.qApp.db
@@ -441,7 +537,8 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
             ok, trail = self.reportView.signAndAttach(
                 templateId=templateId,
                 snils=snils,
-                requireSignerPerson=requireSignerPerson
+                requireSignerPerson=requireSignerPerson,
+                silent=True
                 #action._actionType.isNeedAllMembersSign,
                 #canSign=True,
                 #signerIdList=[],
@@ -462,10 +559,12 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
                 for filename in result.supplements.keys():
                     self.logBrowser.append(u'%s - документ «%s» успешно сформирован,'\
                                            u' подписан и прикреплён' % (actionInfoStr, result.documentName + '.' + filename))
+                    self.signedExtCount[filename] = self.signedExtCount.setdefault(filename, 0) + 1
             else:
                 self.logBrowser.append(u'%s - документ «%s» успешно сформирован,'\
                                        u' прикреплён без подписи' % (actionInfoStr, mainFileName))
                 for filename in result.supplements.keys():
+                    self.signedExtCount.setdefault(filename, 0)
                     self.logBrowser.append(u'%s - документ «%s» успешно сформирован,'\
                                            u' прикреплён без подписи' % (actionInfoStr, result.documentName + '.' + filename))
             self.isChanged = True
@@ -475,6 +574,42 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         else:
             self.logBrowser.append(u'%s - документ не сформирован' % (actionInfoStr))
             self.skippedCount += 1
+
+        self.releaseActionLock(actionInfo, actionId)
+
+    def releaseActionLock(self, actionInfo, actionId):
+        if self.wizard().innerAppLock:
+            lockId = self.wizard().actionIdLockIdmap.get(actionId, None)
+            if not lockId:
+                return
+            try:
+                if actionInfo:
+                    action = actionInfo._action
+                    action.save()
+                    tableEvent = QtGui.qApp.db.table('Event')
+                    QtGui.qApp.db.query('UPDATE Event SET modifyDatetime = NOW() WHERE ' + tableEvent['id'].eq(
+                        forceInt(actionInfo._record.value('event_id'))))
+            except:
+                QtGui.qApp.logCurrentException()
+            try:
+                self.wizard().releaseLock(lockId)
+            except:
+                QtGui.qApp.logCurrentException()
+
+    def setActionLock(self, actionId):
+        if self.wizard().innerAppLock and not self.wizard().actionIdLockIdmap.get(actionId, None):
+            try:
+                appLockId, _ = self.wizard().tryLock('Action', actionId, shorted=1)
+                if appLockId:
+                    self.wizard().actionIdLockIdmap[actionId] = appLockId
+            except:
+                appLockId = None
+                QtGui.qApp.logCurrentException()
+            if appLockId is None:
+                return False
+            if not actionId < 0:
+                self.wizard().actionInfoMap[actionId] = CActionInfo(CInfoContext(), actionId)
+        return True
 
 
 class CLocRBInDocTableCol(CRBInDocTableCol):
@@ -494,6 +629,9 @@ class CActionsModel(CRecordListModel):
         self.addCol(CDateInDocTableCol(u'Дата начала', 'begDate', 20, readOnly=True))
         self.addCol(CDateInDocTableCol(u'Дата окончания', 'endDate', 20, readOnly=True))
         self.addCol(CLocRBInDocTableCol(u'Шаблон', 'templateId', 40, 'rbPrintTemplate', addNone=False))
+
+        self.actionTypeByUrnCodeMap = {}
+        self.actionDocumentCountMap = {}
 
 
     def getEmptyRecord(self):
@@ -537,23 +675,64 @@ class CActionsModel(CRecordListModel):
             return False
         if execEndDate and forceDate(record.value('endDate')) > execEndDate:
             return False
-        if isWithoutDocuments and len(actionInfo._action.getAttachedFileItemList()) > 0:
-            return False
+        if isWithoutDocuments:
+            if not self._isActionRecordSuitableByWithoutDocumentsFilter(record, actionInfo):
+                return False
         if isExportSuitable:
-            pdf = actionInfo.identifyInfoByCode('n3.medDocumentType.Pdf').value
-            cda = actionInfo.identifyInfoByCode('n3.medDocumentType.Cda').value
-            observation = actionInfo.identifyInfoByCode('n3.medDocumentType.Observation').value
+            pdf, cda, observation = self._getActionRecordSuitableByExportVals(record, actionInfo)
             if not pdf and not cda and not observation:
                 return False
 
         return True
 
+    def _isActionRecordSuitableByWithoutDocumentsFilter(self, record, actionInfo):
+        if actionInfo is not None:
+            if len(actionInfo._action.getAttachedFileItemList()) > 0:
+                return False
+        else:
+            if self.checkActionWithoutDocuments(forceInt(record.value('id'))) > 0:
+                return False
+        return True
 
-    def load(self, actionInfoList, filters):
+    def _getActionRecordSuitableByExportVals(self, record, actionInfo):
+        if actionInfo is not None:
+            pdf = actionInfo.identifyInfoByCode('n3.medDocumentType.Pdf').value
+            cda = actionInfo.identifyInfoByCode('n3.medDocumentType.Cda').value
+            observation = actionInfo.identifyInfoByCode('n3.medDocumentType.Observation').value
+        else:
+            actionTypeId = forceInt(record.value('actionType_id'))
+            pdf = self.identifyActionTypeByUrnCode(actionTypeId, 'n3.medDocumentType.Pdf')
+            cda = self.identifyActionTypeByUrnCode(actionTypeId, 'n3.medDocumentType.Cda')
+            observation = self.identifyActionTypeByUrnCode(actionTypeId, 'n3.medDocumentType.Observation')
+        return pdf, cda, observation
+
+    def identifyActionTypeByUrnCode(self, actionTypeId, code):
+        if (actionTypeId, code) in self.actionTypeByUrnCodeMap:
+            return self.actionTypeByUrnCodeMap[(actionTypeId, code)]
+        # value = self.actionTypeByUrnCodeMap.get((actionTypeId, code), None)
+        # if not value:
+        value = self.actionTypeByUrnCodeMap[(actionTypeId, code)] = \
+            getIdentificationByCode('ActionType', actionTypeId, code, raiseIfNonFound=False)
+        return value
+
+    def checkActionWithoutDocuments(self, actionId):
+        if actionId in self.actionDocumentCountMap:
+            return self.actionDocumentCountMap[actionId]
+        # value = self.actionDocumentCountMap.get(actionId, None)
+        # if not value:
+        tableAFA = QtGui.qApp.db.table('Action_FileAttach')
+        value = self.actionDocumentCountMap[actionId] = QtGui.qApp.db.getCount(tableAFA,
+                                       where=[tableAFA['master_id'].eq(actionId), tableAFA['deleted'].eq(0)])
+        return value
+
+
+
+    def load(self, wizard, filters):
         itemsList = []
-        for idx, actionInfo in enumerate(actionInfoList):
-            record = actionInfo._record
-            if not self._isActionRecordSuitableByFilters(record, actionInfo, filters):
+        for idx, actionInfo in enumerate(self.getActionMap(wizard)):
+            isRecord = isinstance(actionInfo, QSqlRecord)
+            record = actionInfo._record if not isRecord else actionInfo
+            if not self._isActionRecordSuitableByFilters(record, actionInfo if not isRecord else None, filters):
                 continue
             actionTypeId = forceInt(record.value('actionType_id'))
             actionType = CActionTypeCache.getById(actionTypeId) if actionTypeId else None
@@ -579,6 +758,11 @@ class CActionsModel(CRecordListModel):
                     newRecord.setValue('context', context)
                     itemsList.append(newRecord)
         self.setItems(itemsList)
+
+    def getActionMap(self, wizard):
+        #условие or self.currentAction - если все переедет на рекорд
+        return wizard.actionInfoMap.itervalues() if wizard.allActionInfoLoaded \
+            else wizard.actionRecordMap.itervalues()
 
 
     def selectAll(self):
@@ -608,11 +792,44 @@ class CActionsModel(CRecordListModel):
             self._parent.emit(SIGNAL('completeChanged()'))
         return result
 
+class DisabledAttribute(object):
+    def __call__(self, *args, **kwargs):
+        raise UserWarning
+
+    def __or__(self, other):
+        return self
+
+    def __ror__(self, other):
+        return self
+
+    def __getattr__(self, name):
+        return self
+
+    def __int__(self):
+        return 0
+
+class DisabledDialogMeta(type):
+    def __getattr__(cls, name):
+        return DisabledAttribute()
+
+class DisabledMessageDialog(object):
+    __metaclass__ = DisabledDialogMeta
+
+    def __init__(self, *args, **kwargs):
+        pass 
+
+    def __getattr__(self, name):
+        return DisabledAttribute()
+
+class DisabledDialog(QtGui.QDialog):
+    def exec_():
+        raise UserWarning
+
 
 def getTempalteResult(wizard, templateId, actionId):
     from Events.TeethEventInfo import CTeethEventInfo
 
-    name, template, type_, printBlank = getTemplate(templateId)
+    name, template, type_, printBlank, code = getTemplate(templateId, True)
     result = u''
     isError = False
     if type_ not in (htmlTemplate, svgTemplate):
@@ -624,7 +841,8 @@ def getTempalteResult(wizard, templateId, actionId):
         isError = True
         return result, isError, type_
 
-    actionInfo = wizard.actionInfoMap[actionId]
+    # actionInfo = wizard.actionInfoMap[actionId]
+    actionInfo = wizard.actionInfoMap.setdefault(actionId, CActionInfo(CInfoContext(), actionId))
     eventInfo = actionInfo.getEventInfo(infoClass=CTeethEventInfo)
     data = {
         'event': eventInfo,
@@ -632,13 +850,13 @@ def getTempalteResult(wizard, templateId, actionId):
         'actions': eventInfo.actions,
         'client': eventInfo.client,
         # запрещаем использовать диалоги, создавая ошибку
-        'dialogs': None,
+        'dialogs': DisabledDialog,
     }
     # TODO: найти другой способ создавать ошибку при вызове диалогов
     oldMessageBox = QtGui.QMessageBox
     oldDialog = QtGui.QDialog
-    QtGui.QMessageBox = None
-    QtGui.QDialog = None
+    QtGui.QMessageBox = DisabledMessageDialog
+    QtGui.QDialog = DisabledDialog
 
     # в CAction._properties оказываются только заполненные свойства
     # форсируем создание других свойств через обращение к ним
@@ -647,6 +865,8 @@ def getTempalteResult(wizard, templateId, actionId):
 
     try:
         result = compileAndExecTemplate(name, template, data, templateId=templateId)
+        if result.content is None:
+            raise Exception
     except:
         result = CTemplateExecutionResult(
             u'Ошибка', u'<HTML><BODY>ОШИБКА ЗАПОЛНЕНИЯ ШАБЛОНА</BODY></HTML>', {}, {})

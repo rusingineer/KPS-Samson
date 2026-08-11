@@ -1576,8 +1576,8 @@ class CTariffModel(CInDocTableModel):
                 kuslId = item.value('service_id').toInt()[0]
                 match = match and (kuslId in kuslIdList)
             if filter_date_valid:
-                data = QDate.fromString(self.index(row, 9).data().toString(), "dd.MM.yyyy")
-                dataStart = QDate.fromString(self.index(row, 8).data().toString(), "dd.MM.yyyy")
+                data = QDate.fromString(self.index(row, self.getColIndex('endDate')).data().toString(), "dd.MM.yyyy") #9
+                dataStart = QDate.fromString(self.index(row, self.getColIndex('begDate')).data().toString(), "dd.MM.yyyy") #8
                 match = match and (not data or data >= filter_date) and dataStart <= filter_date  
             if params.get('eventType_id', None):
                 match = match and forceInt(item.value('eventType_id')) == params['eventType_id']
@@ -1600,6 +1600,7 @@ class CTariffModel(CInDocTableModel):
         CInDocTableModel.__init__(self, 'Contract_Tariff', 'id', 'master_id', parent)
 
         self.parent = parent  # wtf? скрывать Qt-шный parent - это плохая затея
+        self.addCol(CBoolInDocTableCol(u'Внешний',          'isExternal', 5))
         self.addCol(CRBInDocTableCol(u'Событие',            'eventType_id',  30, 'EventType', filter='deleted=0')).setSortable(True)
         self.colCureMethod = self.addCol(CRBInDocTableCol(u'Метод лечения', 'cureMethod_id', 30, 'rbCureMethod'))
         self.colCureMethod.setSortable(True)
@@ -1618,8 +1619,8 @@ class CTariffModel(CInDocTableModel):
         self.addCol(CEnumInDocTableCol( u'Период контроля','controlPeriod', 20, (u'Дата услуги', u'Начало года', u'Конец года')))
         self.addCol(CRBInDocTableCol(u'Ед.Уч.',             'unit_id',       8, 'rbMedicalAidUnit'))
         self.addCol(CFloatInDocTableCol(u'Кол-во',          'amount',        8))
-        self.addCol(CFloatInDocTableCol(u'УЕТ',             'uet',           4, precision=2))
-        self.addCol(CFloatInDocTableCol(u'Цена',            'price',         8, precision=4))
+        self.addCol(CFloatInDocTableCol(u'УЕТ',             'uet',           4, precision=2)).setSortable(True)
+        self.addCol(CFloatInDocTableCol(u'Цена',            'price',         8, precision=4)).setSortable(True)
         self.addCol(CFloatInDocTableCol(u'НДС (%)',            'VAT',         4, precision=2))
         self.addCol(CFloatInDocTableCol(u'Второй тариф с',  'frag1Start', 8, precision=0))
         self.addCol(CFloatInDocTableCol(u'Сумма второго тарифа', 'frag1Sum',   8, precision=4))
@@ -1676,7 +1677,7 @@ class CTariffModel(CInDocTableModel):
         if index.isValid():
             row = index.row()
             column = index.column()
-            if column == 2 and self.eventResultDisabled(row):
+            if column == self.getColIndex('result_id') and self.eventResultDisabled(row): # 2
                 return True
         return False
 
@@ -1693,7 +1694,7 @@ class CTariffModel(CInDocTableModel):
             row = index.row()
             column = index.column()
             if 0 <= row < len(self._items):
-                if column == 5:
+                if column == self.getColIndex('service_id'): # 5
                     serviceId = forceInt(self.items()[row].value('service_id'))
                     serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
                     if serviceRecord:
@@ -1709,7 +1710,7 @@ class CTariffModel(CInDocTableModel):
             row = index.row()
             column = index.column()
             if 0 <= row < len(self._items):
-                if column == 5:
+                if column == self.getColIndex('service_id'): # 5
                     serviceId = forceInt(self.items()[row].value('service_id'))
                     serviceRecord = self.serviceRecordCache.get(serviceId) if serviceId else None
                     if serviceRecord:
@@ -1724,13 +1725,13 @@ class CTariffModel(CInDocTableModel):
     def setData(self, index, value, role=Qt.EditRole):
         column = index.column()
         row = index.row()
-        if column == 0 and row<len(self.items()):
+        if column == self.getColIndex('eventType_id') and row<len(self.items()): #0
             record = self.items()[row]
             eventTypeId = forceRef(record.value('eventType_id'))
             newEventTypeId = forceRef(value)
             if newEventTypeId is None or newEventTypeId != eventTypeId:
                 record.setValue('result_id', QVariant())
-                self.emitCellChanged(row, 2)
+                self.emitCellChanged(row, self.getColIndex('result_id')) #2
         result = CInDocTableModel.setData(self, index, value, role)
         if result and column == self.getColIndex('price', -1):
             self.emit(SIGNAL('priceEdited()'))

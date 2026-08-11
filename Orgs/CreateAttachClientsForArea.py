@@ -467,15 +467,18 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
                         clientAttachRecord.setValue('endDate', QVariant(forceDate(self.edtDate.date()).addDays(-1)))
                         clientAttachRecord.setValue('notes', QVariant(notes))
                         db.updateRecords(tableClientAttach, clientAttachRecord, [tableClientAttach['id'].eq(clientAttachId)])
-                        newRecord = tableClientAttach.newRecord()
-                        newRecord.setValue('client_id', QVariant(clientId))
-                        newRecord.setValue('attachType_id', QVariant(1))
-                        newRecord.setValue('LPU_id', QVariant(organisationId))
-                        newRecord.setValue('orgStructure_id', QVariant(masterId))
-                        newRecord.setValue('begDate', QVariant(self.edtDate.date()))
-                        newRecord.setValue('notes', QVariant(notes))
-                        db.insertRecord(tableClientAttach, newRecord)
-                else:
+                        # отработает по следующему условию
+                        # newRecord = tableClientAttach.newRecord()
+                        # newRecord.setValue('client_id', QVariant(clientId))
+                        # newRecord.setValue('attachType_id', QVariant(1))
+                        # newRecord.setValue('LPU_id', QVariant(organisationId))
+                        # newRecord.setValue('orgStructure_id', QVariant(masterId))
+                        # newRecord.setValue('begDate', QVariant(self.edtDate.date()))
+                        # newRecord.setValue('notes', QVariant(notes))
+                        # db.insertRecord(tableClientAttach, newRecord)
+                if not clientAttachRecord or (
+                        clientAttachRecord and forceDate(clientAttachRecord.value('endDate')) and forceDate(
+                        clientAttachRecord.value('endDate')) < self.edtDate.date()):
                     newRecord = tableClientAttach.newRecord()
                     newRecord.setValue('client_id', QVariant(clientId))
                     newRecord.setValue('attachType_id', QVariant(1))
@@ -529,7 +532,12 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
         record = self.getCreateOrUpdateClientAttachRecord(clientId)
         notes = u'Сервис "прикрепление": {0}, пользователь {1}'.format(
             formatDateTime(QDateTime.currentDateTime()), QtGui.qApp.userName())
+        mustCreateAttach = 1
         if record:
+            endDate = forceDate(record.value('endDate'))
+            if not (endDate and endDate < currentDate):
+                mustCreateAttach = 0
+        if not mustCreateAttach:
             pass
             # attachCode     = forceBool(record.value('attachCode'))
             # clientAttachId = forceRef(record.value('clientAttachId'))

@@ -15,7 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import SIGNAL
 
-from library.Utils import forceRef, forceString
+from library.Utils import forceRef, forceString, forceDate
 from library.DbComboBox import CDbComboBox, CDbData, CDbModel
 from library.CSG.CSGComboBoxPopup import CCSGComboBoxPopup, TABLE_CSG, TABLE_CSG_MKB
 
@@ -30,13 +30,15 @@ defaultFilters = {'age': True,
                   'isEventProfile': 1,
                   'MKBEx': None,
                   'duration': 0,
+                  'showOnlyByContract': True
                  }
 
 
 
 
 class CCSGDbData(CDbData):
-    def __init__(self, eventEditor, mesServiceTemplate, MKB, eventProfileId, csgRecord, codeMask):
+    def __init__(self, eventEditor, mesServiceTemplate, MKB, eventProfileId, csgRecord, codeMask, krit=None,
+                 associatedMKB=None, complicationMKB=None, fractions=None, csgBegDate=None, csgEndDate=None):
         CDbData.__init__(self)
         self.eventEditor = eventEditor
         self.clientBirthDate = eventEditor.clientBirthDate
@@ -47,6 +49,12 @@ class CCSGDbData(CDbData):
         self.MKB = MKB
         self.eventProfileId = eventProfileId
         self.csgRecord = csgRecord
+        self.krit = krit
+        self.associatedMKB = associatedMKB
+        self.complicationMKB = complicationMKB
+        self.fractions = fractions
+        self.csgBegDate = csgBegDate
+        self.csgEndDate = csgEndDate
 
 
     def buildMKBCond(self, mkbCond, MKBvalue):
@@ -59,7 +67,97 @@ class CCSGDbData(CDbData):
         return tableCSGMkb['mkb'].like(MKBvalue[:3]+'%')
 
 
+    def buildMKBCondNew(self, mkbCond, MKBvalue, table, field):
+        # tableCSGMkb  = QtGui.qApp.db.table(TABLE_CSG_MKB)
+        if mkbCond == 2: # строгое соответствие
+            return table[field].eq(MKBvalue)
+        if mkbCond == 3: # по классу
+            return table[field].like(MKBvalue[:1]+'%')
+        # по рубрике
+        return table[field].like(MKBvalue[:3]+'%')
+
+
     def select(self, filter):
+        useSex = filter.get('sex', True)
+        useAge = filter.get('age', True)
+        useCsgServices = filter.get('csgServices', True)
+        mkbCond = filter.get('mkbCond', 2)
+        isEventProfile = filter.get('isEventProfile', 1)
+        MKBEx = filter.get('MKBEx', None)
+        duration = filter.get('duration', 0)
+        showOnlyByContract = filter.get('showOnlyByContract', True)
+        clientAge = self.eventEditor.clientAge
+        self.idList = [None]
+        self.strList = ['']
+        db = QtGui.qApp.db
+        opATList = []
+        tabs = []
+        if self.eventEditor and hasattr(self.eventEditor, 'tabStatus'):
+            tabs.append(self.eventEditor.tabStatus)
+        if self.eventEditor and hasattr(self.eventEditor, 'tabCure'):
+            tabs.append(self.eventEditor.tabCure)
+        if self.eventEditor and hasattr(self.eventEditor, 'tabDiagnostic'):
+            tabs.append(self.eventEditor.tabDiagnostic)
+        if self.eventEditor and hasattr(self.eventEditor, 'tabMisc'):
+            tabs.append(self.eventEditor.tabMisc)
+        for tab in tabs:
+            for item in tab.modelAPActions._items:
+                opATList.append(item[1]._actionType.id)
+
+        tableActionType = db.table('ActionType')
+        tableService = db.table('rbService')
+        table = tableActionType.leftJoin(tableService,
+                                         tableService['id'].eq(tableActionType['nomenclativeService_id']))
+        recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
+        codeList = [forceString(r.value('infis')) for r in recordList]
+
+        begDate = self.csgBegDate
+        endDate = self.csgEndDate
+        if not endDate and not begDate:
+            begDate = forceDate(self.eventEditor.edtBegDate.date())
+            endDate = forceDate(self.eventEditor.edtEndDate.date())
+        if not endDate:
+            endDate = begDate
+
+        if not duration:
+            duration = begDate.daysTo(endDate)
+
+        vpId = forceRef(db.translate('EventType', 'id', self.eventEditor.eventTypeId, 'medicalAidType_id'))
+        vpCode = forceString(db.translate('rbMedicalAidType', 'id', vpId, 'regionalCode'))
+        vpname = ''
+        if vpCode in ('11','12','301','302','401','402'):
+            vpname = u'стационар'
+        elif vpCode in ('41', '411', '42', '422', '43', '51', '511', '52', '522', '71', '72', '90'):
+            vpname = u'дневной стационар'
+
+        contractId = forceString(self.eventEditor.contractId) if self.eventEditor.contractId else '0'  # если в событии не указан договор
+        if not showOnlyByContract:
+            # если надо вывести ещё и те, на которые нет тарифа
+            contractId += ',-1'
+
+        # if self.codeMask:
+        #     cond.append(tableService['infis'].regexp(self.codeMask))
+
+        stmt = u"CALL getCSG_Group('{0}', '{1}', '{2}', '{3}', {4}, {5}, '{6}', '{7}', {8}, '{9}', '{10}', '{11}', '{12}', '{13}');".format(
+            self.MKB, self.associatedMKB, self.complicationMKB, ",".join(codeList), forceString(clientAge[0]),
+            forceString(clientAge[3]), u'М' if self.clientSex == 1 else u'Ж', begDate.toString('yyyy-MM-dd'),
+            forceString(duration), vpname, endDate.toString('yyyy-MM-dd'), self.krit if self.krit else u'',
+            forceString(self.fractions) if self.fractions else u'', contractId
+        )
+        query = db.query(stmt)
+
+        # recordList = db.getRecordList(queryTable,
+        #                                ["DISTINCT " + tableService['id'].name(), tableService['infis'].name()],
+        #                                where=cond,
+        #                                order='%s.infis, %s.id' % (tableService.name(), tableService.name()))
+
+        while query.next():
+            record = query.record()
+            self.idList.append(forceRef(record.value(0)))
+            self.strList.append(forceString(record.value(1)))
+
+
+    def select_old(self, filter):
         useSex = filter.get('sex', True)
         useAge = filter.get('age', True)
         useCsgServices = filter.get('csgServices', True)
@@ -86,9 +184,11 @@ class CCSGDbData(CDbData):
         tableCSG = db.table(TABLE_CSG)
         tableCSGMkb  = db.table(TABLE_CSG_MKB)
         tableCSGService = db.table('mes.CSG_Service')
+        tableSpr69 = db.table('soc_spr69')
         queryTable = tableCSG
         queryTable = queryTable.leftJoin(tableCSGService, tableCSGService['master_id'].eq(tableCSG['id']))
         queryTable = queryTable.leftJoin(tableCSGMkb,         tableCSGMkb['master_id'].eq(tableCSG['id']))
+        queryTable = queryTable.leftJoin(tableSpr69, tableSpr69['ksgkusl'].eq(tableCSG['code']))
         cond  = [
             db.joinOr( [
                 tableCSG['begDate'].isNull(),
@@ -97,6 +197,14 @@ class CCSGDbData(CDbData):
             db.joinOr( [
                 tableCSG['endDate'].isNull(),
                 tableCSG['endDate'].signEx('>=', 'current_timestamp')
+                ]),
+            db.joinOr( [
+                tableSpr69['datn'].isNull(),
+                tableSpr69['datn'].signEx('<=', 'current_timestamp')
+                ]),
+            db.joinOr( [
+                tableSpr69['dato'].isNull(),
+                tableSpr69['dato'].signEx('>=', 'current_timestamp')
                 ])
             ]
 
@@ -168,6 +276,9 @@ class CCSGDbData(CDbData):
         #         self.idList.append(forceRef(record.value(0)))
         #         self.strList.append(forceString(record.value(1)))
 
+        if self.krit:
+            cond.append(tableSpr69['KRIT'].eq(self.krit))
+            
         recordList = db.getRecordList(queryTable, ["DISTINCT " + tableCSG['id'].name(), tableCSG['code'].name()],
                                   where=cond,
                                   order='%s.code, %s.id' % (TABLE_CSG, TABLE_CSG))
@@ -184,7 +295,11 @@ class CCSGDbModel(CDbModel):
         self.dbdata = None
 
     def prepareData(self):
-        self.dbdata = CCSGDbData(self.editor.eventEditor, self.editor.mesServiceTemplate, self.editor.MKB, self.editor.eventProfileId, self.editor.csgRecord, self.editor.codeMask)
+        self.dbdata = CCSGDbData(
+            self.editor.eventEditor, self.editor.mesServiceTemplate, self.editor.MKB, self.editor.eventProfileId,
+            self.editor.csgRecord, self.editor.codeMask, self.editor.krit, self.editor.associatedMKB,
+            self.editor.complicationMKB, self.editor.fractions, self.editor.csgBegDate, self.editor.csgEndDate
+        )
         self.dbdata.select(self.editor.filterValues)
 
 
@@ -203,12 +318,22 @@ class CCSGComboBox(CDbComboBox):
         self.clientBirthDate = None
         self.eventBegDate = None
         self.MKB = MKB
+        # до CCSGTableModel значения, устанавливаемые после init не доходят
+        # используем modelCsgCol, чтобы вытянуть установленные фильтры
+        modelCsgCol = parent.parent().model().csgCol
+        self.associatedMKB = modelCsgCol._associatedMKB
+        self.complicationMKB = modelCsgCol._complicationMKB
         self.eventProfileId = eventProfileId
         self.codeMask = None
+        self.krit = forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceRef(modelCsgCol._krit), 'code'))
+        self.fractions = modelCsgCol._fractions
+        self.csgBegDate = forceDate(modelCsgCol._csgBegDate)
+        self.csgEndDate = forceDate(modelCsgCol._csgEndDate)
         self._tableName = TABLE_CSG
         self.mesServiceTemplate = mesServiceTemplate
         self._addNone = True
         self._customFilter = None
+        self._contractId = eventEditor.contractId
         self.eventEditor = eventEditor
         self._popup = CCSGComboBoxPopup(self, eventEditor = self.eventEditor)
         self.connect(self._popup, SIGNAL('CSGSelected(int)'), self.setValue)
@@ -235,16 +360,71 @@ class CCSGComboBox(CDbComboBox):
         self.codeMask = mask
 
 
+    def setKrit(self, krit):
+        self.krit = krit
+
+
+    def setAssociatedMKB(self, associatedMKB):
+        self.associatedMKB = associatedMKB
+
+
+    def setComplicationMKB(self, complicationMKB):
+        self.complicationMKB = complicationMKB
+
+
+    def setFractions(self, fractions):
+        self.fractions = fractions
+
+
+    def setCsgBegDate(self, csgBegDate):
+        self.csgBegDate = csgBegDate
+
+
+    def setCsgEndDate(self, csgEndDate):
+        self.csgEndDate = csgEndDate
+
+
+    def setValue(self, itemId):
+        rowIndex = max(self.model().searchId(itemId), 0)
+        self.setCurrentIndex(rowIndex)
+
+
+    def value(self):
+        rowIndex = self.currentIndex()
+        return self.model().getId(rowIndex)
+
+
+    def setText(self, name):
+        itemId = self.model().getIdByName(name)
+        rowIndex = max(self.model().searchId(itemId), 0)
+        self.setCurrentIndex(rowIndex)
+
+
+    def text(self):
+        rowIndex = self.currentIndex()
+        return forceString(self.model().getName(rowIndex))
+
+
+    def updateModel(self):
+        itemText = self.text()
+        self.model().update()
+        self.setText(itemText)
+
+
     def showPopup(self):
         pos = self.mapToGlobal(self.rect().bottomLeft())
         size = self._popup.sizeHint()
         width= max(size.width(), self.width())
-        size.setWidth(width)
         screen = QtGui.QApplication.desktop().availableGeometry(pos)
-        pos.setX( max(min(pos.x(), screen.right()-size.width()), screen.left()) )
-        pos.setY( max(min(pos.y(), screen.bottom()-size.height()), screen.top()) )
+        size.setWidth(screen.width())
+        pos.setX(max(min(pos.x(), screen.right() - size.width()), screen.left()))
+        pos.setY(max(min(pos.y(), screen.bottom() - size.height()), screen.top()))
         self._popup.move(pos)
         self._popup.resize(size)
         self._popup.show()
-        self._popup.setup(self.clientSex, self.clientBirthDate, self.MKB, self.value(), self.eventBegDate, self.mesServiceTemplate, self.codeMask, self.eventProfileId)
+        self._popup.setup(
+            self.clientSex, self.clientBirthDate, self.MKB, self.value(), self.eventBegDate, self.mesServiceTemplate,
+            self.codeMask, self.eventProfileId, self.krit, self.associatedMKB, self.complicationMKB, self.fractions,
+            self.csgBegDate, self.csgEndDate
+        )
 

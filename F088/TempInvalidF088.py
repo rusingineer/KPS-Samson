@@ -17,11 +17,12 @@ from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QDateTime
 
 from library.DialogBase           import CConstructHelperMixin
 from library.database             import CTableRecordCache
-from library.Utils                import forceRef
-from Registry.Utils               import getRightEditTempInvalid, getClientMiniInfo
+from library.Utils                import forceRef, forceDate, forceInt
+from Registry.Utils               import getRightEditTempInvalid, getClientMiniInfo, getTempInvalidDocumentIdList, getLastTempInvalidDocument, getClientName, getTempInvalidDocumentInfo
 from Events.TempInvalidEditDialog import CTempInvalidCreateDialog, CTempInvalidEditDialog, titleList, getTempInvalidIdOpen
 from Events.TempInvalidInfo       import CTempInvalidInfo
 from Events.TempInvalid           import CTempInvalidPrivateModel
+from Users.Rights import urRegWriteInsurOfficeMark
 
 from F088.Ui_TempInvalidF088      import Ui_grpTempInvalid
 
@@ -41,6 +42,7 @@ class CTempInvalidF088(QtGui.QGroupBox, CConstructHelperMixin, Ui_grpTempInvalid
         table = self.tblTempInvalidPrivate
         model = self.modelTempInvalidPrivate
         self.actEditTempInvalidPrivate.setEnabled(bool(self.popupMenuTempInvalidId(table, model)))
+        self.actExpertDelete.setEnabled(getRightEditTempInvalid(forceInt(table.currentItem().value('id') if table.currentItem() else 0)))
 
 
     def popupMenuTempInvalidId(self, table, model):
@@ -55,10 +57,15 @@ class CTempInvalidF088(QtGui.QGroupBox, CConstructHelperMixin, Ui_grpTempInvalid
             self.tblTempInvalidPrivate.createPopupMenu()
         self.actEditTempInvalidPrivate = QtGui.QAction(u'Редактировать (F4)', self)
         self.actEditTempInvalidPrivate.setObjectName('actEditTempInvalidPrivate')
+        self.actExpertDelete = QtGui.QAction(u'Удалить эпизод', self)
+        self.actExpertDelete.setObjectName('actExpertDelete')
         self.tblTempInvalidPrivate._popupMenu.addAction(self.actEditTempInvalidPrivate)
+        self.tblTempInvalidPrivate._popupMenu.addAction(self.actExpertDelete)
         self.connect(self.actEditTempInvalidPrivate, SIGNAL('triggered()'), self.on_actEditTempInvalidPrivate_triggered)
         self.addObject('qshcEditTempInvalidPrivate', QtGui.QShortcut('F4', self.tblTempInvalidPrivate, self.on_actEditTempInvalidPrivate_triggered))
         self.qshcEditTempInvalidPrivate.setContext(Qt.WidgetShortcut)
+        self.connect(self.actExpertDelete, SIGNAL('triggered()'),
+                     self.on_actExpertDelete_triggered)
 
 
     @pyqtSignature('')
@@ -66,6 +73,77 @@ class CTempInvalidF088(QtGui.QGroupBox, CConstructHelperMixin, Ui_grpTempInvalid
         currentItem = self.tblTempInvalidPrivate.currentItem()
         tempInvalidId = forceRef(currentItem.value('id')) if currentItem else None
         self.openTempInvalid(tempInvalidId)
+    
+    
+    @pyqtSignature('')
+    def on_actExpertDelete_triggered(self):
+        self.onExpertDocDelete(self.tblTempInvalidPrivate, self.modelTempInvalidPrivate)
+
+
+    def onExpertDocDelete(self, tbl, model):
+        tempInvalidId = forceInt(tbl.currentItem().value('id')) if tbl.currentItem() else 0
+        if getRightEditTempInvalid(tempInvalidId):
+            if QtGui.QMessageBox.question(self,
+                        u'Удаление документа', u'Вы действительно хотите удалить документ?',
+                        QtGui.QMessageBox.Yes|QtGui.QMessageBox.No,
+                        QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                db = QtGui.qApp.db
+                table = db.table('TempInvalid')
+                tableDocumentExport = db.table('TempInvalidDocument_Export')
+                if not tempInvalidId:
+                    return False
+                tempInvalidDocumentIdList = getTempInvalidDocumentIdList(tempInvalidId)
+                if tempInvalidDocumentIdList:
+                    cond = [tableDocumentExport['master_id'].inlist(tempInvalidDocumentIdList),
+                            tableDocumentExport['success'].eq(1)
+                            ]
+                    record = db.getRecordEx(tableDocumentExport, [tableDocumentExport['id']], cond)
+                    documentExportId = forceRef(record.value('id')) if record else None
+                    if documentExportId:
+                        QtGui.QMessageBox.warning(self,
+                                u'Внимание',
+                                u' Нельзя удалять эпизод,\n так как относящийся к нему документ экспортирован во внешние системы!',
+                                QtGui.QMessageBox.Ok,
+                                QtGui.QMessageBox.Ok)
+                        return False
+                record = db.getRecordEx(table, [table['insuranceOfficeMark'], table['prev_id'], table['client_id'], table['begDate'], table['endDate'], table['id']], [table['id'].eq(tempInvalidId), table['deleted'].eq(0)])
+                insuranceOfficeMark = 0
+                clientId = None
+                begDate = None
+                endDate = None
+                if record:
+                    insuranceOfficeMark = forceInt(record.value('insuranceOfficeMark'))
+                    clientId = forceRef(record.value('client_id'))
+                    begDate = forceDate(record.value('begDate'))
+                    endDate = forceDate(record.value('endDate'))
+                recordPrev = db.getRecordEx(table, [table['id'], table['begDate'], table['endDate']], [table['prev_id'].eq(tempInvalidId), table['deleted'].eq(0)])
+                prevTempInvalidId = None
+                begDateLast = None
+                endDateLast = None
+                if recordPrev:
+                    prevTempInvalidId = forceRef(recordPrev.value('id'))
+                    begDateLast = forceDate(recordPrev.value('begDate'))
+                    endDateLast = forceDate(recordPrev.value('endDate'))
+                if (not prevTempInvalidId) and (not insuranceOfficeMark or (insuranceOfficeMark and QtGui.qApp.userHasRight(urRegWriteInsurOfficeMark))):
+                    documentLastId, number, issueDate = getLastTempInvalidDocument(tempInvalidId)
+                    if not documentLastId:
+                        model.recordsToDelete.append(record)
+                        model.removeRow(tbl.currentIndex().row())
+                        model.reset()
+                    else:
+                        clientName = getClientName(clientId)
+                        documentId, numberLast, issueDateLast, clientIdLast = getTempInvalidDocumentInfo(documentLastId)
+                        QtGui.QMessageBox.warning(self,
+                                                u'Внимание',
+                                                u' Нельзя удалять документ/эпизод (%s, %s, %s),\n так как в системе существует связанный с ним документ/эпизод (%s, %s, %s)!'%(number, forceString(issueDate), clientName, numberLast, forceString(issueDateLast), clientIdLast),
+                                                QtGui.QMessageBox.Ok,
+                                                QtGui.QMessageBox.Ok)
+                elif prevTempInvalidId:
+                    QtGui.QMessageBox.warning(self,
+                                            u'Внимание',
+                                            u' Нельзя удалять эпизод (%s - %s),\n так как в системе существует связанный с ним эпизод (%s - %s)!'%(forceString(begDate), forceString(endDate), forceString(begDateLast), forceString(endDateLast)),
+                                            QtGui.QMessageBox.Ok,
+                                            QtGui.QMessageBox.Ok)
 
 
     def protectFromEdit(self, isProtected):
@@ -170,3 +248,7 @@ class CTempInvalidF088(QtGui.QGroupBox, CConstructHelperMixin, Ui_grpTempInvalid
             return result
         result._loaded = True
         return result
+    
+    
+    def save(self):
+        self.modelTempInvalidPrivate.save()

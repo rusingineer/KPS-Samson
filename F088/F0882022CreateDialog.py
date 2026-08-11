@@ -138,6 +138,7 @@ class CF0882022CreateDialog(CF0882022EditDialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
 
         canEdit = not self.action.isLocked() if self.action else True
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,

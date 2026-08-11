@@ -56,7 +56,6 @@ class CUnlockAppLockDialog(Ui_UnlockAppLockDialog, CDialogBase):
         if self.tableName == 'Action':
             tableQuery = tableQuery.leftJoin(tableAction, tableAction['id'].eq(tableAppLockDetail['recordId']))
             tableQuery = tableQuery.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
-            cond.append(tableActionType['flatCode'].eq('inspection_mse'))
             if self.flatCode:
                 cond.append(tableActionType['flatCode'].eq(self.flatCode))
 

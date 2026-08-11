@@ -36,6 +36,9 @@ import update_kladr_sql
 import restore_parent_prefix_sql
 import update_okato_sql
 import update_s11_sql
+import kladr_isactual_before_sql
+import kladr_isactual_after_sql
+import update_s11_isactual_sql
 
 from address_parser import parseAddress
 
@@ -217,15 +220,24 @@ class mainWin(CDBFimport, QtGui.QMainWindow, Ui_MainWindow):
         if not self.openKLADR():
             return
         kladrDir = self.lineKLADRDir.text()
+        result = True
         result = self.createCopy()
         result = result and self.runProgramScript(create_kladr_sql, {}, u'Cкрипт создания временных таблиц')
+        # VOV
+        result = result and self.runProgramScript(kladr_isactual_before_sql, {}, u'Очистка признака актуальности нас.пунктов и улиц')
         result = result and self.loadKLADRFromDBF(kladrDir)
         # result = result and self.runProgramScript(update_kladr_sql,  {}, u'Обновляющий КЛАДР скрипт')
+        # VOV
+        if result:
+            result = result and self.runProgramScript(kladr_isactual_after_sql, {}, u'Простановка признака актуальности нас.пунктов и улиц')
         if result:
             self.log.append(u'Обновление КЛАДР завершено!')
             if not self.openDB():
                 return
             result = self.runProgramScript(update_s11_sql, {}, u'Обновляющий %s скрипт' % self.editDatabase.text())
+        # VOV
+            if result:
+                result = self.runProgramScript(update_s11_isactual_sql, {}, u'Удаление неактуальных нас.пунктов и улиц')
         self.fixResult(result)
         return result
 

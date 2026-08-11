@@ -10,7 +10,7 @@ from EconomicAnalisysSetupDialog import CEconomicAnalisysSetupDialog
 from EconomicAnalisys import (
     getStmt, colClient, colEvent, colParentOrgStructure, colOrgStructure, colClientName,
     colEventSetDate, colEventExecDate, colServiceInfis, colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount,
-    colSUM, colPerson, colExposedSum
+    colSUM, colPerson, colExposedSum, colServiceBegDate, colServiceEndDate
 )
 
 
@@ -32,8 +32,8 @@ class CEconomicAnalisysE19(CReport):
         elif self.detailId == 1:
             detailCol = [colPerson]
             detailColName = u"colPerson"
-        cols = [colClient, colEvent, colClientName, colEventSetDate, colEventExecDate, colServiceInfis,
-                colCSG, colPos, colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum]
+        cols = [colClient, colEvent, colClientName, colEventSetDate, colEventExecDate, colServiceInfis, colCSG, colPos,
+                colObr, colSMP, colKD, colPD, colUET, colAmount, colSUM, colExposedSum, colServiceBegDate, colServiceEndDate]
         cols.extend(detailCol)
         colsStmt = u"""select
         %s as detailCol,
@@ -42,6 +42,8 @@ class CEconomicAnalisysE19(CReport):
         colClientName as fio,
         colEventSetDate as setDate,
         colEventExecDate as execDate,
+        colServiceBegDate as begDate,
+        colServiceEndDate as endDate,
         colServiceInfis as code,
         colAmount as amount,
         colCSG as mes,
@@ -89,6 +91,8 @@ class CEconomicAnalisysE19(CReport):
                 fio = forceString(record.value('fio'))
                 setDate = forceDate(record.value('setDate'))
                 execDate = forceDate(record.value('execDate'))
+                begDate = forceDate(record.value('begDate'))
+                endDate = forceDate(record.value('endDate'))
                 code = forceString(record.value('code'))
                 amount = forceInt(record.value('amount'))
                 kd = forceInt(record.value('kd'))
@@ -142,7 +146,7 @@ class CEconomicAnalisysE19(CReport):
                 if 'usls' not in reportData[detailCol][clientId]:
                     reportData[detailCol][clientId]['usls'] = []
 
-                reportData[detailCol][clientId]['usls'].append([code, amount, kd + pd, uet, sums, exposedSum])
+                reportData[detailCol][clientId]['usls'].append([begDate, endDate, code, amount, kd + pd, uet, sums, exposedSum])
 
                 reportData[detailCol]['total']['exposed'] += exposed
                 reportData[detailCol]['total']['mes'] += mes
@@ -180,7 +184,7 @@ class CEconomicAnalisysE19(CReport):
         tableColumns = [
             ('10%',  [u'№ карты (ист. болезни)'], CReportBase.AlignCenter),
             ('15%',  [u'ФИО'], CReportBase.AlignCenter),
-            ('10%',  [u'Период лечения', u'с'], CReportBase.AlignCenter),
+            ('10%',  [u'Период', u'с'], CReportBase.AlignCenter),
             ('10%',  [u'', u'по'], CReportBase.AlignCenter),
             ('15%',  [u'Код услуги'], CReportBase.AlignCenter),
             ('10%',  [u'Кол-во услуг'], CReportBase.AlignCenter),
@@ -232,15 +236,17 @@ class CEconomicAnalisysE19(CReport):
 
                 table.setText(originRow, 0, clientId)
                 table.setText(originRow, 1, reportData[osname][clientId]['fio'])
-                table.setText(originRow, 2, reportData[osname][clientId]['setDate'].toString('yyyy-MM-dd'))
-                table.setText(originRow, 3, reportData[osname][clientId]['execDate'].toString('yyyy-MM-dd'))
+                # table.setText(originRow, 2, reportData[osname][clientId]['setDate'].toString('yyyy-MM-dd'))
+                # table.setText(originRow, 3, reportData[osname][clientId]['execDate'].toString('yyyy-MM-dd'))
                 firstRowWasSkipped = False
-                for code, amount, kd, uet, sums, exposedSum in reportData[osname][clientId]['usls']:
+                for begDate, endDate, code, amount, kd, uet, sums, exposedSum in reportData[osname][clientId]['usls']:
                     if firstRowWasSkipped:
                         row = table.addRow()
                     else:
                         firstRowWasSkipped = True
                         row = originRow
+                    table.setText(row, 2, begDate.toString('yyyy-MM-dd'))
+                    table.setText(row, 3, endDate.toString('yyyy-MM-dd'))
                     table.setText(row, 4, code)
                     table.setText(row, 5, amount)
                     table.setText(row, 6, kd)
@@ -253,8 +259,8 @@ class CEconomicAnalisysE19(CReport):
                     mergeCnt -= 1
                 table.mergeCells(originRow, 0, mergeCnt, 1)
                 table.mergeCells(originRow, 1, mergeCnt, 1)
-                table.mergeCells(originRow, 2, mergeCnt, 1)
-                table.mergeCells(originRow, 3, mergeCnt, 1)
+                # table.mergeCells(originRow, 2, mergeCnt, 1)
+                # table.mergeCells(originRow, 3, mergeCnt, 1)
             drawTotal(u'Итого по %s' % osname, table,  reportData[osname]['total'])
         drawTotal(u'Итого', table,  reportData['total'])
         return doc

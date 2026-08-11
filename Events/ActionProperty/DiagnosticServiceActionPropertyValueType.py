@@ -32,6 +32,7 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
     badKey = u'Недопустимый ключ "%(key)s" в описание области определения значения свойства действия типа "Инструментальные диагностические исследования":\n%(domain)s'
     badValue = u'Недопустимое значение "%(val)s" ключа "%(key)s" в описание области определения значения свойства действия типа "Инструментальные диагностические исследования":\n%(domain)s'
 
+
     class CPropEditor(CRBComboBox):
         def __init__(self, action, domain, parent, clientId, eventTypeId):
             CRBComboBox.__init__(self, parent)
@@ -102,6 +103,7 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
     def parseDomain(self, domain):
         codeList = []
         method = []
+        components = []
         for word in domain.split(','):
             if word:
                 parts = word.split(':')
@@ -116,7 +118,9 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
                 if keylower == u'код':
                     codeList.extend(vallower.split(';'))
                 elif keylower == u'метод':
-                    method.extend(vallower.split(';'))
+                    method.extend([part.strip() for part in vallower.split(';')])
+                elif keylower == u'компоненты':
+                    components.extend([part.strip() for part in vallower.split(';')])
                 else:
                     raise ValueError, self.badKey % locals()
 
@@ -128,6 +132,9 @@ class CDiagnosticServiceActionPropertyValueType(CActionPropertyValueType):
             cond.append(table['code'].inlist(codeList))
         if method:
             cond.append(table['method'].inlist(method))
+        if components:
+            componentsCond = "(^|; |;)(" + '|'.join(components) + ")(;|$)"
+            cond.append(u'LOWER(rbDiagnosticService.components) REGEXP "{}"'.format(componentsCond))
         return db.joinAnd(cond)
 
     @staticmethod

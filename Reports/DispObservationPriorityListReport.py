@@ -45,7 +45,7 @@ SELECT CONCAT_WS(' ', c.lastName, c.firstName, c.patrName) AS clientName,
         LEFT JOIN rbEventTypePurpose etp on etp.id = et.purpose_id
         LEFT JOIN Diagnostic di ON e1.id = di.event_id AND di.deleted = 0 and di.diagnosisType_id in (1, 2)
         LEFT JOIN Diagnosis di1 ON di.diagnosis_id = di1.id AND di1.deleted = 0
-        where e1.client_id = c.id and etp.purpose = 6
+        where e1.client_id = c.id and etp.purpose = 6  
         and LOCATE(SUBSTRING(di1.MKB, 1, 3),  GROUP_CONCAT(DISTINCT cd.code), 1)>0 ) as dispDate
 FROM Event e
 LEFT JOIN Client c ON e.client_id = c.id

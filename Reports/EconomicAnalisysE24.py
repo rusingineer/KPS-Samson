@@ -34,7 +34,7 @@ class CEconomicAnalisysE24(CReport):
         groupCols = u'colParentOrgStructureInfisName, colOrgStructureInfisName, colKPK'
         orderCols = u'colParentOrgStructureInfisName, colOrgStructureInfisName, colKPK'
 
-        stmt = getStmt(colsStmt, cols, groupCols, orderCols, params, queryList=['action', 'mes'], isOnlyMES=True)
+        stmt = getStmt(colsStmt, cols, groupCols, orderCols, params, queryList=['action', 'mes', 'csg'], isOnlyMES=True)
 
         db = QtGui.qApp.db
         return db.query(stmt)

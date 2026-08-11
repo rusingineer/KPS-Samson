@@ -21,7 +21,8 @@ from PyQt4.QtCore import Qt, QDate, QDateTime, QMetaObject, QVariant, pyqtSignat
 from Timeline.Schedule import freeScheduleItem
 from library.database                  import CTableRecordCache
 from library.DialogBase                import CDialogBase, CConstructHelperMixin
-from library.interchange               import setTextEditValue, getComboBoxValue, getTextEditValue, getCheckBoxValue
+from library.interchange               import setTextEditValue, getComboBoxValue, getTextEditValue, getCheckBoxValue, \
+    getRBComboBoxValue
 from library.PreferencesMixin          import CDialogPreferencesMixin
 from library.PrintInfo                 import CInfoContext, CDateInfo
 from library.PrintTemplates            import applyTemplate, CPrintAction, getPrintTemplates
@@ -1190,12 +1191,11 @@ class CSuspendedAppointmentMarksDialog(CDialogBase, Ui_SuspendedAppointmentMarks
         self.setIsDirty(False)
 
     def setCancelVariant(self):
-        self.cmbCancelVariant.setTable('rbScheduleCancel', True)
-        self.cmbCancelVariant.setCurrentIndex(0)
+        self.cmbCancelVariant.setTable('rbScheduleCancel', addNone=False)
 
     @pyqtSignature('int')
     def on_cmbCancelVariant_currentIndexChanged(self, index):
-        if index != 0:
+        if index != -1:
             self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(True)
         else:
             self.buttonBox.button(QtGui.QDialogButtonBox.Ok).setEnabled(False)
@@ -1205,7 +1205,7 @@ class CSuspendedAppointmentMarksDialog(CDialogBase, Ui_SuspendedAppointmentMarks
         getCheckBoxValue(self.chkProcessed, record, 'processed')
         getComboBoxValue(self.cmbNotified,  record, 'notified')
         getTextEditValue(self.edtNote,      record, 'note')
-        getComboBoxValue(self.cmbCancelVariant, record, 'refusal')
+        getRBComboBoxValue(self.cmbCancelVariant, record, 'refusal')
 
 
 

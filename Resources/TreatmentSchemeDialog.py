@@ -62,8 +62,7 @@ class CTreatmentSchemeDialog(CItemEditorBaseDialog, Ui_TreatmentSchemeDialog, CD
 
 
     def destroy(self):
-        self.tblTreatmentScheme.setModel(None)
-        del self.modelTreatmentScheme
+        pass
 
 
     @pyqtSignature('QModelIndex')

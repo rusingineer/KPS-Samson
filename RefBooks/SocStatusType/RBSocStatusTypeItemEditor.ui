@@ -57,20 +57,6 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="3" column="1">
-        <widget class="QLineEdit" name="edtRegionalCode">
-         <property name="enabled">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="lblShortName">
-         <property name="text">
-          <string>Краткое наименование</string>
-         </property>
-        </widget>
-       </item>
        <item row="3" column="0">
         <widget class="QLabel" name="lblRegionalCode">
          <property name="enabled">
@@ -90,6 +76,13 @@
          </property>
         </widget>
        </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="edtRegionalCode">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
        <item row="3" column="2">
         <spacer name="horizontalSpacer">
          <property name="orientation">
@@ -103,7 +96,7 @@
          </property>
         </spacer>
        </item>
-       <item row="5" column="0">
+       <item row="6" column="0">
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -116,8 +109,12 @@
          </property>
         </spacer>
        </item>
-       <item row="2" column="1">
-        <widget class="QLineEdit" name="edtShortName"/>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lblShortName">
+         <property name="text">
+          <string>Краткое наименование</string>
+         </property>
+        </widget>
        </item>
        <item row="4" column="0">
         <widget class="QLabel" name="lblDocumentType">
@@ -135,11 +132,8 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
-        <widget class="CRBComboBox" name="cmbDocumentType"/>
-       </item>
-       <item row="1" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtName"/>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="edtShortName"/>
        </item>
        <item row="1" column="0">
         <widget class="QLabel" name="lblName">
@@ -157,8 +151,11 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="1" colspan="2">
-        <widget class="QLineEdit" name="edtCode"/>
+       <item row="4" column="1">
+        <widget class="CRBComboBox" name="cmbDocumentType"/>
+       </item>
+       <item row="1" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtName"/>
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="lblCode">
@@ -173,6 +170,23 @@
          </property>
          <property name="buddy">
           <cstring>edtCode</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1" colspan="2">
+        <widget class="QLineEdit" name="edtCode"/>
+       </item>
+       <item row="5" column="1">
+        <widget class="QCheckBox" name="chkNeedFillOutDoc">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lblNeedFillOutDoc">
+         <property name="text">
+          <string>Требуется ввод документа</string>
          </property>
         </widget>
        </item>

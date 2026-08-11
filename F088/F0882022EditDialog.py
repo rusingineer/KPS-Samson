@@ -1809,6 +1809,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
         canEdit = not self.action.isLocked() if self.action else True
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,
                        self.cmbStatus, self.edtBegDate, self.edtBegTime,
@@ -2318,7 +2319,19 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
             if hasattr(self, 'modelMedicament'):
                 self.modelMedicament.saveItems(id)
             self.tabExtendedMSE.saveData()
+            self.saveTempInvalid()
         return id
+    
+    
+    def saveTempInvalid(self):
+        if hasattr(self, 'grpDisability'):
+            self.grpDisability.save()
+        if hasattr(self, 'grpTempInvalid'):
+            self.grpTempInvalid.save()
+        if hasattr(self, 'grpAegrotat'):
+            self.grpAegrotat.save()
+        if hasattr(self, 'grpVitalRestriction'):
+            self.grpVitalRestriction.save()
 
 
     def getAssistantId(self):
@@ -4281,7 +4294,7 @@ class CTempInvalidYearTableModel(CInDocTableModel):
         self.reset()
 
 
-    def saveItems(self, masterId):
+    def saveItems(self, masterId=None):
         if self.eventEditor and self.eventEditor.action:
             for idx, record in enumerate(self._items):
                 self.eventEditor.setProperty(QVariant(forceInt(record.value('cnt'))), u'26.%s.1'%(forceString(idx+1)))

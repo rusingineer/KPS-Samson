@@ -16,7 +16,7 @@ import json
 import math
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import Qt, QAbstractTableModel, QPoint, QEvent, QMimeData, QModelIndex, QPointF, QRectF, QSize, QString, QVariant, pyqtSignature, SIGNAL, QRect
+from PyQt4.QtCore import Qt, QAbstractTableModel, QPoint, QEvent, QMimeData, QModelIndex, QPointF, QRectF, QSize, QString, QVariant, pyqtSignature, SIGNAL, QRect, QTimer
 from Events.ActionProperty.StringActionPropertyValueType import CStringActionPropertyValueType
 
 from library.Utils import conv_data, foldText, forceDate, forceInt, forceDouble, forceRef, forceString, forceStringEx, \
@@ -760,6 +760,8 @@ class CActionPropertyDelegate(CActionPropertyBaseDelegate):
         model = index.model()
         value = model.data(index, Qt.EditRole)
         editor.setValue(value)
+        if hasattr(editor, 'moveCursor'):
+            editor.moveCursor(QtGui.QTextCursor.End)
 
 
     def setModelData(self, editor, model, index):
@@ -909,6 +911,7 @@ class CActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
 
     def __init__(self, parent):
         QtGui.QTableView.__init__(self, parent)
+        self.autoResizeColumns = forceBool(QtGui.qApp.preferences.appPrefs.get('autoResizeColumns', QVariant()))
         self._verticalHeader = CActionPropertiestableVerticalHeaderView(Qt.Vertical, self)
         self.setVerticalHeader(self._verticalHeader)
         h = self.fontMetrics().height()
@@ -924,13 +927,102 @@ class CActionPropertiesTableView(QtGui.QTableView, CPreferencesMixin):
         self.commentDelegate = CActionPropertyCommentDelegate(self.fontMetrics().height(), self)
         self.setItemDelegateForColumn(CActionPropertiesTableModel.ciComment, self.commentDelegate)
         self.setEditTriggers(QtGui.QAbstractItemView.AllEditTriggers)
-        self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int,int,int)'), self.resizeRowsToContents)
+        self.connect(self.horizontalHeader(), SIGNAL('sectionResized(int,int,int)'), self.onHeaderSectionResized)
         self.connect(self.valueDelegate, SIGNAL('sizeHintChanged(const QModelIndex &)'), self.valueDelegateSizeHintChanged)
         self._popupMenu = None
         self._actCopy = None
         self._actCopyCell = None
         self.preferencesLocal = {}
         self.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
+        self._inAutoResize = False #защита от рекурсии
+        self._fitPanding = False # уже запланировано или нет
+        if self.autoResizeColumns:
+            # self._oldHPolicy = self.horizontalScrollBarPolicy()
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+
+    def event(self, e):
+        if self.autoResizeColumns:
+            if e.type() in (QEvent.Show, QEvent.Resize):
+                self.requestAutoFit('event_%d' % int(e.type()))
+        return QtGui.QTableView.event(self, e)
+
+
+    def setModel(self, model):
+        QtGui.QTableView.setModel(self, model)
+        if self.autoResizeColumns and model is not None:
+            try:
+                model.modelReset.connect(lambda *a: self.requestAutoFit('modelReset'))
+                model.layoutChanged.connect(lambda *a: self.requestAutoFit('layoutChanged'))
+                model.columnsInserted.connect(lambda *a: self.requestAutoFit('columnsInserted'))
+                model.columnsRemoved.connect(lambda *a: self.requestAutoFit('columnsRemoved'))
+            except Exception:
+                pass
+        self.requestAutoFit('setModel')
+
+    def requestAutoFit(self, reason=''):
+        if not self.autoResizeColumns:
+            return
+        if self._fitPanding:
+            return
+        self._fitPanding = True
+
+        def _run():
+            self._fitPanding = False
+            if not self.isVisible():
+                return
+
+            self._inAutoResize = True
+
+            try:
+                self.resizeColumnsToView()
+            finally:
+                self._inAutoResize = False
+
+            self.updateGeometries()
+            self.viewport().update()
+
+        QTimer.singleShot(0, _run)
+
+
+    def onHeaderSectionResized(self, logicalIndex, oldSize, newSize):
+        self.resizeRowsToContents()
+        if not self.autoResizeColumns:
+            return
+        if self._inAutoResize:
+            return
+        self.requestAutoFit('userResize')
+
+
+    def resizeColumnsToView(self):
+        """Подгоняет все столбцы под размер виджета."""
+        header = self.horizontalHeader()
+        viewportWidth = max(0, self.viewport().width())
+        # if not self.verticalScrollBar().isVisible():
+        #     viewportWidth += self.verticalScrollBar().width()
+
+        visibleCols = [i for i in range(header.count())
+                        if not self.isColumnHidden(i)]
+        if not visibleCols:
+            return
+
+        totalWidth = header.length()
+        minSize = header.minimumSectionSize()
+        header.blockSignals(True)
+        try:
+            if totalWidth > viewportWidth:
+                excess = totalWidth - viewportWidth
+                for colIndex in reversed(visibleCols):
+                    if excess <= 0:
+                        break
+                    currentSize = header.sectionSize(colIndex)
+                    if currentSize > minSize:
+                        reduction = min(excess, currentSize - minSize)
+                        newSize = currentSize - reduction
+                        header.resizeSection(colIndex, newSize)
+                        excess -= reduction
+        finally:
+            header.blockSignals(False)
 
 
     def mousePressEvent(self, event):

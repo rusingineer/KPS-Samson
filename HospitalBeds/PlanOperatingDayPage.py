@@ -1319,10 +1319,7 @@ class CPlanOperatingDayPage(CDialogBase, Ui_PlanOperatingDayPage):
 
 
     def destroy(self):
-        self.tblPlanOperatingDay.setModel(None)
-        del self.modelPlanOperatingDay
-        self.tblOutsideOperatingDay.setModel(None)
-        del self.modelOutsideOperatingDay
+        pass
 
 
     def load(self, eventIdList, orgStructureId):
@@ -1609,6 +1606,7 @@ class COperatingDayActionEditDialog(CActionEditDialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
 
         if QtGui.qApp.userHasRight(urLoadActionTemplate) and (self.cmbStatus.value() != CActionStatus.finished
                                                               or not self.cmbPerson.value()

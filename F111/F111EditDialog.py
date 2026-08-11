@@ -631,10 +631,12 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
 
 
     def exec_(self):
+        fromEvent = bool(self.isCreate)
         counterController = QtGui.qApp.counterController()
         if not counterController:
             QtGui.qApp.setCounterController(CCounterController(self))
             QtGui.qApp.setJTR(self)
+            fromEvent = False
         try:
             if self.lock(self._tableName, self._id):
                 try:
@@ -658,19 +660,20 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 result = QtGui.QDialog.Rejected
                 self.setResult(result)
         finally:
-            QtGui.qApp.unsetJTR(self)
-        if result:
-            QtGui.qApp.delAllCounterValueIdReservation()
-        else:
-            QtGui.qApp.resetAllCounterValueIdReservation()
-        QtGui.qApp.setCounterController(None)
-        QtGui.qApp.disconnectClipboard()
+            if not fromEvent:
+                QtGui.qApp.unsetJTR(self)
+        if not fromEvent:
+            if result:
+                QtGui.qApp.delAllCounterValueIdReservation()
+            else:
+                QtGui.qApp.resetAllCounterValueIdReservation()
+            QtGui.qApp.setCounterController(None)
+            QtGui.qApp.disconnectClipboard()
         return result
 
 
     def destroy(self):
-        CItemEditorBaseDialog.destroy(self)
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def getClientId(self, eventId):
@@ -813,6 +816,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         context = actionType.context if actionType else ''
         customizePrintButton(self.btnPrint, context)
         self.btnAttachedFiles.setAttachedFileItemList(self.action.getAttachedFileItemList())
+        self.btnAttachedFiles.setAction(self.action)
         canEdit = not self.action.isLocked() if self.action else True
         for widget in (self.edtPlannedEndDate, self.edtPlannedEndTime,
                        self.cmbStatus, self.edtBegDate, self.edtBegTime,
@@ -1843,12 +1847,16 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                     if eventId:
                         recordEvent.setValue('id', toVariant(eventId))
                         self.setEventRecord(recordEvent)
+                        endDate = self.edtNVNBDZKDate.date()
+                        recordEvent.setValue('execDate', toVariant(endDate))
+                        recordEvent.setValue('execPerson_id', toVariant(self.personId))
                         newActionId = self.saveMedicalCommissionAction(self.action, recordEvent, eventId, idx = idxMSI)
         return newActionId
 
 
     def saveMedicalCommissionAction(self, action, recordEvent = None, eventId = None, idx = 0):
         id = None
+        isDirty = self.isDirty()
         try:
             try:
                 db = QtGui.qApp.db
@@ -1865,7 +1873,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                             recordEvent.setValue('execDate', QVariant(actionEndDate))
                             recordEvent.setValue('isClosed', QVariant(1))
                     self.eventId = eventId
-                if recordEvent and self.isDirty():
+                if recordEvent and isDirty:
                     recordEvent.setIsDirty(True)
                     db.updateRecord('Event', recordEvent)
                 db.commit()

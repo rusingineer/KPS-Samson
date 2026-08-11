@@ -177,21 +177,7 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblVisits.setModel(None)
-        self.tblFinalDiagnostics.setModel(None)
-        del self.modelVisits
-        del self.modelFinalDiagnostics
-        self.grpTempInvalid.deleteLater()
-        self.grpAegrotat.deleteLater()
-        self.grpDisability.deleteLater()
-        self.grpVitalRestriction.deleteLater()
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabAmbCard.deleteLater()
+        pass
 
 
 #    def currentClientId(self): # for AmbCard mixin
@@ -709,6 +695,7 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.saveBlankUsers(self.blankMovingIdList)
         self.tabNotes.saveAttachedFiles(eventId)
         self.saveTrailerActions(eventId)
+        self.saveTempInvalid()
 
 
     def saveTrailerActions(self, eventId):

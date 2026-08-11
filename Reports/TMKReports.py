@@ -20,53 +20,50 @@ from Ui_TMKReports import Ui_tmkReports
 
 
 def columnValidator(colName, values):
-    text = u"   "
+    val = None
 
     if colName in values:
-        text = values[colName] if values[colName] else u'   '
+        val = values[colName] if values[colName] else None
     elif 'nsi_code_{0}'.format(colName) in values:
-        text = values['nsi_code_{0}'.format(colName)] if values['nsi_code_{0}'.format(colName)] else u'   '
+        val = values['nsi_code_{0}'.format(colName)] if values['nsi_code_{0}'.format(colName)] else None
 
-    if "\n" in text:
-        text = text.replace("\n", "")
+    if val:
+        val = val.replace("\n", "")
 
     if colName == u'col_hdlogrw6ik6jd1iy2ngmja':
         if values[u'status_name'] in (u'Заявка отменена/отклонена', u'Заключение готово'):
-            text = values[u'update_time']
+            val = values[u'update_time']
         else:
             pass
 
-    if u'-' in text and u':' in text:
-        if colName == u'col_kz1npipauuoxfhwdzi43za':
-            try:
-                td = text.split(u"+")
-                date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
-                text = date_obj.strftime('%d.%m.%Y')
-            except:
-                pass
+    if val == u"True":
+        val = u"Да"
+    elif val == u"False":
+        val = u"Нет"
 
-        elif u'T' in text:
-            try:
-                td = text.split(u"+")
-                date_obj = datetime.strptime(td[0], '%Y-%m-%dT%H:%M:%S')
-                text = date_obj.strftime('%d.%m.%Y %H:%M')
-            except:
-                pass
+    if val:
+        val = forceString(val)
 
-        elif u" " in text:
-            try:
-                td = text.split(u"+")
-                date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
-                text = date_obj.strftime('%d.%m.%Y %H:%M')
-            except:
-                pass
+    if val and colName in [u'col_hdlogrw6ik6jd1iy2ngmja', u'update_time', u'create_time', u'col_kz1npipauuoxfhwdzi43za']:
+        val = val.split(u"+")[0]
 
-    if text == u"True":
-        text = u"Да"
-    elif text == u"False":
-        text = u"Нет"
+    if val and colName == u'col_hdlogrw6ik6jd1iy2ngmja':
+        try:
+            date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
+            val = date_obj.strftime('%d.%m.%Y %H:%M')
+        except:
+            pass
+    elif val and colName == u'update_time':
+        date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
+        val = date_obj.strftime('%d.%m.%Y %H:%M')
+    elif val and colName == u'create_time':
+        date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
+        val = date_obj.strftime('%d.%m.%Y %H:%M')
+    elif val and colName == u'col_kz1npipauuoxfhwdzi43za':
+        date_obj = datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
+        val = date_obj.strftime('%d.%m.%Y')
 
-    return text
+    return val
 
 
 class CTMKReports(CDialogBase, Ui_tmkReports):
@@ -107,7 +104,16 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
             '4e61e410-6de1-426f-ad3a-a0b1c6d10673'
         ]
 
-        self.setCmbTemplates()
+        if self.sessionId is None:
+            self.btnFilterApply.setEnabled(False)
+            self.btnPrint.setEnabled(False)
+            QtGui.QMessageBox.information(
+                self,
+                u'Ошибка',
+                u'Пользователь c TMKServiceUserId = {0} не найден, уточните актуальность идентификатора пользователя для сервиса отчетов ТМК в миац'.format(self.userId),
+                QtGui.QMessageBox.Close, QtGui.QMessageBox.Close)
+        else:
+            self.setCmbTemplates()
 
         self.lblTemplatesId.setVisible(False)
         self.cmbTemplatesId.setVisible(False)
@@ -156,6 +162,7 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
 
     def getSessionId(self, token, userId):
         """Авторизовываемся"""
+        sessionId = None
         authHeaders = {
             'Content-type': 'application/fhir+json',
             'Accept': 'application/fhir+json',
@@ -177,7 +184,11 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         )
 
         jsonRequests = r.json()
-        sessionId = jsonRequests['parameter'][0]['valueString']
+        status = jsonRequests.get('parameter', None)
+        if status:
+            sessionId = jsonRequests['parameter'][0]['valueString']
+        else:
+            sessionId = None
 
         return sessionId
 
@@ -260,16 +271,11 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
 
                 self.tableTitle.append(i['title'])
 
-            # clmnDateTime = []
             self.tableData = []
             for val in data['table']:
                 row = []
                 for idx, colName in enumerate(self.tableTitle):
-                    # TODO Наверное нужно определять тип данных, а не в стринг все кидать
-                    # text = val[colName]
-                    # if colName not in clmnDateTime and self.isDateTime(text):
-                    #     clmnDateTime.append(colName)
-                    row.append(forceString(columnValidator(colName, val)))
+                    row.append(columnValidator(colName, val))
                 self.tableData.append(row)
 
             self.setValuesCmb(self.tableData)
@@ -280,7 +286,6 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
             self.modelReport.setHeader(self.tableName)
             self.modelReport.setHeaderEn(self.tableTitle)
             self.modelReport.setItems(self.tableData)
-            # self.modelReport.setClmnDateTime([self.tableTitle.index(i) for i in clmnDateTime])
             self.tblReport.resizeColumnsToContents()
             self.tblReport.horizontalHeader().setStretchLastSection(True)
 
@@ -314,28 +319,6 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         for val in cmbOrganisation:
             self.cmbOrganisation.addItem(val)
 
-
-    # def isDateTime(self, val):
-    #     if val and u'-' in val and u':' in val:
-    #         if u'T' in val:
-    #             try:
-    #                 td = val.split(u"+")
-    #                 date_obj = datetime.strptime(td[0], '%Y-%m-%dT%H:%M:%S')
-    #                 text = date_obj.strftime('%d.%m.%Y %H:%M')
-    #                 return True
-    #             except:
-    #                 pass
-    #
-    #         elif u" " in val:
-    #             try:
-    #                 td = val.split(u"+")
-    #                 date_obj = datetime.strptime(td[0], '%Y-%m-%d %H:%M:%S')
-    #                 text = date_obj.strftime('%d.%m.%Y %H:%M')
-    #                 return True
-    #             except:
-    #                 pass
-    #     return False
-
     def setFilterParametrs(self):
         maxDate = None
         minDate = None
@@ -343,8 +326,11 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
         idxDate = self.tableTitle.index(u'create_time')
 
         for values in self.tableData:
-            parmDate = values[idxDate]
-            parmDate = forceDate(datetime.strptime(parmDate, "%d.%m.%Y %H:%M"))
+            parmDate = forceDate(datetime.strptime(values[idxDate], '%d.%m.%Y %H:%M'))
+
+            if maxDate is None:
+                maxDate = parmDate
+
             if parmDate > maxDate:
                 maxDate = parmDate
 
@@ -489,7 +475,6 @@ class CTMKReportModel(QAbstractTableModel):
         self.items = []
         self._cols = []
         self.header = []
-        # self.clmnDateTime = []
         self.headerEn = []
 
     def columnCount(self, index = None):
@@ -532,9 +517,6 @@ class CTMKReportModel(QAbstractTableModel):
     def setItems(self, items):
         self._items = items
         self.loadData(items)
-
-    # def setClmnDateTime(self, clmn):
-    #     self.clmnDateTime = clmn
 
     def cols(self):
         return self._cols
@@ -603,10 +585,12 @@ class CTMKReportModel(QAbstractTableModel):
     def sort(self, column, order=Qt.AscendingOrder):
         # TODO Добавь логику сортировки в зависимости от типа колонки
         reverse = order == Qt.DescendingOrder
-        # if self.clmnDateTime and column in self.clmnDateTime:
-        #     self.items.sort(key=lambda x: forceDateTime(x[column]) if x else None, reverse=reverse)
-        # else:
-        self.items.sort(key=lambda x: forceString(x[column]).lower() if x else None, reverse=reverse)
+        if column in (0, 1, 2):
+            self.items.sort(key=lambda x: forceDateTime(datetime.strptime(x[column], '%d.%m.%Y %H:%M')) if x and x[column] else None, reverse=reverse)
+        elif column == 3:
+            self.items.sort(key=lambda x: forceDate(datetime.strptime(x[column], '%d.%m.%Y')) if x else None, reverse=reverse)
+        else:
+            self.items.sort(key=lambda x: forceString(x[column]).lower() if x else None, reverse=reverse)
         self.reset()
 
 

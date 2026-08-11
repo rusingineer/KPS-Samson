@@ -29,7 +29,7 @@ class Ui_SyncCSGDialog(object):
         self.gridLayout = QtGui.QGridLayout(SyncCSGDialog)
         self.gridLayout.setMargin(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
-        self.tblActions = QtGui.QTableView(SyncCSGDialog)
+        self.tblActions = CTableView(SyncCSGDialog)
         self.tblActions.setObjectName(_fromUtf8("tblActions"))
         self.gridLayout.addWidget(self.tblActions, 2, 0, 1, 3)
         spacerItem = QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
@@ -51,4 +51,6 @@ class Ui_SyncCSGDialog(object):
     def retranslateUi(self, SyncCSGDialog):
         SyncCSGDialog.setWindowTitle(_translate("SyncCSGDialog", "Синхронизация Действий движения с КСГ", None))
         self.lblInfo.setText(_translate("SyncCSGDialog", "Синхронизация Действий движения с КСГ", None))
+
+from library.TableView import CTableView
 

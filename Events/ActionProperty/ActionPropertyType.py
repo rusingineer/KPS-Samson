@@ -15,6 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QIODevice, QString, QTextStream, QVariant
 
+from Events.ActionProperty import CTextActionPropertyValueType, CStringActionPropertyValueType
 from library.AgeSelector                 import parseAgeSelector, checkAgeSelector
 from library.calc                        import functions, compileAndDetermineDependeces
 from library.Utils                       import forceBool, forceDouble, forceInt, forceRef, forceString, forceStringEx
@@ -31,6 +32,8 @@ from NomenclatureSmnnGrlsLfActionPropertyValueType import CNomenclatureSmnnGrlsL
 from NomenclatureCalculationParamActionPropertyValueType import CNomenclatureCalculationParamActionPropertyValueType
 from PacsActionPropertyValueType         import CPacsActionPropertyValueType
 from UrlActionPropertyValueType          import CUrlActionPropertyValueType
+
+from ActionPropertyTypeDataInheritance import CActionPropertyTypeDataInheritance
 
 
 class CActionPropertyType(object):
@@ -52,6 +55,7 @@ class CActionPropertyType(object):
         self.typeName = forceString(record.value('typeName'))
         self.valueDomain = forceString(record.value('valueDomain'))
         self.dataInheritance = forceString(record.value('dataInheritance'))
+        self.dataInheritanceExt = CActionPropertyTypeDataInheritance(self)
         self.valueType = self.getValueType()
         self.defaultValue = forceString(record.value('defaultValue'))
         self.isVector = forceBool(record.value('isVector'))
@@ -232,6 +236,10 @@ class CActionPropertyType(object):
             return 1.0 / abs(self.editorSizeFactor)
         else:
             return 1.0
+
+    def isString(self):
+        return isinstance(self.valueType, CStringActionPropertyValueType) or \
+               isinstance(self.valueType, CTextActionPropertyValueType)
 
 
     def isBoolean(self):

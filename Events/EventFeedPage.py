@@ -437,6 +437,6 @@ class CFeedPageDialog(CDialogBase):
 
 
     def destroy(self):
-        self.feedWidget.destroy()
+        pass
 
 

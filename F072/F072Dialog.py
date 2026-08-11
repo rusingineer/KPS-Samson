@@ -214,26 +214,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblPreliminaryDiagnostics.setModel(None)
-        self.tblFinalDiagnostics.setModel(None)
-#        self.tblFeed.setModel(None)
-        self.tblActions.setModel(None)
-        self.grpTempInvalid.deleteLater()
-        self.grpAegrotat.deleteLater()
-        self.grpDisability.deleteLater()
-        self.grpVitalRestriction.deleteLater()
-        self.tabStatus.deleteLater()
-        self.tabDiagnostic.deleteLater()
-        self.tabCure.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
-        self.tabFeed.deleteLater()
-        self.tabMes.deleteLater()
-        del self.modelPreliminaryDiagnostics
-        del self.modelFinalDiagnostics
-        del self.modelActionsSummary
-        self.tabAmbCard.deleteLater()
+        pass
 
 
     def _prepare(self, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
@@ -734,6 +715,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
                 visit.setValue('person_id', toVariant(self.personId))
             self.modelVisits.setItems([visit])
             self.modelVisits.saveItems(eventId)
+        self.saveTempInvalid()
 
 
     def getModelFinalDiagnostics(self):
@@ -1150,7 +1132,7 @@ class CF072Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin, CV
                 # result = self.checkRequiresFillingDispanser(result, self.tblFinalDiagnostics, record, row, MKB)
         if result and endDate:
             resultId = forceRef(record.value('result_id'))
-            result = resultId or self.checkInputMessage(u'Необходимо указать результат', False, self.tblFinalDiagnostics, row, record.indexOf('result_id'))
+            result = resultId or self.checkInputMessage(u'результат', False, self.tblFinalDiagnostics, row, record.indexOf('result_id'))
         if result and not forceRef(record.value('person_id')):
             result = result and self.checkValueMessage(u'Необходимо указать врача установившего диагноз', False, self.tblFinalDiagnostics, row, record.indexOf('person_id'))
         result = result and self.checkPersonSpeciality(record, row, self.tblFinalDiagnostics)

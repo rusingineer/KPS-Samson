@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -154,7 +154,7 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
         self.addObject('btnPrintMedicalDiagnosis', getPrintButton(self, '', u'Врачебный диагноз'))
 
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
-        self.setWindowTitleEx(u'Ф.106/у')
+        self.setWindowTitleEx(u'Ф.106у') #Из-за символа "/" загрузка настроек происходила неправильно Т_Т
 
         self.setMedicalDiagnosisContext()
         self.tabToken.setFocusProxy(self.tblPreliminaryDiagnostics)
@@ -227,15 +227,7 @@ class CF106Dialog(CEventEditDialog, Ui_Dialog):
 
 
     def destroy(self):
-        CEventEditDialog.deleteLater(self)
-        self.tblPreliminaryDiagnostics.setModel(None)
-        self.tblFinalDiagnostics.setModel(None)
-        del self.modelPreliminaryDiagnostics
-        del self.modelFinalDiagnostics
-
-        self.tabStatus.deleteLater()
-        self.tabMisc.deleteLater()
-        self.tabCash.deleteLater()
+        pass
 
 
     def eventFilter(self, obj, event):

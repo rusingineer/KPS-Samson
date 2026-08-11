@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1005</width>
-    <height>664</height>
+    <width>1151</width>
+    <height>688</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -805,6 +805,16 @@ p, li { white-space: pre-wrap; }
            <string>показывать шаблоны со СНИЛС текущего пользователя</string>
           </property>
          </item>
+         <item>
+          <property name="text">
+           <string>показывать шаблоны по специальности</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>показывать шаблоны по подразделению</string>
+          </property>
+         </item>
         </widget>
        </item>
        <item row="17" column="1">
@@ -1396,8 +1406,15 @@ p, li { white-space: pre-wrap; }
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="0">
+       <item row="1" column="0">
         <widget class="CInDocTableView" name="tblOrderDocs"/>
+       </item>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="chkActual">
+         <property name="text">
+          <string>Актуальные</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -1618,19 +1635,14 @@ p, li { white-space: pre-wrap; }
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CDateEdit</class>
-   <extends>QDateEdit</extends>
-   <header>library/DateEdit</header>
-  </customwidget>
-  <customwidget>
-   <class>CPersonTimeTableView</class>
-   <extends>QTableView</extends>
-   <header>Timeline/PersonTimeTable.h</header>
-  </customwidget>
-  <customwidget>
    <class>CRBComboBox</class>
    <extends>QComboBox</extends>
    <header>library/crbcombobox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDateEdit</class>
+   <extends>QDateEdit</extends>
+   <header>library/DateEdit</header>
   </customwidget>
   <customwidget>
    <class>CInDocTableView</class>
@@ -1638,14 +1650,14 @@ p, li { white-space: pre-wrap; }
    <header>library/InDocTable.h</header>
   </customwidget>
   <customwidget>
-   <class>CPolyclinicComboBox</class>
-   <extends>QComboBox</extends>
-   <header>Orgs/OrgComboBox.h</header>
-  </customwidget>
-  <customwidget>
    <class>COrgStructureComboBox</class>
    <extends>QComboBox</extends>
    <header>Orgs/OrgStructComboBoxes.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPolyclinicComboBox</class>
+   <extends>QComboBox</extends>
+   <header>Orgs/OrgComboBox.h</header>
   </customwidget>
   <customwidget>
    <class>CKLADRComboBox</class>
@@ -1658,14 +1670,19 @@ p, li { white-space: pre-wrap; }
    <header>KLADR/kladrComboxes.h</header>
   </customwidget>
   <customwidget>
-   <class>CDbComboBox</class>
-   <extends>QComboBox</extends>
-   <header>library/DbComboBox.h</header>
-  </customwidget>
-  <customwidget>
    <class>CLineEditWithRegExpValidator</class>
    <extends>QLineEdit</extends>
    <header location="global">library/LineEditWithRegExpValidator.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CPersonTimeTableView</class>
+   <extends>QTableView</extends>
+   <header>Timeline/PersonTimeTable.h</header>
+  </customwidget>
+  <customwidget>
+   <class>CDbComboBox</class>
+   <extends>QComboBox</extends>
+   <header>library/DbComboBox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>

@@ -21,6 +21,7 @@ from PyQt4.QtGui import QBrush
 from Reports.Report      import CReport
 from Events.EditDispatcher import getEventFormClass
 from Reports.ReportBase import CReportBase, createTable
+from Events.ActionGroupSignDialog import CActionGroupSignDialog
 from Users.Rights import urCanOpenAnyAttachedFile, urCanOpenOwnAttachedFile
 from Orgs.Utils import getOrgStructureDescendants
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
@@ -28,6 +29,8 @@ from Ui_Attach_SEMD_IEMK import Ui_Attach_SEMD_IEMK_Dialog
 from library.DateEdit import CDateEdit
 from library.DialogBase import CDialogBase
 from library.InDocTable import CRecordListModel, CInDocTableCol
+from library.RecordLock import CRecordLockMixin
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.Utils import forceString, toVariant, forceInt, forceRef, forceDate, \
     formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, forceDateTime, forceBool, trim
 from F088.F088EditDialog import CF088EditDialog
@@ -36,14 +39,16 @@ from Events.Utils import getActionTypeDescendants
 import datetime
 
 
-class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
+class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixin):
     def __init__(self, parent):
         CDialogBase.__init__(self, parent)
+        CRecordLockMixin.__init__(self)
         self.setupUi(self)
         self.listFilterIdentify = ""
         self.setWindowFlags(Qt.Window)
         self.addModels('ActionFileAttach', CActionFileAttachModel(self))
-        self.setModels(self.tblActionFileAttach, self.modelActionFileAttach, self.selectionModelActionFileAttach)
+        self.addModels('ActionFileAttachSort', CActionFileAttachSortFilterProxyTableModel(self, self.modelActionFileAttach))
+        self.setModels(self.tblActionFileAttach, self.modelActionFileAttachSort, self.selectionModelActionFileAttachSort)
         self.tblActionFileAttach.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
         self.tblActionFileAttach.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
         self.tblActionFileAttach.horizontalHeader().setStretchLastSection(True)
@@ -69,7 +74,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.edtFilterAttachFileEndDate.setDate(QDate().currentDate())
         self.btnFilterReset.clicked.connect(self.resetFilters)
         self.btnFilterApply.clicked.connect(self.applyFilters)
-        self.selectionModelActionFileAttach.selectionChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
+        self.selectionModelActionFileAttachSort.selectionChanged.connect(self.on_selectionModelFileAttach_currentRowChanged)
         self.btnOpenFile.setVisible(False)
         self.addObject('actPrintWindow', QtGui.QAction(u'Печать списка', self))
         self.addObject('actPrintSummaryDocuments', QtGui.QAction(u'Сводка по  документам', self))
@@ -152,8 +157,9 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
 
     def getModelAndTable(self):
         tbl = self.tblActionFileAttach
-        model = self.modelActionFileAttach
-        return tbl, model
+        sortModel = self.modelActionFileAttachSort
+        model = self.modelActionFileAttachSort.model()
+        return tbl, sortModel, model
 
     def getPreferences(self):
         if forceBool(self.appPrefs.get('AttachSEMDChkLastName', False)):
@@ -191,6 +197,16 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
 
         if forceBool(self.appPrefs.get('AttachSEMDChkIdentify', False)):
             self.chkFilterIdentify.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkIdentify', False)))
+        
+        if forceBool(self.appPrefs.get('AttachSEMDChkExportErrors', False)):
+            self.chkFilterExportErrors.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkExportErrors', False)))
+        else:
+            self.edtFilterExportErrors.setVisible(False)
+
+        if forceBool(self.appPrefs.get('AttachSEMDChkSchematronErrors', False)):
+            self.chkFilterSchematronErrors.setChecked(forceBool(self.appPrefs.get('AttachSEMDChkSchematronErrors', False)))
+        else:
+            self.edtFilterSchematronErrors.setVisible(False)
 
         self.applyFilters()
 
@@ -212,26 +228,31 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.appPrefs['AttachSEMDChkAttachFileEndDate'] = toVariant(self.chkFilterAttachFileEndDate.isChecked())
 
         self.appPrefs['AttachSEMDChkIdentify'] = toVariant(self.chkFilterIdentify.isChecked())
+        self.appPrefs['AttachSEMDChkSchematronErrors'] = toVariant(self.chkFilterSchematronErrors.isChecked())
+        self.appPrefs['AttachSEMDChkExportErrors'] = toVariant(self.chkFilterExportErrors.isChecked())
 
 
-    def sortByColumn(self, column):
-        tbl, model = self.getModelAndTable()
+    def sortByColumn(self, column, sortBy=None):
+        tbl, sortModel, model = self.getModelAndTable()
         header = tbl.horizontalHeader()
-        if column == self.__sortColumn:
-            self.__sortAscending = False if self.__sortAscending else True
-        else:
-            self.__sortColumn = column
-            self.__sortAscending = True
+        if not sortBy:
+            if column == self.__sortColumn:
+                self.__sortAscending = False if self.__sortAscending else True
+            else:
+                self.__sortColumn = column
+                self.__sortAscending = True
+            sortBy = self.__sortAscending
         header.setSortIndicatorShown(True)
-        header.setSortIndicator(column, Qt.AscendingOrder if self.__sortAscending else Qt.DescendingOrder)
-        model.sortData(column, self.__sortAscending)
+        header.setSortIndicator(column, Qt.AscendingOrder if sortBy else Qt.DescendingOrder)
+        sortModel.sort(column, sortBy)
+        model.emitRowsChanged(0, len(model._items)-1)
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelFileAttach_currentRowChanged(self, current, previous):
         self.rowCount()
 
     def rowCount(self):
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
 
         rowCount = forceString(tbl.model().rowCount())
         selectedRows = tbl.selectedRowList()
@@ -241,20 +262,26 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
 
     def contextMenuEvent(self, event):
         self.menu = QtGui.QMenu(self)
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         selectedRows = self.getSelectedRows(tbl)
         if len(selectedRows) == 1:
             currentRow = forceInt(tbl.currentRow())
-            attachedFileId = forceInt(tbl.model().records[currentRow].value('afa_id'))
+            index = model.index(currentRow, 0)
+            proxyIndex = sortModel.mapFromSource(index)
+            currentRow = forceInt(proxyIndex.row())
+            attachedFileId = forceInt(model.records[currentRow].value('afa_id'))
             if attachedFileId != 0:
                 openFile = QtGui.QAction(u'Открыть файл', self)
                 openFile.triggered.connect(self.openAttachFile)
             actOpenEvent = QtGui.QAction(u'Открыть обращение', self)
             actOpenEvent.triggered.connect(self.on_actOpenEvent_triggered)
+            actGroupSign = QtGui.QAction(u'Групповое подписание и прикрепление', self)
+            actGroupSign.triggered.connect(self.on_actGroupSign_triggered)
 
             if attachedFileId != 0:
                 self.menu.addAction(openFile)
             self.menu.addAction(actOpenEvent)
+            self.menu.addAction(actGroupSign)
 
         self.menu.popup(QtGui.QCursor.pos())
 
@@ -313,6 +340,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.cmbActionType.setValue(None)
         self.cmbEventType.clearValue()
         self.cmbFilterSigned.setCurrentIndex(0)
+        self.cmbFilterOrgStructure.setCurrentIndex(-1)
         self.chkFilterLastName.setChecked(False)
         self.chkFilterFirstName.setChecked(False)
         self.chkFilterPatrName.setChecked(False)
@@ -327,6 +355,8 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         self.chkFilterActionType.setChecked(False)
         self.chkFilterEventType.setChecked(False)
         self.chkFilterIdentify.setChecked(False)
+        self.chkFilterExportErrors.setChecked(False)
+        self.chkFilterSchematronErrors.setChecked(False)
         self.cmbFilterIdentify.setEnabled(False)
         self.cmbFilterIdentify.setCurrentIndex(0)
         self.cmbFilterIdentify.clearItemChecked()
@@ -360,7 +390,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
 
     def applyFilters(self):
         result = {}
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         QtGui.qApp.setWaitCursor()
 
         lastName = None
@@ -467,9 +497,9 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         QtGui.qApp.restoreOverrideCursor()
         self.rowCount()
         if type(self.__sortColumn) == type(None):
-            model.sortData(4, True)
+            self.sortByColumn(4, True)
         else:
-            model.sortData(self.__sortColumn, self.__sortAscending)
+            self.sortByColumn(self.__sortColumn, self.__sortAscending)
         self.setPreferences()
 
     def getListIdentify(self):
@@ -606,6 +636,57 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
         else:
             self.edtFilterAttachFileEndDate.setDisabled(True)
 
+    @pyqtSignature('bool')
+    def on_chkFilterExportErrors_toggled(self, check):
+        self.edtFilterExportErrors.setText(u'')
+        if self.chkFilterExportErrors.isChecked():
+            self.edtFilterExportErrors.setVisible(True)
+            self.modelActionFileAttachSort.setFilter('StatusREMD', [u'успех',
+                                                                    u'информация ещё не получена',
+                                                                    u'информация еще не получена',
+                                                                    u'ожидается валидация документа на федеральном уровне'], 
+                                                     CSortFilterProxyTableModel.MatchNotContainsAnyNotEmpty)
+        else:
+            self.edtFilterExportErrors.setVisible(False)
+            self.modelActionFileAttachSort.removeFilter('StatusREMD')
+    
+    @pyqtSignature('QString')
+    def on_edtFilterExportErrors_textChanged(self, text):
+        if self.edtFilterExportErrors.isVisible():
+            if text:
+                self.modelActionFileAttachSort.setFilter('StatusREMD', [forceString(text), 
+                                                                        u'успех', 
+                                                                        u'информация ещё не получена', 
+                                                                        u'информация еще не получена',
+                                                                        u'ожидается валидация документа на федеральном уровне'], 
+                                                         CSortFilterProxyTableModel.MatchContainsButFilterOut)
+            else:
+                self.modelActionFileAttachSort.setFilter('StatusREMD', [u'успех',
+                                                                    u'информация ещё не получена',
+                                                                    u'информация еще не получена',
+                                                                    u'ожидается валидация документа на федеральном уровне'], 
+                                                     CSortFilterProxyTableModel.MatchNotContainsAnyNotEmpty)
+        else:
+            self.modelActionFileAttachSort.removeFilter('StatusREMD')
+
+    @pyqtSignature('bool')
+    def on_chkFilterSchematronErrors_toggled(self, check):
+        self.edtFilterSchematronErrors.setText(u'')
+        if self.chkFilterSchematronErrors.isChecked():
+            self.edtFilterSchematronErrors.setVisible(True)
+            self.modelActionFileAttachSort.setFilter('StatusSchematron', u'', CSortFilterProxyTableModel.MatchNotEmpty)
+        else:
+            self.edtFilterSchematronErrors.setVisible(False)
+            self.modelActionFileAttachSort.removeFilter('StatusSchematron')
+
+    @pyqtSignature('QString')
+    def on_edtFilterSchematronErrors_textChanged(self, text):
+        if self.edtFilterSchematronErrors.isVisible():
+            self.modelActionFileAttachSort.setFilter('StatusSchematron', forceString(text),
+                                                     CSortFilterProxyTableModel.MatchContains if text else CSortFilterProxyTableModel.MatchNotEmpty)
+        else:
+            self.modelActionFileAttachSort.removeFilter('StatusSchematron')
+
     @pyqtSignature('int')
     def on_cmbFilterPerson_currentIndexChanged(self, index):
         if index == 0:
@@ -655,14 +736,21 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
     #     CReportGroupPersonInfo(self, data).exec_()
 
     def parseModel(self, isSelected=None):
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         listData = []
-        items = model.items()
+        items = []
         if isSelected:
-            newListItem = []
-            for el in tbl.selectedRowList():
-                newListItem.append(items[el])
-            items = newListItem
+            indexes = tbl.selectionModel().selectedRows()
+        else:
+            indexes = [sortModel.index(row, 0) for row in range(sortModel.rowCount())]
+
+        for proxyIndex in indexes:
+            if not proxyIndex.isValid():
+                continue
+            sourceIndex = sortModel.mapToSource(proxyIndex)
+            item = model.items()[sourceIndex.row()]
+            items.append(item)
+            
         for item in items:
             data = dataclass()
             data.fio_client = forceString(item.value('fio_client'))
@@ -686,6 +774,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
             data.date_sign_ecp_person = forceString(item.value('date_sign_ecp_person'))
             data.date_sign_ecp_mo = forceString(item.value('date_sign_ecp_mo'))
             data.export_date = forceDateTime(item.value('export_date'))
+            data.statusSchematron = forceString(item.value('statusSchematron'))
             data.statusREMD = forceString(item.value('statusREMD'))
             data.export_success = forceString(item.value('export_success'))
             listData.append(data)
@@ -695,10 +784,55 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
     def on_actOpenEvent_triggered(self):
         QtGui.qApp.callWithWaitCursor(self, self.openEvent)
     
+    @pyqtSignature('')
+    def on_actGroupSign_triggered(self):
+        actionIdList = []
+        tbl, sortModel, model = self.getModelAndTable()
+        for row in range(sortModel.rowCount()):
+            record = sortModel.getRecordByRow(row)
+            actionIdList.append(forceRef(record.value('actionId')))
+        actionIdList = list(set(actionIdList))
+
+        if QtGui.qApp.checkGlobalPreference(u'23:ActionGroupSignLockByRecord', u'да'):
+            try:
+                dialog = CActionGroupSignDialog(self, innerAppLock=True, noFilters=True)
+                dialog.setActionIdList(actionIdList)
+                dialog.exec_()
+            except:
+                QtGui.qApp.logCurrentException()
+        else:
+            lockIdList = []
+            excludedActionIdList = []
+            alreadyLockedCount = 0
+            lockErrorCount = 0
+            for actionId in actionIdList:
+                appLockId, message = self.tryLock('Action', actionId, shorted=1)
+                if appLockId:
+                    lockIdList.append(appLockId)
+                else:
+                    excludedActionIdList.append(actionId)
+                    if message == u'Не удалось установить блокировку':
+                        lockErrorCount += 1
+                    if message.startswith(u'Данные'):
+                        alreadyLockedCount += 1
+            if len(excludedActionIdList) > 0:
+                QtGui.QMessageBox.information(self, u'Внимание',
+                    (u'Из списка были исключены Действия, заблокированные другими пользователями (%d шт)'
+                    u' или блокировку на которые установить не удалось (%d шт)') % (alreadyLockedCount, lockErrorCount))
+
+            actionIdList = list(set(actionIdList) - set(excludedActionIdList))
+            try:
+                dialog = CActionGroupSignDialog(self, noFilters=True)
+                dialog.setActionIdList(actionIdList)
+                dialog.exec_()
+            finally:
+                for lockId in lockIdList:
+                    self.releaseLock(lockId)
+    
     def openEvent(self):
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         selectedRow = self.getSelectedRows(tbl)
-        record = model.getRecordByRow(selectedRow[0])
+        record = sortModel.getRecordByRow(selectedRow[0])
         eventId = forceRef(record.value('eventId')) if record else None
         if eventId:
             try:
@@ -726,13 +860,13 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog):
 
     def contentToHTML(self):
         reportHeader = u'Сводка о формировании СЭМД для РЭМД'
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         tbl.setReportHeader(reportHeader)
         return tbl.contentToHTML()
 
     def openAttachFile(self):
         interface = QtGui.qApp.webDAVInterface
-        tbl, model = self.getModelAndTable()
+        tbl, sortModel, model = self.getModelAndTable()
         currentRow = forceInt(tbl.currentRow())
         attachedFileId = forceInt(tbl.model().records[currentRow].value('afa_id'))
         tableName = 'Action_FileAttach'
@@ -800,12 +934,15 @@ class CActionFileAttachModel(CFileAttachModel):
         self.addCol(CInDocTableCol(u'Дата \nприкрепления', 'documentDate', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Назначил', 'setPerson', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Врач', 'person', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Подразделение', 'orgStructureName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Имя файла', 'fileName', 40)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата \nподписания \nЭЦП врача', 'date_sign_ecp_person', 40)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата \nподписания \nЭЦП МО', 'date_sign_ecp_mo', 30)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата \nэкспорта', 'export_date', 30)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Информация по схематрону', 'StatusSchematron', 40)).setReadOnly()
         self.addCol(CInDocTableCol(u'Информация о \nприеме документа \nфедеральным РЭМД', 'StatusREMD', 40)).setReadOnly()
         self.addCol(CInDocTableCol(u'Отправка в \nРегиональный РЭМД', 'export_success', 40)).setReadOnly()
+        self.addHiddenCol('actionId')
 
         self.headerSortingCol = {0: True}
         self.records = None
@@ -869,7 +1006,7 @@ class CActionFileAttachModel(CFileAttachModel):
 
         # Общие колонки на вывод
         cols0 = [
-            u"DISTINCT " + forceString(tableAction['id']),
+            u"DISTINCT " + forceString(tableAction['id'].alias('actionId')),
             u"concat_ws(' ', " + forceString(tableActionType['name']) + u", 'от', DATE_FORMAT(a.endDate, '%d.%m.%Y')) as title",
             tableEvent['id'].alias('eventId'),
             tableEventType['name'].alias('event_type_name'),
@@ -883,6 +1020,8 @@ class CActionFileAttachModel(CFileAttachModel):
 
             u"""CASE WHEN ati.value != '291' THEN  concat( pOrgStructure.code,'|', formatPersonName(pOrgStructure.id))
             ELSE  concat( labPers.code,'|', formatPersonName(labPers.id))    END as person""",
+            u"""CASE WHEN ati.value != '291' THEN  os.name
+            ELSE  oslabPers.name END as orgStructureName""",
         ]
 
         # Колонки первого запроса
@@ -893,7 +1032,7 @@ class CActionFileAttachModel(CFileAttachModel):
             tableActionFileAttach['respSigningDatetime'].alias('date_sign_ecp_person'),
             tableActionFileAttach['orgSigningDatetime'].alias('fileAttachDatetime'),
             tableActionFileAttachExport['dateTime'].alias('export_date'),
-            tableActionFileAttachExport['note'],
+            tableActionFileAttachExport['note'].alias('StatusSchematron'),
             u"""if(afe.id is null and IM2.id IS NULL and IM1.id IS NULL, '', IF((afe.success = 1 or afe.note = 'XML - документ не подписан') OR IM2.id IS NOT NULL OR IM1.id IS NOT NULL, 'успешно', 'ошибка')) as export_success""",
             u"""case
             when IM1.RemdRegNumber                      then CONCAT('Успех - ', IM1.RemdRegNumber)
@@ -920,7 +1059,7 @@ class CActionFileAttachModel(CFileAttachModel):
             u"NULL as fileAttachDatetime",
             u"NULL AS export_date",
             u"'' as export_success",
-            u"NULL AS note",
+            u"NULL AS StatusSchematron",
             u"'' AS StatusREMD",
             u"NULL AS master_id",
             u"NULL AS documentDate",
@@ -1136,17 +1275,6 @@ class CActionFileAttachModel(CFileAttachModel):
         self.setItems(recordModify)
 
 
-    def sortData(self, column, ascending):
-        col = self._cols[column]
-        #self._items.sort(key=lambda item: col.toSortString(item.value(col.fieldName()), item), reverse=not ascending)
-        if column == 3:
-            self._items.sort(key=lambda item: forceDate(QDate(datetime.datetime.strptime(forceString(item.value(col.fieldName())).split(u'-')[0].strip(), '%d.%m.%Y').date())) if forceString(item.value(col.fieldName())) else QDate(), reverse= not ascending)
-            self.emitRowsChanged(0, len(self._items)-1)
-        else:
-            self._items.sort(key=lambda item: (col.toSortString(item.value(col.fieldName()), item) if u'не задано' != col.toSortString(item.value(col.fieldName()), item) else u''), reverse=not ascending)
-            self.emitRowsChanged(0, len(self._items)-1)
-
-
 class dataclass():
     def __init__(self):
         self.fio_client = None
@@ -1167,6 +1295,7 @@ class dataclass():
         self.date_sign_ecp_person = None
         self.date_sign_ecp_mo = None
         self.export_date = None
+        self.statusSchematron = None
         self.statusREMD = None
         self.export_success = None
 
@@ -1344,7 +1473,7 @@ WHERE
 
   GROUP BY person
 
-ORDER BY orgStructure, gg2;
+ORDER BY orgStructure, orgStructureId, gg2;
 
 ;
 """.format(
@@ -1411,12 +1540,18 @@ ORDER BY orgStructure, gg2;
             ('10%', [u'Статус РЭМД не получен'], CReportBase.AlignLeft),
         ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
 
         boldChars = QtGui.QTextCharFormat()
         boldChars.setFontWeight(QtGui.QFont.Bold)
 
         orgStr = None
+        resultClmn1 = 0
+        resultClmn2 = 0
+        resultClmn3 = 0
+        resultClmn4 = 0
+        resultClmn5 = 0
+        resultClmn6 = 0
 
         def getColor(clmn):
             if int(clmn) >= 500:
@@ -1447,6 +1582,13 @@ ORDER BY orgStructure, gg2;
                 table.setText(row, 5, forceString(clmn5), brushColor=textColor)
                 table.setText(row, 6, forceString(clmn6), brushColor=textColor)
 
+                resultClmn1 += clmn1
+                resultClmn2 += clmn2
+                resultClmn3 += clmn3
+                resultClmn4 += clmn4
+                resultClmn5 += clmn5
+                resultClmn6 += clmn6
+
             else:
                 if orgStr != orgStructure:
                     orgStr = orgStructure
@@ -1468,6 +1610,13 @@ ORDER BY orgStructure, gg2;
                     table.setText(row, 5, forceString(allClmn5), charFormat=boldChars)
                     table.setText(row, 6, forceString(allClmn6), charFormat=boldChars)
 
+                    resultClmn1 += allClmn1
+                    resultClmn2 += allClmn2
+                    resultClmn3 += allClmn3
+                    resultClmn4 += allClmn4
+                    resultClmn5 += allClmn5
+                    resultClmn6 += allClmn6
+
                 textColor = getColor(clmn4)
 
                 row = table.addRow()
@@ -1478,6 +1627,18 @@ ORDER BY orgStructure, gg2;
                 table.setText(row, 4, forceString(clmn4), brushColor=textColor)
                 table.setText(row, 5, forceString(clmn5), brushColor=textColor)
                 table.setText(row, 6, forceString(clmn6), brushColor=textColor)
+
+        row = table.addRow()
+        if not group:
+            table.setText(row, 0, forceString(u"Результат по врачам:"), charFormat=boldChars)
+        else:
+            table.setText(row, 0, forceString(u"Результат по МО/врачам:"), charFormat=boldChars)
+        table.setText(row, 1, forceString(resultClmn1), charFormat=boldChars)
+        table.setText(row, 2, forceString(resultClmn2), charFormat=boldChars)
+        table.setText(row, 3, forceString(resultClmn3), charFormat=boldChars)
+        table.setText(row, 4, forceString(resultClmn4), charFormat=boldChars)
+        table.setText(row, 5, forceString(resultClmn5), charFormat=boldChars)
+        table.setText(row, 6, forceString(resultClmn6), charFormat=boldChars)
 
         return doc
 
@@ -1498,26 +1659,42 @@ class CReportPrintWindow(CReport):
         cursor.insertText(u'Печать списка')
         cursor.insertBlock()
 
+        reportSchematron = bool([i.statusSchematron for i in self.data if i.statusSchematron != u''])
+        reportREMD = bool([i.statusREMD for i in self.data if i.statusREMD != u''])
+
+        colInfSchm = '3%'
+        colInfREMD = '16.5%'
+        if reportSchematron and reportREMD:
+            colInfSchm = '7%'
+            colInfREMD = '12.5%'
+        elif reportSchematron:
+            colInfSchm = '16.5%'
+            colInfREMD = '3%'
+        elif reportREMD:
+            colInfSchm = '3%'
+            colInfREMD = '16.5%'
+
         tableColumns = [
-            ('3%', [u'№'], CReportBase.AlignCenter),
-            ('10%', [u'ФИО \nПациента'], CReportBase.AlignLeft),
+            ('1%', [u'№'], CReportBase.AlignCenter),
+            ('8.5%', [u'ФИО \nПациента'], CReportBase.AlignLeft),
             ('3%', [u'Код \nкарточки'], CReportBase.AlignLeft),
-            ('10%', [u'Тип \nсобытия'], CReportBase.AlignLeft),
-            ('10%', [u'Период \nобращения'], CReportBase.AlignLeft),
-            ('10%', [u'Тип \nдействия'], CReportBase.AlignLeft),
-            ('8%', [u'Дата \nвыполнения \nдействия'], CReportBase.AlignLeft),
-            ('8%', [u'Дата \nприкрепления'], CReportBase.AlignLeft),
-            ('10%', [u'Назначил'], CReportBase.AlignLeft),
-            ('10%', [u'Врач'], CReportBase.AlignLeft),
-            ('6%', [u'Имя файла'], CReportBase.AlignLeft),
-            ('8%', [u'Дата \nподписания \nЭЦП врача'], CReportBase.AlignLeft),
-            ('8%', [u'Дата \nподписания \nЭЦП МО'], CReportBase.AlignLeft),
-            ('8%', [u'Дата \nэкспорта'], CReportBase.AlignLeft),
-            ('10%', [u'Информация о \nприеме документа \nфедеральным РЭМД'], CReportBase.AlignLeft),
-            ('10%', [u'Отправка в \nРегиональный РЭМД'], CReportBase.AlignLeft),
+            ('8%', [u'Тип \nсобытия'], CReportBase.AlignLeft),
+            ('4%', [u'Период \nобращения'], CReportBase.AlignLeft),
+            ('8%', [u'Тип \nдействия'], CReportBase.AlignLeft),
+            ('4%', [u'Дата \nвыполнения \nдействия'], CReportBase.AlignLeft),
+            ('4%', [u'Дата \nприкрепления'], CReportBase.AlignLeft),
+            ('7.5%', [u'Назначил'], CReportBase.AlignLeft),
+            ('7.5%', [u'Врач'], CReportBase.AlignLeft),
+            ('7.5%', [u'Имя файла'], CReportBase.AlignLeft),
+            ('4%', [u'Дата \nподписания \nЭЦП врача'], CReportBase.AlignLeft),
+            ('4%', [u'Дата \nподписания \nЭЦП МО'], CReportBase.AlignLeft),
+            ('4%', [u'Дата \nэкспорта'], CReportBase.AlignLeft),
+            (colInfSchm, [u'Информация по схематрону'], CReportBase.AlignLeft),
+            (colInfREMD, [u'Информация о \nприеме документа \nфедеральным РЭМД'], CReportBase.AlignLeft),
+            ('5.5%', [u'Отправка в \nРегиональный РЭМД'], CReportBase.AlignLeft),
         ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
 
         x = 0
         for value in self.data:
@@ -1537,8 +1714,9 @@ class CReportPrintWindow(CReport):
             table.setText(row, 11, forceString(value.date_sign_ecp_person))
             table.setText(row, 12, forceString(value.date_sign_ecp_mo))
             table.setText(row, 13, forceString(value.export_date))
-            table.setText(row, 14, forceString(value.statusREMD))
-            table.setText(row, 15, forceString(value.export_success))
+            table.setText(row, 14, forceString(value.statusSchematron))
+            table.setText(row, 15, forceString(value.statusREMD))
+            table.setText(row, 16, forceString(value.export_success))
 
         return doc
 
@@ -1569,7 +1747,7 @@ class CReportGroupStrucPerson(CReport):
             ('20%', [u'Тип действия'], CReportBase.AlignLeft),
         ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
 
         self.data.sort(key=lambda item: (item.structure, item.person))
 
@@ -1637,7 +1815,7 @@ class CReportGroupPersonInfo(CReport):
             ('10%', [u'Полученно успешных'], CReportBase.AlignLeft)
         ]
 
-        table = createTable(cursor, tableColumns)
+        table = createTable(cursor, tableColumns, duplicateHeaderOnNewPage=False)
 
         self.data.sort(key=lambda item: item.setPerson)
 
@@ -1684,3 +1862,29 @@ class CReportGroupPersonInfo(CReport):
                 table.setText(row, 5, forceString(numberGoodPush))
 
         return doc
+
+
+class CActionFileAttachSortFilterProxyTableModel(CSortFilterProxyTableModel):
+
+
+    def _parseDate(self, value):
+        text = forceString(value).strip()
+        if not text:
+            return QDate()
+
+        datePart = text.split(u'-')[0].strip()
+
+        try:
+            dt = datetime.datetime.strptime(datePart, '%d.%m.%Y').date()
+            return QDate(dt.year, dt.month, dt.day)
+        except ValueError:
+            return QDate() 
+        
+        
+    def lessThan(self, left, right):
+        if left.column() == 3:
+            leftKey = self._parseDate(left.data(Qt.DisplayRole))
+            rightKey = self._parseDate(right.data(Qt.DisplayRole))
+            return leftKey < rightKey
+
+        return CSortFilterProxyTableModel.lessThan(self, left, right)

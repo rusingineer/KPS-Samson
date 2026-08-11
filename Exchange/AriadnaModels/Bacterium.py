@@ -1,6 +1,8 @@
 # coding=utf-8
 from Exchange.AriadnaModels.AbstractObject import AbstractObject
 from Exchange.AriadnaModels.Antibiotic import Antibiotic
+from Exchange.AriadnaModels.Phenotype import Phenotype
+from Exchange.AriadnaModels.ResistanceMarker import ResistanceMarker
 
 
 class Bacterium(AbstractObject):
@@ -14,6 +16,8 @@ class Bacterium(AbstractObject):
         self.sortCode = 0  # Integer Обязательно Поле для сортировки
         self.notes = ''  # String Обязательно Примечания к бактериям
         self.antibiotics = []  # Array Object Обязательно Антибиотики
+        self.phenotypes = []
+        self.resistanceMarkers = []
         super(Bacterium, self).__init__(jsondict)
 
     def elementProperties(self):
@@ -28,5 +32,7 @@ class Bacterium(AbstractObject):
                    ("unit", "unit", str, False, None, True),
                    ("sortCode", "sortCode", int, False, None, True),
                    ("notes", "notes", str, False, None, True),
-                   ("antibiotics", "antibiotics", Antibiotic, True, None, True), ])
+                   ("antibiotics", "antibiotics", Antibiotic, True, None, True),
+                   ("phenotypes", "phenotypes", Phenotype, True, None, True),
+                   ("resistanceMarkers", "resistanceMarkers", ResistanceMarker, True, None, True), ])
         return js

@@ -15,8 +15,15 @@
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QChar, QDate, QDateTime, QString, pyqtSignature, QModelIndex, SIGNAL, QVariant, pyqtSignal
 
-
-from library.DialogBase import CConstructHelperMixin
+from F090.F090EditDialog import CRBInfectionTableDialog
+from library.AgeSelector import checkAgeSelector
+from library.DialogBase import CConstructHelperMixin, CDialogBase
+from library.DialogButtonBox import CApplyResetDialogButtonBox
+from library.ICDCodeEdit import CICDCodeEditEx
+from library.MemTableModel import CMemTableModel
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
+from library.TableModel import CTableModel, CTextCol, CDoubleCol
+from library.TableView import CTableView
 from library.crbcombobox import CRBComboBox
 from library.interchange import getRBComboBoxValue, setRBComboBoxValue
 from library.ICDInDocTableCol import CICDExInDocTableCol
@@ -25,14 +32,17 @@ from library.CSG.CSGComboBox import defaultFilters
 from library.InDocTable import CInDocTableModel, CIntInDocTableCol, CDateInDocTableCol, CCodeRefInDocTableCol, CSPR80SearchInDocTableCol
 from library.ICDUtils import MKBwithoutSubclassification
 
-from library.Utils import forceBool, forceInt, forceRef, forceString, forceDate, toVariant, forceDateTime
+from library.Utils import forceBool, forceInt, forceRef, forceString, forceDate, toVariant, forceDateTime, firstYearDay, \
+    lastYearDay, calcAgeTuple
 
 from Events.Utils import getEvenMesServiceMask, getEventMesSpecificationId, getEventMesCodeMask, getEventMesNameMask, \
     getEventProfileId, getEventCSGRequired, getEventMesRequired, getEventMesRequiredParams, getEventCSGCodeMask, \
-    getEventSubCSGCodeMask, checkDiagnosis
+    getEventSubCSGCodeMask, checkDiagnosis, getEventDiagnosis, getEventDuration, getEventAidTypeRegionalCode, \
+    getEventTypeForm
 from Reports.CheckMesDescription import showCheckMesDescription
 from Reports.MesDescription import showMesDescription
 
+from Accounting.Utils import getContractDescr, roundMath, getWeekProfile, isInterruptedCase
 
 from Events.Ui_EventMesPage             import Ui_EventMesPageWidget
 from Events.Ui_CheckMesParametersDialog import Ui_CheckMesParametersDialog
@@ -65,15 +75,15 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         self.mesWidgets = [self.lblMes, self.cmbMes, self.lblMesSpecification, self.cmbMesSpecification, self.btnCheckMes, self.btnShowMes]
         self.csgWidgets = [self.grpCSG]
         self.tblCSGs.addPopupDelRow()
-        self.tblCSGs.addPopupDuplicateCurrentRow()
+        # self.tblCSGs.addPopupDuplicateCurrentRow()
         self.tblCSGSubItems.addPopupDelRow()
-        self.tblCSGSubItems.addPopupDuplicateCurrentRow()
+        # self.tblCSGSubItems.addPopupDuplicateCurrentRow()
         self.tblCSGs.setDelRowsIsExposed(lambda rowsExp: not any(map(self.isExposed, rowsExp)))
         self.tblCSGSubItems.setDelRowsIsExposed(lambda rowsExp: not any(map(self.isExposed_sub, rowsExp)))
-        self.addObject('actCreateSomeCSGformepls', QtGui.QAction(u'Подобрать КСГ', self))
-        self.tblCSGs.addPopupAction(self.actCreateSomeCSGformepls)
-        self.connect(self.actCreateSomeCSGformepls, SIGNAL('triggered()'), self.on_actCreateSomeCSGformepls)
-        self.actCreateSomeCSGformepls.setEnabled(False)
+        # self.addObject('actCreateSomeCSGformepls', QtGui.QAction(u'Подобрать КСГ', self))
+        # self.tblCSGs.addPopupAction(self.actCreateSomeCSGformepls)
+        # self.connect(self.actCreateSomeCSGformepls, SIGNAL('triggered()'), self.on_actCreateSomeCSGformepls)
+        # self.actCreateSomeCSGformepls.setEnabled(False)
         self.mesRequired = False
         self.mesRequiredParams = 0
         for w in self.mesWidgets:
@@ -128,8 +138,8 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         self.eventEditor = eventEditor
         self.modelCSGs.csgCol.setEventEditor(eventEditor)
         self.modelCSGSubItems.csgCol.setEventEditor(eventEditor)
-        if hasattr(self.eventEditor,  'modelPreliminaryDiagnostics') and hasattr(self.eventEditor,  'tabMisc'):
-            self.actCreateSomeCSGformepls.setEnabled(True)
+        # if hasattr(self.eventEditor,  'modelPreliminaryDiagnostics') and hasattr(self.eventEditor,  'tabMisc'):
+        #     self.actCreateSomeCSGformepls.setEnabled(True)
 
 
     def setRecord(self, record):
@@ -208,6 +218,7 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
     def setFractions(self, fractions):
         self.fractions = fractions
         self.cmbMes.setFractions(self.fractions)
+        self.modelCSGs.setCsgFilterFractions(self.fractions)
 
 
     def parseMesServiceMask(self, mesServiceTemplate):
@@ -257,33 +268,59 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
     
     def checkDataEntered(self):
         haveToCheck = False
+        finalMKBList = list()
+        for _ in self.eventEditor.modelFinalDiagnostics._items:
+            diagType = forceString(QtGui.qApp.db.translate('rbDiagnosisType', 'id', forceString(_.value('diagnosisType_id')), 'code'))
+            if diagType in ('1', '2'):
+                finalMKBList.append(forceString(_.value('MKB')))
+        csgContainsFinalDiag = False
+        
         for record in self.modelCSGs.items():
             if forceString(record.value('CSGCode')):
                 haveToCheck = True
                 break
-        haveToCheckPeriods = u'мэса нет' in unicode(self.cmbMes.currentText()).lower()
+        haveToCheckPeriods = u'мэса нет' in unicode(self.cmbMes.currentText()).lower() or not bool(self.cmbMes.currentIndex())
         if haveToCheck:
             mainRecords = []
+            eventBegDate = self.eventEditor.edtBegDate.date()
+            eventEndDate = self.eventEditor.edtEndDate.date()
             for row, rec in enumerate(self.modelCSGs.items()):
                 begDate = forceDate(rec.value('begDate'))
                 endDate = forceDate(rec.value('endDate'))
-                if not begDate:
+                csg = forceString(rec.value('CSGCode'))
+
+                if csg and begDate and begDate < eventBegDate:
                     self.eventEditor.checkValueMessage(
-                        u'Должна быть указана дата начала для КСГ', False,
+                        u'Дата начала КСГ ({}) ранее даты начала случая лечения.'
+                        .format(csg),
+                        False,
                         self.tblCSGs, row, 1
                     )
                     return False
-                if not endDate:
+
+                if csg and endDate and eventEndDate and endDate > eventEndDate:
                     self.eventEditor.checkValueMessage(
-                        u'Должна быть указана дата окончания для КСГ', False,
+                        u'Дата окончания КСГ ({}) позже даты окончания случая лечения.'
+                        .format(csg),
+                        False,
                         self.tblCSGs, row, 2
                     )
                     return False
-                if begDate > endDate:
-                    self.eventEditor.checkValueMessage(u'Дата начала не может быть больше даты окончания ', False, self.tblCSGs, row,
-                                                    1)
-                    return False
-                mainRecords.append((row, rec, begDate, endDate))
+
+                if forceString(rec.value('MKB')) in finalMKBList and not csgContainsFinalDiag:
+                    # заключительный диагноз вкладки стат. учет соответствует хотя бы одному диагнозу КСГ
+                    csgContainsFinalDiag = True
+                    
+
+                if csg not in ('G26st36.009', 'G26st36.025', 'G26st36.026', 'G26st36.050', 'G26st36.051', 'G26st36.052', 'G26st36.053', 'G26st36.054'):
+                    # тт 4478 - исключить ксг, которые подаются параллельно с основным
+                    mainRecords.append((row, rec, begDate, endDate))
+            if not csgContainsFinalDiag and eventEndDate:
+                self.eventEditor.checkValueMessage(
+                    u'Заключительный диагноз вкладки Стат. учет не соответствует ни одному диагнозу КСГ', False,
+                    self.tblCSGs
+                )
+                return False
 
             mainRecords.sort(key=lambda x: x[2])
             prevEnd = None
@@ -319,13 +356,18 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         self.cmbMes.setMKBEx(MKBEx)
 
     def checkCsg(self):
-        result = len(self.modelCSGs.items()) > 0 or self.eventEditor.checkInputMessage(u'КСГ', False, self.tblCSGs)
-        result = result and (self.modelCSGs.checkData() or self.eventEditor.checkInputMessage(u'Данные КСГ', False,
-                                                                                              self.tblCSGs))
-        result = result and self.checkActualMKB(self.modelCSGs, self.tblCSGs, 1)
-        result = result and self.checkActualMKB(self.modelCSGSubItems, self.tblCSGSubItems, 0)
-        result = result and self.checkDates(self.modelCSGs, self.tblCSGs, 1)
-        result = result and self.checkDates(self.modelCSGSubItems, self.tblCSGSubItems, 0)
+        result = True
+        isMesEmpty = forceString(self.cmbMes.code()) in ('', '0')
+        is003Form = getEventTypeForm(self.eventEditor.eventTypeId) == u'003'
+        financeCode = forceString(QtGui.qApp.db.translate('rbFinance', 'id', self.eventEditor.eventFinanceId, 'code'))
+        isStac = getEventAidTypeRegionalCode(self.eventEditor.eventTypeId) in ('11', '12', '301', '302', '41', '42', '51', '52', '511', '522', '43')
+        if isMesEmpty and financeCode == '2' and is003Form and isStac:
+            result = len(self.modelCSGs.items()) > 0 or self.eventEditor.checkInputMessage(u'хотя бы один КСГ!', False, self.tblCSGs)
+        result = result and self.modelCSGs.checkData()
+        # result = result and self.checkActualMKB(self.modelCSGs, self.tblCSGs, 1)
+        # result = result and self.checkActualMKB(self.modelCSGSubItems, self.tblCSGSubItems, 0)
+        # result = result and self.checkDates(self.modelCSGs, self.tblCSGs, 1)
+        # result = result and self.checkDates(self.modelCSGSubItems, self.tblCSGSubItems, 0)
         return result
 
     def checkActualMKB(self, model, tbl, addPos):
@@ -519,6 +561,13 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
             showMesDescription(self, mesId)
 
 
+    @pyqtSignature('')
+    def on_btnOpenSpr69_pressed(self):
+        dialog = CSpr69TableDialog(self, 'soc_spr69')
+        dialog.setWindowTitle(u'Просмотрщик SPR69')
+        dialog.exec_()
+
+
     @pyqtSignature('int')
     def on_cmbMes_currentIndexChanged(self, index):
         mesCode = u''
@@ -536,8 +585,20 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         if index.column() == 6: # CSG
             self.modelCSGs.setCsgFilterMKB(forceString(
                 self.modelCSGs.value(index.row(),'MKB')))
+            self.modelCSGs.setCsgFilterAssociatedMKB(forceString(
+                self.modelCSGs.value(index.row(),'associatedMKB')))
+            self.modelCSGs.setCsgFilterComplicationMKB(forceString(
+                self.modelCSGs.value(index.row(),'complicationMKB')))
             self.modelCSGs.setCsgFilterEventProfileId(forceRef(
                 self.modelCSGs.value(index.row(),'eventProfile_id')))
+
+            self.modelCSGs.setCsgFilterKrit(forceRef(
+                self.modelCSGs.value(index.row(),'krit')))
+
+            self.modelCSGs.setCsgFilterBegDate(forceDate(
+                self.modelCSGs.value(index.row(),'begDate')))
+            self.modelCSGs.setCsgFilterEndDate(forceDate(
+                self.modelCSGs.value(index.row(),'endDate')))
 
 
 
@@ -546,8 +607,200 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
         if index.column() == 6: # CSG
             self.modelCSGs.setCsgFilterMKB(forceString(
                 self.modelCSGs.value(index.row(),'MKB')))
+            self.modelCSGs.setCsgFilterAssociatedMKB(forceString(
+                self.modelCSGs.value(index.row(),'associatedMKB')))
+            self.modelCSGs.setCsgFilterComplicationMKB(forceString(
+                self.modelCSGs.value(index.row(),'complicationMKB')))
             self.modelCSGs.setCsgFilterEventProfileId(forceRef(
                 self.modelCSGs.value(index.row(),'eventProfile_id')))
+
+            self.modelCSGs.setCsgFilterKrit(forceRef(
+                self.modelCSGs.value(index.row(),'krit')))
+
+            self.modelCSGs.setCsgFilterBegDate(forceDate(
+                self.modelCSGs.value(index.row(),'begDate')))
+            self.modelCSGs.setCsgFilterEndDate(forceDate(
+                self.modelCSGs.value(index.row(),'endDate')))
+
+        csgCode = forceString(self.modelCSGs.value(index.row(),'CSGCode'))
+        if csgCode and self.eventEditor.tabNotes.chkIsClosed.isChecked():
+            msgTxt = csgCode + u' | '
+            msgTxt += forceString(self.modelCSGs.csgNameCol.toString(csgCode, None))
+            calcSum = self.calcCSGSum(index, csgCode)
+            msgTxt += u', расчётная итоговая стоимость: {0}'.format(calcSum)
+            self.eventEditor.statusBar.showMessage(msgTxt)
+
+    def calcCSGSum(self, index, csgCode):
+        # расчёт стоимости ксг почти как в CAccountBuilder.exposeCsg23()
+        db = QtGui.qApp.db
+
+        def isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, date, actualMKB=''):
+            if tariff.tariffCategoryId and tariff.tariffCategoryId != tariffCategoryId:
+                return False
+            if not tariff.dateInRange(date):
+                return False
+            if tariff.cureMethodId and cureMethodId and tariff.cureMethodId != cureMethodId:
+                return False
+            if tariff.resultId and tariff.resultId != resultId:
+                return False
+            if tariff.mesStatus and ((tariff.mesStatus == 2) != (mesLevel == 2)):
+                return False
+
+            sex = tariff.sex
+            ageSelector = tariff.ageSelector
+            eventTypeId = tariff.eventTypeId
+            if sex or ageSelector or eventTypeId:
+                if eventTypeId and eventTypeId != self.eventEditor.eventTypeId:
+                    return False
+                if not date:
+                    date = self.eventEditor.eventDate
+                if sex or ageSelector:
+                    clientId = self.eventEditor.clientId
+                    clientMesInfo = self.eventEditor.getClientMesInfo() if clientId else None
+                    if clientRecord:
+                        clientSex = clientMesInfo[5]
+                        if sex and sex != clientSex:
+                            return False
+                        if ageSelector:
+                            if tariff.controlPeriod == 1:
+                                date = firstYearDay(date)
+                            elif tariff.controlPeriod == 2:
+                                date = lastYearDay(date)
+                            else:
+                                pass
+
+                            clientBirthDate = clientMesInfo[1]
+                            clientAge = calcAgeTuple(clientBirthDate, date)
+                            if not clientAge:
+                                clientAge = (0, 0, 0, 0)
+                            if not checkAgeSelector(ageSelector, clientAge):
+                                return False
+                    else:
+                        return False
+            if tariff.MKB:
+                if actualMKB:
+                    MKB = actualMKB
+                else:
+                    eventMKB = getEventDiagnosis(eventId)
+                    MKB = eventMKB
+                if not tariff.matchMKB(MKB or ''):
+                    return False
+            return True
+
+        def getOperationCount(eventId, serviceId, eventEndDate, mkb):
+            tableKSG = db.table('rbService')
+            # tableMKB = db.table('Diagnosis')
+            tableS69 = db.table('soc_spr69')
+            tableS82 = db.table('soc_spr82')
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            tableRBService = db.table('rbService').alias('s18')
+
+            # table = tableKSG.leftJoin(tableMKB, 'Diagnosis.id = getEventDiagnosis(%d)' % eventId)
+            table = tableKSG.leftJoin(tableS69, u"""rbService.infis = soc_spr69.ksgkusl 
+                    and (soc_spr69.mkb = '%s' or soc_spr69.mkb is null or (soc_spr69.mkb = 'C.' and substr('%s', 1, 1) = 'C') 
+                    or (soc_spr69.mkb = 'I.' and substr('%s', 1, 1) = 'I')
+                    or (soc_spr69.mkb = 'C00-C80' and '%s' between 'C00' and 'C80.9')) and soc_spr69.kusl is not null""" % mkb)
+            table = table.leftJoin(tableAction, 'Action.event_id = %d' % eventId)
+            table = table.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            table = table.leftJoin(tableRBService, tableRBService['id'].eq(tableActionType['nomenclativeService_id']))
+            cond = [tableKSG['id'].eq(serviceId),
+                    tableAction['deleted'].eq(0),
+                    tableAction['status'].eq(2),
+                    tableAction['event_id'].eq(eventId),
+                    tableRBService['infis'].eq(tableS69['kusl']),
+                    "s18.id is not null"
+                    ]
+            table = table.leftJoin(tableS82, tableS82['CODE'].eq(tableS69['ksgkusl']))
+            cond.append(tableS82['DATN'].dateLe(eventEndDate))
+            cond.append(db.joinOr([tableS82['DATO'].dateGe(eventEndDate), tableS82['DATO'].isNull()]))
+            cond.append(tableS82['CODE'].isNotNull())
+            result = db.getCount(table, where=cond)
+            return result
+
+        sum = 0
+        serviceId    = forceRef(db.translate('rbService', 'infis', csgCode, 'id'))
+        eventId      = self.eventId
+        eventTypeId  = self.eventEditor.eventTypeId
+        eventEndDate = self.eventEditor.eventDate
+        mkbCode      = forceString(self.modelCSGs.value(index.row(), 'MKB'))
+        mkbAssocCode = forceString(self.modelCSGs.value(index.row(), 'associatedMKB'))
+        mkbComplCode = forceString(self.modelCSGs.value(index.row(), 'complicationMKB'))
+        mesLevel     = forceInt(db.translate('rbMesSpecification', 'id', self.cmbMesSpecification.value(), 'level'))
+        csgBegDate   = forceDate(self.modelCSGs.value(index.row(), 'begDate'))
+        csgEndDate   = forceDate(self.modelCSGs.value(index.row(), 'endDate'))
+        cureMethodId = forceRef(self.eventEditor.getCureMethodId())
+        resultId     = self.eventEditor.cmbResult.value()
+        contractId   = self.eventEditor.cmbContract.value()
+        tariffCategoryId = self.eventEditor.getPersonTariffCategoryId(self.eventEditor.personId)
+        contractDescr = getContractDescr(contractId)
+        tariffList = contractDescr.tariffEventByMES.get((None, serviceId), None)
+        if tariffList:
+            for tariff in tariffList:
+                if isTariffApplicable(tariff, eventId, cureMethodId, resultId, mesLevel, tariffCategoryId, csgEndDate, actualMKB=mkbCode):
+                    coefficient, usedCoefficients = 1.0, None
+                    price = tariff.price
+                    amount = 1.0
+                    medicalAidTypeId = forceRef(db.translate('EventType', 'id', eventTypeId, 'medicalAidType_id'))
+                    medicalAidType = forceString(db.translate('rbMedicalAidType', 'id', medicalAidTypeId, 'regionalCode'))
+                    csgKritId = forceRef(self.modelCSGs.value(index.row(), 'krit'))
+                    if medicalAidType in ('11', '12', '301', '302') and csgCode[3:] in ['st36.013', 'st36.014', 'st36.015'] and eventEndDate >= QDate(2024, 11, 1):
+                        minDuration = 0
+                        amtCode = None
+                        if csgKritId:
+                            amtCode = forceString(db.translate('soc_spr80', 'id', csgKritId, 'code'))
+                        if amtCode in ['amt02', 'amt04','amt05','amt07','amt08','amt09','amt10','amt12','amt13','amt14','amt15']:
+                            minDuration = 5
+                        elif amtCode in ['amt01', 'amt03','amt06','amt11']:
+                            minDuration = 10
+                        eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
+                        duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
+                        if duration < minDuration:
+                            if duration >= 3:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate], 2)
+                            else:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
+
+                    elif csgCode[3:] in ['st02.003', 'st02.004'] and eventEndDate >= QDate(2025, 6, 1):
+                        ishodOb = isInterruptedCase(eventId)
+                        minDuration = 1
+                        eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
+                        duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
+
+                        if (minDuration > 1 and duration <= minDuration
+                                or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                                or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                                or (eventEndDate >= QDate(2025, 6, 1)
+                                    and minDuration == 1 and duration <= 3
+                                    and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                            if getOperationCount(eventId, tariff.serviceId, eventEndDate, mkbCode) > 0 or csgCode[3:] == 'st29.007':
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate], 2)
+                            else:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
+                        # оплата прерванных случаев свыше 3-х дней
+                        elif (duration > minDuration and ishodOb and minDuration > 1
+                              or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                              or (QDate(2025, 1, 1) <= eventEndDate < QDate(2025, 6, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
+                              or (eventEndDate >= QDate(2025, 6, 1)
+                                  and minDuration == 1
+                                  and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                            if getOperationCount(eventId, tariff.serviceId, eventEndDate, mkbCode) > 0 or csgCode[3:] == 'st29.007':
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate], 2)
+                            else:
+                                price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate], 2)
+
+                    sum = round(price*amount*coefficient, 2)
+                    return sum
+
+        return sum
 
 
     @pyqtSignature('QModelIndex, int, int')
@@ -611,6 +864,7 @@ class CCSGModel(CInDocTableModel):
         if QtGui.qApp.getGlobalPreference('csgServiceFilter') == u'нет':
             csgFilter['csgServices'] = False
         self.csgCol = CCSGInDocTableCol( u'КСГ','CSGCode', csgFilter,         7)
+        self.csgNameCol = CCodeRefInDocTableCol(u'Наименование КСГ', 'CSGCode', 45, 'rbService', showFields=CRBComboBox.showName)
         self.setFilter(self._table['parentCSG_id'].isNull())
         self.addExtCol(CIntInDocTableCol(u'№', 'seqNum', 5, canBeEmpty=False), QVariant.Int).setToolTip(
             u'Порядковый номер').setReadOnly(True)
@@ -621,9 +875,10 @@ class CCSGModel(CInDocTableModel):
         self.addCol(CICDExInDocTableCol( u'МКБ осл.',  'complicationMKB',        7)).setToolTip(u'Код диагноза осложнения')
         self.addHiddenCol('eventProfile_id')
         self.addCol(self.csgCol).setToolTip(u'Код КСГ')
-        self.addCol(CCodeRefInDocTableCol(   u'Наименование КСГ', 'CSGCode', 45, 'rbService', showFields=CRBComboBox.showName)).setToolTip(u'Наименование КСГ').setReadOnly(True)
+        self.addCol(self.csgNameCol).setToolTip(u'Наименование КСГ').setReadOnly(True)
         self.addHiddenCol('amount')
         self.addCol(CSPR80SearchInDocTableCol(u'Доп. критерий', 'krit', 15, 'soc_spr80', parentModel=self)).setToolTip(u'Доп. классиф. критерий')
+        self.addCol(CSPR80SearchInDocTableCol(u'Комбинированная схема', 'combSchema', 15, 'soc_spr80', parentModel=self)).setToolTip(u'Комбинированная схема для схем химиотерапии')
         self.addHiddenCol('csgSpecification_id')
         # self.addCol(CRBInDocTableCol(   u'Особенность выполнения', 'csgSpecification_id', 15, 'rbMesSpecification'))
         self.addHiddenCol('payStatus')
@@ -659,9 +914,27 @@ class CCSGModel(CInDocTableModel):
 
 
     def checkData(self):
-        for record in self.items():
-            if not (forceDate(record.value('begDate')) and forceDate(record.value('endDate')) and forceString(record.value('MKB')) and forceString(record.value('CSGCode'))):
+        tbl = self._parent.tblCSGs
+        for row, record in enumerate(self.items()):
+            begDate = forceDate(record.value('begDate'))
+            endDate = forceDate(record.value('endDate'))
+            if not begDate:
+                self._parent.eventEditor.checkValueMessage(u'Должна быть указана дата начала для КСГ', False, tbl, row, 1)
                 return False
+            if not endDate:
+                self._parent.eventEditor.checkValueMessage(u'Должна быть указана дата окончания для КСГ', False, tbl, row, 2)
+                return False
+            if begDate > endDate:
+                self._parent.eventEditor.checkValueMessage(u'Дата начала не может быть больше даты окончания ', False, tbl, row, 1)
+                return False
+            if not forceString(record.value('MKB')):
+                self._parent.eventEditor.checkValueMessage(u'Должен быть указан код МКБ основного заболевания для КСГ ', False, tbl, row, 3)
+                return False
+            if not forceString(record.value('CSGCode')):
+                self._parent.eventEditor.checkValueMessage(u'Необходимо указать КСГ ', False, tbl, row, 6)
+                return False
+            # if not (forceDate(record.value('begDate')) and forceDate(record.value('endDate')) and forceString(record.value('MKB')) and forceString(record.value('CSGCode'))):
+            #     return False
         return True
 
 
@@ -687,6 +960,14 @@ class CCSGModel(CInDocTableModel):
         self.csgCol.setMKB(MKB)
 
 
+    def setCsgFilterAssociatedMKB(self, associatedMKB):
+        self.csgCol.setAssociatedMKB(associatedMKB)
+
+
+    def setCsgFilterComplicationMKB(self, complicationMKB):
+        self.csgCol.setComplicationMKB(complicationMKB)
+
+
     def setCsgFilterEventProfileId(self, eventProfileId):
         self.csgCol.setEventProfileId(eventProfileId)
 
@@ -697,6 +978,22 @@ class CCSGModel(CInDocTableModel):
 
     def setCsgServicesTemplate(self, MESServiceTemplate):
         self.csgCol.setCsgServiceTemplate(MESServiceTemplate)
+
+
+    def setCsgFilterKrit(self, kritId):
+        self.csgCol.setKrit(kritId)
+
+
+    def setCsgFilterFractions(self, fractions):
+        self.csgCol.setFractions(fractions)
+
+
+    def setCsgFilterBegDate(self, csgBegDate):
+        self.csgCol.setCsgBegDate(csgBegDate)
+
+
+    def setCsgFilterEndDate(self, csgEndDate):
+        self.csgCol.setCsgEndDate(csgEndDate)
 
 
     def saveDependence(self, idx, id):
@@ -835,3 +1132,292 @@ class CCSGSlaveModel(CInDocTableModel):
             record = self._items[row]
             editor.setCSGRecord(record)
         return editor
+
+
+class CSpr69TableDialog(CDialogBase):
+    def __init__(self, parent=None, tableName='', filter=''):
+        CDialogBase.__init__(self, parent)
+        self.setObjectName('СSpr69TableDialog')
+        self.tableName = 'soc_spr69'
+        self.filter = filter
+        self.parent = parent
+
+        self.createUI()
+
+        self.edtFractions.setMinimum(0)
+        self.edtFractions.setMaximum(200)
+        self.edtFractions.setValue(0)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
+
+        self.addModels('Spr69', CSpr69Model(self))
+        self.proxyModel = CSortFilterProxyTableModel(self, self.modelSpr69)
+        # скрыл, потому что вызывает предупреждение об ошибке назначения selectionModel
+        # self.tbl69.setSelectionModel(self.selectionModelSpr69)
+        self.tbl69.setSortingEnabled(True)
+        self.tbl69.setModel(self.proxyModel)
+        self.tbl69.show()
+
+
+    def createUI(self):
+        widgetAgeMKBChoice = QtGui.QWidget(self)
+        layoutAgeMKBChoice = QtGui.QGridLayout(self)
+        self.cmbMKBType = QtGui.QComboBox(self)
+        self.cmbMKBType.clear()
+        self.cmbMKBType.setMaxCount(3)
+        self.cmbMKBType.addItem(u'заключительный')
+        self.cmbMKBType.addItem(u'сопутствующий')
+        self.cmbMKBType.addItem(u'осложнение')
+        self.cmbMKBType.setMaximumWidth(170)
+        self.cmbAge = QtGui.QComboBox(self)
+        self.cmbAge.clear()
+        self.cmbAge.setMaxCount(7)
+        self.cmbAge.addItem(u'не учитывать')
+        self.cmbAge.addItem(u'от 0 до 28 дней (или новорожденный)')
+        self.cmbAge.addItem(u'от 29 дней до 90 дней')
+        self.cmbAge.addItem(u'от 91 дня до 1 года')
+        self.cmbAge.addItem(u'от 0 дней до 2 лет')
+        self.cmbAge.addItem(u'от 0 дней до 18 лет')
+        self.cmbAge.addItem(u'старше 18 лет')
+        self.cmbAge.setMaximumWidth(170)
+        layoutAgeMKBChoice.addWidget(QtGui.QLabel(u'Вид МКБ'), 0, 0)
+        layoutAgeMKBChoice.addWidget(self.cmbMKBType, 0, 1)
+        layoutAgeMKBChoice.addWidget(QtGui.QLabel(u'Возрастная категория'), 1, 0)
+        layoutAgeMKBChoice.addWidget(self.cmbAge, 1, 1)
+        self.edtFractions = QtGui.QSpinBox(self)
+        self.edtFractions.setMaximumWidth(60)
+        layoutAgeMKBChoice.addWidget(QtGui.QLabel(u'Кол-во фракций'), 2, 0)
+        layoutAgeMKBChoice.addWidget(self.edtFractions, 2, 1)
+        widgetAgeMKBChoice.setLayout(layoutAgeMKBChoice)
+
+        widgetFilters = QtGui.QWidget(self)
+        layoutFilters = QtGui.QGridLayout(self)
+        self.edtMKBCode = CICDCodeEditEx(self)
+        self.edtMKBCode.setMinimumWidth(70)
+        self.edtMKBCode.setMaximumWidth(110)
+        self.edtMKBName = QtGui.QLineEdit(self)
+        self.edtMKBName.setMinimumWidth(160)
+        layoutFilters.addWidget(QtGui.QLabel(u'МКБ:'), 0, 0)
+        layoutFilters.addWidget(QtGui.QLabel(u'Код'), 0, 1)
+        layoutFilters.addWidget(self.edtMKBCode, 0, 2)
+        layoutFilters.addWidget(QtGui.QLabel(u'Наименование'), 0, 3)
+        layoutFilters.addWidget(self.edtMKBName, 0, 4)
+
+        self.edtKritCode = QtGui.QLineEdit(self)
+        self.edtKritCode.setMinimumWidth(70)
+        self.edtKritCode.setMaximumWidth(110)
+        self.edtKritName = QtGui.QLineEdit(self)
+        self.edtKritName.setMinimumWidth(160)
+        layoutFilters.addWidget(QtGui.QLabel(u'Доп. критерий:'), 1, 0)
+        layoutFilters.addWidget(QtGui.QLabel(u'Код'), 1, 1)
+        layoutFilters.addWidget(self.edtKritCode, 1, 2)
+        layoutFilters.addWidget(QtGui.QLabel(u'Наименование'), 1, 3)
+        layoutFilters.addWidget(self.edtKritName, 1, 4)
+
+        self.edtServiceCode = QtGui.QLineEdit(self)
+        self.edtServiceCode.setMinimumWidth(70)
+        self.edtServiceCode.setMaximumWidth(110)
+        self.edtServiceName = QtGui.QLineEdit(self)
+        self.edtServiceName.setMinimumWidth(160)
+        spacer1 = QtGui.QSpacerItem(35, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        layoutFilters.addItem(spacer1, 0, 5)
+        layoutFilters.addWidget(QtGui.QLabel(u'Услуга:'), 0, 6)
+        layoutFilters.addWidget(QtGui.QLabel(u'Код'), 0, 7)
+        layoutFilters.addWidget(self.edtServiceCode, 0, 8)
+        layoutFilters.addWidget(QtGui.QLabel(u'Наименование'), 0, 9)
+        layoutFilters.addWidget(self.edtServiceName, 0, 10)
+
+        self.edtCSGCode = QtGui.QLineEdit(self)
+        self.edtCSGCode.setMinimumWidth(70)
+        self.edtCSGCode.setMaximumWidth(110)
+        self.edtCSGName = QtGui.QLineEdit(self)
+        self.edtCSGName.setMinimumWidth(160)
+        spacer2 = QtGui.QSpacerItem(35, 20, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Fixed)
+        layoutFilters.addItem(spacer2, 1, 5)
+        layoutFilters.addWidget(QtGui.QLabel(u'КСГ:'), 1, 6)
+        layoutFilters.addWidget(QtGui.QLabel(u'Код'), 1, 7)
+        layoutFilters.addWidget(self.edtCSGCode, 1, 8)
+        layoutFilters.addWidget(QtGui.QLabel(u'Наименование'), 1, 9)
+        layoutFilters.addWidget(self.edtCSGName, 1, 10)
+
+        widgetFilters.setLayout(layoutFilters)
+
+        self.btnBox = CApplyResetDialogButtonBox(self)
+        self.btnBox.setStandardButtons(QtGui.QDialogButtonBox.Apply | QtGui.QDialogButtonBox.Reset)
+        self.connect(self.btnBox, SIGNAL(u'clicked(QAbstractButton*)'), self.on_btnBox_clicked)
+        self.tbl69 = CTableView(self)
+        self.tbl69.setSelectionBehavior(QtGui.QAbstractItemView.SelectRows)
+        layout = QtGui.QGridLayout(self)
+        layout.addWidget(widgetAgeMKBChoice, 0, 0)
+        layout.addWidget(widgetFilters, 0, 1)
+        layout.addWidget(self.btnBox, 1, 0, 1, 2)
+        layout.addWidget(self.tbl69, 2, 0, 1, 2)
+        self.cmbMKBType.setCurrentIndex(0)
+        self.cmbAge.setCurrentIndex(0)
+
+
+    def getQuery(self):
+        db = QtGui.qApp.db
+
+        begDate = forceDate(self.parent.eventEditor.eventSetDateTime)
+        endDate = forceDate(self.parent.eventEditor.getExecDateTime())
+        if not endDate:
+            endDate = begDate
+
+        # начальные условия
+        conds = u"s69.datn <= '{0}' AND (s69.dato IS NULL OR s69.dato >= '{0}') ".format(endDate.toString('yyyy-MM-dd'))
+        vpId = forceRef(db.translate('EventType', 'id', self.parent.eventEditor.eventTypeId, 'medicalAidType_id'))
+        vpCode = forceString(db.translate('rbMedicalAidType', 'id', vpId, 'regionalCode'))
+        if vpCode in ('11', '12', '301', '302', '401', '402'):
+            conds += u"AND s69.vpname = 'стационар' "
+        elif vpCode in ('41', '411', '42', '422', '43', '51', '511', '52', '522', '71', '72', '90'):
+            conds += u"AND s69.vpname = 'дневной стационар' "
+
+        # столбец и джойн для отображения и фильтрации по МКБ
+        mkbCol = u''
+        mkbType = self.cmbMKBType.currentIndex()
+        filterByMKB = mkbType + 1
+        mkbCol = u"s69.mkb AS mkbCol, s69.mkb2 as mkb2Col, s69.mkb3 as mkb3Col"
+
+        if self.edtMKBCode.text() or self.edtMKBName.text():
+            # если фильтруем по МКБ, то в столбце МКБ вместо поля из SPR69
+            # используем код и наименование из справочника МКБ
+            if mkbType == 0:
+                # основной диагноз
+                mkbCol = u"CONCAT(m.DiagID, ' | ', m.DiagName) AS mkbCol, s69.mkb2 AS mkb2Col, s69.mkb3 AS mkb3Col"
+            elif mkbType == 1:
+                # сопутствующий диагноз
+                mkbCol = u"s69.mkb AS mkbCol, CONCAT(m.DiagID, ' | ', m.DiagName) AS mkb2Col, s69.mkb3 AS mkb3Col"
+            elif mkbType == 2:
+                # осложнение
+                mkbCol = u"s69.mkb AS mkbCol, s69.mkb2 AS mkb2Col, CONCAT(m.DiagID, ' | ', m.DiagName) AS mkb3Col"
+
+        else:
+            filterByMKB = 0
+
+        # при фильтрации по МКБ - параметры джойна справочника МКБ
+        if filterByMKB == 1:
+            mkbJoin = u'LEFT JOIN MKB m on m.DiagID BETWEEN s69.mkbMin AND s69.mkbMax'
+        elif filterByMKB == 2:
+            mkbJoin = u'LEFT JOIN MKB m on m.DiagID BETWEEN s69.mkb2Min AND s69.mkb2Max'
+        elif filterByMKB == 3:
+            mkbJoin = u'LEFT JOIN MKB m on m.DiagID BETWEEN s69.mkb3Min AND s69.mkb3Max'
+        else:
+            mkbJoin = u''
+
+
+        # параметры фильтрации
+        # для кодов - "начинается с", для наименований - "содержит",
+        # для возраста - подходящие коды + "не учитывается"
+        if self.edtMKBCode.text():
+            conds += u"AND m.DiagID LIKE '{0}%'".format(forceString(self.edtMKBCode.text()))
+        if self.edtMKBName.text():
+            conds += u"AND m.DiagName LIKE '%{0}%'".format(forceString(self.edtMKBName.text()))
+        if self.edtServiceCode.text():
+            conds += u"AND s1.infis LIKE '{0}%'".format(forceString(self.edtServiceCode.text()))
+        if self.edtServiceName.text():
+            conds += u"AND s1.name LIKE '%{0}%'".format(forceString(self.edtServiceName.text()))
+        if self.edtCSGCode.text():
+            conds += u"AND s2.infis LIKE '{0}%'".format(forceString(self.edtCSGCode.text()))
+        if self.edtCSGName.text():
+            conds += u"AND s2.name LIKE '%{0}%'".format(forceString(self.edtCSGName.text()))
+        if self.edtKritCode.text():
+            conds += u"AND s80.code LIKE '{0}%'".format(forceString(self.edtKritCode.text()))
+        if self.edtKritName.text():
+            conds += u"AND s80.name LIKE '%{0}%'".format(forceString(self.edtKritName.text()))
+        if self.cmbAge.currentIndex():
+            ageGroup = self.cmbAge.currentIndex()
+            if ageGroup == 1:
+                conds += u"AND (s69.age IN ('1', '4', '5') OR s69.age IS NULL)"
+            elif ageGroup == 2:
+                conds += u"AND (s69.age IN ('2', '4', '5') OR s69.age IS NULL)"
+            elif ageGroup == 3:
+                conds += u"AND (s69.age IN ('3', '4', '5') OR s69.age IS NULL)"
+            elif ageGroup == 4:
+                conds += u"AND (s69.age IN ('4', '5') OR s69.age IS NULL)"
+            elif ageGroup == 5:
+                conds += u"AND (s69.age = '5' OR s69.age IS NULL)"
+            elif ageGroup == 6:
+                conds += u"AND (s69.age = '6' OR s69.age IS NULL)"
+        if self.edtFractions.value():
+            conds += u"AND CAST('{0}' AS INT) BETWEEN cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', 1) AS INT) AND cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', -1) as INT)".format(forceString(self.edtFractions.value()))
+
+
+        sql = u"""
+            SELECT DISTINCT
+              {0},
+              s69.age,
+              s69.ksgkoef,
+              CONCAT(s1.infis, ' | ',  s1.name) AS kuslName,
+              CONCAT(s2.infis, ' | ',  s2.name) AS csgName,
+              CONCAT(s69.KRIT, ' | ',  s80.name) AS kritName,
+              s69.`fr` as fractions 
+            FROM soc_spr69 s69
+              LEFT JOIN rbService s1 ON s1.id = (SELECT max(id) FROM rbService WHERE rbService.infis = s69.kusl)
+              LEFT JOIN rbService s2 ON s2.id = (SELECT max(id) FROM rbService WHERE rbService.infis = s69.ksgkusl)
+              LEFT JOIN soc_spr80 s80 ON s80.id = (SELECT max(id) FROM soc_spr80 WHERE s69.KRIT = soc_spr80.code)
+              {1}
+            WHERE {2};
+        """.format(mkbCol, mkbJoin, conds)
+
+        return sql
+
+
+    @pyqtSignature('QAbstractButton*')
+    def on_btnBox_clicked(self, button):
+        buttonCode = self.btnBox.standardButton(button)
+        if buttonCode == QtGui.QDialogButtonBox.Apply:
+            # mkbType = self.cmbMKBType.currentIndex()
+            # if mkbType == 0:
+            #     self.modelSpr69.mkbCol.setTitle(u'МКБ основной')
+            # elif mkbType == 1:
+            #     self.modelSpr69.mkbCol.setTitle(u'МКБ сопутствующий')
+            # elif mkbType == 2:
+            #     self.modelSpr69.mkbCol.setTitle(u'МКБ осложнения')
+            self.modelSpr69.loadFromSql(self.getQuery())
+
+        else:
+            self.cmbMKBType.setCurrentIndex(0)
+            self.cmbAge.setCurrentIndex(0)
+            self.edtMKBCode.setText('')
+            self.edtMKBName.setText('')
+            self.edtServiceCode.setText('')
+            self.edtServiceName.setText('')
+            self.edtCSGCode.setText('')
+            self.edtCSGName.setText('')
+            self.edtKritCode.setText('')
+            self.edtKritName.setText('')
+            self.modelSpr69.loadFromSql(self.getQuery())
+
+
+class CSpr69Model(CMemTableModel):
+    def __init__(self, parent):
+        # self.mkbCol = CTextCol(u'МКБ', ['mkbCol'], 80)
+        CMemTableModel.__init__(self, parent, [
+            CTextCol(u'Заключительный диагноз', ['mkbCol'], 80),
+            CTextCol(u'Сопутствующий диагноз', ['mkb2Col'], 80),
+            CTextCol(u'Диагноз осложнения', ['mkb3Col'], 80),
+            self.CAgeCol(u'Возраст', ['age'], 40),
+            CTextCol(u'Услуга', ['kuslName'], 100),
+            CTextCol(u'КСГ', ['csgName'], 150),
+            CTextCol(u'Коэф. затратоёмкости', ['ksgkoef'], 90),
+            CTextCol(u'Критерий', ['kritName'], 60),
+            CTextCol(u'Фракции', ['fractions'], 30)
+        ])
+
+    class CAgeCol(CTextCol):
+        def format(self, values):
+            age = forceString(values[0])
+            if age == '1':
+                return u'от 0 до 28 дней (или новорожденный)'
+            elif age == '2':
+                return u'от 29 дней до 90 дней'
+            elif age == '3':
+                return u'от 91 дня до 1 года'
+            elif age == '4':
+                return u'от 0 дней до 2 лет'
+            elif age == '5':
+                return u'от 0 дней до 18 лет'
+            elif age == '6':
+                return u'старше 18 лет'
+            else:
+                return u'не учитывается'

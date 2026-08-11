@@ -271,8 +271,7 @@ class CLoginEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
 
 
     def destroy(self):
-        self.tblPerson.setModel(None)
-        del self.modelPerson
+        pass
 
 
     def setRecord(self, record):

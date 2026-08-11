@@ -15,6 +15,9 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QTime, QVariant, pyqtSignature, SIGNAL
 
+from RefBooks.DocumentType.Descr import getDocumentTypeDescr
+from Registry.Utils import getClientInfo, CClientInfo
+from library.PrintInfo import CInfoContext
 from library.interchange        import getDateEditValue, getLineEditValue, getRBComboBoxValue, getTextEditValue, setDateEditValue, setDatetimeEditValue, setLineEditValue, setRBComboBoxValue, setTextEditValue
 from library.DialogBase         import CConstructHelperMixin
 from library.InDocTable         import CDateTimeInDocTableCol, CEnumInDocTableCol, CFloatInDocTableCol, CInDocTableCol, CInDocTableModel, CRBInDocTableCol
@@ -24,7 +27,7 @@ from Events.Action              import CActionTypeCache
 from Events.ActionStatus        import CActionStatus
 from Events.ActionsSummaryModel import CAccActionsSummary
 from Events.EventInfo           import CEventLocalContractInfo
-from Events.Utils import CFinanceType
+from Events.Utils import CFinanceType, getEventIsPaymentApprovalAlwaysIncluded, getEventDefaultPayer
 from Orgs.Orgs                  import CBankInDocTableCol, selectOrganisation
 from Events.ClientPayersList    import CClientPayersList
 from Registry.Utils import getClientDocument
@@ -855,6 +858,85 @@ class CEventCashPage(QtGui.QWidget, Ui_EventCashPageWidget, CConstructHelperMixi
     @pyqtSignature('')
     def on_modelPayments_sumChanged(self):
         self.updatePaymentsSum()
+
+    def setDefaultValues(self):
+        if getEventIsPaymentApprovalAlwaysIncluded(self.eventEditor.eventTypeId):
+            self.grpLocalContract.setChecked(True)
+            self.edtCoordDate.setDate(self.eventEditor.eventSetDateTime.date())
+            self.edtCoordAgent.setText(getCurrentUserName())
+            self.edtContractDate.setDate(self.eventEditor.eventSetDateTime.date())
+            self.edtContractNumber.setText(self.eventEditor.getExternalId())
+            if getEventDefaultPayer(self.eventEditor.eventTypeId) == 1:
+                self.edtLastName.setText(self.eventEditor.clientLastName)
+                self.edtFirstName.setText(self.eventEditor.clientFirstName)
+                self.edtPatrName.setText(self.eventEditor.clientPatrName)
+                self.edtBirthDate.setDate(self.eventEditor.clientBirthDate)
+
+                regAddress = ''
+                query = QtGui.qApp.db.query('SELECT getClientRegAddress({0}) AS regAddress'.format(self.eventEditor.clientId))
+                while query.next():
+                    record = query.record()
+                    regAddress = forceString(record.value('regAddress'))
+                self.edtRegAddress.setText(regAddress if regAddress else '')
+
+                documentRecord = getClientDocument(self.eventEditor.clientId)
+                if documentRecord:
+                    setRBComboBoxValue(self.cmbDocType, documentRecord, 'documentType_id')
+                    serialLeft, serialRight = splitDocSerial(forceString(documentRecord.value('serial')))
+                    self.edtDocSerialLeft.setText(serialLeft)
+                    self.edtDocSerialRight.setText(serialRight)
+                    setLineEditValue(self.edtDocNumber, documentRecord, 'number')
+                    setLineEditValue(self.edtDocOrigin, documentRecord, 'origin')
+                    setDateEditValue(self.edtDocDate, documentRecord, 'date')
+
+            if getEventDefaultPayer(self.eventEditor.eventTypeId) == 2:
+                context = CInfoContext()
+                client = context.getInstance(CClientInfo, self.eventEditor.clientId)
+                if client.relations.__len__()>0:
+                    if client.relations[0]._isDirect:
+                        clientInfo = client.relations[0].relative
+                    else:
+                        clientInfo = client.relations[0].client
+
+                    self.edtLastName.setText(clientInfo.lastName)
+                    self.edtFirstName.setText(clientInfo.firstName)
+                    self.edtPatrName.setText(clientInfo.patrName)
+                    self.edtBirthDate.setDate( forceDate(clientInfo.birthDate.date))
+                    document = clientInfo.document
+                    if document:
+                        documentTypeId = document.documentTypeId
+                        self.cmbDocType.setCurrentIndex(forceInt(documentTypeId))
+                        if forceString(document.serial) >'':
+                            documentTypeDescr = getDocumentTypeDescr(documentTypeId)
+                            serialLeft, serialRight = documentTypeDescr.splitDocSerial(forceString(document.serial))
+                            self.edtDocSerialLeft.setText(serialLeft)
+                            self.edtDocSerialRight.setText(serialRight)
+                        self.edtDocNumber.setText(forceString(document.number))
+                        self.edtDocOrigin.setText(forceString(document.origin))
+                        self.edtDocDate.setDate( forceDate(document.date.date))
+                    self.edtRegAddress.setText(clientInfo.regAddress.__str__())
+                self.grpCustomer.setChecked(True)
+                self.edtCustomerLastName.setText(self.eventEditor.clientLastName)
+                self.edtCustomerFirstName.setText(self.eventEditor.clientFirstName)
+                self.edtCustomerPatrName.setText(self.eventEditor.clientPatrName)
+                self.edtCustomerBirthDate.setDate(self.eventEditor.clientBirthDate)
+
+                regAddress = ''
+                query = QtGui.qApp.db.query('SELECT getClientRegAddress({0}) AS regAddress'.format(self.eventEditor.clientId))
+                while query.next():
+                    record = query.record()
+                    regAddress = forceString(record.value('regAddress'))
+                self.edtCustomerRegAddress.setText(regAddress if regAddress else '')
+
+                documentRecord = getClientDocument(self.eventEditor.clientId)
+                if documentRecord:
+                    setRBComboBoxValue(self.cmbCustomerDocType, documentRecord, 'documentType_id')
+                    serialLeft, serialRight = splitDocSerial(forceString(documentRecord.value('serial')))
+                    self.edtCustomerDocSerialLeft.setText(serialLeft)
+                    self.edtCustomerDocSerialRight.setText(serialRight)
+                    setLineEditValue(self.edtCustomerDocNumber, documentRecord, 'number')
+                    setLineEditValue(self.edtCustomerDocOrigin, documentRecord, 'origin')
+                    setDateEditValue(self.edtCustomerDocDate, documentRecord, 'date')
 
 
 class CPaymentsModel(CInDocTableModel):

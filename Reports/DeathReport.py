@@ -121,6 +121,8 @@ GROUP BY clientAge, clientSex, MKB
     # if relegateOrgId == 0 or relegateOrgId == QtGui.qApp.currentOrgId():
     #     cond.append(db.joinOr([tableEvent['relegateOrg_id'].eq(QtGui.qApp.currentOrgId()),tableEvent['relegateOrg_id'].isNull()]))
     # else:
+    if includeSelected:
+        cond.append(tableEvent["relegateOrg_id"].isNotNull())
     if relegateOrgId > 0:
         if excludeSelected:
             cond.append(tableEvent['relegateOrg_id'].ne(relegateOrgId))

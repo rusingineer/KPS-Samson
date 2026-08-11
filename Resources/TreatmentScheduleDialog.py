@@ -49,8 +49,7 @@ class CTreatmentScheduleDialog(CItemEditorBaseDialog, Ui_TreatmentScheduleDialog
 
 
     def destroy(self):
-        self.tblTreatmentSchedule.setModel(None)
-        del self.modelTreatmentSchedule
+        pass
 
 
     def getParams(self):

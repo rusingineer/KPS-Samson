@@ -11,37 +11,27 @@
 ## условиям GNU GPL версии 3 или любой более поздней версии.
 ##
 #############################################################################
-from PyQt4 import QtGui
+from PyQt4 import QtCore, QtGui
 
 class SafeCleanupMixin(object):
     def safeDelete(self):
         try:
             self.objectName()
-        except RuntimeError:
+        except (RuntimeError, AttributeError):
             return 
-
-        self._deepSilence(self)
-
-        attrs = list(self.__dict__.keys())
-        for attr in attrs:
-            if not attr.startswith('__'):
-                try:
-                    setattr(self, attr, None)
-                except:
-                    pass
-
-        QtGui.QDialog.deleteLater(self)
-
-    def _deepSilence(self, obj):
-        if obj is None:
-            return
-
-        if hasattr(obj, 'children'):
-            for child in obj.children():
-                self._deepSilence(child)
-
+        
+        if isinstance(self, QtGui.QWidget):
+            try:
+                self.clearFocus()
+                self.hide()
+            except Exception:
+                pass
+            
         try:
-            obj.blockSignals(True)
-            obj.disconnect()
-        except (RuntimeError, TypeError):
+            self.blockSignals(True)
+            self.disconnect()
+        except Exception:
             pass
+        
+        QtCore.QObject.deleteLater(self)
+    

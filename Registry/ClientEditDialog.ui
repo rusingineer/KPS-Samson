@@ -1562,7 +1562,7 @@ p, li { white-space: pre-wrap; }
         <property name="spacing">
          <number>4</number>
         </property>
-        <item row="1" column="0" colspan="2">
+        <item row="2" column="0" colspan="2">
          <widget class="QGroupBox" name="frmSocStatusDocument">
           <property name="enabled">
            <bool>false</bool>
@@ -1745,6 +1745,13 @@ p, li { white-space: pre-wrap; }
         </item>
         <item row="0" column="0" colspan="2">
          <widget class="CInDocTableView" name="tblSocStatuses"/>
+        </item>
+        <item row="1" column="0">
+         <widget class="QCheckBox" name="chkShowOnlyActiveSocStatuses">
+          <property name="text">
+           <string>Отображать активные</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>

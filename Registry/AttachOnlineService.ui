@@ -293,6 +293,11 @@
               <string>В работе</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>Просроченные</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item>

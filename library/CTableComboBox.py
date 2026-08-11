@@ -582,10 +582,7 @@ class CTableComboBox(QtGui.QComboBox):
                 event.accept()
             elif key == Qt.Key_Backspace: # BS
                 self._searchString = self._searchString[:-1]
-                if self._searchString:
-                    self.lookup()
-                else:
-                    self.setCurrentIndex(-1)
+                self.lookup()
                 event.accept()
             elif key == Qt.Key_Space:
                 QtGui.QComboBox.keyPressEvent(self, event)

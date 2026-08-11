@@ -2,7 +2,8 @@
 
 # Form implementation generated from reading ui file 'Odli.ui'
 #
-# Created by: PyQt4 UI code generator 4.12.3
+# Created: Wed Feb 11 09:24:24 2026
+#      by: PyQt4 UI code generator 4.11.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -33,10 +34,27 @@ class Ui_DialogOdli(object):
         DialogOdli.setSizePolicy(sizePolicy)
         self.gridLayout_8 = QtGui.QGridLayout(DialogOdli)
         self.gridLayout_8.setObjectName(_fromUtf8("gridLayout_8"))
+        self.gridLayout_5 = QtGui.QGridLayout()
+        self.gridLayout_5.setHorizontalSpacing(9)
+        self.gridLayout_5.setObjectName(_fromUtf8("gridLayout_5"))
+        self.btnClose = QtGui.QPushButton(DialogOdli)
+        self.btnClose.setObjectName(_fromUtf8("btnClose"))
+        self.gridLayout_5.addWidget(self.btnClose, 2, 2, 1, 1)
         self.lblRecordsCount = QtGui.QLabel(DialogOdli)
         self.lblRecordsCount.setText(_fromUtf8(""))
         self.lblRecordsCount.setObjectName(_fromUtf8("lblRecordsCount"))
-        self.gridLayout_8.addWidget(self.lblRecordsCount, 0, 0, 1, 1)
+        self.gridLayout_5.addWidget(self.lblRecordsCount, 2, 0, 1, 1)
+        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout_5.addItem(spacerItem, 2, 1, 1, 1)
+        self.gridLayout_8.addLayout(self.gridLayout_5, 4, 0, 1, 2)
+        self.tblActionODLI = CTableView(DialogOdli)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.tblActionODLI.sizePolicy().hasHeightForWidth())
+        self.tblActionODLI.setSizePolicy(sizePolicy)
+        self.tblActionODLI.setObjectName(_fromUtf8("tblActionODLI"))
+        self.gridLayout_8.addWidget(self.tblActionODLI, 3, 1, 1, 1)
         self.groupBox = QtGui.QGroupBox(DialogOdli)
         self.groupBox.setObjectName(_fromUtf8("groupBox"))
         self.gridLayout_4 = QtGui.QGridLayout(self.groupBox)
@@ -114,8 +132,8 @@ class Ui_DialogOdli(object):
         self.gridLayout_4.addWidget(self.cmbOrgStructure, 4, 1, 1, 1)
         self.gridLayout_2 = QtGui.QGridLayout()
         self.gridLayout_2.setObjectName(_fromUtf8("gridLayout_2"))
-        spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout_2.addItem(spacerItem, 0, 0, 1, 1)
+        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout_2.addItem(spacerItem1, 0, 0, 1, 1)
         self.btnAply = QtGui.QPushButton(self.groupBox)
         self.btnAply.setObjectName(_fromUtf8("btnAply"))
         self.gridLayout_2.addWidget(self.btnAply, 0, 1, 1, 1)
@@ -124,32 +142,13 @@ class Ui_DialogOdli(object):
         self.gridLayout_2.addWidget(self.btnCancel_2, 0, 2, 1, 1)
         self.gridLayout_4.addLayout(self.gridLayout_2, 5, 0, 1, 2)
         self.gridLayout_8.addWidget(self.groupBox, 0, 1, 1, 1)
-        self.tblActionODLI = CTableView(DialogOdli)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.tblActionODLI.sizePolicy().hasHeightForWidth())
-        self.tblActionODLI.setSizePolicy(sizePolicy)
-        self.tblActionODLI.setObjectName(_fromUtf8("tblActionODLI"))
-        self.gridLayout_8.addWidget(self.tblActionODLI, 1, 1, 1, 1)
-        self.gridLayout_5 = QtGui.QGridLayout()
-        self.gridLayout_5.setHorizontalSpacing(9)
-        self.gridLayout_5.setObjectName(_fromUtf8("gridLayout_5"))
-        self.btnClose = QtGui.QPushButton(DialogOdli)
-        self.btnClose.setObjectName(_fromUtf8("btnClose"))
-        self.gridLayout_5.addWidget(self.btnClose, 1, 2, 1, 1)
-        spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout_5.addItem(spacerItem1, 1, 0, 1, 1)
-        self.btnOk = QtGui.QPushButton(DialogOdli)
-        self.btnOk.setObjectName(_fromUtf8("btnOk"))
-        self.gridLayout_5.addWidget(self.btnOk, 1, 1, 1, 1)
-        self.gridLayout_8.addLayout(self.gridLayout_5, 2, 0, 1, 2)
 
         self.retranslateUi(DialogOdli)
         QtCore.QMetaObject.connectSlotsByName(DialogOdli)
 
     def retranslateUi(self, DialogOdli):
         DialogOdli.setWindowTitle(_translate("DialogOdli", "Обмен данными лабораторных исследований", None))
+        self.btnClose.setText(_translate("DialogOdli", "Закрыть", None))
         self.groupBox.setTitle(_translate("DialogOdli", "Фильтр", None))
         self.lblBegDate.setText(_translate("DialogOdli", "Дата создания направления с", None))
         self.lblEndDate.setText(_translate("DialogOdli", "по", None))
@@ -163,9 +162,7 @@ class Ui_DialogOdli(object):
         self.lblOrgStructure.setText(_translate("DialogOdli", "Подразделение", None))
         self.btnAply.setText(_translate("DialogOdli", "Применить", None))
         self.btnCancel_2.setText(_translate("DialogOdli", "Сбросить", None))
-        self.btnClose.setText(_translate("DialogOdli", "Отменить ", None))
-        self.btnOk.setText(_translate("DialogOdli", "Отправить и получить результаты", None))
 
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from library.DateEdit import CDateEdit
 from library.TableView import CTableView
+from library.DateEdit import CDateEdit

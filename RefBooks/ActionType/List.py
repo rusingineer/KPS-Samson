@@ -43,6 +43,7 @@ from Stock.NomenclatureComboBox            import CNomenclatureInDocTableCol
 from Users.Rights                          import urDeleteActionTypeProperties
 
 from RefBooks.Service.RBServiceComboBox    import CRBServiceInDocTableCol
+from library.ClientRecordProperties import CRecordProperties
 
 from .ActionPropertyTypeInDocTableView     import actionPropertyTypeIsUsed
 
@@ -103,8 +104,16 @@ class CActionTypeList(Ui_ActionTypeListDialog, CHierarchicalItemsListDialog):
         QObject.connect(self.headerATCol,
                                SIGNAL('sectionClicked(int)'),
                                self.onHeaderATColClicked)
+        self.tblItems.showRecordProperties = self.showRecordProperties
+        self.tblItems.addPopupRecordProperies()
         self.tblItems.installEventFilter(self)
         self.cmbShowInForm.setCurrentIndex(1)
+
+
+    def showRecordProperties(self):
+        table = self.tblItems.model().table()
+        itemId = self.tblItems.currentItemId()
+        CRecordProperties(self.tblItems, table, itemId, showRecordId=True).exec_()
 
 
     def onHeaderATColClicked(self, col):

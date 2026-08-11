@@ -83,7 +83,7 @@ def selectData(begDate, endDate, eventTypeId, sex, ageFrom, ageTo, actionTypeCla
     if insurerId:
         tableCP = db.table('ClientPolicy').alias('CP')
 
-        condCP = [tableCP['begDate'].lt(tableEvent['execDate'].addDays(1)),
+        condCP = [tableCP['begDate'].le(tableEvent['execDate']),
                   db.joinOr([tableCP['endDate'].ge(tableEvent['execDate']), tableCP['endDate'].isNull()]),
                   tableCP['insurer_id'].eq(insurerId),
                   tableCP['client_id'].eq(tableClient['id'])]

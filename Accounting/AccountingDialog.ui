@@ -443,19 +443,36 @@
               <property name="spacing">
                <number>2</number>
               </property>
-              <item row="2" column="0" colspan="12">
-               <widget class="COrgStructureComboBox" name="cmbAnalysisOrgStructure">
+              <item row="5" column="1" colspan="11">
+               <widget class="CRBComboBox" name="cmbAnalysisAccountType">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
                 </property>
-                <property name="minimumSize">
-                 <size>
-                  <width>250</width>
-                  <height>0</height>
-                 </size>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QLabel" name="lblGroupId">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Единица МП</string>
+                </property>
+               </widget>
+              </item>
+              <item row="6" column="1" colspan="11">
+               <widget class="QComboBox" name="cmbGroupId">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
                 </property>
                </widget>
               </item>
@@ -466,25 +483,6 @@
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="4" colspan="2">
-               <widget class="QLabel" name="lblAnalysisEndDate">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string>По</string>
-                </property>
-                <property name="alignment">
-                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                </property>
-                <property name="buddy">
-                 <cstring>edtAnalysisEndDate</cstring>
                 </property>
                </widget>
               </item>
@@ -520,16 +518,71 @@
                 </property>
                </widget>
               </item>
-              <item row="1" column="1" colspan="11">
-               <widget class="QLineEdit" name="edtAnalysisNumber"/>
+              <item row="3" column="0" colspan="12">
+               <widget class="COrgStructureComboBox" name="cmbAnalysisOrgStructure">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>250</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </widget>
               </item>
-              <item row="3" column="0">
+              <item row="0" column="4" colspan="2">
+               <widget class="QLabel" name="lblAnalysisEndDate">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>По</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                </property>
+                <property name="buddy">
+                 <cstring>edtAnalysisEndDate</cstring>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
                <widget class="QLabel" name="lblAnalysisPayer">
                 <property name="text">
                  <string>Плательщик</string>
                 </property>
                 <property name="buddy">
                  <cstring>edtAnalysisNumber</cstring>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLabel" name="lblAnalysisAccountType">
+                <property name="text">
+                 <string>Тип реестра счетов</string>
+                </property>
+                <property name="buddy">
+                 <cstring>edtAnalysisNumber</cstring>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1" colspan="11">
+               <widget class="QLineEdit" name="edtAnalysisNumber"/>
+              </item>
+              <item row="4" column="1" colspan="11">
+               <widget class="COrgIsPayer23ComboBox" name="cmbAnalysisPayer">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
                 </property>
                </widget>
               </item>
@@ -543,57 +596,36 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="0">
-               <widget class="QLabel" name="lblAnalysisAccountType">
-                <property name="text">
-                 <string>Тип реестра счетов</string>
-                </property>
-                <property name="buddy">
-                 <cstring>edtAnalysisNumber</cstring>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="1" colspan="11">
-               <widget class="COrgIsPayer23ComboBox" name="cmbAnalysisPayer">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="4" column="1" colspan="11">
-               <widget class="CRBComboBox" name="cmbAnalysisAccountType">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="0">
-               <widget class="QLabel" name="lblGroupId">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="text">
-                 <string>Единица МП</string>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="1" colspan="11">
-               <widget class="QComboBox" name="cmbGroupId">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
+              <item row="2" column="0" colspan="12">
+               <widget class="QWidget" name="widget" native="true">
+                <layout class="QHBoxLayout" name="widget_2">
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QCheckBox" name="chkAnalysisFKEY">
+                   <property name="text">
+                    <string>В реестре есть счета без FKEY</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="chkAnalysisRKEY">
+                   <property name="text">
+                    <string>В реестре есть счета без RKEY</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
                </widget>
               </item>
              </layout>
@@ -1465,9 +1497,12 @@
   <tabstop>chkAnalysisAccountId</tabstop>
   <tabstop>edtAnalysisAccountId</tabstop>
   <tabstop>edtAnalysisBegDate</tabstop>
+  <tabstop>edtAnalysisEndDate</tabstop>
   <tabstop>edtAnalysisNumber</tabstop>
   <tabstop>cmbAnalysisOrgStructure</tabstop>
   <tabstop>cmbAnalysisPayer</tabstop>
+  <tabstop>cmbAnalysisAccountType</tabstop>
+  <tabstop>cmbGroupId</tabstop>
   <tabstop>cmbAnalysisAccountItems</tabstop>
   <tabstop>edtAnalysisDocument</tabstop>
   <tabstop>cmbAnalysisPayRefuseType</tabstop>
@@ -1476,8 +1511,13 @@
   <tabstop>edtAnalysisClientCode</tabstop>
   <tabstop>cmbAnalysisClientCodeType</tabstop>
   <tabstop>chkAnalysisEventCode</tabstop>
-  <tabstop>cmbAnalysisEventCodeType</tabstop>
   <tabstop>edtAnalysisEventCode</tabstop>
+  <tabstop>cmbAnalysisEventCodeType</tabstop>
+  <tabstop>chkAnalysisService</tabstop>
+  <tabstop>cmbAnalysisService</tabstop>
+  <tabstop>chkAnalysisCreateDate</tabstop>
+  <tabstop>edtAnalysisCreateBegDate</tabstop>
+  <tabstop>edtAnalysisCreateEndDate</tabstop>
   <tabstop>bbxAnalysis</tabstop>
   <tabstop>edtHistoryBegDate</tabstop>
   <tabstop>edtHistoryEndDate</tabstop>
@@ -1492,21 +1532,31 @@
   <tabstop>chkHistoryOnlyCurrentService</tabstop>
   <tabstop>bbxHistory</tabstop>
   <tabstop>edtTotalAccounts</tabstop>
+  <tabstop>edtTotalSum</tabstop>
   <tabstop>edtTotalExposed</tabstop>
   <tabstop>edtTotalPayed</tabstop>
   <tabstop>edtTotalRefused</tabstop>
   <tabstop>tblAccounts</tabstop>
   <tabstop>tabWidget_2</tabstop>
+  <tabstop>edtFioFilter</tabstop>
+  <tabstop>btnApplyFilter</tabstop>
   <tabstop>tblAccountItems</tabstop>
   <tabstop>tblAccountContingent</tabstop>
+  <tabstop>edtAccountItemsSum</tabstop>
   <tabstop>edtAccountItemsExposed</tabstop>
   <tabstop>edtAccountItemsPayed</tabstop>
   <tabstop>edtAccountItemsRefused</tabstop>
+  <tabstop>edtAccountItemsCount</tabstop>
+  <tabstop>edtAccountItemsClientsCount</tabstop>
+  <tabstop>edtAccountItemsEventsCount</tabstop>
+  <tabstop>edtAccountItemsActionsCount</tabstop>
+  <tabstop>edtAccountItemsVisitsCount</tabstop>
   <tabstop>btnForm</tabstop>
   <tabstop>btnPrint</tabstop>
   <tabstop>btnRefresh</tabstop>
   <tabstop>btnExport</tabstop>
   <tabstop>btnImport</tabstop>
+  <tabstop>btnCheck</tabstop>
   <tabstop>btnClose</tabstop>
  </tabstops>
  <resources/>

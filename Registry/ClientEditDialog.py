@@ -31,15 +31,18 @@ from PyQt4.QtCore                           import (
                                                     QRegExp,
                                                     QTime,
                                                     QVariant,
+                                                    QString
                                                    )
 
 from Events.Utils import checkDiagnosis
 from Exchange.ExchangeScanPromobot import scanning
+from KLADR.Utils import checkIsActualSTREET
 from Orgs.OrgStructComboBoxes import COrgStructureTreePurpose
 from library.Identification import getIdentification
 from library.MKBExSubclassComboBox import CMKBExSubclassCol
 from library.MSCAPI import MSCApi
 from library.RBTreeComboBox import CRBTreeInDocTableCol
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.crbcombobox                      import CRBModelDataCache, CRBComboBox
 from library.database import CTableRecordCache, decorateString
 from library.DbComboBox                       import CDbModel
@@ -65,7 +68,7 @@ from library.TableModel                     import (
 from library.Utils import (calcAgeTuple, checkSNILS, exceptionToUnicode, fixSNILS, forceBool, forceDate, forceDateTime,
                            forceDouble, forceInt, forceRef, forceString, forceStringEx, forceTime, formatSex,
                            formatShortName, formatSNILS, isNameValid, nameCase, pyDate, smartDict, toVariant,
-                           trim, unformatSNILS, formatDate, variantEq, checkDocCode)
+                           trim, unformatSNILS, formatDate, variantEq, checkDocCode, setPref, getPref)
 
 from Accounting.Utils                         import CTariff # WTF!
 from ClientHousesList                         import CClientHousesList
@@ -135,6 +138,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.contingentVisible = True
         self.rightOwnAreaOnly = False
         self.addModels('SocStatuses', CSocStatusesModel(self))
+        self.addModels('SocStatusesSort', CSocStatusesModelSort(self, self.modelSocStatuses))
+        self.modelSocStatuses = self.modelSocStatusesSort.model()
         self.addModels('Attaches',    CAttachesModel(self))
         self.addModels('DirectRelations', CDirectRelationsModel(self))
         self.addModels('BackwardRelations', CBackwardRelationsModel(self))
@@ -268,7 +273,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.cmbWorkPost.setTable('rbClientWorkPost')
 
 # assign models
-        self.setModels(self.tblSocStatuses, self.modelSocStatuses, self.selectionModelSocStatuses)
+        self.setModels(self.tblSocStatuses, self.modelSocStatusesSort, self.selectionModelSocStatusesSort)
+        self.tblSocStatuses.horizontalHeader().setClickable(False)  # TT3856 убрал сортировку ибо ее и изначально не было
         self.setModels(self.tblAttaches, self.modelAttaches, self.selectionModelAttaches)
         self.setModels(self.tblDirectRelations, self.modelDirectRelations, self.selectionModelDirectRelations)
         self.setModels(self.tblBackwardRelations, self.modelBackwardRelations, self.selectionModelBackwardRelations)
@@ -436,6 +442,18 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.clientLocHousesList = CClientHousesList(parent)
         # Preferences
         self.widgetsVisible()
+        self.chkShowOnlyActiveSocStatuses.stateChanged.connect(self.on_chkShowOnlyActiveSocStatuses_stateChanged)
+        chkActSocStat = getPref(QtGui.qApp.preferences.appPrefs, 'clientEditDialogChkShowOnlyActiveSocStatuses', False )
+        self.chkShowOnlyActiveSocStatuses.setChecked(forceBool(chkActSocStat))
+
+
+    def on_chkShowOnlyActiveSocStatuses_stateChanged(self):
+        if self.chkShowOnlyActiveSocStatuses.isChecked():
+            self.tblSocStatuses.model().setFilter('endDate', QDate.currentDate(), CSortFilterProxyTableModel.MatchGreaterEqualorEmpty)
+            self.on_selectionModelSocStatusesSort_currentChanged(QModelIndex(),QModelIndex())
+        else:
+            self.tblSocStatuses.model().clearFilters()
+        setPref(QtGui.qApp.preferences.appPrefs, 'clientEditDialogChkShowOnlyActiveSocStatuses', self.chkShowOnlyActiveSocStatuses.isChecked())
         
     def on_tblAttachesPopupMenuAboutToShow(self):
         model = self.tblAttaches.model()
@@ -883,59 +901,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
 
 
     def destroy(self):
-        self.tblSocStatuses.setModel(None)
-        self.tblAttaches.setModel(None)
-        self.tblDirectRelations.setModel(None)
-        self.tblBackwardRelations.setModel(None)
-        self.tblWorkHurts.setModel(None)
-        self.tblWorkHurtFactors.setModel(None)
-        self.tblContacts.setModel(None)
-        self.tblAllergy.setModel(None)
-        self.tblDeposit.setModel(None)
-        self.tblClientConsents.setModel(None)
-        self.tblIntoleranceMedicament.setModel(None)
-        self.tblNormalParameters.setModel(None)
-        self.tblRiskFactors.setModel(None)
-        self.tblClientIdentification.setModel(None)
-        self.tblClientQuoting.setModel(None)
-        self.tblClientQuotingDiscussion.setModel(None)
-        self.tblMonitoring.setModel(None)
-        self.tblEpidCase.setModel(None)
-        self.tblResearch.setModel(None)
-        self.tblActiveDispensary.setModel(None)
-        self.tblDangerous.setModel(None)
-        self.tblForcedTreatment.setModel(None)
-        self.tblSuicide.setModel(None)
-        self.tblContingentKind.setModel(None)
-        self.tblHospitalization.setModel(None)
-
-        del self.modelSocStatuses
-        del self.modelAttaches
-        del self.modelDirectRelations
-        del self.modelBackwardRelations
-        del self.modelWorkHurts
-        del self.modelWorkHurtFactors
-        del self.modelIdentificationDocs
-        del self.modelPolicies
-        del self.modelStatusObservation
-        del self.modelPersonalInfo
-        del self.modelContacts
-        del self.modelAllergy
-        del self.modelDeposit
-        del self.modelClientConsents
-        del self.modelIntoleranceMedicament
-        del self.modelNormalParameters
-        del self.modelClientIdentification
-        del self.modelClientQuoting
-        del self.modelClientQuotingDiscussion
-        del self.modelMonitoring
-        del self.tblEpidCase
-        del self.modelResearch
-        del self.modelActiveDispensary
-        del self.modelDangerous
-        del self.modelForcedTreatment
-        del self.modelSuicide
-        del self.modelContingentKind
+        pass
 
 
     def saveData(self):
@@ -1421,6 +1387,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.cmbCompulsoryPolisCompany._popup.setRegAdress(regAddress)
         if regAddress:
             self.cmbRegCity.setCode(regAddress.KLADRCode)
+            self.cmbRegStreet.setCmbName('cmbRegStreet')
             self.cmbRegStreet.setCity(regAddress.KLADRCode)
             self.cmbRegStreet.setCode(regAddress.KLADRStreetCode)
             self.edtRegHouse.setText(regAddress.number)
@@ -1478,6 +1445,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.edtLocFreeInput.setText(freeInput)
         if locAddress:
             self.cmbLocCity.setCode(locAddress.KLADRCode)
+            self.cmbLocStreet.setCmbName('cmbLocStreet')
             self.cmbLocStreet.setCity(locAddress.KLADRCode)
             self.cmbLocStreet.setCode(locAddress.KLADRStreetCode)
             self.edtLocHouse.setText(locAddress.number)
@@ -3920,6 +3888,10 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
     @pyqtSignature('int')
     def on_cmbRegStreet_currentIndexChanged(self,  val):
         code = self.cmbRegStreet.code()
+        if code and checkIsActualSTREET(code) == False:
+            self.cmbRegStreet.setStyleSheet('QComboBox { color: red; }')
+        else:
+            self.cmbRegStreet.setStyleSheet('')
         if code and code != self.cmbRegCity.code() and QtGui.qApp.getKladrResearch():
             self.cmbRegCity.setCode(code)
             self.updatePolicyCompaniesArea()
@@ -3950,6 +3922,10 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
     @pyqtSignature('int')
     def on_cmbLocStreet_currentIndexChanged(self,  val):
         code = self.cmbLocStreet.code()
+        if code and checkIsActualSTREET(code) == False:
+            self.cmbLocStreet.setStyleSheet('QComboBox { color: red; }')
+        else:
+            self.cmbLocStreet.setStyleSheet('')
         if code and code != self.cmbLocCity.code() and QtGui.qApp.getKladrResearch():
             self.cmbLocCity.setCode(code)
             self.updatePolicyCompaniesArea()
@@ -4768,14 +4744,17 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelSocStatuses_currentChanged(self, current, previous):
+    def on_selectionModelSocStatusesSort_currentChanged(self, current, previous):
         dirty = self.isDirty()
+        model = self.tblSocStatuses.model()
         row = current.row()
+        if hasattr(model, 'mapToSource'):
+            sourceIndex = model.mapToSource(current)
+            row = sourceIndex.row()
 #        column = current.column()
         if 0<=row<len(self.modelSocStatuses.items()):
             docTypeId, serial, number, date, origin = self.modelSocStatuses.getDocInfo(row)
             self.frmSocStatusDocument.setEnabled(True)
-            self.cmbSocStatusDocType.setEnabled(True)
             if not docTypeId:
                 docTypeId, serial, number, date, origin = None, '', '', QDate(), ''
                 item = self.modelSocStatuses.items()[row]
@@ -4787,7 +4766,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                     record = db.getRecordEx(tableRBSocStatusType, [tableRBSocStatusType['documentType_id']], [tableRBSocStatusType['id'].eq(socStatusTypeId)])
                     if record:
                         docTypeId = forceRef(record.value('documentType_id'))
-                        self.edtSocStatusDocSerial.setFocus(Qt.ShortcutFocusReason)
+                        #self.edtSocStatusDocSerial.setFocus(Qt.ShortcutFocusReason)
         else:
             docTypeId, serial, number, date, origin = None, '', '', QDate(), ''
             self.cmbSocStatusDocType.setEnabled(False)
@@ -4797,6 +4776,40 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.edtSocStatusDocNumber.setText(number)
         self.edtSocStatusDocDate.setDate(date)
         self.edtSocStatusDocOrigin.setText(origin)
+        if 0 <= row < len(self.modelSocStatuses.items()):
+            isNeedFillOutDoc = QtGui.qApp.db.getRecord('rbSocStatusType', 'needFillOutDoc',
+                                                       self.modelSocStatuses.items()[row].value(
+                                                           'socStatusType_id').toString())
+            showInDoc = forceInt(isNeedFillOutDoc.value(0)) if isNeedFillOutDoc and forceBool(self.modelSocStatuses.items()[row].value('socStatusClass_id')) else 0
+            for elem in [self.cmbSocStatusDocType, self.edtSocStatusDocDate, self.edtSocStatusDocNumber,
+                         self.edtSocStatusDocSerial, self.edtSocStatusDocOrigin]:
+                elem.setEnabled(forceBool(showInDoc))
+        self.setIsDirty(dirty)
+
+
+    @pyqtSignature('QModelIndex, QModelIndex')
+    def on_modelSocStatusesSort_dataChanged(self, current, bottomRight):
+        dirty = self.isDirty()
+        model = self.tblSocStatuses.model()
+        row = current.row()
+        column = current.column()
+        if hasattr(model, 'mapToSource'):
+            sourceIndex = model.mapToSource(current)
+            row = sourceIndex.row()
+            column = sourceIndex.column()
+
+        if column in (0, 1):
+            if 0 <= row < len(self.modelSocStatuses.items()):
+                isNeedFillOutDoc = QtGui.qApp.db.getRecord('rbSocStatusType', 'needFillOutDoc',
+                                                           self.modelSocStatuses.items()[row].value(
+                                                               'socStatusType_id').toString())
+                showInDoc = forceInt(isNeedFillOutDoc.value(0)) if isNeedFillOutDoc and forceBool(self.modelSocStatuses.items()[row].value('socStatusClass_id')) else 0
+                for elem in [self.cmbSocStatusDocType, self.edtSocStatusDocDate, self.edtSocStatusDocNumber,
+                             self.edtSocStatusDocSerial, self.edtSocStatusDocOrigin]:
+                    elem.setEnabled(forceBool(showInDoc))
+                if not forceBool(self.modelSocStatuses.items()[row].value(0)):
+                    self.modelSocStatuses.items()[row].setValue('socStatusType_id', QVariant(None))
+
         self.setIsDirty(dirty)
 
 
@@ -5769,6 +5782,22 @@ class CPolyclinicInDocTableCol(CInDocTableCol):
 
     def getEditorData(self, editor):
         return toVariant(editor.value())
+
+
+class CSocStatusesModelSort(CSortFilterProxyTableModel):
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent is None:
+            parent = QModelIndex()
+        return super(CSocStatusesModelSort, self).rowCount(parent)
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        if sourceRow >= len(self.sourceModel().items()):
+            return True
+        return super(CSocStatusesModelSort, self).filterAcceptsRow(sourceRow, sourceParent)
+
+    def __getattr__(self, name):
+        return getattr(self.sourceModel(), name)
 
 
 class COrgStructureInDocTableColEx(COrgStructureInDocTableCol):

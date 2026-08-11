@@ -216,6 +216,13 @@ def logCurrentException():
     logException(*sys.exc_info())
 
 
+def checkGlobalPreference(code, chkValue, default=None):
+    value = QtGui.qApp._globalPreferences.get(code, default)
+    if value:
+        return unicode(value).lower() == unicode(chkValue).lower()
+    return False
+
+
 def main():
     parser = OptionParser(usage="usage: %prog [options]")
     parser.add_option('-c', '--config',
@@ -337,6 +344,19 @@ def main():
     app.logLevel = forceInt(preferences.appPrefs.get('logLevel', 2))
     app.isAnonim = forceBool(preferences.appPrefs.get('isAnonim', 0))
     app.preferences = preferences
+    app._globalPreferences = {}
+    if app.db:
+        try:
+            recordList = app.db.getRecordList('GlobalPreferences')
+        except:
+            recordList = []
+        for record in recordList:
+            code = forceString(record.value('code'))
+            value = forceString(record.value('value'))
+            app._globalPreferences[code] = value
+
+    app.checkGlobalPreference = checkGlobalPreference
+
     logDir = forceString(preferences.appPrefs.get('logDir', None))
     if not logDir:
         logDir = os.path.join(unicode(QtCore.QDir().toNativeSeparators(QtCore.QDir().homePath())), '.labExchange')
@@ -760,8 +780,13 @@ def exportReferralsToODLI(numberOrder):
     db = QtGui.qApp.db
     # подготовительный этап
     systemId = forceRef(db.translate('rbExternalSystem', 'code', u'N3.ODLI', 'id'))
+    # Определяем количество дней, за которые запрашивается результат, из кода в таблицу rbExchangePreferences
+    export_count_days = db.translate('rbExchangePreferences', 'code', 'ODLI_export_days', 'value')
+    if not export_count_days:
+        export_count_days = 7
+    export_count_days = forceInt(export_count_days)
     # выбрать подходящие действия, без группировки
-    actionIdList = selectActionIdList(systemId, numberOrder=numberOrder)
+    actionIdList = selectActionIdList(systemId, days=export_count_days, numberOrder=numberOrder)
 
     address = {}
     address["url"] = forceString(db.translate('GlobalPreferences', 'code', 'ODLI_URL', 'value'))
@@ -852,8 +877,13 @@ def importResultsFromODLI(numberOrder):
     db = QtGui.qApp.db
     # подготовительный этап
     systemId = forceRef(db.translate('rbExternalSystem', 'code', u'N3.ODLI', 'id'))
+    # Определяем количество дней, за которые выгружаются напрвления, из кода в таблицу rbExchangePreferences
+    import_count_days = db.translate('rbExchangePreferences', 'code', 'ODLI_import_days', 'value')
+    if not import_count_days:
+        import_count_days = 7
+    import_count_days = forceInt(import_count_days)
     # выбрать подходящие действия, без группировки
-    actionIdList = selectActionIdList(systemId, numberOrder=numberOrder)
+    actionIdList = selectActionIdList(systemId, days=import_count_days, numberOrder=numberOrder)
 
     address = {}
     address["url"] = forceString(db.translate('GlobalPreferences', 'code', 'ODLI_URL', 'value'))

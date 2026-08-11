@@ -526,7 +526,8 @@ class CPropertiesModel(QAbstractTableModel):
             property = self._action.getPropertyById(id)
             if property.type().valueType.isCopyable:
                 value = property.getValue()
-                checked = Qt.Unchecked if (value is None or value == u'') else Qt.Checked
+                isAssigned = property.isAssigned()
+                checked = Qt.Unchecked if ((value is None or value == u'') and not isAssigned) else Qt.Checked
                 if property.type().canChangeOnlyOwner and checked:
                     record = action.getRecord()
                     if record:

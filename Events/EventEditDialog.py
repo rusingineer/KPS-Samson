@@ -6497,7 +6497,7 @@ LIMIT 1))))'''%(str(eventId)))
         eventTypeId = self.eventTypeId
         date = self.eventDate
         contractId = self.cmbContract.value()
-        
+        specialityId = self.getPersonSpecialityId(self.personId)
         cond = [
             tableEvent['id'].ne(self.itemId()),
             tableEvent['client_id'].eq(clientId),
@@ -6512,6 +6512,7 @@ LIMIT 1))))'''%(str(eventId)))
             tableRBDiagnosisType['code'].eq(1),
             tableDiagnosis['deleted'].eq(0),
             tableDiagnosis['MKB'].eq(MKB),
+            tableRBSpeciality['id'].eq(specialityId),
             u"""
             (rbFinance.code is NULL or rbFinance.code = 2)
             AND Action.status = 2

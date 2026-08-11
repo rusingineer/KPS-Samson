@@ -1,6 +1,7 @@
 # coding=utf-8
 from Exchange.AriadnaModels.AbstractObject import AbstractObject
 from Exchange.AriadnaModels.AdditionalForm import AdditionalForm
+from Exchange.AriadnaModels.AddressFias import AddressFias
 from Exchange.AriadnaModels.Born import Born
 from Exchange.AriadnaModels.Condition import Condition
 from Exchange.AriadnaModels.ContactPoint import ContactPoint
@@ -22,6 +23,7 @@ class Patient(AbstractObject):
         self.familyName = ''  # String Обязательно Фамилия
         self.middleName = ''  # String Обязательно Отчество
         self.address = ''  # String Обязательно Адрес
+        self.addressFias = []  # Array Object Необязательно Массив адресов с типами ФИАС
         self.province = Province()  # Object Обязательно Область
         self.email = ''  # String Обязательно Электронная почта
         self.phoneNumber = ''  # String Необязательно Номер телефона пациента
@@ -56,6 +58,7 @@ class Patient(AbstractObject):
                    ("familyName", "familyName", str, False, None, True),
                    ("middleName", "middleName", str, False, None, True),
                    ("address", "address", str, False, None, True),
+                   ("addressFias", "addressFias", AddressFias, True, None, False),
                    ("province", "province", Province, False, None, True),
                    ("email", "email", str, False, None, True),
                    ("phoneNumber", "phoneNumber", str, False, None, False),

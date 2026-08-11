@@ -537,6 +537,7 @@ class CEventResultSetupDialog(CDialogBase, Ui_EventResultSetupDialog):
         self.chkClientAddress.setChecked(params.get('clientAddressEnabled', False) and addressEnabled)
         self.cmbClientAddressType.setCurrentIndex(params.get('clientAddressType', 0))
         self.cmbClientAddressCity.setCode(params.get('clientAddressCityCode', ''))
+        self.cmbClientAddressStreet.setCity(params.get('clientAddressCityCode', ''))
         self.cmbClientAddressStreet.setCode(params.get('clientAddressStreetCode', ''))
         self.edtAddressHouse.setText(params.get('clientHouse', ''))
         self.edtAddressCorpus.setText(params.get('clientCorpus', ''))
@@ -558,6 +559,7 @@ class CEventResultSetupDialog(CDialogBase, Ui_EventResultSetupDialog):
             self.chkWork.setChecked(params.get('chkWork', False))
             self.chkAddionalAddress.setChecked(params.get('chkAddionalAddress', False))
             self.chkDocument.setChecked(params.get('chkDocument', False))
+            self.chkSnils.setChecked(params.get('chkSnils', False))
 
 
     def params(self):
@@ -612,6 +614,7 @@ class CEventResultSetupDialog(CDialogBase, Ui_EventResultSetupDialog):
             result['chkWork']  = self.chkWork.isChecked()
             result['chkAddionalAddress']  = self.chkAddionalAddress.isChecked()
             result['chkDocument']  = self.chkDocument.isChecked()
+            result['chkSnils'] = self.chkSnils.isChecked()
         return result
 
 

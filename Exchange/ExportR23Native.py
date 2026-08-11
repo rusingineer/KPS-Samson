@@ -3855,7 +3855,12 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                         if query.first():
                             outOrgF033Code = forceString(query.record().value('UIDSPMO'))
                             self.mapOrganisationF033[outOrgId] = outOrgF033Code
+                        else:
+                            outOrgF033Code = ''
+
+
                     dbfRecord['LPU_1'] = outOrgF033Code[:17]
+
             dbfRecord['NS'] = self.processParams().get('iAccNumber')
             dbfRecord['SN'] = eventId
             dbfRecord['ISTI'] = forceString(record.value('externalId'))[:20] if forceString(record.value('externalId')) else forceString(clientId)[:20]

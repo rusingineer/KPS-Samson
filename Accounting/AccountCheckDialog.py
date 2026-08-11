@@ -173,11 +173,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
             LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
-                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                   and ct1.service_id = s.id and ct1.deleted = 0
                   and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
                   or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                   and ct2.service_id = s.id and ct2.deleted = 0
                   and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
                   or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -190,11 +190,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event_CSG ec ON e.id = ec.master_id
             left join rbService s on s.infis = ec.CSGCode
             LEFT JOIN Contract c ON c.id = e.contract_id
-            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                 and ct1.service_id = s.id and ct1.deleted = 0
                 and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
                 or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                 and ct2.service_id = s.id and ct2.deleted = 0
                 and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
                 or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -281,11 +281,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
             LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
-                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                   and ct1.service_id = s.id and ct1.deleted = 0
                   and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
                   or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                   and ct2.service_id = s.id and ct2.deleted = 0
                   and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
                   or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -295,11 +295,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event_CSG ec ON e.id = ec.master_id
             left join rbService s on s.infis = ec.CSGCode
             LEFT JOIN Contract c ON c.id = e.contract_id
-            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                 and ct1.service_id = s.id and ct1.deleted = 0
                 and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
                 or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                 and ct2.service_id = s.id and ct2.deleted = 0
                 and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
                 or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -378,11 +378,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
             LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
-                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                   and ct1.service_id = s.id and ct1.deleted = 0
                   and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
                   or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                   and ct2.service_id = s.id and ct2.deleted = 0
                   and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
                   or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -392,11 +392,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event_CSG ec ON e.id = ec.master_id
             left join rbService s on s.infis = ec.CSGCode
             LEFT JOIN Contract c ON c.id = e.contract_id
-            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                 and ct1.service_id = s.id and ct1.deleted = 0
                 and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
                 or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                 and ct2.service_id = s.id and ct2.deleted = 0
                 and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
                 or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -776,11 +776,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join rbService s on s.infis = MES.code
             LEFT JOIN Contract c ON c.id = e.contract_id
             LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE(
-                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+                (SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                   and ct1.service_id = s.id and ct1.deleted = 0
                   and (ct1.endDate is not null and DATE(e.execDate) between ct1.begDate and ct1.endDate
                   or DATE(e.execDate) >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                   and ct2.service_id = s.id and ct2.deleted = 0
                   and (ct2.endDate is not null and DATE(e.execDate) between ct2.begDate and ct2.endDate
                   or DATE(e.execDate) >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -792,11 +792,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event_CSG ec ON e.id = ec.master_id
             left join rbService s on s.infis = ec.CSGCode
             LEFT JOIN Contract c ON c.id = e.contract_id
-            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                 and ct1.service_id = s.id and ct1.deleted = 0
                 and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
                 or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                 and ct2.service_id = s.id and ct2.deleted = 0
                 and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
                 or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))
@@ -936,11 +936,11 @@ class CAccountCheckDialog(CDialogBase, Ui_AccountCheckDialog):
             left join Event_CSG ec ON e.id = ec.master_id
             left join rbService s on s.infis = ec.CSGCode
             LEFT JOIN Contract c ON c.id = e.contract_id
-            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = Contract.id
+            LEFT JOIN Contract_Tariff ct ON ct.id = COALESCE((SELECT ct1.id FROM Contract_Tariff ct1 WHERE ct1.master_id = c.id
                 and ct1.service_id = s.id and ct1.deleted = 0
                 and (ct1.endDate is not null and ec.endDate between ct1.begDate and ct1.endDate
                 or ec.endDate >= ct1.begDate and ct1.endDate is null) and ct1.tariffType = 13 LIMIT 1),
-                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = Contract.priceListExternal_id
+                  (SELECT ct2.id FROM Contract_Tariff ct2 WHERE ct2.master_id = c.priceListExternal_id
                 and ct2.service_id = s.id and ct2.deleted = 0
                 and (ct2.endDate is not null and ec.endDate between ct2.begDate and ct2.endDate
                 or ec.endDate >= ct2.begDate and ct2.endDate is null) and ct2.tariffType = 13 LIMIT 1))

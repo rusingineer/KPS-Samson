@@ -261,6 +261,43 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
         finally:
             self.blockSignalsCustom(False)
         self.updateActionsList()
+        
+    
+    def disableAllFilters(self):
+        try:
+            # функция обновляла вью кратно количеству виджетов
+            self.blockSignalsCustom(True)
+            self.chkActionStatus.setVisible(False)
+            self.cmbActionStatus.setCurrentIndex(0)
+            self.cmbActionStatus.setVisible(False)
+            self.chkSetDate.setChecked(False)
+            self.chkSetDate.setVisible(False)
+            self.edtSetBegDate.setDate(QDate())
+            self.edtSetBegDate.setVisible(False)
+            self.edtSetEndDate.setDate(QDate())
+            self.edtSetEndDate.setVisible(False)
+            self.chkExecDate.setChecked(False)
+            self.chkExecDate.setVisible(False)
+            self.edtExecBegDate.setDate(QDate())
+            self.edtExecBegDate.setVisible(False)
+            self.edtExecEndDate.setDate(QDate())
+            self.edtExecEndDate.setVisible(False)
+            self.chkPerson.setChecked(False)
+            self.chkPerson.setVisible(False)
+            self.cmbPerson.setValue(QtGui.qApp.userId)
+            self.cmbPerson.setVisible(False)
+            self.chkSetPerson.setChecked(False)
+            self.chkSetPerson.setVisible(False)
+            self.cmbSetPerson.setValue(QtGui.qApp.userId)
+            self.cmbSetPerson.setVisible(False)
+            self.chkWithoutDocuments.setChecked(False)
+            self.chkExportSuitable.setChecked(False)
+            self.chkWithoutDocuments.setVisible(False)
+            self.chkExportSuitable.setVisible(False)
+            self.btnResetFilters.setVisible(False)
+        finally:
+            self.blockSignalsCustom(False)
+        self.updateActionsList()
 
     def blockSignalsCustom(self, state):
         for wgt in (

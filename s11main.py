@@ -3861,6 +3861,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             lpuCode = forceString(app.db.translate('Organisation', 'id', app.currentOrgId(), 'infisCode'))
             if lpuCode != '45014':
                 self.mnuAccountingAnalysis.removeAction(self.actReportPaidServices)
+            if lpuCode not in ('48001'):
+                self.actReportAFT_002.setVisible(False)
+            elif lpuCode in ('48001'):
+                self.actReportAFT_002.setVisible(True)
         self.actRepServiceAttach.setVisible(QtGui.qApp.defaultKLADR()[:2] != u'23')
         self.mnuHealthCenter.setEnabled(True)
 

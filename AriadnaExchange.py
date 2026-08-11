@@ -19,6 +19,7 @@ from PyQt4.QtCore import QDir, QDate, QDateTime, QVariant
 from Events.Action import CAction
 from Events.ActionInfo import CActionInfo
 from Exchange.AriadnaModels.AdditionalForm import AdditionalForm
+from Exchange.AriadnaModels.AddressFias import AddressFias
 from Exchange.AriadnaModels.BirthCertificate import BirthCertificate
 from Exchange.AriadnaModels.BirthDate import BirthDate
 from Exchange.AriadnaModels.Born import Born
@@ -405,7 +406,20 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         identification.issuer = client.document.origin
                     observation.patient.identifications.append(identification)
 
-                observation.patient.address = client.locAddress.__str__()  # адрес проживания
+                locAddress = client.locAddress.__str__()
+                regAddress = client.regAddress.__str__()
+                observation.patient.address = locAddress  # адрес проживания
+                if regAddress:
+                    regAddressFias = AddressFias()
+                    regAddressFias.type = 'registry'
+                    regAddressFias.string = regAddress
+                    observation.patient.addressFias.append(regAddressFias)
+                if locAddress:
+                    locAddressFias = AddressFias()
+                    locAddressFias.type = 'actual'
+                    locAddressFias.string = locAddress
+                    observation.patient.addressFias.append(locAddressFias)
+
                 observation.patient.province = Province()
 
                 for contact in client.contacts:

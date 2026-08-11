@@ -98,6 +98,7 @@ class CIdentityPatientServiceDialog(CDialogBase, Ui_IdentityPatientServiceDialog
 
             record = db.getRecordEx(tableOrg, 'id, shortName',
                                     [tableOrg['deleted'].eq(0),
+                                     tableOrg['isActive'].eq(1),
                                      tableOrg['OKATO'].eq(newInsuranceArea),
                                      tableOrg['smoCode'].eq(newInsurerCode)], 'id')
             if record:
@@ -105,7 +106,7 @@ class CIdentityPatientServiceDialog(CDialogBase, Ui_IdentityPatientServiceDialog
                 newInsurerName = forceString(record.value(1))
             else:
                 record = db.getRecordEx(tableOrg, 'id, shortName',
-                                        [tableOrg['deleted'].eq(0), tableOrg['OKATO'].eq(newInsuranceArea)], 'id')
+                                        [tableOrg['deleted'].eq(0), tableOrg['isActive'].eq(1),tableOrg['OKATO'].eq(newInsuranceArea)], 'id')
                 newInsurerId = forceRef(record.value(0))
                 newInsurerName = forceString(record.value(1))
 

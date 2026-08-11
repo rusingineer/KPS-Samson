@@ -4720,15 +4720,13 @@ class CQueueModel(CMonitoringModel):
             cols.append(u"concat_ws(' | ', relegateOrg.infisCode, relegateOrg.shortName) as relegateOrgTitle")
             cols.append(u'''(SELECT ActionProperty_String.value FROM ActionProperty_String
                 LEFT JOIN ActionProperty ON ActionProperty.id = ActionProperty_String.id
-                LEFT JOIN Action AS ACT ON ACT.id = ActionProperty.action_id
                 LEFT JOIN ActionPropertyType ON ActionPropertyType.id = ActionProperty.type_id
-                WHERE ACT.id = Action.id AND ActionProperty.deleted = 0
+                WHERE ActionProperty.action_id = Action.id AND ActionProperty.deleted = 0
                 AND ActionPropertyType.name = 'Номер направления') as srcNumber''')
             cols.append(u'''(SELECT ActionProperty_String.value FROM ActionProperty_String
                             LEFT JOIN ActionProperty ON ActionProperty.id = ActionProperty_String.id
-                            LEFT JOIN Action AS ACT ON ACT.id = ActionProperty.action_id
                             LEFT JOIN ActionPropertyType ON ActionPropertyType.id = ActionProperty.type_id
-                            WHERE ACT.id = Action.id AND ActionProperty.deleted = 0
+                            WHERE ActionProperty.action_id = Action.id AND ActionProperty.deleted = 0
                             AND ActionPropertyType.name = 'Порядок направления') as orderDirection''')
             cols.append(getMKB())
             cols.append(getOSHBP())
@@ -4754,11 +4752,14 @@ class CQueueModel(CMonitoringModel):
             queryTable = queryTable.leftJoin(tableOrgStruct3, tableOrgStruct2['parent_id'].eq(tableOrgStruct3['id']))
             queryTable = queryTable.leftJoin(tableOrgStruct4, tableOrgStruct3['parent_id'].eq(tableOrgStruct4['id']))
             queryTable = queryTable.leftJoin(tableOrgStruct5, tableOrgStruct4['parent_id'].eq(tableOrgStruct5['id']))
-            queryTable = queryTable.leftJoin(tableOrg, u"""Organisation.infisCode = IF(length(PersonOrgStructure.bookkeeperCode)=5, PersonOrgStructure.bookkeeperCode,
-                              IF(length(Parent1.bookkeeperCode)=5, Parent1.bookkeeperCode,
-                                IF(length(Parent2.bookkeeperCode)=5, Parent2.bookkeeperCode,
-                                  IF(length(Parent3.bookkeeperCode)=5, Parent3.bookkeeperCode,
-                                    IF(length(Parent4.bookkeeperCode)=5, Parent4.bookkeeperCode, Parent5.bookkeeperCode))))) and Organisation.deleted = 0 and Organisation.isActive = 1 AND Organisation.isInsurer = 0""")
+            queryTable = queryTable.leftJoin(tableOrg, u"""Organisation.infisCode = COALESCE(
+                                IF(LENGTH(PersonOrgStructure.bookkeeperCode) = 5, PersonOrgStructure.bookkeeperCode, NULL),
+                                IF(LENGTH(Parent1.bookkeeperCode) = 5, Parent1.bookkeeperCode, NULL),
+                                IF(LENGTH(Parent2.bookkeeperCode) = 5, Parent2.bookkeeperCode, NULL),
+                                IF(LENGTH(Parent3.bookkeeperCode) = 5, Parent3.bookkeeperCode, NULL),
+                                IF(LENGTH(Parent4.bookkeeperCode) = 5, Parent4.bookkeeperCode, NULL),
+                                IF(LENGTH(Parent5.bookkeeperCode) = 5, Parent5.bookkeeperCode, NULL)
+                            ) and Organisation.deleted = 0 and Organisation.isActive = 1 AND Organisation.isInsurer = 0""")
             queryTable = queryTable.leftJoin(tableRelegateOrg, 'relegateOrg.id = ifnull(Action.org_id, Organisation.id)')
             cond = [tableAction['actionType_id'].inlist(self.planningActionTypeIdList),
                     tableAction['deleted'].eq(0),
@@ -4839,7 +4840,6 @@ class CQueueModel(CMonitoringModel):
                                 LEFT JOIN ActionProperty_rbFinance ON ActionProperty_rbFinance.id=AP.id
                                 LEFT JOIN rbFinance ON rbFinance.id=ActionProperty_rbFinance.value
                             WHERE  A.deleted=0 AND AT.deleted=0 AND AP.deleted = 0 AND APT.deleted=0 AND A.id = Action.id AND APT.name = 'источник финансирования'%s) AS financeCodeName''' % condFinance)
-            cols.append(getDataOrgStructureName(nameProperty))
             cols.append(getActionQueueClientPolicyForDate())
             if forceInt(codeAttachType) > 0:
                 cond.append(tableRBAttachType['code'].eq(codeAttachType))

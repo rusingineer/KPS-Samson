@@ -40,6 +40,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.setVisibleWidget('lblStepECO', False)
         self.setDetailVisible(False)
         self.setPrintAccNumberVisible(False)
+        self.setEventRelegateOrgVisible(False)
         self.launchedFromAccountingDialog(parent)
         self.loadPrefs()
 
@@ -239,6 +240,11 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
                 self.setDateEnabled(True)
                 self.setNoschetaEnabled(True)
 
+
+    def setEventRelegateOrgVisible(self, value):
+        self.lblEventRelegateOrg.setVisible(value)
+        self.cmbEventRelegateOrg.setVisible(value)
+
     def setDateEnabled(self, enabled):
         self.lblBegDate.setEnabled(enabled)
         self.lblEndDate.setEnabled(enabled)
@@ -318,7 +324,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.chkMKBFilter.setChecked(params.get('MKBFilter', 0))
         self.edtMKBFrom.setText(params.get('MKBFrom', 'A00.00'))
         self.edtMKBTo.setText(params.get('MKBTo', 'Z99.99'))
-
+        self.cmbEventRelegateOrg.setValue(params.get('eventRelegateOrgId', None))
         self.updateContractFilter()
 
     # def setOsnScheta(self, enabled):
@@ -434,7 +440,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
             result['MKBFrom'] = result['MKBFrom'] if result['MKBFrom'][-1] != '.' else result['MKBFrom'][:-1]
             result['MKBTo'] = unicode(self.edtMKBTo.text()) if unicode(self.edtMKBTo.text()) != '.' else u'Z99.99'
             result['MKBTo'] = result['MKBTo'] if result['MKBTo'][-1] != '.' else result['MKBTo'][:-1]
-
+        result['eventRelegateOrgId'] = self.cmbEventRelegateOrg.value()
         return result
 
     def onStateChanged(self, state):
@@ -593,6 +599,11 @@ WHEN Insurer.id is not null and substr(Insurer.area, 1, 2) <> '%(defaultRegion)s
 ELSE NULL END = {0:d}""".format(payerId))
         else:
             cond.append("Payer.id = {0:d}".format(payerId))
+
+    # по направителю
+    eventRelegateOrgId = params.get('eventRelegateOrgId', None)
+    if eventRelegateOrgId:
+        cond.append("Event.relegateOrg_id IN ({0})".format(eventRelegateOrgId))
 
     # по условия оказания МП
     vidPom = params.get('vidPom', None)

@@ -15,7 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDate
 
-from library.Utils      import forceDateTime, forceInt, forceRef, forceString, trim
+from library.Utils import forceDateTime, forceInt, forceRef, forceString, trim, formatSNILS
 from Orgs.Utils         import getOrgStructureDescendants, getOrgStructures
 from Reports.Report     import CReport
 from Reports.ReportBase import CReportBase, createTable
@@ -66,6 +66,7 @@ def selectData(params):
     chkWork                 = params.get('chkWork', False)
 #    chkAddionalAddress      = params.get('chkAddionalAddress', False)
     chkDocument             = params.get('chkDocument', False)
+    chkSnils                = params.get('chkSnils', False)
 
     db = QtGui.qApp.db
 
@@ -285,6 +286,8 @@ def selectData(params):
         fields.append('(SELECT SSC.name FROM rbSocStatusClass AS SSC WHERE SSC.id = ClientSocStatus.socStatusClass_id) AS nameSocStatusClass')
     if chkWork:
         fields.append('getClientWork(Client.id) AS work')
+    if chkSnils:
+        fields.append('Client.SNILS')
 
     stmt = db.selectStmt(queryTable, fields, cond, 'vrbPersonWithSpeciality.name, fio' if chkPersonDetail else 'fio')
     return db.query(stmt)
@@ -297,7 +300,7 @@ class CReportEventResultList(CReport):
         self._data = {}
         self.clientIdList = []
 
-    def structData(self, query, chkSocStatus, chkPolicy, chkWork, chkAddionalAddress, chkDocument, chkPersonDetail):
+    def structData(self, query, chkSocStatus, chkPolicy, chkWork, chkAddionalAddress, chkDocument, chkPersonDetail, chkSnils):
         self.resetHelpers()
         eventIdList = []
         clientContactIdList = []
@@ -351,6 +354,8 @@ class CReportEventResultList(CReport):
                     clientData['nameSocStatusClass'] = forceString(record.value('nameSocStatusClass'))
                 if chkWork:
                     clientData['work'] = forceString(record.value('work'))
+                if chkSnils:
+                    clientData['snils'] = formatSNILS(record.value('SNILS'))
                 if chkPersonDetail:
                     clientDataDict[clientId] = clientData
                     self._data[(personName, personId)] = clientDataDict
@@ -413,7 +418,8 @@ class CReportEventResultList(CReport):
         chkAddionalAddress = params.get('chkAddionalAddress', False)
         chkDocument        = params.get('chkDocument', False)
         chkPersonDetail    = params.get('chkPersonDetail', False)
-        self.structData(query, chkSocStatus, chkPolicy, chkWork, chkAddionalAddress, chkDocument, chkPersonDetail)
+        chkSnils          = params.get('chkSnils', False)
+        self.structData(query, chkSocStatus, chkPolicy, chkWork, chkAddionalAddress, chkDocument, chkPersonDetail, chkSnils)
 
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
@@ -456,6 +462,10 @@ class CReportEventResultList(CReport):
         if chkSocStatus:
             tableColumns.insert(addionalCol, ('10%', [u'Соц.статус'], CReportBase.AlignLeft))
             addionalCol += 1
+        if chkSnils:
+            tableColumns.insert(addionalCol, ('5%', [u'Снилс'], CReportBase.AlignLeft))
+            addionalCol += 1
+            
         if chkPersonDetail:
             table = createTable(cursor, tableColumns)
             personKeys = self._data.keys()
@@ -496,6 +506,10 @@ class CReportEventResultList(CReport):
                         socStatusType  = clientData['nameSocStatusType']
                         socStatus = ((u'класс: %s\n'%socStatusClass) if socStatusClass else u'') + ((u'тип: %s'%socStatusType) if socStatusType else u'')
                         table.setText(i, addionalCol, socStatus)
+                        addionalCol += 1
+                    if chkSnils:
+                        snils = clientData['snils']
+                        table.setText(i, addionalCol, snils)
                         addionalCol += 1
                     contact = []
                     contactList = clientData.get('contactList', [])
@@ -577,6 +591,10 @@ class CReportEventResultList(CReport):
                     socStatusType  = clientData['nameSocStatusType']
                     socStatus = ((u'класс: %s\n'%socStatusClass) if socStatusClass else u'') + ((u'тип: %s'%socStatusType) if socStatusType else u'')
                     table.setText(i, addionalCol, socStatus)
+                    addionalCol += 1
+                if chkSnils:
+                    snils = clientData['snils']
+                    table.setText(i, addionalCol, snils)
                     addionalCol += 1
                 table.setText(i, addionalCol, clientData['personName'])
                 addionalCol += 1

@@ -241,6 +241,10 @@ class CAttachButton(QtGui.QPushButton):
                     if len(item) == 4:
                         html = item[3]
 
+                if userSignatures[i] is None:
+                    # Не даём подписать орг. если не подписан врачом
+                    orgSignatures[i] = None
+
                 self.modelFiles.uploadBytes(fileName,
                                             fileBytes,
                                             userSignatures[i],

@@ -477,11 +477,14 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             else:
                 actOpenEvent = QtGui.QAction(u'Открыть контрольную карту диспансерного наблюдения', self)
                 actOpenEvent.triggered.connect(self.on_actOpenSurveillance_triggered)
-            if model.getRespSignerId(currentRow) and self.chkUserCert.isChecked():
-                signFileCurrentFormCert = QtGui.QAction(u'Подписать документ выбранным сертификатом', self)
-                signFileCurrentFormCert.setEnabled(True)
-                signFileCurrentFormCert.triggered.connect(self.signFileCurrentFormCert)
-                self.menu.addAction(signFileCurrentFormCert)
+            if model.getRespSignerId(currentRow):
+                if self.chkUserCert.isChecked():
+                    signFileCurrentFormCert = QtGui.QAction(u'Подписать документ выбранным сертификатом', self)
+                    signFileCurrentFormCert.setEnabled(True)
+                    signFileCurrentFormCert.triggered.connect(self.signFileCurrentFormCert)
+                    self.menu.addAction(signFileCurrentFormCert)
+            else:
+                signFileOrgCert.setEnabled(False)
             if enableValidation:
                 validateFile = QtGui.QAction(u'Проверить выбранный документ по схематрону', self)
                 validateFile.triggered.connect(self.validateFile)
@@ -591,6 +594,8 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                 tmpFile.remove()
                 try:
                     if not forceBool(record.value('orgSigningDatetime')) and signOrg:
+                        if not forceBool(record.value('respSigner_id')):
+                            raise Exception(u'Для подписи сертификатом МО, необходимо сначала подписать сертификатом врача!')
                         detachedSignatureBytes = cert.createDetachedSignature(pdfBytes)
                         item.setOrgSignature(detachedSignatureBytes,
                                              QtGui.qApp.userId,
@@ -1121,7 +1126,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                                                       personId,
                                                       QDateTime.currentDateTime())
                         if not hasOrgDate:
-                            if record.value('orgSigner_id') and certOrg and QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin, urCanSignForOrganisation]):
+                            if record.value('orgSigner_id') and certOrg and QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin, urCanSignForOrganisation]) and ((not hasRespDate and certUser) or hasRespDate):
                                 detachedSingatureBytesOrg = certOrg.createDetachedSignature(pdfBytes)
                                 item.setOrgSignature(detachedSingatureBytesOrg,
                                                      QtGui.qApp.userId,

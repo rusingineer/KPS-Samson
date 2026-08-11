@@ -786,7 +786,8 @@ class CStreetModel(QAbstractItemModel):
         return list(self.stringList.codes)
 
     def clearNoActualStreet(self):
-        self.stringList.clearNoActualStreet()
+        if self.stringList:
+            self.stringList.clearNoActualStreet()
 
 
     def indexByCode(self, code):

@@ -29,6 +29,7 @@ class CHolterExchanger(QtCore.QCoreApplication):
         QtCore.QCoreApplication.__init__(self, args)
         self.db = None
         self.preferences = None
+        self._globalPreferences = {}
         QtGui.qApp = self
         self.font = lambda: None
         self.userId = 1
@@ -66,6 +67,24 @@ class CHolterExchanger(QtCore.QCoreApplication):
             print(u"ini file ({0:s}) not exists".format(iniFileName))
             app.quit()
         self.preferences.load()
+
+    def loadGlobalPreferences(self):
+        if self.db:
+            try:
+                recordList = self.db.getRecordList('GlobalPreferences')
+            except:
+                recordList = []
+            for record in recordList:
+                code  = forceString(record.value('code'))
+                value = forceString(record.value('value'))
+                self._globalPreferences[code] = value
+
+
+    def checkGlobalPreference(self, code, chkValue, default=None):
+        value = self._globalPreferences.get(code, default)
+        if value:
+            return unicode(value).lower() == unicode(chkValue).lower()
+        return False
 
     def connectService(self):
         url = forceString(self.preferences.appPrefs.get('url', None))
@@ -114,6 +133,7 @@ class CHolterExchanger(QtCore.QCoreApplication):
         if self.preferences:
             self.openDatabase()
             if self.db:
+                self.loadGlobalPreferences()
                 self.connectService()
                 if self.SOAP:
                     self.uploadRequests()

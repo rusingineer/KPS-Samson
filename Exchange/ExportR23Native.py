@@ -3850,6 +3850,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                         stmt = """SELECT vF033.UIDSPMO FROM Organisation_Identification oi
                                     LEFT JOIN `v1.2.643.2.69.1.1.1.64` v64 ON oi.value = v64.code 
                                     LEFT JOIN `v1.2.643.5.1.13.13.99.3.45` vF033 ON IF(v64.oid IS NOT NULL, vF033.OID_SPMO LIKE CONCAT(v64.oid, '%'), vF033.OID_SPMO = v64.depart_oid)
+                                      AND vF033.deleted = 0
                                   WHERE oi.system_id = (SELECT id FROM rbAccountingSystem `as` WHERE urn = 'urn:oid:1.2.643.2.69.1.1.1.64' LIMIT 1)
                                     AND oi.deleted = 0 
                                     AND oi.master_id = {0}

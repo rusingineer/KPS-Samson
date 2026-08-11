@@ -2975,7 +2975,7 @@ def isInterruptedCase(eventId):
             from Event e
             left join rbResult as EventResult on EventResult.id = e.result_id
             where e.id = {eventId}
-                  and EventResult.regionalCode in ('102', '103', '104', '105', '107', '108', '110', '202', '203', '205', '207', '208')""".format(eventId=eventId)
+                  and EventResult.regionalCode in ('102', '103', '104', '105', '107', '108', '110', '202', '203', '204', '205', '207', '208')""".format(eventId=eventId)
     result = None
     query = db.query(stmt)
     while query.next():

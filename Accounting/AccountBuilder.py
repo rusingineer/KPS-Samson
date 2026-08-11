@@ -2174,7 +2174,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                             else:
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
-                    elif hasChildbirthCsg != '1' and eventEndDate >= QDate(2025, 6, 1):
+                    elif hasChildbirthCsg != '1' and eventEndDate >= QDate(2025, 6, 1) and csgCode[3:] not in ['st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054']:
                         minDuration = tariff.frags[-2][0] if len(tariff.frags) >= 3 else 3
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)
@@ -2293,16 +2293,18 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                             price = price + priceKSLP
 
                         ishodOb = isInterruptedCase(eventId)
-                        if ishodOb == '108':
+                        if ishodOb in ['108', '208']:
                             interruptReason = '1'
+                        elif ishodOb in ['104', '204']:
+                            interruptReason = '2'
+                        elif ishodOb in ['103', '203']:
+                            interruptReason = '3'
                         elif ishodOb in ['102', '202']:
                             interruptReason = '4'
-                        elif ishodOb in ['103', '203']:
-                            interruptReason = '2'
-                        elif ishodOb in ['105', '205', '206']:
-                            interruptReason = '6'
-                        elif ishodOb == '107':
+                        elif ishodOb in ['107', '207', '110']:
                             interruptReason = '5'
+                        elif ishodOb in ['105', '205', '106', '206']:
+                            interruptReason = '6'
 
                         if (minDuration > 1 and duration <= minDuration
                                 or (QDate(2023, 2, 1) <= eventEndDate < QDate(2025, 1, 1)
@@ -2313,7 +2315,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                                     and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
                                 or (eventEndDate >= QDate(2025, 6, 1)
                                     and minDuration == 1 and duration <= 3
-                                    and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                                    and ishodOb in ['102', '202', '103', '203', '104', '204', '105', '205', '107', '207', '108', '208', '110'])):
                             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
                                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
                                 price = roundMath(price * interruptCoeff, 2)
@@ -2333,7 +2335,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                                   and ishodOb in ['102', '202', '103', '203', '105', '205', '107', '207', '108', '208', '110'])
                               or (eventEndDate >= QDate(2025, 6, 1)
                                   and minDuration == 1
-                                  and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                                  and ishodOb in ['102', '202', '103', '203', '104', '204', '105', '205', '107', '207', '108', '208', '110'])):
                             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or csgCode[3:] == 'st29.007':
                                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
                                 price = roundMath(price * interruptCoeff, 2)
@@ -3741,16 +3743,18 @@ where Action.deleted = 0
     ishodOb = isInterruptedCase(eventId)
     interruptReason = None
     interruptCoeff = None
-    if ishodOb == '108':
+    if ishodOb in ['108', '208']:
         interruptReason = '1'
+    elif ishodOb in ['104', '204']:
+        interruptReason = '2'
+    elif ishodOb in ['103', '203']:
+        interruptReason = '3'
     elif ishodOb in ['102', '202']:
         interruptReason = '4'
-    elif ishodOb in ['103', '203']:
-        interruptReason = '2'
-    elif ishodOb in ['105', '205', '206']:
-        interruptReason = '6'
-    elif ishodOb == '107':
+    elif ishodOb in ['107', '207', '110']:
         interruptReason = '5'
+    elif ishodOb in ['105', '205', '106', '206']:
+        interruptReason = '6'
     # для сверхкоротких случаев лечения (применяется для стационаров всех типов)
     if hasChildbirthCsg != '1':
         if (minDuration > 1 and duration <= minDuration
@@ -3762,7 +3766,7 @@ where Action.deleted = 0
                     and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
                 or (eventEndDate >= QDate(2025, 6, 1)
                     and minDuration == 1 and duration <= 3
-                    and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                    and ishodOb in ['102', '202', '103', '203', '104', '204', '105', '205', '107', '207', '108', '208', '110'])):
             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3ОПЕР'][eventEndDate]
                 price = roundMath(price * interruptCoeff, 2)
@@ -3782,7 +3786,7 @@ where Action.deleted = 0
                   and ishodOb in ['102', '202','103', '203', '105', '205', '107', '207', '108', '208', '110'])
               or (eventEndDate >= QDate(2025, 6, 1)
                   and minDuration == 1
-                  and ishodOb in ['102', '202', '103', '203', '104', '105', '205', '107', '207', '108', '208', '110'])):
+                  and ishodOb in ['102', '202', '103', '203', '104', '204', '105', '205', '107', '207', '108', '208', '110'])):
             if getOperationCount(eventId, tariff.serviceId, eventEndDate) > 0 or serviceInfis[3:] == 'st29.007':
                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4ОПЕР'][eventEndDate]
                 price = roundMath(price * interruptCoeff, 2)

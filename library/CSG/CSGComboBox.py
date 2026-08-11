@@ -151,10 +151,19 @@ class CCSGDbData(CDbData):
         #                                where=cond,
         #                                order='%s.infis, %s.id' % (tableService.name(), tableService.name()))
 
+        csgRecords = []
+        hasCsgWithDlit = False
         while query.next():
             record = query.record()
-            self.idList.append(forceRef(record.value(0)))
-            self.strList.append(forceString(record.value(1)))
+            dlit = forceString(record.value(2))
+            if dlit:
+                hasCsgWithDlit = True
+            csgRecords.append((forceRef(record.value(0)), forceString(record.value(1)), dlit))
+
+        for record in csgRecords:
+            if record[2] and hasCsgWithDlit or not hasCsgWithDlit:
+                self.idList.append(record[0])
+                self.strList.append(record[1])
 
 
     def select_old(self, filter):

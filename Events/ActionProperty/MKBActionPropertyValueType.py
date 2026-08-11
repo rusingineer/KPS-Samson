@@ -15,7 +15,7 @@
 
 from PyQt4.QtCore import QVariant
 from PyQt4 import QtGui
-from library.Utils           import forceString, forceRef
+from library.Utils           import forceString
 from library.ICDCodeEdit     import CICDCodeEditEx
 from library.ICDUtils            import MKBwithoutSubclassification
 from Events.MKBInfo import CMKBInfo
@@ -60,7 +60,7 @@ class CMKBActionPropertyValueType(CActionPropertyValueType):
     convertQVariantToPyValue = convertDBValueToPyValue
     
     def toInfo(self, context, v):
-        return context.getInstance(CMKBInfo, forceRef(v))
+        return context.getInstance(CMKBInfo, forceString(v))
 
     def getTableName(self):
         return self.tableNamePrefix + 'MKB'

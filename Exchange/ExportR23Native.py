@@ -2394,15 +2394,16 @@ where t.typeFile = 'D'""")
                           styleTableCellFooterAlignLeft)
 
         currentRow += 2
-        sheet.write_merge(currentRow , currentRow, 0, 5, u'Главный врач',
+        invoice_person = forceString(QtGui.qApp.preferences.appPrefs.get('positionInvoice', u'Главный врач'))
+        sheet.write_merge(currentRow , currentRow + 1, 0, 5, invoice_person,
                           styleBaseAlignLeft)
-        sheet.write_merge(currentRow, currentRow, 6, 10, u'', styleBaseAlignLeftBorderBottom)
-        sheet.write_merge(currentRow, currentRow, 12, 19, self._getChiefName(QtGui.qApp.currentOrgId()),
+        sheet.write_merge(currentRow, currentRow + 1, 6, 10, u'', styleBaseAlignLeftBorderBottom)
+        sheet.write_merge(currentRow, currentRow + 1, 12, 19, self._getChiefName(QtGui.qApp.currentOrgId()),
                           styleBaseAlignCenterBorderBottom)
-        sheet.write_merge(currentRow, currentRow, 21, 26, u'Главный бухгалтер',
+        sheet.write_merge(currentRow, currentRow + 1, 21, 26, u'Главный бухгалтер',
                           styleBaseAlignLeft)
-        sheet.write_merge(currentRow, currentRow, 27, 31, u'', styleBaseAlignCenterBorderBottom)
-        sheet.write_merge(currentRow, currentRow, 33, 40, forceString(record.value('accountant')),
+        sheet.write_merge(currentRow, currentRow + 1, 27, 31, u'', styleBaseAlignCenterBorderBottom)
+        sheet.write_merge(currentRow, currentRow + 1, 33, 40, forceString(record.value('accountant')),
                           styleBaseAlignCenterBorderBottom)
 
         # sheet.set_horz_page_breaks(page_breaks)
@@ -4473,7 +4474,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                                 dbfRecord['CODE_MDV'] = forceInt(QVariant(prop.getInfo(context).RegionalCode))
                             prop = mdvAction.getPropertyByShortName(u'marknumber')
                             if prop:
-                                dbfRecord['NUMBER_SER'] = forceString(prop.getValue()).strip()[:100]
+                                dbfRecord['NUMBER_SER'] = forceString(prop.getValue())[:100].strip()
                             self.RecordListM.append(dbfRecord)
                             self.exportedImplants.add(mid)
                 # Файл E

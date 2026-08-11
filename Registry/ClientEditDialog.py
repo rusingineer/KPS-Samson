@@ -49,7 +49,7 @@ from library.DbComboBox                       import CDbModel
 from library.InDocTable import (CInDocTableModel, CDateInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol,
                                 CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol,
                                 CRecordListModel, CBoolInDocTableCol, CSelectStrInDocTableCol,
-                                CMKBListInDocTableModel)
+                                CMKBListInDocTableModel, CLocItemDelegate)
 from library.ICDInDocTableCol import CICDInDocTableCol, CICDExInDocTableCol
 from library.interchange                      import setComboBoxValue, setLineEditValue, setSpinBoxValue, setTextEditValue
 from library.ItemsListDialog                  import CItemEditorBaseDialog
@@ -275,6 +275,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
 # assign models
         self.setModels(self.tblSocStatuses, self.modelSocStatusesSort, self.selectionModelSocStatusesSort)
         self.tblSocStatuses.horizontalHeader().setClickable(False)  # TT3856 убрал сортировку ибо ее и изначально не было
+        self.tblSocStatuses.setItemDelegate(CSortFilterProxyLocItemDelegate(self.tblSocStatuses))
         self.setModels(self.tblAttaches, self.modelAttaches, self.selectionModelAttaches)
         self.setModels(self.tblDirectRelations, self.modelDirectRelations, self.selectionModelDirectRelations)
         self.setModels(self.tblBackwardRelations, self.modelBackwardRelations, self.selectionModelBackwardRelations)
@@ -1350,7 +1351,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
     def on_selectionModelContingentKind_selectionChanged(self, selected, deselected):
         if selected.indexes():
             record = self.modelContingentKind.getRecordByRow(selected.indexes()[0].row())
-            self.modelContingentKind.setRemovalReasonFilter(record)
+            if record:
+                self.modelContingentKind.setRemovalReasonFilter(record)
 
 
     def getFactSumList(self):
@@ -2061,6 +2063,9 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         contractDateList = {}
         for row, record in enumerate(self.modelDeposit._items):
             contractIdNew = forceRef(record.value('contract_id'))
+            # Без заполненного договора ругается констреинт
+            if not bool(contractIdNew or self.checkInputMessage(u'договор', False, self.tblDeposit, row, record.indexOf('contract_id'))):
+                return False
             contractDate = forceDate(record.value('contractDate'))
             if contractDate in contractDateList.keys():
                 contractIdList = contractDateList.get(contractDate, None)
@@ -5800,6 +5805,21 @@ class CSocStatusesModelSort(CSortFilterProxyTableModel):
         return getattr(self.sourceModel(), name)
 
 
+class CSortFilterProxyLocItemDelegate(CLocItemDelegate):
+    def setEditorData(self, editor, index):
+        if editor is not None:
+            model  = index.model()
+            index = model.mapToSource(index)
+            column = index.column()
+            row = index.row()
+            if row < len(model.items()):
+                record = model.items()[row]
+            else:
+                record = model.getEmptyRecord()
+
+            model.setEditorData(column, editor, model.sourceModel().data(index, Qt.EditRole), record)
+
+
 class COrgStructureInDocTableColEx(COrgStructureInDocTableCol):
     def setEditorData(self, editor, value, record):
         editor.setOrgId(forceRef(record.value('LPU_id')))
@@ -6535,7 +6555,7 @@ class CDepositModel(CInDocTableModel):
             if column == self.columnFactSum:
                 row = index.row()
                 if 0 <= row < len(self.items()) and len(self.factSum) <= len(self.items()):
-                    return QVariant(self.factSum[row])
+                    return QVariant(self.factSum[row]) if len(self.factSum) > row else None
         return CInDocTableModel.data(self, index, role)
 
 

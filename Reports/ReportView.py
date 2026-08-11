@@ -861,6 +861,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         QtGui.qApp.setSaveDir(fileName)
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
         printer.setOutputFormat(QtGui.QPrinter.PdfFormat)
+        printer.setFullPage(True)
 
         tmpFile = QTemporaryFile()
         if tmpFile.open():
@@ -942,7 +943,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             else:
                 printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
             printer.setPaperSize(printer.A4)
-            printer.setFullPage(False)
+            printer.setFullPage(True)
             self.setupPage(printer)
             printer.setPrintRange(printer.AllPages)
             if hasattr(printer, 'setNumCopies'):
@@ -1010,13 +1011,19 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                     self.setText(html)
                     self.btnSignAndAttach.setEnabled(False)
             else:
-                QtGui.QMessageBox.information(
-                    self,
-                    u'Подпиcать и прикрепить',
-                    u'Внимание!\nДокумент «%s» успешно сформирован, прикреплён без подписи!' % mainFileName,
-                    QtGui.QMessageBox.Ok,
-                    QtGui.QMessageBox.Ok,
-                )
+                # QtGui.QMessageBox.
+                # QtGui.QMessageBox.information(
+                #     self,
+                #     u'Подпиcать и прикрепить',
+                #     u'Внимание!\nДокумент «%s» успешно сформирован, <font color="red" > прикреплён без подписи! </font>' % mainFileName,
+                #     QtGui.QMessageBox.Ok,
+                #     QtGui.QMessageBox.Ok,
+                # )
+                msg = QtGui.QMessageBox(QtGui.QMessageBox.Information, u'Подпиcать и прикрепить', u"Внимание!\nДокумент «%s» успешно сформирован, <strong><big><font color='#ff0000'; > прикреплён без подписи! </font></big></strong>" % mainFileName,
+                                        QtGui.QMessageBox.Ok, self)
+                msg.setTextFormat(Qt.RichText)
+                msg.setDefaultButton(QtGui.QMessageBox.Ok)
+                msg.exec_()
             self.isSignAndAttachResult = True
     
     

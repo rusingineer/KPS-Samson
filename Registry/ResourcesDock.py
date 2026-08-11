@@ -28,6 +28,7 @@ from PyQt4.QtCore import (
                           QSettings,
                          )
 
+from Registry.ElQueueNumberDialog import CElQueueNumberDialog
 from library.crbcombobox                  import CRBModelDataCache, CRBComboBox
 from library.DialogBase                   import CConstructHelperMixin
 from library.DockWidget       import CDockWidget
@@ -1039,8 +1040,8 @@ class CResourcesDockContent(QtGui.QWidget,
         return True
 
 
-    def createOrder(self, tblTimeTable, tblQueue, clientId, isUrgent=0, recordType=None):
-        def fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent=0, recordType=None):
+    def createOrder(self, tblTimeTable, tblQueue, clientId, isUrgent=0, recordType=None, idx=None):
+        def fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent=0, recordType=None, idx=None):
             scheduleItem.clientId = clientId
             scheduleItem.recordDatetime = QDateTime.currentDateTime()
             scheduleItem.recordPersonId = QtGui.qApp.userId
@@ -1055,6 +1056,8 @@ class CResourcesDockContent(QtGui.QWidget,
                 scheduleItem.srcSpecialityId = referral.srcSpecialityId
                 scheduleItem.srcNumber       = referral.srcNumber
                 scheduleItem.srcDate         = referral.srcDate
+            if idx:
+                scheduleItem.idx = idx
 
         date = self.getCurrentDate()
         if self.checkApplicable(clientId, date):
@@ -1165,7 +1168,7 @@ class CResourcesDockContent(QtGui.QWidget,
 
                             db.transaction()
                             try:
-                                fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType)
+                                fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType, idx)
                                 scheduleItemId = scheduleItem.save()
                                 if recordType and recordType == 4 and scheduleItemId:
                                     if not createRelatedActionTMK(self, clientId, personId, scheduleItem.time, scheduleItemId):
@@ -1935,7 +1938,19 @@ class CResourcesDockContent(QtGui.QWidget,
 
     @pyqtSignature('')
     def on_actAmbCreateOrder_triggered(self):
-        if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId()):
+
+        # Для Сириуса делаем сохранение номера талончика электронной очереди в Schedule_Item.idx
+        idx = None
+        lpuCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode'))
+        if lpuCode == "48001" and self.getCurrentDate() == QDate.currentDate(): # у Сириуса ОМС = 48001, тестирую на 10.2.94.42 20011
+            dialog = CElQueueNumberDialog(self)
+            if dialog.exec_():
+                if dialog.queue_number > 0:
+                    idx = dialog.queue_number
+            else:
+                return
+
+        if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), idx=idx):
             self.printOrder(self.tblAmbQueue)
         QtGui.qApp.emitCurrentClientInfoChanged()
     

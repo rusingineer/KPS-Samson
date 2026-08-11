@@ -2168,7 +2168,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                             else:
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
-                    elif csgCode[3:] in ['st02.003', 'st02.004'] and eventEndDate >= QDate(2025, 6, 1):
+                    elif csgCode[3:] != 'st02.001' and eventEndDate >= QDate(2025, 6, 1):
                         minDuration = 1
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)

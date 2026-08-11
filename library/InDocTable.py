@@ -1073,7 +1073,10 @@ class CRecordListModel(QAbstractTableModel):
 
     
     def getRecordByRow(self, row):
-        return self._items[row]
+        if 0 <= row < len(self._items):
+            return self._items[row]
+        else:
+            return None
     
 
     def data(self, index, role=Qt.DisplayRole):

@@ -55,6 +55,7 @@ class CPrintPage(Ui_printPage, QtGui.QWidget):
             self.chkShowPageSetup.setChecked(False)
             self.chkShowPageSetup.setEnabled(False)
             self.lblShowPageSetup.setEnabled(False)
+        self.chkPrintFullPage.setChecked(forceBool(props.get('printFullPage', False)))
 
 
     def getProps(self, props):
@@ -64,6 +65,7 @@ class CPrintPage(Ui_printPage, QtGui.QWidget):
         props['enablePreview']          = toVariant(self.chkEnablePreview.isChecked())
         props['showPageSetup']          = toVariant(self.chkShowPageSetup.isChecked())
         props['templateEdit']           = toVariant(self.chkTemplateEdit.isChecked())
+        props['printFullPage']          = toVariant(self.chkPrintFullPage.isChecked())
 
 
     @pyqtSignature('')

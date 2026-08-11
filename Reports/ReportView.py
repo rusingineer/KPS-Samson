@@ -861,7 +861,6 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         QtGui.qApp.setSaveDir(fileName)
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
         printer.setOutputFormat(QtGui.QPrinter.PdfFormat)
-        printer.setFullPage(True)
 
         tmpFile = QTemporaryFile()
         if tmpFile.open():
@@ -943,7 +942,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             else:
                 printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
             printer.setPaperSize(printer.A4)
-            printer.setFullPage(True)
+            printer.setFullPage(QtGui.qApp.printFullPage())
             self.setupPage(printer)
             printer.setPrintRange(printer.AllPages)
             if hasattr(printer, 'setNumCopies'):

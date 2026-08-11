@@ -1,0 +1,586 @@
+[2026-07-22 16:02:34] ======= Запущен скрипт установки ЛИН-клиента ЕМИС Версия скрипта 7 от 22.07.2026г =======
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=115 time=41.3 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=115 time=41.4 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=115 time=41.9 ms
+
+--- 8.8.8.8 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2006ms
+rtt min/avg/max/mdev = 41.262/41.527/41.944/0.298 ms
+[2026-07-22 16:02:36] ###########################################
+[2026-07-22 16:02:36] ############ Настройка системы ############
+[2026-07-22 16:02:36] ###########################################
+[2026-07-22 16:02:36] Раскомментировать репозиторий c10f (Только для: ALT SP Workstation версии 10)
+[2026-07-22 16:02:36] Посмотреть текущие репозитории
+#rpm [cert8] ftp://update.altsp.su/pub/distributions/ALTLinux c10f/branch/x86_64 classic gostcrypto
+#rpm [cert8] ftp://update.altsp.su/pub/distributions/ALTLinux c10f/branch/x86_64-i586 classic
+#rpm [cert8] ftp://update.altsp.su/pub/distributions/ALTLinux c10f/branch/noarch classic
+rpm [cert8] http://update.altsp.su/pub/distributions/ALTLinux c10f/branch/x86_64 classic gostcrypto
+rpm [cert8] http://update.altsp.su/pub/distributions/ALTLinux c10f/branch/x86_64-i586 classic
+rpm [cert8] http://update.altsp.su/pub/distributions/ALTLinux c10f/branch/noarch classic
+rpm cdrom:[ALT SP Workstation 11100-01 x86_64 build 2023-05-28]/ ALTLinux main
+[2026-07-22 16:02:36] Обновить списки пакетов
+Получено: 1 http://update.altsp.su c10f/branch/x86_64 release [3578B]
+Получено: 2 http://update.altsp.su c10f/branch/x86_64-i586 release [1033B]
+Получено: 3 http://update.altsp.su c10f/branch/noarch release [2199B]
+Получено 6810B за 0s (16,6kB/s).
+Получено: 1 http://update.altsp.su c10f/branch/x86_64/classic pkglist [22,5MB]
+Получено: 2 http://update.altsp.su c10f/branch/x86_64/classic release [141B]
+Получено: 3 http://update.altsp.su c10f/branch/x86_64/gostcrypto pkglist [18,6kB]
+Получено: 4 http://update.altsp.su c10f/branch/x86_64/gostcrypto release [144B]
+Получено: 5 http://update.altsp.su c10f/branch/x86_64-i586/classic pkglist [16,4MB]
+Получено: 6 http://update.altsp.su c10f/branch/x86_64-i586/classic release [146B]
+Получено: 7 http://update.altsp.su c10f/branch/noarch/classic pkglist [7111kB]
+Получено: 8 http://update.altsp.su c10f/branch/noarch/classic release [141B]
+Получено 46,0MB за 7s (6358kB/s).
+Чтение списков пакетов...
+Построение дерева зависимостей...
+[2026-07-22 16:02:56] Установить необходимые пакеты
+Чтение списков пакетов...
+Построение дерева зависимостей...
+Последняя версия python-modules-distutils уже установлена.
+Последняя версия libenchant уже установлена.
+Следующие дополнительные пакеты будут установлены:
+  gcc10 glibc glibc-core glibc-devel glibc-gconv-modules glibc-kernheaders
+  glibc-kernheaders-generic glibc-kernheaders-x86 glibc-locales glibc-nss
+  glibc-preinstall glibc-pthread glibc-timezones glibc-utils iconv
+  kernel-headers-common libasan6 libatomic1 libcrypt-devel libgdbm-devel
+  libitm1 liblsan0 libqt4-clucene libqt4-core libqt4-dbus libqt4-declarative
+  libqt4-designer libqt4-gui libqt4-help libqt4-multimedia libqt4-network
+  libqt4-opengl libqt4-script libqt4-scripttools libqt4-sql libqt4-svg
+  libqt4-test libqt4-xml libqt4-xmlpatterns libtsan0 libvtv0 nscd perl-devel
+  python-module-OpenSSL python-module-PyQt4-sip python-module-backports
+  python-module-backports.ssl_match_hostname python-module-cffi
+  python-module-chardet python-module-cryptography python-module-cython-hidapi
+  python-module-enum34 python-module-idna python-module-ipaddress
+  python-module-ndg python-module-ndg-httpsclient python-module-ntlm
+  python-module-pkg_resources python-module-pycparser python-module-sip
+  python-module-urllib3 python-strict qt4-common rpm-build-python
+  rpm-macros-python swig-data
+Следующие пакеты будут ОБНОВЛЕНЫ:
+  glibc-core glibc-gconv-modules glibc-locales glibc-nss glibc-preinstall
+  glibc-pthread glibc-timezones glibc-utils iconv libmysqlclient21 nscd wget
+Следующие НОВЫЕ пакеты будут установлены:
+  ftp gcc gcc10 glibc glibc-devel glibc-kernheaders glibc-kernheaders-generic
+  glibc-kernheaders-x86 kernel-headers-common libasan6 libatomic1
+  libcrypt-devel libgdbm-devel libitm1 liblsan0 libpcsclite-devel
+  libqt4-clucene libqt4-core libqt4-dbus libqt4-declarative libqt4-designer
+  libqt4-gui libqt4-help libqt4-multimedia libqt4-network libqt4-opengl
+  libqt4-script libqt4-scripttools libqt4-sql libqt4-sql-mysql libqt4-svg
+  libqt4-test libqt4-xml libqt4-xmlpatterns libtsan0 libvtv0 nano perl-devel
+  python-dev python-module-OpenSSL python-module-PyQt4 python-module-PyQt4-sip
+  python-module-backports python-module-backports.ssl_match_hostname
+  python-module-cffi python-module-chardet python-module-cryptography
+  python-module-cython-hidapi python-module-enum34 python-module-idna
+  python-module-ipaddress python-module-isodate python-module-ndg
+  python-module-ndg-httpsclient python-module-ntlm python-module-pkg_resources
+  python-module-pycparser python-module-requests python-module-serial
+  python-module-sip python-module-urllib3 python-strict qt4-common
+  rpm-build-python rpm-macros-python sudo swig swig-data
+12 будет обновлено, 68 новых установлено, 0 пакетов будет удалено и 371 не будет обновлено.
+Необходимо получить 59,0MB архивов.
+После распаковки потребуется дополнительно 150MB дискового пространства.
+Получено: 1 http://update.altsp.su c10f/branch/x86_64/classic glibc-preinstall 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [288kB]
+Получено: 2 http://update.altsp.su c10f/branch/x86_64/classic glibc-core 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [1424kB]
+Получено: 3 http://update.altsp.su c10f/branch/x86_64/classic glibc-pthread 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [118kB]
+Получено: 4 http://update.altsp.su c10f/branch/x86_64/classic glibc-utils 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [436kB]
+Получено: 5 http://update.altsp.su c10f/branch/x86_64/classic glibc-nss 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [76,9kB]
+Получено: 6 http://update.altsp.su c10f/branch/x86_64/classic glibc-locales 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [14,0MB]
+Получено: 7 http://update.altsp.su c10f/branch/x86_64/classic glibc-timezones 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [78,7kB]
+Получено: 8 http://update.altsp.su c10f/branch/x86_64/classic glibc-gconv-modules 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [1140kB]
+Получено: 9 http://update.altsp.su c10f/branch/x86_64/classic iconv 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [73,3kB]
+Получено: 10 http://update.altsp.su c10f/branch/x86_64/classic nscd 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [105kB]
+Получено: 11 http://update.altsp.su c10f/branch/x86_64/classic ftp 0.18-alt0.pre1.3:sisyphus+220868.100.2.1@1550143851 [52,0kB]
+Получено: 12 http://update.altsp.su c10f/branch/noarch/classic glibc-kernheaders-generic 6.1-alt1:c10f1+321753.200.1.1@1684944534 [1314kB]
+Получено: 13 http://update.altsp.su c10f/branch/noarch/classic glibc-kernheaders-x86 6.1-alt1:c10f1+321753.200.1.1@1684944534 [57,2kB]
+Получено: 14 http://update.altsp.su c10f/branch/x86_64/classic glibc-kernheaders 6.1-alt1:c10f1+321753.200.1.1@1684944534 [16,7kB]
+Получено: 15 http://update.altsp.su c10f/branch/x86_64/classic kernel-headers-common 1.2.7-alt1:c10f1+321758.2400.1.3@1684971574 [14,5kB]
+Получено: 16 http://update.altsp.su c10f/branch/x86_64/classic libcrypt-devel 4.4.23-alt1:c10f1+321759.400.1.1@1684958288 [18,4kB]
+Получено: 17 http://update.altsp.su c10f/branch/x86_64/classic glibc 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [43,2kB]
+Получено: 18 http://update.altsp.su c10f/branch/x86_64/classic glibc-devel 6:2.32-alt5.p10.3:c10f1+347166.100.1.1@1714396734 [458kB]
+Получено: 19 http://update.altsp.su c10f/branch/x86_64/classic libatomic1 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [38,5kB]
+Получено: 20 http://update.altsp.su c10f/branch/x86_64/classic libasan6 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [370kB]
+Получено: 21 http://update.altsp.su c10f/branch/x86_64/classic libtsan0 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [343kB]
+Получено: 22 http://update.altsp.su c10f/branch/x86_64/classic libitm1 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [55,2kB]
+Получено: 23 http://update.altsp.su c10f/branch/x86_64/classic liblsan0 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [172kB]
+Получено: 24 http://update.altsp.su c10f/branch/x86_64/classic libvtv0 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [41,5kB]
+Получено: 25 http://update.altsp.su c10f/branch/x86_64/classic gcc10 10.3.1-alt2:c10f1+321752.100.1.1@1684935886 [12,0MB]
+Получено: 26 http://update.altsp.su c10f/branch/x86_64/classic gcc 10-alt1:c10f1+321752.300.1.1@1684936382 [6347B]
+Получено: 27 http://update.altsp.su c10f/branch/x86_64/classic libgdbm-devel 1.8.3-alt10:c10f1+321081.100.1.1@1684525012 [21,9kB]
+Получено: 28 http://update.altsp.su c10f/branch/x86_64/classic libmysqlclient21 8.0.40-alt1:c10f1+359948.200.2.1@1729850728 [1300kB]
+Получено: 29 http://update.altsp.su c10f/branch/x86_64/classic libpcsclite-devel 1.9.9-alt1:p10+315517.100.2.2@1678152592 [63,6kB]
+Получено: 30 http://update.altsp.su c10f/branch/x86_64/classic qt4-common 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [667kB]
+Получено: 31 http://update.altsp.su c10f/branch/x86_64/classic libqt4-core 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [1178kB]
+Получено: 32 http://update.altsp.su c10f/branch/x86_64/classic libqt4-clucene 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [342kB]
+Получено: 33 http://update.altsp.su c10f/branch/x86_64/classic libqt4-xml 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [120kB]
+Получено: 34 http://update.altsp.su c10f/branch/x86_64/classic libqt4-dbus 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [178kB]
+Получено: 35 http://update.altsp.su c10f/branch/x86_64/classic libqt4-gui 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [3685kB]
+Получено: 36 http://update.altsp.su c10f/branch/x86_64/classic libqt4-opengl 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [295kB]
+Получено: 37 http://update.altsp.su c10f/branch/x86_64/classic libqt4-sql 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [115kB]
+Получено: 38 http://update.altsp.su c10f/branch/x86_64/classic libqt4-script 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [720kB]
+Получено: 39 http://update.altsp.su c10f/branch/x86_64/classic libqt4-network 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [462kB]
+Получено: 40 http://update.altsp.su c10f/branch/x86_64/classic libqt4-xmlpatterns 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [1076kB]
+Получено: 41 http://update.altsp.su c10f/branch/x86_64/classic libqt4-declarative 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [1127kB]
+Получено: 42 http://update.altsp.su c10f/branch/x86_64/classic libqt4-designer 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [3349kB]
+Получено: 43 http://update.altsp.su c10f/branch/x86_64/classic libqt4-help 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [244kB]
+Получено: 44 http://update.altsp.su c10f/branch/x86_64/classic libqt4-multimedia 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [81,9kB]
+Получено: 45 http://update.altsp.su c10f/branch/x86_64/classic libqt4-scripttools 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [223kB]
+Получено: 46 http://update.altsp.su c10f/branch/x86_64/classic libqt4-sql-mysql 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [60,3kB]
+Получено: 47 http://update.altsp.su c10f/branch/x86_64/classic libqt4-svg 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [149kB]
+Получено: 48 http://update.altsp.su c10f/branch/x86_64/classic libqt4-test 4.8.7-alt23:sisyphus+277591.100.1.1@1625712381 [90,2kB]
+Получено: 49 http://update.altsp.su c10f/branch/x86_64/classic nano 8.0-alt1:c10f1+360507.100.1.1@1729673941 [604kB]
+Получено: 50 http://update.altsp.su c10f/branch/x86_64/classic perl-devel 1:5.34.0-alt1:c10f1+321760.1500.1.2@1684978685 [1450kB]
+Получено: 51 http://update.altsp.su c10f/branch/noarch/classic rpm-macros-python 0.43.2-alt1:c10f1+321761.400.1.2@1684986377 [23,2kB]
+Получено: 52 http://update.altsp.su c10f/branch/noarch/classic rpm-build-python 0.43.2-alt1:c10f1+321761.400.1.2@1684986377 [53,6kB]
+Получено: 53 http://update.altsp.su c10f/branch/x86_64/classic python-dev 2.7.18-alt10:p10+309289.100.3.1@1668015444 [133kB]
+Получено: 54 http://update.altsp.su c10f/branch/noarch/classic python-strict 2.7.18-alt10:p10+309289.100.3.1@1668015444 [28,2kB]
+Получено: 55 http://update.altsp.su c10f/branch/noarch/classic python-module-pycparser 2.20-alt2:sisyphus+278697.100.1.1@1626167392 [168kB]
+Получено: 56 http://update.altsp.su c10f/branch/x86_64/classic python-module-cffi 1.14.5-alt2:sisyphus+279394.100.1.2@1626530538 [217kB]
+Получено: 57 http://update.altsp.su c10f/branch/noarch/classic python-module-enum34 1.1.6-alt3:sisyphus+276976.100.1.2@1625338917 [34,0kB]
+Получено: 58 http://update.altsp.su c10f/branch/noarch/classic python-module-ipaddress 1.0.18-alt2:sisyphus+245673.200.1.1@1581087895 [31,3kB]
+Получено: 59 http://update.altsp.su c10f/branch/x86_64/classic python-module-cryptography 3.0-alt1:sisyphus+278405.100.1.2@1626204505 [373kB]
+Получено: 60 http://update.altsp.su c10f/branch/noarch/classic python-module-OpenSSL 19.0.0-alt2:sisyphus+261134.140.3.1@1604671956 [85,8kB]
+Получено: 61 http://update.altsp.su c10f/branch/x86_64/classic python-module-sip 4.19.19-alt5:sisyphus+278650.502.10.3@1626193822 [248kB]
+Получено: 62 http://update.altsp.su c10f/branch/x86_64/classic python-module-PyQt4-sip 4.19.19-alt5:sisyphus+278650.502.10.3@1626193822 [58,8kB]
+Получено: 63 http://update.altsp.su c10f/branch/x86_64/classic python-module-PyQt4 4.12.3-alt3:sisyphus+276280.100.1.1@1624953373 [2774kB]
+Получено: 64 http://update.altsp.su c10f/branch/x86_64/classic python-module-backports 3.5.0.1-alt1.1.1:sisyphus+276974.100.1.2@1625337784 [3763B]
+Получено: 65 http://update.altsp.su c10f/branch/x86_64/classic python-module-backports.ssl_match_hostname 3.5.0.1-alt1.1.1:sisyphus+276974.100.1.2@1625337784 [9415B]
+Получено: 66 http://update.altsp.su c10f/branch/noarch/classic python-module-chardet 1:3.0.4-alt2:sisyphus+275804.100.1.1@1624794263 [153kB]
+Получено: 67 http://update.altsp.su c10f/branch/x86_64/classic python-module-cython-hidapi 0.9.0-alt0.1:sisyphus+279127.100.1.1@1626380803 [24,2kB]
+Получено: 68 http://update.altsp.su c10f/branch/noarch/classic python-module-idna 2.10-alt1:sisyphus+255040.100.1.1@1594995857 [86,4kB]
+Получено: 69 http://update.altsp.su c10f/branch/noarch/classic python-module-isodate 0.5.4-alt1:sisyphus+275825.100.1.1@1624796028 [31,1kB]
+Получено: 70 http://update.altsp.su c10f/branch/x86_64/classic python-module-ndg 0.4.2-alt1.qa1:sisyphus+275837.100.1.2@1624808487 [4113B]
+Получено: 71 http://update.altsp.su c10f/branch/noarch/classic python-module-pkg_resources 1:42.0.0-alt3:sisyphus+257539.100.1.1@1599462744 [200kB]
+Получено: 72 http://update.altsp.su c10f/branch/x86_64/classic python-module-ndg-httpsclient 0.4.2-alt1.qa1:sisyphus+275837.100.1.2@1624808487 [33,2kB]
+Получено: 73 http://update.altsp.su c10f/branch/noarch/classic python-module-ntlm 1.1.0-alt1.2:sisyphus+275841.100.1.1@1624797814 [30,2kB]
+Получено: 74 http://update.altsp.su c10f/branch/noarch/classic python-module-urllib3 2:1.26.20-alt1.c10f1:c10f1+363021.100.1.1@1732120239 [196kB]
+Получено: 75 http://update.altsp.su c10f/branch/noarch/classic python-module-requests 2.25.1-alt1:c10f1+363021.140.5.1@1732268394 [106kB]
+Получено: 76 http://update.altsp.su c10f/branch/noarch/classic python-module-serial 3.5-alt1:sisyphus+275865.100.2.1@1624872757 [132kB]
+Получено: 77 http://update.altsp.su c10f/branch/noarch/classic swig-data 1:4.0.2-alt3.p10:c10f1+323429.100.2.1@1694416415 [427kB]
+Получено: 78 http://update.altsp.su c10f/branch/x86_64/classic swig 1:4.0.2-alt3.p10:c10f1+323429.100.2.1@1694416415 [1235kB]
+Получено: 79 http://update.altsp.su c10f/branch/x86_64/classic wget 1.24.5-alt2:c10f1+357284.100.1.1@1726047527 [511kB]
+Получено: 80 http://update.altsp.su c10f/branch/x86_64/classic sudo 1:1.9.15p1-alt1:c10f1+337459.100.1.1@1703847770 [1261kB]
+Получено 59,0MB за 7s (8346kB/s).
+Совершаем изменения...
+Подготовка...                           ################################# [100%]
+Обновление / установка...
+ 1: python-strict-2.7.18-alt10          ################################# [  1%]
+ 2: python-module-pkg_resources-1:42.0.0-alt3 ################################# [  2%]
+ 3: libcrypt-devel-4.4.23-alt1          ################################# [  3%]
+ 4: glibc-kernheaders-generic-6.1-alt1  ################################# [  4%]
+ 5: glibc-kernheaders-x86-6.1-alt1      ################################# [  5%]
+ 6: glibc-kernheaders-6.1-alt1          ################################# [  7%]
+ 7: kernel-headers-common-1.2.7-alt1    ################################# [  8%]
+ 8: python-module-ntlm-1.1.0-alt1.2     ################################# [  9%]
+ 9: python-module-pycparser-2.20-alt2   ################################# [ 10%]
+10: python-module-idna-2.10-alt1        ################################# [ 11%]
+11: python-module-ndg-0.4.2-alt1.qa1    ################################# [ 12%]
+12: python-module-chardet-1:3.0.4-alt2  ################################# [ 13%]
+13: python-module-backports-3.5.0.1-alt1.1.1 ################################# [ 14%]
+14: python-module-backports.ssl_match_hostname-3.5.0.1-alt1.1.1 ################################# [ 15%]
+15: python-module-ipaddress-1.0.18-alt2 ################################# [ 16%]
+16: python-module-enum34-1.1.6-alt3     ################################# [ 17%]
+17: rpm-macros-python-0.43.2-alt1       ################################# [ 18%]
+18: rpm-build-python-0.43.2-alt1        ################################# [ 20%]
+19: qt4-common-4.8.7-alt23              ################################# [ 21%]
+20: libgdbm-devel-1.8.3-alt10           ################################# [ 22%]
+21: perl-devel-1:5.34.0-alt1            ################################# [ 23%]
+22: swig-data-1:4.0.2-alt3.p10          ################################# [ 24%]
+23: glibc-preinstall-6:2.32-alt5.p10.3  ################################# [ 25%]
+24: glibc-core-6:2.32-alt5.p10.3        ################################# [ 26%]
+25: glibc-pthread-6:2.32-alt5.p10.3     ################################# [ 27%]
+26: glibc-gconv-modules-6:2.32-alt5.p10.3 ################################# [ 28%]
+27: libqt4-core-4.8.7-alt23             ################################# [ 29%]
+28: libqt4-gui-4.8.7-alt23              ################################# [ 30%]
+29: libqt4-sql-4.8.7-alt23              ################################# [ 32%]
+30: libqt4-opengl-4.8.7-alt23           ################################# [ 33%]
+31: libqt4-xml-4.8.7-alt23              ################################# [ 34%]
+32: libqt4-dbus-4.8.7-alt23             ################################# [ 35%]
+33: libqt4-script-4.8.7-alt23           ################################# [ 36%]
+34: libqt4-network-4.8.7-alt23          ################################# [ 37%]
+35: libqt4-xmlpatterns-4.8.7-alt23      ################################# [ 38%]
+36: iconv-6:2.32-alt5.p10.3             ################################# [ 39%]
+37: python-module-cffi-1.14.5-alt2      ################################# [ 40%]
+38: python-module-cryptography-3.0-alt1 ################################# [ 41%]
+39: python-module-OpenSSL-19.0.0-alt2   ################################# [ 42%]
+40: python-module-ndg-httpsclient-0.4.2-alt1.qa1 ################################# [ 43%]
+41: python-module-urllib3-2:1.26.20-alt1.c10f1 ################################# [ 45%]
+42: glibc-timezones-6:2.32-alt5.p10.3   ################################# [ 46%]
+43: libqt4-declarative-4.8.7-alt23      ################################# [ 47%]
+44: libqt4-designer-4.8.7-alt23         ################################# [ 48%]
+45: libqt4-scripttools-4.8.7-alt23      ################################# [ 49%]
+46: libqt4-multimedia-4.8.7-alt23       ################################# [ 50%]
+47: libqt4-svg-4.8.7-alt23              ################################# [ 51%]
+48: libqt4-clucene-4.8.7-alt23          ################################# [ 52%]
+49: libqt4-help-4.8.7-alt23             ################################# [ 53%]
+50: libqt4-test-4.8.7-alt23             ################################# [ 54%]
+51: glibc-utils-6:2.32-alt5.p10.3       ################################# [ 55%]
+52: glibc-nss-6:2.32-alt5.p10.3         ################################# [ 57%]
+53: glibc-locales-6:2.32-alt5.p10.3     ################################# [ 58%]
+54: glibc-6:2.32-alt5.p10.3             ################################# [ 59%]
+55: glibc-devel-6:2.32-alt5.p10.3       ################################# [ 60%]
+56: libatomic1-10.3.1-alt2              ################################# [ 61%]
+57: libasan6-10.3.1-alt2                ################################# [ 62%]
+58: libtsan0-10.3.1-alt2                ################################# [ 63%]
+59: libitm1-10.3.1-alt2                 ################################# [ 64%]
+60: liblsan0-10.3.1-alt2                ################################# [ 65%]
+61: libmysqlclient21-8.0.40-alt1        ################################# [ 66%]
+62: libvtv0-10.3.1-alt2                 ################################# [ 67%]
+63: gcc10-10.3.1-alt2                   ################################# [ 68%]
+64: python-module-sip-4.19.19-alt5      ################################# [ 70%]
+65: python-module-PyQt4-sip-4.19.19-alt5 ################################# [ 71%]
+66: python-module-cython-hidapi-0.9.0-alt0.1 ################################# [ 72%]
+67: python-module-serial-3.5-alt1       ################################# [ 73%]
+68: python-module-PyQt4-4.12.3-alt3     ################################# [ 74%]
+69: gcc-10-alt1                         ################################# [ 75%]
+70: libqt4-sql-mysql-4.8.7-alt23        ################################# [ 76%]
+71: python-module-requests-2.25.1-alt1  ################################# [ 77%]
+useradd: пользователь «nscd» уже существует
+72: nscd-6:2.32-alt5.p10.3              ################################# [ 78%]
+73: sudo-1:1.9.15p1-alt1                ################################# [ 79%]
+74: ftp-0.18-alt0.pre1.3                ################################# [ 80%]
+75: libpcsclite-devel-1.9.9-alt1        ################################# [ 82%]
+76: nano-8.0-alt1                       ################################# [ 83%]
+77: swig-1:4.0.2-alt3.p10               ################################# [ 84%]
+78: wget-1.24.5-alt2                    ################################# [ 85%]
+79: python-dev-2.7.18-alt10             ################################# [ 86%]
+80: python-module-isodate-0.5.4-alt1    ################################# [ 87%]
+Очистка / удаление... 
+81: libmysqlclient21-8.0.30-alt1.1      ################################# [ 88%]
+82: wget-1.21.3-alt1                    ################################# [ 89%]
+83: nscd-6:2.32-alt5                    ################################# [ 90%]
+84: glibc-timezones-6:2.32-alt5         ################################# [ 91%]
+85: iconv-6:2.32-alt5                   ################################# [ 92%]
+86: glibc-gconv-modules-6:2.32-alt5     ################################# [ 93%]
+87: glibc-locales-6:2.32-alt5           ################################# [ 95%]
+88: glibc-nss-6:2.32-alt5               ################################# [ 96%]
+89: glibc-utils-6:2.32-alt5             ################################# [ 97%]
+90: glibc-pthread-6:2.32-alt5           ################################# [ 98%]
+91: glibc-core-6:2.32-alt5              ################################# [ 99%]
+92: glibc-preinstall-6:2.32-alt5        ################################# [100%]
+Завершено.
+[2026-07-22 16:03:37] Отключение системы обеспечивающей обнаружение сервисов в локальной сети:
+[2026-07-22 16:03:38] ########################################
+[2026-07-22 16:03:38] ############ Установка ЕМИС ############
+[2026-07-22 16:03:38] ########################################
+Введите IP-адрес сервера БД: [2026-07-22 16:03:48] 192.168.1.225
+Введите имя БД: [2026-07-22 16:03:58] s11_07054
+[2026-07-22 16:03:58] Скачиваем client_lin.tar.gz с сервера БД по ФТП...
+[2026-07-22 16:04:00] Распаковываем клиента
+[2026-07-22 16:04:01] Выдаем все права каталогу с клиентом
+[2026-07-22 16:04:01] Создаем ярлык на рабочем столе
+[2026-07-22 16:04:01] Настраиваем ЕМИС
+[2026-07-22 16:04:01] Устанавливаем шрифты для печати штрихкода и другие
+Font directories:
+	/root/.local/share/fonts
+	/usr/local/share/fonts
+	/usr/share/fonts
+	/root/.fonts
+	/usr/share/fonts/bitmap
+	/usr/share/fonts/otf
+	/usr/share/fonts/ttf
+	/usr/share/fonts/type1
+	/usr/share/fonts/bitmap/misc
+	/usr/share/fonts/bitmap/terminus
+	/usr/share/fonts/otf/mathjax
+	/usr/share/fonts/otf/stix
+	/usr/share/fonts/ttf/dejavu
+	/usr/share/fonts/ttf/google-droid
+	/usr/share/fonts/ttf/liberation
+	/usr/share/fonts/ttf/liberation-narrow
+	/usr/share/fonts/type1/Type1
+	/usr/share/fonts/type1/urw
+/root/.local/share/fonts: skipping, no such directory
+/usr/local/share/fonts: skipping, no such directory
+/usr/share/fonts: caching, new cache contents: 0 fonts, 4 dirs
+/usr/share/fonts/bitmap: caching, new cache contents: 0 fonts, 2 dirs
+/usr/share/fonts/bitmap/misc: caching, new cache contents: 89 fonts, 0 dirs
+/usr/share/fonts/bitmap/terminus: caching, new cache contents: 18 fonts, 0 dirs
+/usr/share/fonts/otf: caching, new cache contents: 0 fonts, 2 dirs
+/usr/share/fonts/otf/mathjax: caching, new cache contents: 79 fonts, 0 dirs
+/usr/share/fonts/otf/stix: caching, new cache contents: 5 fonts, 0 dirs
+/usr/share/fonts/ttf: caching, new cache contents: 18 fonts, 4 dirs
+/usr/share/fonts/ttf/dejavu: caching, new cache contents: 22 fonts, 0 dirs
+/usr/share/fonts/ttf/google-droid: caching, new cache contents: 24 fonts, 0 dirs
+/usr/share/fonts/ttf/liberation: caching, new cache contents: 12 fonts, 0 dirs
+/usr/share/fonts/ttf/liberation-narrow: caching, new cache contents: 16 fonts, 0 dirs
+/usr/share/fonts/type1: caching, new cache contents: 0 fonts, 2 dirs
+/usr/share/fonts/type1/Type1: caching, new cache contents: 29 fonts, 0 dirs
+/usr/share/fonts/type1/urw: caching, new cache contents: 35 fonts, 0 dirs
+/root/.fonts: skipping, no such directory
+/usr/share/fonts/bitmap: skipping, looped directory detected
+/usr/share/fonts/otf: skipping, looped directory detected
+/usr/share/fonts/ttf: skipping, looped directory detected
+/usr/share/fonts/type1: skipping, looped directory detected
+/usr/share/fonts/bitmap/misc: skipping, looped directory detected
+/usr/share/fonts/bitmap/terminus: skipping, looped directory detected
+/usr/share/fonts/otf/mathjax: skipping, looped directory detected
+/usr/share/fonts/otf/stix: skipping, looped directory detected
+/usr/share/fonts/ttf/dejavu: skipping, looped directory detected
+/usr/share/fonts/ttf/google-droid: skipping, looped directory detected
+/usr/share/fonts/ttf/liberation: skipping, looped directory detected
+/usr/share/fonts/ttf/liberation-narrow: skipping, looped directory detected
+/usr/share/fonts/type1/Type1: skipping, looped directory detected
+/usr/share/fonts/type1/urw: skipping, looped directory detected
+/var/cache/fontconfig: cleaning cache directory
+/root/.cache/fontconfig: not cleaning non-existent cache directory
+/root/.fontconfig: not cleaning non-existent cache directory
+fc-cache: succeeded
+[2026-07-22 16:04:04] ########################################
+[2026-07-22 16:04:04] ############ Установка pip2 ############
+[2026-07-22 16:04:04] ########################################
+[2026-07-22 16:04:04] Устанавливаем необходимые пакеты pip2
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Collecting pip<21.0
+  Downloading pip-20.3.4-py2.py3-none-any.whl (1.5 MB)
+Collecting setuptools<45
+  Downloading setuptools-44.1.1-py2.py3-none-any.whl (583 kB)
+Collecting wheel
+  Downloading wheel-0.37.1-py2.py3-none-any.whl (35 kB)
+Installing collected packages: pip, setuptools, wheel
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 42.0.0
+    Uninstalling setuptools-42.0.0:
+      Successfully uninstalled setuptools-42.0.0
+Successfully installed pip-20.3.4 setuptools-44.1.1 wheel-0.37.1
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Requirement already up-to-date: setuptools in /usr/lib/python2.7/site-packages (44.1.1)
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Requirement already up-to-date: pip in /usr/lib/python2.7/site-packages (20.3.4)
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Requirement already satisfied: wheel in /usr/lib/python2.7/site-packages (0.37.1)
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Processing /opt/client/install/ZSI-2.1-a1.tar.gz
+Building wheels for collected packages: ZSI
+  Building wheel for ZSI (setup.py): started
+  Building wheel for ZSI (setup.py): finished with status 'done'
+  Created wheel for ZSI: filename=ZSI-2.1a1-py2-none-any.whl size=182953 sha256=2a2a60915321ce55957f59c6d30360ff9ebd899267b92199a5f952dd1cc81d03
+  Stored in directory: /root/.cache/pip/wheels/51/6a/1c/51e04e672f0234bffb60eeeafcb4644b2ae6fb934923d4d7c8
+Successfully built ZSI
+Installing collected packages: ZSI
+Successfully installed ZSI-2.1a1
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Processing /opt/client/install/PyXML-0.8.4.tar.gz
+Building wheels for collected packages: PyXML
+  Building wheel for PyXML (setup.py): started
+  Building wheel for PyXML (setup.py): finished with status 'done'
+  Created wheel for PyXML: filename=PyXML-0.8.4-cp27-cp27m-linux_x86_64.whl size=710051 sha256=c85055db3c1e8c52c66375e14e267dc61cc620650f729cab9f323ec9f1901cab
+  Stored in directory: /root/.cache/pip/wheels/8c/15/29/5f107eb2dc9a599db6b91388fbf7dfc762e82f0b66ff068518
+Successfully built PyXML
+Installing collected packages: PyXML
+Successfully installed PyXML-0.8.4
+altgraph==0.17.2
+backports.functools-lru-cache==1.6.4
+beautifulsoup4==4.9.3
+bs4==0.0.1
+certifi==2020.12.5
+chardet==4.0.0
+cycler==0.10.0
+dis3==0.1.3
+future==0.18.2
+idna==2.10
+isodate==0.6.0
+kiwisolver==1.1.0
+matplotlib==2.2.5
+numpy==1.16.6
+pefile==2019.4.18
+pyenchant==2.0.0
+pyinstaller==3.6
+pyparsing==2.4.7
+pyscard==2.0.0
+pyserial==2.7
+python-dateutil==2.8.1
+pytz==2021.1
+pywin32-ctypes==0.2.0
+PyXB==1.2.6
+requests==2.26.0
+six==1.16.0
+soupsieve==1.9.6
+suds==0.4
+urllib3==1.26.4
+PyXML==0.8.4
+ZSI==2.1a1
+Pillow==6.2.2
+scipy==1.2.3
+pyBarcode==0.8b1
+enum34==1.1.10
+hid==1.0.6
+lxml==4.9.3
+protobuf==3.6.1
+grpcio==1.17.1
+grpcio-tools==1.17.1
+psutil==5.7.1
+DEPRECATION: Python 2.7 reached the end of its life on January 1st, 2020. Please upgrade your Python as Python 2.7 is no longer maintained. pip 21.0 will drop support for Python 2.7 in January 2021. More details about Python 2 support in pip can be found at https://pip.pypa.io/en/latest/development/release-process/#python-2-support pip 21.0 will remove support for this functionality.
+Collecting altgraph==0.17.2
+  Downloading altgraph-0.17.2-py2.py3-none-any.whl (21 kB)
+Collecting backports.functools-lru-cache==1.6.4
+  Downloading backports.functools_lru_cache-1.6.4-py2.py3-none-any.whl (5.9 kB)
+Collecting beautifulsoup4==4.9.3
+  Downloading beautifulsoup4-4.9.3-py2-none-any.whl (115 kB)
+Collecting bs4==0.0.1
+  Downloading bs4-0.0.1.tar.gz (1.1 kB)
+Collecting certifi==2020.12.5
+  Downloading certifi-2020.12.5-py2.py3-none-any.whl (147 kB)
+Collecting chardet==4.0.0
+  Downloading chardet-4.0.0-py2.py3-none-any.whl (178 kB)
+Collecting cycler==0.10.0
+  Downloading cycler-0.10.0-py2.py3-none-any.whl (6.5 kB)
+Collecting dis3==0.1.3
+  Downloading dis3-0.1.3-py2-none-any.whl (7.5 kB)
+Collecting future==0.18.2
+  Downloading future-0.18.2.tar.gz (829 kB)
+Requirement already satisfied: idna==2.10 in /usr/lib/python2.7/site-packages (from -r /opt/client/requirements.txt (line 10)) (2.10)
+Collecting isodate==0.6.0
+  Downloading isodate-0.6.0-py2.py3-none-any.whl (45 kB)
+Collecting kiwisolver==1.1.0
+  Downloading kiwisolver-1.1.0-cp27-cp27m-manylinux1_x86_64.whl (93 kB)
+Collecting matplotlib==2.2.5
+  Downloading matplotlib-2.2.5-cp27-cp27m-manylinux1_x86_64.whl (12.8 MB)
+Collecting numpy==1.16.6
+  Downloading numpy-1.16.6-cp27-cp27m-manylinux1_x86_64.whl (17.0 MB)
+Collecting pefile==2019.4.18
+  Downloading pefile-2019.4.18.tar.gz (62 kB)
+Collecting pyenchant==2.0.0
+  Downloading pyenchant-2.0.0.tar.gz (64 kB)
+Collecting pyinstaller==3.6
+  Downloading PyInstaller-3.6.tar.gz (3.5 MB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+    Preparing wheel metadata: started
+    Preparing wheel metadata: finished with status 'done'
+Collecting pyparsing==2.4.7
+  Downloading pyparsing-2.4.7-py2.py3-none-any.whl (67 kB)
+Collecting pyscard==2.0.0
+  Downloading pyscard-2.0.0.tar.gz (148 kB)
+Collecting pyserial==2.7
+  Downloading pyserial-2.7.tar.gz (122 kB)
+Collecting python-dateutil==2.8.1
+  Downloading python_dateutil-2.8.1-py2.py3-none-any.whl (227 kB)
+Collecting pytz==2021.1
+  Downloading pytz-2021.1-py2.py3-none-any.whl (510 kB)
+Collecting pywin32-ctypes==0.2.0
+  Downloading pywin32_ctypes-0.2.0-py2.py3-none-any.whl (28 kB)
+Collecting PyXB==1.2.6
+  Downloading PyXB-1.2.6.tar.gz (7.0 MB)
+Collecting requests==2.26.0
+  Downloading requests-2.26.0-py2.py3-none-any.whl (62 kB)
+Collecting six==1.16.0
+  Downloading six-1.16.0-py2.py3-none-any.whl (11 kB)
+Collecting soupsieve==1.9.6
+  Downloading soupsieve-1.9.6-py2.py3-none-any.whl (33 kB)
+Collecting suds==0.4
+  Downloading suds-0.4.tar.gz (104 kB)
+Collecting urllib3==1.26.4
+  Downloading urllib3-1.26.4-py2.py3-none-any.whl (153 kB)
+Requirement already satisfied: PyXML==0.8.4 in /usr/lib64/python2.7/site-packages (from -r /opt/client/requirements.txt (line 30)) (0.8.4)
+Requirement already satisfied: ZSI==2.1a1 in /usr/lib/python2.7/site-packages (from -r /opt/client/requirements.txt (line 31)) (2.1a1)
+Collecting Pillow==6.2.2
+  Downloading Pillow-6.2.2-cp27-cp27m-manylinux1_x86_64.whl (2.1 MB)
+Collecting scipy==1.2.3
+  Downloading scipy-1.2.3-cp27-cp27m-manylinux1_x86_64.whl (24.8 MB)
+Collecting pyBarcode==0.8b1
+  Downloading pyBarcode-0.8b1-cp27-none-any.whl (210 kB)
+Collecting enum34==1.1.10
+  Downloading enum34-1.1.10-py2-none-any.whl (11 kB)
+Collecting hid==1.0.6
+  Downloading hid-1.0.6.tar.gz (4.8 kB)
+Collecting lxml==4.9.3
+  Downloading lxml-4.9.3-cp27-cp27m-manylinux_2_5_x86_64.manylinux1_x86_64.whl (5.6 MB)
+Collecting protobuf==3.6.1
+  Downloading protobuf-3.6.1-py2.py3-none-any.whl (390 kB)
+Collecting grpcio==1.17.1
+  Downloading grpcio-1.17.1-cp27-cp27m-manylinux1_x86_64.whl (10.0 MB)
+Collecting grpcio-tools==1.17.1
+  Downloading grpcio_tools-1.17.1-cp27-cp27m-manylinux1_x86_64.whl (22.8 MB)
+Collecting psutil==5.7.1
+  Downloading psutil-5.7.1.tar.gz (460 kB)
+Requirement already satisfied: setuptools in /usr/lib/python2.7/site-packages (from kiwisolver==1.1.0->-r /opt/client/requirements.txt (line 12)) (44.1.1)
+Collecting subprocess32
+  Downloading subprocess32-3.5.4.tar.gz (97 kB)
+Collecting futures>=2.2.0
+  Downloading futures-3.4.0-py2-none-any.whl (16 kB)
+Building wheels for collected packages: bs4, future, pefile, pyenchant, pyinstaller, pyscard, pyserial, PyXB, suds, hid, psutil, subprocess32
+  Building wheel for bs4 (setup.py): started
+  Building wheel for bs4 (setup.py): finished with status 'done'
+  Created wheel for bs4: filename=bs4-0.0.1-py2-none-any.whl size=1273 sha256=73b80bf603cd9724c05571c3ae929e4c3b98dca77347fd2246b5734c7c4db6d3
+  Stored in directory: /root/.cache/pip/wheels/98/b9/dc/90f1e36fc6bf9564491a69c9c3d7ae38b8f72986256e416be6
+  Building wheel for future (setup.py): started
+  Building wheel for future (setup.py): finished with status 'done'
+  Created wheel for future: filename=future-0.18.2-py2-none-any.whl size=502566 sha256=ec728e0f50c655edd04cd6a8fc3d2681eff96538669f0ac1714c840bc744e48c
+  Stored in directory: /root/.cache/pip/wheels/5f/11/0c/aad680baf5ef4fbcbab992c9f03e1130357e0c173a4fdabfff
+  Building wheel for pefile (setup.py): started
+  Building wheel for pefile (setup.py): finished with status 'done'
+  Created wheel for pefile: filename=pefile-2019.4.18-py2-none-any.whl size=60822 sha256=ac8e5e4c74df883eda32026b8153901281be3dfcdcd452433a841897458284ec
+  Stored in directory: /root/.cache/pip/wheels/8d/df/d6/426cd1d5a37976133b50fee4b0885ba686d78ea785ff79ff0d
+  Building wheel for pyenchant (setup.py): started
+  Building wheel for pyenchant (setup.py): finished with status 'done'
+  Created wheel for pyenchant: filename=pyenchant-2.0.0-py2.py3.cp27.cp32.cp33.cp34.cp35.cp36.pp27.pp33.pp35-none-any.whl size=71147 sha256=456c7a5912d249e40e9b8a3709b4e5f14d5d24f36829868058ce9460e9042cd4
+  Stored in directory: /root/.cache/pip/wheels/62/bf/9c/69658f573b89760cfcadc29f8ca5dbd171ad1c4450a8d8e82a
+  Building wheel for pyinstaller (PEP 517): started
+  Building wheel for pyinstaller (PEP 517): finished with status 'done'
+  Created wheel for pyinstaller: filename=PyInstaller-3.6-py2-none-any.whl size=2926549 sha256=af94c8265b1a63dd46d46cfa0773376d7875ad17f7029764830f7a6c5c14d6ae
+  Stored in directory: /root/.cache/pip/wheels/1d/1d/67/fbfa08a3fac3d5d683454892b8952eb20cc1896c4c626ee032
+  Building wheel for pyscard (setup.py): started
+  Building wheel for pyscard (setup.py): finished with status 'done'
+  Created wheel for pyscard: filename=pyscard-2.0.0-cp27-cp27m-linux_x86_64.whl size=234098 sha256=ec33de75f504fa00f8a91aa14d4d47585d5d1ca312382cf760fd93946b5ebd6c
+  Stored in directory: /root/.cache/pip/wheels/c4/b6/0d/935b9319a8391dcbd1f86bd21b93c22684fc4e739a3fdc34fa
+  Building wheel for pyserial (setup.py): started
+  Building wheel for pyserial (setup.py): finished with status 'done'
+  Created wheel for pyserial: filename=pyserial-2.7-py2-none-any.whl size=76342 sha256=7b1636246d8acca872f979160d07fb4415a9bc8fd4700e99a300f9e7c2a259c7
+  Stored in directory: /root/.cache/pip/wheels/67/6b/96/62dfd3d7b0d842e4049c8f7aef7de25524d9996ea9527300d1
+  Building wheel for PyXB (setup.py): started
+  Building wheel for PyXB (setup.py): finished with status 'done'
+  Created wheel for PyXB: filename=PyXB-1.2.6-py2-none-any.whl size=4957522 sha256=7dcc0adaeb8c4eb880af1a077520b92316f7748c2ddd4dbee70b462ea7c46369
+  Stored in directory: /root/.cache/pip/wheels/5e/4a/e9/adc1c849c5ef5ef831c1c47cee38fbb33ba64af3e8106b4d82
+  Building wheel for suds (setup.py): started
+  Building wheel for suds (setup.py): finished with status 'done'
+  Created wheel for suds: filename=suds-0.4-py2-none-any.whl size=292080 sha256=602ac2e37441ad76c9b4508e77377e4c0ef18d36cc58186bfda89d57594fa307
+  Stored in directory: /root/.cache/pip/wheels/16/1f/2b/ac835cbf5c6be07acaa55267c5cf3f1a709ff0a698ed62a6a4
+  Building wheel for hid (setup.py): started
+  Building wheel for hid (setup.py): finished with status 'done'
+  Created wheel for hid: filename=hid-1.0.6-py2-none-any.whl size=4887 sha256=fe6aeff92ca178868bcdc14507f8d51af49847a87421f48014d5fcd00f90f90c
+  Stored in directory: /root/.cache/pip/wheels/12/cc/dc/046db92746863ad908f2acab46940eaca8faebf1d54af55542
+  Building wheel for psutil (setup.py): started
+  Building wheel for psutil (setup.py): finished with status 'done'
+  Created wheel for psutil: filename=psutil-5.7.1-cp27-cp27m-linux_x86_64.whl size=271639 sha256=702ff80ad84df5b9f1cc6d669f01ed5d0756ee2d589a0c98460be18bd5ec9d46
+  Stored in directory: /root/.cache/pip/wheels/b5/17/92/aee84b3a94930aaee73a0af42e412e2801f8163363f5453ac5
+  Building wheel for subprocess32 (setup.py): started
+  Building wheel for subprocess32 (setup.py): finished with status 'done'
+  Created wheel for subprocess32: filename=subprocess32-3.5.4-cp27-cp27m-linux_x86_64.whl size=51593 sha256=b05376b9e24205eb46379852e2030d7d43ab2148c76a6cffe54f70e17e0e9b26
+  Stored in directory: /root/.cache/pip/wheels/e3/c7/6a/434fc8f2936acc4964ded8478435a8ef7c69eb41df7007a49f
+Successfully built bs4 future pefile pyenchant pyinstaller pyscard pyserial PyXB suds hid psutil subprocess32
+Installing collected packages: altgraph, backports.functools-lru-cache, soupsieve, beautifulsoup4, bs4, certifi, chardet, six, cycler, dis3, future, isodate, kiwisolver, python-dateutil, numpy, pyparsing, pytz, subprocess32, matplotlib, pefile, pyenchant, pyinstaller, pyscard, pyserial, pywin32-ctypes, PyXB, urllib3, requests, suds, Pillow, scipy, pyBarcode, enum34, hid, lxml, protobuf, futures, grpcio, grpcio-tools, psutil
+  Attempting uninstall: chardet
+    Found existing installation: chardet 3.0.4
+    Uninstalling chardet-3.0.4:
+      Successfully uninstalled chardet-3.0.4
+  Attempting uninstall: six
+    Found existing installation: six 1.15.0
+    Uninstalling six-1.15.0:
+      Successfully uninstalled six-1.15.0
+  Attempting uninstall: isodate
+    Found existing installation: isodate 0.5.4
+    Uninstalling isodate-0.5.4:
+      Successfully uninstalled isodate-0.5.4
+  Attempting uninstall: pyserial
+    Found existing installation: pyserial 3.5
+    Uninstalling pyserial-3.5:
+      Successfully uninstalled pyserial-3.5
+  Attempting uninstall: urllib3
+    Found existing installation: urllib3 1.26.20
+    Uninstalling urllib3-1.26.20:
+      Successfully uninstalled urllib3-1.26.20
+  Attempting uninstall: requests
+    Found existing installation: requests 2.25.1
+    Uninstalling requests-2.25.1:
+      Successfully uninstalled requests-2.25.1
+  Attempting uninstall: enum34
+    Found existing installation: enum34 1.1.6
+    Uninstalling enum34-1.1.6:
+      Successfully uninstalled enum34-1.1.6
+Successfully installed Pillow-6.2.2 PyXB-1.2.6 altgraph-0.17.2 backports.functools-lru-cache-1.6.4 beautifulsoup4-4.9.3 bs4-0.0.1 certifi-2020.12.5 chardet-4.0.0 cycler-0.10.0 dis3-0.1.3 enum34-1.1.10 future-0.18.2 futures-3.4.0 grpcio-1.17.1 grpcio-tools-1.17.1 hid-1.0.6 isodate-0.6.0 kiwisolver-1.1.0 lxml-4.9.3 matplotlib-2.2.5 numpy-1.16.6 pefile-2019.4.18 protobuf-3.6.1 psutil-5.7.1 pyBarcode-0.8b1 pyenchant-2.0.0 pyinstaller-3.6 pyparsing-2.4.7 pyscard-2.0.0 pyserial-2.7 python-dateutil-2.8.1 pytz-2021.1 pywin32-ctypes-0.2.0 requests-2.26.0 scipy-1.2.3 six-1.16.0 soupsieve-1.9.6 subprocess32-3.5.4 suds-0.4 urllib3-1.26.4
+[2026-07-22 16:06:39] Скрипт ALTLinux.sh выполнен успешно.
+[2026-07-22 16:06:39] Запуск ЕМИС можно проверить командой (ВАЖНО: запуск только от пользователя): python2 /opt/client/s11main.py
+[2026-07-22 16:06:39] Создан лог файл /home/user/ALTLinux.log

@@ -17,6 +17,23 @@
    <string/>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="1">
+    <widget class="QCheckBox" name="chkEnableFastPrint">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="lblShowPageSetup">
+     <property name="text">
+      <string>Отображать окно настроек параметров страницы</string>
+     </property>
+     <property name="buddy">
+      <cstring>chkShowPageSetup</cstring>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="lblEnableFastPrint">
      <property name="text">
@@ -27,14 +44,7 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QCheckBox" name="chkEnableFastPrint">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="2">
+   <item row="0" column="3">
     <spacer name="horizontalSpacer_9">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -47,24 +57,20 @@
      </property>
     </spacer>
    </item>
-   <item row="1" column="0">
-    <widget class="QLabel" name="lblShowPageSetup">
+   <item row="3" column="0">
+    <widget class="QLabel" name="lblPrintBlackWhite">
      <property name="text">
-      <string>Отображать окно настроек параметров страницы</string>
+      <string>Отключать цвет при выводе на печать</string>
      </property>
      <property name="buddy">
-      <cstring>chkShowPageSetup</cstring>
+      <cstring>chkPrintBlackWhite</cstring>
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QCheckBox" name="chkShowPageSetup">
-     <property name="text">
-      <string/>
-     </property>
-    </widget>
+   <item row="2" column="1" colspan="3">
+    <widget class="QComboBox" name="cmbLabelPrinter"/>
    </item>
-   <item row="1" column="2">
+   <item row="1" column="3">
     <spacer name="horizontalSpacer_11">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -87,30 +93,14 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QComboBox" name="cmbLabelPrinter"/>
-   </item>
-   <item row="3" column="0">
-    <widget class="QLabel" name="lblPrintBlackWhite">
-     <property name="text">
-      <string>Отключать цвет при выводе на печать</string>
-     </property>
-     <property name="buddy">
-      <cstring>chkPrintBlackWhite</cstring>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="1">
-    <widget class="QCheckBox" name="chkPrintBlackWhite">
+   <item row="1" column="1">
+    <widget class="QCheckBox" name="chkShowPageSetup">
      <property name="text">
       <string/>
      </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
     </widget>
    </item>
-   <item row="3" column="2">
+   <item row="3" column="3">
     <spacer name="horizontalSpacer_7">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -119,6 +109,19 @@
       <size>
        <width>40</width>
        <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="8" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>1</height>
       </size>
      </property>
     </spacer>
@@ -140,7 +143,17 @@
      </property>
     </widget>
    </item>
-   <item row="4" column="2">
+   <item row="3" column="1">
+    <widget class="QCheckBox" name="chkPrintBlackWhite">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="3">
     <spacer name="horizontalSpacer_10">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -149,19 +162,6 @@
       <size>
        <width>90</width>
        <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="6" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>1</height>
       </size>
      </property>
     </spacer>
@@ -177,6 +177,39 @@
     <widget class="QCheckBox" name="chkTemplateEdit">
      <property name="text">
       <string/>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="QCheckBox" name="chkPrintFullPage">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="3">
+    <spacer name="horizontalSpacer_8">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblPrintFullPage">
+     <property name="text">
+      <string>Отключить границы печати по настройкам принтера</string>
+     </property>
+     <property name="buddy">
+      <cstring>chkPrintFullPage</cstring>
      </property>
     </widget>
    </item>

@@ -208,7 +208,6 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         self.edtTissueTime.setTime(currentDateTime.time())
 
         self.setupDirtyCather()
-        QtGui.qApp.setCounterController(CCounterController(self))
         self.btnAmbCard.setEnabled(QtGui.qApp.userHasRight(urReadJobTicketMedKart))
 
     def checkNeedLaboratoryCalculator(self, propertyTypeList, clipboardSlot):
@@ -281,6 +280,8 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         return self.mapActionIdToAction.values() + self.mapActionIdToStaticAction.values()
 
     def exec_(self):
+        if not QtGui.qApp.counterController():
+            QtGui.qApp.setCounterController(CCounterController(self))
         result = CItemEditorBaseDialog.exec_(self)
         if result:
             QtGui.qApp.delAllCounterValueIdReservation()

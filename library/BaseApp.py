@@ -75,26 +75,26 @@ class CBaseApp(QtGui.QApplication):
 
     @classmethod
     def getAbout(cls):
-        ver23 = ''
+        modernisationVersion = ''
+        versionDB = ''
         if QtGui.qApp.db:
             record = QtGui.qApp.db.getRecordEx('VersionControl', 'version, dateUpdate', 'name="baseVersion"')
             if record:
+                versionDB =  u'Версия БД %s (от %s)<br/>' % (forceString(record.value('version')), forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"))
                 try:
                     recordMod = QtGui.qApp.db.getRecordEx('VersionControlMod', 'version, dateUpdate', 'name="baseVersion"')
                     modernisationVersion = u'<a href="1">Версия модернизации</a><br/>' if recordMod else ''
                 except CDatabaseException:
-                    modernisationVersion = ''
-
-                ver23 = (u'АИС «Конфигурация МИС КПС «САМСОН» (Краснодарский край)»<br/>'
-                        u'Версия БД %s (от %s)<br/>'
-                        u'Версия сборки: %s<br/>'
-                        u'%s'
-                        u'Copyright © 2015-2025 ООО "СОЦ-Информ"<br/>'
-                        u'Создано при участии: ООО «КОРТИС Технологии», ООО «Виста», ГБУ "КМИАЦ".<br/>' % (
-                    forceString(record.value('version')),
-                    forceDate(record.value('dateUpdate')).toString("dd.MM.yyyy"),
-                    cls.socRev,
-                    modernisationVersion))
+                    pass
+        ver23 = (u'АИС «Конфигурация МИС КПС «САМСОН» (Краснодарский край)»<br/>'
+                u'%s'
+                u'Версия сборки: %s<br/>'
+                u'%s'
+                u'Copyright © 2015-2026 ООО "СОЦ-Информ"<br/>'
+                u'Создано при участии: ООО «КОРТИС Технологии», ООО «Виста», ГБУ "КМИАЦ".<br/>' % (
+            versionDB,
+            cls.socRev,
+            modernisationVersion))
 
         return u'%s<br/>' \
                u'Комплекс Программных Средств<br/>' \
@@ -102,7 +102,7 @@ class CBaseApp(QtGui.QApplication):
                u'«%s»<br/>' \
                u'%s' \
                u'Версия %s (ревизия %s от %s)<br/>' \
-               u'Copyright © 2012-2025 ООО "САМСОН Групп"<br/>' \
+               u'Copyright © 2012-2026 ООО "САМСОН Групп"<br/>' \
                u'распространяется под лицензией GNU GPL v.3 или выше<br/>' % (ver23, cls.title,
                    ((u'Версия сборки: '+ cls.socRev + u'<br/>') if ver23 == '' else u''), cls.version, cls.lastChangedRev, cls.lastChangedDate)
 

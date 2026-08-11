@@ -2534,6 +2534,11 @@ class CS11mainApp(CBaseApp):
         return forceBool(self.preferences.appPrefs.get('enablePreview', False))
 
 
+    def printFullPage(self):
+        # отключить границы печати по настройкам принтера
+        return forceBool(self.preferences.appPrefs.get('printFullPage', False))
+
+
     def showPageSetup(self):
         # отображение окна настроек параметров страницы при печати
         return forceBool(self.preferences.appPrefs.get('showPageSetup', False))

@@ -216,7 +216,7 @@ class CJobTypeActionsAddingHelper():
         dlg = CJobTypeActionsSelector(self._holder, jobTypeId, actionTypeIdList)
 
         if dlg.exec_():
-            actionTypeItemsList = dlg.checkedItems()
+            actionTypeItemsList = list(dlg.checkedItems())
             if actionTypeItemsList:
                 eventId = currentEventId()
                 if eventId:
@@ -227,7 +227,8 @@ class CJobTypeActionsAddingHelper():
                 if not hasattr(self._holder, 'eventEditor') or self._holder.eventEditor is None:
                     self.creatEventPossibilities(eventId)
 
-                QtGui.qApp.setCounterController(CCounterController())
+                if not QtGui.qApp.counterController():
+                    QtGui.qApp.setCounterController(CCounterController())
                 QtGui.qApp.setJTR(self._holder.eventEditor)
                 try:
                     date = QDate.currentDate()
@@ -239,8 +240,9 @@ class CJobTypeActionsAddingHelper():
                             actionList.append(action)
                     self._holder.addActionList(actionList)
                 finally:
+                    if QtGui.qApp.counterController():
+                        QtGui.qApp.delAllCounterValueIdReservation()
                     QtGui.qApp.unsetJTR(self._holder.eventEditor)
-                    QtGui.qApp.delAllCounterValueIdReservation()
                     QtGui.qApp.setCounterController(None)
 
 

@@ -3047,8 +3047,6 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             if orgStructureId:
                 orgStructureIdList = self.getOrgStructureIdList(orgStructureId)
             queryRecieve = db.query(u'SELECT id FROM OrgStructure where Name like "Приемное отделение%"')
-            ageForCurDate = self.spbAgeForCurDate.value()
-            ageToCurDate = self.spbAgeToCurDate.value()
 
             while queryRecieve.next():
                 if forceRef(queryRecieve.record().value('id')) in orgStructureIdList: 

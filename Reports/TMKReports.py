@@ -6,6 +6,7 @@ import base64
 
 import requests
 from datetime import datetime
+from collections import OrderedDict
 
 from PyQt4 import QtGui
 from library.Utils import forceDate, forceDateTime
@@ -44,26 +45,41 @@ def columnValidator(colName, values):
     if val:
         val = forceString(val)
 
-    if val and colName in [u'col_hdlogrw6ik6jd1iy2ngmja', u'update_time', u'create_time', u'col_kz1npipauuoxfhwdzi43za']:
-        val = val.split(u"+")[0]
-
     if val and colName == u'col_hdlogrw6ik6jd1iy2ngmja':
-        try:
-            date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
-            val = date_obj.strftime('%d.%m.%Y %H:%M')
-        except:
-            pass
+        val = DateTimeValidate.getDate(val, DateTimeValidate.FDDMMYYY_HHMM)
     elif val and colName == u'update_time':
-        date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
-        val = date_obj.strftime('%d.%m.%Y %H:%M')
+        val = DateTimeValidate.getDate(val, DateTimeValidate.FDDMMYYY_HHMM)
     elif val and colName == u'create_time':
-        date_obj = datetime.strptime(val, '%Y-%m-%dT%H:%M:%S')
-        val = date_obj.strftime('%d.%m.%Y %H:%M')
+        val = DateTimeValidate.getDate(val, DateTimeValidate.FDDMMYYY_HHMM)
     elif val and colName == u'col_kz1npipauuoxfhwdzi43za':
-        date_obj = datetime.strptime(val, '%Y-%m-%d %H:%M:%S')
-        val = date_obj.strftime('%d.%m.%Y')
+        val = DateTimeValidate.getDate(val, DateTimeValidate.FDDMMYYYY)
 
     return val
+
+
+class DateTimeValidate:
+    DGETFORMAT = OrderedDict([
+        ("%Y-%m-%dT%H:%M:%S",        "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"),
+        ("%Y-%m-%d %H:%M:%S",        "\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"),
+        ("%d%m%Y",                   "\d{4}"),
+    ])
+    DRETFORMAT = OrderedDict([
+        (1, '%d.%m.%Y'),
+        (2, '%d.%m.%Y %H:%M'),
+    ])
+    FDDMMYYYY = 1
+    FDDMMYYY_HHMM = 2
+
+    @classmethod
+    def getDate(cls, strDate, gFormat):
+        val = None
+        strDate = strDate.split(u"+")[0]
+        for _form in cls.DGETFORMAT:
+            if re.match(cls.DGETFORMAT[_form], strDate):
+                date_obj = datetime.strptime(strDate, _form)
+                val = date_obj.strftime(cls.DRETFORMAT[gFormat])
+                break
+        return val
 
 
 class CTMKReports(CDialogBase, Ui_tmkReports):
@@ -275,7 +291,14 @@ class CTMKReports(CDialogBase, Ui_tmkReports):
             for val in data['table']:
                 row = []
                 for idx, colName in enumerate(self.tableTitle):
-                    row.append(columnValidator(colName, val))
+                    try:
+                        row.append(columnValidator(colName, val))
+                    except Exception as e:
+                        QtGui.QMessageBox.warning(self,
+                                                  u'Внимание!',
+                                                  u'Программа не смогла полностью прочитать следующие данные (Сообщите разработчику): {0}'.format(val),
+                                                  QtGui.QMessageBox.Ok)
+                        row.append(u'')
                 self.tableData.append(row)
 
             self.setValuesCmb(self.tableData)
@@ -471,6 +494,7 @@ class Col(object):
 class CTMKReportModel(QAbstractTableModel):
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
+        self.lpuFullName = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'fullName')).upper()
         self._items = []
         self.items = []
         self._cols = []
@@ -553,15 +577,18 @@ class CTMKReportModel(QAbstractTableModel):
 
                 if 'directions' in filters and status:
                     idx = self.headerEn.index(filters['directions'][0])
-                    lpuFullName = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'fullName')).upper()
                     if filters['directions'][1] == 0:
                         pass
                     elif filters['directions'][1] == 1:
-                        if lpuFullName == values[idx].replace('. ', '.'):
+                        if values[idx]:
+                            if self.lpuFullName == values[idx].replace('. ', '.'):
+                                status = False
+                        else:
                             status = False
                     elif filters['directions'][1] == 2:
-                        if lpuFullName != values[idx].replace('. ', '.'):
-                            status = False
+                        if values[idx]:
+                            if self.lpuFullName != values[idx].replace('. ', '.'):
+                                status = False
 
                 if 'statusName' in filters and status:
                     if filters['statusName'][1]:
@@ -583,7 +610,6 @@ class CTMKReportModel(QAbstractTableModel):
             self.loadData(self._items)
 
     def sort(self, column, order=Qt.AscendingOrder):
-        # TODO Добавь логику сортировки в зависимости от типа колонки
         reverse = order == Qt.DescendingOrder
         if column in (0, 1, 2):
             self.items.sort(key=lambda x: forceDateTime(datetime.strptime(x[column], '%d.%m.%Y %H:%M')) if x and x[column] else None, reverse=reverse)

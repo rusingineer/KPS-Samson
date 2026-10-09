@@ -1958,6 +1958,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
     def exposeCsg23(self, contractDescr, accountFactory, csgId, reexposableEventIdList):
 
         db = QtGui.qApp.db
+        
+        csgWithoutKSLP = ['st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054', 'st36.009', 'st36.025', 'st36.026']
 
         def getOperationCount(eventId, serviceId, eventEndDate):
             tableKSG = db.table('rbService')
@@ -2174,7 +2176,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                             else:
                                 price = roundMath(price * contractDescr.coefficients[0, 0][u'ПРЕРВДЛ3'][eventEndDate], 2)
 
-                    elif hasChildbirthCsg != '1' and eventEndDate >= QDate(2025, 6, 1) and csgCode[3:] not in ['st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054']:
+                    elif hasChildbirthCsg != '1' and eventEndDate >= QDate(2025, 6, 1) and csgCode[3:] not in csgWithoutKSLP:
                         minDuration = tariff.frags[-2][0] if len(tariff.frags) >= 3 else 3
                         eventWeekProfile = getWeekProfile(forceInt(db.getRecord('EventType', 'weekProfileCode', eventTypeId).value('weekProfileCode')))
                         duration = getEventDuration(csgBegDate, csgEndDate, eventWeekProfile, eventTypeId)

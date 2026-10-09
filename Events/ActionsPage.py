@@ -1414,8 +1414,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         # перебираем все действия вкладки
         for row, parentItem in enumerate(self.modelAPActions.items()):
             record, action = parentItem.record, parentItem.action
-            # Для всех измененных действия с кодом для отчетов 'alfalab'
-            if action and action.getType().flatCode == 'alfalab' and (action.isChanged() or action.checkRecordChanged() or action.isPropertiesChanged()):
+            # Для всех измененных действия с кодом для отчетов 'alfalab' или 'KDL_BAPI_LIS'
+            if action and action.getType().flatCode in ['alfalab', 'KDL_BAPI_LIS'] and (action.isChanged() or action.checkRecordChanged() or action.isPropertiesChanged()):
                 actionTypeIds = action.getType().getRelatedActionTypes()
                 # При наличии настроенных подчиненных действий
                 if actionTypeIds:
@@ -4720,8 +4720,12 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     current_dataInheritance = forceString(recordIn.value('dataInheritance')).replace('[','').replace(']','')
 
                 current_name = forceString(recordIn.value('name'))
-                if not current_action[current_name]:
-                    current_action[current_name] = ''
+                type_name = forceString(recordIn.value('typeName'))
+
+                if type_name not in ('Double', 'Integer', 'Temperature'):
+                    if not current_action[current_name]:
+                        current_action[current_name] = ''
+                        
                 if len(current_dataInheritance.split(',')) > 1:
                     current_dataInheritance_temp = []
                     for short in current_dataInheritance.split(','):
@@ -4766,6 +4770,22 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         if checkAction == 0:
                             checkAction = forceString(recordOut.value('action_id'))
 
+                        if type_name in ('Double', 'Integer', 'Temperature'):
+                            try:
+                                normalized_value = unicode(value).replace(',', '.')
+
+                                if type_name == 'Integer':
+                                    parsed_value = int(float(normalized_value))
+                                else:
+                                    parsed_value = float(normalized_value)
+
+                                value = unicode(parsed_value)
+
+                            except (ValueError, TypeError):
+                                value = unicode(value)
+                        else:
+                            value = unicode(value)
+                        
                         if (union_value + '\n' + value) not in current_action[current_name] and (union_value + ' - ' + value) not in current_action[current_name]:
                             if current_action[current_name] != '':
                                 current_action[current_name] += '\n'
@@ -4817,16 +4837,33 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                         if checkAction == 0:
                             checkAction = forceString(recordOut.value('action_id'))
 
+                        if type_name in ('Double', 'Integer', 'Temperature'):
+                            try:
+                                normalized_value = unicode(value).replace(',', '.')
+
+                                if type_name == 'Integer':
+                                    parsed_value = int(float(normalized_value))
+                                else:
+                                    parsed_value = float(normalized_value)
+
+                                value = unicode(parsed_value)
+
+                            except (ValueError, TypeError):
+                                value = unicode(value)
+                        else:
+                            value = unicode(value)
+                            
                         if (union_value + '\n' + value) not in unicode(current_action[current_name]) and (union_value + ' - ' + value) not in unicode(current_action[current_name]):
                             if current_action[current_name] != '':
                                 current_action[current_name] = unicode(current_action[current_name]) + '\n'
                             if union_value != '':
                                 if settings and 'property' in settings:
-                                    current_action[current_name] = unicode(current_action[current_name]) + union_value + '- ' + value
+                                    current_action[current_name] = unicode(current_action[current_name]) + union_value + ' - ' + value
                                 else:
                                     current_action[current_name] = unicode(current_action[current_name]) + union_value + '\n' + value
                             else:
                                 current_action[current_name] = unicode(current_action[current_name]) + value
+                                    
             for prop in current_action.getProperties():
                 if prop.isChanged():
                     current_action.setChanged(True)
@@ -5125,21 +5162,51 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                     needResizeModel = True
             # Копируемое значение является составным. целевое свойство должно быть текстом
             else:
-                result = ''
+                result = u''
+                lastAction = None
+                
                 for idx, item in enumerate(currentPropertyType.dataInheritanceExt.getIncomingSequence()):
-                    (record, action), actionProp = cache.get(item.name())
+                    cachedItem = cache.get(item.name())
+                    if not cachedItem:
+                        continue
+                    
+                    (record, action), actionProp = cachedItem
                     if not actionProp:
                         continue
+                        
                     val = actionProp.getTextScalar()
                     if val:
-                        title = ''
                         if item.title():
                             actionInfo = cacheTitle.get(action, None)
-                            #не хочу лишний раз дергать контекст без необходимости
                             if item.hasAction() and not actionInfo:
                                 cacheTitle[action] = actionInfo = context.getInstance(CCookedActionInfo, record, action)
-                            title = item.formatTitle(actionInfo, actionProp.type())
-                        result += ('\n' if idx else '') + (title + ' - ' if title else '') + val
+                                
+                            fullTitle = unicode(item.formatTitle(actionInfo, actionProp.type())).strip()
+                            
+                            try:
+                                propertyTitle = unicode(item.formatTitle(None, actionProp.type())).strip()
+                            except Exception:
+                                propertyTitle = fullTitle
+                                
+                            if action != lastAction:
+                                actionTitle = fullTitle
+                                if propertyTitle and fullTitle != propertyTitle and fullTitle.endswith(propertyTitle):
+                                    actionTitle = fullTitle[:-len(propertyTitle)].rstrip(',- \t')
+                                elif fullTitle == propertyTitle:
+                                    actionTitle = u''
+                                    
+                                if actionTitle:
+                                    result += (u'\n' if result else u'') + actionTitle
+                                    
+                                lastAction = action
+                                
+                            if propertyTitle:
+                                result += (u'\n' if result else u'') + propertyTitle + u' - ' + unicode(val)
+                            else:
+                                result += (u'\n' if result else u'') + unicode(val)
+                        else:
+                            result += (u'\n' if result else u'') + unicode(val)
+
                 if result:
                     currentAction.updatePropertyByPreparedValue(currentPropertyType, result)
                     needResizeModel = True

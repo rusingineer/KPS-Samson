@@ -13,9 +13,11 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import SIGNAL
+from PyQt4.QtCore import SIGNAL, QDate
 
-from library.Utils import forceRef, forceString, forceDate
+from Accounting.Utils import getWeekProfile
+from Events.Utils import getEventDuration, getEventWeekProfileCode
+from library.Utils import forceRef, forceString, forceDate, calcAgeTuple
 from library.DbComboBox import CDbComboBox, CDbData, CDbModel
 from library.CSG.CSGComboBoxPopup import CCSGComboBoxPopup, TABLE_CSG, TABLE_CSG_MKB
 
@@ -86,30 +88,31 @@ class CCSGDbData(CDbData):
         MKBEx = filter.get('MKBEx', None)
         duration = filter.get('duration', 0)
         showOnlyByContract = filter.get('showOnlyByContract', True)
-        clientAge = self.eventEditor.clientAge
+        # clientAge = self.eventEditor.clientAge
         self.idList = [None]
         self.strList = ['']
         db = QtGui.qApp.db
-        opATList = []
-        tabs = []
-        if self.eventEditor and hasattr(self.eventEditor, 'tabStatus'):
-            tabs.append(self.eventEditor.tabStatus)
-        if self.eventEditor and hasattr(self.eventEditor, 'tabCure'):
-            tabs.append(self.eventEditor.tabCure)
-        if self.eventEditor and hasattr(self.eventEditor, 'tabDiagnostic'):
-            tabs.append(self.eventEditor.tabDiagnostic)
-        if self.eventEditor and hasattr(self.eventEditor, 'tabMisc'):
-            tabs.append(self.eventEditor.tabMisc)
-        for tab in tabs:
-            for item in tab.modelAPActions._items:
-                opATList.append(item[1]._actionType.id)
-
-        tableActionType = db.table('ActionType')
-        tableService = db.table('rbService')
-        table = tableActionType.leftJoin(tableService,
-                                         tableService['id'].eq(tableActionType['nomenclativeService_id']))
-        recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
-        codeList = [forceString(r.value('infis')) for r in recordList]
+        # opATList = []
+        # tabs = []
+        # if self.eventEditor and hasattr(self.eventEditor, 'tabStatus'):
+        #     tabs.append(self.eventEditor.tabStatus)
+        # if self.eventEditor and hasattr(self.eventEditor, 'tabCure'):
+        #     tabs.append(self.eventEditor.tabCure)
+        # if self.eventEditor and hasattr(self.eventEditor, 'tabDiagnostic'):
+        #     tabs.append(self.eventEditor.tabDiagnostic)
+        # if self.eventEditor and hasattr(self.eventEditor, 'tabMisc'):
+        #     tabs.append(self.eventEditor.tabMisc)
+        # for tab in tabs:
+        #     for item in tab.modelAPActions._items:
+        #         opATList.append(item[1]._actionType.id)
+        #
+        # tableActionType = db.table('ActionType')
+        # tableService = db.table('rbService')
+        # table = tableActionType.leftJoin(tableService,
+        #                                  tableService['id'].eq(tableActionType['nomenclativeService_id']))
+        # recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
+        # codeList = [forceString(r.value('infis')) for r in recordList]
+        codeList = [forceString(_) for _ in self.eventEditor.getServiceActionCode()]
 
         begDate = self.csgBegDate
         endDate = self.csgEndDate
@@ -117,10 +120,11 @@ class CCSGDbData(CDbData):
             begDate = forceDate(self.eventEditor.edtBegDate.date())
             endDate = forceDate(self.eventEditor.edtEndDate.date())
         if not endDate:
+            if not begDate:
+                begDate = forceDate(QDate.currentDate())
             endDate = begDate
 
-        if not duration:
-            duration = begDate.daysTo(endDate)
+        clientAge = calcAgeTuple(self.clientBirthDate, endDate)
 
         vpId = forceRef(db.translate('EventType', 'id', self.eventEditor.eventTypeId, 'medicalAidType_id'))
         vpCode = forceString(db.translate('rbMedicalAidType', 'id', vpId, 'regionalCode'))
@@ -129,6 +133,9 @@ class CCSGDbData(CDbData):
             vpname = u'стационар'
         elif vpCode in ('41', '411', '42', '422', '43', '51', '511', '52', '522', '71', '72', '90'):
             vpname = u'дневной стационар'
+
+        if not duration:
+            duration = getEventDuration(begDate, endDate, getWeekProfile(getEventWeekProfileCode(self.eventEditor.eventTypeId)), self.eventEditor.eventTypeId)
 
         contractId = forceString(self.eventEditor.contractId) if self.eventEditor.contractId else '0'  # если в событии не указан договор
         if not showOnlyByContract:
@@ -141,7 +148,7 @@ class CCSGDbData(CDbData):
         stmt = u"CALL getCSG_Group('{0}', '{1}', '{2}', '{3}', {4}, {5}, '{6}', '{7}', {8}, '{9}', '{10}', '{11}', '{12}', '{13}');".format(
             self.MKB, self.associatedMKB, self.complicationMKB, ",".join(codeList), forceString(clientAge[0]),
             forceString(clientAge[3]), u'М' if self.clientSex == 1 else u'Ж', begDate.toString('yyyy-MM-dd'),
-            forceString(duration), vpname, endDate.toString('yyyy-MM-dd'), self.krit if self.krit else u'',
+            forceString(duration), vpname, endDate.toString('yyyy-MM-dd'), ",".join(self.krit),
             forceString(self.fractions) if self.fractions else u'', contractId
         )
         query = db.query(stmt)
@@ -151,19 +158,10 @@ class CCSGDbData(CDbData):
         #                                where=cond,
         #                                order='%s.infis, %s.id' % (tableService.name(), tableService.name()))
 
-        csgRecords = []
-        hasCsgWithDlit = False
         while query.next():
             record = query.record()
-            dlit = forceString(record.value(2))
-            if dlit:
-                hasCsgWithDlit = True
-            csgRecords.append((forceRef(record.value(0)), forceString(record.value(1)), dlit))
-
-        for record in csgRecords:
-            if record[2] and hasCsgWithDlit or not hasCsgWithDlit:
-                self.idList.append(record[0])
-                self.strList.append(record[1])
+            self.idList.append(forceRef(record.value(0)))
+            self.strList.append(forceString(record.value(1)))
 
 
     def select_old(self, filter):
@@ -334,7 +332,7 @@ class CCSGComboBox(CDbComboBox):
         self.complicationMKB = modelCsgCol._complicationMKB
         self.eventProfileId = eventProfileId
         self.codeMask = None
-        self.krit = forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceRef(modelCsgCol._krit), 'code'))
+        self.krit = modelCsgCol._krit
         self.fractions = modelCsgCol._fractions
         self.csgBegDate = forceDate(modelCsgCol._csgBegDate)
         self.csgEndDate = forceDate(modelCsgCol._csgEndDate)

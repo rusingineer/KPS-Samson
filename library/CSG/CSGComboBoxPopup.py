@@ -15,8 +15,10 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, pyqtSignature, SIGNAL, QDate, QEvent, QVariant
 
+from Accounting.Utils import getWeekProfile
+from Events.Utils import getEventDuration, getEventWeekProfileCode
 from library.database import CTableRecordCache
-from library.Utils import getPref, setPref, forceString, forceDate
+from library.Utils import getPref, setPref, forceString, forceDate, calcAgeTuple
 from library.TableModel import CTableModel, CTextCol, CDoubleCol
 
 from Ui_CSGComboBoxPopup import Ui_CSGComboBoxPopup
@@ -206,13 +208,35 @@ class CCSGTableModel(CTableModel):
         self.addColumn(CTextCol(u'Услуга', ['kusl'], 60))
         self.addColumn(CTextCol(u'Критерий', ['KRIT'], 35))
         self.addColumn(CTextCol(u'Фракции', ['fr'], 35))
+        self.addColumn(self.CDlitCol(u'Длительность', ['dlit'], 50))
         self.addColumn(self.CAgeCol(u'Возраст', ['age'], 50))
-        self.contractId = parent.parent()._contractId
-        self.mkb = parent.parent().MKB
-        self.associatedMKB = parent.parent().associatedMKB
-        self.complicationMKB = parent.parent().complicationMKB
-        self.krit = parent.parent().krit
-        clientAge = parent.parent().eventEditor.clientAge
+
+        csgComboBox = parent.parent()
+        eventEditor = csgComboBox.eventEditor
+        self.contractId = csgComboBox._contractId
+        self.mkb = csgComboBox.MKB
+        self.associatedMKB = csgComboBox.associatedMKB
+        self.complicationMKB = csgComboBox.complicationMKB
+        
+        self.krit = csgComboBox.krit
+                
+        # clientAge = eventEditor.clientAge
+        self.clientSex = u'М' if csgComboBox.clientSex == 1 else u'Ж'
+
+        self.fractions = csgComboBox.fractions
+        self.fractions = forceString(self.fractions) if self.fractions else u''
+
+        self.csgBegDate = csgComboBox.csgBegDate
+        self.csgEndDate = csgComboBox.csgEndDate
+        if not self.csgBegDate and not self.csgEndDate:
+            self.csgBegDate = forceDate(eventEditor.edtBegDate.date())
+            self.csgEndDate = forceDate(eventEditor.edtEndDate.date())
+        if not self.csgEndDate:
+            if not self.csgBegDate:
+                self.csgBegDate = forceDate(QDate.currentDate())
+            self.csgEndDate = self.csgBegDate
+
+        clientAge = calcAgeTuple(eventEditor.clientBirthDate, self.csgEndDate)
         self.age = []
         if clientAge[0] < 29:
             self.age = ['1', '4', '5']
@@ -226,52 +250,28 @@ class CCSGTableModel(CTableModel):
             self.age.append('5')
         elif clientAge[3] >= 18:
             self.age.append('6')
-        self.clientSex = u'М' if parent.parent().clientSex == 1 else u'Ж'
 
-        self.fractions = parent.parent().fractions
-        self.fractions = forceString(self.fractions) if self.fractions else u''
+        duration = getEventDuration(self.csgBegDate, self.csgEndDate, getWeekProfile(getEventWeekProfileCode(eventEditor.eventTypeId)), eventEditor.eventTypeId)
 
-        self.csgBegDate = parent.parent().csgBegDate
-        self.csgEndDate = parent.parent().csgEndDate
-        if not self.csgBegDate and not self.csgEndDate:
-            self.csgBegDate = forceDate(parent.parent().eventEditor.edtBegDate.date())
-            self.csgEndDate = forceDate(parent.parent().eventEditor.edtEndDate.date())
-        if not self.csgEndDate:
-            self.csgEndDate = self.csgBegDate
-
-        duration = self.csgBegDate.daysTo(self.csgEndDate)
+        # duration = self.csgBegDate.daysTo(self.csgEndDate)
         if duration <= 3:
-            self.duration = '1'
+            self.duration = ['1']
         elif 4 <= duration <= 10:
-            self.duration = '2'
+            self.duration = ['2']
         elif 11 <= duration <= 20:
-            self.duration = '3'
+            self.duration = ['3']
+        elif duration == 30:
+            self.duration = ['5']
         elif 21 <= duration <= 30:
-            self.duration = '4'
+            self.duration = ['4']
         else:
-            self.duration = ''
+            self.duration = []
 
-        db = QtGui.qApp.db
-        opATList = []
-        tabs = []
-        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabStatus'):
-            tabs.append(parent.parent().eventEditor.tabStatus)
-        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabCure'):
-            tabs.append(parent.parent().eventEditor.tabCure)
-        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabDiagnostic'):
-            tabs.append(parent.parent().eventEditor.tabDiagnostic)
-        if parent.parent().eventEditor and hasattr(parent.parent().eventEditor, 'tabMisc'):
-            tabs.append(parent.parent().eventEditor.tabMisc)
-        for tab in tabs:
-            for item in tab.modelAPActions._items:
-                opATList.append(item[1]._actionType.id)
+        if '5' in self.duration:
+            self.duration.append('4')
 
-        tableActionType = db.table('ActionType')
-        tableService = db.table('rbService')
-        table = tableActionType.leftJoin(tableService,
-                                         tableService['id'].eq(tableActionType['nomenclativeService_id']))
-        recordList = db.getRecordList(table, tableService['infis'], tableActionType['id'].inlist(opATList))
-        self.codeList = [forceString(r.value('infis')) for r in recordList]
+        self.codeList = [forceString(_) for _ in eventEditor.getServiceActionCode()]
+
         self.setTable('rbService')
         self.date = QDate.currentDate()
 
@@ -280,8 +280,8 @@ class CCSGTableModel(CTableModel):
             return QVariant()
         column = index.column()
         row    = index.row()
-        if role == Qt.DisplayRole and column == 10 and row == 0:
-            # чтобы не выводить подпись возраста для пустой строки
+        if role == Qt.DisplayRole and column in (10, 11) and row == 0:
+            # чтобы не выводить подпись возраста и длительности для пустой строки
             (col, values) = self.getRecordValues(column, row)
             values[0] = '-1'
             return col.format(values)
@@ -314,14 +314,14 @@ class CCSGTableModel(CTableModel):
                     "'{0}' BETWEEN s69.mkb3Min AND s69.mkb3Max".format(forceString(self.complicationMKB)),
                     tableSpr69['mkb3'].isNull()
                 ]),
-                db.joinOr([tableSpr69['KRIT'].eq(self.krit), tableSpr69['KRIT'].isNull()]),
+                db.joinOr([tableSpr69['KRIT'].inlist(self.krit), tableSpr69['KRIT'].isNull()]),
                 db.joinOr([tableSpr69['age'].inlist(self.age), tableSpr69['age'].isNull()]),
                 db.joinOr([
                     u"(cast('{0}' AS INT) BETWEEN cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', 1) AS INT) AND cast(SUBSTRING_INDEX(REPLACE(s69.`fr`, 'fr', ''), '-', -1) as INT))".format(self.fractions),
                     tableSpr69['fr'].isNull()
                 ]),
                 db.joinOr([tableSpr69['kusl'].inlist(self.codeList), tableSpr69['kusl'].isNull()]),
-                db.joinOr([tableSpr69['dlit'].eq(self.duration), tableSpr69['dlit'].isNull()]),
+                db.joinOr([tableSpr69['dlit'].inlist(self.duration), tableSpr69['dlit'].isNull()]),
                 db.joinOr([tableSpr69['pol'].eq(self.clientSex), tableSpr69['pol'].isNull()])
             ])
         )
@@ -361,6 +361,24 @@ class CCSGTableModel(CTableModel):
             elif age == '6':
                 return u'старше 18 лет'
             elif age == '-1':
+                return u''
+            else:
+                return u'не учитывается'
+
+    class CDlitCol(CTextCol):
+        def format(self, values):
+            dlit = forceString(values[0])
+            if dlit == '1':
+                return u'от 1 до 3 дней'
+            elif dlit == '2':
+                return u'от 4 до 10 дней'
+            elif dlit == '3':
+                return u'от 11 до 20 дней'
+            elif dlit == '4':
+                return u'от 21 до 30 дней'
+            elif dlit == '5':
+                return u'30 дней'
+            elif dlit == '-1':
                 return u''
             else:
                 return u'не учитывается'

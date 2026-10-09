@@ -96,7 +96,7 @@ class CCSGInDocTableCol(CInDocTableCol):
         editor.setClientBirthDate(self._clientBirthDate)
         editor.setEventBegDate(self._eventBegDate)
         editor.setCodeMask(self._codeMask)
-        editor.setKrit(forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceInt(self._krit), 'code')))
+        editor.setKrit(self._krit)
         editor.setAssociatedMKB(self._associatedMKB)
         editor.setComplicationMKB(self._complicationMKB)
         editor.setFractions(self._fractions)
@@ -146,7 +146,29 @@ class CCSGInDocTableCol(CInDocTableCol):
 
 
     def setKrit(self, krit):
-        self._krit = krit
+        if krit:
+            self._krit = [forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceInt(krit), 'code'))]
+        else:
+            kritList = []
+            for propName in [
+                u'Состояние пациента по ШРМ', u'Схема лечения ЗНО', u'Длительность ИВЛ', u'МРТ с высоким разрешением',
+                u'Назначение ГИП и СИ', u'Назначение при хр гепатите С', u'Биопсия/трепанобиопсия при ЗНО', u'Этапы ЭКО',
+                u'Грыжи', u'Ковид', u'Инфаркт', u'Реаб. после Ковид', u'Лимфа', u'Препараты', u'Фокальные дистонии',
+                u'Состояние после перенесенной лучевой терапии', u'Множественная травма', u'Антимикробная терапия',
+                u'Дерматозы', u'Иммунизация детей до 2-х лет', u'Генноинженерные препараты и селективные иммунодепресанты',
+                u'Уровень курации', u'Терапия с заменой генноинженерных препаратов или селективных иммунодепрессантов',
+                u'Сопроводительная лекарственная терапия пр ЗНО', u'Сочетание A12.28.006, A12.28.007, A04.28.002.005',
+                u'Назначение при хр гепатите B', u'Баллонная вазодилатация', u'Плазмаферез',
+                u'Досуточная диагностическая госпитализация', u'Сложные неврологические заболевания',
+                u'Интравитреальное введение препаратов', u'Высокодозный иммуноглобулин', u'Сурфактанты легочные',
+                u'Микроинвазивная субтотальная витрэктомия', u'Диспансеризация маломобильных граждан',
+                u'Стентирование периферических артериий', u'Сочетание A16.23.034.013 или A16.12.003.001 и A16.12.026.005',
+                u'Введение иммуноглобулина нормального',u'Не менее 21 дня в отделении анест-реанимации дети'
+            ]:
+                kritCode = self._eventEditor.getKRITValue(propName)
+                if kritCode:
+                    kritList.append(kritCode)
+            self._krit = kritList
 
 
     def setFractions(self, fractions):

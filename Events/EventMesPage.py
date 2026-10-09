@@ -1350,7 +1350,8 @@ class CSpr69TableDialog(CDialogBase):
               CONCAT(s1.infis, ' | ',  s1.name) AS kuslName,
               CONCAT(s2.infis, ' | ',  s2.name) AS csgName,
               CONCAT(s69.KRIT, ' | ',  s80.name) AS kritName,
-              s69.`fr` as fractions 
+              s69.`fr` as fractions,
+              s69.dlit 
             FROM soc_spr69 s69
               LEFT JOIN rbService s1 ON s1.id = (SELECT max(id) FROM rbService WHERE rbService.infis = s69.kusl)
               LEFT JOIN rbService s2 ON s2.id = (SELECT max(id) FROM rbService WHERE rbService.infis = s69.ksgkusl)
@@ -1400,6 +1401,7 @@ class CSpr69Model(CMemTableModel):
             CTextCol(u'Услуга', ['kuslName'], 100),
             CTextCol(u'КСГ', ['csgName'], 150),
             CTextCol(u'Коэф. затратоёмкости', ['ksgkoef'], 90),
+            self.CDlitCol(u'Длительность', ['dlit'], 40),
             CTextCol(u'Критерий', ['kritName'], 60),
             CTextCol(u'Фракции', ['fractions'], 30)
         ])
@@ -1419,5 +1421,21 @@ class CSpr69Model(CMemTableModel):
                 return u'от 0 дней до 18 лет'
             elif age == '6':
                 return u'старше 18 лет'
+            else:
+                return u'не учитывается'
+
+    class CDlitCol(CTextCol):
+        def format(self, values):
+            dlit = forceString(values[0])
+            if dlit == '1':
+                return u'от 1 до 3 дней'
+            elif dlit == '2':
+                return u'от 4 до 10 дней'
+            elif dlit == '3':
+                return u'от 11 до 20 дней'
+            elif dlit == '4':
+                return u'от 21 до 30 дней'
+            elif dlit == '5':
+                return u'30 дней'
             else:
                 return u'не учитывается'

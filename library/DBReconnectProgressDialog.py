@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -36,27 +36,26 @@ class ConnectBackgroundWorker(QtCore.QThread):
 
     def progressBarProcess(self):
         counterProgress = 0
-        while self.isRunning and self.parent.tryConnection == 1:
-            counterProgress += 1
+        maximum = self.parent.progressBar.maximum()
+        while self.isRunning and self.parent.tryConnection:
+            counterProgress = (counterProgress + 1) % (maximum + 1)
             self.progressUpdated.emit(counterProgress)
             sleep(0.1)
 
-            if counterProgress >= self.parent.progressBar.maximum():
-                counterProgress = 0
+        self.finished.emit()
 
     def tryConnect(self):
-        while self.isRunning and self.parent.tryConnection == 1:
+        while self.isRunning and self.parent.tryConnection:
             try:
                 self.parent.dbconnection.remoteConnect()
             except Exception:
                 pass
 
             if self.parent.dbconnection.execDBNotCheck("select 1 as id from dual") == 1:
-                self.isRunning = False
-                self.parent.tryConnection = 0
                 self.connectionSuccessful.emit()
                 break
             sleep(1)
+        self.finished.emit()
 
     def stop(self):
         self.isRunning = False
@@ -73,33 +72,58 @@ class CDBReconnectProgressDialog(Ui_DialogDBReconnect, QtGui.QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-        self.tryConnection = 1
-        self.worker = None
+        self.tryConnection = True
+        self.workers = []
+
 
     def exec_(self):
-        self.worker = ConnectBackgroundWorker(self, 1)
-        self.worker.connectionSuccessful.connect(self.onConnectionSuccess)
-        self.worker.start()
+        self.startWorkers()
+        result = super(CDBReconnectProgressDialog, self).exec_()
+        self.cleanupWorkers()
+        return result
 
-        self.progressWorker = ConnectBackgroundWorker(self, 2)
-        self.progressWorker.progressUpdated.connect(self.updateProgressBar)
-        self.progressWorker.start()
 
-        return QtGui.QDialog.exec_(self)
+    def startWorkers(self):
+        workerConnection = ConnectBackgroundWorker(self, runType=1)
+        workerConnection.connectionSuccessful.connect(self.onConnectionSuccess, QtCore.Qt.QueuedConnection)
+        workerConnection.finished.connect(lambda w=workerConnection: self.removeWorker(w))
+        workerConnection.finished.connect(workerConnection.deleteLater)
+        workerConnection.start()
+        self.workers.append(workerConnection)
+
+        workerProgress = ConnectBackgroundWorker(self, runType=2)
+        workerProgress.progressUpdated.connect(self.progressBar.setValue)
+        workerProgress.finished.connect(lambda w=workerProgress: self.removeWorker(w))
+        workerProgress.finished.connect(workerProgress.deleteLater)
+        workerProgress.start()
+        self.workers.append(workerProgress)
+
+
+    def cleanupWorkers(self):
+        for worker in list(self.workers):
+            worker.stop()
+            worker.wait(1000)
+        self.workers[:] = []
+
+
+    def onConnectionSuccess(self):
+        self.tryConnection = False
+        self.cleanupWorkers()
+        QtCore.QMetaObject.invokeMethod(self, 'accept', QtCore.Qt.QueuedConnection)
+        
+        
+    def removeWorker(self, worker):
+        try:
+            self.workers.remove(worker)
+        except ValueError:
+            pass
+
 
     @pyqtSignature('')
     def on_abortBtn_clicked(self):
-        self.tryConnection = 0
-        if self.worker:
-            self.worker.stop()
-        if hasattr(self, 'progressWorker') and self.progressWorker:
-            self.progressWorker.stop()
+        self.tryConnection = False
+        self.cleanupWorkers()
         self.dbconnection.isCloseApp = 1
         self.close()
         self.dbconnection.parentGl.close()
 
-    def updateProgressBar(self, value):
-        self.progressBar.setValue(value)
-
-    def onConnectionSuccess(self):
-        self.close()

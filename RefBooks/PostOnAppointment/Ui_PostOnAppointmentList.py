@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'C:\Projects\Samson\UP_s11\client_test\RefBooks\PostOnAppointment\PostOnAppointmentList.ui'
 #
-# Created: Tue Jun 24 17:51:54 2025
+# Created: Wed Aug 26 17:15:21 2026
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -96,6 +96,20 @@ class Ui_PostOnAppointmentList(object):
         self.lblTab4Description.setObjectName(_fromUtf8("lblTab4Description"))
         self.verticalLayout_4.addWidget(self.lblTab4Description)
         self.tabWidget.addTab(self.tabCode14, _fromUtf8(""))
+        self.tabCode15 = QtGui.QWidget()
+        self.tabCode15.setObjectName(_fromUtf8("tabCode15"))
+        self.verticalLayout_5 = QtGui.QVBoxLayout(self.tabCode15)
+        self.verticalLayout_5.setObjectName(_fromUtf8("verticalLayout_5"))
+        self.tblItems_5 = CTableView(self.tabCode15)
+        self.tblItems_5.setObjectName(_fromUtf8("tblItems_5"))
+        self.verticalLayout_5.addWidget(self.tblItems_5)
+        self.label_5 = QtGui.QLabel(self.tabCode15)
+        self.label_5.setObjectName(_fromUtf8("label_5"))
+        self.verticalLayout_5.addWidget(self.label_5)
+        self.lblTab5Description = QtGui.QLabel(self.tabCode15)
+        self.lblTab5Description.setObjectName(_fromUtf8("lblTab5Description"))
+        self.verticalLayout_5.addWidget(self.lblTab5Description)
+        self.tabWidget.addTab(self.tabCode15, _fromUtf8(""))
         self.gridLayout.addWidget(self.tabWidget, 0, 0, 1, 1)
 
         self.retranslateUi(PostOnAppointmentList)
@@ -119,5 +133,8 @@ class Ui_PostOnAppointmentList(object):
         self.label_4.setText(_translate("PostOnAppointmentList", "Всего", None))
         self.lblTab4Description.setText(_translate("PostOnAppointmentList", "Перечень должностей, к которым применяется только межкабинетная запись (не предусматривается запись через другие источники)", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode14), _translate("PostOnAppointmentList", "Должности для МКЗ", None))
+        self.label_5.setText(_translate("PostOnAppointmentList", "Всего", None))
+        self.lblTab5Description.setText(_translate("PostOnAppointmentList", "Перечень должностей, к которым применяется контроль резервирования НКТ талонов для ТМК-записи", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabCode15), _translate("PostOnAppointmentList", "Должности для ТМК", None))
 
 from library.TableView import CTableView

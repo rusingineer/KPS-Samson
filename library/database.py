@@ -91,6 +91,18 @@ class CDatabaseException(CException):
         self.sqlError = sqlError
 
 
+class CDatabaseExceptionTrigger(CException):
+    def __init__(self, message, sqlError=None):
+        if sqlError:
+            message = u"{0} \n{1} \n{2}".format(
+                message,
+                sqlError.driverText(),
+                unicode(sqlError.databaseText()).encode('latin-1').decode('utf-8')
+            )
+        CException.__init__(self, unicode(message))
+        self.sqlError = sqlError
+
+
 #    def __str__(self):
 #        return unicode(self._message)
 class CSqlRecord(QtSql.QSqlRecord):
@@ -1264,6 +1276,9 @@ class CDatabase(object):
     def onError(self, stmt, sqlError):
         raise CDatabaseException(CDatabase.errQueryError % stmt, sqlError)
 
+    def onErrorTrigger(self, stmt, sqlError):
+        raise CDatabaseExceptionTrigger(CDatabase.errQueryError % stmt, sqlError)
+
 
     def isProcedureExists(self, procedureName, schemaName=None):
         raise NotImplementedError('abstract method call')
@@ -1717,6 +1732,7 @@ class CMySqlDatabase(CDatabase):
     limit2 = 'LIMIT %d, %d'
     CR_SERVER_GONE_ERROR = 2006
     CR_SERVER_LOST = 2013
+    S_TRIGGER_MYSQL_ERRNO = 20001
     name = 'mysql'
 
     def __init__(self, serverName, serverPort, databaseName, userName, password, connectionName=None, compressData=False, logger=None):
@@ -1769,6 +1785,8 @@ class CMySqlDatabase(CDatabase):
             finally:
                 app.doneTrace()
                 self.db = None
+        elif sqlError and sqlError.number() == CMySqlDatabase.S_TRIGGER_MYSQL_ERRNO:
+            CDatabase.onErrorTrigger(self, stmt, sqlError)
         else:
             CDatabase.onError(self, stmt, sqlError)
 

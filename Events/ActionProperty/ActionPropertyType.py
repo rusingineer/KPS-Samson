@@ -239,7 +239,8 @@ class CActionPropertyType(object):
 
     def isString(self):
         return isinstance(self.valueType, CStringActionPropertyValueType) or \
-               isinstance(self.valueType, CTextActionPropertyValueType)
+               isinstance(self.valueType, CTextActionPropertyValueType) or \
+               self.valueType.variantType == QVariant.String
 
 
     def isBoolean(self):

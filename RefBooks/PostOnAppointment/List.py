@@ -43,6 +43,7 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
         self.setModels(self.tblItems_2, self.model, self.selectionModel)
         self.setModels(self.tblItems_3, self.model, self.selectionModel)
         self.setModels(self.tblItems_4, self.model, self.selectionModel)
+        self.setModels(self.tblItems_5, self.model, self.selectionModel)
         shortcutEdt = QtGui.QShortcut(QtGui.QKeySequence('F4'), self)
         shortcutEdt.activated.connect(self.on_btnEdit_clicked)
         shortcutNew = QtGui.QShortcut(QtGui.QKeySequence('F9'), self)
@@ -51,6 +52,10 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
             self.tblItems_2.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
         QObject.connect(
             self.tblItems_3.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
+        QObject.connect(
+            self.tblItems_4.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
+        QObject.connect(
+            self.tblItems_5.horizontalHeader(), SIGNAL('sectionClicked(int)'), self.setSort)
 
     @pyqtSignature('int')
     def on_tabWidget_currentChanged(self):
@@ -69,6 +74,8 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
             cond = table['code_last'].eq(13)
         elif tab == 3:
             cond = table['code_last'].eq(14)
+        elif tab == 4:
+            cond = table['code_last'].eq(15)
         result = []
         query = db.query(db.selectStmt(table, 'DISTINCT GetPositionList.id', cond, self.order))
         while query.next():
@@ -85,8 +92,10 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
             header = self.tblItems_2.horizontalHeader()
         elif tab == 2:
             header = self.tblItems_3.horizontalHeader()
-        else:
+        elif tab == 3:
             header = self.tblItems_4.horizontalHeader()
+        else:
+            header = self.tblItems_5.horizontalHeader()
         header.setSortIndicatorShown(True)
         self.isAscending = not self.isAscending
         header.setSortIndicator(col, Qt.AscendingOrder if self.isAscending else Qt.DescendingOrder)
@@ -105,6 +114,7 @@ class CPostOnAppointmentList(Ui_PostOnAppointmentList, CItemsListDialog, CDialog
         self.label_2.setText(u'всего: %d' % len(idList))
         self.label_3.setText(u'Всего: %d' % len(idList))
         self.label_4.setText(u'Всего: %d' % len(idList))
+        self.label_5.setText(u'Всего: %d' % len(idList))
 
     def getItemEditor(self):
         tab = self.tabWidget.currentIndex()
@@ -138,6 +148,8 @@ class CPostOnAppointmentEditor(Ui_PostOnAppointmentEditorDialog, CItemEditorDial
             code_last = 13
         elif self.tab_inx == 3:
             code_last = 14
+        elif self.tab_inx == 4:
+            code_last = 15
         else:
             code_last = None
         record.setValue('code_last', code_last)

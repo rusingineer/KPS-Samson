@@ -744,7 +744,10 @@ class CEventEditDialog(CItemEditorBaseDialog, CCheckNetMixin, CMapActionTypeIdTo
             self.btnRelatedEvent.setEnabled(not isEditable)
         if hasattr(self, 'btnNomenclatureExpense'):
             self.btnNomenclatureExpense.setEnabled((not self.isHBDialog and (not self.tabNotes.isEventClosed() or (self.tabNotes.isEventClosed() and QtGui.qApp.userHasRight(urEditClosedEvent)))) or (self.isHBDialog and (QtGui.qApp.userHasRight(urHBReadEvent) or QtGui.qApp.userHasRight(urHBEditEvent))))
-
+        if hasattr(self, 'tabNotes'):
+            if hasattr(self.tabNotes, 'btnAttachedFiles'):
+                self.tabNotes.btnAttachedFiles.setProtected(isProtected)
+        
 
     def getServiceActionCode(self):
         actionTypeIdList = []

@@ -137,6 +137,30 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabCode15">
+      <attribute name="title">
+       <string>Должности для ТМК</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="CTableView" name="tblItems_5"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_5">
+         <property name="text">
+          <string>Всего</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblTab5Description">
+         <property name="text">
+          <string>Перечень должностей, к которым применяется контроль резервирования НКТ талонов для ТМК-записи</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>

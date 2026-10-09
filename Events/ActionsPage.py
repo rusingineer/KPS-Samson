@@ -310,6 +310,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             widget.setEnabled(not isProtected)
         if self.btnNextAction.isEnabled():
             self.btnNextAction.setEnabled(not isProtected)
+        self.btnAPAttachedFiles.setProtected(isProtected)
         self.setReadOnly(isProtected)
 
 
@@ -5167,7 +5168,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                 
                 for idx, item in enumerate(currentPropertyType.dataInheritanceExt.getIncomingSequence()):
                     cachedItem = cache.get(item.name())
-                    if not cachedItem:
+                    if not cachedItem or cachedItem[0] is None or cachedItem[1] is None:
                         continue
                     
                     (record, action), actionProp = cachedItem

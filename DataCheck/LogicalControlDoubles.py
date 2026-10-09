@@ -619,8 +619,11 @@ class CControlDoubles(QtGui.QDialog, CConstructHelperMixin, Ui_LogicalControlDou
             self.chkSexClient.setEnabled(False)
             self.chkBirthDateClient.setEnabled(False)
             self.chkDocumentsClient.setEnabled(False)
+            self.chkHaveDocumentsClient.setEnabled(False)
             self.chkPolicyClient.setEnabled(False)
+            self.chkHavePolicyClient.setEnabled(False)
             self.chkSNILSClient.setEnabled(False)
+            self.chkHaveSNILSClient.setEnabled(False)
             self.chkLastNameFilter.setEnabled(False)
             self.edtLastNameFilterFrom.setEnabled(False)
             self.edtLastNameFilterTo.setEnabled(False)
@@ -922,9 +925,15 @@ class CControlDoubles(QtGui.QDialog, CConstructHelperMixin, Ui_LogicalControlDou
         booleanEmptyDocumentPolicy = True
         condClients.append(tableClient['deleted'].eq(0))
         if (self.chkDocumentsClient.isChecked() and documentRecord):
-            condClients.append('CD1.id IS NULL OR CD1.deleted = 0')
+            if self.chkHaveDocumentsClient.isChecked():
+                condClients.append('CD1.id IS NOT NULL AND CD1.deleted = 0')
+            else:
+                condClients.append('CD1.id IS NULL OR CD1.deleted = 0')
         if (self.chkPolicyClient.isChecked() and (policyRecord or voluntaryPolicyRecord)):
-            condClients.append('CP1.id IS NULL OR CP1.deleted = 0')
+            if self.chkHavePolicyClient.isChecked():
+                condClients.append('CP1.id IS NOT NULL AND CP1.deleted = 0')
+            else:
+                condClients.append('CP1.id IS NULL OR CP1.deleted = 0')
         if self.chkLastNameClient.isChecked():
             condClients.append(tableClient['lastName'].eq(lastName))
         if self.chkFirstNameClient.isChecked():
@@ -949,6 +958,8 @@ class CControlDoubles(QtGui.QDialog, CConstructHelperMixin, Ui_LogicalControlDou
                     group += u', SNILS'
                 else:
                     group = u'SNILS'
+            if self.chkHaveSNILSClient.isChecked() and not emptilySNILS:
+                condClients.append(tableClient['SNILS'].ne(u''))
             condClients.append(tableClient['SNILS'].eq(SNILS))
             self.booleanSNILSClient = True
         if self.chkLastNameFilter.isChecked():
@@ -1138,6 +1149,8 @@ WHERE CD.`client_id`=C1.`id` AND CD.`deleted`=0 LIMIT 1)) ''')
                     group = u'SNILS'
             else:
                 condClients.append(db.joinOr([tableClient['SNILS'].ne(u''), tableClient['SNILS'].eq(u'')]))
+            if self.chkHaveSNILSClient.isChecked() and not emptilySNILS:
+                condClients.append(tableClient['SNILS'].ne(u''))
             condClients.append(tableClient['SNILS'].eq(tableClient2['SNILS']))
             self.booleanSNILSClient = True
         if self.chkLastNameFilter.isChecked():
@@ -1184,25 +1197,16 @@ WHERE CD.`client_id`=C2.`id` AND CD.`deleted`=0 LIMIT 1))''')
         table = table.leftJoin(tableOrganisation, tableOrganisation['id'].eq(tableClientPolicy['insurer_id']))
         table = table.leftJoin(tablePolicyType, tablePolicyType['id'].eq(tableClientPolicy['policyType_id']))
         if self.chkDocumentsClient.isChecked():
-            # if listCorrectsClientId != [] and baseLineClientId:
-            #     table = table.join(tableClientDocument2, 1)
-            # else:
+
             table = table.leftJoin(tableClientDocument2, tableDocJoinCond2)
-            if listCorrectsDocumentsId == []:
-                if (not self.chkLastNameClient.isChecked() and not self.chkFirstNameClient.isChecked() and not self.chkPatrNameClient.isChecked()) and not self.chkBirthDateClient.isChecked() and not self.chkSexClient.isChecked() and not self.chkSNILSClient.isChecked():
-                    condClients.append('(CD1.id IS NOT NULL AND CD2.id IS NOT NULL AND CD1.deleted = 0 AND CD2.deleted = 0 AND CD1.id!=CD2.id)')
-                else:
-                    condClients.append('((CD1.id IS NULL AND CD2.id IS NULL) OR (CD1.deleted = 0 AND CD2.deleted = 0 AND CD1.id!=CD2.id))')
-            else:
-                condClients.append(tableClientDocument['id'].ne(tableClientDocument2['id']))
+            
+            if self.chkHaveDocumentsClient.isChecked():
+                condClients.append(tableClientDocument['id'].isNotNull())
+                condClients.append(tableClientDocument2['id'].isNotNull())
+                
             if listCorrectsDocumentsId != []:
                 condClients.append(tableClientDocument['id'].inlist(listCorrectsDocumentsId))
                 condClients.append(tableClientDocument2['id'].inlist(listCorrectsDocumentsId))
-                if self.chkLastNameClient.isChecked() or self.chkFirstNameClient.isChecked() or self.chkPatrNameClient.isChecked():
-                    condClients.append(tableClient['id'].eq(tableClientDocument['client_id']))
-                    condClients.append(tableClient2['id'].eq(tableClientDocument2['client_id']))
-                # condClients.append(tableClientDocument['id'].isNotNull())
-                # condClients.append(tableClientDocument2['id'].isNotNull())
                 if booleanEmptyDocumentPolicy:
                     condClients.append(tableClientDocument['serial'].ne(u''))
                     condClients.append(tableClientDocument['number'].ne(u''))
@@ -1221,10 +1225,13 @@ WHERE CD.`client_id`=C2.`id` AND CD.`deleted`=0 LIMIT 1))''')
             tablePolicyJoinCond2 = [tableClientPolicy2['client_id'].eq(tableClient2['id'])]
             tablePolicyJoinCond2.append(u'''(CP2.id IS NOT NULL AND CP2.deleted = 0 AND CP2.id = (SELECT MAX(CP3.id) FROM ClientPolicy AS CP3
             WHERE CP3.`client_id`=C2.`id` AND CP3.`deleted`=0 LIMIT 1)) ''')
-            # if listCorrectsClientId != [] and baseLineClientId:
-            #     table = table.join(tableClientPolicy2, 1)
-            # else:
+
             table = table.leftJoin(tableClientPolicy2, tablePolicyJoinCond2)
+            
+            if self.chkHavePolicyClient.isChecked() and listCorrectsPolicysId == []:
+                condClients.append(tableClientPolicy['id'].isNotNull())
+                condClients.append(tableClientPolicy2['id'].isNotNull())
+                
             if listCorrectsPolicysId == []:
                 if (not self.chkLastNameClient.isChecked() and not self.chkFirstNameClient.isChecked() and not self.chkPatrNameClient.isChecked()) and not self.chkBirthDateClient.isChecked() and not self.chkSexClient.isChecked() and not self.chkSNILSClient.isChecked():
                     condClients.append('(CP1.id IS NOT NULL AND CP2.id IS NOT NULL AND CP1.deleted = 0 AND CP2.deleted = 0 AND CP1.id!=CP2.id)')

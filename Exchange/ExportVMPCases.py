@@ -92,7 +92,9 @@ class ExportVMPCases(QtGui.QDialog, Ui_ExportVMPCases):
                       LEFT JOIN EventType ON Event.eventType_id = EventType.id
                       LEFT JOIN rbMedicalAidType ON EventType.medicalAidType_id = rbMedicalAidType.id
                       LEFT JOIN rbService ON ActionType.nomenclativeService_id = rbService.id
-                      LEFT JOIN soc_spr74 ON soc_spr74.KUSL = rbService.infis
+                      LEFT JOIN soc_spr74 ON soc_spr74.KUSL = rbService.infis 
+                        AND Event.execDate >= soc_spr74.DATN
+                        AND (Event.execDate <= soc_spr74.DATO OR soc_spr74.DATO IS NULL)
                       LEFT JOIN Client ON Event.client_id = Client.id
                       LEFT JOIN ClientPolicy ON ClientPolicy.id = getClientPolicyIdForDate(Client.id, 1, Event.execDate, Event.id)
                       LEFT JOIN ClientDocument ON ClientDocument.id = getClientDocumentId(Client.id)

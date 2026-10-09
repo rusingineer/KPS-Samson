@@ -16,7 +16,8 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QDateTime, QTime
 
 from library.recordWrapper import CSqlRecordWrapper, field
-from library.Utils import forceBool, forceDate, forceDateTime, forceInt, forceRef, forceString, forceTime, toVariant
+from library.Utils import forceBool, forceDate, forceDateTime, forceInt, forceRef, forceString, forceTime, toVariant, \
+    calcAgeInYears
 from Registry.Utils import CAppointmentPurposeCache, getPostIdentCodeByPersonId
 from Users.Rights import urDeleteOtherQueue, urDeleteOwnQueue
 
@@ -464,6 +465,18 @@ class CSchedule(CSqlRecordWrapper):
 # #####################################################
 
 
+def getDynamicItemType(scheduleItem, personId):
+    u"""
+    Получение (и прописывание) дин. типа для одного талона с созданием контекста внутри
+    """
+    if isinstance(scheduleItem, CScheduleItem):
+        dynamicItemType = scheduleItem.getDynamicItemType(CDynamicItemTypeContext(personId))
+        scheduleItem.dynamicItemType = dynamicItemType
+        return dynamicItemType
+    else:
+        return None
+
+
 def updateDynamicItemTypes(items, personId, appointmentType, context=None):
     u"""
     Пересчитывает тип талонов (КТ|НКТ|МКТ)
@@ -527,6 +540,85 @@ class CDynamicItemTypeContext(object):
             record = getScheduleItemIdFinance(scheduleItem)
             self._financeCache[key] = forceString(record.value('code')) if record else None
         return self._financeCache[key]
+
+
+# #####################################################
+# Проверки при записи к врачу (желательно выноссить в одно место) + вспомогательные функции
+
+
+def checkIsNKTReservedForTMK(widget, personId, date, clientId):
+    """
+    Проверяем нужно ли зарезервировать НКТ талон под ТМК при записи
+    Проверка вынесена в одно место для удобной правки в будущем и DRY
+    Предполагается что проверка вызывается только если
+    номерок при записи имеет дин. тип НКТ, не сверхплановый и
+    recordType не 4 (не ТМК)
+    True - зарезервирован (т.е. проверку не прошёл)
+    Связанные TT: 4889, 4902 (возможно скажу себе спасибо в будущем)
+    """
+    db = QtGui.qApp.db
+    # 25.08.2026 по просьбе добавил пропуск проверки если пациенту меньше 18 лет
+    if calcAgeInYears(forceDate(db.translate('Client', 'id', clientId, 'birthDate')), QDate.currentDate()) < 18:
+        return False
+
+    #4902 настройка по должностям для кого должно применяться ограничение на нкт талон для тмк
+    widgetHasPostsList = hasattr(widget, 'postForCheckNKTReservedForTMK')
+    if widgetHasPostsList and widget.postForCheckNKTReservedForTMK:
+        postsList = widget.postForCheckNKTReservedForTMK
+    else:
+        records = db.getRecordList('GetPositionList', 'code', 'code_last = 15')
+        postsList = [forceRef(record.value(0)) for record in records]
+        if widgetHasPostsList:
+            widget.postForCheckNKTReservedForTMK = postsList
+    # пропуск если должности врача нет в списке
+    if getPostIdentCodeByPersonId(personId) not in postsList:
+        return False
+
+    # получаем все талоны по всем периодам в этот день и определяем их тип
+    items = getDayScheduleItems(personId, date, CSchedule.atAmbulance)
+    updateDynamicItemTypes(items, personId, CSchedule.atAmbulance)
+
+    # получаем только НКТ талоны за день
+    itemsNKT = [item for item in items if not item.overtime and item.dynamicItemType == CScheduleItem.NKT]
+    if not itemsNKT:
+        return False
+
+    # Выделили мин. кол-во в БД чтоб при каких то изменениях не лезть в код (0 = отключено)
+    minReservedSlotsForTMK = forceInt(db.translate('rbExchangePreferences', 'code', 'minReservedSlotsForTMK', 'value'))
+
+    # Смотрим кол-во уже активных ТМК записей и достигнуто ли минимально нужное кол-во
+    countTMKItems = len([item for item in itemsNKT if item.clientId and item.recordType == 4])
+    if countTMKItems >= minReservedSlotsForTMK:
+        return False
+
+    # Получаем кол-во оставшихся свободных и учитываем наличие сущ. ТМК записей и смотрим можно ли
+    # записать ещё не затрагивая мин. резерв
+    freeItemsNKT = [item for item in itemsNKT if not item.clientId]
+    if len(freeItemsNKT) <= minReservedSlotsForTMK - countTMKItems:
+        QtGui.QMessageBox.critical(widget, u'Внимание!',
+                                   u'Данный талон предназначен для ТМК',
+                                   QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        return True
+
+    return False
+
+
+def getDayScheduleItems(personId, date, appointmentType):
+    """
+    Все талончики по периодам на дату
+    """
+    db = QtGui.qApp.db
+    tableSchedule = db.table('Schedule')
+    tableScheduleItem = db.table('Schedule_Item')
+    table = tableScheduleItem.innerJoin(tableSchedule, tableScheduleItem['master_id'].eq(tableSchedule['id']))
+    records = db.getRecordList(table, 'Schedule_Item.*', [tableSchedule['deleted'].eq(0),
+                                                             tableSchedule['person_id'].eq(personId),
+                                                             tableSchedule['date'].eq(date),
+                                                             tableSchedule['appointmentType'].eq(appointmentType),
+                                                             tableScheduleItem['overtime'].eq(0),
+                                                             tableScheduleItem['deleted'].eq(0),
+                                                            ])
+    return [CScheduleItem(record) for record in records]
 
 
 # #####################################################

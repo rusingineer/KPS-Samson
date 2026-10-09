@@ -94,7 +94,7 @@ from Timeline.Schedule import (
     confirmAndFreeScheduleItem,
     fillPostListsForInterofficeLogic,
     updateDynamicItemTypes,
-    getScheduleItemIdListForClient, getScheduleItemIdFinance, getScheduleItemIdListForClient_OMS, getExceptionSpecialty
+    getScheduleItemIdListForClient, getScheduleItemIdFinance, getScheduleItemIdListForClient_OMS, getExceptionSpecialty, checkIsNKTReservedForTMK
 )
 from Timeline.TimeTable                   import formatTimeRange
 from Users.Rights import (
@@ -393,6 +393,10 @@ class CResourcesDockContent(QtGui.QWidget,
 
         self.postForMainLogicRecord = []
         self.postForInterofficeRecord = []
+
+        # Сложно было придумать название, так что сделаю примерно как и 2 других списков должностей
+        # Должности с которым нужно проверять резерв НКТ талонов для ТМК
+        self.postForCheckNKTReservedForTMK = []
 
         self.timer.start()
         self.updateTimeTable()
@@ -1052,24 +1056,14 @@ class CResourcesDockContent(QtGui.QWidget,
                     return False
 
         # 4889 "По поручению МЗ сделать проверку на один нкт талон врача, чтобы на него можно было записать только на тмк"
-        if scheduleItem.dynamicItemType == scheduleItem.NKT and recordType != 4 and not scheduleItem.overtime:
-            # Внутри модели не обновляется инфа о записанных пациентах пока не пройдёт таймер обновления
-            # Можно делать запрос в бд или просто обновить модель, думаю полезней будет обновить, а то мало ли
-            self.updateTimeTable()
-            # Получаем все периоды за день т.к. перечитав увидел что необходимо "обеспечить хотя бы один талон в ДЕНЬ"
-            modelTblTimeTable = tblTimeTable.model()
-            schedulesDayList = [modelTblTimeTable.getSchedule(row) for row in
-                                modelTblTimeTable.getRowListForDate(scheduleItem.time.date())]
-            scheduleItemsDayList = [item for schedule in schedulesDayList for item in schedule.items]
-            updateDynamicItemTypes(scheduleItemsDayList, personId, self.appointmentType)
-            itemsNKT = [item for item in scheduleItemsDayList if not item.overtime and item.dynamicItemType == CScheduleItem.NKT]
-            if itemsNKT:
-                minReservedSlotsForTMK = forceInt(QtGui.qApp.db.translate('rbExchangePreferences', 'code', 'minReservedSlotsForTMK', 'value'))
-                countTMKItems = len([item for item in itemsNKT if item.clientId and item.recordType == 4])
-                countFreeItemsNKT = len(filter(lambda item: not item.clientId, itemsNKT))
-                if (countTMKItems < minReservedSlotsForTMK) and (countFreeItemsNKT <= minReservedSlotsForTMK - countTMKItems):
-                    QtGui.QMessageBox.critical(self,u'Внимание!', u'Данный талон предназначен для ТМК', QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-                    return False
+        if (
+                scheduleItem.dynamicItemType == scheduleItem.NKT
+                and recordType != 4
+                and not scheduleItem.overtime
+                and modelQueue.appointmentType == CSchedule.atAmbulance
+        ):
+            if checkIsNKTReservedForTMK(self, personId, date, clientId):
+                return False
 
         return True
 

@@ -951,6 +951,11 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                                         prop.setValue(protocolText.strip())
                                                     if res.norm.text:
                                                         prop.setNorm(res.norm.text.replace('(', '').replace(')', ''))
+                                                        # TT 4806 "Загрузка комментария из ЛИС"
+                                                        # по задаче необходимо сохранять примечание к нормам,
+                                                        # а если норм нет, то смысл вставлять
+                                                        if res.description:
+                                                            prop.setComment(res.description)
                                                     # Единицы измерения сначала ищем по идентификатору urn:oid:1.2.643.5.1.13.13.11.1358
                                                     if res.unitCode:
                                                         unitId = self.mapUnitsByIdentification.get(res.unitCode)

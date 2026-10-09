@@ -623,9 +623,9 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         self.fileName = title
 
 
-    def setSignAndAttachHandler(self, signAndAttachHandler):
+    def setSignAndAttachHandler(self, signAndAttachHandler, isProtected=False):
         self.signAndAttachHandler = signAndAttachHandler
-        self.btnSignAndAttach.setEnabled(bool(self.signAndAttachHandler))
+        self.btnSignAndAttach.setEnabled(bool(self.signAndAttachHandler) and not isProtected)
         if self.btnSignAndAttach.isEnabled():
             self.buttonBox.addButton(self.btnSignAndAttach, QtGui.QDialogButtonBox.ActionRole)
     

@@ -2291,7 +2291,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                         # применяем КСЛП
                         baseTariff = self.getBaseTariff(eventEndDate, medicalAidTypeCode)
                         priceKSLP = roundMath(baseTariff * coeff, 2)
-                        if eventEndDate < QDate(2026, 6, 1):
+                        if eventEndDate < QDate(2026, 3, 1):
                             price = price + priceKSLP
 
                         ishodOb = isInterruptedCase(eventId)
@@ -2345,7 +2345,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
                                 price = roundMath(price * interruptCoeff, 2)
 
-                        if eventEndDate >= QDate(2026, 6, 1):
+                        if eventEndDate >= QDate(2026, 3, 1):
                             price = price + priceKSLP
 
                     sum = round(price*amount*coefficient, 2)
@@ -3739,7 +3739,7 @@ where Action.deleted = 0
 
     # применяем КСЛП
     priceKSLP = roundMath(baseTariff * coeff, 2)
-    if eventEndDate < QDate(2026, 6, 1):
+    if eventEndDate < QDate(2026, 3, 1):
         price = price + priceKSLP
 
     ishodOb = isInterruptedCase(eventId)
@@ -3796,7 +3796,7 @@ where Action.deleted = 0
                 interruptCoeff = contractDescr.coefficients[0, 0][u'ПРЕРВДЛ4'][eventEndDate]
                 price = roundMath(price * interruptCoeff, 2)
 
-    if eventEndDate >= QDate(2026, 6, 1):
+    if eventEndDate >= QDate(2026, 3, 1):
         price = price + priceKSLP
 
     return price, coeff, usedCoeffDict, interruptReason, interruptCoeff

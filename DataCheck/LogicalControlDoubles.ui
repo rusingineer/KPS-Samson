@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>617</width>
+    <width>686</width>
     <height>363</height>
    </rect>
   </property>
@@ -14,7 +14,16 @@
    <string>Контроль двойников</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_2">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -23,13 +32,22 @@
    <item row="0" column="0" colspan="7">
     <widget class="QWidget" name="widget" native="true">
      <layout class="QGridLayout" name="gridLayout">
-      <property name="margin">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
        <number>0</number>
       </property>
       <property name="spacing">
        <number>4</number>
       </property>
-      <item row="1" column="7">
+      <item row="1" column="8">
        <spacer name="horizontalSpacer_3">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -42,16 +60,10 @@
         </property>
        </spacer>
       </item>
-      <item row="0" column="0">
-       <widget class="QCheckBox" name="chkLastNameClient">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
+      <item row="1" column="1">
+       <widget class="QCheckBox" name="chkBirthDateClient">
         <property name="text">
-         <string>Фамилия</string>
+         <string>Дата рождения</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -62,16 +74,6 @@
        <widget class="QCheckBox" name="chkPolicyClient">
         <property name="text">
          <string>Полис</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QCheckBox" name="chkBirthDateClient">
-        <property name="text">
-         <string>Дата рождения</string>
         </property>
         <property name="checked">
          <bool>true</bool>
@@ -94,6 +96,22 @@
         </property>
        </widget>
       </item>
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="chkLastNameClient">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Фамилия</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
       <item row="1" column="0">
        <widget class="QCheckBox" name="chkFirstNameClient">
         <property name="sizePolicy">
@@ -110,7 +128,47 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="7">
+      <item row="2" column="8">
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item row="0" column="1">
+       <widget class="QCheckBox" name="chkSexClient">
+        <property name="text">
+         <string>Пол пациента</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="6">
+       <widget class="QLabel" name="lblBirthDateFilter">
+        <property name="text">
+         <string>по</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="2">
+       <widget class="QCheckBox" name="chkSNILSClient">
+        <property name="text">
+         <string>СНИЛС</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="8">
        <spacer name="horizontalSpacer_2">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -133,113 +191,103 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="2">
-       <widget class="QCheckBox" name="chkSNILSClient">
-        <property name="text">
-         <string>СНИЛС</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QCheckBox" name="chkSexClient">
-        <property name="text">
-         <string>Пол пациента</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="7">
-       <spacer name="horizontalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="1" column="5">
-       <widget class="QLabel" name="lblBirthDateFilter">
-        <property name="text">
-         <string>по</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="4">
-       <widget class="CDateEdit" name="edtBirthDateFilterFrom">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="3">
-       <widget class="QCheckBox" name="chkLimitFilter">
-        <property name="text">
-         <string>Ограничить поиск до</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="5">
-       <widget class="QLabel" name="lblLastNameFilter">
-        <property name="text">
-         <string>по</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="3">
-       <widget class="QCheckBox" name="chkBirthDateFilter">
-        <property name="text">
-         <string>Ограничить даты с</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
+      <item row="0" column="4">
        <widget class="QCheckBox" name="chkLastNameFilter">
         <property name="text">
          <string>Ограничить фамилии с</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="6">
-       <widget class="CDateEdit" name="edtBirthDateFilterTo">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="4">
-       <widget class="QLineEdit" name="edtLastNameFilterFrom">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="6">
-       <widget class="QLineEdit" name="edtLastNameFilterTo">
+      <item row="1" column="5">
+       <widget class="CDateEdit" name="edtBirthDateFilterFrom">
         <property name="enabled">
          <bool>false</bool>
         </property>
        </widget>
       </item>
       <item row="2" column="4">
+       <widget class="QCheckBox" name="chkLimitFilter">
+        <property name="text">
+         <string>Ограничить поиск до</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="6">
+       <widget class="QLabel" name="lblLastNameFilter">
+        <property name="text">
+         <string>по</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="4">
+       <widget class="QCheckBox" name="chkBirthDateFilter">
+        <property name="text">
+         <string>Ограничить даты с</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="6" colspan="2">
+       <widget class="QLabel" name="lblLimitFilter">
+        <property name="text">
+         <string>записей</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="7">
+       <widget class="CDateEdit" name="edtBirthDateFilterTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="5">
+       <widget class="QLineEdit" name="edtLastNameFilterFrom">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="5">
        <widget class="QLineEdit" name="edtLimitFilter">
         <property name="enabled">
          <bool>false</bool>
         </property>
        </widget>
       </item>
-      <item row="2" column="5" colspan="2">
-       <widget class="QLabel" name="lblLimitFilter">
+      <item row="0" column="7">
+       <widget class="QLineEdit" name="edtLastNameFilterTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="3">
+       <widget class="QCheckBox" name="chkHaveDocumentsClient">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="text">
-         <string>записей</string>
+         <string>Заполнено</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="3">
+       <widget class="QCheckBox" name="chkHavePolicyClient">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Заполнено</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="3">
+       <widget class="QCheckBox" name="chkHaveSNILSClient">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Заполнено</string>
         </property>
        </widget>
       </item>
@@ -376,8 +424,11 @@
   <tabstop>chkSexClient</tabstop>
   <tabstop>chkBirthDateClient</tabstop>
   <tabstop>chkDocumentsClient</tabstop>
+  <tabstop>chkHaveDocumentsClient</tabstop>
   <tabstop>chkPolicyClient</tabstop>
+  <tabstop>chkHavePolicyClient</tabstop>
   <tabstop>chkSNILSClient</tabstop>
+  <tabstop>chkHaveSNILSClient</tabstop>
   <tabstop>chkLastNameFilter</tabstop>
   <tabstop>edtLastNameFilterFrom</tabstop>
   <tabstop>edtLastNameFilterTo</tabstop>
@@ -401,12 +452,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>341</x>
-     <y>37</y>
+     <x>491</x>
+     <y>45</y>
     </hint>
     <hint type="destinationlabel">
-     <x>463</x>
-     <y>37</y>
+     <x>576</x>
+     <y>47</y>
     </hint>
    </hints>
   </connection>
@@ -417,12 +468,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>341</x>
-     <y>37</y>
+     <x>491</x>
+     <y>45</y>
     </hint>
     <hint type="destinationlabel">
-     <x>579</x>
-     <y>37</y>
+     <x>677</x>
+     <y>47</y>
     </hint>
    </hints>
   </connection>
@@ -433,12 +484,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>341</x>
-     <y>13</y>
+     <x>491</x>
+     <y>18</y>
     </hint>
     <hint type="destinationlabel">
-     <x>463</x>
-     <y>13</y>
+     <x>576</x>
+     <y>17</y>
     </hint>
    </hints>
   </connection>
@@ -449,12 +500,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>341</x>
-     <y>13</y>
+     <x>491</x>
+     <y>18</y>
     </hint>
     <hint type="destinationlabel">
-     <x>579</x>
-     <y>13</y>
+     <x>677</x>
+     <y>17</y>
     </hint>
    </hints>
   </connection>
@@ -465,11 +516,59 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>341</x>
+     <x>491</x>
+     <y>69</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>576</x>
+     <y>71</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkDocumentsClient</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkHaveDocumentsClient</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>227</x>
+     <y>13</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>310</x>
+     <y>13</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkPolicyClient</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkHavePolicyClient</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>227</x>
+     <y>37</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>310</x>
+     <y>37</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkSNILSClient</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chkHaveSNILSClient</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>227</x>
      <y>61</y>
     </hint>
     <hint type="destinationlabel">
-     <x>463</x>
+     <x>310</x>
      <y>61</y>
     </hint>
    </hints>

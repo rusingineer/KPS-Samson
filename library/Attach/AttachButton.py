@@ -47,6 +47,7 @@ class CAttachButton(QtGui.QPushButton):
         self._forceShowDown = False  # показан popup (кнопку нужно рисовать нажатой)
         self._isSaveModel = False    # модель была сохранена
         self._isReadOnly = False     # нельзя изменять прикрепленные файлы
+        self._isProtected = False    # нельзя прикрелять
 
         self.modelFiles.setInterface(QtGui.qApp.webDAVInterface)
 
@@ -74,6 +75,9 @@ class CAttachButton(QtGui.QPushButton):
     def setEnabled(self, val):
         self._isEnabled = val
         self.__setEnabled()
+    
+    def setProtected(self, isProtected):
+        self._isProtected = isProtected
 
     def __setEnabled(self):
         interface = QtGui.qApp.webDAVInterface
@@ -255,7 +259,7 @@ class CAttachButton(QtGui.QPushButton):
             self.update()
             return bool(userSignatures[0]), userSignatures[0], orgSignatures[0]
 
-        if self.isEnabled() and QtGui.qApp.userHasRight(urCanAttachFile):
+        if self.isEnabled() and QtGui.qApp.userHasRight(urCanAttachFile) and not self._isProtected:
             return handler
         else:
             return None

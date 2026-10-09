@@ -9731,6 +9731,12 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                             db.updateRecord(tableET, record)
                             self.updateEventListAfterEdit(eventId)
                             QtGui.qApp.delAllCounterValueIdReservation()
+                    except Exception as e:
+                        QtGui.qApp.logCurrentException()
+                        QtGui.QMessageBox.critical(QtGui.qApp.mainWindow,
+                                                    u'Произошла ошибка',
+                                                    exceptionToUnicode(e),
+                                                    QtGui.QMessageBox.Close)
                     finally:
                         dialog.deleteLater()
 

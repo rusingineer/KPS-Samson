@@ -3601,6 +3601,8 @@ class CCSGInfo(CInfo):
         self._amount = forceInt(record.value('amount'))
         self._payStatus = forceInt(record.value('payStatus'))
         self._service = self.getInstance(CServiceInfo, forceInt(QtGui.qApp.db.translate('rbService', 'code', self._CSGCode, 'id')))
+        self._krit = forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceRef(record.value('krit')), "CONCAT(code, ' | ', name)"))
+        self._combSchema = forceString(QtGui.qApp.db.translate('soc_spr80', 'id', forceRef(record.value('combSchema')), "CONCAT(code, ' | ', name)"))
 
     begDate = property(lambda self: self.load()._begDate)
     endDate = property(lambda self: self.load()._endDate)
@@ -3609,6 +3611,8 @@ class CCSGInfo(CInfo):
     amount = property(lambda self: self.load()._amount)
     payStatus   = property(lambda self: self.load()._payStatus)
     service    = property(lambda self: self.load()._service)
+    krit = property(lambda self: self.load()._krit)
+    combSchema = property(lambda self: self.load()._combSchema)
 
 
 def updateDurationEvent(begDate, endDate, eventTypeId):

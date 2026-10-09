@@ -6080,20 +6080,30 @@ class CCancerMedicamentInfo(CMultiRecordInfo):
   a.id AS LID,
   a.event_id AS eventId,
   ni.value AS REGNUM,
-  (SELECT
-      sn.ID_LEKP_EXT  
-    FROM Action a1
-    LEFT JOIN ActionType at1 ON at1.id = a1.actionType_id 
-    LEFT JOIN ActionPropertyType apt1 ON apt1.actionType_id = at1.id AND apt1.typeName = 'Доп. классиф. критерий' AND apt1.deleted = 0
-    LEFT JOIN ActionProperty ap1 ON apt1.id = ap1.type_id AND ap1.action_id = a1.id AND ap1.deleted = 0
-    LEFT JOIN ActionProperty_Integer api ON api.id = ap1.id
-    LEFT JOIN soc_spr80 s ON s.id = api.value
-    LEFT JOIN soc_sprN021 sn ON sn.CODE_SH = s.code
-    WHERE a1.event_id = a.event_id AND at1.flatCode  = 'KRIT'
-      AND a1.deleted = 0 AND at1.deleted = 0
-      AND sn.ID_LEKP = ni.value
-      AND (sn.DATN <= DATE(a1.endDate) AND sn.DATO >= DATE(a1.endDate) OR sn.DATO IS NULL)
-    LIMIT 1) AS REGNUM_DOP,
+  COALESCE(
+    (SELECT sn021.ID_LEKP_EXT 
+      FROM Event_CSG ec 
+        LEFT JOIN soc_spr80 s80 ON ec.krit = s80.id
+        LEFT JOIN soc_sprN021 sn021 ON sn021.CODE_SH = s80.code
+      WHERE ec.master_id = a.event_id
+        AND sn021.ID_LEKP = ni.value 
+        AND (sn021.DATN <= DATE(ec.endDate) AND sn021.DATO >= DATE(ec.endDate) OR sn021.DATO IS NULL) 
+      LIMIT 1),
+    (SELECT
+        sn.ID_LEKP_EXT  
+      FROM Action a1
+      LEFT JOIN ActionType at1 ON at1.id = a1.actionType_id 
+      LEFT JOIN ActionPropertyType apt1 ON apt1.actionType_id = at1.id AND apt1.typeName = 'Доп. классиф. критерий' AND apt1.deleted = 0
+      LEFT JOIN ActionProperty ap1 ON apt1.id = ap1.type_id AND ap1.action_id = a1.id AND ap1.deleted = 0
+      LEFT JOIN ActionProperty_Integer api ON api.id = ap1.id
+      LEFT JOIN soc_spr80 s ON s.id = api.value
+      LEFT JOIN soc_sprN021 sn ON sn.CODE_SH = s.code
+      WHERE a1.event_id = a.event_id AND at1.flatCode  = 'KRIT'
+        AND a1.deleted = 0 AND at1.deleted = 0
+        AND sn.ID_LEKP = ni.value 
+        AND (sn.DATN <= DATE(a1.endDate) AND sn.DATO >= DATE(a1.endDate) OR sn.DATO IS NULL)
+      LIMIT 1)
+  ) AS REGNUM_DOP,
   a.endDate AS DATE_INJ,
   (SELECT apd.value FROM ActionProperty ap1
   LEFT JOIN ActionPropertyType apt1 ON ap1.type_id = apt1.id

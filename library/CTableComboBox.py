@@ -14,7 +14,7 @@
 
 import re
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QAbstractTableModel, QDateTime, QModelIndex, QString, QVariant, QEvent
+from PyQt4.QtCore import Qt, QAbstractTableModel, QDateTime, QModelIndex, QString, QVariant, QEvent, QTimer
 
 from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.Utils import forceInt, forceString, forceRef 
@@ -122,25 +122,41 @@ class CTableModelData(CAbstractTableModelData):
                 item.append('')
             self.addItem(None, item)
         db = QtGui.qApp.db
-        where = (' WHERE ' + self._filter) if self._filter else ''
+        where = self._filter if self._filter else ''
         table = db.table(self._tableName)
         deletedField = table.findField('deleted')
-        if deletedField:
+        canChooseField = table.findField('can_choose')
+        if deletedField or canChooseField:
             if valId is None:
                 valId = 0
+                
+            conds = []
+            if deletedField:
+                conds.append('deleted = 0')
+            if canChooseField:
+                conds.append('can_choose = 1')
+            
+            condStr = ' AND '.join(conds)
+            
             if where:
-                where += " AND deleted = 0 or id = {}".format(valId)
+                where = "(({}) AND {}) OR id = {}".format(where, condStr, valId)
             else:
-                where = 'WHERE deleted = 0 or id = {}'.format(valId)
+                where = "({}) OR id = {}".format(condStr, valId)
+
         # добавил cast(code as signed) для корректной сортировки
         order = ' ORDER BY ' + (self._order if self._order else 'cast(id as signed)')
-        query = db.query('SELECT id{} FROM '.format(self._fields) + self._tableName + where + order)
+        
+        if where:
+            query = db.query('SELECT id{} FROM '.format(self._fields) + self._tableName + ' WHERE ' + where + order)
+        else:
+            query = db.query('SELECT id{} FROM '.format(self._fields) + self._tableName + order)
         while query.next():
             item = []
             record = query.record()
             id = forceInt(record.value('id'))
             for field in self._fields[1:].split(','):
-                item.append(forceString(record.value(field)))
+                cleanField = field.strip(' `"[]')
+                item.append(forceString(record.value(cleanField)))
             self.addItem(id, item)
         self._timestamp = QDateTime.currentDateTime()
         self._notLoaded = False
@@ -188,6 +204,7 @@ class CTableModel(QAbstractTableModel):
         self.readOnly = False
         self._fieldNames = []
         self._fields = []
+        self._recordCache = {}
 
     def setReadOnly(self, value=False):
         self.readOnly = value
@@ -234,6 +251,7 @@ class CTableModel(QAbstractTableModel):
         return maxLenAt, code[:maxLen]
 
     def setTable(self, tableName, addNone=True, filter='', fields='', fieldNames=[], order=None, specialValues=None, needCache=True, force=False):
+        self._recordCache = {}
         d = self.d
         self.setFieldNames(fieldNames)
         if d and d.isLoaded() or self.resetRequired:
@@ -275,19 +293,28 @@ class CTableModel(QAbstractTableModel):
         from library.TableModel import CCol
         cols = []
         for field in self._fields:
-            cols.append(CCol('', [field], 0, 'l'))
+            cols.append(CCol('', [field.strip(' `"[]')], 0, 'l'))
         return cols
     
     
     def getRecordByRow(self, row):
         # для CSortFilterProxyTableModel
+        if row in self._recordCache:
+            return self._recordCache[row]
+        
         record = QtSql.QSqlRecord()
         record.append(QtSql.QSqlField('id', QVariant.Int))
-        record.append(QtSql.QSqlField(self._fields[1], QVariant.String))
-        record.append(QtSql.QSqlField('name', QVariant.String))
         record.setValue('id', self.getId(row))
-        record.setValue(self._fields[1], self.getValue(row, 0))
-        return record    
+        
+        fields = [f.strip(' `"[]') for f in self._fields[1:]] 
+        for i, fieldName in enumerate(fields):
+            if fieldName:
+                record.append(QtSql.QSqlField(fieldName, QVariant.String))
+                record.setValue(fieldName, self.getValue(row, i))
+                
+        self._recordCache[row] = record
+            
+        return record
     
     
     def _buildTreePathForId(self, idVal):
@@ -441,7 +468,8 @@ class CTableComboBox(QtGui.QComboBox):
         self._tableName = tableName
         self._addNone = addNone
         self._filier = filter
-        self._fields = fields
+        self.popupView.filter = filter
+        self._fields = fields 
         self._order = order
         self._needCache = needCache
         self._specialValues = specialValues
@@ -624,17 +652,22 @@ class CTableSearchPopupView(QtGui.QFrame):
         layout = QtGui.QVBoxLayout(self)
         layoutFilter = QtGui.QHBoxLayout()
         
+        self._filterTimer = QTimer(self)
+        self._filterTimer.setSingleShot(True)
+        self._filterTimer.setInterval(300)
+        self._filterTimer.timeout.connect(self.applyFilters)
+        
         self.lblCode = QtGui.QLabel()
         self.lblCode.setText(u'Код')
         self.edtCode = QtGui.QLineEdit()
-        self.edtCode.textChanged.connect(self.on_edtCode_textChanged)
+        self.edtCode.textChanged.connect(self.on_filter_changed)
         layoutFilter.addWidget(self.lblCode)
         layoutFilter.addWidget(self.edtCode)
         
         self.lblName = QtGui.QLabel()
         self.lblName.setText(u'Наименование')
         self.edtName = QtGui.QLineEdit()
-        self.edtName.textChanged.connect(self.on_edtName_textChanged)
+        self.edtName.textChanged.connect(self.on_filter_changed)
         layoutFilter.addWidget(self.lblName)
         layoutFilter.addWidget(self.edtName)
         
@@ -649,31 +682,29 @@ class CTableSearchPopupView(QtGui.QFrame):
         self._cmb.setCurrentIndex(index.row())
         self._cmb.hidePopup()
 
+            
+    def on_filter_changed(self, text):
+        self._filterTimer.start()
 
-    def on_edtCode_textChanged(self, code):
-        db = QtGui.qApp.db
-        table = db.table(self._cmb._tableName)
-        _filter = []
+    def applyFilters(self):
+        fields = [f.strip(' `"[]') for f in self._cmb._fields[1:].split(',')]
+        if not fields:
+            return
+
+        targetFieldCode = fields[0]
+        code = self.edtCode.text()
         if code:
-            _filter.append(table['code'].like('%' + unicode(code) + '%'))
-        if self.filter and _filter:
-            _filter = db.joinAnd([self.filter, db.joinAnd(_filter)])
+            self._cmb.setLocalFilter(targetFieldCode, forceString(code), CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
         else:
-            _filter = db.joinAnd(_filter)
-        self._cmb.setFilter(_filter)
+            self._cmb.removeLocalFilter(targetFieldCode)
 
-
-    def on_edtName_textChanged(self, name):
-        db = QtGui.qApp.db
-        table = db.table(self._cmb._tableName)
-        _filter = []
-        if name:
-            _filter.append(table['name'].like('%' + unicode(name) + '%'))
-        if self.filter and _filter:
-            _filter = db.joinAnd([self.filter, db.joinAnd(_filter)])
-        else:
-            _filter = db.joinAnd(_filter)
-        self._cmb.setFilter(_filter)
+        if len(fields) >= 2:
+            targetFieldName = fields[1]
+            name = self.edtName.text()
+            if name:
+                self._cmb.setLocalFilter(targetFieldName, forceString(name), CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+            else:
+                self._cmb.removeLocalFilter(targetFieldName)
 
 
     def eventFilter(self, obj, event):
@@ -694,24 +725,28 @@ class CTableSearchComboBox(CTableComboBox):
 
 
     def setCodeFilter(self, code):
+        fields = [f.strip(' `"[]') for f in self._fields[1:].split(',')]
+        if not fields:
+            return
         if code:
-            self.setLocalFilter(self._fields[1:].split(',')[0], code, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
+            self.setLocalFilter(fields[0], code, CSortFilterProxyTableModel.MatchContains, isCaseSensitive=False)
         else:
-            self.removeLocalFilter(self._fields[1:].split(',')[0])
+            self.removeLocalFilter(fields[0])
 
 
     def showPopup(self):
         if not self.isReadOnly():
-            if 'code' not in self._fields[1:].split(','):
+            fields = [f.strip(' `"[]') for f in self._fields[1:].split(',')]
+            if len(fields) <= 0:
                 self.popupView.lblCode.setVisible(False)
                 self.popupView.edtCode.setVisible(False)
-            if 'name' not in self._fields[1:].split(','):
+            if len(fields) <= 1:
                 self.popupView.lblName.setVisible(False)
                 self.popupView.edtName.setVisible(False)
             self._searchString = ''
             view = self.popupView.table
             frame = self.popupView
-            frame.filter = ''
+            #frame.filter = ''
             sizeHint = view.sizeHint()
             selectionModel = view.selectionModel()
             selectionModel.setCurrentIndex(self._model.index(self.currentIndex(), 1),
@@ -726,6 +761,34 @@ class CTableSearchComboBox(CTableComboBox):
 
 
 class CTableTreeSearchComboBox(CTableSearchComboBox):
+    def setValue(self, itemId):
+        CTableSearchComboBox.setValue(self, itemId)
+        
+        if not itemId or not getattr(self, '_treeModel', None):
+            return
+            
+        treeItems = getattr(self, '_treeItems', None)
+        if treeItems is not None and itemId not in treeItems:
+            row = self._model.searchId(itemId)
+            if row >= 0:
+                
+                parts = []
+                for col in range(self._model.columnCount()):
+                    val = forceString(self._model.getValue(row, col))
+                    if val:
+                        parts.append(val)
+                label = u' - '.join(parts) if parts else forceString(itemId)
+                
+                item = QtGui.QStandardItem(label)
+                item.setData(itemId, Qt.UserRole)
+                
+                self._treeItems[itemId] = item
+                if hasattr(self._model, '_treeItems'):
+                    self._model._treeItems[itemId] = item
+                    
+                self._treeModel.appendRow(item)
+                
+                
     def setTable(self, tableName, fields={}, fieldNames=None, order='', parentCol=None, childCol=None, orderCol=None, filter='', rawTable=None):
         if not checkViewURN(rawTable if rawTable else tableName):
             return False
@@ -745,6 +808,8 @@ class CTableTreeSearchComboBox(CTableSearchComboBox):
         fetchFields = [u'id']
         if parentCol not in fetchFields:
             fetchFields.append(parentCol)
+        if childCol not in fetchFields:
+            fetchFields.append(childCol)
         if isinstance(fields, list):
             for k in fields:
                 if k not in fetchFields:
@@ -759,6 +824,24 @@ class CTableTreeSearchComboBox(CTableSearchComboBox):
                 sortKey = None
 
         where = filter if filter else u''
+        
+        deletedField = table.findField('deleted')
+        canChooseField = table.findField('can_choose')
+        if deletedField or canChooseField:
+            valId = 0
+                
+            conds = []
+            if deletedField:
+                conds.append('deleted = 0')
+            if canChooseField:
+                conds.append('can_choose = 1')
+            
+            condStr = ' AND '.join(conds)
+            
+            if where:
+                where = "(({}) AND {}) OR id = {}".format(where, condStr, valId)
+            else:
+                where = "({}) OR id = {}".format(condStr, valId)
         try:
             records = QtGui.qApp.db.getRecordList(table, fetchFields, where=where, order=order)
         except Exception:
@@ -774,11 +857,11 @@ class CTableTreeSearchComboBox(CTableSearchComboBox):
             except Exception:
                 continue
             try:
-                childValue = rec.value(childCol)
+                childValue = rec.value(childCol.strip(' `"[]'))
             except Exception:
                 childValue = None
             try:
-                parentValue = rec.value(parentCol)
+                parentValue = rec.value(parentCol.strip(' `"[]'))
             except Exception:
                 parentValue = None
             childValue = forceString(childValue) if childValue is not None else u''
@@ -790,7 +873,7 @@ class CTableTreeSearchComboBox(CTableSearchComboBox):
             }
             if isinstance(fields, list):
                 for k in fields:
-                    recDict[k] = forceString(rec.value(k))
+                    recDict[k] = forceString(rec.value(k.strip(' `"[]')))
             recs.append(recDict)
 
         #mapParent = {}

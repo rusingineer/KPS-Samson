@@ -10,23 +10,14 @@
     <x>0</x>
     <y>0</y>
     <width>395</width>
-    <height>272</height>
+    <height>287</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Выбор экспортируемых тарифов</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>0</number>
    </property>
    <property name="spacing">
@@ -36,46 +27,6 @@
     <widget class="QCheckBox" name="chkExportAll">
      <property name="text">
       <string>Выгружать всё</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1">
-    <widget class="QPushButton" name="btnSelectAll">
-     <property name="text">
-      <string>Выбрать все</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
-    <spacer>
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>229</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="3" column="0" colspan="3">
-    <widget class="CInDocTableView" name="tblItems">
-     <property name="whatsThis">
-      <string comment="ура!">список записей</string>
-     </property>
-     <property name="tabKeyNavigation">
-      <bool>false</bool>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="2">
-    <widget class="QPushButton" name="btnClearSelection">
-     <property name="text">
-      <string>Очистить</string>
      </property>
     </widget>
    </item>
@@ -148,6 +99,60 @@
      </property>
     </widget>
    </item>
+   <item row="6" column="0">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>229</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="6" column="1">
+    <widget class="QPushButton" name="btnSelectAll">
+     <property name="text">
+      <string>Выбрать все</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="2">
+    <widget class="QPushButton" name="btnClearSelection">
+     <property name="text">
+      <string>Очистить</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="3">
+    <widget class="CInDocTableView" name="tblItems">
+     <property name="whatsThis">
+      <string comment="ура!">список записей</string>
+     </property>
+     <property name="tabKeyNavigation">
+      <bool>false</bool>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkExportExternalTariff">
+     <property name="text">
+      <string>Экспортировать внешние тарифы</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QCheckBox" name="chkExportExternalTariffToZero">
+     <property name="text">
+      <string>Обнулять внешние тарифы</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -163,8 +168,13 @@
   </customwidget>
  </customwidgets>
  <tabstops>
+  <tabstop>edtFilterBegDateFrom</tabstop>
+  <tabstop>edtFilterBegDateTil</tabstop>
+  <tabstop>chkActive</tabstop>
   <tabstop>chkExportAll</tabstop>
   <tabstop>tblItems</tabstop>
+  <tabstop>chkExportExternalTariff</tabstop>
+  <tabstop>chkExportExternalTariffToZero</tabstop>
   <tabstop>btnSelectAll</tabstop>
   <tabstop>btnClearSelection</tabstop>
  </tabstops>

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ferzlDialog</class>
+ <widget class="QWidget" name="ferzlDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>485</width>
+    <height>528</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>ФЕРЗЛ</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_4">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Тип документа</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="cmbRbDoc">
+       <item>
+        <property name="text">
+         <string>Паспорт РФ</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Свидетельство о рождении </string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Полис ОМС старого образца</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Временное свидетельство в форме бумажного бланка</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Временное свидетельство в форме электронного</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Бумажный полис ОМС единого образца</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Электронный полис ОМС единого образца</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Полис ОМС в составе универсальной электронной карты</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Цифровой полис ОМС</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>ЕНП</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Серия</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="seria"/>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Номер </string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="number"/>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="btnSearch">
+       <property name="text">
+        <string>Искать</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="0">
+    <widget class="CTableView" name="tableView"/>
+   </item>
+   <item row="3" column="0">
+    <layout class="QGridLayout" name="gridLayout_3">
+     <item row="0" column="0">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="btnAdd">
+       <property name="text">
+        <string>Добавить пациента</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QPushButton" name="btnClose">
+       <property name="text">
+        <string>Отмена</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CTableView</class>
+   <extends>QTableView</extends>
+   <header location="global">library.TableView</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

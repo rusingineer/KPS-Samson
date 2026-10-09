@@ -447,10 +447,12 @@ class CImportSPR_Page2(QtGui.QWizardPage, Ui_ImportRbResult_Wizard_3):
     def processSOCSPR(self, root, table): #SPR11, SPR12, SPR20, SPR82, SPR98
         clearTable(table)
         records = []
+        spr98 = False
+        spr20 = False
         if table.name() == 'soc_spr20':
             spr20 = True
-        else:
-            spr20 = False
+        elif table.name() == 'soc_spr98':
+            spr98 = True
             
         for item in root:
             self.progressBar.setValue(self.progressBar.value() + 1)
@@ -468,7 +470,7 @@ class CImportSPR_Page2(QtGui.QWizardPage, Ui_ImportRbResult_Wizard_3):
                 code = forceString(item.find('KUSL').text) if item.find('KUSL') is not None else None
             name = forceString(item.find('NAME').text) if item.find('NAME') is not None else None
 
-            if not code:
+            if not code and not spr98:
                 self.nSkipped += 1
                 self.logBrowser.append(u'<b><font color=red>Пропуск</font></b> `{}` отсутствует код.'.format(name))
                 continue
@@ -485,7 +487,11 @@ class CImportSPR_Page2(QtGui.QWizardPage, Ui_ImportRbResult_Wizard_3):
                     continue
                     
             records.append(addSPR(table, code, name, groupCode, begDate, endDate, moCode))
-            self.logBrowser.append(u'<b><font color=blue>Добавляем</font></b> код `{}` {}.'.format(code, ', "'+name+'"' if name else ''))
+            if spr98:
+                text = u'код `{}`{}'.format(code if code else u'_', u', код МО: ' + moCode if moCode else '')
+            else:
+                text = u'код `{}` {}.'.format(code, ', "'+name+'"' if name else '')
+            self.logBrowser.append(u'<b><font color=blue>Добавляем</font></b> {}'.format(text))
             self.nAdded += 1
             
             QtGui.qApp.processEvents()

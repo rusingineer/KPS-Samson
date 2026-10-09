@@ -135,6 +135,7 @@ class Ui_DialogOdli(object):
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.gridLayout_2.addItem(spacerItem1, 0, 0, 1, 1)
         self.btnAply = QtGui.QPushButton(self.groupBox)
+        self.btnAply.setDefault(True)
         self.btnAply.setObjectName(_fromUtf8("btnAply"))
         self.gridLayout_2.addWidget(self.btnAply, 0, 1, 1, 1)
         self.btnCancel_2 = QtGui.QPushButton(self.groupBox)
@@ -145,6 +146,15 @@ class Ui_DialogOdli(object):
 
         self.retranslateUi(DialogOdli)
         QtCore.QMetaObject.connectSlotsByName(DialogOdli)
+        DialogOdli.setTabOrder(self.tblActionODLI, self.cmbOrgStructure)
+        DialogOdli.setTabOrder(self.cmbOrgStructure, self.cmbEndDate)
+        DialogOdli.setTabOrder(self.cmbEndDate, self.cmbDate)
+        DialogOdli.setTabOrder(self.cmbDate, self.cmbStatus)
+        DialogOdli.setTabOrder(self.cmbStatus, self.Client)
+        DialogOdli.setTabOrder(self.Client, self.Number)
+        DialogOdli.setTabOrder(self.Number, self.btnAply)
+        DialogOdli.setTabOrder(self.btnAply, self.btnCancel_2)
+        DialogOdli.setTabOrder(self.btnCancel_2, self.btnClose)
 
     def retranslateUi(self, DialogOdli):
         DialogOdli.setWindowTitle(_translate("DialogOdli", "Обмен данными лабораторных исследований", None))

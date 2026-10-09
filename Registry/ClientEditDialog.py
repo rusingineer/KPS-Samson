@@ -5134,157 +5134,97 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                             param_dict['dudlNum'] = self.edtDocNumber.text()
                 else:
                     param_dict['dudlNum'] = self.edtDocNumber.text()
-            # policyKind = self.cmbCompulsoryPolisKind.value()
-            # if policyKind == 2:
-            #     param_dict['pcyType'] = u'С'
-            #     serial = self.edtCompulsoryPolisSerial.text()
-            #     number = self.edtCompulsoryPolisNumber.text()
-            #     if serial:
-            #         param_dict['pcySer'] = serial
-            #     if number:
-            #         param_dict['pcyNum'] = number
-            # elif policyKind == 4:
-            #     param_dict['pcyType'] = u'Э'
-            #     enp = self.edtCompulsoryPolisNumber.text()
-            #     if enp:
-            #         param_dict['enp'] = enp
-            # elif policyKind == 5:
-            #     param_dict['pcyType'] = u'К'
-            # elif policyKind == 3:
-            #     param_dict['pcyType'] = u'П'
-            #     enp = self.edtCompulsoryPolisNumber.text()
-            #     if enp:
-            #         param_dict['enp'] = enp
-            # elif policyKind == 1:
-            #     param_dict['pcyType'] = u'В'
+
             enp = self.edtCompulsoryPolisNumber.text()
             param_dict['enp'] = enp
             param_dict['dt'] = forceString(date.today().strftime('%Y-%m-%d'))
             param_dict['show'] = u'ATTACH PERSON OMS_POLICY'
             external_id = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(self.getClientId())))
             param_dict['external_id'] = external_id
-            result_service = service.getPersonDataFrom(param_dict)
+            result_service = service.getInsuranceStatus(param_dict)
             
             if result_service:
                 if result_service.get('result',None):
-                    # print(result_service)
                     elements = result_service.get('elements', None)
                     if elements:
-                        if self.edtLastName.text() == u'' and not self.edtLastName.text():
-                            surname = elements.get('surname', None)
-                            if surname:
-                                self.edtLastName.setText(forceString(surname))
-                        if self.edtFirstName.text() == u'' and not self.edtFirstName.text():
-                            firstname = elements.get('firstName', None)
-                            if firstname:
-                                self.edtFirstName.setText(forceString(firstname))
-                        if self.edtPatrName.text() == u'' and not self.edtPatrName.text():
-                            patr = elements.get('patronymic', None)
-                            if patr:
-                                self.edtPatrName.setText(patr)
-                        if self.edtBirthDate.date().isNull():
-                            birthdate = elements.get('birthDay', None)
-                            if birthdate:
-                                birthdate = datetime.datetime.strptime(birthdate, '%d.%m.%Y')
-                                self.edtBirthDate.setDate(forceDate(birthdate))
                         gender = elements.get('gender', None)
                         if gender:
                             if self.cmbSex.currentIndex() != forceInt(gender):
                                 self.cmbSex.setCurrentIndex(forceInt(gender))
-                        deathDate = elements.get('deathDate', None)
-                        if deathDate:
-                            if self.edtDeathDate.date().isNull():
-                                self.chkDeathDate.setChecked(True)
-                                deathDate = datetime.datetime.strptime(deathDate, "%d.%m.%Y")
-                                self.edtDeathDate.setDate(forceDate(deathDate))
-                        policy = elements.get('policy', None)
-                        if policy and len(policy)>0:
-                            polis = policy[0]
-                            enp = polis.get('policy_enp', None)
-                            pcySer = polis.get('policy_pcySer', None)
-                            pcyNum = polis.get('policy_pcyNum', None)
-                            polisDateB = polis.get('policy_pcyDateB', None)
-                            polisDateE = polis.get('policy_pcyDateE', None)
-                            pcyType = polis.get('policy_pcyType', None)
-                            if enp:
-                                self.edtCompulsoryPolisNumber.setText(enp)
-                            elif pcyNum or pcySer:
-                                if pcyNum:
-                                    self.edtCompulsoryPolisNumber.setText(pcyNum)
-                                if pcySer:
-                                    self.edtCompulsoryPolisSerial.setText(pcySer)
-                            if polisDateB:
-                                polisDateB = datetime.datetime.strptime(polisDateB, "%d.%m.%Y")
-                                self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
-                            if polisDateE:
-                                polisDateE = datetime.datetime.strptime(polisDateE, "%d.%m.%Y")
-                                self.edtCompulsoryPolisEndDate.setDate(forceDate(polisDateE))
-                            if pcyType:
-                                pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "
-                                if pcyType == u'П':
-                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'3')
-                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
-                                    if pcyType_query.next():
-                                        pcyType_id = pcyType_query.record().value('id')
-                                        if pcyType_id:
-                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
-                                elif pcyType == u'С':
-                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'1')
-                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
-                                    if pcyType_query.next():
-                                        pcyType_id = pcyType_query.record().value('id')
-                                        if pcyType_id:
-                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
-                                elif pcyType == u'В':
-                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'2')
-                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
-                                    if pcyType_query.next():
-                                        pcyType_id = pcyType_query.record().value('id')
-                                        if pcyType_id:
-                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
-                                elif pcyType == u'Э':
-                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'4')
-                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
-                                    if pcyType_query.next():
-                                        pcyType_id = pcyType_query.record().value('id')
-                                        if pcyType_id:
-                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
-                                elif pcyType == u'К':
-                                    pcyType_request = pcyType_request.replace(u'/*CODE*/', u'5')
-                                    pcyType_query = QtGui.qApp.db.query(pcyType_request)
-                                    if pcyType_query.next():
-                                        pcyType_id = pcyType_query.record().value('id')
-                                        if pcyType_id:
-                                            self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
-                            insurfCode = polis.get('policy_insurfCode', None)
-                            insurfOrgn = polis.get('policy_insurfOgrn', None)
-                            insurfOkato = polis.get('policy_okato', None)
-                            insurfName = polis.get('policy_insurfName', None)
-                            if insurfCode or insurfOrgn:
-                                insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 and 3=3"
-                                if insurfCode:
-                                    insurf_request = insurf_request.replace(u'1=1', u"smoCode = '" + forceString(insurfCode)+ u"'")
-                                if insurfOrgn:
-                                    insurf_request = insurf_request.replace(u'2=2', u"OGRN = '" + forceString(insurfOrgn)+ u"'")
-                                if insurfOkato:
-                                    insurf_request = insurf_request.replace(u'3=3', u"OKATO = '" + forceString(insurfOkato)+ u"'")
-                                insurf_query = QtGui.qApp.db.query(insurf_request)
-                                if insurf_query.next():
-                                    insurf_id = insurf_query.record().value('id')
-                                    if insurf_id:
-                                        self.cmbCompulsoryPolisCompany.setValue(forceInt(insurf_id))
-                                else:
-                                    insurf_string = u""
-                                    if insurfCode:
-                                        insurf_string = insurf_string + forceString(insurfCode)
-                                    if insurf_string != u"":
-                                        if insurfName:
-                                            insurf_string = insurf_string + u' - ' + forceString(insurfName)
-                                    else:
-                                        if insurfName:
-                                            insurf_string = insurf_string + forceString(insurfName)
-                                    self.edtCompulsoryPolisName.setText(insurf_string)
+                        pcySer = elements.get('policySer', None)
+                        pcyNum = elements.get('policyNumEnp', None)
+                        polisDateB = elements.get('policyValidFrom', None)
+                        pcyType = elements.get('policyType', None)
+                        if pcyNum or pcySer:
+                            if pcyNum:
+                                self.edtCompulsoryPolisNumber.setText(pcyNum)
+                                self.cmbCompulsoryPolisType.setValue(1)
+                            if pcySer:
+                                self.edtCompulsoryPolisSerial.setText(pcySer)
+                                
+                        if polisDateB:
+                            polisDateB = datetime.datetime.strptime(polisDateB, "%d.%m.%Y")
+                            self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
+                        if pcyType:
+                            pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "
+                            if pcyType == u'П':
+                                pcyType_request = pcyType_request.replace(u'/*CODE*/', u'3')
+                                pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                if pcyType_query.next():
+                                    pcyType_id = pcyType_query.record().value('id')
+                                    if pcyType_id:
+                                        self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                            elif pcyType == u'С':
+                                pcyType_request = pcyType_request.replace(u'/*CODE*/', u'1')
+                                pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                if pcyType_query.next():
+                                    pcyType_id = pcyType_query.record().value('id')
+                                    if pcyType_id:
+                                        self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                            elif pcyType == u'В':
+                                pcyType_request = pcyType_request.replace(u'/*CODE*/', u'2')
+                                pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                if pcyType_query.next():
+                                    pcyType_id = pcyType_query.record().value('id')
+                                    if pcyType_id:
+                                        self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                            elif pcyType == u'Э':
+                                pcyType_request = pcyType_request.replace(u'/*CODE*/', u'4')
+                                pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                if pcyType_query.next():
+                                    pcyType_id = pcyType_query.record().value('id')
+                                    if pcyType_id:
+                                        self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+                            elif pcyType == u'К':
+                                pcyType_request = pcyType_request.replace(u'/*CODE*/', u'5')
+                                pcyType_query = QtGui.qApp.db.query(pcyType_request)
+                                if pcyType_query.next():
+                                    pcyType_id = pcyType_query.record().value('id')
+                                    if pcyType_id:
+                                        self.cmbCompulsoryPolisKind.setValue(forceInt(pcyType_id))
+# enp = polis.get('policyNumEnp', None) - передаётся в одно поле с номером описание "Номер полиса ОМС или ЕНП" как определять енп или номер полиса я хз,
+# возможно если тип полиса "Х - Состояние на учёте без полиса ОМС" то это будет ЕНП, на текщий момент не знаю куда это прописать.
+#                             elif pcyType == u'Х':
+#                                 enp = polis.get('policyNumEnp', None)
 
+                        insurfCode = elements.get('smo', None)
+                        insurfOkato = elements.get('terr', None)
+                        if insurfCode:
+                            insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 and 3=3"
+                            if insurfCode:
+                                insurf_request = insurf_request.replace(u'1=1', u"smoCode = '" + forceString(insurfCode) + u"'")
+                            if insurfOkato:
+                                insurf_request = insurf_request.replace(u'2=2', u"OKATO = '" + forceString(insurfOkato) + u"'")
+                            insurf_query = QtGui.qApp.db.query(insurf_request)
+                            if insurf_query.next():
+                                insurf_id = insurf_query.record().value('id')
+                                if insurf_id:
+                                    self.cmbCompulsoryPolisCompany.setValue(forceInt(insurf_id))
+                        else:
+                            insurf_string = u""
+                            if insurfCode:
+                                insurf_string = insurf_string + forceString(insurfCode)
+                            self.edtCompulsoryPolisName.setText(insurf_string)
                         oip = elements.get('oip', None)
                         if oip:
                             request_identification = u"SELECT id FROM rbAccountingSystem  WHERE code = 'FERZL_patient'"
@@ -5306,8 +5246,6 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                         record.setValue('identifier', toVariant(forceString(oip)))
                                         record.setValue('client_id', toVariant(forceRef(self.getClientId())))
                                         self.modelClientIdentification.items().append(record)
-
-
 
         except Exception as e:
             print(str(e))

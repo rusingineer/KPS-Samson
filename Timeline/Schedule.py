@@ -137,12 +137,12 @@ class CScheduleItem(CSqlRecordWrapper):
                                  and not appointment.enableRecordViaCallCenter
                                  and not appointment.enableRecordViaInternet
                                  and appointment.enableOwnRecord)
-        isKT = not appointment or (appointment
-                                   and appointment.enablePrimaryRecord
-                                   and appointment.enableConsultancyRecord
-                                   and appointment.enableRecordViaInfomat
-                                   and appointment.enableRecordViaCallCenter
-                                   and appointment.enableRecordViaInternet)
+        isKT = not appointment or (appointment and (
+                                   appointment.enablePrimaryRecord
+                                   or appointment.enableConsultancyRecord
+                                   or appointment.enableRecordViaInfomat
+                                   or appointment.enableRecordViaCallCenter
+                                   or appointment.enableRecordViaInternet))
         baseType = self.KT if isKT else self.NKT if isNKT else u''
 
         if context.postIdentificationCode in context.postForMainLogicRecord:

@@ -222,7 +222,7 @@ class CReportAFT_Forecast12month(CReport):
 
                         entry[u'usl'][ym_key] = entry[u'usl'].get(ym_key, 0) + usl
                         entry[u'sum'][ym_key] = entry[u'sum'].get(ym_key, 0.0) + summa
-                        client_id_set = {forceInt(cl_id) for cl_id in amountClientId.split(u',') }
+                        client_id_set = {forceInt(cl_id) for cl_id in amountClientId.split(u',') if cl_id.strip() }
                         entry[u'cli'][ym_key] = set(list(entry[u'cli'].get(ym_key, set())) + list(client_id_set))
 
         query = self.selectData(params)

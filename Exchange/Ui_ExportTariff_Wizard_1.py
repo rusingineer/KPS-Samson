@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\projects\samson\UP_s11\client_mse\Exchange\ExportTariff_Wizard_1.ui'
+# Form implementation generated from reading ui file '.\Exchange\ExportTariff_Wizard_1.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -26,7 +26,7 @@ class Ui_ExportTariff_Wizard_1(object):
     def setupUi(self, ExportTariff_Wizard_1):
         ExportTariff_Wizard_1.setObjectName(_fromUtf8("ExportTariff_Wizard_1"))
         ExportTariff_Wizard_1.setWindowModality(QtCore.Qt.NonModal)
-        ExportTariff_Wizard_1.resize(395, 272)
+        ExportTariff_Wizard_1.resize(395, 287)
         self.gridLayout = QtGui.QGridLayout(ExportTariff_Wizard_1)
         self.gridLayout.setMargin(0)
         self.gridLayout.setSpacing(4)
@@ -34,19 +34,6 @@ class Ui_ExportTariff_Wizard_1(object):
         self.chkExportAll = QtGui.QCheckBox(ExportTariff_Wizard_1)
         self.chkExportAll.setObjectName(_fromUtf8("chkExportAll"))
         self.gridLayout.addWidget(self.chkExportAll, 2, 0, 1, 2)
-        self.btnSelectAll = QtGui.QPushButton(ExportTariff_Wizard_1)
-        self.btnSelectAll.setObjectName(_fromUtf8("btnSelectAll"))
-        self.gridLayout.addWidget(self.btnSelectAll, 4, 1, 1, 1)
-        spacerItem = QtGui.QSpacerItem(229, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 4, 0, 1, 1)
-        self.tblItems = CInDocTableView(ExportTariff_Wizard_1)
-        self.tblItems.setTabKeyNavigation(False)
-        self.tblItems.setAlternatingRowColors(True)
-        self.tblItems.setObjectName(_fromUtf8("tblItems"))
-        self.gridLayout.addWidget(self.tblItems, 3, 0, 1, 3)
-        self.btnClearSelection = QtGui.QPushButton(ExportTariff_Wizard_1)
-        self.btnClearSelection.setObjectName(_fromUtf8("btnClearSelection"))
-        self.gridLayout.addWidget(self.btnClearSelection, 4, 2, 1, 1)
         self.horizontalLayout = QtGui.QHBoxLayout()
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.label_2 = QtGui.QLabel(ExportTariff_Wizard_1)
@@ -87,22 +74,48 @@ class Ui_ExportTariff_Wizard_1(object):
         self.chkActive = QtGui.QCheckBox(ExportTariff_Wizard_1)
         self.chkActive.setObjectName(_fromUtf8("chkActive"))
         self.gridLayout.addWidget(self.chkActive, 1, 0, 1, 1)
+        spacerItem = QtGui.QSpacerItem(229, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem, 6, 0, 1, 1)
+        self.btnSelectAll = QtGui.QPushButton(ExportTariff_Wizard_1)
+        self.btnSelectAll.setObjectName(_fromUtf8("btnSelectAll"))
+        self.gridLayout.addWidget(self.btnSelectAll, 6, 1, 1, 1)
+        self.btnClearSelection = QtGui.QPushButton(ExportTariff_Wizard_1)
+        self.btnClearSelection.setObjectName(_fromUtf8("btnClearSelection"))
+        self.gridLayout.addWidget(self.btnClearSelection, 6, 2, 1, 1)
+        self.tblItems = CInDocTableView(ExportTariff_Wizard_1)
+        self.tblItems.setTabKeyNavigation(False)
+        self.tblItems.setAlternatingRowColors(True)
+        self.tblItems.setObjectName(_fromUtf8("tblItems"))
+        self.gridLayout.addWidget(self.tblItems, 3, 0, 1, 3)
+        self.chkExportExternalTariff = QtGui.QCheckBox(ExportTariff_Wizard_1)
+        self.chkExportExternalTariff.setObjectName(_fromUtf8("chkExportExternalTariff"))
+        self.gridLayout.addWidget(self.chkExportExternalTariff, 4, 0, 1, 2)
+        self.chkExportExternalTariffToZero = QtGui.QCheckBox(ExportTariff_Wizard_1)
+        self.chkExportExternalTariffToZero.setObjectName(_fromUtf8("chkExportExternalTariffToZero"))
+        self.gridLayout.addWidget(self.chkExportExternalTariffToZero, 5, 0, 1, 2)
 
         self.retranslateUi(ExportTariff_Wizard_1)
         QtCore.QMetaObject.connectSlotsByName(ExportTariff_Wizard_1)
+        ExportTariff_Wizard_1.setTabOrder(self.edtFilterBegDateFrom, self.edtFilterBegDateTil)
+        ExportTariff_Wizard_1.setTabOrder(self.edtFilterBegDateTil, self.chkActive)
+        ExportTariff_Wizard_1.setTabOrder(self.chkActive, self.chkExportAll)
         ExportTariff_Wizard_1.setTabOrder(self.chkExportAll, self.tblItems)
-        ExportTariff_Wizard_1.setTabOrder(self.tblItems, self.btnSelectAll)
+        ExportTariff_Wizard_1.setTabOrder(self.tblItems, self.chkExportExternalTariff)
+        ExportTariff_Wizard_1.setTabOrder(self.chkExportExternalTariff, self.chkExportExternalTariffToZero)
+        ExportTariff_Wizard_1.setTabOrder(self.chkExportExternalTariffToZero, self.btnSelectAll)
         ExportTariff_Wizard_1.setTabOrder(self.btnSelectAll, self.btnClearSelection)
 
     def retranslateUi(self, ExportTariff_Wizard_1):
         ExportTariff_Wizard_1.setWindowTitle(_translate("ExportTariff_Wizard_1", "Выбор экспортируемых тарифов", None))
         self.chkExportAll.setText(_translate("ExportTariff_Wizard_1", "Выгружать всё", None))
-        self.btnSelectAll.setText(_translate("ExportTariff_Wizard_1", "Выбрать все", None))
-        self.tblItems.setWhatsThis(_translate("ExportTariff_Wizard_1", "список записей", "ура!"))
-        self.btnClearSelection.setText(_translate("ExportTariff_Wizard_1", "Очистить", None))
         self.label_2.setText(_translate("ExportTariff_Wizard_1", "Дата начала тарифа    с", None))
         self.label.setText(_translate("ExportTariff_Wizard_1", "по", None))
         self.chkActive.setText(_translate("ExportTariff_Wizard_1", "Действующие на дату", None))
+        self.btnSelectAll.setText(_translate("ExportTariff_Wizard_1", "Выбрать все", None))
+        self.btnClearSelection.setText(_translate("ExportTariff_Wizard_1", "Очистить", None))
+        self.tblItems.setWhatsThis(_translate("ExportTariff_Wizard_1", "список записей", "ура!"))
+        self.chkExportExternalTariff.setText(_translate("ExportTariff_Wizard_1", "Экспортировать внешние тарифы", None))
+        self.chkExportExternalTariffToZero.setText(_translate("ExportTariff_Wizard_1", "Обнулять внешние тарифы", None))
 
 from library.DateEdit import CDateEdit
 from library.InDocTable import CInDocTableView

@@ -5466,9 +5466,11 @@ class CClientContingentKindInfo(CInfo):
         self._note = ''
 
     def _load(self):
-        record = QtGui.qApp.db.getRecord('ClientContingentKind', 'contingentKind_id, begDate, endDate, contingentKindRemoval_id, speciality_id, org_id, MKB, note', self.clientContingentKindId)
+        record = QtGui.qApp.db.getRecord('ClientContingentKind', 'contingentKind_id, begDate, endDate, contingentKindRemoval_id, speciality_id, org_id, MKB, note, observationGroup_id, observationSubgroups', self.clientContingentKindId)
         if record:
             self._contingentKind = self.getInstance(CContingentKindInfo, forceRef(record.value('contingentKind_id')))
+            self._observationGroup = self.getInstance(CObservationGroupInfo, forceRef(record.value('observationGroup_id')))
+            self._observationSubgroups = self.getInstance(CObservationSubgroupsInfo, forceRef(record.value('observationSubgroups')))
             self._begDate = CDateInfo(forceDate(record.value('begDate')))
             self._endDate = CDateInfo(forceDate(record.value('endDate')))
             self._reason = forceInt(record.value('contingentKindRemoval_id'))
@@ -5490,6 +5492,8 @@ class CClientContingentKindInfo(CInfo):
     org            = property(lambda self: self.load()._org)
     MKB            = property(lambda self: self.load()._MKB)
     note           = property(lambda self: self.load()._note)
+    observationGroup           = property(lambda self: self.load()._observationGroup)
+    observationSubgroups           = property(lambda self: self.load()._observationSubgroups)
 
     def __str__(self):
         result = self.contingentKind.code if self.contingentKind else ''
@@ -5497,6 +5501,48 @@ class CClientContingentKindInfo(CInfo):
         if self.endDate:
             result += (' ' + self.endDate)
         return result
+
+class CObservationGroupInfo(CInfo):
+    def __init__(self, context, observationGroupId):
+        CInfo.__init__(self, context)
+        self.observationGroupId = observationGroupId
+        self._code = ''
+        self._name = ''
+
+    def _load(self):
+        record = QtGui.qApp.db.getRecord('rbObservationGroup', 'code, name', self.observationGroupId)
+        if record:
+            self._code = forceString(record.value('code'))
+            self._name = forceString(record.value('name'))
+            return True
+        return False
+
+    code = property(lambda self: self.load()._code)
+    name = property(lambda self: self.load()._name)
+
+    def __str__(self):
+        return self.load()._name
+
+class CObservationSubgroupsInfo(CInfo):
+    def __init__(self, context, observationSubgroups):
+        CInfo.__init__(self, context)
+        self.observationSubgroups = observationSubgroups
+        self._code = ''
+        self._name = ''
+
+    def _load(self):
+        record = QtGui.qApp.db.getRecord('rbObservationSubgroup', 'code, name', self.observationSubgroups)
+        if record:
+            self._code = forceString(record.value('code'))
+            self._name = forceString(record.value('name'))
+            return True
+        return False
+
+    code = property(lambda self: self.load()._code)
+    name = property(lambda self: self.load()._name)
+
+    def __str__(self):
+        return self.load()._name
 
 class CContingentKindInfo(CInfo):
     def __init__(self, context, contingentKindId):

@@ -4142,6 +4142,15 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                     Q_G = self.RecordListP[-1]['Q_G']
                     Q_G += 'm' if 'm' not in Q_G else ''
                     self.RecordListP[-1]['Q_G'] = Q_G
+            elif endDate >= QDate(2026, 7, 1) and VP in ('01', '02'):
+                value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                if value is None:
+                    value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                    self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                if value == 'mobcz':
+                    Q_G = self.RecordListP[-1]['Q_G']
+                    Q_G += 'u' if 'u' not in Q_G else ''
+                    self.RecordListP[-1]['Q_G'] = Q_G
             if endDate >= QDate(2025, 1, 1) and forceInt(record.value('rehabilitation')):
                 Q_G = self.RecordListP[-1]['Q_G']
                 Q_G += 'h' if 'h' not in Q_G else ''

@@ -95,6 +95,14 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>lvDoctors</tabstop>
+  <tabstop>tblAppointments</tabstop>
+  <tabstop>btnSetAppointment</tabstop>
+  <tabstop>btnRegisterReferral</tabstop>
+  <tabstop>btnUpdateList</tabstop>
+  <tabstop>btnClose</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

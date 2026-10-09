@@ -69,6 +69,11 @@ class Ui_UOAppointmentsTableDialog(object):
 
         self.retranslateUi(UOAppointmentsTableDialog)
         QtCore.QMetaObject.connectSlotsByName(UOAppointmentsTableDialog)
+        UOAppointmentsTableDialog.setTabOrder(self.lvDoctors, self.tblAppointments)
+        UOAppointmentsTableDialog.setTabOrder(self.tblAppointments, self.btnSetAppointment)
+        UOAppointmentsTableDialog.setTabOrder(self.btnSetAppointment, self.btnRegisterReferral)
+        UOAppointmentsTableDialog.setTabOrder(self.btnRegisterReferral, self.btnUpdateList)
+        UOAppointmentsTableDialog.setTabOrder(self.btnUpdateList, self.btnClose)
 
     def retranslateUi(self, UOAppointmentsTableDialog):
         UOAppointmentsTableDialog.setWindowTitle(_translate("UOAppointmentsTableDialog", "Сервис Управления потоками пациентов (очередями)", None))

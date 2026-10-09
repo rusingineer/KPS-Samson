@@ -4574,11 +4574,14 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
                                     self.eventEditor.modelFinalDiagnostics.emitResultChanged()
 
                 elif u'выписан' in action[u'Исход госпитализации'].lower():
-                    query = QtGui.qApp.db.getRecordEx(tableResult, tableResult['id'],
-                                                      [tableResult['name'].like(u'Выписан'),
-                                                       tableResult['eventPurpose_id'].eq(self.eventEditor.eventPurposeId),
-                                                       db.joinOr([tableResult['begDate'].isNull(), tableResult['begDate'].le(endDateCheck)]),
-                                                       db.joinOr([tableResult['endDate'].isNull(), tableResult['endDate'].gt(endDateCheck.addDays(1))])
+                    tableCurrentResult = db.table('rbResult').alias('currentResult')
+                    table = tableResult.leftJoin(tableCurrentResult, tableCurrentResult['id'].eq(self.eventEditor.cmbResult.value()))
+                    query = QtGui.qApp.db.getRecordEx(table, tableRbResult['id'],
+                                                      [tableRbResult['name'].like(u'Выписан'),
+                                                       tableRbResult['eventPurpose_id'].eq(self.eventEditor.eventPurposeId),
+                                                       db.joinOr([tableRbResult['begDate'].isNull(), tableRbResult['begDate'].le(endDateCheck)]),
+                                                       db.joinOr([tableCurrentResult['id'].isNull(), tableCurrentResult['regionalCode'].eq('105')]),
+                                                       db.joinOr([tableRbResult['endDate'].isNull(), tableRbResult['endDate'].gt(endDateCheck.addDays(1))])
                                                        ])
                     if query:
                         result = forceRef(query.value('id'))

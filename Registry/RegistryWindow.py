@@ -2889,14 +2889,33 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
 
         self.updateClientsListRequest = False
         if not idList and len(cond) > 1 and QtGui.qApp.userHasRight(urRegTabNewWriteRegistry):
-            res = QtGui.QMessageBox.warning(self,
-                                            u'Внимание',
-                                            u'Пациент не обнаружен.\nХотите зарегистрировать пациента?',
-                                            QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
-                                            QtGui.QMessageBox.Ok)
-            if res == QtGui.QMessageBox.Ok:
-                self.editNewClient()
-                self.focusClients()
+            if QtGui.qApp.gis_oms_enable():
+                messageBox = QtGui.QMessageBox()
+                messageBox.setWindowFlags(messageBox.windowFlags() | Qt.WindowStaysOnTopHint)
+                messageBox.setWindowTitle(u'Внимание!')
+                messageBox.setText(u'Пациент не обнаружен.\nХотите зарегистрировать пациента?')
+                messageBox.addButton(QtGui.QPushButton(u'ОК'), QtGui.QMessageBox.ActionRole)
+                messageBox.addButton(QtGui.QPushButton(u'Искать по ФЕРЗЛ'), QtGui.QMessageBox.ActionRole)
+                messageBox.addButton(QtGui.QPushButton(u'Отмена'), QtGui.QMessageBox.ActionRole)
+                res = messageBox.exec_()
+                if res == 0:
+                    self.editNewClient()
+                    self.focusClients()
+                elif res == 1:
+                    from Exchange.ferzl.ferzlDialog import CferzlDialog
+                    dlg = CferzlDialog(self)
+                    if dlg.exec_() == CferzlDialog.Accepted:
+                        result = dlg.getResult()
+                        self.findClient(result['clientId'])
+            else:
+                res = QtGui.QMessageBox.warning(self,
+                                                u'Внимание',
+                                                u'Пациент не обнаружен.\nХотите зарегистрировать пациента?',
+                                                QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                                                QtGui.QMessageBox.Ok)
+                if res == QtGui.QMessageBox.Ok:
+                    self.editNewClient()
+                    self.focusClients()
         elif clientCount == 1:
             clientId = idList[0]
             self.focusClients()

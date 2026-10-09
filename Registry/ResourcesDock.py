@@ -3346,12 +3346,17 @@ def isAppointmentEnabledForClient(appointmentPurposeId, personId, date, clientId
 def isAppointmentEnabledForDate(scheduleItem, personId):
     db = QtGui.qApp.db
     id_ = scheduleItem.id if scheduleItem.id else '-1'
+    appointmentPurposeId = scheduleItem.appointmentPurposeId
     isAvalibleForExternal = forceBool(db.translate('Person', 'id', personId, 'availableForExternal'))
     table = db.table('GetPositionList')
     record = db.getRecordEx(table, table['id'], [table['code_last'].eq(14), table['code'].eq(getPostIdentCodeByPersonId(personId))])
     isInListForInterofficeRecord = True if record and forceRef(record.value('id')) else False
     isInterofficeRecord = not isAvalibleForExternal or isInListForInterofficeRecord
-    AppointmentPerson = db.getRecord('Schedule', ('Schedule.date<=%s or (Schedule.date<=%s and Schedule.person_id = %s  AND (SELECT ap.enablePrimaryRecord = 0  AND ap.enableConsultancyRecord = 0  AND ap.enableRecordViaInfomat  = 0  AND ap.enableRecordViaCallCenter = 0  AND ap.enableRecordViaInternet = 0  FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id  WHERE si.id= %s) ) or (SELECT f.code IS not NULL and f.code!=2 FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id   LEFT JOIN rbFinance f ON ap.finance_id = f.id WHERE si.id=%s) as check_' % (db.dateAdd('current_date', 'day', '14') if not isInterofficeRecord else db.dateAdd('current_date', 'day', '30'),db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId, id_, id_)),forceInt(scheduleItem.record.value('master_id')))
+    if scheduleItem.overtime and appointmentPurposeId:
+        appointmentPurposeSubquery = '(SELECT ap.enablePrimaryRecord = 0  AND ap.enableConsultancyRecord = 0  AND ap.enableRecordViaInfomat  = 0  AND ap.enableRecordViaCallCenter = 0  AND ap.enableRecordViaInternet = 0  FROM rbAppointmentPurpose ap WHERE ap.id= %s)' % appointmentPurposeId
+    else:
+        appointmentPurposeSubquery = '(SELECT ap.enablePrimaryRecord = 0  AND ap.enableConsultancyRecord = 0  AND ap.enableRecordViaInfomat  = 0  AND ap.enableRecordViaCallCenter = 0  AND ap.enableRecordViaInternet = 0  FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id  WHERE si.id= %s)' % id_
+    AppointmentPerson = db.getRecord('Schedule', ('Schedule.date<=%s or (Schedule.date<=%s and Schedule.person_id = %s  AND %s ) or (SELECT f.code IS not NULL and f.code!=2 FROM Schedule_Item si LEFT JOIN rbAppointmentPurpose ap ON si.appointmentPurpose_id = ap.id   LEFT JOIN rbFinance f ON ap.finance_id = f.id WHERE si.id=%s) as check_' % (db.dateAdd('current_date', 'day', '14') if not isInterofficeRecord else db.dateAdd('current_date', 'day', '30'),db.dateAdd('current_date', 'day', '120'), QtGui.qApp.userId, appointmentPurposeSubquery, id_)),forceInt(scheduleItem.record.value('master_id')))
     check = forceInt(AppointmentPerson.value('check_'))
     return check
 

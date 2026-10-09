@@ -1535,6 +1535,16 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 price = round(round(price, 2) * 1.2, 2)
                                 sum = price * amount
 
+                    # для мобильных центров здоровья
+                    if eventEndDate >= QDate(2026, 7, 1) and medicalAidTypeCode in ('01', '02'):
+                        value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                        if value is None:
+                            value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                            self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                        if value in ['mobcz']:
+                            price = round(round(price, 2) * 1.2, 2)
+                            sum = price * amount
+
                     tableAccountItem = db.table('Account_Item')
                     accountItem = tableAccountItem.newRecord()
                     accountItem.setValue('master_id',        account.id)
@@ -1665,6 +1675,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 # по маммографии с ии должен быть TARU - с ценой, SUMM - 0
                                 if self.getServiceInfis(serviceId) == 'A06.30.002.017':
                                     sum = 0
+                                    if eventBegDate > exposeDate:
+                                        price = 0
                                 #Скорая помощь vp in (801, 802) OKATO_OMS == '03000' KUSL like 'B01.044%' должен быть TARU - с ценой, SUMM - 0 с 01.01.2025
                                 elif medicalAidTypeCode in ('801', '802') and self.getServiceInfis(serviceId).startswith('B01.044') and eventEndDate >= QDate(2025, 2, 1):
                                     from Registry.Utils import getClientCompulsoryPolicy
@@ -1766,6 +1778,16 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                         if value in ['mob']:
                                             price = round(round(price, 2) * 1.2, 2)
                                             sum = price * amount
+
+                                # для мобильных центров здоровья
+                                if eventEndDate >= QDate(2026, 7, 1) and medicalAidTypeCode in ('01', '02'):
+                                    value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                                    if value is None:
+                                        value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                                        self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                                    if value in ['mobcz']:
+                                        price = round(round(price, 2) * 1.2, 2)
+                                        sum = price * amount
 
                             tableAccountItem = db.table('Account_Item')                        
                             accountItem = tableAccountItem.newRecord()
@@ -4229,6 +4251,8 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
     # по маммографии с ИИ должен быть TARU - с ценой, SUMM - 0
     if serviceInfis == 'A06.30.002.017':
         summa = 0
+        if eventBegDate > exposeDate:
+            price = 0
     # тарификация услуг обращения/посещения для поликлиники
     elif (medicalAidTypeCode in ['21', '22']
           and serviceInfis[:3] in ['B01', 'B02', 'B04', 'B05']
@@ -4307,5 +4331,8 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
         if QDate(2023, 1, 1) <= eventEndDate < QDate(2025, 2, 1) and eventTypeIdentification in ['mob']:
             price = round(round(price, 2) * 1.2, 2)
             summa = price
+    if medicalAidTypeCode in ['01', '02'] and summa > 0 and eventEndDate >= QDate(2026, 7, 1) and eventTypeIdentification in ['mobcz']:
+        price = round(round(price, 2) * 1.2, 2)
+        summa = price
 
     return price * amount, summa * amount

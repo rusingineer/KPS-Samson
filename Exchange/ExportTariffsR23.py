@@ -23,6 +23,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QDir, pyqtSignature, SIGNAL, QDate
+from PyQt4.QtSql import QSqlRecord
 
 from library.dbfpy.dbf import Dbf
 from library.DialogBase import CConstructHelperMixin
@@ -272,7 +273,7 @@ class CExportTariffWizardPage2(QtGui.QWizardPage, Ui_ExportTariff_Wizard_2, CExp
 
             for i in selectedItems:
                 if not forceBool(tariffRecordList[i].value('deleted')):
-                    record = tariffRecordList[i]
+                    record = QSqlRecord(tariffRecordList[i])
                     if self.wizard().page(0).chkExportExternalTariffToZero.isChecked() and forceBool(
                             record.value('isExternal')):
                         record.setValue('price', toVariant(0.00))

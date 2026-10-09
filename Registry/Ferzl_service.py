@@ -139,15 +139,216 @@ createUpdateNil_hgrow = {
     u'очень высокий': 4
 }
 
+type_polis_oms = {
+    u'С': u'Полис ОМС старого образца',
+    u'В': u'Временное свидетельство в форме бумажного бланка',
+    u'Е': u'Временное свидетельство в форме электронного документа',
+    u'П': u'Бумажный полис ОМС единого образца',
+    u'Э': u'Электронный полис ОМС единого образца',
+    u'К': u'Полис ОМС в составе универсальной электронной карты',
+    u'Ц': u'Цифровой полис ОМС',
+    u'Х': u'Состояние на учёте без полиса ОМС'
+
+}
+
 
 class Ferzl_service:
     def __init__(self):
         url_service = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
         self.url = (url_service + u'api/ferzl') if url_service[-1] == u'/' else (url_service + u'/api/ferzl')
+        
+    def getInsuranceStatus(self, params_dict = {}):
+        # external_id = None, pcyType = None, enp = None, pcySer = None, pcyNum = None,
+        # dudlSer = None, dudlNum = None, dudlType = None, dt = None
+        params = {
+            "external_id": forceString(params_dict.get('external_id')),
+                  "enp": forceString(params_dict.get('enp', None)),
+                  "pcyType": forceString(params_dict.get('pcyType', None)),
+                  "pcySer": forceString(params_dict.get('pcySer', None)),
+                  "pcyNum": forceString(params_dict.get('pcyNum', None)),
+                  "dudlSer": forceString(params_dict.get('dudlSer', None)),
+                  "dudlNum": forceString(params_dict.get('dudlNum', None)),
+                  "dudlType": forceString(params_dict.get("dudlType", None))
+                  }
+        isError = False
+        buttonName = None
+        message = u''
+        url = forceString(self.url + '/oms/services/InsuranceStatus') + forceString('?') + forceString(
+            self.generateURLParams(params))
+        resp = requests.get(url=url, params=params)
+        result_dict = {
+            'result': False,
+            'elements': {}
+        }
+        if resp.status_code != 200:
+            message = u'Ошибка сервисов. Код ошибки: ' + forceString(resp.status_code) + u' - ' + forceString(
+                resp.reason) + u'. MpiPersonInfo'
+            msgbx = self.showMessageBox(message, isError=True)
+            if msgbx == QtGui.QMessageBox.Cancel:
+                return None
+        if resp:
+            jsonRequest = resp.json()
+            message = u""
+            try:
+                # Извлекаем вложенные словари с проверкой наличия ключей
+                envelope = jsonRequest.get('Envelope', {})
+                body = envelope.get('Body', {})
+                response_data = body.get('getInsuranceStatusResponse', {})
+
+                if response_data:
+                    # Проверяем наличие статуса
+                    status = response_data.get('status')
+                    if status:
+                        # Успешный ответ – заполняем result_dict
+                        result_dict['result'] = True
+                        result_dict['elements'] = status  # сохраняем весь блок status
+                    else:
+                        # Статус отсутствует – возможно, пришла ошибка
+                        error_msg = u'В ответе нет значимых данных!'
+                        self.showMessageBox(error_msg, isError=True)
+                        return {'result': False, 'elements': None}
+
+                    if result_dict and result_dict['result']:
+                        info = result_dict['elements']
+                        buttonName = u"Обновить полисные данные?"
+                        policy_insurfCode = forceString(info.get('smo', None))
+                        policy_insurfCode = forceString(info.get('smo', None))
+                        policy_pcyNum = forceString(info.get('policyNumEnp', None))
+                        policy_pcySer = forceString(info.get('policySer', None))
+                        policy_pcyDateB = forceString(info.get('policyValidFrom', None))
+                        # policy_enp = forceString(info.get('policyNumEnp',None))
+                        policy_pcyType = forceString(info.get('policyType', None))
+                        policy_pcyStatus = forceString(info.get('policyStatus', None))
+                        policy_gender = forceString(info.get('gender', None))
+                        fio = forceString(info.get('fio', None))
+
+                        policy_dict = {}
+                        if fio:
+                            message = message + u'\nФИО: ' + fio
+                        if policy_pcySer:
+                            # policy_dict['policy_pcySer'] = policy_pcySer
+                            message = message + u'\nСерия: ' + policy_pcySer
+                        if policy_pcyNum:
+                            # policy_dict['policy_pcyNum'] = policy_pcyNum
+                            message = message + u'\nНомер: ' + policy_pcyNum
+                        # if policy_enp:
+                        #     policy_dict['policy_enp'] = policy_enp
+                        if policy_pcyDateB:
+                            policy_pcyDateB = datetime.strptime(policy_pcyDateB, '%Y-%m-%d')
+                            policy_pcyDateB = policy_pcyDateB.date().strftime('%d.%m.%Y')
+                            # policy_dict['policy_pcyDateB'] = policy_pcyDateB
+                            message = message + u'\nДата начала действия:  ' + policy_pcyDateB
+                        if policy_pcyType:
+                            # policy_dict['policy_pcyType'] = policy_pcyType
+                            message = message + u'\nТип полиса: ' + type_polis_oms[policy_pcyType]
+                        if policy_pcyStatus:
+                            # policy_dict['policy_pcyStatus'] = policy_pcyStatus
+                            message = message + u'\nСтатус: ' + policy_pcyStatus
+                        if policy_gender:
+                            # message = message + u"Половая принадлежность: " + policy_gender + u'\n'
+                            # policy_dict['policy_gender'] = policy_gender
+                            message = message + u'\nПол: ' + getNrData_gender[policy_gender]
+
+                else:
+                    # Проверяем, не пришёл ли SOAP-сбой
+                    fault = body.get('Fault')
+                    if fault:
+                        message = u'Ошибка SOAP: ' + forceString(fault)
+                    else:
+                        message = u'Неожиданный формат ответа'
+                    self.showMessageBox(message, isError=True)
+                    return {'result': False, 'elements': None}
+
+            except Exception as e:
+                error_msg = u'Ошибка при разборе JSON: ' + forceString(e)
+                self.showMessageBox(error_msg, isError=True)
+                return {'result': False, 'elements': None}
 
 
+            if message != u'':
+                buttonName = u'Обновить данные полиса?'
+            dialog = self.showMessageBox(message, buttonName=buttonName, isError=isError)
+            if dialog == QtGui.QMessageBox.Ok:
+                return result_dict
+            else:
+                return {'result': False, 'elements': None}
+            # return result_dict
 
-    def getPersonDataFrom(self, params_dict = {}):
+    def getfindPersonsByPersCriteria(self, params_dict = {}):
+
+        params = {
+            "external_id": forceString(params_dict.get('external_id')),
+                  "enp": forceString(params_dict.get('enp', None)),
+                  "pcyType": forceString(params_dict.get('pcyType', None)),
+                  "pcySer": forceString(params_dict.get('pcySer', None)),
+                  "pcyNum": forceString(params_dict.get('pcyNum', None)),
+                  "dudlSer": forceString(params_dict.get('dudlSer', None)),
+                  "dudlNum": forceString(params_dict.get('dudlNum', None)),
+                  "dudlType": forceString(params_dict.get("dudlType", None))
+                  }
+        isError = False
+        buttonName = None
+        url = forceString(self.url+'/oms/services/MpiPersonInfo/findPersonsByPersCriteria') + forceString('?') + forceString(self.generateURLParams(params))
+        resp = requests.get(url=url, params=params)
+        result_dict = {
+            'result': False,
+
+        }
+        if resp.status_code != 200:
+            message = u'Ошибка сервисов. Код ошибки: ' + forceString(resp.status_code) + u' - ' + forceString(
+                resp.reason)+ u'. MpiPersonInfo'
+            msgbx = self.showMessageBox(message, isError=True)
+            if msgbx == QtGui.QMessageBox.Cancel:
+                return None
+        if resp:
+            try:
+                data = resp.json()  # парсим JSON
+            except ValueError:
+                print("Ошибка: ответ не является корректным JSON")
+            envelope = data.get('Envelope', {})
+            body = envelope.get('Body', {})
+            response = body.get('findPersonsByPersCriteriaResponse', {})
+            # Проверяем наличие ошибок
+            errors = response.get('errors')
+            if errors:
+                error_item = errors.get('errorItem', {})
+                result_dict['code'] = error_item.get('code')
+                result_dict['massage'] = error_item.get('message')
+                return result_dict
+            else:
+                # Если ошибок нет, обрабатываем успешный ответ
+                external_id = response.get('externalRequestId')
+                persons_data = response.get('persons')
+                persons_list = []
+                if persons_data:
+                    # В зависимости от структуры, persons может быть:
+                    # - словарь с ключом 'personDataShortItem' (один элемент)
+                    # - список таких словарей (несколько элементов)
+                    if 'personDataShortItem' in persons_data:
+                        # Случай одного объекта
+                        item = persons_data['personDataShortItem']
+                        # Если item - словарь, добавляем в список
+                        if isinstance(item, dict):
+                            persons_list.append(item)
+                        # Если вдруг item - список (на всякий случай)
+                        elif isinstance(item, list):
+                            persons_list.extend(item)
+                    elif isinstance(persons_data, list):
+                        # Случай массива объектов (каждый объект может содержать 'personDataShortItem')
+                        for entry in persons_data:
+                            if isinstance(entry, dict) and 'personDataShortItem' in entry:
+                                persons_list.append(entry['personDataShortItem'])
+                            elif isinstance(entry, dict):
+                                # Если пришёл просто словарь без обёртки
+                                persons_list.append(entry)
+                    elif isinstance(persons_data, dict):
+                        # Если это словарь, но без ключа personDataShortItem (маловероятно)
+                        persons_list.append(persons_data)
+                result_dict['person'] =persons_list
+                return result_dict
+
+
+    def getPersonDataFrom(self, params_dict = {}, type=0):
 
         params = {
                   "external_id": forceString(params_dict.get('external_id')),
@@ -390,6 +591,9 @@ class Ferzl_service:
                                     attach_dict['attach_depId'] = attach_depId
                                 attach_list.append(attach_dict)
                         result_dict['elements']['attach'] = attach_list
+                        
+                        
+                        
                     buttonName = u"Обновить полисные данные"
                     if result_dict['elements'].get('surname', None):
                         message = message + u'Фамилия: ' + result_dict['elements'].get('surname') + u'\n'
@@ -417,8 +621,8 @@ class Ferzl_service:
                                     message = message +u"Дата начала действия полиса: " + item.get('policy_pcyDateB')+ u'\n'
                                 if item.get('policy_pcyDateE', None):
                                     message = message + u"Дата окончания действия полиса: " + item.get('policy_pcyDateE') + u'\n'
-                                if item.get('policy_pcyType', None):
-                                    message = message + u"Тип полиса ОМС: " + getPersonData_pcyType.get(item.get('policy_pcyType')) + u'\n'
+                                # if item.get('policy_pcyType', None):
+                                #     message = message + u"Тип полиса ОМС: " + getPersonData_pcyType.get(item.get('policy_pcyType')) + u'\n'
                                 if item.get('policy_pcyStatus', None):
                                     message = message + u"Статус полиса ОМС: " + getPersonData_pcyStatus.get(item.get('policy_pcyStatus'), u'') + u'\n'
                                 if item.get('policy_insurfCode', None):
@@ -436,10 +640,11 @@ class Ferzl_service:
                     if attach:
                         if len(attach)> 0:
                             for item in attach:
+                                message = message +u'\n'
                                 if item.get('attach_areaType', None):
                                     message = message + u'Профиль прикрепления: ' + getPersonData_areaType.get(forceString(item.get('attach_areaType'))) + u'\n'
                                 if item.get('attach_attachMethod', None):
-                                    message = message + u'Способ прикрепления: ' + getPersonData_attachMethod.get(forceString(item.get('attach_attachMethod'))) + u'\n'
+                                    message = message + u'Способ прикрепления: ' + getPersonData_attachMethod.get(forceString(item.get('attach_attachMethod')), '') + u'\n'
                                 if item.get('attach_dateAttachB', None):
                                     message = message + u'Дата начала прикрепления: ' + item.get('attach_dateAttachB') + u'\n'
                                 if item.get('attach_dateAttachE', None):
@@ -534,13 +739,14 @@ class Ferzl_service:
                             if isinstance(validationTypeError, list):
                                 for elem in validationTypeError:
                                     message = message + u'ValidationTypeError: ' + forceString(elem) + u'\n'
-
+            if type == 1:
+                result_dict['massges_info'] = message
+                return result_dict
             dialog = self.showMessageBox(message, buttonName=buttonName, isError=isError)
             if dialog == QtGui.QMessageBox.Ok:
                 return result_dict
             else:
                 return {'result': False, 'elements': None}
-
 
 
     def generateURLParams(self, params):

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -29,8 +29,8 @@ def selectData(begDate, endDate, eventTypeId, personId, orgStructureId):
     if personId:
         cond.append(u'Person.id = %d' % personId)
     if eventTypeId:
-        cond.append(u'EventModified.eventType_id = %d' % eventTypeId)
-        adds = u' and eventType_id = %d' % eventTypeId
+        cond.append(u'EventModified.eventType_id in (' + forceString(eventTypeId) + u') ')
+        adds = u' and eventType_id in (' + forceString(eventTypeId) + u') '
     if orgStructureId:
         cond.append('OrgStructure.id = {}'.format(orgStructureId))
     condStr = db.joinAnd(cond)

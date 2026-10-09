@@ -614,7 +614,7 @@ class CTMKReportModel(QAbstractTableModel):
         if column in (0, 1, 2):
             self.items.sort(key=lambda x: forceDateTime(datetime.strptime(x[column], '%d.%m.%Y %H:%M')) if x and x[column] else None, reverse=reverse)
         elif column == 3:
-            self.items.sort(key=lambda x: forceDate(datetime.strptime(x[column], '%d.%m.%Y')) if x else None, reverse=reverse)
+            self.items.sort(key=lambda x: forceDate(datetime.strptime(x[column], '%d.%m.%Y')) if x and x[column] else None, reverse=reverse)
         else:
             self.items.sort(key=lambda x: forceString(x[column]).lower() if x else None, reverse=reverse)
         self.reset()

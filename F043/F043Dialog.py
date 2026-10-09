@@ -20,6 +20,7 @@
 from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, SIGNAL, pyqtSignature
 
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
 from Events.ExportMIS import iniExportEvent
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
 from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
@@ -67,6 +68,7 @@ RESULT_DENTITION_TAB_INDEX = 2
 class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin):
     defaultEventResultId = None
     defaultDiagnosticResultId = None
+    dfFinished = 1  # Заключительный
 
     @pyqtSignature('')
     def on_actActionEdit_triggered(self): CTableSummaryActionsMenuMixin.on_actActionEdit_triggered(self)
@@ -226,6 +228,15 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
         self.actionParodentiumList = {}
         self.btnPrintMedicalDiagnosis.setVisible(False)
 
+    def setFinalDiagnosticsMenuControlsState(self):
+        """
+        Активность пункта меню "Вставить хронические диагнозы" в таблице Заключительный диагноз
+        """
+        self.actAddChronicDiseases.setEnabled(False)
+        current = self.tblDiagnostics.currentItem()
+        if current and current.value('diagnosisType_id') == self.modelDiagnostics.diagnosisTypeCol.codeToId(CF043Dialog.dfFinished):
+            self.actAddChronicDiseases.setEnabled(True)
+
 
     def _applyUETCountConnection(self):
         for actionsTab in self.getActionsTabsList():
@@ -367,7 +378,9 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
     def setupDiagnosticsMenu(self):
         self.addObject('mnuDiagnostics', QtGui.QMenu(self))
         self.addObject('actDiagnosticsRemove', QtGui.QAction(u'Удалить запись', self))
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.mnuDiagnostics.addAction(self.actDiagnosticsRemove)
+        self.mnuDiagnostics.addAction(self.actAddChronicDiseases)
 
 
     def getFinalDiagnosisId(self):
@@ -1711,6 +1724,7 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
 #            canRemove = self.modelDiagnostics.payStatus(currentRow) == 0
             canRemove = True
         self.actDiagnosticsRemove.setEnabled(canRemove)
+        self.setFinalDiagnosticsMenuControlsState()
 
 
     @pyqtSignature('')
@@ -1745,6 +1759,28 @@ class CF043Dialog(CEventEditDialog, Ui_F043Dialog, CTableSummaryActionsMenuMixin
     @pyqtSignature('int')
     def on_cmbPerson_currentIndexChanged(self):
         self.setPersonId(self.cmbPerson.value())
+
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        :return:
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, self.modelDiagnostics, self)
+        if dialog.exec_():
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    record = self.modelDiagnostics.getEmptyRecord()
+                    record.setValue('MKB', item.value('MKB'))
+                    record.setValue('MKBEx', item.value('MKBEx'))
+                    record.setValue('TNMS', item.value('TNMS'))
+                    record.setValue('exSubclassMKB', item.value('exSubclassMKB'))
+                    record.setValue('morphologyMKB', item.value('morphologyMKB'))
+                    record.setValue('character_id', item.value('character_id'))
+                    record.setValue('dispanser_id', item.value('dispanser_id'))
+                    record.setValue('traumaType_id', item.value('traumaType_id'))
+                    self.modelDiagnostics.addRecord(record)
 
 
 # #####################################################################

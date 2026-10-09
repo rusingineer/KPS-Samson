@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,7 +14,7 @@
 
 
 from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QMimeData, QObject, QVariant, pyqtSignature, SIGNAL, QModelIndex, QEvent, QDate
+from PyQt4.QtCore import Qt, QMimeData, QObject, QVariant, pyqtSignature, SIGNAL, QModelIndex, QEvent, QDate, QPoint
 from PyQt4.QtGui import QFont
 
 from library.AgeSelector                   import composeAgeSelector, parseAgeSelector
@@ -41,7 +41,8 @@ from Orgs.OrgStructureCol                  import COrgStructureInDocTableCol
 from RefBooks.Service.SelectService        import selectService
 from Stock.NomenclatureComboBox            import CNomenclatureInDocTableCol
 from Users.Rights                          import urDeleteActionTypeProperties
-
+from library.IdentificationModel           import CAccountingSystemComboBox
+import types
 from RefBooks.Service.RBServiceComboBox    import CRBServiceInDocTableCol
 from library.ClientRecordProperties import CRecordProperties
 
@@ -1340,6 +1341,9 @@ class CActionTypeEditor(CItemEditorBaseDialog, Ui_ActionTypeEditorDialog):
         isAvailable = False
         if len(self.modelNomenclature.items()) > 0:
             for row, item in enumerate(self.modelNomenclature.items()):
+                nomenclatureId = forceRef(item.value('nomenclature_id'))
+                if not nomenclatureId:
+                    return self.checkValueMessage(u'Не выбрано ЛСиИМН', False, self.tblNomenclature, row, item.indexOf('nomenclature_id'))
                 available = forceBool(item.value('available'))
                 selectionGroup = forceInt(item.value('selectionGroup'))
                 if available and not selectionGroup:
@@ -2145,6 +2149,38 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
         self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setDefault(True)
         self.buttonBox.button(QtGui.QDialogButtonBox.Apply).setShortcut(Qt.Key_Return)
         self.connect(self.tblActionTypeFound.horizontalHeader(), SIGNAL('sectionClicked(int)'), self._setActionsOrderByColumn)
+        noneRecord = QtGui.qApp.db.record('rbAccountingSystem')
+        noneRecord.setValue('id', QVariant())
+        noneRecord.setValue('name', u'не задано')
+        noneRecord.setValue('urn', QVariant())
+        noneRecord.setValue('code', QVariant())
+        accountingSystemItems = []
+        accountingSystemItems.append(noneRecord)
+        accountingSystemItems.extend(self._getAccountingSystemItems())
+        self.cmbIdentificationAccountingSystem.setItems(accountingSystemItems)
+        self.cmbIdentificationAccountingSystem.showPopup = types.MethodType(self._showPopup, self.cmbIdentificationAccountingSystem)
+        self.cmbIdentificationAccountingSystem.setMinimumWidth(200)
+        # self.cmbIdentificationAccountingSystem.setMaximumWidth(350)
+        self.leIdentificationValue.setMinimumWidth(400)
+        self.leIdentificationValue.setMaximumWidth(400)
+        self.cmbIdentificationAccountingSystem.setCurrentIndex(0)
+
+
+    def _getAccountingSystemItems(self):
+        return  QtGui.qApp.db.getRecordList('rbAccountingSystem', 'id,code,name,urn,isEditable,isDeletable'," FIND_IN_SET('ActionType', REPLACE(domain, ' ', ''))>0 OR domain='' ")
+
+
+    def _showPopup(self, *args, **kwargs):
+        width = self.cmbIdentificationAccountingSystem.width()
+        view = self.cmbIdentificationAccountingSystem.view()
+        view.setMinimumWidth(width)
+        view.setMaximumWidth(width)
+        view.setMinimumHeight(view.rowHeight(0)*15)
+        view.setMaximumHeight(view.rowHeight(0)*15)
+        view.window().setFixedSize(width, view.rowHeight(0)*15 + 40)
+        pos = self.cmbIdentificationAccountingSystem.mapToGlobal(QPoint(0, self.cmbIdentificationAccountingSystem.height()))
+        super(CAccountingSystemComboBox, self.cmbIdentificationAccountingSystem).showPopup()
+        view.window().move(pos)
 
 
     def _setActionsOrderByColumn(self, column):
@@ -2166,6 +2202,8 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
         serviceId        = self.cmbService.value()
         context          = trim(self.edtContext.text())
         codeReports      = trim(self.edtCodeReports.text())
+        accountingSystemId = self.cmbIdentificationAccountingSystem.value().toString() if not self.cmbIdentificationAccountingSystem.value().isNull() else None
+        identificationValue = trim(self.leIdentificationValue.text())
         table = tableActionType
         cond = [tableActionType['deleted'].eq(0)]
         order = self.tblActionTypeFound.order() if self.tblActionTypeFound.order() else ['ActionType.class, ActionType.code, ActionType.name']
@@ -2186,6 +2224,14 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
             cond.append('EXISTS (SELECT id FROM ActionType_TissueType WHERE master_id=ActionType.`id` AND tissueType_id=%d)'%tissyeTypeId)
         if serviceId:
             cond.append('EXISTS (SELECT * FROM ActionType_Service WHERE master_id=ActionType.`id` AND service_id=%d)'%serviceId)
+        if accountingSystemId and identificationValue:
+            cond.append(u"EXISTS (SELECT * FROM ActionType_Identification WHERE master_id=ActionType.`id` AND deleted = 0 AND system_id=" + forceString(accountingSystemId) + u" AND value like '" + forceString(identificationValue) + u"') ")
+        elif accountingSystemId or identificationValue:
+            if accountingSystemId:
+                cond.append(u"EXISTS (SELECT * FROM ActionType_Identification WHERE master_id=ActionType.`id` AND deleted = 0 AND system_id=" + forceString(accountingSystemId) + u") ")
+            elif identificationValue:
+                cond.append(u"EXISTS (SELECT * FROM ActionType_Identification WHERE master_id=ActionType.`id` AND deleted = 0  AND value like '" + forceString(identificationValue) + u"') ")
+
         idList = QtGui.qApp.db.getIdList(table, 'ActionType.`id`', cond, order)
         idCount = len(idList)
         self.tblActionTypeFound.setIdList(idList, posToId)
@@ -2230,6 +2276,8 @@ class CFindDialog(CDialogBase, Ui_ActionTypeFindDialog):
         self.cmbService.setValue(None)
         self.edtContext.clear()
         self.edtCodeReports.clear()
+        self.cmbIdentificationAccountingSystem.setCurrentIndex(0)
+        self.leIdentificationValue.clear()
 
 
     @pyqtSignature('QModelIndex')

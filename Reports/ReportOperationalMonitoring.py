@@ -52,6 +52,7 @@ class CReportOperationalMonitoring(CReport):
     def getSetupDialog(self, parent):
         result = CEconomicAnalisysSetupDialog(parent)
         result.setTitle(self.title())
+        result.setHideNullVisible(True)
         result.shrink()
         result.loadPrefs()
         return result
@@ -112,23 +113,65 @@ class CReportOperationalMonitoring(CReport):
             (33, u" - школа для эндокринологических больных с ожирением", [u'посещение']),
             (34, u" - школа обучения пациентов по профилактике остеопороза и его осложнений", [u'посещение']),
             (35, u" - школа для пациентов с избыточной массой тела и ожирением", [u'посещение']),
-            (36, u"Обращения в связи с заболеваниями", [u'обращение', u'посещение']),
-            (37, u"Поликлиника (прикрепленное население)", [u'человек']),
-            (38, u"Фельдшерско-акушерские пункты", [u'обращение', u'посещение', u'человек']),
-            (39, u"Неотложная помощь", [u'посещение']),
-            (40, u"Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:", [u'услуга']),
-            (41, u" - магнитно-резонансная томография", [u'услуга']),
-            (42, u" - компьютерная томография", [u'услуга']),
-            (43, u" - ультразвуковое исследование сердечно-сосудистой системы", [u'услуга']),
-            (44, u" - эндоскопические диагностические исследования", [u'услуга']),
-            (45, u" - молекулярно-генетические исследования с целью выявления онкологических заболеваний", [u'услуга']),
-            (46, u" - гистологические исследования с целью выявления онкологических заболеваний", [u'услуга']),
-            (47, u" - исследования на COVID-19", [u'услуга']),
-            (48, u"Стоматология (посещение с профилактическими и иными целями)", [u'посещение', u'УЕТ']),
-            (49, u"в том числе разовые посещения по заболеванию", [u'посещение', u'УЕТ']),
-            (50, u"Стоматология (обращения в связи с заболеваниями)", [u'обращение', u'посещение', u'УЕТ']),
-            (51, u"Стоматология", [u'УЕТ']),
-            (52, u"Патологоанатомическое вскрытие", [u'услуга'])
+            (36, u" - школа для больных псориазом", [u'посещение']),
+            (37, u" - школа для больных с атопическим дерматитом", [u'посещение']),
+            (38, u" - школа для больных с болезнью Паркинсона", [u'посещение']),
+            (39, u" - школа для больных с бронхиальной астмой", [u'посещение']),
+            (40, u" - школа для больных с гиперкинезами", [u'посещение']),
+            (41, u" - школа для больных с заболеваниями суставов и позвоночника", [u'посещение']),
+            (42, u" - школа для больных с муковисцидозом", [u'посещение']),
+            (43, u" - школа для больных с рассеянным склерозом", [u'посещение']),
+            (44, u" - школа для больных с эпилепсией", [u'посещение']),
+            (45, u" - школа для больных хроническим гепатитом", [u'посещение']),
+            (46, u" - школа для больных, находящихся на перитонеальном диализе", [u'посещение']),
+            (47, u" - школа для пациентов с врожденными пороками сердца", [u'посещение']),
+            (48, u" - школа для пациентов с трансплантированным органом", [u'посещение']),
+            (49, u" - школа для пациентов, находящихся на хроническом гемодиализе", [u'посещение']),
+            (50, u" - школа для эндокринологических пациентов с нарушениями роста", [u'посещение']),
+            (51, u" - школа по отказу от потребления табака", [u'посещение']),
+            (52, u" - школа для детей и подростков с бронхиальной астмой", [u'посещение']),
+            (53, u" - школа для детей и подростков страдающих муковисцедозом", [u'посещение']),
+            (54, u" - школа для детей и подростков с заболеваниями суставов и позвоночника", [u'посещение']),
+            (55, u" - школа для беременных девочек-подростков", [u'посещение']),
+            (56, u" - школа для детей и подростков больных хроническим гепатитом", [u'посещение']),
+            (57, u" - школа для детей и подростков больных псориазом", [u'посещение']),
+            (58, u" - школа для детей и подростков больных атопическим дерматитом", [u'посещение']),
+            (59, u" - школа для детей и подростков с артериальной гипертензией", [u'посещение']),
+            (60, u" - школа для детей и подростков с сердечной недостаточностью", [u'посещение']),
+            (61, u" - школа для детей и подростков с врожденными пороками сердца", [u'посещение']),
+            (62, u" - школа для детей и подростков с нарушениями роста, как следствие эндокринной патологии", [u'посещение']),
+            (63, u" - школа для детей и подростков с ожирением, как следствие эндокринной патологии", [u'посещение']),
+            (64, u" - школа для детей и подростков по отказу от потребления табака", [u'посещение']),
+            (65, u" - школа для детей и подростков с рассеянным склерозом", [u'посещение']),
+            (66, u" - школа для детей и подростков больных эпилепсией", [u'посещение']),
+            (67, u" - школа для детей и подростков с гиперкинезами", [u'посещение']),
+            (68, u" - школа для детей и подростков с хронической болезнью почек", [u'посещение']),
+            (69, u" - школа для детей и подростков с избыточной массой тела и ожирением", [u'посещение']),
+            (70, u" - школа для беременных", [u'посещение']),
+            (71, u" - школа активного долголетия", [u'посещение']),
+            (72, u" - школа здоровья для пациентов с хроническим гастритом и язвенной болезнью желудка и двенадцатиперстной кишки", [u'посещение']),
+            (73, u" - школа здоровья для пациентов с ишемической болезнью сердца", [u'посещение']),
+            (74, u" - школа здоровья для пациентов с установленным диагнозом фибрилляции предсердий", [u'посещение']),
+            (75, u" - школа здоровья для пациентов с хронической обструктивной болезнью легких", [u'посещение']),
+            (76, u" - школа по формированию знаний, умений и навыков, необходимых для ведения здорового образа жизни (ЗОЖ)", [u'посещение']),
+            (77, u"Обращения в связи с заболеваниями", [u'обращение', u'посещение']),
+            (78, u"Поликлиника (прикрепленное население)", [u'человек']),
+            (79, u"Фельдшерско-акушерские пункты", [u'обращение', u'посещение', u'человек']),
+            (80, u"Неотложная помощь", [u'посещение']),
+            (81, u"Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные), в том числе:", [u'услуга']),
+            (82, u" - магнитно-резонансная томография", [u'услуга']),
+            (83, u" - компьютерная томография", [u'услуга']),
+            (84, u" - ультразвуковое исследование сердечно-сосудистой системы", [u'услуга']),
+            (85, u" - эндоскопические диагностические исследования", [u'услуга']),
+            (86, u" - молекулярно-генетические исследования с целью выявления онкологических заболеваний", [u'услуга']),
+            (87, u" - гистологические исследования с целью выявления онкологических заболеваний", [u'услуга']),
+            (88, u" - исследования на COVID-19", [u'услуга']),
+            (89, u"Стоматология (посещение с профилактическими и иными целями)", [u'посещение', u'УЕТ']),
+            (90, u"в том числе разовые посещения по заболеванию", [u'посещение', u'УЕТ']),
+            (91, u"Стоматология (обращения в связи с заболеваниями)", [u'обращение', u'посещение', u'УЕТ']),
+            (92, u"Стоматология", [u'УЕТ']),
+            (93, u"Патологоанатомическое вскрытие", [u'услуга']),
+            #(94, u"Прочее", [u''])
         ]
 
         def processQuery(queryObj):
@@ -344,7 +387,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
 
                 # Стационар
                 if identifier == 'ap' and code_usl == 'A08.30.019':
-                    lineData = reportData.setdefault(52, [0] * 5)
+                    lineData = reportData.setdefault(93, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     lineData[2] += amount
@@ -441,56 +484,56 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[2] += amount
                 # Неотложная помощь
                 elif VP in ['111', '112', '241', '242']:
-                    lineData = reportData.setdefault(39, [0] * 5)
+                    lineData = reportData.setdefault(80, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     if isPos:
                         lineData[2] += amount
                 # Диагностические исследования, оплачиваемые по тарифам (лабораторные и инструментальные)
                 elif (VP == '80' or identifier) and summa > 0:
-                    lineData = reportData.setdefault(40, [0] * 5)
+                    lineData = reportData.setdefault(81, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     lineData[2] += amount
                     # магнитно-резонансная томография
                     if identifier == 'am':
-                        lineData = reportData.setdefault(41, [0] * 5)
+                        lineData = reportData.setdefault(82, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # компьютерная томография
                     elif identifier == 'ak':
-                        lineData = reportData.setdefault(42, [0] * 5)
+                        lineData = reportData.setdefault(83, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # ультразвуковое исследование сердечно-сосудистой системы
                     elif identifier == 'au':
-                        lineData = reportData.setdefault(43, [0] * 5)
+                        lineData = reportData.setdefault(84, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # эндоскопические диагностические исследования
                     elif identifier == 'ae':
-                        lineData = reportData.setdefault(44, [0] * 5)
+                        lineData = reportData.setdefault(85, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # молекулярно-генетические исследования с целью выявления онкологических заболеваний
                     elif identifier == 'ag':
-                        lineData = reportData.setdefault(45, [0] * 5)
+                        lineData = reportData.setdefault(86, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # гистологические исследования с целью выявления онкологических заболеваний
                     elif identifier == 'ah':
-                        lineData = reportData.setdefault(46, [0] * 5)
+                        lineData = reportData.setdefault(87, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     # Исследования на COVID-19
                     elif identifier == 'av':
-                        lineData = reportData.setdefault(47, [0] * 5)
+                        lineData = reportData.setdefault(88, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
@@ -502,22 +545,22 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                     if isFAP:
                         clientSet.add(clientId)
                         if isObr:
-                            lineData = reportData.setdefault(38, [0] * 5)
+                            lineData = reportData.setdefault(79, [0] * 5)
                             lineData[2] += amount
                         elif isPos:
-                            lineData = reportData.setdefault(38, [0] * 5)
+                            lineData = reportData.setdefault(79, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[3] += amount
                     # Обращения в связи с заболеваниями
                     elif isObr:
-                        lineData = reportData.setdefault(36, [0] * 5)
+                        lineData = reportData.setdefault(77, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     elif eventId in eventsWithObr:
                         if isPos:
-                            lineData = reportData.setdefault(36, [0] * 5)
+                            lineData = reportData.setdefault(77, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[3] += amount
@@ -648,7 +691,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                         # Школа для эндокринологических больных с ожирением
-                        elif code_usl in ['B04.058.001.001']:
+                        elif code_usl in ['B04.058.001.001', 'B04.058.001.01']:
                             lineData = reportData.setdefault(33, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
@@ -660,25 +703,271 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                         # Школа для пациентов с избыточной массой тела и ожирением
-                        elif code_usl in ['B05.069.008']:
+                        elif code_usl in ['B04.070.009']:
                             lineData = reportData.setdefault(35, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных псориазом
+                        elif code_usl in ['B04.008.007']:
+                            lineData = reportData.setdefault(36, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с атопическим дерматитом
+                        elif code_usl in ['B04.008.008']:
+                            lineData = reportData.setdefault(37, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с болезнью Паркинсона
+                        elif code_usl in ['B04.023.006']:
+                            lineData = reportData.setdefault(38, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с бронхиальной астмой
+                        elif code_usl in ['B04.037.003']:
+                            lineData = reportData.setdefault(39, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с гиперкинезами
+                        elif code_usl in ['B04.023.005']:
+                            lineData = reportData.setdefault(40, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с заболеваниями суставов и позвоночника
+                        elif code_usl in ['B04.040.001']:
+                            lineData = reportData.setdefault(41, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с муковисцидозом
+                        elif code_usl in ['B04.037.004']:
+                            lineData = reportData.setdefault(42, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с рассеянным склерозом
+                        elif code_usl in ['B04.023.003']:
+                            lineData = reportData.setdefault(43, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных с эпилепсией
+                        elif code_usl in ['B04.023.004']:
+                            lineData = reportData.setdefault(44, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных хроническим гепатитом
+                        elif code_usl in ['B04.004.003']:
+                            lineData = reportData.setdefault(45, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для больных, находящихся на перитонеальном диализе
+                        elif code_usl in ['B04.025.003']:
+                            lineData = reportData.setdefault(46, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для пациентов с врожденными пороками сердца
+                        elif code_usl in ['B04.015.006']:
+                            lineData = reportData.setdefault(47, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для пациентов с трансплантированным органом
+                        elif code_usl in ['B04.057.003']:
+                            lineData = reportData.setdefault(48, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для пациентов, находящихся на хроническом гемодиализе
+                        elif code_usl in ['B04.025.001']:
+                            lineData = reportData.setdefault(49, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для эндокринологических пациентов с нарушениями роста
+                        elif code_usl in ['B04.058.001']:
+                            lineData = reportData.setdefault(50, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа по отказу от потребления табака
+                        elif code_usl in ['B04.070.007']:
+                            lineData = reportData.setdefault(51, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с бронхиальной астмой
+                        elif code_usl in ['B04.037.003.010']:
+                            lineData = reportData.setdefault(52, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков страдающих муковисцедозом
+                        elif code_usl in ['B04.037.004.010']:
+                            lineData = reportData.setdefault(53, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с заболеваниями суставов и позвоночника
+                        elif code_usl in ['B04.040.001.010']:
+                            lineData = reportData.setdefault(54, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для беременных девочек-подростков
+                        elif code_usl in ['B04.001.003.010']:
+                            lineData = reportData.setdefault(55, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков больных хроническим гепатитом
+                        elif code_usl in ['B04.004.003.010']:
+                            lineData = reportData.setdefault(56, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков больных псориазом
+                        elif code_usl in ['B04.008.007.010']:
+                            lineData = reportData.setdefault(57, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков больных атопическим дерматитом
+                        elif code_usl in ['B04.008.008.010']:
+                            lineData = reportData.setdefault(58, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с артериальной гипертензией
+                        elif code_usl in ['B04.015.001.010']:
+                            lineData = reportData.setdefault(59, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с сердечной недостаточностью
+                        elif code_usl in ['B04.015.002.010']:
+                            lineData = reportData.setdefault(60, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с врожденными пороками сердца
+                        elif code_usl in ['B04.015.006.010']:
+                            lineData = reportData.setdefault(61, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с нарушениями роста, как следствие эндокринной патологии
+                        elif code_usl in ['B04.058.001.010']:
+                            lineData = reportData.setdefault(62, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с ожирением, как следствие эндокринной патологии
+                        elif code_usl in ['B04.058.001.011']:
+                            lineData = reportData.setdefault(63, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков по отказу от потребления табака
+                        elif code_usl in ['B04.070.007.010']:
+                            lineData = reportData.setdefault(64, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с рассеянным склерозом
+                        elif code_usl in ['B04.023.003.010']:
+                            lineData = reportData.setdefault(65, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков больных эпилепсией
+                        elif code_usl in ['B04.023.004.010']:
+                            lineData = reportData.setdefault(66, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с гиперкинезами
+                        elif code_usl in ['B04.023.005.010']:
+                            lineData = reportData.setdefault(67, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с хронической болезнью почек
+                        elif code_usl in ['B04.025.004.010']:
+                            lineData = reportData.setdefault(68, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для детей и подростков с избыточной массой тела и ожирением
+                        elif code_usl in ['B04.070.009.010']:
+                            lineData = reportData.setdefault(69, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа для беременных
+                        elif code_usl in ['B04.001.003']:
+                            lineData = reportData.setdefault(70, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа активного долголетия
+                        elif code_usl in ['B04.070.015']:
+                            lineData = reportData.setdefault(71, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа здоровья для пациентов с хроническим гастритом и язвенной болезнью желудка и двенадцатиперстной кишки
+                        elif code_usl in ['B04.004.010']:
+                            lineData = reportData.setdefault(72, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа здоровья для пациентов с ишемической болезнью сердца
+                        elif code_usl in ['B04.015.010']:
+                            lineData = reportData.setdefault(73, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа здоровья для пациентов с установленным диагнозом фибрилляции предсердий
+                        elif code_usl in ['B04.015.011']:
+                            lineData = reportData.setdefault(74, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа здоровья для пациентов с хронической обструктивной болезнью легких
+                        elif code_usl in ['B04.037.010']:
+                            lineData = reportData.setdefault(75, [0] * 5)
+                            lineData[0] += summa
+                            lineData[1] += exposedSumma
+                            lineData[2] += amount
+                        # Школа по формированию знаний, умений и навыков, необходимых для ведения здорового образа жизни (ЗОЖ)
+                        elif code_usl in ['B04.070.016']:
+                            lineData = reportData.setdefault(76, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             lineData[2] += amount
                 elif VP in ['31', '32']:
                     # Стоматология
-                    lineData = reportData.setdefault(51, [0] * 5)
+                    lineData = reportData.setdefault(92, [0] * 5)
                     lineData[0] += summa
                     lineData[1] += exposedSumma
                     lineData[2] += uet
                     # Стоматология (обращения в связи с заболеваниями)
                     if isObr:
-                        lineData = reportData.setdefault(50, [0] * 5)
+                        lineData = reportData.setdefault(91, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         lineData[2] += amount
                     elif eventId in eventsWithObr:
-                        lineData = reportData.setdefault(50, [0] * 5)
+                        lineData = reportData.setdefault(91, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         if isPos:
@@ -686,7 +975,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[4] += uet
                     else:
                         # Стоматология (посещение с профилактическими и иными целями)
-                        lineData = reportData.setdefault(48, [0] * 5)
+                        lineData = reportData.setdefault(89, [0] * 5)
                         lineData[0] += summa
                         lineData[1] += exposedSumma
                         if isPos:
@@ -694,14 +983,14 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
                         lineData[3] += uet
                         # в том числе разовые посещения по заболеванию
                         if mkb[:1] != 'Z':
-                            lineData = reportData.setdefault(49, [0] * 5)
+                            lineData = reportData.setdefault(90, [0] * 5)
                             lineData[0] += summa
                             lineData[1] += exposedSumma
                             if isPos:
                                 lineData[2] += amount
                             lineData[3] += uet
 
-            lineData = reportData.setdefault(38, [0] * 5)
+            lineData = reportData.setdefault(79, [0] * 5)
             lineData[4] += len(clientSet)
 
         query = self.selectData(params)
@@ -757,5 +1046,7 @@ WHERE `as`.code = 'AccTFOMS' AND et.deleted = 0 AND eti.value IN ('ak', 'am', 'a
         reportLine = reportData['total']
         table.setText(row, 4, '{:.2f}'.format(reportLine[0]))
         table.setText(row, 5, '{:.2f}'.format(reportLine[1]))
+        if params.get('hideNull'):
+            table.removeEmptyRows(0, 3)
 
         return doc

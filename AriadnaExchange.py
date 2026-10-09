@@ -234,6 +234,8 @@ class CAriadnaExchange(QtCore.QCoreApplication):
             self.initLogger()
             self.openDatabase()
             if self.db:
+                integrationUserId = forceRef(self.db.translate('Person', 'login', 'integration', 'id'))
+                self.userId = integrationUserId if integrationUserId else self.userId
                 self.loadGlobalPreferences()
                 self.externalSystemId = forceRef(self.db.translate('rbExternalSystem', 'code', 'AriadnaLIS', 'id'))
 
@@ -554,6 +556,12 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                         additionalForm.valueId = '2'
                         observation.additionalForm = [additionalForm]
 
+                # TT 5008 Передавать параметр категория от идентификации типа события (lis_category)
+                try:
+                    orderInfoCategoryCode = eventInfo.identify.byCode.get('lis_category', '')
+                except AttributeError:
+                    orderInfoCategoryCode = ''
+
                 # заполняем услуги
                 services = set()
                 for prop in action._action.getProperties():
@@ -565,11 +573,13 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                 for service in services:
                     order = OrderInfo()
                     order.service.code = service
+                    order.category.code = orderInfoCategoryCode
                     observation.orderInfo.append(order)
 
                 if not observation.orderInfo and action.nomenclativeService:
                     order = OrderInfo()
                     order.service.code = action.nomenclativeService.code
+                    order.category.code = orderInfoCategoryCode
                     observation.orderInfo.append(order)
 
                 if not observation.orderInfo:
@@ -804,6 +814,9 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             rowText += tmp
                                         htmlText += rowText.format(antibioticName) + u'</tr>'
                                     htmlText += u'</table></td></tr>'
+                                    if antibioticList:
+                                        htmlText += u'<tr><td align="center">** S - Чувствительный при стандартном режиме дозирования  I - Чувствительный при увеличенной экспозиции  R - Резистентный</td></tr>'
+                                    htmlText += u'</table></body></html>'
 
                                     if phenotypeList:
                                         htmlText += subTable.format(u'Фенотипические тесты') + subTablePhenotype + u"</tr>"

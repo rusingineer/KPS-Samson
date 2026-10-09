@@ -105,14 +105,14 @@ SELECT DISTINCT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrNam
                                     AND pp2.parent_id IS NOT NULL AND pp2.visit_id IS NOT NULL
                                     AND ppt2.code = 'ДН'
         ORDER BY v.date DESC LIMIT 1) AS lastVisitDate,
-       (SELECT CONCAT_WS(' - ', DATE_FORMAT(pp3.begDate, '%d.%m.%Y'), DATE_FORMAT(pp3.endDate, '%d.%m.%Y'))
+       (SELECT DATE_FORMAT(pp3.endDate, '%d.%m.%Y')
         FROM ProphylaxisPlanning pp3
         LEFT JOIN rbProphylaxisPlanningType ppt3 ON ppt3.id = pp3.prophylaxisPlanningType_id
         WHERE Diagnosis.MKB = pp3.MKB AND pp3.deleted = 0 AND pp3.client_id = Diagnosis.client_id
                                     AND pp3.parent_id IS NOT NULL AND pp3.visit_id IS NULL
-                                    AND (pp3.begDate >= CURDATE() OR pp3.endDate >= CURDATE())
+                                    AND pp3.endDate >= CURDATE()
                                     AND ppt3.code = 'ДН'
-        ORDER BY pp3.begDate ASC LIMIT 1) AS nextVisitDate
+        ORDER BY pp3.endDate ASC LIMIT 1) AS endDate
 FROM Diagnosis
 LEFT JOIN Diagnostic ON Diagnostic.diagnosis_id = Diagnosis.id AND Diagnostic.deleted = 0
 LEFT JOIN rbDispanser ON rbDispanser.ID = Diagnostic.dispanser_id
@@ -287,7 +287,7 @@ class CDispansListReport(CReport):
             ('10%', [u'Врач'], CReportBase.AlignLeft),
             ('3%', [u'МКБ'], CReportBase.AlignLeft),
             ('5%', [u'Дата взятия на Д-учет'], CReportBase.AlignLeft),
-            ('10%', [u'Запланированный период'], CReportBase.AlignLeft),
+            ('10%', [u'Запланированная явка'], CReportBase.AlignLeft),
             ('5%', [u'Дата последней явки'], CReportBase.AlignLeft)
             ]
         cursor.beginEditBlock()
@@ -307,7 +307,7 @@ class CDispansListReport(CReport):
                 table.setText(row, 6, forceString(record.value('personName')))
                 table.setText(row, 7, forceString(record.value('MKB')))
                 table.setText(row, 8, formatDate(forceDate(record.value('dispanserBegDate'))))
-                table.setText(row, 9, forceString(record.value('nextVisitDate')))
+                table.setText(row, 9, forceString(record.value('endDate')))
                 table.setText(row, 10, formatDate(forceDate(record.value('lastVisitDate'))))
         cursor.endEditBlock()
         return doc

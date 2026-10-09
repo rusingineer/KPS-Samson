@@ -255,7 +255,8 @@ class CReferenceColumnsTreeActionPropertyValueType(CActionPropertyValueType):
             self.columns['id'] = None
         for fieldName in self.fields:
             if self.records:
-                self.columns[fieldName] = forceString(self.records[0].value(fieldName))
+                cleanFieldName = fieldName.strip(' `"[]')
+                self.columns[fieldName] = forceString(self.records[0].value(cleanFieldName))
             elif not v:
                 self.columns[fieldName] = ''
         return self.columns
@@ -267,7 +268,8 @@ class CReferenceColumnsTreeActionPropertyValueType(CActionPropertyValueType):
         info.text = self.toText(v)
         info.tableName = self.domainTable
         for fieldName, propName in self.getColumns(v).items():
-            setattr(info, fieldName, propName)
+            safeName = fieldName.strip(' `"[]').replace('-', '_')
+            setattr(info, safeName, propName)
         return info
     
     

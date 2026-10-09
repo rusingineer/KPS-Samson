@@ -7,24 +7,34 @@
     <x>0</x>
     <y>0</y>
     <width>423</width>
-    <height>200</height>
+    <height>241</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Выполнить прикрепление пациентов к участкам</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <widget class="QLabel" name="lblOrgStructure">
-     <property name="text">
-      <string>Подразделение</string>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="0">
     <widget class="QLabel" name="lblAreaAddressType">
      <property name="text">
       <string>Участок по адресу</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkUpdateData">
+     <property name="layoutDirection">
+      <enum>Qt::RightToLeft</enum>
+     </property>
+     <property name="text">
+      <string>Обновлять данные о прикреплении</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="lblOrgStructure">
+     <property name="text">
+      <string>Подразделение</string>
      </property>
     </widget>
    </item>
@@ -44,38 +54,12 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="1" colspan="2">
-    <widget class="QCheckBox" name="chkUpdateData">
-     <property name="layoutDirection">
-      <enum>Qt::RightToLeft</enum>
-     </property>
-     <property name="text">
-      <string>Обновлять данные о прикреплении</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="0">
+   <item row="6" column="0">
     <widget class="QLabel" name="lblDeAttachType">
      <property name="text">
       <string>Причина открепления</string>
      </property>
     </widget>
-   </item>
-   <item row="5" column="1">
-    <widget class="CDateEdit" name="edtDate"/>
-   </item>
-   <item row="5" column="2">
-    <spacer name="horizontalSpacer">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>195</width>
-       <height>14</height>
-      </size>
-     </property>
-    </spacer>
    </item>
    <item row="0" column="1" colspan="2">
     <widget class="COrgStructureComboBox" name="cmbOrgStructure">
@@ -83,6 +67,9 @@
       <bool>true</bool>
      </property>
     </widget>
+   </item>
+   <item row="7" column="1">
+    <widget class="CDateEdit" name="edtDate"/>
    </item>
    <item row="1" column="1" colspan="2">
     <widget class="QComboBox" name="cmbAreaAddressType">
@@ -98,10 +85,24 @@
      </item>
     </widget>
    </item>
-   <item row="4" column="1" colspan="2">
+   <item row="7" column="0">
+    <widget class="QLabel" name="lblDate">
+     <property name="text">
+      <string>Прикреплять на дату</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1" colspan="2">
     <widget class="CRBComboBox" name="cmbDeAttachType"/>
    </item>
-   <item row="6" column="0" colspan="3">
+   <item row="9" column="0" colspan="3">
+    <widget class="CProgressBar" name="progressBar">
+     <property name="value">
+      <number>24</number>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0" colspan="3">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
@@ -111,17 +112,35 @@
      </property>
     </widget>
    </item>
-   <item row="7" column="0" colspan="3">
-    <widget class="CProgressBar" name="progressBar">
-     <property name="value">
-      <number>24</number>
+   <item row="7" column="2">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
      </property>
-    </widget>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>195</width>
+       <height>14</height>
+      </size>
+     </property>
+    </spacer>
    </item>
-   <item row="5" column="0">
-    <widget class="QLabel" name="lblDate">
+   <item row="5" column="1" colspan="2">
+    <widget class="QCheckBox" name="chkSaveAttachType">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="layoutDirection">
+      <enum>Qt::RightToLeft</enum>
+     </property>
      <property name="text">
-      <string>Прикреплять на дату</string>
+      <string>Сохранять последний тип прикрепления</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <property name="tristate">
+      <bool>false</bool>
      </property>
     </widget>
    </item>

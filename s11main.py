@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -876,10 +876,13 @@ from Reports.ReportRegistryCardFullness                 import CReportRegistryCa
 from Reports.TMKReports                                 import CTMKReports
 from Reports.Form13dChildPopulation                     import CForm13dChildPopulation
 from Reports.Form25dNumberChildrenByAgeAndSocStatus     import CForm25dNumberChildrenByAgeAndSocStatus
+from Reports.ReportFerlzAttachments                     import CReportFerlzAttachments
 from Reports.ReportPreventiveMinors                     import CReportPreventiveMinors
+from Reports.Report030dco13                             import CReport030dco13
 from Reports.ReportDrugAtitumorCure                     import CReportDrugAtitumorCure
 from Reports.ReportOnkoByStages                         import CReportOnkoByStages
 from Reports.HealthCenterForm68                         import CHealthCenterForm68
+from Reports.HealthCenterAnaliz                         import CHealthCenterAnaliz
 
 from Resources.JobPlanner                               import CJobPlanner
 from Resources.JobsOperatingDialog                      import CJobsOperatingDialog
@@ -5503,6 +5506,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
         CReportPreventiveMinors(self).exec_()
 
     @pyqtSignature('')
+    def on_actForm030dco13_triggered(self):
+        CReport030dco13(self).exec_()
+
+    @pyqtSignature('')
     def on_actForm36_2100_2190_triggered(self):
         CForm36_2100_2190(self).exec_()
 
@@ -7012,6 +7019,9 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     def on_actForm25dNumberChildrenByAgeAndSocStatus_triggered(self):
         CForm25dNumberChildrenByAgeAndSocStatus(self).exec_()
 
+    @pyqtSignature('')
+    def on_actFerzlAttach_triggered(self):
+        CReportFerlzAttachments(self).exec_()
 
     @pyqtSignature('')
     def on_actReportOnkoByStages_triggered(self):
@@ -7574,6 +7584,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actHealthCenterForm68_triggered(self):
         CHealthCenterForm68(self).exec_()
+
+    @pyqtSignature('')
+    def on_actHealthCenterAnaliz_triggered(self):
+        CHealthCenterAnaliz(self).exec_()
 
 
     @pyqtSignature('')
@@ -8746,12 +8760,14 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 prevOrgId = application.currentOrgId()
                 prevOrgStructureId = application.currentOrgStructureId()
                 prevOrgStructureVisible = None
+                prevShowComplaintColumn = forceBool(QtGui.qApp.preferences.appPrefs.get('showComplaintColumn', False))
                 if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
                     prevOrgStructureVisible = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
                 application.preferences.appPrefs.update(dialog.getProps())
                 application.preferences.save()
                 orgId = application.currentOrgId()
                 OrgStructureVisible = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
+                ShowComplaintColumn = forceBool(QtGui.qApp.preferences.appPrefs.get('showComplaintColumn', False))
                 if not orgId:
                     self.closeAllSubwindows()
                 self.setUserName(application.userName())
@@ -8762,6 +8778,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 if OrgStructureVisible != prevOrgStructureVisible:
                     QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
                     QtGui.qApp.mainWindow.dockFreeQueue.onConnectionChanged(True)
+                elif ShowComplaintColumn != prevShowComplaintColumn:
+                    QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
                 QtGui.qApp.emitCurrentClientInfoChanged()
                 application.clearPreferencesCache()
                 self.updateActionsState()

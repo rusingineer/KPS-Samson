@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,10 +13,10 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import SIGNAL, Qt, QModelIndex
+from PyQt4.QtCore import SIGNAL, Qt, QModelIndex, QVariant
 
 from library.InDocTable import CInDocTableCol
-from library.Utils import forceInt, toVariant
+from library.Utils import forceInt, toVariant, forceRef
 
 from Events.ActionTypeComboBoxExPopup import CActionTypeComboBoxExPopup
 from Events.ActionTypeComboBox import CActionTypeComboBox
@@ -138,10 +138,19 @@ class CActionTypeFindInDocTableCol(CInDocTableCol):
         self.orgStructureId =  params.get('orgStructureId', None)
         self.currentActionType = None
         self.preferableOrgStructure = params.get('isPreferableOrgStructure', False)
+        self.caches = {}
 
 
     def toString(self, val, record):
-        return QtGui.qApp.db.translate('ActionType','id', val, 'CONCAT_WS(\' | \', code, name)')
+        actionTypeId = forceRef(val)
+        if actionTypeId:
+            actionTypeName = self.caches.get(actionTypeId, None)
+            if not actionTypeName:
+                actionTypeName = QtGui.qApp.db.translate('ActionType','id', val, 'CONCAT_WS(\' | \', code, name)')
+                self.caches[actionTypeId] = actionTypeName
+            if actionTypeName:
+                return toVariant(actionTypeName)
+        return QVariant()
 
 
     def createEditor(self, parent):

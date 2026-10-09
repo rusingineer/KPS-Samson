@@ -1613,7 +1613,7 @@ class CFHIRExchange:
                 system = self.oldPolicyUrn
             elif policyKindCode == '2':  # временный
                 system = self.newPolicyUrn
-            elif policyKindCode == '3':  # новый
+            elif policyKindCode in ['3', '4', '5']:  # новый
                 system = self.newPolicyUrn
             else:
                 return None
@@ -1749,13 +1749,20 @@ class CFHIRExchange:
         name.family = [clientInfo.lastName]
         if clientInfo.patrName:
             name.family.append(clientInfo.patrName)
+
         if isNeonatal:
             name.given = [u'Новорожденный']
             name.text = formatNameInt(clientInfo.lastName, u'Новорожденный', u'')
+            name.use = 'temp'
+            e = Extension()
+            e.url = 'http://hl7.org/fhir/StructureDefinition/patient-birthTime'
+            e.valueDateTime = dateTimeToFHIRDateNoTZ(QDateTime(clientInfo.get('birthDate'), clientInfo.get('birthTime')))
+            patient.extension = [e]
         else:
             name.given = [clientInfo.firstName or '-']
             name.text = formatNameInt(clientInfo.lastName, clientInfo.firstName, clientInfo.patrName)
-        name.use = 'official'
+            name.use = 'official'
+
         patient.name = [name]
         patient.gender = {1: 'male', 2: 'female'}.get(clientInfo.sexCode, 'undefined')
         patient.birthDate = dateToFHIRDate(clientInfo.birthDate)
@@ -1800,17 +1807,14 @@ class CFHIRExchange:
             regAddress = Address({'use': 'temp', 'text': regAddressText})
             patient.address.append(regAddress)
         patient.managingOrganization = self.mainOrgReference
+
         if representativeInfo:
-            name.use = 'temp'
-            e = Extension()
-            e.url = 'http://hl7.org/fhir/StructureDefinition/patient-birthTime'
-            e.valueDateTime = dateTimeToFHIRDateNoTZ(QDateTime(clientInfo.get('birthDate'), clientInfo.get('birthTime')))
-            patient.extension = [e]
             relatedPatient = self.createPatient(representativeInfo)
             link = PatientLink()
             link.other = self.createReference(relatedPatient)
             link.type = 'refer'
             patient.link = [link]
+
         if not patient.id:
             resp = patient.create(self.smart.server)
             assert resp['resourceType'] == 'Patient'

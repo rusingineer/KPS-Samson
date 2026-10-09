@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2018-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2018-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1018,20 +1018,14 @@ class CApp(CBaseApp):
     def __fillHospitalisationDates(self, document, documentInfo):
         begDate = documentInfo['begDateStationary']
         endDate = documentInfo['endDateStationary']
-        if begDate and endDate and begDate <= endDate:
-            if document.DuplicateFlag:
-                document.HospitalDt1 = convertQDateToTuple(begDate)
-                document.HospitalDt2 = convertQDateToTuple(endDate)
-            else:
-                hasValidSignedPeriod = False
-                for sugnatureSubject, signature in documentInfo['signatures'].iteritems():
-                    if sugnatureSubject.startswith('D'):
-                        if signature['endDate'] == endDate:
-                            hasValidSignedPeriod = True
-                            break
-                if hasValidSignedPeriod:
-                    document.HospitalDt1 = convertQDateToTuple(begDate)
-                    document.HospitalDt2 = convertQDateToTuple(endDate)
+        periods = document.TreatPeriods.TreatFullPeriod
+        # мы заполняем нетрудоспособность до периодов
+        # так как мы хотим заполнить нетрудоспособность только в случае передачи первого периода,
+        # то это значит что в document периодов ещё пока нет.
+        periods = document.TreatPeriods.TreatFullPeriod
+        if not periods:
+            document.HospitalDt1 = convertQDateToTuple(begDate) if begDate else None
+            document.HospitalDt2 = convertQDateToTuple(endDate) if endDate else None
 
 
     def __fillPeriod(self, document, securites, documentInfo, periodIdx):

@@ -22,6 +22,12 @@ import os.path
 import re
 import time
 from cStringIO import StringIO
+from library import xlwt
+try:
+    from bs4 import BeautifulSoup
+    bsSupport = False
+except ImportError,  e:
+    BeautifulSoup = None
 
 import requests
 
@@ -754,12 +760,15 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         defaultFileName = QtGui.qApp.getSaveDir()
         if self.fileName:
             defaultFileName = os.path.join(defaultFileName, self.fileName)
-
-        saveFormats = [u'Веб-страница (*.html)',
+        saveFormats = []
+        if bsSupport:
+            saveFormats.append(u'Документ Microsoft Excel (*.xls)')
+        saveFormats.extend([
+                   u'Веб-страница (*.html)',
                    u'Portable Document Format (*.pdf)',
                    u'PostScript (*.ps)',
-                   u'Документ Microsoft Excel (*.xls)',
-                  ]
+                   u'Документ Microsoft Excel(html) (*.xls)',
+                  ])
         if odtAvailable():
             saveFormats.insert(-1, u'Текстовый документ OpenOffice.org (*.odt)')
         selectedFilter = QString('')
@@ -785,7 +794,11 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
             elif ext.lower() == 'odt':
                 self.saveAsOdt(fileName)
             elif ext.lower() == 'xls':
-                self.saveAsXls(fileName)
+                selected_filter = unicode(selectedFilter)
+                if u'Excel(html)' in selected_filter:
+                    self.saveAsXls(fileName)
+                else:
+                    self.saveAsXlsNew(fileName)
             else:
                 self.saveAsHtml(fileName)
             self.saveSupplements(os.path.splitext(fileName)[0])
@@ -840,6 +853,282 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
     def saveAsXls(self, fileName):
         self.saveAsHtml(fileName)
 
+    def saveAsXlsNew(self, fileName):
+        try:
+            # Создаем книгу Excel
+            wb = xlwt.Workbook(encoding='utf-8')
+            ws = wb.add_sheet(u'Отчет')
+
+            # Получаем HTML из виджета
+            textDocument = self.txtReport.document()
+            excelTextDocument = textDocument.clone(textDocument)
+            html_content = unicode(excelTextDocument.toHtml())
+
+            # Парсим HTML
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # Создаем стили
+            header_style = xlwt.XFStyle()
+            header_font = xlwt.Font()
+            header_font.bold = True
+            header_font.height = 240
+            header_style.font = header_font
+            header_style.alignment.horz = xlwt.Alignment.HORZ_CENTER
+            header_style.alignment.vert = xlwt.Alignment.VERT_CENTER
+            header_style.pattern = xlwt.Pattern()
+            header_style.pattern.pattern = xlwt.Pattern.SOLID_PATTERN
+            header_style.pattern.pattern_fore_colour = 22
+
+            cell_style = xlwt.XFStyle()
+            cell_style.alignment.vert = xlwt.Alignment.VERT_CENTER
+            cell_style.alignment.wrap = 1
+            borders = xlwt.Borders()
+            borders.left = xlwt.Borders.THIN
+            borders.right = xlwt.Borders.THIN
+            borders.top = xlwt.Borders.THIN
+            borders.bottom = xlwt.Borders.THIN
+            cell_style.borders = borders
+
+            text_style = xlwt.XFStyle()
+            text_style.alignment.wrap = 1
+            text_style.alignment.vert = xlwt.Alignment.VERT_TOP
+
+            # Парсим документ на таблицы и текст
+            tablesDict, psDict = self._parse_html_doc(html_content)
+
+            current_row = 0
+            col_widths = {}
+
+            # Обрабатываем текст и таблицы последовательно
+            for key in sorted(tablesDict.keys()):
+                # Сначала пишем текст перед таблицей
+                if key in psDict and psDict[key]:
+                    for p in psDict[key]:
+                        text = self._get_text_from_element(p)
+                        if text:
+                            ws.write(current_row, 0, text, text_style)
+                            col_widths[0] = max(col_widths.get(0, 0), len(text) * 256)
+                            current_row += 1
+
+                # Пишем таблицу
+                table_data = tablesDict[key]
+                current_row = self._save_table_improved(ws, table_data, current_row,
+                                                        header_style, cell_style, col_widths)
+                current_row += 1
+
+            # Обрабатываем оставшийся текст после таблиц
+            last_key = max(tablesDict.keys()) if tablesDict else -1
+            if last_key + 1 in psDict and psDict[last_key + 1]:
+                for p in psDict[last_key + 1]:
+                    text = self._get_text_from_element(p)
+                    if text:
+                        ws.write(current_row, 0, text, text_style)
+                        col_widths[0] = max(col_widths.get(0, 0), len(text) * 256)
+                        current_row += 1
+
+            # Устанавливаем ширину колонок
+            for col, width in col_widths.items():
+                if width > 0:
+                    ws.col(col).width = min(width + 500, 12000)
+
+            if col_widths.get(0, 0) < 3000:
+                ws.col(0).width = 8000
+
+            wb.save(fileName)
+            QtGui.qApp.setSaveDir(fileName)
+
+        except Exception, e:
+            import traceback
+            traceback.print_exc()
+            QtGui.QMessageBox.critical(
+                self,
+                u'Ошибка',
+                u'Не удалось сохранить файл в формате XLS:\n' + unicode(e),
+                QtGui.QMessageBox.Ok
+            )
+            self.saveAsHtml(fileName)
+
+    def _parse_html_doc(self, txtHtml):
+        """
+        Парсит HTML документ и разделяет на таблицы и текстовые параграфы
+        """
+        soup = BeautifulSoup(txtHtml, 'html.parser')
+        tablesDict = {}
+        psDict = {}
+
+        # Находим все таблицы
+        tables = soup.find_all('table')
+        for i, table in enumerate(tables):
+            trs = table.find_all('tr')
+            # Разделяем заголовки и тело таблицы
+            trThead = [x for x in trs if x.parent.name == 'thead']
+            trValue = [x for x in trs if x.parent.name == 'table' or x.parent.name == 'tbody']
+            tablesDict[i] = [trThead, trValue]
+
+        # Находим все текстовые параграфы
+        i = 0
+        psDict[i] = []
+        otherTegsP = soup.find_all('p')
+        flag = False
+        for p in otherTegsP:
+            if p.parent.name == 'body':
+                psDict[i].append(p)
+                flag = True
+            elif flag:
+                i += 1
+                psDict[i] = []
+                flag = False
+
+        return tablesDict, psDict
+
+    def _save_table_improved(self, ws, table_data, current_row, header_style, cell_style, col_widths):
+        trThead, trValue = table_data
+
+        # Сначала записываем заголовки
+        if trThead:
+            cellPlace = self._setup_cell_place(trThead[0])
+            current_row = self._write_table_rows(ws, trThead, cellPlace, current_row,
+                                                 header_style, col_widths)
+
+        # Затем записываем тело таблицы
+        if trValue:
+            # Проверяем, есть ли уже занятые ячейки от заголовка
+            cellPlace = self._setup_cell_place(trThead[0]) if trThead else {}
+            current_row = self._write_table_rows(ws, trValue, cellPlace, current_row,
+                                                 cell_style, col_widths)
+
+        return current_row
+
+    def _write_table_rows(self, ws, trs, cellPlace, current_row, style, col_widths):
+        for tr in trs:
+            tdList = tr.find_all(['td', 'th'])
+            isIntRow = self._check_value_in_row(tdList)
+            col = 0
+
+            for td in tdList:
+                # Пропускаем занятые ячейки
+                while col in cellPlace and cellPlace[col] > 0 and not isIntRow:
+                    cellPlace[col] -= 1
+                    col += 1
+
+                # Получаем текст ячейки
+                cell_text = self._get_text_from_element(td)
+
+                # Получаем rowspan и colspan
+                rowspan = forceInt(td.get('rowspan', 1))
+                colspan = forceInt(td.get('colspan', 1))
+
+                # Обновляем cellPlace для rowspan
+                if rowspan > 1:
+                    for i in range(col, col + colspan):
+                        cellPlace[i] = rowspan - 1
+
+                # Определяем конечную колонку
+                end_col = col + colspan - 1
+
+                # Записываем объединенную ячейку
+                try:
+                    if rowspan > 1 or colspan > 1:
+                        ws.write_merge(current_row, current_row + rowspan - 1,
+                                       col, end_col, cell_text, style)
+                    else:
+                        ws.write(current_row, col, cell_text, style)
+                except:
+                    ws.write(current_row, col, cell_text, style)
+
+                # Обновляем ширину колонки
+                text_len = len(cell_text)
+                if col not in col_widths or text_len * 256 > col_widths.get(col, 0):
+                    col_widths[col] = min(text_len * 256 + 500, 12000)
+
+                col = end_col + 1
+
+            current_row += 1
+
+        return current_row
+
+    def _setup_cell_place(self, tr):
+        """
+        Создает словарь для отслеживания занятых ячеек
+        """
+        cellPlace = {}
+        tdList = tr.find_all(['td', 'th'])
+        countCol = 0
+
+        for td in tdList:
+            if td.has_attr('colspan'):
+                countCol += forceInt(td['colspan'])
+            else:
+                countCol += 1
+
+        for i in range(countCol):
+            cellPlace[i] = 0
+
+        return cellPlace
+
+    def _get_text_from_element(self, element):
+        """
+        Извлекает текст из элемента, включая вложенные теги
+        """
+        if not element:
+            return u""
+
+        try:
+            # Пробуем получить текст через p.string (как в эталонном коде)
+            if element.name == 'td' or element.name == 'th':
+                p = element.find('p')
+                if p and p.string:
+                    return unicode(p.string).strip()
+
+            # Если не нашли через p, берем весь текст
+            text = unicode(element.get_text(strip=True))
+            if text:
+                return text
+
+            # Если все еще пусто, пробуем через содержимое
+            if hasattr(element, 'contents'):
+                parts = []
+                for content in element.contents:
+                    if hasattr(content, 'string') and content.string:
+                        parts.append(unicode(content.string).strip())
+                    elif isinstance(content, basestring):
+                        parts.append(unicode(content).strip())
+                text = u' '.join([p for p in parts if p])
+                return text
+
+            return u""
+        except:
+            return u""
+
+    def _check_value_in_row(self, tdList):
+        """
+        Проверяет, все ли ячейки в строке содержат числа
+        """
+        isInt = True
+        for td in tdList:
+            try:
+                p = td.find('p')
+                if p and p.string:
+                    value = unicode(p.string).strip()
+                    # Проверяем, является ли значение числом (целым или с плавающей точкой)
+                    if value and not self._is_number(value):
+                        isInt = False
+                else:
+                    isInt = False
+            except:
+                isInt = False
+        return isInt
+
+    def _is_number(self, s):
+        """
+        Проверяет, является ли строка числом
+        """
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+
 
     def saveAsOdt(self, fileName):
         writer = QtGui.QTextDocumentWriter()
@@ -861,6 +1150,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
         QtGui.qApp.setSaveDir(fileName)
         printer = QtGui.QPrinter(QtGui.QPrinter.HighResolution)
         printer.setOutputFormat(QtGui.QPrinter.PdfFormat)
+        printer.setFullPage(True)
 
         tmpFile = QTemporaryFile()
         if tmpFile.open():
@@ -949,6 +1239,7 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                 printer.setNumCopies(1)
             if hasattr(printer, 'setCopyCount'):
                 printer.setCopyCount(1)
+            printer.setDuplex(1)
 
             if (   defaultPrinterInfo.isNull() 
                 or not QtGui.qApp.enableFastPrint()

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -85,8 +85,10 @@ class CSortFilterProxyTableModel(QtGui.QSortFilterProxyModel):
         for recordFieldName, (value, matchMethod, isCaseSensitive) in self.__filters.items():
             if not result or not record:
                 break
-
-            recordValue = record.value(recordFieldName).toPyObject()
+            if hasattr(self, 'getDisplayedValue'):
+                recordValue = self.getDisplayedValue(record, recordFieldName).toPyObject()
+            else:
+                recordValue = record.value(recordFieldName).toPyObject()
             if matchMethod == self.MatchExactly:
                 result = result and isMatch(recordValue, value, isCaseSensitive, lambda a,b: a == b)
             elif matchMethod == self.MatchStartsWith:

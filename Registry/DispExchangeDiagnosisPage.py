@@ -235,13 +235,13 @@ class CDispExchangeDiagnosisPage(QWidget, Ui_DispExchangeDiagnosisPage, CConstru
                     where.append("Diagnosis.MKB <= '%s'" % mkbTo)
             if self.chkFilterIsExport.isChecked():
                 where.append('DDP.isExport = 0')
+            if self.chkHideSuccess.isChecked():
+                where.append('ifnull(PlanExport.exportSuccess, 0) != 1')
             statusFilter = []
             if self.chkNotExported.isChecked():
                 statusFilter.append('PlanExport.id is null')
             if self.chkExportedSuccessfully.isChecked():
                 statusFilter.append('PlanExport.exportSuccess = 1')
-            if self.chkHideSuccess.isChecked():
-                statusFilter.append('ifnull(PlanExport.exportSuccess, 0) != 1')
             if self.chkExportedWithErrors.isChecked():
                 statusFilter.append('PlanExport.exportSuccess = 0')
                 errorTypes = self.cmbExportedWithErrors.value()

@@ -143,6 +143,7 @@ class Ui_StationaryF007SetupDialog(object):
     def retranslateUi(self, StationaryF007SetupDialog):
         StationaryF007SetupDialog.setWindowTitle(_translate("StationaryF007SetupDialog", "параметры отчёта", None))
         self.lblHospitalBedProfile.setText(_translate("StationaryF007SetupDialog", "Профиль койки", None))
+        self.edtBegTime.setDisplayFormat(_translate("StationaryF007SetupDialog", "HH:mm", None))
         self.edtEndDate.setDisplayFormat(_translate("StationaryF007SetupDialog", "dd.MM.yyyy", None))
         self.chkNoPrintCaption.setText(_translate("StationaryF007SetupDialog", "Не печатать заголовок отчета", None))
         self.chkCompactInfo.setText(_translate("StationaryF007SetupDialog", "Краткое представление", None))
@@ -158,6 +159,7 @@ class Ui_StationaryF007SetupDialog(object):
         self.cmbSchedule.setItemText(0, _translate("StationaryF007SetupDialog", "Не учитывать", None))
         self.cmbSchedule.setItemText(1, _translate("StationaryF007SetupDialog", "Круглосуточные", None))
         self.cmbSchedule.setItemText(2, _translate("StationaryF007SetupDialog", "Дневные", None))
+        self.edtTimeEdit.setDisplayFormat(_translate("StationaryF007SetupDialog", "HH:mm", None))
         self.chkIsGroupingOS.setText(_translate("StationaryF007SetupDialog", "Группировка по подразделениям", None))
         self.chkFinance.setText(_translate("StationaryF007SetupDialog", "Тип финансирования", None))
 

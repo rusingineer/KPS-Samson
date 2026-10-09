@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EventAddChronicDiseasesDialog</class>
+ <widget class="QDialog" name="EventAddChronicDiseasesDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>542</width>
+    <height>420</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Выберите хронические диагнозы</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="margin">
+    <number>4</number>
+   </property>
+   <item>
+    <widget class="CInDocTableView" name="tblChronicalDiagnoses"/>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CInDocTableView</class>
+   <extends>QTableView</extends>
+   <header>library/InDocTable.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>EventAddChronicDiseasesDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>437</x>
+     <y>395</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>270</x>
+     <y>209</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>EventAddChronicDiseasesDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>437</x>
+     <y>395</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>270</x>
+     <y>209</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -66,7 +66,10 @@ def getAdultCountNewAges():
     WHERE A.deleted = 0 AND Action.id IS NOT NULL AND A.id = Action.id
     AND ((A.begDate<'2022-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 56, IF(Client.sex = 1, 61, 56)))
 	OR ((A.begDate between '2022-01-01T00:00:00' AND '2023-12-31T23:59:59') AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 57, IF(Client.sex = 1, 62, 57)))
-	OR (A.begDate >='2024-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 58, IF(Client.sex = 1, 63, 58)))))'''
+	OR ((A.begDate between '2024-01-01T00:00:00' AND '2025-12-31T23:59:59')  AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 58, IF(Client.sex = 1, 63, 58)))
+	OR ((A.begDate between '2026-01-01T00:00:00' AND '2027-12-31T23:59:59') AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 59, IF(Client.sex = 1, 64, 59)))
+	OR (A.begDate >='2028-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 60, IF(Client.sex = 1, 65, 60)))
+	))'''
 
 
 def getAgeCount(age=60):
@@ -137,7 +140,10 @@ def getNoDeathAdultCountNewAges():
     AND APT.deleted=0 AND AP.deleted=0 AND APT.name = '%s' AND (APS.value %s OR APS.value %s))
     AND ((A.begDate<'2022-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 56, IF(Client.sex = 1, 61, 56)))
 	OR ((A.begDate between '2022-01-01T00:00:00' AND '2023-12-31T23:59:59') AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 57, IF(Client.sex = 1, 62, 57)))
-	OR (A.begDate >='2024-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 58, IF(Client.sex = 1, 63, 58)))))'''%\
+	OR ((A.begDate between '2024-01-01T00:00:00' AND '2025-12-31T23:59:59') AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 58, IF(Client.sex = 1, 63, 58))
+ 	OR ((A.begDate between '2026-01-01T00:00:00' AND '2027-12-31T23:59:59') AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 59, IF(Client.sex = 1, 64, 59)))
+	OR (A.begDate >='2028-01-01T00:00:00' AND (age(C.birthDate, A.begDate)) >= IF(Client.sex = 2, 60, IF(Client.sex = 1, 65, 60)))
+	)))'''%\
     (u'Исход госпитализации', updateLIKE(u'умер%%'), updateLIKE(u'смерть%%'))
 
 

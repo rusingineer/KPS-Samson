@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -342,7 +342,7 @@ class CProphylaxisPlanningWindow(QtGui.QScrollArea, Ui_ProphylaxisPlanningWindow
             if begDate:
                 cond.append(table['endDate'].ge(begDate))
             if endDate:
-                cond.append(table['begDate'].le(endDate))
+                cond.append(table['endDate'].le(endDate))
 
         notVisit = self.filter.get('notVisit')
         if notVisit == 1:
@@ -1052,7 +1052,6 @@ class CProphylaxisPlanningModel(CTableModel):
                 date = forceDate(record.value('date'))
                 time = forceTime(record.value('time'))
                 personName = forceString(record.value('personName'))
-#                osName = forceString(record.value('osName'))
                 return toVariant(forceString(QDateTime(date, time))+' '+personName)
             return QVariant()
 
@@ -1104,6 +1103,32 @@ class CProphylaxisPlanningModel(CTableModel):
         def getValue(self, values):
             return forceRef(values[0])
 
+    class CLocBegDateColumn(CCol):
+        def __init__(self, title, fields, defaultWidth):
+            CCol.__init__(self, title, fields, defaultWidth, 'l')
+            self.typeCaches = {}
+
+        def format(self, values):
+            planningTypeId = forceRef(values[0])
+            endDate = forceStringEx(values[1])
+            date = forceStringEx(values[2])
+            db = QtGui.qApp.db
+            if planningTypeId:
+                typeRecord = self.typeCaches.get(planningTypeId, None)
+                code = ''
+                if not typeRecord:
+                    table = db.table('rbProphylaxisPlanningType')
+                    typeRecord = db.getRecordEx(table, '*', [table['id'].eq(planningTypeId)])
+                if typeRecord:
+                    code = forceStringEx(typeRecord.value('code'))
+                self.typeCaches[planningTypeId] = typeRecord
+                if code == u'ДН':
+                    date = endDate
+            return toVariant(date)
+
+        def getValue(self, values):
+            return forceRef(values[0])
+
     def __init__(self, parent):
         self.clientCache = CTableRecordCache(QtGui.qApp.db, 'Client', ('id', 'lastName', 'firstName', 'patrName', 'birthDate', 'sex'), 300)
         CTableModel.__init__(self, parent)
@@ -1111,7 +1136,7 @@ class CProphylaxisPlanningModel(CTableModel):
         self.addColumn(self.CLocClientBirthDateColumn(u'Дата рожд.', ('client_id',), 20, self.clientCache, ['birthDate']))
         self.addColumn(self.CLocClientSexColumn(u'Пол', ('client_id',), 5, self.clientCache, ['sex']))
         self.addColumn(self.CLocClientContactColumn(u'Телефон', ('contact', 'client_id'),  20))
-        self.addColumn(CDateCol(u'С',   ['begDate'], 10))
+        self.addColumn(self.CLocBegDateColumn(u'С',   ('prophylaxisPlanningType_id', 'endDate', 'begDate'), 10))
         self.addColumn(CDateCol(u'По',  ['endDate'], 10))
         self.addColumn(CDesignationCol(u'Подразделение', ('orgStructure_id',), ('OrgStructure', 'name'), 10))
         self.addColumn(CRefBookCol(u'Специальность',     ['speciality_id'],    'rbSpeciality', 30))

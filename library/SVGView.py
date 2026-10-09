@@ -479,7 +479,7 @@ class CSVGView(QtGui.QDialog, Ui_SVGViewDialog):
         mainFileName = unicode(self.windowTitle())
         ok, trail = self.signAndAttach()
         if ok:
-            if trail:
+            if trail[0]:
                 QtGui.QMessageBox.information(
                     self,
                     u'Подпиcать и прикрепить',

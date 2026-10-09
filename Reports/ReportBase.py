@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -433,7 +433,7 @@ class CReportTableBase(object):
             return
         for i in xrange(startRow + self.headerRowCount(), endRow):
             rowIsZero = True
-            for j in xrange(startCol, endCol - startCol):
+            for j in xrange(startCol, endCol - startCol + 1):
                 text = self.getCellText(i, j)
                 if text and text != u'0' and text != u'0.0' and not text.isspace():
                     rowIsZero = False
@@ -441,7 +441,7 @@ class CReportTableBase(object):
             if rowIsZero:
                 rowsToDelete.append(i)
         for i in sorted(rowsToDelete, reverse=True):
-            self.delRow(i)
+            self.delRow(i, 1)
 
 
 def autoMergeHeader(table, tableColumns):

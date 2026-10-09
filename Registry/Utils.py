@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1390,7 +1390,7 @@ def checkClientAttachService(personInfo):
             for attachment in result['attachlist']:
                 db = QtGui.qApp.db
                 stmt = """select shortName from Organisation
-                            where Organisation.infisCode='%s' AND isMedical = 3 AND isInsurer = 0 AND isActive = 1 AND deleted = 0""" % attachment['mo']
+                            where Organisation.infisCode='%s' AND isMedical in (1, 3) AND isInsurer = 0 AND isActive = 1 AND deleted = 0""" % attachment['mo']
                 query = db.query(stmt)
                 moName = ''
                 while query.next():
@@ -6960,18 +6960,14 @@ def createEvent(clientId, removeDate):
 
 
 # Логичнее перенести в utils, т.к. используется в нескольких местах
-def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTime, scheduleItemId):
+def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTime):
     """
-    При записи на талон с typeRecord = 4 (ТМК MAX) создаёт связанное действие tmkDirectMax, после чего вызывает шаблон для создания направления TMK (startTMK)
+    При записи на талон с typeRecord = 4 (ТМК MAX)
+    Создание связанного события с действием tmkDirectMax
     """
     # Локальные импорты во избежание цикличного импорта
     from Events.Action import CActionTypeCache
     from Events.Action import CAction
-    from library.PrintTemplates import getFirstPrintTemplate
-    from Events.EventInfo import CEventInfo
-    from Events.ActionInfo import CCookedActionInfo
-    from Events.ActionsModel import CActionRecordItem
-    from library.PrintTemplates import applyTemplate
 
     db = QtGui.qApp.db
     tableAction = db.table('Action')
@@ -6987,7 +6983,7 @@ def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTim
     if not eventTypeId:
         QtGui.QMessageBox().warning(widget, u'Внимание!', u'Отсутствует тип события с контекстом "relatedAction"',
                                     QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-        return False
+        return None
 
     actionTypeRecord = db.getRecordEx(tableActionType, [tableActionType['id']],
                                      [tableActionType['flatCode'].eq(u'tmkDirectMax'),
@@ -6997,7 +6993,7 @@ def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTim
     if not actionTypeId:
         QtGui.QMessageBox().warning(widget, u'Внимание!', u'Отсутствует тип действия с кодом для отчёта "tmkDirectMax"',
                                     QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-        return False
+        return None
 
     if actionTypeId:
         prevEventId = eventId
@@ -7014,6 +7010,10 @@ def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTim
 
         if eventId:
             recordEvent.setValue('id', toVariant(eventId))
+        else:
+            QtGui.QMessageBox().warning(widget, u'Внимание!', u'Ошибка сохранения "связанного" события',
+                                        QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+            return None
 
         QtGui.qApp.setCounterController(CCounterController(widget))
         QtGui.qApp.setJTR(widget)
@@ -7042,51 +7042,115 @@ def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTim
 
             if not newAction:
                 QtGui.QMessageBox().warning(widget, u'Внимание!',
+                                            u'Ошибка при создании связанного действия',
+                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                return None
+
+            newActionId = newAction.save(idx=0, checkModifyDate=False)
+
+            if not newActionId:
+                QtGui.QMessageBox().warning(widget, u'Внимание!',
                                             u'Ошибка при сохранении связанного действия',
                                             QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-                return False
+                return None
 
-            newAction.save(idx=0, checkModifyDate=False)
-
-
-            template = getFirstPrintTemplate('startTMK')
-
-            if not template:
-                QtGui.QMessageBox().warning(widget, u'Внимание!',
-                                            u'Ошибка при создании напрвления ТМК',
-                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
-                return False
-
-            context = CInfoContext()
-
-            eventInfo = context.getInstance(CEventInfo, eventId)
-            eventInfo.actions._idList.append(newAction.getId())
-            eventInfo.actions._items.append(
-                CCookedActionInfo(context, newAction.getRecord(), newAction))
-            eventInfo.actions._loaded = True
-            action = eventInfo.actions[0]
-            currentActionIndex = 0
-
-            eventActions = eventInfo.actions
-
-            data = {'event': eventInfo,
-                    'action': action,
-                    'client': eventInfo.client,
-                    'actions': eventActions,
-                    'currentActionIndex': currentActionIndex,
-                    'currentAction': CActionRecordItem(newRecord, newAction),
-                    'scheduleItemId': scheduleItemId
-                    }
-            applyTemplate(widget, template.id, data)
-
-            return True
-
+            return newAction
         finally:
             QtGui.qApp.unsetJTR(widget)
             QtGui.qApp.delAllCounterValueIdReservation()
             QtGui.qApp.setCounterController(None)
 
     return False
+
+
+def applyTemplateRelatedActionTMK(widget, actionTMK, scheduleItem):
+    """
+    При записи на талон с typeRecord = 4 (ТМК MAX)
+    Вызывает шаблон печати с контекстом 'startTMK'
+    """
+    from library.PrintTemplates import getFirstPrintTemplate
+    from Events.EventInfo import CEventInfo
+    from Events.ActionInfo import CCookedActionInfo
+    from Events.ActionsModel import CActionRecordItem
+    from library.PrintTemplates import applyTemplate
+
+    relativeEventId = actionTMK.getEventId()
+
+    template = getFirstPrintTemplate('startTMK')
+
+    if not template:
+        QtGui.QMessageBox().warning(widget, u'Внимание!',
+                                    u'Ошибка при создании направления ТМК',
+                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+        return False
+
+    context = CInfoContext()
+
+    eventInfo = context.getInstance(CEventInfo, relativeEventId)
+    eventInfo.actions._idList.append(actionTMK.getId())
+    eventInfo.actions._items.append(
+        CCookedActionInfo(context, actionTMK.getRecord(), actionTMK))
+    eventInfo.actions._loaded = True
+    action = eventInfo.actions[0]
+    currentActionIndex = 0
+
+    eventActions = eventInfo.actions
+
+    data = {'event': eventInfo,
+            'action': action,
+            'client': eventInfo.client,
+            'actions': eventActions,
+            'currentActionIndex': currentActionIndex,
+            'currentAction': CActionRecordItem(actionTMK.getRecord(), actionTMK),
+            'scheduleItemId': scheduleItem.id
+            }
+    try:
+        applyTemplate(widget, template.id, data)
+    except UserWarning:
+        # шаблон должен вызвать эту ошибку если в данных какая-то хрень, а моя задача зачистить следы
+        cleanUpTMKOrder(widget, actionTMK, scheduleItem)
+        return False
+
+    return True
+
+
+def clearRelatedActionTMK(actionTMK):
+    """
+    При записи на талон с typeRecord = 4 (ТМК MAX)
+    Удаляет созданный связанный event и action если произошла какая-то ошибка и отработал rollback
+    """
+    db = QtGui.qApp.db
+
+    actionId = actionTMK.getId()
+    eventId = actionTMK.getEventId()
+
+    tableActionProperty = db.table('ActionProperty')
+    tableAction = db.table('Action')
+    tableEvent = db.table('Event')
+
+    filter_ = [tableActionProperty['action_id'].eq(actionId), tableActionProperty['deleted'].eq(0)]
+    db.markRecordsDeleted(tableActionProperty, filter_)
+
+    filter_ = [tableAction['id'].eq(actionId), tableAction['deleted'].eq(0)]
+    db.markRecordsDeleted(tableAction, filter_)
+
+    filter_ = [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)]
+    db.markRecordsDeleted(tableEvent, filter_)
+
+
+def cleanUpTMKOrder(widget, actionTMK, scheduleItem):
+    """
+    Если нужно полностью отчистить и талон и действие на запись ТМК
+    """
+    from Timeline.Schedule import freeScheduleItem
+
+    scheduleId = scheduleItem.id
+    clientId = scheduleItem.clientId
+    note = u'Отменена при неудачной попытке записи на ТМК'
+
+    freeScheduleItem(widget, scheduleId, clientId, additionalDeleteNote=note)
+
+    clearRelatedActionTMK(actionTMK)
 
 
 def getPostIdentCodeByPersonId(personId):
@@ -7111,3 +7175,19 @@ def getPostIdentCodeByPersonId(personId):
         return forceRef(postRecord.value('value'))
     return None
 
+
+def formatClientMobilePhoneContact(contact, returnFormat=u'{c}{o}{p1}{p2}{p3}'):
+    if not contact:
+        return u''
+    digits = u''.join(char for char in contact if char.isdigit())
+    if len(digits) == 11 and digits.startswith(u'8'):
+        digits = u'7' + digits[1:]
+    if len(digits) not in (11, 12):
+        return u''
+    countryCodeLen = len(digits) - 10
+    country = digits[:countryCodeLen]
+    operator = digits[countryCodeLen: countryCodeLen + 3]
+    part1 = digits[countryCodeLen + 3: countryCodeLen + 6]
+    part2 = digits[countryCodeLen + 6: countryCodeLen + 8]
+    part3 = digits[countryCodeLen + 8:]
+    return returnFormat.format(c=country, o=operator, p1=part1, p2=part2, p3=part3)

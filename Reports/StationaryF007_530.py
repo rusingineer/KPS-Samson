@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -104,7 +104,7 @@ class CStationaryF007SetupDialog(QtGui.QDialog, Ui_StationaryF007SetupDialog):
 
         result = {}
         result['endDate'] = self.edtEndDate.date()
-        result['endTime'] = getPureHMTime(self.edtTimeEdit.time())
+        result['endTime'] = getPureHMTime(self.edtTimeEdit.time()).addSecs(59)
         result['orgStructureId'] = self.cmbOrgStructure.value()
         result['bedsSchedule'] = self.cmbSchedule.currentIndex()
         result['hospitalBedProfileId'] = self.cmbHospitalBedProfile.value()

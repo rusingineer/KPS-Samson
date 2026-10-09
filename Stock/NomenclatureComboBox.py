@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -54,6 +54,8 @@ class CNomenclatureComboBox(CRBComboBox):
     def __init__(self, parent, nomenclatureId = None, needInternationalNonproprietaryName = False):
         CRBComboBox.__init__(self, parent)
         self.setTable('rbNomenclature')
+        if nomenclatureId:
+            self.setValue(nomenclatureId)
         self.defaultClassId = None
         self.defaultKindId = None
         self.defaultTypeId = None
@@ -72,7 +74,6 @@ class CNomenclatureComboBox(CRBComboBox):
         self._onlySmnn = False
         self._lfFormId = None
         self._mainStockId = self.getMainStockId() if forceBool(QtGui.qApp.preferences.appPrefs.get('showMainStockRemainings', QVariant())) else None
-        self._filter = u''
         self._additionalCond = u''
         self.isFinanceVisible = 0 # 0-как обычно, 1-не показывать, 2-показывать #0013272
         self.isOnlyMnnEsklpFormVisible = False
@@ -190,76 +191,19 @@ class CNomenclatureComboBox(CRBComboBox):
 
 
     def getFilterData(self):
-        db = QtGui.qApp.db
-        cond = []
-        activeSubstanceIdList = []
-        smnnIdList = []
-        self._filter = u'0'
-        tableNomenclature = db.table('rbNomenclature')
-        if self._activeSubstanceId:
-            tableNomenclatureComposition = db.table('rbNomenclature_Composition')
-            queryTableComposition = tableNomenclature.innerJoin(tableNomenclatureComposition, tableNomenclatureComposition['master_id'].eq(tableNomenclature['id']))
-            activeSubstanceCond = [tableNomenclatureComposition['activeSubstance_id'].eq(self._activeSubstanceId)]
-            activeSubstanceIdList = db.getDistinctIdList(queryTableComposition, tableNomenclature['id'].name(), activeSubstanceCond)
-        if self.isOnlyMnnEsklpFormVisible and forceBool(QtGui.qApp.preferences.appPrefs.get('NomenclatureComboBoxPopup_isOnlyMnnEsklpForm', False)):
-            cond = []
-            if self._smnnName:
-                tableEsklp_Smnn = db.table('esklp.Smnn')
-                tableNC = db.table('rbNomenclature')
-                tableESKLP_Klp = db.table('esklp.Klp')
-                queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
-                queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
-                cond.append(tableEsklp_Smnn['mnn'].eq(self._smnnName))
-                if self._lfFormId:
-                    tableLfForm= db.table('rbLfForm')
-                    tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
-                    lfFormRecord = db.getRecordEx(tableLfForm, [tableLfForm['name']], [tableLfForm['id'].eq(self._lfFormId)])
-                    lfFormName = forceStringEx(lfFormRecord.value('name')) if lfFormRecord else ''
-                    queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
-                    queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
-                    cond.append(tableLfForm['isESKLP'].eq(1))
-                    cond.append(tableLfForm['name'].eq(lfFormName))
-                    cond.append(tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']))
-                    cond.append(tableNC['lfForm_id'].eq(tableLfForm['id']))
-                smnnIdList = db.getDistinctIdList(queryTable, [tableNC['id']], cond)
-        elif self._smnnUUID:
-            tableEsklp_Smnn = db.table('esklp.Smnn')
-            tableNC = db.table('rbNomenclature')
-            tableESKLP_Klp = db.table('esklp.Klp')
-            queryTable = tableNC.innerJoin(tableESKLP_Klp, tableESKLP_Klp['UUID'].eq(tableNC['esklpUUID']))
-            queryTable = queryTable.innerJoin(tableEsklp_Smnn, tableEsklp_Smnn['id'].eq(tableESKLP_Klp['smnn_id']))
-            cond = [tableEsklp_Smnn['UUID'].eq(self._smnnUUID)]
-            if self._lfFormId:
-                tableLfForm= db.table('rbLfForm')
-                tableEsklp_SmnnGrlsLf = db.table('esklp.Smnn_GrlsLf')
-                queryTable = queryTable.innerJoin(tableEsklp_SmnnGrlsLf, tableEsklp_SmnnGrlsLf['master_id'].eq(tableEsklp_Smnn['id']))
-                queryTable = queryTable.innerJoin(tableLfForm, db.joinAnd([tableLfForm['name'].eq(tableEsklp_SmnnGrlsLf['lf_name']), tableLfForm['dosage'].eq(tableEsklp_SmnnGrlsLf['dosage_name'])]))
-                cond.append(tableLfForm['id'].eq(self._lfFormId))
-                cond.append(tableLfForm['isESKLP'].eq(1))
-                cond.append(tableLfForm['name'].eq(tableESKLP_Klp['lf_norm_name']))
-                cond.append(tableLfForm['dosage'].eq(tableESKLP_Klp['dosage_norm_name']))
-            smnnIdList = db.getDistinctIdList(queryTable, [tableNC['id']], cond)
-        activeSubstanceIdList = list(set(activeSubstanceIdList)|set(smnnIdList))
-        if self._onlyExists:
-            existsIdList = getExistsNomenclatureIdList(self._stockOrgStructureId, self._financeId, self._medicalAidKindId, nomenclatureIdList = activeSubstanceIdList, isFinanceComboBoxFilter = bool(self.isFinanceVisible))
-            if existsIdList:
-                cond.append(tableNomenclature['id'].inlist(existsIdList))
-                self._filter = 'id in (%s)'%str(existsIdList).strip('[]')
-        elif not self._onlyNomenclature:
-            existsIdList = getExistsNomenclatureIdList(self._stockOrgStructureId, self._financeId, self._medicalAidKindId, otherHaving = [u'qnt>0'], nomenclatureIdList = activeSubstanceIdList, isFinanceComboBoxFilter = bool(self.isFinanceVisible))
-            if existsIdList:
-                self._filter = 'id in (%s)'%str(existsIdList).strip('[]')
+        itemId = self.value() #Хранить в самом комбобоксе все значения не имеет смысла
+        if itemId:            #так как во всплывающем окне мы делаем запрос заново
+            self._filter = 'id in ({})'.format(itemId)
         else:
-            self._filter = u''
+            self._filter = 'id is NULL'
 
 
     def showPopup(self):
         nomenclatureId = self.getValue()
-        if not self._popup:
-            self._popup = CNomenclatureComboBoxPopup(self, self._useClientUnitId, self._financeId, self._medicalAidKindId, self.needInternationalNonproprietaryName)
-            self.connect(self._popup, SIGNAL('itemsUpdated()'), self.updateItems)
-            self.connect(self._popup, SIGNAL('itemSelected(QVariant)'), self.setQValue)
-            self.connect(self._popup, SIGNAL('applySearch(QVariant)'), self.setFinanceMedicalAidKind)
+        self._popup = CNomenclatureComboBoxPopup(self, self._useClientUnitId, self._financeId, self._medicalAidKindId)
+        self.connect(self._popup, SIGNAL('itemsUpdated()'), self.updateItems)
+        self.connect(self._popup, SIGNAL('itemSelected(QVariant)'), self.setQValue)
+        self.connect(self._popup, SIGNAL('applySearch(QVariant)'), self.setFinanceMedicalAidKind)
         self._popup.setDefaultIds(self.defaultClassId, self.defaultKindId, self.defaultTypeId)
         self._popup.setStockOrgStructureId(self._stockOrgStructureId)
         self._popup.setOnlySmnn(self._onlySmnn)
@@ -350,6 +294,7 @@ class CNomenclatureInDocTableCol(CRBInDocTableCol):
         self._tableNomenclature = QtGui.qApp.db.table(self.tableName)
         self._tableLfForm = QtGui.qApp.db.table('rbLfForm')
         self.isOnlyMnnEsklpFormVisible = False
+        self.nomenclatureId = 0
 
 
     def setIsOnlyMnnEsklpFormVisible(self, value):
@@ -382,6 +327,12 @@ class CNomenclatureInDocTableCol(CRBInDocTableCol):
 
     def setFindNomenclatureName(self, value):
         self._findNomenclatureName = value
+    
+    
+    def setIndex(self, index):
+        model = index.model()
+        row = index.row()
+        self.nomenclatureId = forceInt(model.value(row, 'nomenclature_id'))
 
 
     def toString(self, val, record):
@@ -429,7 +380,7 @@ class CNomenclatureInDocTableCol(CRBInDocTableCol):
 
 
     def createEditor(self, parent):
-        editor = CNomenclatureComboBox(parent)
+        editor = CNomenclatureComboBox(parent, self.nomenclatureId)
         editor.setIsOnlyMnnEsklpFormVisible(self.isOnlyMnnEsklpFormVisible)
         editor.setOnlyNomenclature(True)
         editor.setOnlySmnn(self._onlySmnn)
@@ -664,6 +615,7 @@ class CNomenclatureComboBoxPopup(Ui_NomenclatureComboBoxPopup,
         id = forceRef(record.value('id'))
         self.hide()
         QtGui.qApp.preferences.appPrefs['NomenclatureComboBoxPopup_isOnlyMnnEsklpForm'] = toVariant(self.chkOnlyMnnEsklpForm.isChecked())
+        self._parent.setFilter('')
         self.emit(SIGNAL('itemSelected(QVariant)'), toVariant(id))
 
 
@@ -1329,97 +1281,3 @@ def getFeaturesAndValues(classId = 0, kindId = 0, typeId = 0, nomenclatureId = 0
         value.sort()
     return result
         #print d
-
-
-
-class CNomenclatureActionPropertyComboBox(CNomenclatureComboBox):
-    def __init__(self, parent):
-        CRBComboBox.__init__(self, parent)
-        itemId = self.value() #Хранить в самом комбобоксе все значения не имеет смысла
-        if itemId:            #так как во всплывающем окне мы делаем запрос заново
-            self._filter = u'id in ({})'.format(itemId)
-        else:
-            self._filter = u'id is NULL'
-        self.setTable('rbNomenclature', filter=self._filter)
-        self.defaultClassId = None
-        self.defaultKindId = None
-        self.defaultTypeId = None
-        self.defaultFeatures = []
-        self._popup = None
-        self._stockOrgStructureId = None
-        self._onlyExists = False
-        self._onlyNomenclature = False
-        self._useClientUnitId = False
-        self._financeId = None
-        self._medicalAidKindId = None
-        self._activeSubstanceId = None
-        self._mainStockId = self.getMainStockId() if forceBool(QtGui.qApp.preferences.appPrefs.get('showMainStockRemainings', QVariant())) else None
-        self.isFinanceVisible = 0 # 0-как обычно, 1-не показывать, 2-показывать #0013272
-        
-        
-    def getFilterData(self):
-        itemId = self.value() #Хранить в самом комбобоксе все значения не имеет смысла
-        if itemId:            #так как во всплывающем окне мы делаем запрос заново
-            self._filter = 'id in ({})'.format(itemId)
-        else:
-            self._filter = 'id is NULL'
-    
-    def showPopup(self):
-        nomenclatureId = self.getValue()
-        #if not self._popup: создавать попап заново оказалось быстрее
-        self._popup = CNomenclatureComboBoxPopup(self, self._useClientUnitId, self._financeId, self._medicalAidKindId)
-        self.connect(self._popup, SIGNAL('itemsUpdated()'), self.updateItems)
-        self.connect(self._popup, SIGNAL('itemSelected(QVariant)'), self.setQValue)
-        self.connect(self._popup, SIGNAL('applySearch(QVariant)'), self.setFinanceMedicalAidKind)
-        self._popup.setDefaultIds(self.defaultClassId, self.defaultKindId, self.defaultTypeId)
-        self._popup.setStockOrgStructureId(self._stockOrgStructureId)
-        self._popup.setNomenclatureActiveSubstanceId(self._activeSubstanceId)
-        self._popup.setOnlyExists(self._onlyExists)
-        self._popup.setOnlyNomenclature(self._onlyNomenclature)
-        self._popup.setIsFinanceVisible(self.isFinanceVisible)
-        if not QtGui.qApp.userHasRight(urAddNewNomenclatureAction):
-            self._popup.tabWidget.setTabEnabled(2, False)
-        if not QtGui.qApp.userHasRight(urEditChkOnlyExistsNomenclature):
-            self._popup.setOnlyExistsEnabled(False)
-        if QtGui.qApp.controlSMFinance() == 1:
-            self._popup.setFinanceId(self._financeId)
-            self._popup.setEventMedicalAidKindId(self._medicalAidKindId)
-            if self.isFinanceVisible == 0:
-                self._popup.setFinanceEnabled(True)
-            else:
-                self._popup.setFinanceEnabled(self.isFinanceVisible == 2)
-            self._popup.setMedicalAidKindEnabled(True)
-        elif QtGui.qApp.controlSMFinance() == 2:
-            self._popup.setFinanceId(self._financeId)
-            self._popup.setEventMedicalAidKindId(self._medicalAidKindId)
-            if self.isFinanceVisible == 0:
-                self._popup.setFinanceEnabled(False)
-            else:
-                self._popup.setFinanceEnabled(self.isFinanceVisible == 2)
-            self._popup.setMedicalAidKindEnabled(False)
-        elif QtGui.qApp.controlSMFinance() == 0:
-            self._popup.setFinanceId(None)
-            if self.isFinanceVisible == 0:
-                self._popup.setFinanceVisible(False)
-                self._popup.setFinanceEnabled(False)
-            else:
-                self._popup.setFinanceVisible(self.isFinanceVisible == 2)
-                self._popup.setFinanceEnabled(self.isFinanceVisible == 2)
-            self._popup.setMedicalAidKindVisible(False)
-            self._popup.setMedicalAidKindEnabled(False)
-            self._popup.setEventMedicalAidKindId(self._medicalAidKindId)
-        if nomenclatureId:
-            self._popup.setNomenclatureId(nomenclatureId)
-        self._popup.setMainStockId(self._mainStockId)
-        self._popup.setDefaultFeatures(self.defaultFeatures)
-        pos = self.rect().bottomLeft()
-        pos = self.mapToGlobal(pos)
-        size = self._popup.sizeHint()
-        screen = QtGui.QApplication.desktop().availableGeometry(pos)
-        size.setWidth(screen.width())
-        pos.setX( max(min(pos.x(), screen.right()-size.width()), screen.left()) )
-        pos.setY( max(min(pos.y(), screen.bottom()-size.height()), screen.top()) )
-        self._popup.move(pos)
-        self._popup.resize(size)
-        self._popup.show()
-        self.setValue(nomenclatureId)

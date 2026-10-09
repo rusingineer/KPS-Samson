@@ -643,37 +643,71 @@ def confirmAndFreeScheduleItem(widget, scheduleItemId, recordPersonId, clientId)
         freeScheduleItem(widget, scheduleItemId, clientId)
 
 
-def freeScheduleItemInt(record):
+def freeScheduleItemInt(record, deleteForTransfer=False, additionalDeleteNote=u''):
     db = QtGui.qApp.db
     table = db.table('Schedule_Item')
     newRecordId = None
+    deleteNote = u'Запись отменена через клиент Самсон'
     if forceBool(record.value('overtime')):
         record.setValue('deleted', toVariant(1))
         record.setValue('checked', toVariant(0))
         record.setValue('homeCallStatus', toVariant(0))
     else:
+        # --- После 10.02.2026 у новой записи очищаем все поля и deleted = 0
         newRecord = type(record)(record)
         newRecord.setNull('id')
-        newRecord.setValue('deleted', toVariant(1))
-        newRecord.setNull('endOfReserve')
-        newRecordId = db.insertRecord(table, newRecord)
+        newRecord.setValue('deleted', toVariant(0))
+        newRecord.setNull('client_id')
+        newRecord.setNull('recordPerson_id')
+        newRecord.setNull('recordDatetime')
+        newRecord.setNull('srcNumber')
+        newRecord.setValue('recordClass', toVariant(0))
+        newRecord.setValue('complaint', toVariant(''))
+        newRecord.setValue('note', toVariant(''))
+        newRecord.setValue('checked', toVariant(0))
+        newRecord.setValue('homeCallStatus', toVariant(0))
+        newRecord.setNull('system_guid')
+        newRecord.setNull('recordType')
+        newRecord.setNull('infections')
+        newRecord.setValue('isUrgent', toVariant(0))
+        db.insertRecord(table, newRecord)
 
-        record.setNull('client_id')
-        record.setNull('recordPerson_id')
-        record.setNull('recordDatetime')
-        record.setNull('srcNumber')
-        record.setNull('recordType')
-        record.setValue('recordClass', toVariant(CScheduleItem.rcSamson))
-        record.setValue('complaint', toVariant(''))
-        record.setValue('note', toVariant(''))
-        record.setValue('checked', toVariant(0))
-        record.setValue('homeCallStatus', toVariant(0))
+        # --- После 10.02.2026 у старой записи deleted = 1
+        record.setValue('deleted', toVariant(1))
+        record.setNull('endOfReserve')
+
+        if deleteForTransfer:
+            record.setNull('system_guid')
+            deleteNote = u'Запись перенесена через клиент Самсон'
+
+        if additionalDeleteNote:
+            deleteNote += u' ({note})'.format(note=additionalDeleteNote)
+
+        record.setValue('note', toVariant(deleteNote))
+
+        # --- Было ранее 10.02.2026
+        # newRecord = type(record)(record)
+        # newRecord.setNull('id')
+        # newRecord.setValue('deleted', toVariant(1))
+        # newRecord.setNull('endOfReserve')
+        # db.insertRecord(table, newRecord)
+        #
+        # record.setNull('client_id')
+        # record.setNull('recordPerson_id')
+        # record.setNull('recordDatetime')
+        # record.setNull('srcNumber')
+        # record.setValue('recordClass', toVariant(CScheduleItem.rcSamson))
+        # record.setValue('complaint', toVariant(''))
+        # record.setValue('note', toVariant(''))
+        # record.setValue('checked', toVariant(0))
+        # record.setValue('homeCallStatus', toVariant(0))
+        # ---
     db.updateRecord(table, record)
     
     return newRecordId
 
 
-def freeScheduleItem(widget, scheduleItemId, clientId):
+def freeScheduleItem(widget, scheduleItemId, clientId, additionalDeleteNote=u''):
     # освободить schedule item
     # widget должен быть наследником CRecordLockMixin
     # clientId передаётся для защиты от возможной порчи данных разными клиентами
@@ -691,7 +725,7 @@ def freeScheduleItem(widget, scheduleItemId, clientId):
                     # а старую очищаем
                     # для "внеочередной" записи (overtime)
                     # просто удаляем запись
-                    freeScheduleItemInt(oldRecord)
+                    freeScheduleItemInt(oldRecord, additionalDeleteNote=additionalDeleteNote)
                 db.commit()
             except:
                 db.rollback()

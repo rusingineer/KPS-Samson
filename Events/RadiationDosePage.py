@@ -177,7 +177,7 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
             ('10%', [u'Количество снимков'], CReportBase.AlignRight),
             ('15%', [u'Суммарная доза облучения'], CReportBase.AlignRight),
             ('10%', [u'Единица измерения'], CReportBase.AlignRight),
-        ]
+6            ]
         table = createTable(cursor, tableColumns)
 
         for idRow, id in enumerate(self.modelRadiationDose.idList()):

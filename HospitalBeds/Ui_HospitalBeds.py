@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\samson\HospitalBeds\HospitalBeds.ui'
+# Form implementation generated from reading ui file 'E:\projects\Samson\UP_s11\client_pre_release\HospitalBeds\HospitalBeds.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -52,10 +52,10 @@ class Ui_HospitalBedsDialog(object):
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Close)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
         self.gridLayout_4.addWidget(self.buttonBox, 2, 7, 1, 1)
-        self.btnDayClientInvoices = QtGui.QPushButton(HospitalBedsDialog)
-        self.btnDayClientInvoices.setEnabled(False)
-        self.btnDayClientInvoices.setObjectName(_fromUtf8("btnDayClientInvoices"))
-        self.gridLayout_4.addWidget(self.btnDayClientInvoices, 2, 4, 1, 1)
+        self.btnClientInvoices = QtGui.QPushButton(HospitalBedsDialog)
+        self.btnClientInvoices.setEnabled(False)
+        self.btnClientInvoices.setObjectName(_fromUtf8("btnClientInvoices"))
+        self.gridLayout_4.addWidget(self.btnClientInvoices, 2, 4, 1, 1)
         self.splitter = QtGui.QSplitter(HospitalBedsDialog)
         self.splitter.setOrientation(QtCore.Qt.Horizontal)
         self.splitter.setObjectName(_fromUtf8("splitter"))
@@ -1642,8 +1642,8 @@ class Ui_HospitalBedsDialog(object):
         HospitalBedsDialog.setTabOrder(self.buttonBoxFilter, self.btnHospitalization)
         HospitalBedsDialog.setTabOrder(self.btnHospitalization, self.btnTransfer)
         HospitalBedsDialog.setTabOrder(self.btnTransfer, self.btnLeaved)
-        HospitalBedsDialog.setTabOrder(self.btnLeaved, self.btnDayClientInvoices)
-        HospitalBedsDialog.setTabOrder(self.btnDayClientInvoices, self.tabWidgetFilter)
+        HospitalBedsDialog.setTabOrder(self.btnLeaved, self.btnClientInvoices)
+        HospitalBedsDialog.setTabOrder(self.btnClientInvoices, self.tabWidgetFilter)
         HospitalBedsDialog.setTabOrder(self.tabWidgetFilter, self.edtFilterCode)
         HospitalBedsDialog.setTabOrder(self.edtFilterCode, self.cmbFilterIsPermanent)
         HospitalBedsDialog.setTabOrder(self.cmbFilterIsPermanent, self.cmbFilterType)
@@ -1715,7 +1715,7 @@ class Ui_HospitalBedsDialog(object):
         self.btnHospitalization.setText(_translate("HospitalBedsDialog", "Госпитализация (F9)", None))
         self.btnLeaved.setText(_translate("HospitalBedsDialog", "Выписка (F8)", None))
         self.btnPlanning.setText(_translate("HospitalBedsDialog", "Поставить в очередь (Shift+F7)", None))
-        self.btnDayClientInvoices.setText(_translate("HospitalBedsDialog", "Суточное списание ЛС", None))
+        self.btnClientInvoices.setText(_translate("HospitalBedsDialog", "Списание ЛС", None))
         self.btnContract.setText(_translate("HospitalBedsDialog", "Договор", None))
         self.label_3.setText(_translate("HospitalBedsDialog", "Квотирование", None))
         self.cmbLocationClient.setItemText(0, _translate("HospitalBedsDialog", "Не учитывать", None))

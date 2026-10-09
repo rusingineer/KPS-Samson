@@ -19,6 +19,7 @@
 from PyQt4 import QtGui, QtSql
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL
 
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
 from library.Attach.AttachAction import getAttachAction
 from library.crbcombobox        import CRBComboBox
@@ -53,6 +54,7 @@ from F000.Ui_F000               import Ui_Dialog
 class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     defaultEventResultId = None
     defaultDiagnosticResultId = None
+    dfFinished = 1 # Заключительный
     dfAccomp = 2 # Сопутствующий
 
     @pyqtSignature('')
@@ -78,6 +80,7 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.createSaveAndCreateAccountButton()
         self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actPortal_Doctor', QtGui.QAction(u'Перейти на портал врача', self))
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.addObject('actShowAttachedToClientFiles', getAttachAction('Client_FileAttach',  self))
         self.addObject('actShowContingentsClient', QtGui.QAction(u'Показать все наблюдаемые контингенты', self))
         self.addObject('actOpenClientVaccinationCard',   QtGui.QAction(u'Открыть прививочную карту', self))
@@ -140,6 +143,7 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.tabCash.addActionModel(self.tabMisc.modelAPActions)
 
 # popup menus
+        self.tblFinalDiagnostics.addPopupAction(self.actAddChronicDiseases)
         self.txtClientInfoBrowser.actions.append(self.actEditClient)
         self.txtClientInfoBrowser.actions.append(self.actPortal_Doctor)
         self.txtClientInfoBrowser.actions.append(self.actShowAttachedToClientFiles)
@@ -173,7 +177,19 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         if hasattr(self, 'edtEndTime'):
             self.edtEndTime.setEnabled(QtGui.qApp.userHasRight(urEditEndDateEvent))
         self.btnPrintMedicalDiagnosis.setVisible(False)
+
+#signal-slot bound
+        self.tblFinalDiagnostics.popupMenuAboutToShow.connect(self.setFinalDiagnosticsMenuControlsState)
 # done
+
+    def setFinalDiagnosticsMenuControlsState(self):
+        """
+        Активность пункта меню "Вставить хронические диагнозы" в таблице Диагнозов
+        """
+        self.actAddChronicDiseases.setEnabled(False)
+        current = self.tblFinalDiagnostics.currentItem()
+        if current and current.value('diagnosisType_id') == self.modelFinalDiagnostics.diagnosisTypeCol.codeToId(CF000Dialog.dfFinished):
+            self.actAddChronicDiseases.setEnabled(True)
 
 
     def destroy(self):
@@ -1096,6 +1112,27 @@ class CF000Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     @pyqtSignature('')
     def on_cmbContract_valueChanged(self):
         self.setContractId(self.cmbContract.value())
+
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, self.modelFinalDiagnostics, self)
+        if dialog.exec_():
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    record = self.modelFinalDiagnostics.getEmptyRecord()
+                    record.setValue('MKB', item.value('MKB'))
+                    record.setValue('MKBEx', item.value('MKBEx'))
+                    record.setValue('TNMS', item.value('TNMS'))
+                    record.setValue('exSubclassMKB', item.value('exSubclassMKB'))
+                    record.setValue('morphologyMKB', item.value('morphologyMKB'))
+                    record.setValue('character_id', item.value('character_id'))
+                    record.setValue('dispanser_id', item.value('dispanser_id'))
+                    record.setValue('traumaType_id', item.value('traumaType_id'))
+                    self.modelFinalDiagnostics.addRecord(record)
 
 
     def getTempInvalidInfo(self, context):

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -107,9 +107,9 @@ def selectActionTypes(parent, eventEditor, actionTypeClasses=[], orgStructureId=
 
         QtGui.qApp.restoreOverrideCursor()
         if dlg.exec_():
-            result = dlg.getSelectedList()
+            result = dlg.getSelectedList() # return list, dict if not visibleTblSelected else list
         else:
-            result = []
+            result = ([], {}) if not visibleTblSelected else []
     finally:
         dlg.saveChkBoxPreferences()
         dlg.deleteLater()
@@ -192,18 +192,36 @@ class CActionTypesSelectionManager(object):
 
     def getSelectedActionTypeIdList(self):
         return self.selectedActionTypeIdList
+    
+    def getSelectedAmount(self):
+        return self.selectedActionTypeAmountDict
 
 
     def setSelected(self, actionTypeId, value):
         present = self.isSelected(actionTypeId)
         if value:
             if not present:
+                if hasattr(self, 'tblTemplates'):
+                    db = QtGui.qApp.db
+                    table = db.table('ActionTypeGroup_Item')
+                    items = db.getDistinctRecordList(
+                        table, '*', where=[table['deleted'].eq(0), table['master_id'].eq(self.tblTemplates.currentItemId()), table['actionType_id'].eq(actionTypeId)]
+                    )
+                    actionAmount = None
+                    if items:
+                        item = items[0]
+                        actionAmount = forceRef(item.value('amount'))
+                    if actionAmount:
+                        self.selectedActionTypeAmountDict[actionTypeId] = actionAmount
                 self.selectedActionTypeIdList.append(actionTypeId)
+                    
                 self.updateSelectedCount()
                 return True
         else:
             if present:
                 self.selectedActionTypeIdList.remove(actionTypeId)
+                if actionTypeId in self.selectedActionTypeAmountDict.keys():
+                    del self.selectedActionTypeAmountDict[actionTypeId]
                 self.updateSelectedCount()
                 return True
         return False
@@ -277,6 +295,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         self.buttonBox.addButton(self.btnSaveTemplate, QtGui.QDialogButtonBox.ActionRole)
 
         self.selectedActionTypeIdList = []
+        self.selectedActionTypeAmountDict = {}
         self.clientSex = None
         self.clientAge = None
         self.eventDate = None
@@ -615,7 +634,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
         if self._visibleTblSelected:
             return self.getSelectedActionList()
         else:
-            return CActionTypesSelectionManager.getSelectedActionTypeIdList(self)
+            return CActionTypesSelectionManager.getSelectedActionTypeIdList(self), CActionTypesSelectionManager.getSelectedAmount(self)
 
     def updatePresetValuesConditions(self, action):
         apm = action.executionPlanManager
@@ -701,21 +720,25 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
     def insertActionIntoCheckedModel(self, actionTypeId, recipe=None, doses=None, signa=None, activeSubstanceId=None):
         templateId = self.tblTemplates.currentItemId()
         actionTemplate_id = None
+        actionAmount = None
         if templateId:
             db = QtGui.qApp.db
             table = db.table('ActionTypeGroup_Item')
-            items = db.getDistinctIdList(
-                table, 'actionTemplate_id', where=[table['deleted'].eq(0), table['master_id'].eq(templateId), table['actionType_id'].eq(actionTypeId)]
+            items = db.getDistinctRecordList(
+                table, '*', where=[table['deleted'].eq(0), table['master_id'].eq(templateId), table['actionType_id'].eq(actionTypeId)]
             )
-            actionTemplate_id = items[0] if items else None
-
+            if items:
+                item = items[0]
+                actionTemplate_id = forceRef(item.value('actionTemplate_id'))
+                actionAmount = forceInt(item.value('amount'))
+        amount = actionAmount if actionAmount else self.getMESqwt(actionTypeId)
         if self.chkPriceList.isChecked() and self.cmbPriceListContract.value():
             self.modelSelectedActionTypes.add(actionTypeId,
-                                              self.getMESqwt(actionTypeId),
+                                              amount,
                                               self._payableFinanceId,
                                               self.cmbPriceListContract.value(), recipe, doses, signa, activeSubstanceId, actionTemplate_id)
         else:
-            self.modelSelectedActionTypes.add(actionTypeId, self.getMESqwt(actionTypeId), recipe=recipe, doses=doses, signa=signa, activeSubstanceId=activeSubstanceId, actionTemplate_id=actionTemplate_id)
+            self.modelSelectedActionTypes.add(actionTypeId, amount=amount, recipe=recipe, doses=doses, signa=signa, activeSubstanceId=activeSubstanceId, actionTemplate_id=actionTemplate_id)
 
 
     def emitModelActionTypesDataChanged(self):
@@ -1775,6 +1798,7 @@ class CActionTypesSelectionDialog(CDialogBase, CActionTypesSelectionManager, Ui_
     @pyqtSignature('')
     def on_bntClearSelection_pressed(self):
         self.selectedActionTypeIdList = []
+        self.selectedActionTypeAmountDict.clear()
         self.updateSelectedCount()
         self.invalidateChecks()
         self.modelSelectedActionTypes.removeAll()

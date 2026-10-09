@@ -39,7 +39,8 @@ from Registry.ResourcesDock import (CActivityModel,
                                     isAppointmentEnabledForClient,
                                     isReferralRequired, isAppointmentEnabledForDate, checkInterofficeRecord
                                     )
-from Registry.Utils                       import getClientAddressEx, CCheckNetMixin, getClientAttachEx, createRelatedActionTMK
+from Registry.Utils import getClientAddressEx, CCheckNetMixin, getClientAttachEx, createRelatedActionTMK, \
+    clearRelatedActionTMK, applyTemplateRelatedActionTMK
 from Timeline.Schedule import CSchedule, CScheduleItem, getScheduleItemIdListForClient, getScheduleItemIdFinance, \
     getExceptionSpecialty, getScheduleItemIdListForClient_OMS, getDynamicItemType, checkIsNKTReservedForTMK
 
@@ -710,6 +711,13 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                         else:
                             referral = None
 
+                        actionTMK = None
+                        isTMK = recordType and recordType == 4
+                        if isTMK:
+                            actionTMK = createRelatedActionTMK(self, clientId, personId, scheduleItem.time)
+                            if not actionTMK:
+                                return False
+
                         currentDateTime = QDateTime.currentDateTime()
                         db = QtGui.qApp.db
                         db.transaction()
@@ -744,18 +752,22 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
                                         i.srcNumber = referral.srcNumber
                                         i.srcDate = referral.srcDate
                                     scheduleItemId = i.save()
-                                    if recordType and recordType == 4 and scheduleItemId:
-                                        if not createRelatedActionTMK(self, clientId, personId, i.time, scheduleItemId):
-                                            db.rollback()
-                                            return False
                                     QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
                             if not dataChanged:
                                 db.commit()
+                                # Если дошли сюда и запись ТМК, то значит что есть связанное действие и запись нормально создалась
+                                # Так что шаблон вызываем отсюда, даже если будет проблема с шаблоном, то его можно будет
+                                # ещё раз вызвать из связанного действия позже
+                                if isTMK and actionTMK:
+                                    if not applyTemplateRelatedActionTMK(self, actionTMK, scheduleItem):
+                                        return False
                                 return True
                             else:
                                 db.rollback()
                         except:
                             db.rollback()
+                            if isTMK and actionTMK:
+                                clearRelatedActionTMK(actionTMK)
                             raise
                     finally:
                         self.releaseLock()

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -423,7 +423,7 @@ class CPreF106Dialog(CDialogBase, Ui_PreF106Dialog, CMapActionTypeIdToServiceIdL
         self.updateTotalSum()
 
 
-    def addActionType(self, actionTypeId):
+    def addActionType(self, actionTypeId, amount=1.0):
         model = self.modelActions
         item = model.getEmptyRecord()
         item.setValue('actionType_id',  toVariant(actionTypeId))
@@ -436,7 +436,7 @@ class CPreF106Dialog(CDialogBase, Ui_PreF106Dialog, CMapActionTypeIdToServiceIdL
             visitTariffMap, actionTariffMap = self.getTariffMap()
             price = self.contractTariffCache.getPrice(actionTariffMap, serviceIdList, self.tariffCategoryId)
             item.setValue('price',  QVariant(price))
-            item.setValue('amount', QVariant(1.0))
+            item.setValue('amount', QVariant(amount))
             item.setValue('sum',    QVariant(price))
         model.items().append(item)
         count = len(model.items())
@@ -517,7 +517,7 @@ class CPreF106Dialog(CDialogBase, Ui_PreF106Dialog, CMapActionTypeIdToServiceIdL
 
     @pyqtSignature('')
     def on_btnAddActionTypes_clicked(self):
-        actionTypeIdList = selectActionTypes(self, self,
+        actionTypeIdList, actionAmountDict = selectActionTypes(self, self,
                           [0, 1, 2, 3],
                           orgStructureId=None,
                           # execPersonId=self.personId,
@@ -531,8 +531,9 @@ class CPreF106Dialog(CDialogBase, Ui_PreF106Dialog, CMapActionTypeIdToServiceIdL
                 row = self.modelActions.actionTypePresent(actionTypeId)
                 if row is not None:
                     self.modelActions.items()[row].setValue('include',  QVariant(1))
+                    self.modelActions.items()[row].setValue('amount', QVariant(actionAmountDict.get(actionTypeId, 1.0)))
                 else:
-                    self.addActionType(actionTypeId)
+                    self.addActionType(actionTypeId, actionAmountDict.get(actionTypeId, 1.0))
         if actionTypeIdList:
             self.modelActions.reset()
             if self.showPrice:

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -126,20 +126,23 @@ class CRelationsClientListDialog(CDialogBase, CAmbCardMixin, Ui_RelationsClientL
     def on_actSurveyShowPropertiesHistory_triggered(self): CAmbCardMixin.on_actSurveyShowPropertiesHistory_triggered(self)
 
 
-    def __init__(self, parent, clientId):
+    def __init__(self, parent, clientId, hideActions = False):
         CDialogBase.__init__(self, parent)
         self.addModels('RelationsClientList', CRelationsClientListModel(self))
         self.addObject('mnuRelationsClientList', QtGui.QMenu(self))
         self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
         self.addObject('actMoveRegistry', QtGui.QAction(u'Перейти в картотеку', self))
-        self.mnuRelationsClientList.addAction(self.actEditClient)
-        self.mnuRelationsClientList.addAction(self.actMoveRegistry)
+
         self.setupUi(self)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setModels(self.tblRelationsClientList,  self.modelRelationsClientList, self.selectionModelRelationsClientList)
         self.tblRelationsClientList.setPopupMenu(self.mnuRelationsClientList)
         self.clientId = clientId
         self.modelRelationsClientList.loadData(self.clientId)
+        self.__hideActions = hideActions
+        self.mnuRelationsClientList.addAction(self.actEditClient)
+        if not self.__hideActions:
+            self.mnuRelationsClientList.addAction(self.actMoveRegistry)
 
 
     @pyqtSignature('')
@@ -177,7 +180,8 @@ class CRelationsClientListDialog(CDialogBase, CAmbCardMixin, Ui_RelationsClientL
 
     @pyqtSignature('QModelIndex')
     def on_tblRelationsClientList_doubleClicked(self, index):
-        self.getEditClient(index)
+        if not self.__hideActions:
+            self.getEditClient(index)
 
 
     def getEditClient(self, currentIndex):

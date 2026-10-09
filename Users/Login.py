@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -96,6 +96,11 @@ class CLoginDialog(QtGui.QDialog, Ui_LoginDialog):
                             return
                         QtGui.QDialog.reject(self)
                         return
+                    elif len(personList) == 0:
+                        reason = getForbidReason(loginId)
+                        if reason > '' :
+                            QtGui.QMessageBox.critical(self,u'Внимание',reason, QtGui.QMessageBox.Close)
+                            return
                 if login == demoUserName and password == '' and QtGui.qApp.demoModePosible():
                     self._loginId = None
                     self._personId = None
@@ -259,3 +264,19 @@ def getLoginPersonList(loginId):
             tablePerson['retired'].eq(0)
             ]
     return db.getIdList(table, idCol='person_id', where=cond)
+
+def getForbidReason(loginId):
+    forbidReason = u''
+    db = QtGui.qApp.db
+    tableLoginPerson = db.table('Login_Person')
+    tablePerson = db.table('Person')
+    table = tableLoginPerson.leftJoin(tablePerson, tablePerson['id'].eq(tableLoginPerson['person_id']))
+    cond = [tableLoginPerson['master_id'].eq(loginId),
+            tablePerson['userProfile_id'].isNotNull(),
+            tablePerson['retired'].eq(1)
+            ]
+    recordList = db.getRecordList(table, cols='forbidReason', where=cond)
+    if len(recordList) > 0:
+        record = recordList[0]
+        forbidReason = u'Вход в систему запрещен!\n '+ forceString(record.value('forbidReason'))
+    return forbidReason

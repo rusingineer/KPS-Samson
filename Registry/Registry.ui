@@ -2828,6 +2828,16 @@ p, li { white-space: pre-wrap; }
                       </property>
                      </widget>
                     </item>
+                  <item>
+                   <widget class="QCheckBox" name="chkFilterContingentObservation">
+                    <property name="text">
+                     <string>Группа наблюдения</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="CRBComboBox" name="cmbFilterContingentObservation"/>
+                  </item>
                     <item>
                      <widget class="QCheckBox" name="chkFilterExternalNotification">
                       <property name="sizePolicy">
@@ -11090,6 +11100,8 @@ p, li { white-space: pre-wrap; }
   <tabstop>edtClientMKBTo</tabstop>
   <tabstop>chkFilterClientNote</tabstop>
   <tabstop>edtFilterClientNote</tabstop>
+  <tabstop>chkFilterContingentObservation</tabstop>
+  <tabstop>cmbFilterContingentObservation</tabstop>
   <tabstop>chkFilterVaccinationPeriod</tabstop>
   <tabstop>edtFilterVaccinationBegDate</tabstop>
   <tabstop>edtFilterVaccinationEndDate</tabstop>

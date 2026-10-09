@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,7 +13,7 @@
 #############################################################################
 
 from PyQt4 import QtGui
-from PyQt4.QtCore import QVariant, QDateTime
+from PyQt4.QtCore import QVariant, QDateTime, Qt
 
 from library.InDocTable       import CMKBListInDocTableModel, CBoolInDocTableCol, CInDocTableCol, CRBInDocTableCol, CDateInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol
 from library.ItemsListDialog  import CItemEditorBaseDialog
@@ -38,6 +38,11 @@ class CProphylaxisPlanningEditor(CItemEditorBaseDialog, Ui_ProphylaxisPlanningEd
 
     def setRecord(self, record):
         CItemEditorBaseDialog.setRecord(self, record)
+        code = forceString(QtGui.qApp.db.translate('rbProphylaxisPlanningType', 'id', toVariant(record.value('prophylaxisPlanningType_id')), 'code'))
+        if code == u'ДН':
+            self.tblProphylaxis.setColumnHidden(self.modelProphylaxis.Col_BegDate, True)
+            columnEndDate = self.modelProphylaxis.cols()[self.modelProphylaxis.getColIndex('endDate')]
+            columnEndDate.setTitle(u'Дата запланированной явки')
         self.modelProphylaxis.loadItems(self.itemId())
         self.clientId = forceRef(record.value('client_id'))
 
@@ -225,7 +230,10 @@ class CProphylaxisModel(CMKBListInDocTableModel):
         def getEditorData(self, editor):
             return toVariant(editor.value())
 
-
+    Col_BegDate = 4
+    Col_EndDate = 5
+    Col_PlanningType = 9
+    
     def __init__(self, parent):
         CMKBListInDocTableModel.__init__(self, 'ProphylaxisPlanning', 'id', 'id', parent)
         self.addCol(CProphylaxisModel.CLocClientColumn( u'Ф.И.О.', 'client_id', 60)).setReadOnly(True)
@@ -237,7 +245,7 @@ class CProphylaxisModel(CMKBListInDocTableModel):
         self.addCol(CRBInDocTableCol(u'Подразделение', 'orgStructure_id', 50, 'OrgStructure', showFields = CRBComboBox.showCode))
         self.addCol(CRBInDocTableCol(u'Специальность', 'speciality_id', 30,    'rbSpeciality'))
         self.addCol(CRBInDocTableCol(u'Врач',          'person_id', 30,        'vrbPerson'))
-        self.addCol(CRBInDocTableCol(u'Тип планирования профилактики', 'prophylaxisPlanningType_id', 15, 'rbProphylaxisPlanningType'))
+        self.addCol(CRBInDocTableCol(u'Тип планирования профилактики', 'prophylaxisPlanningType_id', 15, 'rbProphylaxisPlanningType', filter=u"code != 'ДН'"))
         self.addCol(CRBInDocTableCol(u'Место',      'scene_id', 15, 'rbScene'))
         self.addCol(CICDExInDocTableCol(u'Диагноз', 'MKB', 10))
         self.addCol(CBoolInDocTableCol(u'Отработан','processed', 7)).setReadOnly(True)
@@ -254,5 +262,20 @@ class CProphylaxisModel(CMKBListInDocTableModel):
         self.addCol(CRBInDocTableCol(u'Изменил',    'modifyPerson_id', 30, 'vrbPersonWithSpeciality')).setReadOnly(True)
         self.setEnableAppendLine(False)
         self.eventEditor = parent
+        
+    
+    def setData(self, index, value, role=Qt.EditRole):
+        if role == Qt.EditRole:
+            db = QtGui.qApp.db
+            column = index.column()
+            if column == self.Col_PlanningType and self.eventEditor.tblProphylaxis.isColumnHidden(self.Col_BegDate):
+                code = forceString(db.translate('rbProphylaxisPlanningType', 'id', toVariant(value), 'code'))
+                if code != u'ДН':
+                    self.eventEditor.tblProphylaxis.setColumnHidden(self.Col_BegDate, False)
+                    columnEndDate = self.cols()[self.getColIndex('endDate')]
+                    columnEndDate.setTitle(u'По')
+            if column == self.Col_EndDate:
+               CMKBListInDocTableModel.setData(self, self.index(index.row(), self.Col_BegDate), value, role=role) 
+        return CMKBListInDocTableModel.setData(self, index, value, role=role)
 
 

@@ -146,7 +146,7 @@
       <enum>Qt::LeftToRight</enum>
      </property>
      <property name="text">
-      <string>Автоматическое заполнение периодов планирования в ККДН</string>
+      <string>Автоматическое заполнение даты следующей явки на ДН</string>
      </property>
     </widget>
    </item>
@@ -178,11 +178,31 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <item row="0" column="0">
-       <widget class="QLabel" name="lblPlanningFreq">
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblPlanningBegDate">
         <property name="text">
-         <string>Частота периода планирования (мес)</string>
+         <string>Дата планирования явки на ДН</string>
         </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="cmbPlanningBegDate">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <item>
+         <property name="text">
+          <string>Первый день месяца</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>От текущей даты</string>
+         </property>
+        </item>
        </widget>
       </item>
       <item row="0" column="1">
@@ -207,59 +227,10 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="lblPlanningBegDate">
+      <item row="0" column="0">
+       <widget class="QLabel" name="lblPlanningFreq">
         <property name="text">
-         <string>Дата начала периода планирования</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QComboBox" name="cmbPlanningBegDate">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <item>
-         <property name="text">
-          <string>Первый день месяца</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>От текущей даты</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="lblPlanningDuration">
-        <property name="text">
-         <string>Длительность периода планирования (дней)</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="edtPlanningDuration">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimum">
-         <number>1</number>
-        </property>
-        <property name="maximum">
-         <number>99</number>
-        </property>
-        <property name="singleStep">
-         <number>1</number>
-        </property>
-        <property name="value">
-         <number>28</number>
+         <string>Частота планирования явок на ДН (мес)</string>
         </property>
        </widget>
       </item>

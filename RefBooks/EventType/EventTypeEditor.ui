@@ -2368,10 +2368,14 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="0">
-        <widget class="CInDocTableView" name="tblStatusActions"/>
+       <item row="3" column="0">
+        <widget class="QCheckBox" name="chkStatusLimitInput">
+         <property name="text">
+          <string>Ограничить ввод мероприятий указанным списком</string>
+         </property>
+        </widget>
        </item>
-       <item row="1" column="0">
+       <item row="2" column="0">
         <widget class="QCheckBox" name="chkStatusShowOptionalInPlanner">
          <property name="text">
           <string>Показывать в планировщике необязательные мероприятия</string>
@@ -2381,12 +2385,25 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
-        <widget class="QCheckBox" name="chkStatusLimitInput">
-         <property name="text">
-          <string>Ограничить ввод мероприятий указанным списком</string>
+       <item row="0" column="0">
+        <widget class="CInDocTableView" name="tblStatusActions"/>
+       </item>
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>4</number>
          </property>
-        </widget>
+         <item>
+          <widget class="QLabel" name="lblSearchStatusActions">
+           <property name="text">
+            <string>Поиск по наименованию/коду</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtSearchStatusActions"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -2410,10 +2427,7 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="0">
-        <widget class="CInDocTableView" name="tblDiagnosticActions"/>
-       </item>
-       <item row="1" column="0">
+       <item row="2" column="0">
         <widget class="QCheckBox" name="chkDiagnosticShowOptionalInPlanner">
          <property name="text">
           <string>Показывать в планировщике необязательные мероприятия</string>
@@ -2423,12 +2437,32 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
+       <item row="0" column="0">
+        <widget class="CInDocTableView" name="tblDiagnosticActions"/>
+       </item>
+       <item row="3" column="0">
         <widget class="QCheckBox" name="chkDiagnosticLimitInput">
          <property name="text">
           <string>Ограничить ввод мероприятий указанным списком</string>
          </property>
         </widget>
+       </item>
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="lblSearchDiagnosticActions">
+           <property name="text">
+            <string>Поиск по наименованию/коду</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtSearchDiagnosticActions"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -2452,10 +2486,14 @@
        <property name="spacing">
         <number>4</number>
        </property>
-       <item row="0" column="0">
-        <widget class="CInDocTableView" name="tblCureActions"/>
+       <item row="3" column="0">
+        <widget class="QCheckBox" name="chkCureLimitInput">
+         <property name="text">
+          <string>Ограничить ввод мероприятий указанным списком</string>
+         </property>
+        </widget>
        </item>
-       <item row="1" column="0">
+       <item row="2" column="0">
         <widget class="QCheckBox" name="chkCureShowOptionalInPlanner">
          <property name="text">
           <string>Показывать в планировщике необязательные мероприятия</string>
@@ -2465,12 +2503,25 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
-        <widget class="QCheckBox" name="chkCureLimitInput">
-         <property name="text">
-          <string>Ограничить ввод мероприятий указанным списком</string>
+       <item row="0" column="0">
+        <widget class="CInDocTableView" name="tblCureActions"/>
+       </item>
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>4</number>
          </property>
-        </widget>
+         <item>
+          <widget class="QLabel" name="lblSearchCureActions">
+           <property name="text">
+            <string>Поиск по наименованию/коду</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtSearchCureActions"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -2497,7 +2548,7 @@
        <item row="0" column="0">
         <widget class="CInDocTableView" name="tblMiscActions"/>
        </item>
-       <item row="1" column="0">
+       <item row="2" column="0">
         <widget class="QCheckBox" name="chkMiscShowOptionalInPlanner">
          <property name="text">
           <string>Показывать в планировщике необязательные мероприятия</string>
@@ -2507,12 +2558,29 @@
          </property>
         </widget>
        </item>
-       <item row="2" column="0">
+       <item row="3" column="0">
         <widget class="QCheckBox" name="chkMiscLimitInput">
          <property name="text">
           <string>Ограничить ввод мероприятий указанным списком</string>
          </property>
         </widget>
+       </item>
+       <item row="1" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="lblSearchMiscActions">
+           <property name="text">
+            <string>Поиск по наименованию/коду</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtSearchMiscActions"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>

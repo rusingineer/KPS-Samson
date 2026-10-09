@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -96,6 +96,7 @@ from HospitalBeds.HospitalizationFromDeatch  import CHospitalizationFromDeatch
 from HospitalBeds.HospitalizationPlanningFromQueue import CHospitalizationPlanningFromQueue
 from HospitalBeds.HospitalBedInfo            import CHospitalEventInfo, CHospitalBedsListInfo
 from HospitalBeds.HospitalBedPlacementEditorDialog import CHospitalBedPlacementEditorDialog
+from HospitalBeds.HospitalBedInvoicesByEventsDialog import CHospitalBedInvoicesByEventsDialog
 from HospitalBeds.HospitalBedsModel          import (CAttendanceActionsTableModel,
                                                      CMonitoringModel,
                                                      CDeathModel,
@@ -127,6 +128,7 @@ from RefBooks.Finance.Info        import CFinanceInfo
 from RefBooks.Menu.List           import CGetRBMenu
 from Registry.AmbCardMixin        import CAmbCardMixin
 from Registry.UpdateEventTypeByEvent        import CUpdateEventTypeByEvent
+from Registry.RelationsClientListDialog     import CRelationsClientListDialog
 from Registry.Utils import (CCheckNetMixin, CClientInfo, formatClientString, getClientInfo, getClientInfoEx, getClientPhonesEx,
                             getJobTicketsToEvent, getOrgStructureDescendants, canAddActionToExposedEvent)
 from Registry.StatusObservationClientEditor import CStatusObservationClientEditor
@@ -184,7 +186,6 @@ from PlanOperatingDayPage         import CPlanOperatingDayPage
 from ThermalSheet.TemperatureListEditor import CTemperatureListEditorDialog
 from ThermalSheet.TemperatureListGroupEditor import CTemperatureListGroupEditorDialog
 from Stock.GroupClientInvoice import CGroupClientInvoice
-
 from Ui_HospitalBeds              import Ui_HospitalBedsDialog
 
 import temperatureList_html
@@ -369,6 +370,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.setupBtnPlanOperatingDay()
         self.setupBtnFeedMenu()
         self.setupBtnTemperatureList()
+        self.setupBtnClientInvoiceMenu()
         self.printMenu = {}
         self.printMenuDiag = {}
 
@@ -466,6 +468,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         }
         self.btnPlanOperatingDay.setMenu(self.mnuBtnPlanOperatingDay)
         self.btnFeed.setMenu(self.mnuBtnFeed)
+        self.btnClientInvoices.setMenu(self.mnuClientInvoices)
         self.btnTemperatureList.setMenu(self.mnuBtnTemperatureList)
         self.tblHospitalBeds.setPopupMenu(self.mnuHospitalBeds)
         self.tblPresence.setPopupMenu(self.mnuHospitalBeds)
@@ -1549,6 +1552,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.addObject('actUpdateEventTypeByEvent', QtGui.QAction(u'Изменить тип события', self))
         self.addObject('actEventJournalOfPerson', QtGui.QAction(u'Журнал назначения лечащего врача', self))
         self.addObject('actOpenPlanningEditor', QtGui.QAction(u'Открыть редактор действия планирование', self))
+        self.addObject('actOpenRelationClientsList', QtGui.QAction(u'Открыть список связанных пациентов', self))
         self.actStatusObservationClient.setShortcut('Shift+F5')
         self.actOpenEvent.setShortcut(Qt.Key_F4)
         self.actTemperatureListEditor.setShortcut(Qt.Key_F2)
@@ -1582,6 +1586,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actUpdateEventTypeByEvent.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urUpdateEventTypeByEvent]))
         self.mnuHospitalBeds.addAction(self.actEventJournalOfPerson)
         self.mnuHospitalBeds.addAction(self.actOpenPlanningEditor)
+        self.mnuHospitalBeds.addAction(self.actOpenRelationClientsList)
 
 
     def setupEditActionEventMenu(self):  # + +
@@ -1603,6 +1608,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.mnuEditActionEvent.addAction(self.actEditClientInfo)
         self.mnuEditActionEvent.addAction(self.actEditStatusObservationClient)
         self.mnuEditActionEvent.addAction(self.actTranslateStatusActionInBeginClass)
+        self.mnuEditActionEvent.addAction(self.actOpenRelationClientsList)
 
 
     def setupBtnPrintMenu(self):
@@ -1659,6 +1665,14 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.mnuBtnPlanOperatingDay.addAction(self.actPlanOperatingDay)
 
 
+    def setupBtnClientInvoiceMenu(self):
+        self.addObject('mnuClientInvoices', QtGui.QMenu(self))
+        self.addObject('actDayClientInvoices', QtGui.QAction(u'Суточное списание ЛС', self))
+        self.addObject('actEventClientInvoices', QtGui.QAction(u'Списание ЛС по случаю обслуживания', self))
+        self.mnuClientInvoices.addAction(self.actDayClientInvoices)
+        self.mnuClientInvoices.addAction(self.actEventClientInvoices)
+
+
     @pyqtSignature('')
     def on_actNomenclatureExpense_triggered(self):
         if not QtGui.qApp.userHasRight(urHBEditEvent) and not QtGui.qApp.userHasRight(urHBReadEvent):
@@ -1688,7 +1702,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
             for tab in expenseDialog.getActionsTabsList():
                 items = tab.modelAPActions.items()
                 for group in items.groupsIterator:
-                    if group.requireEP:
+                    if hasattr(group, 'requireEP') and group.requireEP:
                         nomenclatureExpenseGroups.append(group)
             actionIdList = []
             for group in nomenclatureExpenseGroups:
@@ -2395,7 +2409,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def loadDataPresence(self):
         self.getDialogParams()
         self.modelPresence.loadData(self.dialogParams)
-        self.btnDayClientInvoices.setEnabled(bool(self.modelPresence.items))
+        self.btnClientInvoices.setEnabled(bool(self.modelPresence.items))
 
 
     def loadDataReceived(self):
@@ -3468,7 +3482,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
 
 
     @pyqtSignature('')
-    def on_btnDayClientInvoices_clicked(self):
+    def on_actDayClientInvoices_triggered(self):
         date = QDateTime.currentDateTime()
 
         orgStructureId = self.getTreeOrgSructureId()
@@ -3477,6 +3491,37 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         clientInvoices.setFilterDate(date)
         clientInvoices.load(clientIds=clientIds, date=date, orgStructureId=getOrgStructureDescendants(self.getOrgStructureId(self.treeOrgStructure.currentIndex())))
         clientInvoices.exec_()
+
+
+    @pyqtSignature('')
+    def on_actEventClientInvoices_triggered(self):
+        eventIdList = []
+        currentTab = self.tabWidget.currentWidget()
+        if currentTab == self.tabPresence: # присутствуют
+            for row in self.tblPresence.selectedRowList():
+                eventId = self.modelPresence.getEventId(row)
+                eventIdList.append(eventId)
+        elif currentTab == self.tabReceived: # поступили
+            for row in self.tblReceived.selectedRowList():
+                eventId = self.modelReceived.getEventId(row)
+                eventIdList.append(eventId)
+        elif currentTab == self.tabLeaved: # выбыли
+            for row in self.tblLeaved.selectedRowList():
+                eventId = self.modelLeaved.getEventId(row)
+                eventIdList.append(eventId)
+        elif currentTab == self.tabReabyToLeave: # готовы к выбытию
+            for row in self.tblReabyToLeave.selectedRowList():
+                eventId = self.modelReabyToLeave.getEventId(row)
+                eventIdList.append(eventId)
+        elif currentTab == self.tabReanimation: # реанимация
+            for row in self.tblReanimation.selectedRowList():
+                eventId = self.modelReanimation.getEventId(row)
+                eventIdList.append(eventId)
+        else:
+            return
+        dialog = CHospitalBedInvoicesByEventsDialog(self)
+        dialog.setEventIdList(eventIdList)
+        dialog.exec_()
 
 
     @pyqtSignature('')
@@ -4740,6 +4785,24 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
 
 
     @pyqtSignature('')
+    def on_mnuClientInvoices_aboutToShow(self):
+        enable = False
+        currentTab = self.tabWidget.currentWidget()
+        if currentTab == self.tabPresence: # присутствуют
+            if self.tabWidgetActionsClasses.currentWidget() == self.tabActionList:
+                enable = len(self.tblPresence.selectedRowList()) > 0
+        elif currentTab == self.tabReceived: # поступили
+            enable = len(self.tblReceived.selectedRowList()) > 0
+        elif currentTab == self.tabLeaved: # выбыли
+            enable = len(self.tblLeaved.selectedRowList()) > 0
+        elif currentTab == self.tabReabyToLeave: # готовы к выбытию
+            enable = len(self.tblReabyToLeave.selectedRowList()) > 0
+        elif currentTab == self.tabReanimation:
+            enable = len(self.tblReanimation.selectedRowList()) > 0
+        self.actEventClientInvoices.setEnabled(enable)
+
+
+    @pyqtSignature('')
     def on_mnuBtnTemperatureList_aboutToShow(self):
         app = QtGui.qApp
         isAdmin = app.isAdmin()
@@ -5178,10 +5241,12 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         widgetIndex = self.tabWidget.currentIndex()
         hasEvent = True
         hasClient = True
+        self.actOpenRelationClientsList.setVisible(True)
         if widgetIndex == self.tabWidget.indexOf(self.tabFund):
             self.tblHospitalBeds.setFocus(Qt.OtherFocusReason)
             currentIndex = self.tblHospitalBeds.currentIndex()
             isBusy = currentIndex.row() >= 0 and self.modelHospitalBeds.isBusy(currentIndex)
+            self.actOpenRelationClientsList.setVisible(False)
         elif widgetIndex == self.tabWidget.indexOf(self.tabPresence):
             self.tblPresence.setFocus(Qt.TabFocusReason)
             currentIndex = self.tblPresence.currentIndex()
@@ -5258,6 +5323,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.actAmbCardShow.setEnabled(isBusy and hasClient and widgetIndex and (isRegTabReadAmbCard or isRegTabWriteAmbCard))
         self.actAmbCardShowToAction.setEnabled(isBusy and widgetIndex and (isRegTabReadAmbCard or isRegTabWriteAmbCard))
         self.actEditClientInfoBeds.setEnabled(isBusy and hasClient and widgetIndex and (isHBReadClientInfo or isHBEditClientInfo))
+        self.actOpenRelationClientsList.setEnabled(hasClient and widgetIndex)
         self.actGetFeedFromMenu.setVisible(forceBool(widgetIndex == self.tabWidget.indexOf(self.tabPresence)) and isHBFeed)
         self.actGetFeedFromMenu.setEnabled(forceBool(widgetIndex == self.tabWidget.indexOf(self.tabPresence)) and isBusy and isHBFeed)
         self.actGetFeedPatronFromMenu.setVisible(forceBool(widgetIndex == self.tabWidget.indexOf(self.tabPresence)) and isHBFeed)
@@ -5789,7 +5855,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.clientSex = forceInt(record.value('sex'))
         self.clientBirthDate = forceDate(record.value('birthDate'))
         self.clientAge = calcAgeTuple(self.clientBirthDate, QDate().currentDate())
-        actionTypeIdList = selectActionTypes(self, self,
+        actionTypeIdList, amountDict = selectActionTypes(self, self,
                                              [0, 1, 2, 3],
                                              orgStructureId=None,
                                              eventTypeId=None,
@@ -5835,6 +5901,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                     newRecord.setValue('setPerson_id', toVariant(QtGui.qApp.userId))
                     newRecord.setValue('id', toVariant(None))
                     newRecord.setValue('event_id', toVariant(eventId))
+                    newRecord.setValue('amount', toVariant(amountDict.get(actionTypeId, 1.0)) if amountDict else toVariant(1.0))
 
                     newAction = CAction(record=newRecord)
                     newAction.updatePresetValuesConditions({'clientId': clientId, 'eventTypeId': eventTypeId})
@@ -5880,6 +5947,32 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                     pass
             finally:
                 dialog.deleteLater()
+
+
+    def editRelationClient(self, clientId):
+        dialog = CRelationsClientListDialog(self, clientId, hideActions=True)
+        try:
+            if dialog.exec_():
+                clientId = dialog.itemId()
+        finally:
+            dialog.deleteLater()
+
+
+    @pyqtSignature('')
+    def on_actOpenRelationClientsList_triggered(self):
+        table = self.getCurrentTable()
+        subTable = self.getCurrentActionsTable()
+        clientId = None
+        if table:
+            if  table != self.tblPresence:
+                clientId = table.model().getClientId(table.currentRow())
+            else:
+                clientId = subTable.model().getClientId(subTable.currentRow())
+        if not clientId:
+            pass
+        if clientId:
+            self.editRelationClient(clientId)
+        pass
 
 
     @pyqtSignature('')

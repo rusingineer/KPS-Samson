@@ -306,7 +306,7 @@ class CClientInvoiceEditDialog(CStockMotionBaseDialog, Ui_ClientInvoiceDialog):
         if not self._clientInfo and self._clientId:
             self._clientInfo = getClientInfo(self._clientId, date=self.edtDate.date())
         if self._clientInfo:
-            self.txtClientInfoBrowser.setHtml(getClientBanner(self.clientId, self.edtDate.date()))
+            self.txtClientInfoBrowser.setHtml(getClientBanner(self._clientId, self.edtDate.date()))
 
 
     def setStockMotionItems(self, items):

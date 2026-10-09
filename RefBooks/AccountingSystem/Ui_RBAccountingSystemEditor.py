@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\kmivc\Samson\client_test\RefBooks\AccountingSystem\RBAccountingSystemEditor.ui'
+# Form implementation generated from reading ui file 'D:\Project\Samson\UP_s11\client_pre_release\RefBooks\AccountingSystem\RBAccountingSystemEditor.ui'
 #
-# Created by: PyQt4 UI code generator 4.11.4
+# Created: Thu Jul 30 16:32:21 2026
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -35,7 +36,7 @@ class Ui_ItemEditorDialog(object):
         self.chkEditable.setObjectName(_fromUtf8("chkEditable"))
         self.gridlayout.addWidget(self.chkEditable, 5, 1, 1, 1)
         self.edtName = QtGui.QLineEdit(ItemEditorDialog)
-        self.edtName.setMaxLength(64)
+        self.edtName.setMaxLength(255)
         self.edtName.setObjectName(_fromUtf8("edtName"))
         self.gridlayout.addWidget(self.edtName, 1, 1, 1, 1)
         spacerItem = QtGui.QSpacerItem(103, 16, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)

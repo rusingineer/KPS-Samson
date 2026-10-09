@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1013,7 +1013,7 @@ class CDispansAbsentTableModel(CRecordListModel):
         self.addCol(CTextInDocTableCol(u'Пол', 'sex', 4, readOnly=True))
         self.addCol(CDateInDocTableCol(u'Дата рождения', 'birthDate', 10, readOnly=True, highlightRedDate=False))
         self.addCol(CTextInDocTableCol(u'Диагноз', 'mkb', 10, readOnly=True))
-        self.addCol(CTextInDocTableCol(u'Плановый период явки', 'curPeriod', 10, readOnly=True))
+        self.addCol(CTextInDocTableCol(u'Запланированная явка', 'endDate', 10, readOnly=True))
         self.addCol(CTextInDocTableCol(u'Врач ДН', 'personName', 30, readOnly=True))
         self.addCol(CTextInDocTableCol(u'Специальность', 'specialityName', 15, readOnly=True))
         self.addHiddenCol('client_id')
@@ -1055,7 +1055,7 @@ class CDispansAbsentTableModel(CRecordListModel):
                     tableSpeciality['name'].alias('specialityName'),
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
                     tableClient['birthDate'],
-                    "CONCAT_WS(' - ', DATE_FORMAT(ProphylaxisPlanning.begDate, '%d.%m.%Y'), DATE_FORMAT(ProphylaxisPlanning.endDate, '%d.%m.%Y')) as curPeriod",
+                    "DATE_FORMAT(ProphylaxisPlanning.endDate, '%d.%m.%Y') as endDate",
                     "CONCAT_WS(' - ', Diagnosis.MKB, MKB.DiagName) as MKB",
                     tablePP['client_id']]
 
@@ -1102,7 +1102,7 @@ class CDispansAbsentTableModel(CRecordListModel):
                     tableSpeciality['name'].alias('specialityName'),
                     u"IF(Client.sex = 1, 'м', 'ж') as sex",
                     tableClient['birthDate'],
-                    "CONCAT_WS(' - ', DATE_FORMAT(ProphylaxisPlanning.begDate, '%d.%m.%Y'), DATE_FORMAT(ProphylaxisPlanning.endDate, '%d.%m.%Y')) as curPeriod",
+                    "DATE_FORMAT(ProphylaxisPlanning.endDate, '%d.%m.%Y') as endDate",
                     "CONCAT_WS(' - ', Diagnosis.MKB, MKB.DiagName) as MKB",
                     tablePP['client_id']]
 

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -49,6 +49,7 @@ from library.Utils import (addDots, addDotsBefore, agreeNumberAndWord, copyField
                            forceDate, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDays,
                            formatNum, formatRecordsCount, formatRecordsCount2, formatSex, formatSNILS, getPref, quote,
                            smartDict, toVariant, trim, calcAgeTuple, getPrefBool, anyToUnicode, unformatSNILS)
+from library.UISCOM import UISComClient, STATE_DISABLED, STATE_NO_MAPPING, STATE_STOPPED, UISComError
 
 from Accounting.AccountingDialog import CAccountingDialog
 from DataCheck.RegistryControlDoubles import CRegistryControlDoubles
@@ -133,7 +134,8 @@ from Registry.Utils import (CCheckNetMixin, CClientInfo, CClientInfoListEx, getR
                             getClientBanner, getClientContextData, getClientInfo2, getClientMiniInfo,
                             canChangePayStatusAdditional, canEditOtherpeopleAction, getClientSexAge,
                             addActionTabPresence, getJobTicketsToEvent, preFillingActionRecordMSI,
-                            getAttachmentPersonInfo, checkClientAttachService, canAddActionToExposedEvent)
+                            getAttachmentPersonInfo, checkClientAttachService, canAddActionToExposedEvent,
+                            formatClientMobilePhoneContact)
 from Registry.VisitsBySchedules             import CVisitsBySchedulesDialog
 from Reports.ReportBase import createTable
 from Reports.ReportView import CReportViewDialog
@@ -263,6 +265,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.addModels('Visits', CVisitsTableModel(self, self.modelClients.recordCache(), self.modelEvents.recordCache()))
         self.addModels('ExternalNotification',    CExternalNotificationModel(self))
         self.addObject('actEditClient', QtGui.QAction(u'Открыть регистрационную карточку', self))
+        self.addObject('actOpenCallHistory', QtGui.QAction(u'Открыть историю звонков (UISCOM)', self))
         self.addObject('actRelationsClient', QtGui.QAction(u'Показать список связанных пациентов', self))
         self.addObject('actEventRelationsClient', QtGui.QAction(u'Показать список связанных пациентов', self))
         self.addObject('actAmbCardRelationsClient', QtGui.QAction(u'Показать список связанных пациентов', self))
@@ -574,6 +577,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         # self.cmbFilterMedicalExemptionType.setTable('rbMedicalExemptionType', addNone=True)
         # self.cmbFilterClientConsentType.setTable('rbClientConsentType', addNone=True)
         # self.cmbFilterContingentType.setTable('rbContingentType', addNone=True)
+        self.cmbFilterContingentObservation.setTable('rbObservationGroup', addNone=True)
+        self.cmbFilterContingentObservation.setShowFields(self.cmbFilterContingentObservation.showCode)
         # self.cmbFilterContingentSpeciality.setTable('rbSpeciality', True)
         self.edtFilterClientConsentBegDate.setDate(QDate())
         self.edtFilterClientConsentEndDate.setDate(QDate())
@@ -683,6 +688,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             (self.chkFilterExternalNotification, [self.lblENbegDate, self.lblENendDate, self.edtExternalNotificationBegDate, self.edtExternalNotificationEndDate]),
             (self.chkFilterClientResearch, [self.chkFilterClientNoResearch, self.cmbFilterClientResearchKind, self.lblCRBegDate, self.lblCREndDate, self.edtFilterClientResearchBegDate, self.edtFilterClientResearchEndDate]),
             (self.chkFilterClientNoResearch, []),
+            (self.chkFilterIdentification, [self.cmbFilterIdentification]),
+            (self.chkFilterContingentObservation, [self.cmbFilterContingentObservation]),
             ]
 
         self.tblActionsStatus.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
@@ -730,6 +737,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterMedicalExemption, False)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterMedicalExemptionType, False)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterVaccinationPerson, False)
+        self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterContingentObservation, False)
 
         for row in self.chkListOnClientsPage:
             if row[0] == self.chkFilterAttachType:
@@ -1088,6 +1096,8 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         self.__filterEventContractId = None
         self.filterEventContractParams = {}
         self.txtClientInfoBrowser.actions.append(self.actEditClient)
+
+        self.txtClientInfoBrowser.actions.append(self.actOpenCallHistory)
         self.txtClientInfoBrowser.actions.append(self.actRelationsClient)
         self.txtClientInfoBrowser.actions.append(self.actOpenClientDocumentTrackingHistory)
         self.txtClientInfoBrowser.actions.append(self.actEditStatusObservationClient)
@@ -1476,6 +1486,18 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             self.createScanButton()
 
         # self.tabMain.setCurrentIndex(tabIndex)
+
+
+        if forceBool(QtGui.qApp.preferences.appPrefs.get('UISComClientEnabled', False)):
+            self.uis = UISComClient(parent=self)
+            self.uis.UISClientIncomingCall.connect(self.onUISClientIncomingCall)
+            self.uis.UISClientStateChanged.connect(self.onUISClientStateChanged)
+            # self.uis.UISClientCallFinished.connect(self.onUISClientCallFinished)
+            # self.btnUISComStatus.clicked.connect(self.onUISClientStatus)
+            self.uis.start()
+        else:
+            self.uis = None
+            self.actOpenCallHistory.setVisible(False)
 
 
     def createScanButton(self):
@@ -1975,6 +1997,9 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         QtGui.qApp.preferences.appPrefs['Registry_filterEventContractParams_edtEndDate'] = toVariant(self.filterEventContractParams.get('edtEndDate', QDate(currentDate.year(), 12, 31)))
         QtGui.qApp.preferences.appPrefs['Registry_filterEventContractParams_enableInAccounts'] = toVariant(self.filterEventContractParams.get('enableInAccounts', 0))
         QtGui.qApp.mainWindow.registry = None
+        if self.uis is not None:
+            # Останавливаем WS поток вручную, тк объект удаляется, а поток остаётся и выдаёт ошибку из-за удаления пэрента
+            self.uis.stop()
         QtGui.QWidget.closeEvent(self, event)
 
 
@@ -2838,6 +2863,16 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
             if 'clientNote' in filter:
                 addCondLike(cond, tableClient['notes'],  addDotsBefore(addDots(filter.get('clientNote', ''))))
 
+            contingentObservationId = filter.get('ContingentObservationId', None)
+            if contingentObservationId:
+                tableClientContingent = db.table('ClientContingentKind')
+                tablesRbObservationGroup = db.table('rbObservationGroup')
+                table = table.leftJoin(tableClientContingent, tableClientContingent['client_id'].eq(tableClient['id']))
+                table = table.leftJoin(tablesRbObservationGroup, [tablesRbObservationGroup['id'].eq(tableClientContingent['observationGroup_id'])])
+                cond.extend([tableClientContingent['observationGroup_id'].eq(contingentObservationId),
+                             tableClientContingent['endDate'].isNull(),
+                             tableClientContingent['deleted'].eq(0)])
+
             if 'identification' in filter:
                 identificationId = filter.get('identification',  None)
                 tableIdentification = db.table('ClientIdentification')
@@ -3445,6 +3480,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
         """
         self.updateClientInfo(id)
         self.actEditClient.setEnabled(bool(id))
+        self.actOpenCallHistory.setEnabled(bool(id))
         self.actRelationsClient.setEnabled(bool(id))
         self.actOpenClientDocumentTrackingHistory.setEnabled(bool(id) and QtGui.qApp.userHasAnyRight([urRegTabReadLocationCard, urEditLocationCard]))
         self.actEditStatusObservationClient.setEnabled(bool(id))
@@ -6807,6 +6843,194 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 
 
     @pyqtSignature('')
+    def on_actOpenCallHistory_triggered(self):
+        if self.uis:
+            clientId = self.currentClientId()
+            db = QtGui.qApp.db
+            table = db.table('ClientContact')
+            tableContactType = db.table('rbContactType')
+            table = table.innerJoin(tableContactType,
+                                    db.joinAnd([table['contactType_id'].eq(tableContactType['id']),
+                                                tableContactType['code'].eq('3')]))
+            records = db.getRecordList(table, table['contact'], [table['deleted'].eq(0), table['client_id'].eq(clientId)])
+            clientContactsList = []
+            for record in records:
+                clientContactsList.append(formatClientMobilePhoneContact(forceString(record.value('contact'))))
+            if clientContactsList:
+                try:
+                    self.uis.showCallHistory(clientContactsList, self)
+                except UISComError as e:
+                    QtGui.QMessageBox.critical(self, u'Ошибка получения истории вызовов!',
+                                               e.message,
+                                               QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+            else:
+                QtGui.qApp.information(self, u'Ошибка получения истории вызовов!',
+                                       u'У пациента не указан номер мобильного телефона!',
+                                       QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+
+    # @pyqtSignature('')
+    # def on_actUISComMakeCall_triggered(self):
+    #     if self.uis:
+    #         clientId = self.currentClientId()
+    #         db = QtGui.qApp.db
+    #         table = db.table('ClientContact')
+    #         tableContactType = db.table('rbContactType')
+    #         table = table.innerJoin(tableContactType,
+    #                                 db.joinAnd([table['contactType_id'].eq(tableContactType['id']),
+    #                                            tableContactType['code'].eq('3')]))
+    #         record = db.getRecordEx(table, table['contact'], [table['deleted'].eq(0), table['client_id'].eq(clientId)])
+    #         if record:
+    #             clientContact = forceString(record.value('contact'))
+    #             clientContactFormatted = formatClientMobilePhoneContact(clientContact)
+    #             try:
+    #                 if self.chkAsyncCall.isChecked():
+    #                     self.uis.makeCallAsync(clientContactFormatted)
+    #                 else:
+    #                     self.uis.makeCall(clientContactFormatted)
+    #                 self.lblIsCall.setText(u'Вызов...')
+    #             except UISComError as e:
+    #                 QtGui.QMessageBox.critical(self, u'Ошибка вызова!',
+    #                                            e.message,
+    #                                            QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #         else:
+    #             QtGui.qApp.information(self, u'Ошибка вызова!',
+    #                                    u'У пациента не указан номер мобильного телефона!',
+    #                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #
+    #
+    # def on_actUISComMakeInformerCall_triggered(self):
+    #     if self.uis:
+    #         clientId = self.currentClientId()
+    #         db = QtGui.qApp.db
+    #         table = db.table('ClientContact')
+    #         tableContactType = db.table('rbContactType')
+    #         table = table.innerJoin(tableContactType,
+    #                                 db.joinAnd([table['contactType_id'].eq(tableContactType['id']),
+    #                                             tableContactType['code'].eq('3')]))
+    #         record = db.getRecordEx(table, table['contact'], [table['deleted'].eq(0), table['client_id'].eq(clientId)])
+    #         if record:
+    #             clientContact = forceString(record.value('contact'))
+    #             clientContactFormatted = formatClientMobilePhoneContact(clientContact)
+    #             ttsMessage, inputOk = QtGui.QInputDialog.getText(
+    #                 self, u'Ввод сообщения', u'Пожалуйста, введите сообщение для озвучки:',
+    #                 QtGui.QLineEdit.Normal, u'Тестовое сообщение 29.07.2026'
+    #             )
+    #             if inputOk and ttsMessage:
+    #                 try:
+    #                     ttsMessage = forceString(ttsMessage)
+    #                     self.uis.makeInformerCallAsync(clientContactFormatted, ttsMessage, preset=INFORMER_CALL_PRESET_CANCEL)
+    #                     self.lblIsCall.setText(u'Вызов...')
+    #                 except UISComError as e:
+    #                     QtGui.QMessageBox.critical(self, u'Ошибка вызова!',
+    #                                                e.message,
+    #                                                QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #         else:
+    #             QtGui.qApp.information(self, u'Ошибка вызова!',
+    #                                    u'У пациента не указан номер мобильного телефона!',
+    #                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+
+    def onUISClientIncomingCall(self, json):
+        if json and json.get('event') == u'incoming_call':
+            clientEditDialog = self.findChild(CClientEditDialog)
+            while clientEditDialog is not None and clientEditDialog.isVisible():
+                QtGui.qApp.processEvents()
+            caller = json.get(u'caller') or u''
+            callerFormatted = formatClientMobilePhoneContact(caller, returnFormat=u'+{c}({o}){p1}-{p2}-{p3}')
+            callerSimple = u'+' + caller
+            if caller:
+                db = QtGui.qApp.db
+                tableCC = db.table('ClientContact')
+                tableClient = db.table('Client')
+                table = tableCC.innerJoin(tableClient, tableClient['id'].eq(tableCC['client_id']))
+                record = db.getRecordEx(table,
+                                        [tableClient['id'], tableClient['lastName'], tableClient['firstName'], tableClient['patrName']],
+                                        [tableCC['deleted'].eq(0), tableClient['deleted'].eq(0),
+                                         db.joinOr([tableCC['contact'].eq(callerFormatted),
+                                                   tableCC['contact'].eq(callerSimple)])])
+                if record:
+                    clientId = forceString(record.value('id'))
+                    clientLastName = forceString(record.value('lastName'))
+                    clientFirstName = forceString(record.value('firstName'))
+                    clientPatrName = forceString(record.value('patrName'))
+
+                    if QtGui.QMessageBox.question(
+                            self,u'Входящий вызов!',
+                            u'Номер телефона: {0}' 
+                            u'\nПациент: {1} {2} {3} ({4})' 
+                            u'\nВыбрать пациента в картотеке?'.format(
+                                callerFormatted, clientLastName,
+                                clientFirstName, clientPatrName,
+                                clientId),
+                            QtGui.QMessageBox.No | QtGui.QMessageBox.Yes,
+                            QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                        self.findClient(clientId)
+                else:
+                    if self.btnNew.isEnabled():
+                        if QtGui.QMessageBox.question(
+                                self,u'Входящий вызов!',
+                                u'Номер телефона: {0}\nНеизвестный пациент.\nХотите зарегистрировать нового пациента?'.format(callerFormatted),
+                                QtGui.QMessageBox.No | QtGui.QMessageBox.Yes,
+                                QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
+                            filter = {}
+                            filter['contact'] = callerFormatted
+                            self.__filter = self.updateFilterWidgets(filter, force=True)
+                            self.editNewClient()
+                            self.focusClients()
+                    else:
+                         QtGui.QMessageBox.information(self,
+                                                  u'Входящий вызов!',
+                                                  u'Номер телефона: {0}\nНеизвестный пациент.'.format(callerFormatted),
+                                                  QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+
+    # def onUISClientCallFinished(self, json):
+    #     if json and json.has_key('ok'):
+    #         if json.get('ok') is True:
+    #             message = (u'Успешный вызов!'
+    #                        u'\nТелефон: {0}'
+    #                        u'\nСессия: {1}').format(formatClientMobilePhoneContact(json.get('contactPhone'),
+    #                                                                                 returnFormat=u'+{c}({o}){p1}-{p2}-{p3}'),
+    #                                                 json.get('callSessionId'))
+    #             QtGui.QMessageBox.information(self,
+    #                                           u'Успешный вызов!',
+    #                                           message,
+    #                                           QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #         else:
+    #             message = u'Неудачный вызов!\nТелефон: {0}\nОшибка: {1} - {2}'.format(formatClientMobilePhoneContact(json.get('contactPhone'),
+    #                                                                                                                         returnFormat=u'+{c}({o}){p1}-{p2}-{p3}'),
+    #                                                                                   json.get('status'), json.get('detail'))
+    #             QtGui.QMessageBox.information(self,
+    #                                           u'Неудачный вызов!',
+    #                                           message,
+    #                                           QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #         self.lblIsCall.setText(u'-')
+    #
+    #
+    # def onUISClientStatus(self):
+    #     try:
+    #         status = self.uis.getStatus()
+    #     except UISComError as e:
+    #         QtGui.QMessageBox.critical(self, u'Ошибка получения статуса!',
+    #                                    e.message,
+    #                                    QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+    #     else:
+    #         QtGui.QMessageBox.information(self,
+    #                                   u'Статус uis',
+    #                                   u'Статус: {0}\nАктивные пользователи: {1}'.format(u'активен' if status.get('active') else u'Неактивен',
+    #                                                                                     status.get('online_employees')),
+    #                                   QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+
+
+    def onUISClientStateChanged(self, state):
+        if state in (STATE_DISABLED, STATE_NO_MAPPING, STATE_STOPPED):
+            self.uis.stop()
+            self.uis = None
+        #self.lblUISComState.setText(state)
+
+
+    @pyqtSignature('')
     def on_actOpenClientDocumentTrackingHistory_triggered(self):
         self.openClientDocumentTrackingHistory()
 
@@ -6955,7 +7179,9 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     def on_actPrintClientList_triggered(self):
         self.tblClients.setReportHeader(u'Список пациентов')
         self.tblClients.setReportDescription(self.getClientFilterAsText())
-        mask = [True]*(self.modelClients.columnCount())
+        mask = []
+        for col in range(self.modelClients.columnCount()):
+            mask.append(not self.tblClients.isColumnHidden(col))
         orientation = QtGui.QPrinter.Landscape
         self.tblClients.printContent(mask, orientation)
         self.focusClients()
@@ -7836,6 +8062,14 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.chkFilterId.setChecked(False)
         self.setChildElementsVisible(self.chkListOnClientsPage, self.chkFilterClientNote, checked)
         self.onChkFilterToggled(self.sender(), checked)
+
+    @pyqtSignature('bool')
+    def on_chkFilterContingentObservation_toggled(self, checked):
+        if checked:
+            self.chkFilterId.setChecked(False)
+            self.cmbFilterContingentObservation.setCurrentIndex(0)
+        self.cmbFilterContingentObservation.setVisible(checked)
+        self.onChkFilterToggled(self.chkFilterContingentObservation, checked)
     
     @pyqtSignature('bool')
     def on_chkFilterIdentification_toggled(self, checked):
@@ -8078,6 +8312,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             filter['clientNoResearch'] = self.chkFilterClientNoResearch.isChecked()
         if self.chkFilterIdentification.isChecked():
             filter['identification'] = self.cmbFilterIdentification.value()
+        if self.chkFilterContingentObservation.isChecked():
+            filter['ContingentObservationId'] = self.cmbFilterContingentObservation.value()
 
         vaccineIdList = self.modelFilterVaccine.getCheckedIdList()
         infectionIdList = self.modelFilterInfection.getCheckedIdList()
@@ -8295,7 +8531,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         self.clientSex = forceInt(record.value('sex'))
         self.clientBirthDate = forceDate(record.value('birthDate'))
         self.clientAge = calcAgeTuple(self.clientBirthDate, QDate.currentDate())
-        actionTypeIdList = selectActionTypes(self, self,
+        actionTypeIdList, amountDict = selectActionTypes(self, self,
                                              [0, 1, 2, 3],
                                              orgStructureId=None,
                                              eventTypeId=None,
@@ -8343,6 +8579,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                     newRecord.setValue('id', toVariant(None))
                     newRecord.setValue('event_id', toVariant(eventId))
                     newRecord.setValue('person_id', toVariant(defaultExecPersonId))
+                    newRecord.setValue('amount', toVariant(amountDict.get(actionTypeId, 1.0)) if amountDict else toVariant(1.0))
 
                     newAction = CAction(record=newRecord)
                     newAction.updatePresetValuesConditions({'clientId': clientId, 'eventTypeId': eventTypeId})

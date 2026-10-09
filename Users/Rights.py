@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -391,6 +391,7 @@ urSaveActionTemplate      = 'saveActionTemplate' # возможно создав
 urCopyPrevAction          = 'copyPrevAction'     # Копировать действия из предыдущих событий в F25 etc.
 urDeleteNotOwnActions     = 'deleteNotOwnActions'  # Имеет право удалять чужие действия
 urDeleteActionsWithJobTicket = 'deleteActionsWithJobTicket'  # Имеет право удалять действия, связанные с номерком на работу
+urDeleteOwnExportedActions = 'deleteOwnExportedActions'  # Имеет право удалять свои действия, выгруженные во внешние системы
 urChangeMKB               = 'changeMKB'          # исправить шифр МКБ в ЛУД
 urChangeDiagnosis         = 'changeDiagnosis'    # изменить диагноз в ЛУД
 urChangePeriodDiagnosis   = 'changePeriodDiagnosis'# изменить период диагноза в ЛУД

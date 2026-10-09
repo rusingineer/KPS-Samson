@@ -73,8 +73,8 @@ def putEvPlanDates(codeMo, url=None):
 def updateExportedPlan(year, month, url=None):
     return callService('updateExportedPlan', {'year': year, 'month': month}, url)
 
-def deleteExportedPlan(expPlanIdList, url=None):
-    return callService('deleteExportedPlan', {'expPlanIdList': expPlanIdList, 'userId': QtGui.qApp.userId}, url)
+def deleteExportedPlan(exportKind, expPlanIdList, url=None):
+    return callService('deleteExportedPlan', {'exportKind': exportKind, 'expPlanIdList': expPlanIdList, 'userId': QtGui.qApp.userId}, url)
 
 def svodCreateReport(formCode, date, orgStructureId, url=None):
     return callService('svodCreateReport', {'formCode': formCode, 'date': date, 'orgStructureId': orgStructureId}, url)

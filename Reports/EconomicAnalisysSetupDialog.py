@@ -40,6 +40,7 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.setVisibleWidget('lblStepECO', False)
         self.setDetailVisible(False)
         self.setPrintAccNumberVisible(False)
+        self.setHideNullVisible(False)
         self.setEventRelegateOrgVisible(False)
         self.launchedFromAccountingDialog(parent)
         self.loadPrefs()
@@ -218,6 +219,9 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
     def setDateTypeVisible(self, value):
         self.grpdatetype.setVisible(value)
 
+    def setHideNullVisible(self, value):
+        self.chkHideNullStrOM.setVisible(value)
+
     def setVisibilityForDateType(self, datetype):
         if datetype == 1:
             self.setDateEnabled(True)
@@ -324,6 +328,8 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
         self.chkMKBFilter.setChecked(params.get('MKBFilter', 0))
         self.edtMKBFrom.setText(params.get('MKBFrom', 'A00.00'))
         self.edtMKBTo.setText(params.get('MKBTo', 'Z99.99'))
+
+        self.chkHideNullStrOM.setChecked(params.get('hideNull', False))
         self.cmbEventRelegateOrg.setValue(params.get('eventRelegateOrgId', None))
         self.updateContractFilter()
 
@@ -440,6 +446,8 @@ class CEconomicAnalisysSetupDialog(QDialog, Ui_EconomicAnalisysSetupDialogEx):
             result['MKBFrom'] = result['MKBFrom'] if result['MKBFrom'][-1] != '.' else result['MKBFrom'][:-1]
             result['MKBTo'] = unicode(self.edtMKBTo.text()) if unicode(self.edtMKBTo.text()) != '.' else u'Z99.99'
             result['MKBTo'] = result['MKBTo'] if result['MKBTo'][-1] != '.' else result['MKBTo'][:-1]
+
+        result['hideNull'] = self.chkHideNullStrOM.isChecked()
         result['eventRelegateOrgId'] = self.cmbEventRelegateOrg.value()
         return result
 

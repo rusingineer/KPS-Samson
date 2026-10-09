@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -57,6 +57,9 @@ class CRegistryProphylaxisPlanning(CDialogBase, Ui_RegistryProphylaxisPlanningDi
         else:
             QtGui.QDialog.accept(self)
             return
+    
+    def setProphylaxisPlanningTypeFilter(self, filter):
+        self.cmbProphylaxisPlanningType.setFilter(filter)
 
     def registryProphylaxisPlanning(self):
         prophylaxisPlanningIdList = []
@@ -183,7 +186,7 @@ class CRegistryProphylaxisPlanning(CDialogBase, Ui_RegistryProphylaxisPlanningDi
         self.cmbPerson.setSpecialityId(specialityId)
 
                                  
-def setRegistryProphylaxisPlanningList(content, clientIdList):
+def setRegistryProphylaxisPlanningList(content, clientIdList, isPP=False):
     try:
         orgStructureId = content.getCurrentOrgSrtuctureId() if content else QtGui.qApp.currentOrgStructureId()
         specialityId = QtGui.qApp.userSpecialityId
@@ -232,6 +235,8 @@ def setRegistryProphylaxisPlanningList(content, clientIdList):
     dialog.setRegistryOrgStructure(orgStructureId)
     dialog.setRegistrySpeciality(specialityId)
     dialog.setRegistryPerson(personId)
+    if not isPP:
+        dialog.setProphylaxisPlanningTypeFilter(u"code != 'ДН'")
     if clientIdList and len(clientIdList) == 1:
         dialog.setClientId(clientIdList[0])
     else:

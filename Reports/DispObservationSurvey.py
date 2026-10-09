@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -254,8 +254,8 @@ GROUP BY
                                            tableDispanser['code'].inlist(['2', '6']),
                                            db.joinAnd(dateCond)], limit=1),
                             filterAddressType,
-                            """(%s BETWEEN ProphylaxisPlanning.begDate AND ProphylaxisPlanning.endDate
-                             OR %s BETWEEN ProphylaxisPlanning.begDate AND ProphylaxisPlanning.endDate)""" % (db.formatDate(firstMonthDay(date)), db.formatDate(lastMonthDay(date))),
+                            """(%s <= ProphylaxisPlanning.endDate
+                             OR %s <= ProphylaxisPlanning.endDate)""" % (db.formatDate(firstMonthDay(date)), db.formatDate(lastMonthDay(date))),
                             joinWork,
                             db.joinAnd(cond)))
 

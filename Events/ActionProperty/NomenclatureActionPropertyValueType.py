@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -16,7 +16,7 @@ import json
 from PyQt4 import QtGui
 from PyQt4.QtCore import QVariant
 
-from Stock.NomenclatureComboBox import CNomenclatureComboBox, CNomenclatureActionPropertyComboBox
+from Stock.NomenclatureComboBox import CNomenclatureComboBox
 from library.Utils              import forceRef, forceString, forceInt, forceStringEx
 from ActionPropertyValueType    import CActionPropertyValueType
 from FeatureActionPropertyValueType import CFeatureActionPropertyValueType
@@ -29,9 +29,9 @@ class CNomenclatureActionPropertyValueType(CActionPropertyValueType):
     name         = u'Номенклатура ЛСиИМН'
     cacheText = True
 
-    class CPropEditor(CNomenclatureActionPropertyComboBox):
+    class CPropEditor(CNomenclatureComboBox):
         def __init__(self, action, domain, parent, clientId, eventTypeId, eventEditor=None):
-            CNomenclatureActionPropertyComboBox.__init__(self, parent)
+            CNomenclatureComboBox.__init__(self, parent)
             self.setUseClientUnitId()
             actionType = action.getType()
             actionTypeId = actionType.id

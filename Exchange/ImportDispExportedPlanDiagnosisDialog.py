@@ -125,7 +125,7 @@ class CImportDispExportedPlanDiagnosisDialog(CDialogBase, Ui_ImportDispExportedP
                 ids = deleteIdList[0:packageSize]
                 deleteIdList = deleteIdList[packageSize:]
                 QtGui.qApp.processEvents()
-                result = AttachService.deleteExportedPlan(ids)
+                result = AttachService.deleteExportedPlan('DiagnosisDispansPlaned', ids)
                 successCount = successCount + result['successCount']
                 errorCount = errorCount + result['errorCount']
                 acceptedCount = successCount + errorCount

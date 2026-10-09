@@ -349,7 +349,7 @@ p, li { white-space: pre-wrap; }
                <property name="spacing">
                 <number>1</number>
                </property>
-               <item row="21" column="1" colspan="4">
+               <item row="22" column="1" colspan="4">
                 <widget class="CROComboBox" name="cmbOrderEvent">
                  <item>
                   <property name="text">
@@ -383,7 +383,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="10" column="4">
+               <item row="11" column="4">
                 <widget class="QLabel" name="lblVisitsDurationValue">
                  <property name="minimumSize">
                   <size>
@@ -420,7 +420,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="3" column="0">
+               <item row="4" column="0">
                 <widget class="QLabel" name="lblCauseCall">
                  <property name="text">
                   <string>Повод к вызову</string>
@@ -430,7 +430,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="3" column="1" colspan="4">
+               <item row="4" column="1" colspan="4">
                 <widget class="CRBComboBox" name="cmbCauseCall">
                  <item>
                   <property name="text">
@@ -439,7 +439,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="4" column="0">
+               <item row="5" column="0">
                 <widget class="QLabel" name="lblWhoCallOnPhone">
                  <property name="text">
                   <string>Кто вызывал</string>
@@ -449,13 +449,13 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="4" column="1" colspan="4">
+               <item row="5" column="1" colspan="4">
                 <widget class="QLineEdit" name="edtWhoCallOnPhone"/>
                </item>
                <item row="0" column="1" colspan="4">
                 <widget class="QLineEdit" name="edtNumberCardCall"/>
                </item>
-               <item row="27" column="4">
+               <item row="28" column="4">
                 <widget class="QTimeEdit" name="edtNextTime">
                  <property name="buttonSymbols">
                   <enum>QAbstractSpinBox::NoButtons</enum>
@@ -465,7 +465,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="28" column="0" colspan="2">
+               <item row="29" column="0" colspan="2">
                 <spacer name="verticalSpacer">
                  <property name="orientation">
                   <enum>Qt::Vertical</enum>
@@ -478,7 +478,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </spacer>
                </item>
-               <item row="14" column="4">
+               <item row="15" column="4">
                 <widget class="QLabel" name="lblTimeToFinishServiceDate">
                  <property name="toolTip">
                   <string>Время до оконч. обслуж.</string>
@@ -497,7 +497,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="11" column="0">
+               <item row="12" column="0">
                 <widget class="QLabel" name="lblPassDate">
                  <property name="text">
                   <string>Передано</string>
@@ -507,10 +507,10 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="7" column="1" colspan="4">
+               <item row="8" column="1" colspan="4">
                 <widget class="QLineEdit" name="edtEntrance"/>
                </item>
-               <item row="2" column="1" colspan="4">
+               <item row="3" column="1" colspan="4">
                 <widget class="CRBComboBox" name="cmbNumberBrigade">
                  <item>
                   <property name="text">
@@ -520,6 +520,13 @@ p, li { white-space: pre-wrap; }
                 </widget>
                </item>
                <item row="1" column="0" colspan="5">
+                <widget class="QLabel" name="lblContract">
+                 <property name="text">
+                  <string>Договор:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0" colspan="5">
                 <widget class="CContractComboBox" name="cmbContract">
                  <property name="whatsThis">
                   <string>номер, дата и основание договора в рамках которого производится осмотр</string>
@@ -531,7 +538,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="10" column="1" colspan="3">
+               <item row="11" column="1" colspan="3">
                 <widget class="QFrame" name="frmBegDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -594,14 +601,14 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="6" column="0">
+               <item row="7" column="0">
                 <widget class="QLabel" name="lblStorey">
                  <property name="text">
                   <string>Этаж</string>
                  </property>
                 </widget>
                </item>
-               <item row="11" column="1" colspan="3">
+               <item row="12" column="1" colspan="3">
                 <widget class="QFrame" name="frmPassDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -654,7 +661,7 @@ p, li { white-space: pre-wrap; }
                  </layout>
                 </widget>
                </item>
-               <item row="11" column="4">
+               <item row="12" column="4">
                 <widget class="QLabel" name="lblTimeToPassDate">
                  <property name="toolTip">
                   <string>Время до передачи бригаде</string>
@@ -673,7 +680,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="12" column="0">
+               <item row="13" column="0">
                 <widget class="QLabel" name="lblDepartureDate">
                  <property name="text">
                   <string>Выезд</string>
@@ -683,7 +690,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="2" column="0">
+               <item row="3" column="0">
                 <widget class="QLabel" name="lblNumberBrigade">
                  <property name="text">
                   <string>Номер бригады</string>
@@ -693,7 +700,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="5" column="0">
+               <item row="6" column="0">
                 <widget class="QLabel" name="lblNumberPhone">
                  <property name="text">
                   <string>С телефона</string>
@@ -703,10 +710,10 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="5" column="1" colspan="4">
+               <item row="6" column="1" colspan="4">
                 <widget class="QLineEdit" name="edtNumberPhone"/>
                </item>
-               <item row="10" column="0">
+               <item row="11" column="0">
                 <widget class="QLabel" name="lblBegDate">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -722,7 +729,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="12" column="1" colspan="3">
+               <item row="13" column="1" colspan="3">
                 <widget class="QFrame" name="frmDepartureDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -775,7 +782,7 @@ p, li { white-space: pre-wrap; }
                  </layout>
                 </widget>
                </item>
-               <item row="12" column="4">
+               <item row="13" column="4">
                 <widget class="QLabel" name="lblTimeToDepartureDate">
                  <property name="toolTip">
                   <string>Время до выезда</string>
@@ -797,7 +804,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="13" column="0">
+               <item row="14" column="0">
                 <widget class="QLabel" name="lblArrivalDate">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -813,7 +820,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="13" column="1" colspan="3">
+               <item row="14" column="1" colspan="3">
                 <widget class="QFrame" name="frmArrivalDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -866,7 +873,7 @@ p, li { white-space: pre-wrap; }
                  </layout>
                 </widget>
                </item>
-               <item row="13" column="4">
+               <item row="14" column="4">
                 <widget class="QLabel" name="lblTimeToArrivalDate">
                  <property name="toolTip">
                   <string>Время до прибытия</string>
@@ -888,7 +895,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="14" column="0">
+               <item row="15" column="0">
                 <widget class="QLabel" name="lblFinishServiceDate">
                  <property name="text">
                   <string>Оконч. обслуж.</string>
@@ -898,7 +905,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="14" column="1" colspan="3">
+               <item row="15" column="1" colspan="3">
                 <widget class="QFrame" name="frmFinishServiceDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -963,7 +970,7 @@ p, li { white-space: pre-wrap; }
                  </layout>
                 </widget>
                </item>
-               <item row="15" column="0">
+               <item row="16" column="0">
                 <widget class="QLabel" name="lblEndDateDate">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -979,7 +986,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="15" column="1" colspan="3">
+               <item row="16" column="1" colspan="3">
                 <widget class="QFrame" name="frmEndDateTime">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -1032,7 +1039,7 @@ p, li { white-space: pre-wrap; }
                  </layout>
                 </widget>
                </item>
-               <item row="9" column="0">
+               <item row="10" column="0">
                 <widget class="QLabel" name="lblAdditional">
                  <property name="text">
                   <string>Дополнительно</string>
@@ -1042,7 +1049,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="15" column="4">
+               <item row="16" column="4">
                 <widget class="QLabel" name="lblTimeToEndDate">
                  <property name="mouseTracking">
                   <bool>false</bool>
@@ -1064,7 +1071,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="16" column="0">
+               <item row="17" column="0">
                 <widget class="QLabel" name="lblPerson">
                  <property name="text">
                   <string>Ответственный</string>
@@ -1074,7 +1081,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="16" column="1" colspan="4">
+               <item row="17" column="1" colspan="4">
                 <widget class="CPersonComboBoxEx" name="cmbPerson">
                  <property name="whatsThis">
                   <string>врач отвечающий за осмотр (терапевт)</string>
@@ -1086,7 +1093,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="17" column="0">
+               <item row="18" column="0">
                 <widget class="QLabel" name="lblDispatcher">
                  <property name="text">
                   <string>Диспетчер</string>
@@ -1096,7 +1103,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="17" column="1" colspan="4">
+               <item row="18" column="1" colspan="4">
                 <widget class="CPersonComboBoxEx" name="cmbDispatcher">
                  <item>
                   <property name="text">
@@ -1105,7 +1112,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="19" column="0">
+               <item row="20" column="0">
                 <widget class="QLabel" name="lblOrder">
                  <property name="text">
                   <string>В&amp;ызов</string>
@@ -1118,7 +1125,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="19" column="1" colspan="4">
+               <item row="20" column="1" colspan="4">
                 <widget class="CROComboBox" name="cmbOrder">
                  <item>
                   <property name="text">
@@ -1147,7 +1154,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="20" column="0">
+               <item row="21" column="0">
                 <widget class="QLabel" name="lblResult">
                  <property name="text">
                   <string>Результа&amp;т</string>
@@ -1160,7 +1167,7 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="20" column="1" colspan="4">
+               <item row="21" column="1" colspan="4">
                 <widget class="CRBComboBox" name="cmbResult">
                  <property name="whatsThis">
                   <string>результат осмотра</string>
@@ -1172,14 +1179,14 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="25" column="0" colspan="3">
+               <item row="26" column="0" colspan="3">
                 <widget class="QLabel" name="lblTypeAsset">
                  <property name="text">
                   <string>Активное посещение</string>
                  </property>
                 </widget>
                </item>
-               <item row="27" column="0" colspan="3">
+               <item row="28" column="0" colspan="3">
                 <widget class="CRBComboBox" name="cmbTypeAsset">
                  <item>
                   <property name="text">
@@ -1188,7 +1195,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="27" column="3">
+               <item row="28" column="3">
                 <widget class="CDateEdit" name="edtNextDate">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -1207,34 +1214,34 @@ p, li { white-space: pre-wrap; }
                  </property>
                 </widget>
                </item>
-               <item row="21" column="0">
+               <item row="22" column="0">
                 <widget class="QLabel" name="lblOrderEvent">
                  <property name="text">
                   <string>Порядок</string>
                  </property>
                 </widget>
                </item>
-               <item row="6" column="1" colspan="4">
+               <item row="7" column="1" colspan="4">
                 <widget class="QLineEdit" name="edtStorey"/>
                </item>
-               <item row="9" column="1" colspan="4">
+               <item row="10" column="1" colspan="4">
                 <widget class="QTextEdit" name="edtAdditional"/>
                </item>
-               <item row="7" column="0">
+               <item row="8" column="0">
                 <widget class="QLabel" name="lblEntrance">
                  <property name="text">
                   <string>Вход</string>
                  </property>
                 </widget>
                </item>
-               <item row="18" column="0">
+               <item row="19" column="0">
                 <widget class="QLabel" name="lblGuidePerson">
                  <property name="text">
                   <string>Направитель</string>
                  </property>
                 </widget>
                </item>
-               <item row="18" column="1" colspan="4">
+               <item row="19" column="1" colspan="4">
                 <widget class="CPersonComboBoxEx" name="cmbGuidePerson">
                  <item>
                   <property name="text">
@@ -1243,14 +1250,14 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </widget>
                </item>
-               <item row="22" column="0">
+               <item row="23" column="0">
                 <widget class="QLabel" name="lblNumberEpidemic">
                  <property name="text">
                   <string>Эпид.номер</string>
                  </property>
                 </widget>
                </item>
-               <item row="22" column="1" colspan="4">
+               <item row="23" column="1" colspan="4">
                 <layout class="QHBoxLayout" name="horizontalLayout">
                  <property name="spacing">
                   <number>5</number>
@@ -1273,7 +1280,7 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </layout>
                </item>
-               <item row="8" column="0">
+               <item row="9" column="0">
                 <widget class="QLabel" name="lblOrgStructure">
                  <property name="text">
                   <string>Зона обслуживания</string>

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -734,7 +734,6 @@ def selectDataOperation(params, orgStructureIdList, ageGroup=None):
     stmt = u"""
     select
         Action.id as actionId,
-        Action.endDate as actionEndDate,
         Client.id as clientId,
         age(Client.birthDate, Action.endDate) as clientAge,
         Client.sex as clientSex,
@@ -855,7 +854,7 @@ def selectDataOperation(params, orgStructureIdList, ageGroup=None):
         and EventType.deleted = 0
         and Client.deleted = 0
         and rbMedicalAidType.regionalCode in ('11', '12', '401', '402')
-        and Action.endDate between %(begDate)s and %(endDate)s
+        and Event.execDate between %(begDate)s and %(endDate)s
         and ActionLeaved.id is not null
         and %(cond)s
     """
@@ -1131,11 +1130,20 @@ class CStationaryF14KK2000Adult(CStationaryF14KK2000):
                 urgentReadingAction = forceBool(record.value('urgentReadingAction'))
                 outDeath = forceBool(record.value('outDeath'))
                 MKB = forceString(record.value('MKB'))
+                if MKB and len(MKB) == 3 and MKB[0].isalpha() and MKB[1:].isdigit():
+                    normalizedMKB = MKB + '.0'
+                else:
+                    normalizedMKB = MKB
                 constDeathMKB = forceString(record.value('constDeathMKB'))
+                if constDeathMKB and len(constDeathMKB) == 3 and constDeathMKB[0].isalpha() and constDeathMKB[
+                    1:].isdigit():
+                    normalizedConstDeathMKB = constDeathMKB + '.0'
+                else:
+                    normalizedConstDeathMKB = constDeathMKB
                 begDate = forceDate(record.value('begDate'))
                 endDate = forceDate(record.value('endDate'))
                 if not outDeath:
-                    for row in mapRows2000.get(MKB, []):
+                    for row in mapRows2000.get(normalizedMKB, []):
                         reportLine = reportData2000[row]
                         reportLine[0] += 1
                         if urgentReading or urgentReadingAction:
@@ -1146,7 +1154,8 @@ class CStationaryF14KK2000Adult(CStationaryF14KK2000):
                             days = begDate.daysTo(endDate) if begDate != endDate else 1
                             reportLine[3] += days
                 else:
-                    deathMKB = constDeathMKB or MKB
+                    #deathMKB = constDeathMKB or MKB
+                    deathMKB = normalizedConstDeathMKB or normalizedMKB
                     isAutopsy = forceBool(record.value('autopsy'))
                     forensicMedicineAutopsy = forceBool(record.value('forensicMedicineAutopsy'))
                     divergenceDiagnosis = forceBool(record.value('divergenceDiagnosis'))
@@ -1691,7 +1700,6 @@ class CStationaryF14KK4100(CStationaryF14KK):
         query = selectDataOperation(params, orgStructureIdList)
         while query.next():
             record = query.record()
-            actionEndDate = forceDate(record.value('actionEndDate'))
             clientId = forceRef(record.value('clientId'))
             clientAge = forceInt(record.value('clientAge'))
             clientSex = forceInt(record.value('clientSex'))

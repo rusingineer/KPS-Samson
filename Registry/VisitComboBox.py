@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2021 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -43,13 +43,10 @@ class CVisitComboBox(CROComboBox):
             self._popup = CVisitComboBoxPopup(self)
             self.connect(self._popup, SIGNAL('visitIdSelected(int)'), self.setValue)
         pos = self.rect().bottomLeft()
-        pos2 = self.rect().topLeft()
         pos = self.mapToGlobal(pos)
-        pos2 = self.mapToGlobal(pos2)
         size = self._popup.sizeHint()
-        width= max(size.width(), self.width())
-        size.setWidth(width)
         screen = QtGui.QApplication.desktop().availableGeometry(pos)
+        size.setWidth(screen.width())
         pos.setX( max(min(pos.x(), screen.right()-size.width()), screen.left()) )
         pos.setY( max(min(pos.y(), screen.bottom()-size.height()), screen.top()) )
         self._popup.move(pos)

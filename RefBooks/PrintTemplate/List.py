@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -148,6 +148,10 @@ class CPrintTemplateEditor(Ui_PrintTemplateEditorDialog, CItemEditorDialog):
         self.addModels('ClientConsents', CClientConsentInDocTable(self))
         self.setModels(self.tblClientConsents, self.modelClientConsents, self.selectionModelClientConsents)
         self.tblClientConsents.addPopupDelRow()
+        self.btnApply = QtGui.QPushButton(u'Применить', self.buttonBox)
+        self.btnApply.setObjectName('btnApply')
+        self.buttonBox.addButton(self.btnApply, QtGui.QDialogButtonBox.ApplyRole)
+        self.btnApply.clicked.connect(self.on_btnApply_clicked)
 
 
     def setRecord(self, record):
@@ -244,6 +248,24 @@ class CPrintTemplateEditor(Ui_PrintTemplateEditorDialog, CItemEditorDialog):
         finally:
             if tmpDir:
                 QtGui.qApp.removeTmpDir(tmpDir)
+
+    @pyqtSignature('')
+    def on_btnApply_clicked(self):
+        """Обработчик нажатия кнопки 'Применить'"""
+        if self.checkDataEntered():
+            try:
+                self.saveData()
+                self.afterSave()
+                if hasattr(self.parent(), 'renewListAndSetTo'):
+                    self.parent().renewListAndSetTo(self.itemId())
+            except Exception as e:
+                QtGui.qApp.logCurrentException()
+                QtGui.QMessageBox.critical(self,
+                                           u'Ошибка',
+                                           u'Не удалось сохранить изменения:\n%s' % unicode(e),
+                                           QtGui.QMessageBox.Close)
+                return False
+        return True
 
 
 class CClientConsentInDocTable(CInDocTableModel):

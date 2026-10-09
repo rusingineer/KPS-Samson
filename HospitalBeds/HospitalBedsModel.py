@@ -6104,7 +6104,7 @@ class CDeathModel(CMonitoringModel):
         filterClientId = dialogParams.get('filterClientId', None)
         filterEventId = dialogParams.get('filterEventId', None)
         statusObservation = dialogParams.get('statusObservation', None)
-        reason = dialogParams.get('renunciationActionIndex', 0)
+        reason = dialogParams.get('reason', 0)
         profile = dialogParams.get('treatmentProfile', None)
         filterMES = dialogParams.get('filterMES', u'')
         MKBFilter = dialogParams['MKBFilter']

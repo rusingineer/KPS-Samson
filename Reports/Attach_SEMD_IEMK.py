@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -13,19 +13,21 @@
 #############################################################################
 
 import re
-from Reports.Report     import CVoidSetupDialog
+import datetime
+from collections import OrderedDict
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, pyqtSignature, SIGNAL, Qt, QUrl
 from PyQt4.QtGui import QBrush
 from Reports.Report      import CReport
-from Events.EditDispatcher import getEventFormClass
+from Reports.Report     import CVoidSetupDialog
 from Reports.ReportBase import CReportBase, createTable
+from Events.EditDispatcher import getEventFormClass
+from Events.Utils import getActionTypeDescendants
 from Events.ActionGroupSignDialog import CActionGroupSignDialog
 from Users.Rights import urCanOpenAnyAttachedFile, urCanOpenOwnAttachedFile
 from Orgs.Utils import getOrgStructureDescendants
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from Ui_Attach_SEMD_IEMK import Ui_Attach_SEMD_IEMK_Dialog
 from library.DateEdit import CDateEdit
 from library.DialogBase import CDialogBase
 from library.InDocTable import CRecordListModel, CInDocTableCol
@@ -33,10 +35,10 @@ from library.RecordLock import CRecordLockMixin
 from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.Utils import forceString, toVariant, forceInt, forceRef, forceDate, \
     formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, forceDateTime, forceBool, trim
+from library.MultivalueComboBox import CRecordMultivalueComboBox
 from F088.F088EditDialog import CF088EditDialog
 from F088.F0882022EditDialog import CF0882022EditDialog
-from Events.Utils import getActionTypeDescendants
-import datetime
+from Ui_Attach_SEMD_IEMK import Ui_Attach_SEMD_IEMK_Dialog
 
 
 class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixin):
@@ -132,7 +134,6 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixi
             lFilterIdentify = lFilterIdentify.split(',')
 
         query = db.query(stmt)
-        from collections import OrderedDict
         filterItems = OrderedDict()
         while query.next():
             rec = query.record()
@@ -901,28 +902,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixi
         return result
 
 
-class CFileAttachModel(CRecordListModel):
-    def getMasterId(self, index):
-        return forceInt(self.records[index].value('master_id'))
-
-    def getFileId(self, index):
-        return forceInt(self.records[index].value('id'))
-
-    def getRespSignerId(self, index):
-        return forceString(self.records[index].value('isRespSigned')) == u'Подписан'
-
-    def getAttachFilesId(self, indexList):
-        idList = []
-        for index in indexList:
-            idList.append(forceInt(self.records[index].value('id')))
-        return idList
-
-    def updateValidationResults(self, newResults):
-        for id, result in newResults.iteritems():
-            self.validationResults[id] = result
-
-
-class CActionFileAttachModel(CFileAttachModel):
+class CActionFileAttachModel(CRecordListModel):
     def __init__(self, parent):
         CRecordListModel.__init__(self, parent)
         self.addCol(CInDocTableCol(u'ФИО \nПациента', 'fio_client', 20)).setReadOnly()
@@ -1304,12 +1284,18 @@ class CPrintSummaryDocumentsDialog(CDialogBase):
     def __init__(self, parent=None):
         CDialogBase.__init__(self, parent)
         self.layout = QtGui.QGridLayout(self)
+        self.listFilterIdentify = ""
+        self.filterItems = None
 
         self.setWindowTitle(u'Параметры отчёта')
 
         self.edtBegDate = CDateEdit(self)
         self.edtEndDate = CDateEdit(self)
         self.cmbOrgStructure = COrgStructureComboBox(self)
+        self.cmbEventStatus = CRecordMultivalueComboBox(self)
+        self.cmbEventStatus.enableFilter(True)
+        self.cmbEventStatus.setMaximumWidth(500)
+        self.setCmbEventStatus()
         self.chkGroupByOrgStructure = QtGui.QCheckBox(u'Группировать по подразделениям')
         self.chkClosedEvents = QtGui.QCheckBox(u'По закрытым событиям')
 
@@ -1327,11 +1313,68 @@ class CPrintSummaryDocumentsDialog(CDialogBase):
         self.layout.addWidget(QtGui.QLabel(u'Подразделение'), 2, 0)
         self.layout.addWidget(self.cmbOrgStructure, 2, 1)
 
-        self.layout.addWidget(self.chkGroupByOrgStructure, 3, 0)
+        self.layout.addWidget(QtGui.QLabel(u'Детализировать по'), 3, 0)
+        self.layout.addWidget(self.cmbEventStatus, 3, 1)
 
-        self.layout.addWidget(self.chkClosedEvents, 4, 0)
+        self.layout.addWidget(self.chkGroupByOrgStructure, 4, 0)
 
-        self.layout.addWidget(self.buttonBox, 5, 0, 1, 2)
+        self.layout.addWidget(self.chkClosedEvents, 5, 0)
+
+        self.layout.addWidget(self.buttonBox, 6, 0, 1, 2)
+
+
+    def setCmbEventStatus(self, signal=False):
+        self.cmbEventStatus.clear()
+
+        db = QtGui.qApp.db
+        stmt = u'''SELECT note, value, master_id
+FROM ActionType_Identification LEFT JOIN rbAccountingSystem `as` ON
+ActionType_Identification.system_id = `as`.id WHERE
+`as`.code IN ('n3.medDocumentType.Pdf', 'n3.medDocumentType.Cda')
+AND note != '' AND note IS not NULL and deleted = 0 ORDER BY note '''
+
+        list_auto_check = []
+        x = 0
+
+        if self.listFilterIdentify != "" and signal is False:
+            lFilterIdentify = self.listFilterIdentify.replace(" ", "")
+            lFilterIdentify = lFilterIdentify.split(',')
+
+        query = db.query(stmt)
+
+        filterItems = OrderedDict()
+        while query.next():
+            rec = query.record()
+            value = forceString(rec.value('value'))
+            name = forceString(rec.value('note'))
+
+            filterItems[value] = name.replace(u'\xa0', '')
+            if self.listFilterIdentify != "" and signal is False:
+                if value in lFilterIdentify:
+                    list_auto_check.append(x)
+            else:
+                list_auto_check.append(x)
+            x += 1
+
+        self.cmbEventStatus.setItems(OrderedDict(sorted(filterItems.items())))
+        # self.cmbEventStatus.setCheckedRows(list_auto_check)
+        self.filterItems = filterItems
+
+    def getListCode(self):
+        listIdentify = []
+        identify = self.cmbEventStatus.value()
+        for i in re.split(',', identify):
+            if trim(i).isdigit():
+                listIdentify.append(trim(i))
+        return listIdentify
+
+    def getListName(self):
+        listName = []
+        listId = self.getListCode()
+        for i in listId:
+            name = self.filterItems[i]
+            listName.append(name)
+        return listName
 
     def params(self):
         paramentrs = dict()
@@ -1340,6 +1383,8 @@ class CPrintSummaryDocumentsDialog(CDialogBase):
         paramentrs['orgStructureId'] = self.cmbOrgStructure.value()
         paramentrs['chkGroupByOrgStructure'] = self.chkGroupByOrgStructure.isChecked()
         paramentrs['chkClosedEvents'] = self.chkClosedEvents.isChecked()
+        paramentrs['checkCode'] = self.getListCode()
+        paramentrs['checkName'] = self.getListName()
         return paramentrs
 
     def setParams(self, params):
@@ -1349,6 +1394,9 @@ class CPrintSummaryDocumentsDialog(CDialogBase):
         self.cmbOrgStructure.setValue(params.get('orgStructureId', None))
         self.chkGroupByOrgStructure.setChecked(params.get('chkGroupByOrgStructure', False))
         self.chkClosedEvents.setChecked(params.get('chkClosedEvents', False))
+        if params.get('checkName', None):
+            listName = params.get('checkName')
+            self.cmbEventStatus.setCheckedDict(listName, True)
 
 
 class CReportPrintSummaryDocuments(CReport):
@@ -1363,6 +1411,8 @@ class CReportPrintSummaryDocuments(CReport):
 
     def select(self, params):
         db = QtGui.qApp.db
+
+        listMaster_id = params.get('checkCode')
 
         begDate = params.get('begDate')
         begDate = db.formatDate(begDate).replace("'", "") + 'T00:00:00'
@@ -1379,6 +1429,11 @@ class CReportPrintSummaryDocuments(CReport):
             orgStructure = ' and CASE WHEN ati.value != "291" THEN  pOrgStructure.orgStructure_id in (' + (','.join(map(str, orgStructureIdList))) + ') ELSE labPers.orgStructure_id in (' + (','.join(map(str, orgStructureIdList))) + ') END '
         else:
             orgStructure = ''
+
+        if listMaster_id:
+            actionTypeIden = u'AND (ati.`value` in ({0}))'.format(u', '.join(listMaster_id))
+        else:
+            actionTypeIden = ''
 
         stmt = u"""
 SELECT
@@ -1464,13 +1519,14 @@ WHERE
   AND (a.`endDate`<'{endDate}')
   {orgStructure}
   {eventClose}
+  {actionTypeIden}
   AND (Event.`org_id` = {currentOgrId})
   AND (EventType.`code` NOT IN ('rmDisp', 'smp', 'hospDir'))
   AND (EventType.`context` NOT IN ('relatedAction'))
   AND (ati.`note` IS NOT NULL)
   AND (ati.`note` != '')
   AND (ati.`deleted` = 0)
-
+  AND (afa.id IS not NULL)
   GROUP BY person
 
 ORDER BY orgStructure, orgStructureId, gg2;
@@ -1480,8 +1536,9 @@ ORDER BY orgStructure, orgStructureId, gg2;
             begDate=begDate,
             endDate=endDate,
             eventClose=u'AND (Event.isClosed = 1)' if chkClosedEvents else '',
-            orgStructure= orgStructure,
-            currentOgrId=QtGui.qApp.currentOrgId())
+            orgStructure=orgStructure,
+            currentOgrId=QtGui.qApp.currentOrgId(),
+            actionTypeIden=actionTypeIden)
 
         records = []
         query = db.query(stmt)
@@ -1520,10 +1577,16 @@ ORDER BY orgStructure, orgStructureId, gg2;
 
     def build(self, params):
         group = params.get('chkGroupByOrgStructure')
+        checkName = params.get('checkName')
+        
         doc = QtGui.QTextDocument()
         cursor = QtGui.QTextCursor(doc)
         cursor.setCharFormat(CReportBase.ReportTitle)
         cursor.insertText(u'Сводка по документам')
+        cursor.insertBlock()
+        cursor.setCharFormat(CReportBase.ReportBody)
+        if checkName:
+            cursor.insertText(u'Тип электронного документа: ' + u'; '.join(checkName))
         cursor.insertBlock()
         self.dumpParams(cursor, params)
         cursor.insertBlock()

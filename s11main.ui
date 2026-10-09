@@ -695,6 +695,7 @@
      <addaction name="menu_28"/>
      <addaction name="actForm13dChildPopulation"/>
      <addaction name="actForm25dNumberChildrenByAgeAndSocStatus"/>
+     <addaction name="actFerzlAttach"/>
     </widget>
     <widget class="QMenu" name="mnuDispObservation">
      <property name="enabled">
@@ -1682,6 +1683,7 @@
      <addaction name="mnuNarcology"/>
      <addaction name="mnuForm19"/>
      <addaction name="actForm030po17"/>
+     <addaction name="actForm030dco13"/>
     </widget>
     <widget class="QMenu" name="mnuReportTrauma">
      <property name="title">
@@ -1732,6 +1734,7 @@
       <string>Центр Здоровья</string>
      </property>
      <addaction name="actHealthCenterForm68"/>
+     <addaction name="actHealthCenterAnaliz"/>
     </widget>
     <addaction name="mnuAdministrator"/>
     <addaction name="mnuStatReports"/>
@@ -6666,6 +6669,11 @@
     <string>(4100)</string>
    </property>
   </action>
+  <action name="actForm030dco13">
+   <property name="text">
+    <string>Форма N 030-Д/с/о-13</string>
+   </property>
+  </action>
   <action name="actReportPatientSchoolJournal">
    <property name="text">
     <string>Журнал регистрации пациентов, обучающихся в Школах с ХНИЗ</string>
@@ -6681,9 +6689,19 @@
     <string>Отчет для АФТ 002</string>
    </property>
   </action>
+  <action name="actHealthCenterAnaliz">
+   <property name="text">
+    <string>Анализ факторов риска развития заболеваний среди первичных пациентов ЦЗ</string>
+   </property>
+  </action>
   <action name="actReportAFT_Forecast12month">
    <property name="text">
     <string>Отчет для АФТ 12 месяцев</string>
+   </property>
+  </action>
+  <action name="actFerzlAttach">
+   <property name="text">
+    <string>Данные прикреплённого населения ФЕРЗЛ</string>
    </property>
   </action>
  </widget>

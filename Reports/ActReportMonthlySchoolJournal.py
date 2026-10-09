@@ -37,6 +37,15 @@ class CactReportMonthlySchoolJournalDialog(QtGui.QDialog):
         periodLayout.addStretch()
         layout.addWidget(periodGroup)
 
+        ageGroup = QtGui.QGroupBox(u'Возрастная группа', self)
+        ageLayout = QtGui.QHBoxLayout(ageGroup)
+        self.chkChildren = QtGui.QCheckBox(u'По детям (пр.2499)', self)
+        self.chkAdults = QtGui.QCheckBox(u'По взрослым (пр. 867)', self)
+        ageLayout.addWidget(self.chkChildren)
+        ageLayout.addWidget(self.chkAdults)
+        ageLayout.addStretch()
+        layout.addWidget(ageGroup)
+
         buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
@@ -45,11 +54,15 @@ class CactReportMonthlySchoolJournalDialog(QtGui.QDialog):
     def setParams(self, params):
         self.edtBegDate.setDate(params.get('begDate', QDate.currentDate().addMonths(-1)))
         self.edtEndDate.setDate(params.get('endDate', QDate.currentDate()))
+        self.chkChildren.setChecked(params.get('children', False))
+        self.chkAdults.setChecked(params.get('adults', False))
 
     def params(self):
         return {
             'begDate': self.edtBegDate.date(),
             'endDate': self.edtEndDate.date(),
+            'children': self.chkChildren.isChecked(),
+            'adults': self.chkAdults.isChecked(),
         }
 
 
@@ -74,6 +87,11 @@ class CactReportMonthlySchoolJournal(CReport):
             if result:
                 description.append(result)
 
+        if params.get('children', False):
+            description.append(u'возрастная группа: дети (пр.2499)')
+        if params.get('adults', False):
+            description.append(u'возрастная группа: взрослые (пр. 867)')
+
         description.append(u'отчёт составлен: ' + forceString(QDateTime.currentDateTime()))
 
         columns = [('100%', [], CReportBase.AlignLeft)]
@@ -83,13 +101,22 @@ class CactReportMonthlySchoolJournal(CReport):
         cursor.movePosition(QtGui.QTextCursor.End)
         cursor.insertBlock()
 
-    def getSchools(self):
+    def getSchools(self, children=False, adults=False):
         db = QtGui.qApp.db
+
+        # Формируем условие по flatCode в зависимости от выбранной возрастной группы
+        if children and not adults:
+            flatCode_condition = "flatCode = 'schools_2499'"
+        elif adults and not children:
+            flatCode_condition = "flatCode = 'schools_867'"
+        else:
+            flatCode_condition = "flatCode IN ('schools_867', 'schools_2499')"
+
         stmt = u"""
             SELECT id, title FROM ActionType 
-            WHERE flatCode = 'schools_867' AND code != 'schools_867' AND deleted = 0
+            WHERE %s AND code NOT IN ('schools_867', 'schools_2499') AND deleted = 0
             ORDER BY title
-        """
+        """ % flatCode_condition
         query = db.query(stmt)
         schools = []
         while query.next():
@@ -104,93 +131,74 @@ class CactReportMonthlySchoolJournal(CReport):
         db = QtGui.qApp.db
         begDate = params.get('begDate', QDate())
         endDate = params.get('endDate', QDate())
+        children = params.get('children', False)
+        adults = params.get('adults', False)
 
-        schools = self.getSchools()
+        schools = self.getSchools(children, adults)
+        if not schools:
+            return {}
+
+        school_ids = [str(s['id']) for s in schools]
+        school_ids_str = ','.join(school_ids)
+
+        stmt = u"""
+            SELECT 
+                A.actionType_id AS school_id,
+                COUNT(DISTINCT A.id) AS schools_count,
+                COUNT(DISTINCT CASE 
+                    WHEN APT.name = 'Пациент закончил обучение по данной программе.' AND APB.value = 1 
+                    THEN A.event_id 
+                END) AS total_completed,
+                COUNT(DISTINCT CASE 
+                    WHEN APT.name = 'Пациент закончил обучение по данной программе.' AND APB.value = 1 AND C.sex = 1
+                    THEN A.event_id 
+                END) AS men_completed,
+                COUNT(DISTINCT CASE 
+                    WHEN APT.name = 'Пациент закончил обучение по данной программе.' AND APB.value = 1 AND C.sex = 2
+                    THEN A.event_id 
+                END) AS women_completed,
+                COUNT(DISTINCT A.event_id) AS age_total,
+                COUNT(DISTINCT CASE 
+                    WHEN (C.sex = 1 AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) BETWEEN 18 AND 63)
+                         OR (C.sex = 2 AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) BETWEEN 18 AND 60)
+                    THEN A.event_id 
+                END) AS working_age,
+                COUNT(DISTINCT CASE 
+                    WHEN (C.sex = 1 AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) > 63)
+                         OR (C.sex = 2 AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) > 60)
+                    THEN A.event_id 
+                END) AS retirement_age,
+                MAX(AT.title) AS school_title
+            FROM Action A
+            LEFT JOIN Event E ON E.id = A.event_id
+            LEFT JOIN Client C ON C.id = E.client_id
+            LEFT JOIN ActionProperty AP ON AP.action_id = A.id AND AP.deleted = 0
+            LEFT JOIN ActionPropertyType APT ON APT.id = AP.type_id
+            LEFT JOIN ActionProperty_Boolean APB ON APB.id = AP.id
+            LEFT JOIN ActionType AT ON AT.id = A.actionType_id
+            WHERE A.actionType_id IN (%s)
+              AND A.deleted = 0
+              AND A.begDate >= '%s'
+              AND A.begDate <= '%s'            
+        """ % (school_ids_str, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
+
+        if children and not adults:
+            stmt += u" AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) < 18"
+        elif adults and not children:
+            stmt += u" AND TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) >= 18"
+
+        stmt += u" GROUP BY A.actionType_id"
+
+        query = db.query(stmt)
+
         result = {}
+        while query.next():
+            record = query.record()
+            school_id = forceInt(record.value('school_id'))
+            school_title = forceString(record.value('school_title'))
 
-        for school in schools:
-            school_id = school['id']
-            school_title = school['title']
+            total_completed = forceInt(record.value('total_completed'))
 
-            # 1. Количество проведенных Школ
-            stmt = u"""
-                SELECT COUNT(DISTINCT A.id) AS schools_count
-                FROM Action A
-                WHERE A.actionType_id = %d
-                  AND A.deleted = 0
-                  AND A.begDate >= '%s'
-                  AND A.begDate <= '%s'
-            """ % (school_id, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
-            query = db.query(stmt)
-            schools_count = 0
-            if query.next():
-                schools_count = forceInt(query.record().value('schools_count'))
-
-            # 2. Общее число обученных пациентов (завершили обучение)
-            stmt = u"""
-                SELECT COUNT(DISTINCT A.event_id) AS total_completed
-                FROM Action A
-                INNER JOIN ActionProperty AP ON AP.action_id = A.id
-                INNER JOIN ActionPropertyType APT ON APT.id = AP.type_id
-                INNER JOIN ActionProperty_Boolean APB ON APB.id = AP.id
-                WHERE A.actionType_id = %d
-                  AND APT.name = 'Пациент закончил обучение по данной программе.'
-                  AND APB.value = 1
-                  AND A.deleted = 0
-                  AND AP.deleted = 0
-                  AND A.begDate >= '%s'
-                  AND A.begDate <= '%s'
-            """ % (school_id, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
-            query = db.query(stmt)
-            total_completed = 0
-            if query.next():
-                total_completed = forceInt(query.record().value('total_completed'))
-
-            # 2a. мужчины
-            stmt = u"""
-                SELECT COUNT(DISTINCT A.event_id) AS men_completed
-                FROM Action A
-                INNER JOIN Event E ON E.id = A.event_id
-                INNER JOIN Client C ON C.id = E.client_id
-                INNER JOIN ActionProperty AP ON AP.action_id = A.id
-                INNER JOIN ActionPropertyType APT ON APT.id = AP.type_id
-                INNER JOIN ActionProperty_Boolean APB ON APB.id = AP.id
-                WHERE A.actionType_id = %d
-                  AND APT.name = 'Пациент закончил обучение по данной программе.'
-                  AND APB.value = 1
-                  AND C.sex = 1
-                  AND A.deleted = 0
-                  AND A.begDate >= '%s'
-                  AND A.begDate <= '%s'
-            """ % (school_id, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
-            query = db.query(stmt)
-            men_completed = 0
-            if query.next():
-                men_completed = forceInt(query.record().value('men_completed'))
-
-            # 2b. женщины
-            stmt = u"""
-                SELECT COUNT(DISTINCT A.event_id) AS women_completed
-                FROM Action A
-                INNER JOIN Event E ON E.id = A.event_id
-                INNER JOIN Client C ON C.id = E.client_id
-                INNER JOIN ActionProperty AP ON AP.action_id = A.id
-                INNER JOIN ActionPropertyType APT ON APT.id = AP.type_id
-                INNER JOIN ActionProperty_Boolean APB ON APB.id = AP.id
-                WHERE A.actionType_id = %d
-                  AND APT.name = 'Пациент закончил обучение по данной программе.'
-                  AND APB.value = 1
-                  AND C.sex = 2
-                  AND A.deleted = 0
-                  AND A.begDate >= '%s'
-                  AND A.begDate <= '%s'
-            """ % (school_id, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
-            query = db.query(stmt)
-            women_completed = 0
-            if query.next():
-                women_completed = forceInt(query.record().value('women_completed'))
-
-            # 3. Число обученных пациентов (впервые/повторно) по названию школы
             first_time = 0
             repeat = 0
             if u'первичный' in school_title.lower():
@@ -200,55 +208,17 @@ class CactReportMonthlySchoolJournal(CReport):
             else:
                 first_time = total_completed
 
-            # 4. Возрастной состав пациентов
-            stmt = u"""
-                SELECT 
-                    C.sex,
-                    TIMESTAMPDIFF(YEAR, C.birthDate, CURDATE()) AS age
-                FROM Action A
-                INNER JOIN Event E ON E.id = A.event_id
-                INNER JOIN Client C ON C.id = E.client_id
-                WHERE A.actionType_id = %d
-                  AND A.deleted = 0
-                  AND A.begDate >= '%s'
-                  AND A.begDate <= '%s'
-                GROUP BY A.event_id
-            """ % (school_id, begDate.toString('yyyy-MM-dd'), endDate.toString('yyyy-MM-dd'))
-            query = db.query(stmt)
-
-            working_age = 0
-            retirement_age = 0
-            age_total = 0
-
-            while query.next():
-                record = query.record()
-                sex = forceInt(record.value('sex'))
-                age = forceInt(record.value('age'))
-
-                age_total += 1
-
-                if sex == 1:  # мужчины
-                    if 18 <= age <= 63:
-                        working_age += 1
-                    elif age > 63:
-                        retirement_age += 1
-                elif sex == 2:  # женщины
-                    if 18 <= age <= 60:
-                        working_age += 1
-                    elif age > 60:
-                        retirement_age += 1
-
             result[school_id] = {
-                'schools_count': schools_count,
+                'schools_count': forceInt(record.value('schools_count')),
                 'total_completed': total_completed,
-                'men_completed': men_completed,
-                'women_completed': women_completed,
+                'men_completed': forceInt(record.value('men_completed')),
+                'women_completed': forceInt(record.value('women_completed')),
                 'total_completed2': total_completed,
                 'first_time': first_time,
                 'repeat': repeat,
-                'age_total': age_total,
-                'working_age': working_age,
-                'retirement_age': retirement_age,
+                'age_total': forceInt(record.value('age_total')),
+                'working_age': forceInt(record.value('working_age')),
+                'retirement_age': forceInt(record.value('retirement_age')),
             }
 
         return result
@@ -266,7 +236,9 @@ class CactReportMonthlySchoolJournal(CReport):
         cursor.setCharFormat(CReportBase.ReportBody)
         cursor.insertBlock()
 
-        schools = self.getSchools()
+        children = params.get('children', False)
+        adults = params.get('adults', False)
+        schools = self.getSchools(children, adults)
         data = self.getData(params)
 
         school_count = len(schools)

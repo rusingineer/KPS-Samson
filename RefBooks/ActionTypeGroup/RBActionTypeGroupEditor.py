@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -492,6 +492,7 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
         self.addModels('ActionTypes', CActionTypesList('ActionTypeGroup_Item', 'id', 'master_id', self))
         self.modelActionTypes.addCol(CRBInDocTableCol(u'Код', 'actionType_id', 7, 'ActionType', **{'showFields': 0, 'readOnly': True}))
         self.modelActionTypes.addCol(CRBInDocTableCol(u'Наименование', 'actionType_id', 18, 'ActionType', **{'showFields': 1, 'readOnly': True}))
+        self.modelActionTypes.addCol(CIntInDocTableCol(u'Количество', 'amount', 13, **{'maxLength': 2, 'inputMask': '000'}))
         self.modelActionTypes.addCol(CIntInDocTableCol(u'Длительность', 'duration', 13, **{'maxLength': 2, 'inputMask': '000'}))
         self.modelActionTypes.addCol(CIntInDocTableCol(u'Интервал', 'periodicity', 10, **{'maxLength': 2, 'inputMask': '000'}))
         self.modelActionTypes.addCol(CIntInDocTableCol(u'Кратность', 'aliquoticity', 10, **{'maxLength': 3, 'inputMask': '000'}))
@@ -565,6 +566,7 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
             record.setValue('offset', action.value('offset'))
             record.setValue('ATItemClass', forceInt(action.value('class')))
             record.setValue('extItemIndex', forceInt(action.value('proxyModelIndex')))
+            record.setValue('amount', forceInt(action.value('amount')))
             recordList.append(record)
         lastrow = self.modelActionTypes.realRowCount()
         if numitems > 0:
@@ -599,6 +601,7 @@ class ActionTypeGroupEditor(CItemEditorBaseDialog, Ui_ActionTypeGroupEditorDialo
             record.setValue('actionType_id', rec.value('id'))
             record.setValue('ATItemClass', rec.value('class'))
             record.setValue('extItemIndex', None)
+            record.setValue('amount', toVariant(1))
             recordList.append(record)
         lastrow = self.modelActionTypes.realRowCount()
         if numitems > 0:

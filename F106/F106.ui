@@ -158,20 +158,20 @@ p, li { white-space: pre-wrap; }
                    <property name="spacing">
                     <number>4</number>
                    </property>
-                   <item row="3" column="0">
+                   <item row="4" column="0">
                     <widget class="QLabel" name="lblDeathPlaceType">
                      <property name="text">
                       <string>Смерть наступила</string>
                      </property>
                     </widget>
                    </item>
-                   <item row="3" column="1" colspan="2">
+                   <item row="4" column="1" colspan="2">
                     <widget class="CRBComboBox" name="cmbDeathPlaceType"/>
                    </item>
-                   <item row="4" column="1" colspan="2">
+                   <item row="5" column="1" colspan="2">
                     <widget class="CRBComboBox" name="cmbDeathCauseType"/>
                    </item>
-                   <item row="4" column="0">
+                   <item row="5" column="0">
                     <widget class="QLabel" name="label">
                      <property name="text">
                       <string>Смерть произошла</string>
@@ -179,6 +179,13 @@ p, li { white-space: pre-wrap; }
                     </widget>
                    </item>
                    <item row="0" column="0" colspan="3">
+                    <widget class="QLabel" name="lblContract">
+                     <property name="text">
+                      <string>Договор:</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="1" column="0" colspan="3">
                     <widget class="CContractComboBox" name="cmbContract">
                      <property name="whatsThis">
                       <string>номер, дата и основание договора в рамках которого производится осмотр</string>
@@ -190,7 +197,7 @@ p, li { white-space: pre-wrap; }
                      </item>
                     </widget>
                    </item>
-                   <item row="1" column="0">
+                   <item row="2" column="0">
                     <widget class="QLabel" name="label_12">
                      <property name="text">
                       <string>Дата смерти</string>
@@ -200,7 +207,7 @@ p, li { white-space: pre-wrap; }
                      </property>
                     </widget>
                    </item>
-                   <item row="2" column="0">
+                   <item row="3" column="0">
                     <widget class="QLabel" name="label_11">
                      <property name="text">
                       <string>Констатация</string>
@@ -210,7 +217,7 @@ p, li { white-space: pre-wrap; }
                      </property>
                     </widget>
                    </item>
-                   <item row="7" column="0" colspan="3">
+                   <item row="8" column="0" colspan="3">
                     <widget class="QComboBox" name="cmbAutopsyType">
                      <property name="enabled">
                       <bool>false</bool>
@@ -227,7 +234,7 @@ p, li { white-space: pre-wrap; }
                      </item>
                     </widget>
                    </item>
-                   <item row="6" column="0" colspan="3">
+                   <item row="7" column="0" colspan="3">
                     <widget class="QCheckBox" name="chkAutopsy">
                      <property name="sizePolicy">
                       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -240,7 +247,7 @@ p, li { white-space: pre-wrap; }
                      </property>
                     </widget>
                    </item>
-                   <item row="8" column="0" colspan="3">
+                   <item row="9" column="0" colspan="3">
                     <widget class="QLabel" name="lblOrder">
                      <property name="text">
                       <string>Результат 
@@ -248,7 +255,7 @@ p, li { white-space: pre-wrap; }
                      </property>
                     </widget>
                    </item>
-                   <item row="10" column="0" colspan="3">
+                   <item row="11" column="0" colspan="3">
                     <spacer>
                      <property name="orientation">
                       <enum>Qt::Vertical</enum>
@@ -261,7 +268,7 @@ p, li { white-space: pre-wrap; }
                      </property>
                     </spacer>
                    </item>
-                   <item row="9" column="0" colspan="3">
+                   <item row="10" column="0" colspan="3">
                     <widget class="CRBComboBox" name="cmbResult">
                      <item>
                       <property name="text">
@@ -285,7 +292,7 @@ p, li { white-space: pre-wrap; }
                      </item>
                     </widget>
                    </item>
-                   <item row="2" column="1" colspan="2">
+                   <item row="3" column="1" colspan="2">
                     <widget class="QFrame" name="frmEndDateTime">
                      <property name="sizePolicy">
                       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -347,7 +354,7 @@ p, li { white-space: pre-wrap; }
                      </layout>
                     </widget>
                    </item>
-                   <item row="1" column="1" colspan="2">
+                   <item row="2" column="1" colspan="2">
                     <widget class="QFrame" name="frmBegDateTime">
                      <property name="sizePolicy">
                       <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -409,14 +416,14 @@ p, li { white-space: pre-wrap; }
                      </layout>
                     </widget>
                    </item>
-                   <item row="5" column="0">
+                   <item row="6" column="0">
                     <widget class="QLabel" name="label_2">
                      <property name="text">
                       <string>Основание</string>
                      </property>
                     </widget>
                    </item>
-                   <item row="5" column="1" colspan="2">
+                   <item row="6" column="1" colspan="2">
                     <widget class="CRBComboBox" name="cmbGroundsForDeathCause"/>
                    </item>
                   </layout>

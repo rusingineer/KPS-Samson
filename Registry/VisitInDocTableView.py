@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -101,5 +101,5 @@ class CVisitItemDelegate(QtGui.QItemDelegate):
 class CVisitInDocTableView(CInDocTableView):
     def __init__(self, parent):
         CInDocTableView.__init__(self, parent)
-        self.setItemDelegateForColumn(4, CVisitItemDelegate(self))
+        self.setItemDelegateForColumn(3, CVisitItemDelegate(self))
 

@@ -6,6 +6,8 @@ from library.Utils import forceString, forceInt, forceDate
 from Reports.Report import CReport
 from Reports.ReportBase import CReportBase, createTable
 from Reports.Utils import dateRangeAsStr
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 
 
 class CactReportPatientSchoolJournalDialog(QtGui.QDialog):
@@ -13,24 +15,23 @@ class CactReportPatientSchoolJournalDialog(QtGui.QDialog):
         QtGui.QDialog.__init__(self, parent)
         self.setupUi()
         self.loadSchools()
+        self.cmbOrgStructure.currentIndexChanged.connect(self._onOrgStructureChanged)
 
     def setupUi(self):
         self.setWindowTitle(u'Параметры отчета')
-        self.resize(500, 200)
+        self.resize(600, 300)
 
         layout = QtGui.QVBoxLayout(self)
 
+        # Период
         periodGroup = QtGui.QGroupBox(u'Период', self)
         periodLayout = QtGui.QHBoxLayout(periodGroup)
-
         self.edtBegDate = QtGui.QDateEdit(self)
         self.edtBegDate.setCalendarPopup(True)
         self.edtBegDate.setDate(QDate.currentDate().addMonths(-1))
-
         self.edtEndDate = QtGui.QDateEdit(self)
         self.edtEndDate.setCalendarPopup(True)
         self.edtEndDate.setDate(QDate.currentDate())
-
         periodLayout.addWidget(QtGui.QLabel(u'с:'))
         periodLayout.addWidget(self.edtBegDate)
         periodLayout.addWidget(QtGui.QLabel(u'по:'))
@@ -38,24 +39,52 @@ class CactReportPatientSchoolJournalDialog(QtGui.QDialog):
         periodLayout.addStretch()
         layout.addWidget(periodGroup)
 
+        # Школа
         schoolGroup = QtGui.QGroupBox(u'Школа для пациентов', self)
         schoolLayout = QtGui.QVBoxLayout(schoolGroup)
-
         self.cmbSchool = QtGui.QComboBox(self)
         self.cmbSchool.addItem(u'Все школы', 0)
         schoolLayout.addWidget(self.cmbSchool)
         layout.addWidget(schoolGroup)
 
+        # Подразделение
+        layout.addWidget(QtGui.QLabel(u'Подразделение:'))
+        self.cmbOrgStructure = COrgStructureComboBox(self)
+        layout.addWidget(self.cmbOrgStructure)
+
+        # Врач
+        layout.addWidget(QtGui.QLabel(u'Врач:'))
+        self.cmbPerson = CPersonComboBoxEx(self)
+        self.cmbPerson.setAddNone(False)
+        self.cmbPerson.addNotSetValue()
+        self.cmbPerson.setOrgId(QtGui.qApp.currentOrgId())
+        layout.addWidget(self.cmbPerson)
+
+        # Возраст
+        ageGroup = QtGui.QGroupBox(u'Возрастная группа', self)
+        ageLayout = QtGui.QHBoxLayout(ageGroup)
+        self.chkChildren = QtGui.QCheckBox(u'По детям (пр.2499)', self)
+        self.chkAdults = QtGui.QCheckBox(u'По взрослым (пр. 867)', self)
+        ageLayout.addWidget(self.chkChildren)
+        ageLayout.addWidget(self.chkAdults)
+        ageLayout.addStretch()
+        layout.addWidget(ageGroup)
+
+        # Кнопки
         buttonBox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         layout.addWidget(buttonBox)
 
+    def _onOrgStructureChanged(self, index):
+        orgStructureId = self.cmbOrgStructure.value()
+        self.cmbPerson.setOrgStructureId(orgStructureId)
+
     def loadSchools(self):
         db = QtGui.qApp.db
         stmt = u"""
             SELECT id, title FROM ActionType 
-            WHERE flatCode = 'schools_867' AND code != 'schools_867' AND deleted = 0
+            WHERE flatCode IN ('schools_867', 'schools_2499') AND code NOT IN ('schools_867', 'schools_2499') AND deleted = 0
             ORDER BY title
         """
         query = db.query(stmt)
@@ -73,11 +102,34 @@ class CactReportPatientSchoolJournalDialog(QtGui.QDialog):
         if index >= 0:
             self.cmbSchool.setCurrentIndex(index)
 
+        orgStructureId = params.get('orgStructureId', None)
+        if orgStructureId:
+            self.cmbOrgStructure.setValue(orgStructureId)
+        else:
+            self.cmbOrgStructure.setCurrentIndex(0)
+
+        # Обновляем список врачей
+        self.cmbPerson.setOrgStructureId(orgStructureId)
+
+        personId = params.get('personId', None)
+        if personId:
+            self.cmbPerson.setValue(personId)
+        else:
+            self.cmbPerson.setCurrentIndex(0)
+
+        self.chkChildren.setChecked(params.get('children', False))
+        self.chkAdults.setChecked(params.get('adults', False))
+
     def params(self):
+        personId = self.cmbPerson.value()
         return {
             'begDate': self.edtBegDate.date(),
             'endDate': self.edtEndDate.date(),
-            'schoolId': self.cmbSchool.itemData(self.cmbSchool.currentIndex())
+            'schoolId': self.cmbSchool.itemData(self.cmbSchool.currentIndex()),
+            'orgStructureId': self.cmbOrgStructure.value(),
+            'personId': personId if personId and personId != -1 else None,
+            'children': self.chkChildren.isChecked(),
+            'adults': self.chkAdults.isChecked(),
         }
 
 
@@ -112,6 +164,23 @@ class CactReportPatientSchoolJournal(CReport):
         else:
             description.append(u'школа: все')
 
+        orgStructureId = params.get('orgStructureId', None)
+        if orgStructureId:
+            db = QtGui.qApp.db
+            orgStructureName = forceString(db.translate('OrgStructure', 'id', orgStructureId, 'name'))
+            description.append(u'подразделение: %s' % orgStructureName)
+
+        personId = params.get('personId', None)
+        if personId:
+            db = QtGui.qApp.db
+            personName = forceString(db.translate('vrbPersonWithSpeciality', 'id', personId, 'name'))
+            description.append(u'врач: %s' % personName)
+
+        if params.get('children', False):
+            description.append(u'возрастная группа: дети (пр.2499)')
+        if params.get('adults', False):
+            description.append(u'возрастная группа: взрослые (пр. 867)')
+
         description.append(u'отчёт составлен: ' + forceString(QDateTime.currentDateTime()))
 
         columns = [('100%', [], CReportBase.AlignLeft)]
@@ -125,11 +194,14 @@ class CactReportPatientSchoolJournal(CReport):
         if not schoolId:
             return []
         db = QtGui.qApp.db
+        flatCode = forceString(db.translate('ActionType', 'id', schoolId, 'flatCode'))
+        shortName = 'school_867' if flatCode == 'schools_867' else 'school_2499'
+
         stmt = u"""
             SELECT id, valueDomain FROM ActionPropertyType 
-            WHERE actiontype_id = %d AND shortName = 'school_867' AND deleted = 0
+            WHERE actiontype_id = %d AND shortName = '%s' AND deleted = 0
             ORDER BY id
-        """ % forceInt(schoolId)
+        """ % (forceInt(schoolId), shortName)
         query = db.query(stmt)
         topics = []
         while query.next():
@@ -143,6 +215,20 @@ class CactReportPatientSchoolJournal(CReport):
         endDate = params.get('endDate', QDate())
         schoolId = params.get('schoolId', 0)
         schoolId = forceInt(schoolId)
+
+        orgStructureId = params.get('orgStructureId', None)
+        personId = params.get('personId', None)
+
+        children = params.get('children', False)
+        adults = params.get('adults', False)
+
+        # Формируем условие по flatCode в зависимости от выбранной возрастной группы
+        if children and not adults:
+            flatCode_condition = "AT.flatCode = 'schools_2499'"
+        elif adults and not children:
+            flatCode_condition = "AT.flatCode = 'schools_867'"
+        else:
+            flatCode_condition = "AT.flatCode IN ('schools_867', 'schools_2499')"
 
         stmt = u"""
             SELECT 
@@ -170,12 +256,18 @@ class CactReportPatientSchoolJournal(CReport):
             INNER JOIN Client ON Client.id = Event.client_id
             INNER JOIN Action A ON A.event_id = Event.id
             INNER JOIN ActionType AT ON AT.id = A.actionType_id
-            WHERE AT.flatCode = 'schools_867'
+        """
+
+        if orgStructureId or personId:
+            stmt += u" LEFT JOIN Person P ON P.id = A.person_id"
+
+        stmt += u"""
+            WHERE %s
               AND Event.deleted = 0
               AND Client.deleted = 0
               AND A.deleted = 0
               AND AT.deleted = 0
-        """
+        """ % flatCode_condition
 
         if begDate:
             stmt += u" AND A.begDate >= '%s'" % begDate.toString('yyyy-MM-dd')
@@ -184,6 +276,22 @@ class CactReportPatientSchoolJournal(CReport):
 
         if schoolId:
             stmt += u" AND AT.id = %d" % schoolId
+
+        if orgStructureId:
+            orgStructureIdList = db.getDescendants('OrgStructure', 'parent_id', orgStructureId)
+            if orgStructureIdList:
+                stmt += u" AND P.orgStructure_id IN (%s)" % ','.join(map(str, orgStructureIdList))
+            else:
+                stmt += u" AND P.orgStructure_id = %d" % orgStructureId
+
+        if personId:
+            stmt += u" AND A.person_id = %d" % personId
+
+        # Фильтр по возрасту оставляем, он работает вместе с flatCode
+        if children and not adults:
+            stmt += u" AND TIMESTAMPDIFF(YEAR, Client.birthDate, CURDATE()) < 18"
+        elif adults and not children:
+            stmt += u" AND TIMESTAMPDIFF(YEAR, Client.birthDate, CURDATE()) >= 18"
 
         stmt += u" ORDER BY Client.lastName, Client.firstName"
 
@@ -196,7 +304,7 @@ class CactReportPatientSchoolJournal(CReport):
         while query.next():
             record = query.record()
             client_id = forceInt(record.value('client_id'))
-            print("Processing client_id:", client_id, "current_patient:", current_patient)
+            #print("Processing client_id:", client_id, "current_patient:", current_patient)
             fio = forceString(record.value('fio'))
             birth_date = forceDate(record.value('birth_date'))
             address = forceString(record.value('address'))

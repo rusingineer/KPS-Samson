@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -299,23 +299,37 @@ class CStockService(object):
         return _getSockMotionItemUniqueValues(stockMotionItem, CStockMotionItem.finance_id.name, cond)
 
     @classmethod
-    def doClientInvoice(cls, action, record, supplierId, date=None, clientId=None, groupingRecords=[]):
+    def doClientInvoice(cls, action, record, supplierId, date=None, clientId=None, groupingRecords=[], dialog=None):
         """
+        Выполняет списание на пациента из Элемента плана выполнения.
+
+        Элементом плана выполнения для списания служит за запись, к которой
+        привязано Действие (Action) и оно не закончено (status != 2). Такие
+        действия создаются для первой записи при создании Элементов плана,
+        а также для следующего Элемента плана при выполнении списания.
+
+        При выполнении списания Действие из текущего Элемента выполнения плана
+        закрывается (status = 2) и этому дейстивю создается StockMotion с типом
+        Списание на пациента. Следующему Элементу плана создается открытое действие.
+
+        Возвращает либо True и пустую строку, либо False и описание ошибки.
         :param action: Events.Action.CAction
         :param supplierId: supplier org structure id
-        :return: bool
+        :return: bool, str
         """
         from Events.Action import CAction
         messageExecWriteOffNomenclatureExpense = u''
         nomenclatureExpense = action.nomenclatureExpense
         if not nomenclatureExpense:
-            return False, messageExecWriteOffNomenclatureExpense
+            return False, u'Cписание невозможно, тип действия не является тратой ЛСиИМН'
 
         event = action.event
         if not event:
-            return False, messageExecWriteOffNomenclatureExpense
-
-        QtGui.qApp.setCounterController(CCounterController())
+            return False, u'Списание невозможно, действие не привязано к событию'
+        
+        counterController = QtGui.qApp.counterController()
+        if not counterController:
+            QtGui.qApp.setCounterController(CCounterController(dialog))
 
         nomenclatureIdDict = {}
         executionPlanItem = action.executionPlanManager.currentItem
@@ -474,10 +488,8 @@ class CStockService(object):
             raise
 
         db.commit()
-
         QtGui.qApp.delAllCounterValueIdReservation()
-
         QtGui.qApp.setCounterController(None)
 
-        return True, messageExecWriteOffNomenclatureExpense
+        return True, u''
 

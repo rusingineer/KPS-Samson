@@ -20,6 +20,7 @@ from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL
 
 from Events.Action import CActionTypeCache, CAction
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
 from Events.ExportMIS import iniExportEvent
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
 from Events.TeethEventInfo import CTeethEventInfo
@@ -29,6 +30,7 @@ from Orgs.Utils import getOrgstructureListByEventtypeId, getPersonListByEventtyp
 from library.Attach.AttachAction import getAttachAction
 from library.Calendar           import getNextWorkDay
 from library.crbcombobox        import CRBComboBox
+from library.DbEntityCache      import CDbEntityCache
 from library.ICDInDocTableCol   import CICDExInDocTableCol
 from library.ICDMorphologyInDocTableCol import CMKBMorphologyCol
 from library.InDocTable         import CBoolInDocTableCol, CDateTimeForEventInDocTableCol, CInDocTableCol, CMKBListInDocTableModel, CRBInDocTableCol, CRBLikeEnumInDocTableCol, CEnumInDocTableCol
@@ -63,6 +65,7 @@ from F025.Ui_F025               import Ui_Dialog
 class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     defaultEventResultId = None
     defaultDiagnosticResultId = None
+    dfFinished = 1  # Заключительный
 
     @pyqtSignature('')
     def on_actActionEdit_triggered(self): CTableSummaryActionsMenuMixin.on_actActionEdit_triggered(self)
@@ -213,7 +216,19 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.btnPrintMedicalDiagnosis.setVisible(False)
         self.tblInspections.addCreateF111(self)
         self.tblInspections.addUpdateF111(self)
+
+#signal-slot bound
+        self.tblInspections.popupMenuAboutToShow.connect(self.setFinalDiagnosticsMenuControlsState)
 # done
+
+    def setFinalDiagnosticsMenuControlsState(self):
+        """
+        Активность пункта меню "Вставить хронические диагнозы" в таблице Диагнозов
+        """
+        self.actAddChronicDiseases.setEnabled(False)
+        current = self.tblInspections.currentItem()
+        if current and current.value('diagnosisType_id') == self.modelDiagnostics.diagnosisTypeCol.codeToId(CF025Dialog.dfFinished):
+            self.actAddChronicDiseases.setEnabled(True)
 
 
     def destroy(self):
@@ -303,8 +318,10 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
     def setupDiagnosticsMenu(self):
         self.addObject('mnuDiagnostics', QtGui.QMenu(self))
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.addObject('actDiagnosticsRemove', QtGui.QAction(u'Удалить запись', self))
         self.mnuDiagnostics.addAction(self.actDiagnosticsRemove)
+        self.mnuDiagnostics.addAction(self.actAddChronicDiseases)
 
 
     def _prepare(self, clientId, eventTypeId, orgId, personId, eventSetDatetime, eventDatetime, weekProfile, numDays,
@@ -864,7 +881,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         items = self.modelDiagnostics.items()
         isFirst = True
         for item in items:
-            diagnosisTypeId = self.getDiagnosisTypeId(isFirst)
+            diagnosisTypeId = self.getDiagnosisTypeId(isFirst, forceRef(item.value('diagnosisType_id')))
             item.setValue('diagnosisType_id', toVariant(diagnosisTypeId))
             isFirst = False
 
@@ -884,7 +901,7 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             MKBEx = forceStringEx(item.value('MKBEx'))
             TNMS = forceStringEx(item.value('TNMS'))
             morphologyMKB = forceStringEx(item.value('morphologyMKB'))
-            diagnosisTypeId = self.getDiagnosisTypeId(isFirst)
+            diagnosisTypeId = self.getDiagnosisTypeId(isFirst, forceRef(item.value('diagnosisType_id')))
 
             item.setValue('diagnosisType_id', toVariant(diagnosisTypeId))
             item.setValue('speciality_id', specialityIdVariant)
@@ -1322,8 +1339,8 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         return True
 
 
-    def getDiagnosisTypeId(self, dt):
-        return forceRef(QtGui.qApp.db.translate('rbDiagnosisType', 'code', '1' if dt else '9', 'id'))
+    def getDiagnosisTypeId(self, dt, id = 0):
+        return forceRef(QtGui.qApp.db.translate('rbDiagnosisType', 'code', '1' if dt else '9', 'id')) if id < 2 or dt else id
 
 
     def getEventInfo(self, context):
@@ -1537,6 +1554,28 @@ class CF025Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                     }
             applyTemplate(self, templateId, data, signAndAttachHandler=self.tabNotes.btnAttachedFiles.getSignAndAttachHandler())
 
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        :return:
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, self.modelDiagnostics, self)
+        if dialog.exec_():
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    record = self.modelDiagnostics.getEmptyRecord()
+                    record.setValue('MKB', item.value('MKB'))
+                    record.setValue('MKBEx', item.value('MKBEx'))
+                    record.setValue('TNMS', item.value('TNMS'))
+                    record.setValue('exSubclassMKB', item.value('exSubclassMKB'))
+                    record.setValue('morphologyMKB', item.value('morphologyMKB'))
+                    record.setValue('character_id', item.value('character_id'))
+                    record.setValue('dispanser_id', item.value('dispanser_id'))
+                    record.setValue('traumaType_id', item.value('traumaType_id'))
+                    self.modelDiagnostics.addRecord(record)
+
 # # # Actions # # #
 
 #
@@ -1556,7 +1595,8 @@ class CF025DiagnosticsModel(CMKBListInDocTableModel):
         self.characterIdForHandleDiagnosis = None
         finishDiagnosisTypeCode = '1'
         accompDiagnosisTypeCode = '9'
-        self.diagnosisTypeCol = CF025DiagnosisTypeCol( u'Тип', 'diagnosisType_id', 2, [finishDiagnosisTypeCode, accompDiagnosisTypeCode], smartMode=False)
+        complicationDiagnosisTypeCode = '3'
+        self.diagnosisTypeCol = CF025DiagnosisTypeCol( u'Тип', 'diagnosisType_id', 2, [finishDiagnosisTypeCode, accompDiagnosisTypeCode, complicationDiagnosisTypeCode], smartMode=False)
         self.addCol(self.diagnosisTypeCol)
         self.addExtCol(CICDExInDocTableCol(u'МКБ',         'MKB',   7), QVariant.String)
         if QtGui.qApp.isExSubclassMKBVisible():
@@ -1902,10 +1942,11 @@ class CF025DiagnosticsModel(CMKBListInDocTableModel):
         self.prophylaxisPlanningSync()
 
 
-class CF025DiagnosisTypeCol(CDiagnosisTypeCol):
+class CF025DiagnosisTypeCol(CDiagnosisTypeCol, CDbEntityCache):
     def __init__(self, title=u'Тип', fieldName='diagnosisType_id', width=5, diagnosisTypeCodes=[], smartMode=True, **params):
         CDiagnosisTypeCol.__init__(self, title, fieldName, width, diagnosisTypeCodes, smartMode, **params)
-        self.namesF025 = [u'Закл', u'Соп']
+        self.namesF025 = [u'Закл', u'Соп', u'Осл']
+        mapCodeToId = {}
 
 
     def toString(self, val, record):
@@ -1936,3 +1977,13 @@ class CF025DiagnosisTypeCol(CDiagnosisTypeCol):
                     editor.addItem(itemName, toVariant(itemId))
         currentIndex = editor.findData(toVariant(id))
         editor.setCurrentIndex(currentIndex)
+
+    @classmethod
+    def codeToId(cls, code):
+        if code in cls.mapCodeToId:
+            return cls.mapCodeToId[code]
+        else:
+            cls.connect()
+            id = forceRef(QtGui.qApp.db.translate('rbDiagnosisType', 'code', code, 'id'))
+            cls.mapCodeToId[code] = id
+            return id

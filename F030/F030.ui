@@ -17,7 +17,16 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_6">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>4</number>
+   </property>
+   <property name="topMargin">
+    <number>4</number>
+   </property>
+   <property name="rightMargin">
+    <number>4</number>
+   </property>
+   <property name="bottomMargin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -100,7 +109,16 @@ p, li { white-space: pre-wrap; }
          <string>Стат.&amp;учёт</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_4">
-         <property name="margin">
+         <property name="leftMargin">
+          <number>4</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>4</number>
+         </property>
+         <property name="bottomMargin">
           <number>4</number>
          </property>
          <property name="spacing">
@@ -125,7 +143,16 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
               <number>0</number>
              </property>
              <item>
@@ -140,13 +167,22 @@ p, li { white-space: pre-wrap; }
                 <string>&amp;ф.030</string>
                </property>
                <layout class="QGridLayout" name="gridLayout_2">
-                <property name="margin">
+                <property name="leftMargin">
+                 <number>4</number>
+                </property>
+                <property name="topMargin">
+                 <number>4</number>
+                </property>
+                <property name="rightMargin">
+                 <number>4</number>
+                </property>
+                <property name="bottomMargin">
                  <number>4</number>
                 </property>
                 <property name="spacing">
                  <number>4</number>
                 </property>
-                <item row="11" column="0" colspan="4">
+                <item row="12" column="0" colspan="4">
                  <spacer>
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
@@ -160,6 +196,13 @@ p, li { white-space: pre-wrap; }
                  </spacer>
                 </item>
                 <item row="0" column="0" colspan="4">
+                 <widget class="QLabel" name="lblContract">
+                  <property name="text">
+                   <string>Договор:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0" colspan="4">
                  <widget class="CContractComboBox" name="cmbContract">
                   <property name="whatsThis">
                    <string>номер, дата и основание договора в рамках которого производится осмотр</string>
@@ -171,7 +214,7 @@ p, li { white-space: pre-wrap; }
                   </item>
                  </widget>
                 </item>
-                <item row="1" column="0">
+                <item row="2" column="0">
                  <widget class="QLabel" name="lblBegDate">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -187,7 +230,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="2" column="0">
+                <item row="3" column="0">
                  <widget class="QLabel" name="lblEndDate">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -203,7 +246,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="3" column="0">
+                <item row="4" column="0">
                  <widget class="QLabel" name="lblNextDate">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -219,7 +262,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="4" column="0" colspan="4">
+                <item row="5" column="0" colspan="4">
                  <widget class="QLabel" name="lblPerson">
                   <property name="text">
                    <string>Ответственный</string>
@@ -229,7 +272,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="5" column="0" colspan="4">
+                <item row="6" column="0" colspan="4">
                  <widget class="CPersonComboBoxEx" name="cmbPerson">
                   <property name="whatsThis">
                    <string>врач отвечающий за осмотр (терапевт)</string>
@@ -241,7 +284,7 @@ p, li { white-space: pre-wrap; }
                   </item>
                  </widget>
                 </item>
-                <item row="7" column="0" colspan="4">
+                <item row="8" column="0" colspan="4">
                  <widget class="CROComboBox" name="cmbOrder">
                   <item>
                    <property name="text">
@@ -275,7 +318,7 @@ p, li { white-space: pre-wrap; }
                   </item>
                  </widget>
                 </item>
-                <item row="10" column="0" colspan="4">
+                <item row="11" column="0" colspan="4">
                  <widget class="CRBComboBox" name="cmbResult">
                   <property name="whatsThis">
                    <string>результат осмотра</string>
@@ -287,7 +330,7 @@ p, li { white-space: pre-wrap; }
                   </item>
                  </widget>
                 </item>
-                <item row="9" column="0" colspan="4">
+                <item row="10" column="0" colspan="4">
                  <widget class="QLabel" name="lblResult">
                   <property name="text">
                    <string>Результа&amp;т</string>
@@ -300,7 +343,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="1" column="1" colspan="3">
+                <item row="2" column="1" colspan="3">
                  <widget class="QFrame" name="frmBegDateTime">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -321,7 +364,16 @@ p, li { white-space: pre-wrap; }
                    <property name="spacing">
                     <number>4</number>
                    </property>
-                   <property name="margin">
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
                     <number>0</number>
                    </property>
                    <item>
@@ -353,7 +405,7 @@ p, li { white-space: pre-wrap; }
                   </layout>
                  </widget>
                 </item>
-                <item row="2" column="1" colspan="3">
+                <item row="3" column="1" colspan="3">
                  <widget class="QFrame" name="frmEndDateTime">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -374,7 +426,16 @@ p, li { white-space: pre-wrap; }
                    <property name="spacing">
                     <number>4</number>
                    </property>
-                   <property name="margin">
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
                     <number>0</number>
                    </property>
                    <item>
@@ -406,7 +467,7 @@ p, li { white-space: pre-wrap; }
                   </layout>
                  </widget>
                 </item>
-                <item row="3" column="1" colspan="3">
+                <item row="4" column="1" colspan="3">
                  <widget class="QFrame" name="frmNextDateTime">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -427,7 +488,16 @@ p, li { white-space: pre-wrap; }
                    <property name="spacing">
                     <number>4</number>
                    </property>
-                   <property name="margin">
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
                     <number>0</number>
                    </property>
                    <item>
@@ -446,7 +516,7 @@ p, li { white-space: pre-wrap; }
                   </layout>
                  </widget>
                 </item>
-                <item row="8" column="3">
+                <item row="9" column="3">
                  <widget class="QSpinBox" name="edtPregnancyWeek">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
@@ -459,7 +529,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="8" column="0" colspan="3">
+                <item row="9" column="0" colspan="3">
                  <widget class="QLabel" name="lblPregnancyWeek">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -475,7 +545,7 @@ p, li { white-space: pre-wrap; }
                   </property>
                  </widget>
                 </item>
-                <item row="6" column="0" colspan="3">
+                <item row="7" column="0" colspan="3">
                  <widget class="CROComboBox" name="cmbPrimary">
                   <item>
                    <property name="text">
@@ -494,7 +564,7 @@ p, li { white-space: pre-wrap; }
                   </item>
                  </widget>
                 </item>
-                <item row="6" column="3">
+                <item row="7" column="3">
                  <widget class="QLabel" name="lblOrder">
                   <property name="text">
                    <string>П&amp;орядок</string>
@@ -518,19 +588,28 @@ p, li { white-space: pre-wrap; }
                <property name="childrenCollapsible">
                 <bool>false</bool>
                </property>
-               <widget class="QGroupBox" name="grpPreliminaryDiagnostics">
+               <widget class="QGroupBox" name="grplFinalDiagnostics">
                 <property name="title">
-                 <string>&amp;Предварительные диагнозы</string>
+                 <string>&amp;Диагнозы</string>
                 </property>
                 <layout class="QGridLayout" name="gridLayout_7">
-                 <property name="margin">
+                 <property name="leftMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="bottomMargin">
                   <number>4</number>
                  </property>
                  <property name="spacing">
                   <number>4</number>
                  </property>
                  <item row="0" column="0">
-                  <widget class="CDiagnosticsInDocTableView" name="tblPreliminaryDiagnostics">
+                  <widget class="CDiagnosticsInDocTableView" name="tblFinalDiagnostics">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                      <horstretch>0</horstretch>
@@ -541,19 +620,28 @@ p, li { white-space: pre-wrap; }
                  </item>
                 </layout>
                </widget>
-               <widget class="QGroupBox" name="grplFinalDiagnostics">
+               <widget class="QGroupBox" name="grpSurveillance">
                 <property name="title">
-                 <string>&amp;Диагнозы</string>
+                 <string>Диспансерное наблюдение</string>
                 </property>
                 <layout class="QGridLayout" name="gridLayout_3">
-                 <property name="margin">
+                 <property name="leftMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="bottomMargin">
                   <number>4</number>
                  </property>
                  <property name="spacing">
                   <number>4</number>
                  </property>
                  <item row="0" column="0">
-                  <widget class="CDiagnosticsInDocTableView" name="tblFinalDiagnostics"/>
+                  <widget class="CInDocTableView" name="tblSurveillance"/>
                  </item>
                 </layout>
                </widget>
@@ -569,7 +657,16 @@ p, li { white-space: pre-wrap; }
              <enum>QFrame::Raised</enum>
             </property>
             <layout class="QGridLayout" name="gridLayout_9">
-             <property name="margin">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
               <number>0</number>
              </property>
              <property name="spacing">
@@ -585,7 +682,16 @@ p, li { white-space: pre-wrap; }
                  <string>&amp;Посещения</string>
                 </property>
                 <layout class="QGridLayout" name="gridLayout_5">
-                 <property name="margin">
+                 <property name="leftMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="bottomMargin">
                   <number>4</number>
                  </property>
                  <property name="spacing">
@@ -681,7 +787,16 @@ p, li { white-space: pre-wrap; }
                  <property name="spacing">
                   <number>4</number>
                  </property>
-                 <property name="margin">
+                 <property name="leftMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>4</number>
+                 </property>
+                 <property name="bottomMargin">
                   <number>4</number>
                  </property>
                  <item>
@@ -706,7 +821,16 @@ p, li { white-space: pre-wrap; }
                     <property name="spacing">
                      <number>4</number>
                     </property>
-                    <property name="margin">
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
                      <number>0</number>
                     </property>
                     <item>
@@ -795,7 +919,16 @@ p, li { white-space: pre-wrap; }
          <string>Т&amp;рудоспособность</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
-         <property name="margin">
+         <property name="leftMargin">
+          <number>4</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>4</number>
+         </property>
+         <property name="bottomMargin">
           <number>4</number>
          </property>
          <property name="spacing">
@@ -814,7 +947,16 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
               <number>4</number>
              </property>
              <item>
@@ -840,7 +982,16 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
               <number>4</number>
              </property>
              <item>
@@ -866,7 +1017,16 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
               <number>4</number>
              </property>
              <item>
@@ -892,7 +1052,16 @@ p, li { white-space: pre-wrap; }
              <property name="spacing">
               <number>4</number>
              </property>
-             <property name="margin">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
               <number>4</number>
              </property>
              <item>
@@ -924,7 +1093,16 @@ p, li { white-space: pre-wrap; }
          <string>&amp;Экспорт</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_55">
-         <property name="margin">
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
           <number>1</number>
          </property>
          <property name="spacing">
@@ -1171,8 +1349,8 @@ p, li { white-space: pre-wrap; }
   <tabstop>cmbOrder</tabstop>
   <tabstop>edtPregnancyWeek</tabstop>
   <tabstop>cmbResult</tabstop>
-  <tabstop>tblPreliminaryDiagnostics</tabstop>
   <tabstop>tblFinalDiagnostics</tabstop>
+  <tabstop>tblSurveillance</tabstop>
   <tabstop>tblVisits</tabstop>
   <tabstop>tblActions</tabstop>
   <tabstop>tabTempInvalidAndAegrotat</tabstop>

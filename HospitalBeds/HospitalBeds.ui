@@ -90,12 +90,12 @@
     </widget>
    </item>
    <item row="2" column="4">
-    <widget class="QPushButton" name="btnDayClientInvoices">
+    <widget class="QPushButton" name="btnClientInvoices">
      <property name="enabled">
       <bool>false</bool>
      </property>
      <property name="text">
-      <string>Суточное списание ЛС</string>
+      <string>Списание ЛС</string>
      </property>
     </widget>
    </item>
@@ -3603,7 +3603,7 @@
   <tabstop>btnHospitalization</tabstop>
   <tabstop>btnTransfer</tabstop>
   <tabstop>btnLeaved</tabstop>
-  <tabstop>btnDayClientInvoices</tabstop>
+  <tabstop>btnClientInvoices</tabstop>
   <tabstop>tabWidgetFilter</tabstop>
   <tabstop>edtFilterCode</tabstop>
   <tabstop>cmbFilterIsPermanent</tabstop>

@@ -39,7 +39,7 @@ from Stock.Utils import (getNomenclatureUnitRatio, applyNomenclatureUnitRatio, f
                          getRatio)
 from Users.Rights import urEditAfterInvoicingEvent, urEditOtherpeopleAction, urEditSubservientPeopleAction, \
     urEditOtherPeopleActionSpecialityOnly, urDeleteNotOwnActions, urDeleteActionsWithJobTicket, urAdmin, \
-    urCanAttachFile
+    urCanAttachFile, urDeleteOwnExportedActions
 from library.Attach.AttachedFile import CAttachedFilesLoader
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays, addWorkDays
 from library.DbEntityCache import CDbEntityCache
@@ -673,6 +673,7 @@ class CAction(object):
         self.valuePropertyToTemplateItems = {}
         self.groupedNomenclature = False
         self._changed = False
+        self._isExported = None
         if record:
             self.setRecord(record, addition_data)
 
@@ -1257,6 +1258,14 @@ class CAction(object):
 
     def isPropertiesChanged(self):
         return any([prop.isChanged() for prop in self._propertiesById.itervalues()])
+
+
+    def isExported(self):
+        if self._isExported is None:
+            tableActionExport = QtGui.qApp.db.table('Action_Export')
+            actionExportIdList = QtGui.qApp.db.getIdList(tableActionExport, [tableActionExport['id']], [tableActionExport['master_id'].eq(forceString(self.getRecord().value('id'))), tableActionExport['success'].eq(1)])
+            self._isExported = bool(actionExportIdList)
+        return self._isExported
     
     
     def nomenclatureClientReservationCancel(self):
@@ -1690,13 +1699,18 @@ class CAction(object):
         return self._locked
 
     def isCanDeletedByUser(self):
-        res = True
-        if self.getId():
-            personId = self.getOwnerPersonId()
-            res = personId == QtGui.qApp.userId or QtGui.qApp.userHasRight(urDeleteNotOwnActions)
-            if res and self.findFireableJobTicketId():
-                return QtGui.qApp.userHasRight(urDeleteActionsWithJobTicket)
-        return res
+        if not self.getId():
+            return True
+
+        ownAction = self.getOwnerPersonId() == QtGui.qApp.userId
+        if not ownAction and not QtGui.qApp.userHasRight(urDeleteNotOwnActions):
+            return False
+        if self.findFireableJobTicketId() and not QtGui.qApp.userHasRight(urDeleteActionsWithJobTicket):
+            return False
+        if ownAction and self.isExported() and not QtGui.qApp.userHasRight(urDeleteOwnExportedActions):
+            return False
+
+        return True
 
 
     def isExposed(self):
@@ -3477,7 +3491,7 @@ class CNomenclatureExpense:
 
         target = None
         for item in self._items:
-            if nomenclatureId == forceRef(item.value('nomenclature_id')):
+            if bool(item) and nomenclatureId == forceRef(item.value('nomenclature_id')):
                 target = item
                 break
 
@@ -3739,6 +3753,8 @@ class CNomenclatureExpense:
             self._releaseReservation(isActionNoSave = isActionNoSave)
             stockMotionItemIdList = []
             for stockMotionItem in self._items:
+                if not stockMotionItem:
+                    continue
                 stockMotionItem.setValue('master_id', toVariant(self._stockMotionId))
                 if not forceRef(stockMotionItem.value('id')) and not nomenclatureExpensePreliminarySave and not self._isApplyBatch:
                     self._applyBatchFinanceIdShelfTime(stockMotionItem)

@@ -63,6 +63,9 @@ from LLOPage               import CLLOPage
 from InformerPage          import CInformerPage
 from DiagnosisPage         import CDiagnosisPage
 from HospitalBedsPage      import CHospitalBedsPage
+from UISComPage            import CUISComPage
+
+from library.Utils         import forceString
 
 
 class CPreferencesDialog(CPreferencesDialogBase):
@@ -113,6 +116,9 @@ class CPreferencesDialog(CPreferencesDialogBase):
         # self.addPage(CLLOPage(self))
 
         self.addPage(CInformerPage(self))
+
+        if forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode')) == "48001":
+            self.addPage(CUISComPage(self))
 
         self.setupUi(self)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)

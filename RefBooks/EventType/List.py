@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -36,6 +36,7 @@ from library.interchange              import getCheckBoxValue, getComboBoxValue,
     setTextEditValue, setRBMultivalueComboBoxValue, getRBMultivalueComboBoxValue
 
 from library.ItemsListDialog          import CItemsListDialog, CItemEditorBaseDialog
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.TableModel               import CBoolCol, CEnumCol, CNumCol, CRefBookCol, CTextCol
 from library.Utils import forceInt, forceRef, forceString, forceStringEx, toVariant, trim, forceBool, addDotsEx, forceDate, ActionTypeServiceMixin
 
@@ -426,10 +427,16 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         CItemEditorBaseDialog.__init__(self, parent, 'EventType')
 
         self.addModels('Diagnostics',       CDiagnosticsModel(self))
+        
         self.addModels('StatusActions',     CActionsModel(self, 0))
+        self.addModels('StatusActionsSort', CActionsSortFilterProxyTableModel(self, self.modelStatusActions))
         self.addModels('DiagnosticActions', CActionsModel(self, 1))
+        self.addModels('DiagnosticActionsSort', CActionsSortFilterProxyTableModel(self, self.modelDiagnosticActions))
         self.addModels('CureActions',       CActionsModel(self, 2))
+        self.addModels('CureActionsSort', CActionsSortFilterProxyTableModel(self, self.modelCureActions))
         self.addModels('MiscActions',       CActionsModel(self, 3))
+        self.addModels('MiscActionsSort', CActionsSortFilterProxyTableModel(self, self.modelMiscActions))
+        
         self.addModels('ActionsControl',    CActionsControl(self))
         self.addModels('EventType',         CEventTypeModel(self))
         self.addModels('Identification',    CIdentificationModel(self, 'EventType_Identification', 'EventType'))
@@ -462,10 +469,16 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.cmbAvailableOrders.setItems(CEventTypeEditor.orders)
 
         self.setModels(self.tblDiagnostics, self.modelDiagnostics, self.selectionModelDiagnostics)
-        self.setModels(self.tblStatusActions, self.modelStatusActions, self.selectionModelStatusActions)
-        self.setModels(self.tblDiagnosticActions, self.modelDiagnosticActions, self.selectionModelDiagnosticActions)
-        self.setModels(self.tblCureActions, self.modelCureActions, self.selectionModelCureActions)
-        self.setModels(self.tblMiscActions, self.modelMiscActions, self.selectionModelMiscActions)
+        
+        self.setModels(self.tblStatusActions, self.modelStatusActionsSort, self.selectionModelStatusActionsSort)
+        self.setModels(self.tblDiagnosticActions, self.modelDiagnosticActionsSort, self.selectionModelDiagnosticActionsSort)
+        self.setModels(self.tblCureActions, self.modelCureActionsSort, self.selectionModelCureActionsSort)
+        self.setModels(self.tblMiscActions, self.modelMiscActionsSort, self.selectionModelMiscActionsSort)
+        self.tblStatusActions.horizontalHeader().setClickable(False)
+        self.tblDiagnosticActions.horizontalHeader().setClickable(False)
+        self.tblCureActions.horizontalHeader().setClickable(False)
+        self.tblMiscActions.horizontalHeader().setClickable(False)
+        
         self.setModels(self.tblActionsControl, self.modelActionsControl, self.selectionModelActionsControl)
         self.setModels(self.tblEventType, self.modelEventType, self.selectionModelEventType)
         self.setModels(self.tblIdentification, self.modelIdentification, self.selectionModelIdentification)
@@ -485,8 +498,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         for tbl in (self.tblStatusActions, self.tblDiagnosticActions, self.tblCureActions, self.tblMiscActions):
             tbl.addPopupDuplicateCurrentRow()
         
-        for mdl in (self.modelStatusActions, self.modelDiagnosticActions, self.modelCureActions, self.modelMiscActions,
-                    self.modelOrgStruct, self.modelPersons,
+        for mdl in (self.modelOrgStruct, self.modelPersons,
                     self.modelActionType_status, self.modelActionType_diagnostic, self.modelActionType_cure, self.modelActionType_other):
             mdl.cols()[0].setSortable(True)
             
@@ -929,7 +941,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelStatusActions_currentRowChanged(self, current, previous):
+    def on_selectionModelStatusActionsSort_currentRowChanged(self, current, previous):
         actionTypeIndex = self.tblStatusActions.currentIndex()
         if actionTypeIndex and actionTypeIndex.isValid():
             item = self.tblStatusActions.currentItem()
@@ -939,7 +951,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelDiagnosticActions_currentRowChanged(self, current, previous):
+    def on_selectionModelDiagnosticActionsSort_currentRowChanged(self, current, previous):
         actionTypeIndex = self.tblDiagnosticActions.currentIndex()
         if actionTypeIndex and actionTypeIndex.isValid():
             item = self.tblDiagnosticActions.currentItem()
@@ -949,7 +961,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelCureActions_currentRowChanged(self, current, previous):
+    def on_selectionModelCureActionsSort_currentRowChanged(self, current, previous):
         actionTypeIndex = self.tblCureActions.currentIndex()
         if actionTypeIndex and actionTypeIndex.isValid():
             item = self.tblCureActions.currentItem()
@@ -959,7 +971,7 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
-    def on_selectionModelMiscActions_currentRowChanged(self, current, previous):
+    def on_selectionModelMiscActionsSort_currentRowChanged(self, current, previous):
         actionTypeIndex = self.tblMiscActions.currentIndex()
         if actionTypeIndex and actionTypeIndex.isValid():
             item = self.tblMiscActions.currentItem()
@@ -1024,6 +1036,38 @@ class CEventTypeEditor(CItemEditorBaseDialog, Ui_ItemEditorDialog):
         self.cmbDefaultPayer.setEnabled(checked)
         if not checked:
             self.cmbDefaultPayer.setCurrentIndex(0)
+    
+    
+    @pyqtSignature('QString')
+    def on_edtSearchStatusActions_textChanged(self, text):
+        if text:
+            self.modelStatusActionsSort.setFilter('actionType_id', text, CSortFilterProxyTableModel.MatchContains) 
+        else:
+            self.modelStatusActionsSort.removeFilter('actionType_id') 
+    
+
+    @pyqtSignature('QString')
+    def on_edtSearchDiagnosticActions_textChanged(self, text):
+        if text:
+            self.modelDiagnosticActionsSort.setFilter('actionType_id', text, CSortFilterProxyTableModel.MatchContains) 
+        else:
+            self.modelDiagnosticActionsSort.removeFilter('actionType_id') 
+    
+
+    @pyqtSignature('QString')
+    def on_edtSearchCureActions_textChanged(self, text):
+        if text:
+            self.modelCureActionsSort.setFilter('actionType_id', text, CSortFilterProxyTableModel.MatchContains) 
+        else:
+            self.modelCureActionsSort.removeFilter('actionType_id') 
+    
+
+    @pyqtSignature('QString')
+    def on_edtSearchMiscActions_textChanged(self, text):
+        if text:
+            self.modelMiscActionsSort.setFilter('actionType_id', text, CSortFilterProxyTableModel.MatchContains) 
+        else:
+            self.modelMiscActionsSort.removeFilter('actionType_id') 
 #
 # ##########################################################################
 #
@@ -1465,6 +1509,33 @@ class CActionsModel(CInDocTableModel, ActionTypeServiceMixin):
                         return font
 
         return CInDocTableModel.data(self, index, role)
+
+
+class CActionsSortFilterProxyTableModel(CSortFilterProxyTableModel):
+    def createEditor(self, index, parent):
+        column = index.column()
+        if hasattr(self.model()._cols[column], 'setIndex'):
+            self.model()._cols[column].setIndex(index)
+        return self.model()._cols[column].createEditor(parent)
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        if sourceRow >= len(self.sourceModel().items()):
+            return True
+        return super(CActionsSortFilterProxyTableModel, self).filterAcceptsRow(sourceRow, sourceParent)
+
+    def rowCount(self, parent=QModelIndex()):
+        if parent is None:
+            parent = QModelIndex()
+        return super(CActionsSortFilterProxyTableModel, self).rowCount(parent)
+
+
+    def __getattr__(self, name):
+        return getattr(self.sourceModel(), name)
+    
+    def getDisplayedValue(self, record, fieldName):
+        col = self.sourceModel()._cols[self.sourceModel().getColIndex(fieldName)]
+        displayedValue = col.toString(record.value(fieldName), record)
+        return displayedValue
 
 
 class CActionTypeModel(CInDocTableModel):

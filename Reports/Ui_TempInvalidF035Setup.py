@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client_vipisnoy\Reports\TempInvalidF035Setup.ui'
+# Form implementation generated from reading ui file 'E:\projects\Samson\UP_s11\client_pre_release\Reports\TempInvalidF035Setup.ui'
 #
-# Created: Thu Sep 24 15:27:24 2020
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -250,10 +249,10 @@ class Ui_TempInvalidF035Dialog(object):
         self.chkFilterExpertMKBMC.setText(_translate("TempInvalidF035Dialog", "Диагноз", None))
         self.chkExpertIdMC.setText(_translate("TempInvalidF035Dialog", "Эксперт", None))
 
-from library.crbcombobox import CRBComboBox
-from Orgs.PersonComboBoxEx import CPersonComboBoxEx
-from Orgs.OrgStructComboBoxes import COrgStructureComboBox
-from library.ICDCodeEdit import CICDCodeEdit
 from Events.ActionStatus import CActionStatusComboBox
-from library.MultivalueComboBox import CRBMultivalueComboBox
+from Orgs.OrgStructComboBoxes import COrgStructureComboBox
+from Orgs.PersonComboBoxEx import CPersonComboBoxEx
 from library.DateEdit import CDateEdit
+from library.ICDCodeEdit import CICDCodeEdit
+from library.MultivalueComboBox import CRBMultivalueComboBox
+from library.crbcombobox import CRBComboBox

@@ -118,7 +118,8 @@ LEFT JOIN ActionType  AT ON AT.id=a.actionType_id
 LEFT JOIN Event  e ON e.id=a.event_id
 LEFT JOIN Client  c ON c.id=e.client_id
 LEFT JOIN Person  p ON p.id=a.person_id
-LEFT JOIN Diagnosis  d ON d.id=getEventDiagnosis(e.id) AND d.diagnosisType_id IN (1,2) AND d.deleted=0
+LEFT JOIN Diagnostic dc on dc.event_id = e.id and dc.deleted = 0
+LEFT JOIN Diagnosis d on d.id = dc.diagnosis_id and d.deleted = 0
 LEFT JOIN ActionProperty_String apsOrder ON apsOrder.id = (
    SELECT apsOrdertmp.id FROM 
    ActionProperty  apOrder 
@@ -140,7 +141,7 @@ ORDER BY a.id
     tableDiagnosis = db.table('Diagnosis').alias('d')
 
     cond.append(tableActionType['flatCode'].inlist(["hospitalDirection", "planning"]))
-    cond.append(tableDiagnosis['diagnosisType_id'].inlist(["1", "2"]))
+    cond.append(u""" (dc.diagnosisType_id in (select id from rbDiagnosisType dt where dt.code in ('1'))) """)
     cond.append(tableDiagnosis['deleted'].eq(0))
 
     addDateInRange(cond, tableAction['begDate'], begDateParam, endDateParam)

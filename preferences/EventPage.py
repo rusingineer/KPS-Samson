@@ -29,7 +29,7 @@ from Ui_EventPage import Ui_eventPage
 DefaultAverageDuration = 28
 DefaultPlanningFreq = 6
 DefaultPlanningBegDate = 0
-DefaultPlanningDuration = 28
+DefaultPlanningDuration = 1
 
 
 class CEventPage(Ui_eventPage, QtGui.QWidget):
@@ -51,7 +51,7 @@ class CEventPage(Ui_eventPage, QtGui.QWidget):
         self.grbParam.setEnabled(planningCheck)
         self.edtPlanningFreq.setValue(forceInt(props.get('paramPlanningFreq', DefaultPlanningFreq)))
         self.cmbPlanningBegDate.setCurrentIndex(forceInt(props.get('paramPlanningBegDate', DefaultPlanningBegDate)))
-        self.edtPlanningDuration.setValue(forceInt(props.get('paramPlanningDuration', DefaultPlanningDuration)))
+
 
     def getProps(self, props):
         props['averageDuration'] = toVariant(self.edtAverageDuration.value())
@@ -63,7 +63,7 @@ class CEventPage(Ui_eventPage, QtGui.QWidget):
         props['paramPlanningCheck'] = toVariant(self.chkPlanningParam.isChecked())
         props['paramPlanningFreq'] = toVariant(self.edtPlanningFreq.value())
         props['paramPlanningBegDate'] = toVariant(self.cmbPlanningBegDate.currentIndex())
-        props['paramPlanningDuration'] = toVariant(self.edtPlanningDuration.value())
+
 
     @pyqtSignature('bool')
     def on_chkPlanningParam_toggled(self):

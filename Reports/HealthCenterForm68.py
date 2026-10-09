@@ -27,10 +27,12 @@ left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 inner JOIN
 (select a.event_id,
- max(case when ap.type_id = 30075 and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
- max(case when ap.type_id = 30099 and aps.value = '' then 0 else 1 end) as IndPlan
+ max(case when at.flatCode = 'end_san' and at.code = '1-04-06' and apt.name ='Факторы риска заболеваний' and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
+ max(case when at.flatCode = 'sur_san' and at.code = '1-04-05' and apt.name = 'Индивидуальный план' and aps.value = '' then 0 else 1 end) as IndPlan
 from  Action a 
+left join ActionType at on a.actionType_id = at.id 
 left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0
 left join ActionProperty_String aps on aps.id = ap.id
 group by a.event_id)act on act.event_id = e.id
 left JOIN
@@ -54,16 +56,18 @@ left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 inner JOIN
 (select a.event_id,
- max(case when ap.type_id = 30069  then case aps.value when 'Обратился самостоятельно'  then 1 
+ max(case when at.flatCode = 'app_san' and at.code = '1-04-03' and apt.name ='Вид обращения' then case aps.value when 'Обратился самостоятельно'  then 1 
                                                        when 'Направлен амбулаторно-поликлиническим учреждением' then 2
                                                        when 'Направлен после лечения в стационаре'then 3
                                                        when 'Направлен после дополнительной диспансеризации' then 4
                                                        when 'Направлен работодателем после прохождения ПМО и УМО' then 5 
                                                        else 0 end else 0 end )as isObr,
- max(case when ap.type_id = 30075 and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
- max(case when ap.type_id = 30099 and aps.value = '' then 0 else 1 end) as IndPlan
+ max(case when at.flatCode = 'end_san' and at.code = '1-04-06' and apt.name ='Факторы риска заболеваний' and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
+ max(case when at.flatCode = 'sur_san' and at.code = '1-04-05' and apt.name = 'Индивидуальный план' and aps.value = '' then 0 else 1 end) as IndPlan
 from  Action a 
+left join ActionType at on a.actionType_id = at.id 
 left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0
 left join ActionProperty_String aps on aps.id = ap.id
 group by a.event_id)act on act.event_id = e.id
 left JOIN
@@ -98,10 +102,12 @@ left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 inner JOIN
 (select a.event_id,
- max(case when ap.type_id = 30075 and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
- max(case when ap.type_id = 30099 and aps.value = '' then 0 else 1 end) as IndPlan
+ max(case when at.flatCode = 'end_san' and at.code = '1-04-06' and apt.name ='Факторы риска заболеваний' and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov,
+ max(case when at.flatCode = 'sur_san' and at.code = '1-04-05' and apt.name = 'Индивидуальный план' and aps.value = '' then 0 else 1 end) as IndPlan
 from  Action a 
+left join ActionType at on a.actionType_id = at.id 
 left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0
 left join ActionProperty_String aps on aps.id = ap.id
 group by a.event_id)act on act.event_id = e.id
 left JOIN
@@ -136,9 +142,11 @@ left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 inner join vrbPerson p on p.id = e.execPerson_id
 left JOIN
 (select a.event_id,
- max(case when ap.type_id = 30075 and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov
+ max(case when at.flatCode = 'end_san' and at.code = '1-04-06' and apt.name ='Факторы риска заболеваний' and( aps.value = '' or aps.value = 'не выявлено' )then 1 else 0 end) as Zdorov
 from  Action a 
+left join ActionType at on a.actionType_id = at.id 
 left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0
 left join ActionProperty_String aps on aps.id = ap.id
 group by a.event_id)act on act.event_id = e.id
 where   mt.regionalCode in ('01','02') AND e.deleted = 0 AND %s
@@ -154,19 +162,19 @@ order by p.name
 
 def selectData2006(begDate, endDate ):
     stmt=u"""
-select case ap.type_id when 30081 then 1
-                       when 30082 then 2
-                       when 30083 then 3
-                       when 30084 then 4
-                       when 30085 then 5
-                       when 30089 then 6
-                       when 30095 then 7
-                       when 30086 then 8
-                       when 30087 then 9
-                       when 30092 then 10
-                       when 30088 then 12
-                       when 30094 then 13
-                       when 30093 then 14
+select case apt.name   when 'Скрининг-оценка уровня психофизиологического и соматического здоровья, функциональных и адаптивных резервов организма, параметры физического развития' then 1
+                       when 'Экспресс-оценка состояния сердца по ЭКГ-сигналам от конечностей' then 2
+                       when 'Ангиологический скрининг с автоматическим измерением систолического артериального давления и расчета плече-лодыжечного индекса'then 3
+                       when 'Комплексная детальная оценка функций дыхательной системы - компьютеризированная спирометрия' then 4
+                       when 'Биоимпедансметрия (процентное соотношение воды, мышечной массы и жировой ткани)' then 5
+                       when 'Определение общего холестерина и глюкозы в крови (с принадлежностями) (заключение)' then 6
+                       when 'Исследование на наличие наркотических средств, психотропных веществ и их метаболитов в биологических средах организма' then 7
+                       when 'Анализ CO выдыхаемого воздуха с определением карбоксигемоглобина' then 8
+                       when 'Анализ котинина и других биологических маркеров в крови и моче' then 9
+                       when 'Определение содержания CO в выдыхаемом воздухе' then 10
+                       when 'Пульсоксиметрия (заключение)' then 12
+                       when 'Стоматологическое обследование (диагностика кариеса зубов, болезней пародонта, некариозных поражений, болезней слизистой оболочки и регистрация стоматологического статуса пациента)' then 13
+                       when 'Офтальмологическое обследование (проверка остроты зрения, рефрактометрия, тонометрия, исследование бинокулярного зрения, определение вида и степени аметропии, наличия астигматизма)' then 14
                        end as typeId,
                        apt.name,
 count(distinct c.id) as clientTotal,
@@ -175,24 +183,42 @@ count(distinct (case when aps.id then  e.id end)) eventTotal,
 count(distinct(case when aps.id and   mt.regionalCode ='02' then e.id end )) eventDeti,
 count(distinct(select e1.client_id from Event e1 
 left join Action a1  on a1.event_id = e1.id 
-left join ActionProperty ap1 on ap1.action_id = a1.id 
+left join ActionType at1 on a1.actionType_id = at1.id 
+left join ActionProperty ap1 on ap1.action_id = a1.id and ap1.deleted=0
+left join ActionPropertyType apt1 on ap1.type_id = apt1.id and ap1.deleted=0
 left join ActionProperty_String aps1 on aps1.id = ap1.id 
-where e1.id = e.id  and ap1.deleted=0 and ap1.type_id =30075 and not( aps.value = '' or aps.value = 'не выявлено' ))) riskTotal,
+where e1.id = e.id  and ap1.deleted=0 and at1.flatCode = 'end_san' and at1.code = '1-04-06' and apt1.name ='Факторы риска заболеваний' and not( aps.value = '' or aps.value = 'не выявлено' ))) riskTotal,
 count(distinct(select e1.client_id from Event e1 
 left join Action a1  on a1.event_id = e1.id 
-left join ActionProperty ap1 on ap1.action_id = a1.id 
+left join ActionType at1 on a1.actionType_id = at1.id 
+left join ActionProperty ap1 on ap1.action_id = a1.id and ap1.deleted=0
+left join ActionPropertyType apt1 on ap1.type_id = apt1.id and ap1.deleted=0
 left join ActionProperty_String aps1 on aps1.id = ap1.id 
-where e1.id = e.id and mt.regionalCode='02'  and ap1.deleted=0 and ap1.type_id =30075 and not( aps.value = '' or aps.value = 'не выявлено' ))) riskDeti
+where e1.id = e.id and mt.regionalCode='02'  and ap1.deleted=0 and at1.flatCode = 'end_san' and at1.code = '1-04-06' and apt1.name ='Факторы риска заболеваний' and not( aps.value = '' or aps.value = 'не выявлено' ))) riskDeti
 
 from Event e 
 left join Client c on c.id = e.client_id
 left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 left join Action a  on a.event_id = e.id 
-left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0 and ap.type_id in (30081,30082,30083,30084,30085,30089,30095,30086,30087,30092,30088,30094,30093)
-left join ActionPropertyType apt on apt.id = ap.type_id
+left join ActionType at on a.actionType_id = at.id and at.flatCode = 'sur_san' and at.code = '1-04-05'
+left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0 and  apt.name in 
+('Скрининг-оценка уровня психофизиологического и соматического здоровья, функциональных и адаптивных резервов организма, параметры физического развития',
+'Экспресс-оценка состояния сердца по ЭКГ-сигналам от конечностей',
+'Ангиологический скрининг с автоматическим измерением систолического артериального давления и расчета плече-лодыжечного индекса',
+'Комплексная детальная оценка функций дыхательной системы - компьютеризированная спирометрия',
+'Биоимпедансметрия (процентное соотношение воды, мышечной массы и жировой ткани)',
+'Анализ CO выдыхаемого воздуха с определением карбоксигемоглобина',
+'Анализ котинина и других биологических маркеров в крови и моче',
+'Пульсоксиметрия (заключение)',
+'Определение общего холестерина и глюкозы в крови (с принадлежностями) (заключение)',
+'Определение содержания CO в выдыхаемом воздухе',
+'Офтальмологическое обследование (проверка остроты зрения, рефрактометрия, тонометрия, исследование бинокулярного зрения, определение вида и степени аметропии, наличия астигматизма)',
+'Стоматологическое обследование (диагностика кариеса зубов, болезней пародонта, некариозных поражений, болезней слизистой оболочки и регистрация стоматологического статуса пациента)',
+'Исследование на наличие наркотических средств, психотропных веществ и их метаболитов в биологических средах организма')
 left join ActionProperty_String aps on aps.id = ap.id 
-where  e.deleted = 0 and  mt.regionalCode in ('01','02') and ap.type_id is not null AND %s
+where  e.deleted = 0 and  mt.regionalCode in ('01','02') and ap.type_id is not null and apt.name is not null AND %s
 group by typeId,apt.name
 order by typeId"""
     db = QtGui.qApp.db
@@ -211,7 +237,9 @@ from Event e
 left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 left join Action a  on a.event_id = e.id 
-left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0 and ap.type_id = 30076
+left join ActionType at on a.actionType_id = at.id and at.flatCode = 'end_san' and at.code = '1-04-06'
+left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0 and  apt.name ='Посещение кабинета (зала) ЛФК' 
 left join ActionProperty_String aps on aps.id = ap.id 
 where  mt.regionalCode in ('01','02') AND e.deleted = 0 AND %s """
     db = QtGui.qApp.db
@@ -241,7 +269,9 @@ from Event e
 left join EventType et on et.id = e.eventType_id
 left join rbMedicalAidType mt on et.medicalAidType_id = mt.id
 left join Action a  on a.event_id = e.id 
-left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0 and ap.type_id = 30078
+left join ActionType at on a.actionType_id = at.id and at.flatCode = 'end_san' and at.code = '1-04-06'
+left join ActionProperty ap on ap.action_id = a.id and ap.deleted=0
+left join ActionPropertyType apt on ap.type_id = apt.id and ap.deleted=0 and  apt.name ='Школы здоровья' 
 left join ActionProperty_String aps on aps.id = ap.id 
 where  mt.regionalCode in ('01','02') AND e.deleted = 0  AND %s """
     db = QtGui.qApp.db

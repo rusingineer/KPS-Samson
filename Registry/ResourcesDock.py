@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -82,7 +82,7 @@ from Registry.Utils import (
     getClientMiniInfo,
     getClientInfo2,
     getClientAttachEx,
-    createRelatedActionTMK, getPostIdentCodeByPersonId
+    createRelatedActionTMK, getPostIdentCodeByPersonId, clearRelatedActionTMK, applyTemplateRelatedActionTMK
 )
 from Reports.ReportBase       import CReportBase, createTable
 from Reports.ReportBeforeRecord           import CReportBeforeRecord
@@ -216,13 +216,14 @@ class CResourcesDockContent(QtGui.QWidget,
             preferenceFilter = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
             if preferenceFilter:
                 orgStructureFilter = 'OrgStructure.id NOT IN ({0})'.format(','.join(map(str, preferenceFilter)))
+        isShowComplaintColumn = forceBool(QtGui.qApp.preferences.appPrefs.get('showComplaintColumn', False))
 
         self.addModels('OrgStructure',  COrgStructureModel(self, application.currentOrgId(), filter=orgStructureFilter))
         self.addModels('Activity',      CActivityModel(self))
         self.addModels('AmbTimeTable',  CTimeTableModel(self, CSchedule.atAmbulance))
-        self.addModels('AmbQueue',      CQueueModel(self, CSchedule.atAmbulance))
+        self.addModels('AmbQueue',      CQueueModel(self, CSchedule.atAmbulance, isShowComplaintColumn))
         self.addModels('HomeTimeTable', CTimeTableModel(self, CSchedule.atHome))
-        self.addModels('HomeQueue',     CQueueModel(self, CSchedule.atHome))
+        self.addModels('HomeQueue',     CQueueModel(self, CSchedule.atHome, isShowComplaintColumn))
 
         self.addObject('actFindArea',       QtGui.QAction(u'Найти участок', self))
         self.addObject('actAmbCreateOrder', QtGui.QAction(u'Поставить в очередь', self))
@@ -1150,6 +1151,15 @@ class CResourcesDockContent(QtGui.QWidget,
                     complaint = ''
 
                 if scheduleItem.id is None:
+                    # ТМК действие и событие теперь создаём перед записью талона, т.к. при ошибке внутри
+                    # транзакции не остаётся никаких следов + Шаблон печати вызываем позже чтоб не было такого, что
+                    # он отработал, но сделали rollback и направление есть, а ТМК талона нет
+                    actionTMK = None
+                    isTMK = recordType and recordType == 4
+                    if isTMK:
+                        actionTMK = createRelatedActionTMK(self, clientId, personId, scheduleItem.time)
+                        if not actionTMK:
+                            return False
                     if self.lock('Schedule', scheduleItem.scheduleId):
                         db.transaction()
                         try:
@@ -1158,10 +1168,6 @@ class CResourcesDockContent(QtGui.QWidget,
                             scheduleItem.idx = schedule.items[-1].idx+1 if schedule.items else 0
                             fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType)
                             scheduleItemId = scheduleItem.save()
-                            if recordType and recordType == 4 and scheduleItemId:
-                                if not createRelatedActionTMK(self, clientId, personId, scheduleItem.time, scheduleItemId):
-                                    db.rollback()
-                                    return False
                             if appointmentType == CSchedule.atHome:
                                 QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
                             else:
@@ -1172,12 +1178,24 @@ class CResourcesDockContent(QtGui.QWidget,
                             # modelQueue.updateData()
                         except:
                             db.rollback()
+                            if isTMK and actionTMK:
+                                clearRelatedActionTMK(actionTMK)
                             raise
                         finally:
                             self.updateTimeTableRow(tblTimeTable)
                             modelQueue.emitDataChanged(row)
                             modelQueue.updateData()
                             self.releaseLock()
+                        # Если дошли сюда и запись ТМК, то значит что есть связанное действие и запись нормально создалась
+                        # Так что шаблон вызываем отсюда, даже если будет проблема с шаблоном, то его можно будет
+                        # ещё раз вызвать из связанного действия позже
+                        if isTMK and actionTMK:
+                            if not applyTemplateRelatedActionTMK(self, actionTMK, scheduleItem):
+                                # уж очень не хочу дублировать код, но всему этому не место в том try except
+                                self.updateTimeTableRow(tblTimeTable)
+                                modelQueue.emitDataChanged(row)
+                                modelQueue.updateData()
+                                return False
                     tblQueue.setCurrentIndex(modelQueue.index(row, 0))
                     return True
                 else:
@@ -1194,14 +1212,20 @@ class CResourcesDockContent(QtGui.QWidget,
                                 messageBox.exec_()
                                 return False
 
+                            # ТМК действие и событие теперь создаём перед записью талона, т.к. при ошибке внутри
+                            # транзакции не остаётся никаких следов + Шаблон печати вызываем позже чтоб не было такого, что
+                            # он отработал, но сделали rollback и направление есть, а ТМК талона нет
+                            actionTMK = None
+                            isTMK = recordType and recordType == 4
+                            if isTMK:
+                                actionTMK = createRelatedActionTMK(self, clientId, personId, scheduleItem.time)
+                                if not actionTMK:
+                                    return False
+
                             db.transaction()
                             try:
                                 fillScheduleItem(scheduleItem, clientId, complaint, referral, isUrgent, recordType, idx)
                                 scheduleItemId = scheduleItem.save()
-                                if recordType and recordType == 4 and scheduleItemId:
-                                    if not createRelatedActionTMK(self, clientId, personId, scheduleItem.time, scheduleItemId):
-                                        db.rollback()
-                                        return False
                                 if appointmentType == CSchedule.atHome:
                                     QtGui.qApp.emitCurrentClientInfoJLWChanged(scheduleItemId)
                                 else:
@@ -1209,14 +1233,26 @@ class CResourcesDockContent(QtGui.QWidget,
                                 db.commit()
                                 # self.updateTimeTableRow(tblTimeTable)
                                 # modelQueue.emitDataChanged(row)
-                                return True
                             except:
                                 db.rollback()
+                                if isTMK and actionTMK:
+                                    clearRelatedActionTMK(actionTMK)
                                 raise
                             finally:
                                 self.updateTimeTableRow(tblTimeTable)
                                 modelQueue.emitDataChanged(row)
                                 modelQueue.updateData()
+                            # Если дошли сюда и запись ТМК, то значит что есть связанное действие и запись нормально создалась
+                            # Так что шаблон вызываем отсюда, даже если будет проблема с шаблоном, то его можно будет
+                            # ещё раз вызвать из связанного действия позже
+                            if isTMK and actionTMK:
+                                if not applyTemplateRelatedActionTMK(self, actionTMK, scheduleItem):
+                                    # уж очень не хочу дублировать код, но всему этому не место в том try except
+                                    self.updateTimeTableRow(tblTimeTable)
+                                    modelQueue.emitDataChanged(row)
+                                    modelQueue.updateData()
+                                    return False
+                            return True
                         finally:
                             self.releaseLock()
         return False
@@ -1718,31 +1754,39 @@ class CResourcesDockContent(QtGui.QWidget,
         userPersonId = QtGui.qApp.userId
         personIndex = self.treeOrgPersonnel.currentIndex()
         personId = self.modelPersonnel.getItemIdList(personIndex)
-        userPersonIndex = self.modelPersonnel.findPersonId(userPersonId)
         userPersonOrgStructureIndex = self.modelOrgStructure.findItemId(QtGui.qApp.userOrgStructureId)
 
-        if (userPersonId in personId) or not(userPersonIndex and userPersonIndex.isValid()):
+        if userPersonId in personId:
             return False
 
+        switching = False
+
         if switchingToUserSchedule == 1:
-            if userPersonOrgStructureIndex and userPersonOrgStructureIndex.isValid():
-                self.treeOrgStructure.setCurrentIndex(userPersonOrgStructureIndex)
-            self.treeOrgPersonnel.setCurrentIndex(userPersonIndex)
-            return True
+            switching = True
         elif switchingToUserSchedule == 2:
             if QtGui.QMessageBox().question(self,
                                             u'Внимание!',
                                             u'Перейти на повторный прием?',
                                             QtGui.QMessageBox.No | QtGui.QMessageBox.Yes,
                                             QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-                if userPersonOrgStructureIndex and userPersonOrgStructureIndex.isValid():
-                    self.treeOrgStructure.setCurrentIndex(userPersonOrgStructureIndex)
+                switching = True
+
+        if switching:
+            oldOrgStructureIndex = self.treeOrgStructure.currentIndex()
+            if userPersonOrgStructureIndex and userPersonOrgStructureIndex.isValid():
+                self.treeOrgStructure.setCurrentIndex(userPersonOrgStructureIndex)
+            userPersonIndex = self.modelPersonnel.findPersonId(userPersonId)
+            if userPersonIndex and userPersonIndex.isValid():
                 self.treeOrgPersonnel.setCurrentIndex(userPersonIndex)
                 return True
             else:
+                QtGui.QMessageBox().warning(self, u'Ошибка!', u'Произошла ошибка при попытке '
+                                                              u'перехода в свой график!')
+                if oldOrgStructureIndex and oldOrgStructureIndex.isValid():
+                    self.treeOrgStructure.setCurrentIndex(oldOrgStructureIndex)
                 return False
-        else:
-            return False
+
+        return False
 
     @pyqtSignature('int')
     def on_tabPlace_currentChanged(self, index):
@@ -1966,7 +2010,6 @@ class CResourcesDockContent(QtGui.QWidget,
 
     @pyqtSignature('')
     def on_actAmbCreateOrder_triggered(self):
-
         # Для Сириуса делаем сохранение номера талончика электронной очереди в Schedule_Item.idx
         idx = None
         lpuCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', QtGui.qApp.currentOrgId(), 'infisCode'))
@@ -1980,6 +2023,7 @@ class CResourcesDockContent(QtGui.QWidget,
 
         if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), idx=idx):
             self.printOrder(self.tblAmbQueue)
+            self.isSwitchToUserSchedule()
         QtGui.qApp.emitCurrentClientInfoChanged()
     
     
@@ -1987,15 +2031,15 @@ class CResourcesDockContent(QtGui.QWidget,
     def on_actAmbCreateOrderUrgent_triggered(self):
         if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), isUrgent = 1):
             self.printOrder(self.tblAmbQueue)
+            self.isSwitchToUserSchedule()
         QtGui.qApp.emitCurrentClientInfoChanged()
 
 
     @pyqtSignature('')
     def on_actAmbCreateOrderTMK_triggered(self):
-        if self.isSwitchToUserSchedule():
-            return
         if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), recordType = 4):
             self.printOrder(self.tblAmbQueue)
+            self.isSwitchToUserSchedule()
         QtGui.qApp.emitCurrentClientInfoChanged()
 
 
@@ -2163,11 +2207,15 @@ class CResourcesDockContent(QtGui.QWidget,
 
     @pyqtSignature('')
     def on_actHomeCreateOrder_triggered(self):
+        if self.isSwitchToUserSchedule():
+            return
         self.createOrder(self.tblHomeTimeTable, self.tblHomeQueue, QtGui.qApp.currentClientId())
     
     
     @pyqtSignature('')
     def on_actHomeCreateOrderUrgent_triggered(self):
+        if self.isSwitchToUserSchedule():
+            return
         self.createOrder(self.tblHomeTimeTable, self.tblHomeQueue, QtGui.qApp.currentClientId(), isUrgent = 1)
 
 
@@ -2689,9 +2737,10 @@ class CTimeTableModel(QAbstractTableModel):
 class CQueueModel(QAbstractTableModel):
     __pyqtSignals__ = ('rowCountChanged()',)  # см. примечание 1
 
-    def __init__(self, parent, appointmentType):
+    def __init__(self, parent, appointmentType, showComplaintColumn=False):
         QAbstractTableModel.__init__(self, parent)
         self.appointmentType = appointmentType
+        self.showComplaintColumn = showComplaintColumn
         # FIXME: реализовать другой механизм подбора и кеширования специальности
         self.personId = None
         self.personSpecialityId = None
@@ -2714,7 +2763,7 @@ class CQueueModel(QAbstractTableModel):
 
 
     def columnCount(self, index=None, *args, **kwargs):
-        return 2
+        return 2 if not self.showComplaintColumn else 3
 
 
     def rowCount(self, index=None, *args, **kwargs):
@@ -2744,8 +2793,10 @@ class CQueueModel(QAbstractTableModel):
             if role == Qt.DisplayRole:
                 if section == 0:
                     return QVariant(u'ФИО')
-                else:
+                elif section == 1:
                     return QVariant(u'Назначение')
+                elif section == 2 and self.showComplaintColumn:
+                    return QVariant(u'Жалобы')
         if orientation == Qt.Vertical:
             if role == Qt.DisplayRole:
                 text = u'{time} {itemType}'
@@ -2790,6 +2841,11 @@ class CQueueModel(QAbstractTableModel):
                         return toVariant(u'> ' + self.getTextForClientId(item.clientId))
                     else:
                         return toVariant(self.getTextForClientId(item.clientId))
+                elif column == 2 and self.showComplaintColumn and item.clientId:
+                    if item.complaint:
+                        return toVariant(item.complaint)
+                    else:
+                        return QVariant()
                 elif column == 1 or QtGui.qApp.getScheduleFIOAppointment():
                     if item.appointmentPurposeId:
                         cache = CRBModelDataCache.getData('rbAppointmentPurpose', True)

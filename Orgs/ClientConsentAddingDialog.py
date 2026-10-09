@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -32,6 +32,7 @@ class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
         if clientId and clientConsentTypeList:
             self._loadData(clientId, clientConsentTypeList)
         self.setWindowTitle(u'Согласия пациента')
+        self.buttonBox.accepted.connect(self.on_btn_accept_clicked)
 
 
     def setClientId(self, clientId):
@@ -112,6 +113,11 @@ class CClientConsentAddingDialog(CDialogBase, Ui_ClientConsentAddingDialog):
                 self.listSelectedConsent.append(dictSelectedConsent)
 
 
+    def on_btn_accept_clicked(self):
+        self.getSelectedConsent()
+        self.saveData()
+
+
 class CClientConsentModel(CInDocTableModel):
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'ClientConsent', 'id', 'client_id', parent)
@@ -126,6 +132,7 @@ class CClientConsentModel(CInDocTableModel):
         self._date = None
         self._representerClientId = None
         self.setEnableAppendLine(False)
+        self.idListEGISZ = QtGui.qApp.db.getIdList('rbClientConsentType', where=" (code like 'egisz' or code like 'not_egis') ")
 
 
     def setClientId(self, clientId):
@@ -136,14 +143,28 @@ class CClientConsentModel(CInDocTableModel):
         if self._items is not None:
             db = QtGui.qApp.db
             idList = []
+
             for record in self._items:
-                record.setValue('client_id', QVariant(masterId))
-                actualRecord = self.checkRecordByExists(record)
-                actualRecord.setValue('representerClient_id', QVariant(self._representerClientId))
-                actualRecord.setValue('date', QVariant(self._date))
-                id = db.insertOrUpdate(self._table, actualRecord)
-                actualRecord.setValue('id', toVariant(id))
-                idList.append(id)
+                if forceInt(record.value('clientConsentType_id')) in self.idListEGISZ:
+                    pass
+                else:
+                    record.setValue('client_id', QVariant(masterId))
+                    actualRecord = self.checkRecordByExists(record)
+                    if actualRecord.value('id') != record.value('id'):
+                        actualRecord.setValue('representerClient_id', QVariant(self._representerClientId))
+                        # actualRecord.setValue('date', QVariant(self._date))
+                        actualRecord.setValue('endDate', QVariant(self._date.addDays(-1)))
+                        id = db.insertOrUpdate(self._table, actualRecord)
+                        # actualRecord.setValue('id', toVariant(id))
+                        idList.append(id)
+                    record.setValue('representerClient_id', QVariant(self._representerClientId))
+                    record.setValue('date', QVariant(self._date))
+                    id = db.insertOrUpdate(self._table, record)
+                    idList.append(id)
+
+
+    def fillInEndDateAgreement(self):
+        self._model
 
 
     def checkRecordByExists(self, record):

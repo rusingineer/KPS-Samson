@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -31,7 +31,8 @@ from PyQt4.QtCore                           import (
                                                     QRegExp,
                                                     QTime,
                                                     QVariant,
-                                                    QString
+                                                    QString,
+                                                    pyqtSignal
                                                    )
 
 from Events.Utils import checkDiagnosis
@@ -120,6 +121,8 @@ from datetime import date, timedelta
 class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
     prevAddress = None
     prevWork    = None
+
+    socStatusChanged = pyqtSignal()
 
 #    defaultKLADRCode = '7800000000000'
 
@@ -446,6 +449,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
         self.chkShowOnlyActiveSocStatuses.stateChanged.connect(self.on_chkShowOnlyActiveSocStatuses_stateChanged)
         chkActSocStat = getPref(QtGui.qApp.preferences.appPrefs, 'clientEditDialogChkShowOnlyActiveSocStatuses', False )
         self.chkShowOnlyActiveSocStatuses.setChecked(forceBool(chkActSocStat))
+        self.socStatusChanged.connect(self.addPlanProfOsmotrSocStatusRecord,Qt.QueuedConnection)
 
 
     def on_chkShowOnlyActiveSocStatuses_stateChanged(self):
@@ -1036,6 +1040,21 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             classId = forceInt(item.value('socStatusClass_id'))
             if typeId == socStatusTypeId and classId == socStatusClassId:
                 # гражданство установлено вручную
+                return
+
+        record = self.modelSocStatuses.getEmptyRecord()
+        record.setValue('socStatusClass_id', socStatusClassId)
+        record.setValue('socStatusType_id', socStatusTypeId)
+        self.modelSocStatuses.addRecord(record)
+             
+    def addPlanProfOsmotrSocStatusRecord(self):
+        db = QtGui.qApp.db
+        socStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'profilac', 'id'))
+        socStatusTypeId = forceInt(db.translate('rbSocStatusType', 'code', u'prof_d', 'id'))
+        for item in self.modelSocStatuses.items():
+            typeId = forceInt(item.value('socStatusType_id'))
+            classId = forceInt(item.value('socStatusClass_id'))
+            if typeId == socStatusTypeId and classId == socStatusClassId:
                 return
 
         record = self.modelSocStatuses.getEmptyRecord()
@@ -2221,7 +2240,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
 
 
     def checkDocNumber(self):
-        for item in self.modelSocStatuses.items():
+        for row, item in enumerate(self.modelSocStatuses.items()):
             if forceRef(item.value('documentType_id')):
                 if not forceString(item.value('number')):
                     if QtGui.QMessageBox.question( self,
@@ -2229,6 +2248,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                            u'Для типа соц.статуса не введен номер документа.',
                                            QtGui.QMessageBox.Ok|QtGui.QMessageBox.Ignore,
                                            QtGui.QMessageBox.Ok) == QtGui.QMessageBox.Ok:
+                        self.setFocusToWidget(self.tblSocStatuses, row, 0)
                         self.edtSocStatusDocNumber.setFocus(Qt.ShortcutFocusReason)
                         return False
         return True
@@ -2800,6 +2820,19 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             socStatusTypeId = forceRef(record.value('socStatusType_id'))
             if socStatusTypeId is None:
                 return self.checkValueMessage(u'Не указан тип соц.статуса', False, table, row, 1)
+            begDate = forceDate(record.value('begDate'))
+            endDate = forceDate(record.value('endDate'))
+            if (endDate and begDate > endDate):
+                return self.checkValueMessage(u'Требуется скорректировать даты соц статуса', False, table, row, 2)
+
+            db = QtGui.qApp.db
+            profSocStatusClassId = forceInt(db.translate('rbSocStatusClass', 'code', 'profilac', 'id'))
+            profSocStatusTypeId = forceInt(db.translate('rbSocStatusType', 'code', u'prof_d', 'id'))
+            if profSocStatusClassId == forceRef(record.value('socStatusClass_id')) and profSocStatusTypeId == socStatusTypeId  and (not begDate):
+               return self.checkValueMessage(u'Требуется указать дату начала соц статуса', False, table, row, 2)
+            if profSocStatusClassId == forceRef(record.value('socStatusClass_id')) and profSocStatusTypeId == socStatusTypeId  and (not endDate):
+               return self.checkValueMessage(u'Требуется указать дату окончания соц статуса', False, table, row, 3)
+
         citizenshipGP = QtGui.qApp.isCitizenshipControl()
         if citizenshipGP:
             documentTypeId = self.cmbDocType.value()
@@ -5163,7 +5196,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                 self.edtCompulsoryPolisSerial.setText(pcySer)
                                 
                         if polisDateB:
-                            polisDateB = datetime.datetime.strptime(polisDateB, "%d.%m.%Y")
+                            polisDateB = QDate.fromString(polisDateB, "dd.MM.yyyy")
                             self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
                         if pcyType:
                             pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "

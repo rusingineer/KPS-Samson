@@ -126,7 +126,7 @@ class CEconomicAnalisysE4(CReport):
             if prevFinanceName != financeName:
                 if prevFinanceName is not None:
                     row = table.addRow()
-                    table.setText(row, 0, u'Итого по %s' % financeName)
+                    table.setText(row, 0, u'Итого по %s' % prevFinanceName)
                     for col in xrange(reportRowSize-2):
                         table.setText(row, col + colsShift, totalByFinance[col])
                         totalByReport[col] = totalByReport[col] + totalByFinance[col]
@@ -144,17 +144,17 @@ class CEconomicAnalisysE4(CReport):
             for col in xrange(reportRowSize-2):
                 table.setText(row, col + colsShift, reportLine[col])
                 totalByFinance[col] = totalByFinance[col] + reportLine[col]
-        if prevFinanceName != financeName:
-            if prevFinanceName is not None:
-                row = table.addRow()
-                table.setText(row, 0, u'Итого по %s' % financeName)
-                for col in xrange(reportRowSize-2):
-                    table.setText(row, col + colsShift, totalByFinance[col])
-                    totalByReport[col] = totalByReport[col] + totalByFinance[col]
+        # if prevFinanceName != financeName:
+        #     if prevFinanceName is not None:
+        #         row = table.addRow()
+        #         table.setText(row, 0, u'Итого по %s' % financeName)
+        #         for col in xrange(reportRowSize-2):
+        #             table.setText(row, col + colsShift, totalByFinance[col])
+        #             totalByReport[col] = totalByReport[col] + totalByFinance[col]
 
         if prevFinanceName is not None:
             row = table.addRow()
-            table.setText(row, 0, u'Итого по %s' % financeName)
+            table.setText(row, 0, u'Итого по %s' % prevFinanceName)
             for col in xrange(reportRowSize-2):
                 table.setText(row, col + colsShift, totalByFinance[col])
                 totalByReport[col] = totalByReport[col] + totalByFinance[col]

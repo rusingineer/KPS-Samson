@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1202,7 +1202,9 @@ class CNomenclatureExpenseModel(QtCore.QAbstractTableModel):
             return True
         
         elif column == CANCEL_DATE_INDEX:
-            editor.setDate(QDateTime().fromString(self._cellsSettings.getGroupCancelDateText(group), 'dd.MM.yyyy H:mm'))
+            cancelDateString = self._cellsSettings.getGroupCancelDateText(group)
+            cancelDate = QDateTime().fromString(cancelDateString, 'dd.MM.yyyy H:mm') if cancelDateString else QDateTime()
+            editor.setDate(cancelDate)
 
         elif column == SMNN_INDEX:
             editor.setValue(self._cellsSettings.getGroupSmnn(group), self._cellsSettings.getGroupSmnnGrlsLf(group))
@@ -1609,7 +1611,9 @@ class CNomenclatureExpenseModel(QtCore.QAbstractTableModel):
         
         elif column == CANCEL_DATE_INDEX and not isExistsDoneByIndex:
             cancelDate = forceDateTime(value)
-            if cancelDate == QDateTime().fromString(self._cellsSettings.getGroupCancelDateText(group), 'dd.MM.yyyy H:mm'):
+            cancelDateString = self._cellsSettings.getGroupCancelDateText(group)
+            cancelDateCheck = QDateTime().fromString(cancelDateString, 'dd.MM.yyyy H:mm') if cancelDateString else QDateTime()
+            if cancelDate == cancelDateCheck:
                 self.setIsDirty(True)
                 return True
             self._cellsSettings.setGroupCancelDate(group, forceDateTime(value))

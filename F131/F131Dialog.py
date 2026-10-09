@@ -21,6 +21,7 @@ from PyQt4 import QtGui, QtSql, QtCore
 from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL, QEvent
 
 from Events.ActionsSelector import selectActionTypesEx
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
 from Events.ExportMIS import iniExportEvent
 from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
@@ -165,6 +166,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     # типы диагнозов
     dtFinish = 0 # Заключительный
     dtBase   = 1 # Основной
+    dfFinished = 1  # Заключительный
     dfAccomp = 2 # Сопутствующий
 #    dfMapToCode   = {dtFinish:'1', dtBase:'2', dfAccomp:'9'}
 #    dfMapFromCode = {'1': dtFinish, '2':dtBase, '9':dfAccomp}
@@ -326,6 +328,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     def setupDiagnosticsMenu(self):
         self.mnuDiagnostics = QtGui.QMenu(self)
         self.mnuDiagnostics.setObjectName('mnuDiagnostics')
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.actDiagnosticsAddBase = QtGui.QAction(u'Добавить осмотр', self)
         self.actDiagnosticsAddBase.setObjectName('actDiagnosticsAddBase')
         self.actDiagnosticsAddAccomp = QtGui.QAction(u'Добавить сопутствующий диагноз', self)
@@ -334,8 +337,18 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.actDiagnosticsRemove.setObjectName('actDiagnosticsRemove')
         self.mnuDiagnostics.addAction(self.actDiagnosticsAddBase)
         self.mnuDiagnostics.addAction(self.actDiagnosticsAddAccomp)
+        self.mnuDiagnostics.addAction(self.actAddChronicDiseases)
         self.mnuDiagnostics.addSeparator()
         self.mnuDiagnostics.addAction(self.actDiagnosticsRemove)
+
+    def setFinalDiagnosticsMenuControlsState(self):
+        """
+        Активность пункта меню "Вставить хронические диагнозы" в таблице Диагнозов
+        """
+        self.actAddChronicDiseases.setEnabled(False)
+        current = self.tblInspections.currentItem()
+        if current and current.value('diagnosisType_id') == self.modelDiagnostics.diagnosisTypeCol.codeToId(CF131Dialog.dfFinished):
+            self.actAddChronicDiseases.setEnabled(True)
 
     def eventFilter(self, obj, event):
         if obj == self.tblInspections and event.type() == QEvent.KeyPress:
@@ -2256,6 +2269,7 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.actDiagnosticsAddBase.setEnabled(self.canAddDiagnostic())
         self.actDiagnosticsAddAccomp.setEnabled(True)
         self.actDiagnosticsRemove.setEnabled(canRemove)
+        self.setFinalDiagnosticsMenuControlsState()
 
 
     @pyqtSignature('')
@@ -2357,6 +2371,33 @@ class CF131Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 #    def on_actActionsRemove_triggered(self):
 #        currentRow = self.tblActions.currentIndex().row()
 #        self.modelActions.removeRowEx(currentRow)
+
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        :return:
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, self.modelDiagnostics, self)
+        if dialog.exec_():
+            currentRecord = self.tblInspections.currentItem()
+            currentRow = self.tblInspections.currentIndex().row()
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    record = self.modelDiagnostics.getEmptyRecord()
+                    record.setValue('diagnosisType_id', QVariant(self.modelDiagnostics.diagnosisTypeCol.ids[2]))
+                    record.setValue('speciality_id', currentRecord.value('speciality_id'))
+                    record.setValue('healthGroup_id', currentRecord.value('healthGroup_id'))
+                    record.setValue('MKB', item.value('MKB'))
+                    record.setValue('MKBEx', item.value('MKBEx'))
+                    record.setValue('TNMS', item.value('TNMS'))
+                    record.setValue('exSubclassMKB', item.value('exSubclassMKB'))
+                    record.setValue('morphologyMKB', item.value('morphologyMKB'))
+                    record.setValue('character_id', item.value('character_id'))
+                    record.setValue('dispanser_id', item.value('dispanser_id'))
+                    record.setValue('traumaType_id', item.value('traumaType_id'))
+                    self.modelDiagnostics.insertRecord(currentRow+1, record)
 
 
 #

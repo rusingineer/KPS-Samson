@@ -41,6 +41,8 @@ class CTimetablePage(Ui_timetablePage, QtGui.QWidget):
         self.chkSyncCheckableAndInvitiation.setChecked(forceBool(props.get('syncCheckableAndInvitiation', False)))
         self.cmbCombineTimetable.setCurrentIndex(forceInt(props.get('combineTimetable', 0)))
         self.treeOrgStructure.setupTree(props.get('TimetableOrgStructureCheckedNames'))
+        self.cmbSwitchingToUserSchedule.setCurrentIndex(forceInt(props.get('switchingToUserSchedule')))
+        self.chkShowComplaint.setChecked(forceBool(props.get('showComplaintColumn', False)))
 
     def getProps(self, props):
         props['TimetableOrgStructureCheckedNames'] = toVariant(self.treeOrgStructure.makeReportsToHideInsertValues())
@@ -48,3 +50,5 @@ class CTimetablePage(Ui_timetablePage, QtGui.QWidget):
         props['ambulanceUserCheckable'] = toVariant(int(self.chkAmbulanceUserCheckable.isChecked()))
         props['syncCheckableAndInvitiation'] = toVariant(int(self.chkSyncCheckableAndInvitiation.isChecked()))
         props['combineTimetable']       = toVariant(self.cmbCombineTimetable.currentIndex())
+        props['switchingToUserSchedule'] = toVariant(self.cmbSwitchingToUserSchedule.currentIndex())
+        props['showComplaintColumn'] = toVariant(int(self.chkShowComplaint.isChecked()))

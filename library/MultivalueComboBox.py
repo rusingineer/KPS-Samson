@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -388,7 +388,7 @@ class CBaseMultivalueComboBoxPopup(QtGui.QFrame):
         self._parent = parent
         self.vLayout = QtGui.QVBoxLayout(self)
         self._view   = CMultivalueComboBoxView(self)
-        self._proxyModel = CBaseMultivalueComboBoxProxyModel()
+        self._proxyModel = CBaseMultivalueComboBoxProxyModel(self)
         self._model  = CBaseMultivalueComboBoxModel(self)
         self._model._proxyModel = self.proxyModel()
         self.proxyModel().setSourceModel(self._model)
@@ -513,7 +513,7 @@ class CMultivalueComboBoxPopup(QtGui.QFrame):
         self._parent = parent
         self.vLayout = QtGui.QVBoxLayout(self)
         self._view   = CMultivalueComboBoxView(self)
-        self._proxyModel = CMultivalueComboBoxProxyModel()
+        self._proxyModel = CMultivalueComboBoxProxyModel(self)
         self._model  = CMultivalueComboBoxModel(self)
         self._model._proxyModel = self.proxyModel()
         self.proxyModel().setSourceModel(self._model)
@@ -1062,7 +1062,7 @@ class CRBMultivalueComboBox(CMultivalueComboBox):
 
 class CBaseMultivalueComboBoxProxyModel(QSortFilterProxyModel):
     def __init__(self,parent=None):
-        QtGui.QProxyModel.__init__(self, parent)
+        QtGui.QSortFilterProxyModel.__init__(self, parent)
         self.filter_strings = {}
 
     def enableFilter(self, column):

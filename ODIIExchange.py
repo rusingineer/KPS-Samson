@@ -1937,7 +1937,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                 system = self.oldPolicyUrn
             elif policyKindCode == '2':  # временный
                 system = self.tmpPolicyUrn
-            elif policyKindCode in ['3', '4']:  # новый
+            elif policyKindCode in ['3', '4', '5']:  # новый
                 system = self.newPolicyUrn
             else:
                 return None

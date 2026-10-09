@@ -565,15 +565,15 @@ class CDispExchangeProfilacticPage(QWidget, Ui_DispExchangeProfilacticPage, CCon
                         dateFrom=dateFrom.toString('yyyy-MM-dd'),
                         dateTo=dateTo.toString('yyyy-MM-dd')
                     ))
+                    if self.chkHideSuccess.isChecked():
+                        groupFilter.append(
+                            "ifnull({planExportTable}.exportSuccess, 0) != 1".format(planExportTable=planExportTable))
                     statusFilter = []
                     errorFilter = []
                     if self.chkNotExported.isChecked():
                         statusFilter.append("{planExportTable}.id is null".format(planExportTable=planExportTable))
                     if self.chkExportedSuccessfully.isChecked():
                         statusFilter.append("{planExportTable}.exportSuccess = 1".format(planExportTable=planExportTable))
-                    if  self.chkHideSuccess.isChecked():
-                        statusFilter.append(
-                            "ifnull({planExportTable}.exportSuccess, 0) != 1".format(planExportTable=planExportTable))
                     if self.chkExportedWithErrors.isChecked():
                         statusFilter.append("{planExportTable}.exportSuccess = 0".format(planExportTable=planExportTable))
                         errorTypes = self.cmbExportedWithErrors.value()

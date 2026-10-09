@@ -1707,11 +1707,12 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 # профилактические мероприятия с февраля 2026 новые правила тарификации
                                 # все простые услуги должны выставляться в поле Taru с ценой из договора, поле summ нулевые
                                 # а комплексная услуга в поле Taru c нулевой ценой, поле summ сумма всех простых услуг (пересчитывается в процедуре beforeUpdateAccount).
-                                elif (eventEndDate >= QDate(2026, 2, 1)
+                                elif (QDate(2026, 2, 1) <= eventEndDate
                                       and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']
                                       and eventProfileRegionalCode not in ['8009', '8015', '8016', '103', '8019', '8021']
                                       and self.getServiceInfis(serviceId) not in ['B04.053.001.019', 'B04.057.001.030']):
-                                    sum = 0
+                                    if eventEndDate < QDate(2026, 7, 1):
+                                        sum = 0
                                 # обнуление простых услуг для детских профосмотров
                                 elif medicalAidTypeCode in ['232', '252', '262'] and eventEndDate >= QDate(2019, 3, 1) and self.getServiceInfis(serviceId)[:7] not in ['B04.031', 'B04.026']:
                                     price, sum = 0, 0
@@ -1746,6 +1747,20 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                             price, sum = 0, 0
                                     else:
                                         price, sum = 0, 0
+                                elif eventEndDate >= QDate(2026, 9, 1):
+                                    # ТТ 4973 "Счета. Выставление антенатального скрининга НИПТ"
+                                    value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
+                                    if value is None:
+                                        value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)
+                                        self.mapEventTypeToTFOMSAccIdent[eventTypeId] = value if value is not None else ''
+                                    if value in ['nipt']:
+                                        stmt = """SELECT NULL FROM ClientAttach 
+                                                  WHERE client_id = {0} AND LPU_id = {1} AND deleted = 0 
+                                                  AND begDate <= {2} AND (endDate is NULL OR endDate >= {2});
+                                        """.format(clientId, orgId, db.formatDate(eventEndDate))
+                                        query = db.query(stmt)
+                                        if query.size() > 0:
+                                            sum = 0
 
                                 # В случае проведения мероприятий в рамках профилактических осмотров,
                                 # включая диспансеризацию в выходные дни
@@ -4311,6 +4326,16 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
                 price, summa = 0, 0
         else:
             price, summa = 0, 0
+    elif eventEndDate >= QDate(2026, 9, 1):
+        # ТТ 4973 "Счета. Выставление антенатального скрининга НИПТ"
+        if eventTypeIdentification in ['nipt']:
+            stmt = """SELECT NULL FROM ClientAttach ca 
+                      WHERE ca.client_id = (SELECT client_id FROM Event WHERE id = {0}) AND LPU_id = {1} AND deleted = 0 
+                      AND begDate <= {2} AND (endDate is NULL OR endDate >= {2});
+            """.format(eventId, orgId, QtGui.qApp.db.formatDate(eventEndDate))
+            query = QtGui.qApp.db.query(stmt)
+            if query.size() > 0:
+                summa = 0
 
     if medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262'] and summa > 0:
         eventWeekProfile = wpFiveDays

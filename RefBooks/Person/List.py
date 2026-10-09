@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -880,6 +880,7 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
         setRBComboBoxValue(self.cmbUserRightsProfile,  record,  'userProfile_id')
         setDateEditValue(self.edtRetireDate,   record, 'retireDate')
         setCheckBoxValue(self.chkRetired,      record, 'retired')
+        setLineEditValue(self.edtForbidReason, record, 'forbidReason')
         setCheckBoxValue(self.chkChairPerson,  record, 'chairPerson')
         setCheckBoxValue(self.chkAvailableForExternal, record, 'availableForExternal')
         setCheckBoxValue(self.chkIsHideQueue, record, 'isHideQueue')
@@ -966,6 +967,7 @@ class CPersonEditor(Ui_ItemEditorDialog, CItemEditorBaseDialog):
             getRBComboBoxValue(self.cmbUserRightsProfile,  record,  'userProfile_id')
         getDateEditValue(self.edtRetireDate,   record, 'retireDate')
         getCheckBoxValue(self.chkRetired,      record, 'retired')
+        getLineEditValue(self.edtForbidReason, record, 'forbidReason')
         getCheckBoxValue(self.chkChairPerson,  record, 'chairPerson')
         getCheckBoxValue(self.chkAvailableForExternal, record, 'availableForExternal')
         getCheckBoxValue(self.chkIsHideQueue, record, 'isHideQueue')

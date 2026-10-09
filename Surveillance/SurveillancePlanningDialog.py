@@ -2,7 +2,7 @@
 #############################################################################
 ##
 # Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-# Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+# Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -574,35 +574,19 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
             takenDate = forceDate(planningSurveillanceItem.value('takenDate'))
             items = planningSurveillanceItem.controlSurveillance.getItems()
             for row, item in enumerate(items):
+                endDate = forceDate(item.value('endDate'))
+                if not endDate:
+                    self.tblPlanningSurveillance.setCurrentRow(rowPS)
+                    if not self.checkInputMessage(u'Дату запланированной явки по диагнозу "%s". Иначе период будет удалён!'
+                                                  % MKB, True, self.tblControlSurveillance, row,
+                                                  CControlSurveillanceModel.Col_EndDate):
+                        result = False
+                        return result
                 MKB = forceStringEx(item.value('MKB'))
                 if not MKB:
                     self.tblPlanningSurveillance.setCurrentRow(rowPS)
                     self.checkInputMessage(u'МКБ', False, self.tblControlSurveillance, row,
                                            CControlSurveillanceModel.Col_MKB)
-                    result = False
-                    return result
-                begDate = forceDate(item.value('begDate'))
-                endDate = forceDate(item.value('endDate'))
-                if not begDate:
-                    self.tblPlanningSurveillance.setCurrentRow(rowPS)
-                    if not self.checkInputMessage(u'Дату начала периода по диагнозу "%s". Иначе период будет удалён!'
-                                                  % MKB, True, self.tblControlSurveillance, row,
-                                                  CControlSurveillanceModel.Col_BegDate):
-                        result = False
-                        return result
-                if begDate and not endDate:
-                    self.tblPlanningSurveillance.setCurrentRow(rowPS)
-                    if not self.checkInputMessage(u'Дату окончания периода по диагнозу "%s". Иначе период будет удалён!'
-                                                  % MKB, True, self.tblControlSurveillance, row,
-                                                  CControlSurveillanceModel.Col_EndDate):
-                        result = False
-                        return result
-                if begDate and endDate and begDate > endDate:
-                    self.tblPlanningSurveillance.setCurrentRow(rowPS)
-                    self.checkValueMessage(u'Дата начала периода %s по диагнозу "%s" не может быть больше Даты '
-                                           u'окончания периода %s' % (
-                                           begDate.toString('dd.MM.yyyy'), MKB, endDate.toString('dd.MM.yyyy')), False,
-                                           self.tblControlSurveillance, row, CControlSurveillanceModel.Col_BegDate)
                     result = False
                     return result
                 personId = forceRef(item.value('person_id'))
@@ -627,19 +611,14 @@ class CSurveillancePlanningEditDialog(CItemEditorBaseDialog, Ui_SurveillancePlan
             for primumRow, primumItem in enumerate(primumItems):
                 if not result:
                     return result
-                begDateP = forceDate(primumItem.value('begDate'))
                 endDateP = forceDate(primumItem.value('endDate'))
                 for secondRow, secondItem in enumerate(secondItems):
                     if primumRow != secondRow:
-                        begDateS = forceDate(secondItem.value('begDate'))
                         endDateS = forceDate(secondItem.value('endDate'))
-                        if (begDateS <= begDateP <= endDateS) or (begDateS <= endDateP <= endDateS):
+                        if endDateP == endDateS:
                             self.tblPlanningSurveillance.setCurrentRow(rowPS)
-                            self.checkValueMessage(u'Пересечение периодов %s - %s и %s - %s по диагнозу "%s"'
-                                                   % (begDateP.toString('dd.MM.yyyy'), endDateP.toString('dd.MM.yyyy'),
-                                                      begDateS.toString('dd.MM.yyyy'), endDateS.toString('dd.MM.yyyy'),
-                                                      MKB), False, self.tblControlSurveillance, secondRow,
-                                                   CControlSurveillanceModel.Col_BegDate)
+                            self.checkValueMessage(u'Совпадает дата запланированной явки {} по диагнозу "{}"'.format(endDateP.toString('dd.MM.yyyy'), MKB), False, self.tblControlSurveillance, secondRow,
+                                                   CControlSurveillanceModel.Col_EndDate)
                             result = False
                             return result
         return result
@@ -1389,7 +1368,7 @@ class CControlSurveillanceRegistry:
         if self.autoPlanning:
             self.planningBegDate = forceInt(prefs.get('paramPlanningBegDate', 0))
             self.planningFreq = forceInt(prefs.get('paramPlanningFreq', 6))
-            self.planningDuration = forceInt(prefs.get('paramPlanningDuration', 28))
+            self.planningDuration = 1
 
     def getMaxEndDate(self):
         items = self.items
@@ -1455,15 +1434,15 @@ class CControlSurveillanceRegistry:
 
     def setNewPeriodRecord(self, record):
         if forceDate(record.value('endDate')) and forceDate(record.value('endDate')) > QDate.currentDate():
-            begDate = forceDate(record.value('endDate'))
+            endDate = forceDate(record.value('endDate'))
         else:
-            begDate = QDate.currentDate()
+            endDate = QDate.currentDate()
         if not self.planningBegDate:
-            if not begDate == firstMonthDay(begDate):
-                begDate = firstMonthDay(begDate.addMonths(1))
-        begDate = begDate.addMonths(self.planningFreq)
-        record.setValue('begDate', toVariant(begDate))
-        record.setValue('endDate', toVariant(begDate.addDays(self.planningDuration)))
+            if not endDate == firstMonthDay(endDate):
+                endDate = firstMonthDay(endDate.addMonths(1))
+        endDate = endDate.addMonths(self.planningFreq)
+        record.setValue('begDate', toVariant(endDate))
+        record.setValue('endDate', toVariant(endDate))
         return record
 
     def loadEx(self, MKB, prophylaxisPlanningTypeId, clientId, personId, dispanserId):
@@ -1588,14 +1567,14 @@ class CControlSurveillanceRegistry:
         db = QtGui.qApp.db
         mkbByDate = []
         for record in self.items:
-            begDate = forceDate(record.value(u'begDate'))
-            if ((forceString(record.value('MKB')), begDate.year(), begDate.month())) in mkbByDate:
+            endDate = forceDate(record.value(u'endDate'))
+            if ((forceString(record.value('MKB')), endDate.year(), endDate.month())) in mkbByDate:
                 continue
             prophylaxisPlanningTypeIds = db.getIdList(u'rbProphylaxisPlanningType', u'rbProphylaxisPlanningType.id', u'code like "%ДН%"')
             if not forceInt(record.value(u'prophylaxisPlanningType_id')) in prophylaxisPlanningTypeIds:
                 continue
             currentDate = QDate.currentDate()
-            if currentDate.year() > begDate.year() or (currentDate.year() == begDate.year() and currentDate.month() > begDate.month()):
+            if currentDate.year() > endDate.year() or (currentDate.year() == endDate.year() and currentDate.month() > endDate.month()):
                 continue
             #plannedDate = forceDate(record.value(u'plannedDate'))
             #if plannedDate.year() != currentDate.year():
@@ -1603,7 +1582,7 @@ class CControlSurveillanceRegistry:
             removeDate = forceDate(record.value(u'removeDate'))
             if removeDate:
                 continue
-            clientRecord = db.getRecordEx(u'Client', u'age(Client.birthDate, {}) as age'.format(db.formatDate(forceDate(record.value('begDate')))), u'Client.id = {}'.format(forceInt(record.value('client_id'))))
+            clientRecord = db.getRecordEx(u'Client', u'age(Client.birthDate, {}) as age'.format(db.formatDate(forceDate(record.value('endDate')))), u'Client.id = {}'.format(forceInt(record.value('client_id'))))
             if forceInt(clientRecord.value('age')) < 18:
                 continue
             dispNabMKBRecord = db.getRecordEx(u'soc_DispNabMKB', u'id', u'soc_DispNabMKB.code = "{}" and (soc_DispNabMKB.endDate is NULL or soc_DispNabMKB.endDate > {})'.format(forceString(record.value('MKB')), db.formatDate(forceDate(record.value('begDate')))))
@@ -1614,8 +1593,8 @@ class CControlSurveillanceRegistry:
             queryTable = tableDiagnosisDispansPlaned.leftJoin(tableDiagnosis, tableDiagnosis['id'].eq(tableDiagnosisDispansPlaned['diagnosis_id']))
             cond = [
                 tableDiagnosisDispansPlaned['deleted'].eq(0),
-                'year = year({})'.format(db.formatDate(forceDate(record.value('begDate')))),
-                'month = month({})'.format(db.formatDate(forceDate(record.value('begDate')))),
+                'year = year({})'.format(db.formatDate(forceDate(record.value('endDate')))),
+                'month = month({})'.format(db.formatDate(forceDate(record.value('endDate')))),
                 tableDiagnosisDispansPlaned['client_id'].eq(forceInt(record.value('client_id'))),
                 tableDiagnosis['MKB'].eq(forceString(record.value('MKB')))
             ]
@@ -1645,12 +1624,12 @@ class CControlSurveillanceRegistry:
                 newRecord.setValue('client_id', record.value('client_id'))
                 newRecord.setValue('diagnosis_id', diagnosisRecord.value('diagId'))
                 newRecord.setValue('person_id', record.value('person_id'))
-                newRecord.setValue('year', begDate.year())
-                newRecord.setValue('month', begDate.month())
+                newRecord.setValue('year', endDate.year())
+                newRecord.setValue('month', endDate.month())
                 newRecord.setValue('planVisits', toVariant(1))
                 newRecord.setValue('isExport', toVariant(1))
                 db.insertRecord(table, newRecord)
-                mkbByDate.append((forceString(record.value('MKB')), begDate.year(), begDate.month()))
+                mkbByDate.append((forceString(record.value('MKB')), endDate.year(), endDate.month()))
         
 
 class CPlanningSurveillanceModel(CInDocTableModel):
@@ -1708,9 +1687,9 @@ class CPlanningSurveillanceModel(CInDocTableModel):
         self.removeReasonDate = None
         application = QtGui.qApp
         if application.preferences.appPrefs.get('paramPlanningCheck', False):
-            self.planningBegDate = application.preferences.appPrefs.get('paramPlanningBegDate', 0)
-            self.planningFreq = application.preferences.appPrefs.get('paramPlanningFreq', 6)
-            self.planningDuration = application.preferences.appPrefs.get('paramPlanningDuration', 28)
+            self.planningBegDate = forceInt(application.preferences.appPrefs.get('paramPlanningBegDate', 0))
+            self.planningFreq = forceInt(application.preferences.appPrefs.get('paramPlanningFreq', 6))
+            self.planningDuration = 1
 
     def setDiagnosticRecords(self, diagnosticRecords):
         self.diagnosticRecords = diagnosticRecords
@@ -1887,7 +1866,7 @@ class CPlanningSurveillanceModel(CInDocTableModel):
                         periodEnded = True
                 if dispanserBegDate:
                     self._items[self._items.index(item)].setValue('takenDate', dispanserBegDate)
-                if MKB and MKB not in MKBs and not periodEnded and (
+                if MKB and MKB[:3] not in MKBs and not periodEnded and (
                         (takenDate and setDate and takenDate >= setDate) or observed == 1 or dispanserId or self.clientDeathDate):
                     MKB3 = MKB
                     if len(MKB) >= 3:
@@ -1980,11 +1959,7 @@ class CPlanningSurveillanceModel(CInDocTableModel):
             record.setValue('client_id', toVariant(self.clientId))
             if self._idxFieldName:
                 record.setValue(self._idxFieldName, toVariant(idx))
-            if self._extColsPresent:
-                outRecord = self.removeExtCols(record)
-            else:
-                outRecord = record
-            id = db.insertOrUpdate(table, outRecord)
+            id = db.insertOrUpdate(table, record)
             record.setValue(idFieldName, toVariant(id))
             idList[idx] = id
             self.saveDependence(idx, id)
@@ -2012,11 +1987,11 @@ class CPlanningSurveillanceModel(CInDocTableModel):
 class CControlSurveillanceModel(CInDocTableModel):
     Col_MKB = 0
     Col_PlannedDate = 1
-    Col_BegDate = 2
-    Col_EndDate = 3
-    Col_VisitId = 4
-    Col_PersonId = 5
-    Col_OrgStructure = 6
+    #Col_BegDate = 2
+    Col_EndDate = 2
+    Col_VisitId = 3
+    Col_PersonId = 4
+    Col_OrgStructure = 5
     #Col_RemoveDate = 7
     #Col_RemoveReasonId = 8
 
@@ -2079,13 +2054,13 @@ class CControlSurveillanceModel(CInDocTableModel):
         self._parent = parent
         db = QtGui.qApp.db
         self.personCache = CTableRecordCache(db, db.forceTable('vrbPersonWithSpeciality'), u'*', capacity=None)
-        self.addCol(CICDExInDocTableCol(u'МКБ', 'MKB', 7), QVariant.String)
+        self.addCol(CICDExInDocTableCol(u'МКБ', 'MKB', 7), QVariant.String).setReadOnly(True)
         self.addCol(CDateInDocTableCol(u'Дата планирования', 'plannedDate', 10, canBeEmpty=True))
-        self.addCol(CDateInDocTableCol(u'Дата начала периода', 'begDate', 10, canBeEmpty=True))
-        self.addCol(CDateInDocTableCol(u'Дата окончания периода', 'endDate', 10, canBeEmpty=True))
+        self.addCol(CDateInDocTableCol(u'Дата запланированной явки', 'endDate', 10, canBeEmpty=True))
         self.addCol(CControlSurveillanceModel.CVisitInDocTableCol(u'Явился', 'visit_id', 20))
         self.addCol(CPersonFindInDocTableCol(u'Врач', 'person_id', 20, 'vrbPersonWithSpeciality'))
         self.addCol(CPersonInDocTableCol(u'Подразделение', 'orgStructure_id', 20, 'OrgStructure')).setReadOnly(True)
+        self.addHiddenCol('begDate')
         self.addHiddenCol('removeDate')
         self.addHiddenCol('removeReason_id')
         # self.addHiddenCol('person_id')
@@ -2113,9 +2088,9 @@ class CControlSurveillanceModel(CInDocTableModel):
         prefs = QtGui.qApp.preferences.appPrefs
         self.autoPlanning = forceBool(prefs.get('paramPlanningCheck', False))
         if self.autoPlanning:
-            self.planningBegDate = prefs.get('paramPlanningBegDate', 0)
-            self.planningFreq = prefs.get('paramPlanningFreq', 6)
-            self.planningDuration = prefs.get('paramPlanningDuration', 28)
+            self.planningBegDate = forceInt(prefs.get('paramPlanningBegDate', 0))
+            self.planningFreq = forceInt(prefs.get('paramPlanningFreq', 6))
+            self.planningDuration = 1
 
     def getDispanserRecords(self):
         self.dispanserRecords = {}
@@ -2314,7 +2289,8 @@ class CControlSurveillanceModel(CInDocTableModel):
             column = index.column()
             orgStructureId = None
             specialityId = None
-            if row == len(self._items):
+            isNew = row == len(self._items)
+            if isNew:
                 if value.isNull():
                     return False
                 maxRemoveDate = self.getMaxRemoveDate()
@@ -2331,8 +2307,8 @@ class CControlSurveillanceModel(CInDocTableModel):
                     if visitId:
                         visitCache = self.cols()[column].caches
                         visitRecord = visitCache.get(visitId, None) if visitId else None
+                        db = QtGui.qApp.db
                         if not visitRecord:
-                            db = QtGui.qApp.db
                             table = db.table('Visit')
                             visitRecord = db.getRecordEx(table, '*', [table['id'].eq(visitId), table['deleted'].eq(0)])
                             if visitRecord:
@@ -2420,15 +2396,26 @@ class CControlSurveillanceModel(CInDocTableModel):
                         self.setValue(row, 'scene_id', sceneId)
                 elif column == self.Col_PersonId:
                     userId = forceRef(item.value('person_id'))
+                    if not isNew:
+                        personRecord = self.personCache.get(userId) if userId else None
+                        if personRecord:
+                            orgStructureId = forceInt(personRecord.value('orgStructure_id'))
+                            specialityId = forceInt(personRecord.value('speciality_id'))
 
-                personRecord = self.personCache.get(userId) if userId else None
-                if personRecord:
-                    orgStructureId = forceInt(personRecord.value('orgStructure_id'))
-                    specialityId = forceInt(personRecord.value('speciality_id'))
+                        self.setValue(row, 'orgStructure_id', orgStructureId)
+                        self.setValue(row, 'speciality_id', specialityId)
+                elif column == self.Col_EndDate:
+                    self.setValue(row, 'begDate', value)
 
-                self.setValue(row, 'person_id', userId)
-                self.setValue(row, 'orgStructure_id', orgStructureId)
-                self.setValue(row, 'speciality_id', specialityId)
+                if isNew:
+                    personRecord = self.personCache.get(userId) if userId else None
+                    if personRecord:
+                        orgStructureId = forceInt(personRecord.value('orgStructure_id'))
+                        specialityId = forceInt(personRecord.value('speciality_id'))
+
+                    self.setValue(row, 'person_id', userId)
+                    self.setValue(row, 'orgStructure_id', orgStructureId)
+                    self.setValue(row, 'speciality_id', specialityId)
                 self.emitRowChanged(row)
             return result
         return False

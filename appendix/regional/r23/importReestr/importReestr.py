@@ -3,7 +3,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -24,6 +24,8 @@ import sys
 import tempfile
 import traceback
 from optparse import OptionParser
+import json
+import urllib2
 
 import platform
 
@@ -55,6 +57,8 @@ from importSnils import CSnilsImportDialog
 from importMedpol import CMedpolImportDialog
 from Ui_importRegistry import Ui_MainWindow
 from library.Utils import firstMonthDay
+
+
 
 class CMyApp(QtGui.QApplication):
     __pyqtSignals__ = ('dbConnectionChanged(bool)',
@@ -381,6 +385,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     def __init__(self, parent=None):
         QtGui.QDialog.__init__(self, parent)
         self.setupUi(self)
+
 #        self.registryFileName = 'reestr.dbf'
 
 #        self.accountingSystemId  = None
@@ -388,11 +393,160 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 #        self.childDocumentTypeId = None
 #        self.adultDocumentTypeId = None
 #        self.contactTypeId       = None
-
+        self.criteries = []
         self.loadPreferences()
         self.prbAttachImport.setVisible(False)
         self.attachImportRunning = False
         self.edtImportAttachActDate.setDate(firstMonthDay(QDate.currentDate()))
+        self.lblvalue.setEnabled(False)
+        self.stackedValue = QtGui.QStackedWidget()
+        self.lineEditValue = QtGui.QLineEdit()
+        self.comboBoxValue = QtGui.QComboBox()
+        self.stackedValue.addWidget(self.lineEditValue)  
+        self.stackedValue.addWidget(self.comboBoxValue)
+        # Добавляем стек в колонку 3 (между lblvalue и кнопкой "Добавить")
+        self.gridLayout_6.addWidget(self.stackedValue, 1, 3, 1, 1)
+        # Колонка 3 (поле ввода) растягивается
+        self.gridLayout_6.setColumnStretch(3, 1)
+        # Остальные колонки не растягиваются (0,1,2,4 – по умолчанию 0)
+        self.tableView.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
+        self.tableView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.tableView.customContextMenuRequested.connect(self.showTableContextMenu)
+        self.edtdataFerzl.setDate(firstMonthDay(QDate.currentDate()))
+
+        
+    def ferzlStatus(self):
+        self.ferzl_atach = {}
+        db = QtGui.qApp.db
+        if db is None:
+            self.lblferzlStatus.setText(u"Ожидание подключения к БД")
+            self.lblferzlStatus.setStyleSheet("color: gray;")
+            self.fillCriteriaTable()  # очистит таблицу
+            return
+
+        stmt = u'''SELECT 
+                        id, 
+                        f.CreateDateTime AS CreateDateTime, 
+                        f.value AS value, 
+                        f.status AS status
+                    FROM ferzl_attachments f
+                    ORDER BY f.CreateDateTime DESC
+                    LIMIT 1;'''
+        query = db.query(stmt)
+        while query.next():
+            record = query.record()
+            self.ferzl_atach['id'] = forceInt(record.value('id'))
+            self.ferzl_atach['value'] = forceString(record.value('value'))
+            self.ferzl_atach['status'] = forceString(record.value('status'))
+        if self.ferzl_atach:
+            self.btnAddTypeFerzl.setEnabled(True)
+            self.btnFerzlSearch.setEnabled(True)
+            if self.ferzl_atach['status'] in (u'COMPLETED', u'ERROR'):
+                self.lblferzlStatus.setText(u"Запрос данных разрешён!")
+                self.lblferzlStatus.setStyleSheet("color: green;")
+            elif self.ferzl_atach['status'] == u'ERROR_NO_RESULT':
+                self.lblferzlStatus.setText(u"По заданным параметрам, предыдущий результат вернул ответ: Данные за указанный период в ФЕРЗЛ отсутствуют!")
+                self.lblferzlStatus.setStyleSheet("color: green;")
+            else:
+                self.lblferzlStatus.setText(u"Предыдущий запрос в обработке! Попробуйте позднее.")
+                self.lblferzlStatus.setStyleSheet("color: red;")
+                self.btnAddTypeFerzl.setEnabled(False)
+                self.btnFerzlSearch.setEnabled(False)
+        else:
+            self.lblferzlStatus.setText(u"Запрос данных разрешён!")
+            self.lblferzlStatus.setStyleSheet("color: green;")
+        self.fillCriteriaTable()
+
+    def showTableContextMenu(self, pos):
+        """Показывает контекстное меню при клике ПКМ."""
+        index = self.tableView.indexAt(pos)
+        if not index.isValid():
+            return
+        row = index.row()
+        menu = QtGui.QMenu(self)
+        action_delete = QtGui.QAction(u"Удалить строку", self)
+        action_delete.triggered.connect(lambda: self.deleteTableRow(row))
+        menu.addAction(action_delete)
+        menu.exec_(self.tableView.mapToGlobal(pos))
+
+    def deleteTableRow(self, row):
+        """Удаляет строку из модели и из списка criteries."""
+        if row < 0 or row >= self.model.rowCount():
+            return
+        # Удаляем из списка criteries (если он существует)
+        if hasattr(self, 'criteries') and 0 <= row < len(self.criteries):
+            del self.criteries[row]
+            
+        # Удаляем из модели
+        self.model.removeRow(row)
+
+    def fillCriteriaTable(self):
+        nameAttached = {
+            "smo": {'name': u'Прикреплённые к данной МО и застрахованные в определенной СМО','value':u"Код СМО", 'type': u'' },
+            "smo_okato": {'name': u'Прикреплённые к данной МО и застрахованные на своей территории','value':u"Код ОКАТО", 'type': u''},
+            "smo_okato!": {'name': u'Прикреплённые к данной МО и застрахованные на чужой территории','value':u"Код ОКАТО", 'type': u''},
+            "mo_f_id": {'name': u'Прикрепленные к определенному филиалу','value':u"oid", 'type': u''},
+            "mo_dep_id": {'name': u'Прикрепленные к определенному структурному подразделению','value':u"oid", 'type': u''},
+            "area_type": {'name': u'Прикрепленные к данной МО с определённым профилем','value':u"Профиль прикрепления", 'type': u'areaType'},
+            "attach_method": {'name': u'Прикрепленные к данной МО определённым способом','value':u"Способ прикрепления", 'type': u'attachMethod'},
+            # "area_id": {'name': u'Прикрепленные к данной МО к определённому участку','value':u" "},
+        }
+        areaType = {
+            1: u'терапевтический',
+            2: u'акушерско-гинекологический',
+            3: u'стоматологический',
+            4: u'СМП',
+            5: u'ФАП'
+        }
+        attachMethod = {
+            1: u'по территориальному признаку',
+            2: u'по личному заявлению',
+            3: u'по электронному заявлению',
+            4: u'по распоряжению органов здравоохранения',
+        }
+
+        # Создаём модель
+        self.model = QtGui.QStandardItemModel(0, 2, self)
+        self.model.setHorizontalHeaderLabels([u"Поле", u"Значение"])
+        self.tableView.setModel(self.model)
+
+        # Растягиваем столбцы (для QTableView)
+        header = self.tableView.horizontalHeader()
+        header.setResizeMode(0, QtGui.QHeaderView.Stretch)
+        header.setResizeMode(1, QtGui.QHeaderView.Stretch)
+
+        if not self.ferzl_atach or 'value' not in self.ferzl_atach:
+            return
+
+        value_str = self.ferzl_atach['value']
+        try:
+            data = json.loads(value_str)
+            self.criteries = data.get('criteries', [])
+            if not self.criteries:
+                return
+
+            # Устанавливаем количество строк в модели
+            self.model.setRowCount(len(self.criteries))
+
+            for row, item in enumerate(self.criteries):
+                r = item.get('fieldNameAttached', '')
+                field = nameAttached[r]['name']
+                if r == u'area_type':
+                    value = areaType[forceInt(item.get('value', 1))]
+                elif r == u'attach_method':
+                    value = attachMethod[forceInt(item.get('value', ''))]
+                else:
+                    value = item.get('value', '')
+                val = nameAttached[r]['value'] + u': ' + value
+                value = val
+
+                item_field = QtGui.QStandardItem(field)
+                item_value = QtGui.QStandardItem(value)
+                self.model.setItem(row, 0, item_field)
+                self.model.setItem(row, 1, item_value)
+        except Exception:
+            pass  
+
 
     def loadPreferences(self):
         preferences = getPref(QtGui.qApp.preferences.windowPrefs, self.objectName(), {})
@@ -412,7 +566,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
         self.edtMainDataFileName.setEnabled(self.chkImportClients.isChecked())
         self.edtPrikFileName.setText(getPrefString(appPreferences, 'prikFileName', ''))
         self.edtSnilsFileName.setText(getPrefString(appPreferences, 'snilsFileName', ''))
-        self.edtMedpolFileName.setText(getPrefString(appPreferences, 'medpolFileName', ''))
+        # self.edtMedpolFileName.setText(getPrefString(appPreferences, 'medpolFileName', ''))
         self.edtAttachURL.setText(getPrefString(appPreferences, 'attachURL', ''))
         self.checkName()
         self.checkServiceName()
@@ -432,7 +586,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
         setPref(appPreferences, 'importClients', QVariant(self.chkImportClients.isChecked()))
         setPref(appPreferences, 'prikFileName', QVariant(self.edtPrikFileName.text()))
         setPref(appPreferences, 'snilsFileName', QVariant(self.edtSnilsFileName.text()))
-        setPref(appPreferences, 'medpolFileName', QVariant(self.edtMedpolFileName.text()))
+        # setPref(appPreferences, 'medpolFileName', QVariant(self.edtMedpolFileName.text()))
         setPref(appPreferences, 'attachURL', QVariant(self.edtAttachURL.text()))
         #setPref(appPreferences, 'fillSpecialityRegionalCode', QVariant(self.chkFillSpecialityRegionalCode.isChecked()))
 
@@ -468,8 +622,8 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
     def checkSnilsName(self):
         self.btnImportSnils.setEnabled(self.edtSnilsFileName.text() != '')
 
-    def checkMedpolName(self):
-        self.btnImportMedpol.setEnabled(self.edtMedpolFileName.text() != '')
+    # def checkMedpolName(self):
+    #     self.btnImportMedpol.setEnabled(self.edtMedpolFileName.text() != '')
 
     def checkDispSettingsName(self):
         self.btnImportDispSettings.setEnabled(self.edtDispSettingsFileName.text() != '')
@@ -768,6 +922,275 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
         except:
             QtGui.qApp.logCurrentException()
 
+    @pyqtSignature('')
+    def on_btnFerzlSearch_clicked(self):
+        db = QtGui.qApp.db
+        tableGlobalPreferences = db.table('GlobalPreferences')
+        cond = [u" GlobalPreferences.code = '23:servicesURL'"]
+        cols = [tableGlobalPreferences['value'].alias('url')]
+        record = db.getRecordEx(tableGlobalPreferences, cols, cond)
+
+        if record is None:
+            QtGui.QMessageBox.warning(
+                QtGui.qApp.mainWindow,
+                u'Внимание',
+                u'В примечаниях не указан "IP Адрес сервера сервиса"'
+            )
+            return
+
+        # Базовый URL
+        base_url = forceString(record.value('url')).strip()
+        if not base_url.startswith(('http://', 'https://')):
+            base_url = 'http://' + base_url  # уточните протокол
+
+        full_url = base_url.rstrip('/') + "/api/ferzl/oms/services/MpiAsyncOperations/getViewDataAttachStart"
+
+        # Преобразование criteries из QVariant в нативный Python-объект
+        criteries = self.criteries
+        if hasattr(criteries, 'toPyObject'):
+            criteries = criteries.toPyObject()
+        elif hasattr(criteries, 'toList'):
+            criteries = criteries.toList()
+        if not isinstance(criteries, list):
+            try:
+                criteries = list(criteries)
+            except:
+                criteries = []
+
+        # Формируем payload (дата может браться из поля ввода)
+        dt = self.edtdataFerzl.date().addMonths(1)
+        payload = {
+            "dt": forceString(dt.toString("yyyy-MM-dd")),
+            "criteries": criteries
+        }
+
+        data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+
+        # Отладочный вывод
+        # print("=" * 60)
+        # print("URL:", full_url)
+        # print("Отправляемый JSON:")
+        # print(json.dumps(payload, indent=2, ensure_ascii=False).encode('utf-8'))
+        # print("=" * 60)
+
+        req = urllib2.Request(full_url, data=data, headers={
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        })
+
+        try:
+            response = urllib2.urlopen(req, timeout=30)
+            response_data = response.read()
+            try:
+                response_text = response_data.decode('utf-8')
+            except UnicodeDecodeError:
+                response_text = response_data
+
+            # print("ответ от сервера:")
+            # print(response_text)
+
+            result = json.loads(response_text)
+            # print("\nРазобранный JSON:")
+            # print(json.dumps(result, indent=2, ensure_ascii=False).encode('utf-8'))
+
+            # ---------- ОБРАБОТКА ОТВЕТА ----------
+            if result.get('success') is True:
+                data_part = result.get('data', {})
+                op_token = data_part.get('opToken', 'не указан')
+                master_id = data_part.get('masterId', 'не указан')
+                msg = u"Операция успешно запущена.\nopToken: {}\nmasterId: {}".format(op_token, master_id)
+                QtGui.QMessageBox.information(
+                    QtGui.qApp.mainWindow,
+                    u'Успех',
+                    msg
+                )
+                # print("Успешно:", data_part)
+                self.lblferzlStatus.setText(u"Предыдущий запрос в обработке! Попробуйте позднее.")
+                self.lblferzlStatus.setStyleSheet("color: red;")
+                self.btnAddTypeFerzl.setEnabled(False)
+                self.btnFerzlSearch.setEnabled(False)
+                # СЮДА СМЕНА СМС
+
+            else:
+                # Извлекаем сообщение об ошибке
+                error_data = result.get('error', {})
+                error_message = error_data.get('message', 'Неизвестная ошибка')
+                error_code = error_data.get('code', '')
+                error_detail = error_data.get('detail', '')
+                full_error = u"{}\nКод: {}\nДетали: {}".format(error_message, error_code,
+                                                               error_detail) if error_code or error_detail else error_message
+
+                QtGui.QMessageBox.warning(
+                    QtGui.qApp.mainWindow,
+                    u'Ошибка при выполнении запроса',
+                    full_error
+                )
+                # print("Ошибка от сервера:", full_error)
+
+        except urllib2.HTTPError as e:
+            error_body = e.read()
+            try:
+                error_text = error_body.decode('utf-8')
+            except:
+                error_text = error_body
+            QtGui.QMessageBox.critical(
+                QtGui.qApp.mainWindow,
+                u'HTTP ошибка',
+                u"Код: {}\n{}".format(e.code, error_text)
+            )
+            print("HTTP ошибка: код {}, тело: {}".format(e.code, error_text))
+
+        except urllib2.URLError as e:
+            QtGui.QMessageBox.critical(
+                QtGui.qApp.mainWindow,
+                u'Ошибка соединения',
+                unicode(e.reason) if hasattr(e.reason, '__unicode__') else str(e.reason)
+            )
+            print("Ошибка соединения:", e.reason)
+
+        except ValueError as e:
+            QtGui.QMessageBox.critical(
+                QtGui.qApp.mainWindow,
+                u'Ошибка парсинга JSON',
+                unicode(e) if hasattr(e, '__unicode__') else str(e)
+            )
+            print("Ошибка парсинга JSON:", e)
+
+        except Exception as e:
+            QtGui.QMessageBox.critical(
+                QtGui.qApp.mainWindow,
+                u'Неизвестная ошибка',
+                unicode(e) if hasattr(e, '__unicode__') else str(e)
+            )
+            print("Неизвестная ошибка:", str(e))
+
+    @pyqtSignature('')
+    def on_btnUpdateFerzl_clicked(self):
+        self.ferzlStatus()
+    
+    @pyqtSignature('')
+    def on_btnAddTypeFerzl_clicked(self):
+        index = self.cmbFerzlType.currentIndex()
+        if index == 0:
+            QtGui.QMessageBox.warning(self, u'Предупреждение', u'Выберите тип критерия')
+            return
+
+        # Определяем fieldNameAttached и значение
+        if index == 1:
+            fieldName = "smo"
+            value = forceString(self.lineEditValue.text())
+        elif index == 2:
+            fieldName = "smo_okato"
+            value = forceString(self.lineEditValue.text())
+        elif index == 3:
+            fieldName = "smo_okato!"
+            value = forceString(self.lineEditValue.text())
+        elif index == 4:
+            fieldName = "mo_f_id"
+            value = forceString(self.lineEditValue.text())
+        elif index == 5:
+            fieldName = "mo_dep_id"
+            value = forceString(self.lineEditValue.text())
+        elif index == 6:
+            fieldName = "area_type"
+            combo_index = self.comboBoxValue.currentIndex()
+            if combo_index == 0:
+                QtGui.QMessageBox.warning(self, u'Предупреждение', u'Выберите профиль прикрепления')
+                return
+            value = str(combo_index)  # отправляем номер выбранного пункта (1..5)
+        elif index == 7:
+            fieldName = "attach_method"
+            combo_index = self.comboBoxValue.currentIndex()
+            if combo_index == 0:
+                QtGui.QMessageBox.warning(self, u'Предупреждение', u'Выберите способ прикрепления')
+                return
+            value = str(combo_index)  # отправляем номер выбранного пункта (1..4)
+        else:
+            return
+
+        if not value:
+            QtGui.QMessageBox.warning(self, u'Предупреждение', u'Введите значение')
+            return
+
+        # Создаём новый критерий
+        new_criterion = {
+            "fieldNameAttached": fieldName,
+            "logicOperation": 0,
+            "value": value
+        }
+
+        # Добавляем в список criteries
+        self.criteries.append(new_criterion)
+
+        # Обновляем JSON в ferzl_atach (для сохранения)
+        data = {"criteries": self.criteries}
+        self.ferzl_atach['value'] = json.dumps(data, ensure_ascii=False)
+
+        # Перезаполняем таблицу
+        self.fillCriteriaTable()
+
+        # Очищаем поля ввода
+        self.lineEditValue.clear()
+        self.comboBoxValue.setCurrentIndex(0)
+        self.cmbFerzlType.setCurrentIndex(0)
+    
+    @pyqtSignature('int')
+    def on_cmbFerzlType_currentIndexChanged(self, index):
+        if index == 0:
+            self.lblvalue.setEnabled(False)
+            self.lblvalue.setText(u'Значение')
+            self.stackedValue.setCurrentIndex(0)
+            self.lineEditValue.setEnabled(False)
+            self.lineEditValue.clear()
+        elif index == 1:
+            self.lblvalue.setEnabled(True)
+            self.lblvalue.setText(u'Введите код СМО')
+            self.stackedValue.setCurrentIndex(0)  # QLineEdit
+            self.lineEditValue.setEnabled(True)
+            self.lineEditValue.clear()
+        elif index in (2, 3):
+            self.lblvalue.setEnabled(True)
+            self.lblvalue.setText(u'Введите код ОКАТО')
+            self.stackedValue.setCurrentIndex(0)
+            self.lineEditValue.setEnabled(True)
+            self.lineEditValue.clear()
+        elif index in (4, 5):
+            self.lblvalue.setEnabled(True)
+            self.lblvalue.setText(u'Введите oid МО')
+            self.stackedValue.setCurrentIndex(0)
+            self.lineEditValue.setEnabled(True)
+            self.lineEditValue.clear()
+        elif index == 6:
+            self.lblvalue.setEnabled(True)
+            self.lblvalue.setText(u'Выберите профиль прикрепления')
+            self.stackedValue.setCurrentIndex(1)  # QComboBox
+            self.comboBoxValue.clear()
+            self.comboBoxValue.addItems([u'Не указано', u'Терапевтический',
+                                         u'Акушерско-гинекологический',
+                                         u'Стоматологический', u'СМП', u'ФАП'])
+            self.comboBoxValue.setEnabled(True)
+        elif index == 7:
+            self.lblvalue.setEnabled(True)
+            self.lblvalue.setText(u'Выберите способ прикрепления')
+            self.stackedValue.setCurrentIndex(1)  # QComboBox
+            self.comboBoxValue.clear()
+            self.comboBoxValue.addItems([u'Не указано',
+                                         u'По территориальному признаку',
+                                         u'По личному заявлению',
+                                         u'По электронному заявлению',
+                                         u'По распоряжению органов здравоохранения',
+                                         ])
+            self.comboBoxValue.setEnabled(True)
+        else:
+            self.lblvalue.setEnabled(False)
+            self.lblvalue.setText(u'Значение')
+            self.stackedValue.setCurrentIndex(0)
+            self.lineEditValue.setEnabled(False)
+            self.lineEditValue.clear()
+
+
+
+
     @QtCore.pyqtSignature('int')
     def on_chkImportClients_stateChanged(self, state):
         self.checkName()
@@ -798,9 +1221,9 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
         self.checkSnilsName()
 
 
-    @pyqtSignature('QString')
-    def on_edtMedpolFileName_textChanged(self, text):
-        self.checkMedpolName()
+    # @pyqtSignature('QString')
+    # def on_edtMedpolFileName_textChanged(self, text):
+    #     self.checkMedpolName()
 
     @pyqtSignature('QString')
     def on_edtDispSettingsFileName_textChanged(self, text):
@@ -845,13 +1268,13 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
             self.edtSnilsFileName.setText(QDir.toNativeSeparators(fileName))
             self.checkSnilsName()
 
-    @pyqtSignature('')
-    def on_btnSelectMedpolFile_clicked(self):
-        fileName = QtGui.QFileDialog.getOpenFileName(
-            self, u'Укажите архив с данными', self.edtMedpolFileName.text(), u'Файлы ZIP (*.zip)')
-        if fileName != '':
-            self.edtMedpolFileName.setText(QDir.toNativeSeparators(fileName))
-            self.checkMedpolName()
+    # @pyqtSignature('')
+    # def on_btnSelectMedpolFile_clicked(self):
+    #     fileName = QtGui.QFileDialog.getOpenFileName(
+    #         self, u'Укажите архив с данными', self.edtMedpolFileName.text(), u'Файлы ZIP (*.zip)')
+    #     if fileName != '':
+    #         self.edtMedpolFileName.setText(QDir.toNativeSeparators(fileName))
+    #         self.checkMedpolName()
 
     @pyqtSignature('')
     def on_btnSelectImportDispFile_clicked(self):
@@ -1070,6 +1493,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
             if QtGui.qApp.demoModePosible() and QtGui.qApp.demoModeRequested:
                 QtGui.qApp.setUserId(None, True)
                 self.setUserName(QtGui.qApp.userName())
+                self.ferzlStatus()
 #                self.updateActionsState()
             else:
                 dialog = CLoginDialog(self)
@@ -1080,6 +1504,7 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
                     self.setUserName(QtGui.qApp.preferences.appUserName)
 #                    self.setUserName(QtGui.qApp.userName())
 #                    self.updateActionsState()
+                    self.ferzlStatus()
             return
         except database.CDatabaseException, e:
             QtGui.QMessageBox.critical(

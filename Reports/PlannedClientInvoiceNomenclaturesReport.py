@@ -284,7 +284,7 @@ def selectData(params, customDate=None):
                         GROUP_CONCAT(DATE_FORMAT(ActionExecutionPlan_Item.time, '%H:%i') order by DATE_FORMAT(ActionExecutionPlan_Item.time, '%H:%i'))
                                 ),
                         '00:00')) AS time''',
-                    u'''GROUP_CONCAT(DISTINCT ActionExecutionPlan_Item_Nomenclature.dosage  ORDER BY ActionExecutionPlan_Item_Nomenclature.id) AS dosage''',
+                    u'''GROUP_CONCAT(DISTINCT NULLIF(ActionExecutionPlan_Item_Nomenclature.dosage, '') ORDER BY ActionExecutionPlan_Item_Nomenclature.id) AS dosage''',
                     u'''COUNT(ActionExecutionPlan_Item_Nomenclature.id) AS aliquoticity''',
                     u'''SUM(ActionExecutionPlan_Item_Nomenclature.dosage) AS sumDosage''',
                     u'''(SELECT COUNT(AEPIC.master_id) FROM ActionExecutionPlan_Item AS AEPIC WHERE
@@ -304,7 +304,7 @@ def selectData(params, customDate=None):
                         AND AEP.date = DATE('%s')) AS currentDateAvialable'''%(forceString(begDate.toString('yyyy-MM-dd')), forceString(begDate.toString('yyyy-MM-dd'))),
                     u'''IF(COUNT(ActionExecutionPlan_Item.executedDatetime IS NOT NULL) = ActionExecutionPlan_Item.id, 1, 0) AS isExecuted''',
                     u'''(SELECT
-                            GROUP_CONCAT(ActionProperty_String.value)
+                            GROUP_CONCAT(NULLIF(ActionProperty_String.value, ''))
                         FROM
                             Action
                                 LEFT JOIN
@@ -550,11 +550,14 @@ class CPlannedClientInvoiceNomenclaturesReport(CReport):
         data = []
 
         for i in range(endDate.toJulianDay()-begDate.toJulianDay()+1):
-            data.append(('DATE_DATA',
-            {
-                'date': formatDate(begDate.addDays(i)),
-            }))
             dateData = selectData(params, begDate.addDays(i))
+            if not dateData:
+                continue
+
+            data.append(('DATE_DATA',
+                {
+                    'date': formatDate(begDate.addDays(i)),
+                }))
             data.extend(dateData)
 
         boldChars = QtGui.QTextCharFormat()

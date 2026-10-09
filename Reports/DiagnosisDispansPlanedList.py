@@ -54,8 +54,7 @@ def getQuery(params):
             ]
 
     if begDate and endDate:
-        cond.append(db.joinOr([table['begDate'].between(begDate, endDate),
-                               table['endDate'].between(begDate, endDate)]))
+        cond.append(table['endDate'].between(begDate, endDate))
 
     if personId:
         cond.append(tableDiagnosis['dispanserPerson_id'].eq(personId))
@@ -102,14 +101,14 @@ SELECT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) AS cli
         FROM ProphylaxisPlanning pp2
         LEFT JOIN Visit v ON v.id = pp2.visit_id
         WHERE pp2.parent_id = pp.parent_id AND pp2.deleted = 0 AND pp2.visit_id IS NOT NULL
-        AND pp2.begDate < pp.begDate
+        AND pp2.endDate < pp.endDate
         ORDER BY v.date DESC LIMIT 1) AS lastVisitDate,
-       CONCAT_WS(' - ', DATE_FORMAT(pp.begDate, '%d.%m.%Y'), DATE_FORMAT(pp.endDate, '%d.%m.%Y')) as curPeriod,
+       DATE_FORMAT(pp.endDate, '%d.%m.%Y') as endDate,
        Visit.date AS visitDate,
-       (SELECT CONCAT_WS(' - ', DATE_FORMAT(pp3.begDate, '%d.%m.%Y'), DATE_FORMAT(pp3.endDate, '%d.%m.%Y'))
+       (SELECT DATE_FORMAT(pp3.endDate, '%d.%m.%Y')
         FROM ProphylaxisPlanning pp3
-        WHERE pp3.parent_id = pp.parent_id AND pp3.deleted = 0 AND pp3.begDate >= CURDATE()
-        ORDER BY pp3.begDate ASC LIMIT 1) AS nextVisitDate
+        WHERE pp3.parent_id = pp.parent_id AND pp3.deleted = 0 AND pp3.endDate >= CURDATE()
+        ORDER BY pp3.endDate ASC LIMIT 1) AS nextVisitDate
 FROM ProphylaxisPlanning pp
 LEFT JOIN rbProphylaxisPlanningType ppt ON ppt.id = pp.prophylaxisPlanningType_id
 LEFT JOIN Client on Client.id = pp.client_id
@@ -296,9 +295,9 @@ class CDiagnosisDispansPlanedListReport(CReport):
             ('3%', [u'МКБ'], CReportBase.AlignLeft),
             ('5%', [u'Дата взятия на Д-учет'], CReportBase.AlignLeft),
             ('5%', [u'Дата предыдущей явки'], CReportBase.AlignLeft),
-            ('10%',  [u'Запланированный период'], CReportBase.AlignLeft),
+            ('10%',  [u'Запланированная явка'], CReportBase.AlignLeft),
             ('5%', [u'Дата явки'], CReportBase.AlignLeft),
-            ('10%',  [u'Период следующей явки'], CReportBase.AlignLeft)
+            ('10%',  [u'Дата следующей явки'], CReportBase.AlignLeft)
         ]
 
         table = createTable(cursor, tableColumns)
@@ -317,7 +316,7 @@ class CDiagnosisDispansPlanedListReport(CReport):
             table.setText(row, 7, forceString(record.value('MKB')))
             table.setText(row, 8, formatDate(forceDate(record.value('dispanserBegDate'))))
             table.setText(row, 9, formatDate(forceDate(record.value('lastVisitDate'))))
-            table.setText(row, 10, forceString(record.value('curPeriod')))
+            table.setText(row, 10, forceString(record.value('endDate')))
             table.setText(row, 11, formatDate(forceDate(record.value('visitDate'))))
             table.setText(row, 12, forceString(record.value('nextVisitDate')))
 
@@ -350,8 +349,8 @@ class CDiagnosisDispansNoVisitReport(CDiagnosisDispansPlanedListReport):
             ('3%', [u'МКБ'], CReportBase.AlignLeft),
             ('5%', [u'Дата взятия на Д-учет'], CReportBase.AlignLeft),
             ('5%', [u'Дата предыдущей явки'], CReportBase.AlignLeft),
-            ('10%', [u'Запланированный период'], CReportBase.AlignLeft),
-            ('10%', [u'Период следующей явки'], CReportBase.AlignLeft)
+            ('10%', [u'Запланированная явка'], CReportBase.AlignLeft),
+            ('10%', [u'Дата следующей явки'], CReportBase.AlignLeft)
         ]
         table = createTable(cursor, tableColumns)
         rowNumber = 0
@@ -369,6 +368,6 @@ class CDiagnosisDispansNoVisitReport(CDiagnosisDispansPlanedListReport):
             table.setText(row, 7, forceString(record.value('MKB')))
             table.setText(row, 8, formatDate(forceDate(record.value('dispanserBegDate'))))
             table.setText(row, 9, formatDate(forceDate(record.value('lastVisitDate'))))
-            table.setText(row, 10, forceString(record.value('curPeriod')))
+            table.setText(row, 10, forceString(record.value('endDate')))
             table.setText(row, 11, forceString(record.value('nextVisitDate')))
         return doc

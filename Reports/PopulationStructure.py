@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2020 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -31,8 +31,7 @@ SELECT
    %(orgStructField)s AS repOrgStructure_id,
    age(Client.birthDate, %(attachCheckDate)s) AS clientAge,
    Client.sex AS clientSex,
-   IF(ClientAttach.id IS NULL,0,1) AS attached,
-   IF(ClientIdentification.checkDate IS NULL,0,1) AS confirmed %(serviceAreaField)s
+   IF(ClientAttach.id IS NULL,0,1) AS attached  %(serviceAreaField)s
 FROM Client
 %(joins)s
 LEFT JOIN ClientAttach  ON ClientAttach.client_id = Client.id
@@ -46,16 +45,9 @@ LEFT JOIN ClientAttach  ON ClientAttach.client_id = Client.id
                                               )
                         AND %(attachToArea)s
 LEFT JOIN rbAttachType ON rbAttachType.id=ClientAttach.attachType_id
-LEFT JOIN ClientIdentification ON ClientIdentification.client_id
-                               AND ClientIdentification.id = (
-    SELECT MAX(CI.id)
-    FROM ClientIdentification AS CI
-    LEFT JOIN rbAccountingSystem ON rbAccountingSystem.id = CI.accountingSystem_id
-    WHERE rbAccountingSystem.code in (\'1\', \'2\')
-    AND CI.client_id = Client.id)
 %(serviceAreaJoin)s
 WHERE %(mainCond)s
-GROUP BY repOrgStructure_id, clientAge, clientSex, attached, confirmed
+GROUP BY repOrgStructure_id, clientAge, clientSex, attached %(groupBy)s
     """
     db = QtGui.qApp.db
     tableClient  = db.table('Client')
@@ -127,13 +119,13 @@ LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id AND 
                 serviceAddressHouse = u'AReg.house_id'
             else:
                 orgStructField = 'ClientAttach.orgStructure_id'
-                serviceAddressHouse = ''' (SELECT AReg.house_id
-                                           FROM ClientAddress AS CAReg
-                                                LEFT JOIN Address AS AReg ON AReg.id = CAReg.address_id
-                                                LEFT JOIN OrgStructure_Address AS OSAReg ON OSAReg.house_id = AReg.house_id
-                                           WHERE CAReg.client_id = Client.id
-                                                AND CAReg.id = (SELECT MAX(CARegInt.id) FROM ClientAddress AS CARegInt WHERE CARegInt.type=0 AND CARegInt.client_id=Client.id AND CARegInt.deleted = 0)
-                                                AND CAReg.deleted = 0 AND AReg.deleted = 0 AND OSAReg.master_id = ClientAttach.orgStructure_id
+                serviceAddressHouse = ''' (SELECT ALoc.house_id
+                                           FROM ClientAddress AS CALoc
+                                                LEFT JOIN Address AS ALoc ON ALoc.id = CALoc.address_id
+                                                LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id
+                                           WHERE CALoc.client_id = Client.id
+                                                AND CALoc.id = (SELECT MAX(CALocInt.id) FROM ClientAddress AS CALocInt WHERE CALocInt.type=1 AND CALocInt.client_id=Client.id AND CALocInt.deleted = 0)
+                                                AND CALoc.deleted = 0 AND ALoc.deleted = 0 AND OSALoc.master_id = ClientAttach.orgStructure_id
                                            LIMIT 1
                                           )''' % {'orgStructField' : orgStructField}
     else:
@@ -152,6 +144,7 @@ LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id AND 
                 orgStructField = 'NULL'
     serviceAreaField = u''
     serviceAreaJoin = u''
+    grouping = u''
     if bool(isServiceArea and orgStructField and orgStructField != 'NULL' and serviceAddressHouse):
         serviceAreaJoin = u'''LEFT JOIN AddressHouse AS AH ON (AH.id IN (SELECT OSA.house_id
                                                                          FROM OrgStructure_Address AS OSA
@@ -160,6 +153,7 @@ LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id AND 
                                                                AND AH.deleted = 0)'''% {'orgStructField' : orgStructField,
                                                                                         'serviceAddressHouse' : serviceAddressHouse}
         serviceAreaField = u', AH.id AS addressHouseId, AH.KLADRCode, AH.KLADRStreetCode, AH.number, AH.corpus'
+        grouping += u', addressHouseId'
     #print stmt % {'orgStructField' : orgStructField,
     #                        'attachCheckDate': tableClient['birthDate'].formatValue(endDate),
     #                        'attachToArea'   : tableClientAttach['orgStructure_id'].inlist(areaIdList),
@@ -167,6 +161,8 @@ LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id AND 
     #                        'joins'          : joins,
     #                        'serviceAreaJoin': serviceAreaJoin,
     #                        'mainCond'       : db.joinAnd(cond)}
+    # cond.append(tableClient['endDate'].isNull())
+    cond.append(u'((Client.endDate IS NOT NULL and ClientAttach.id IS NOT NULL) or Client.endDate IS NULL)')
 
     return db.query(stmt % {'orgStructField' : orgStructField,
                             'attachCheckDate': tableClient['birthDate'].formatValue(endDate),
@@ -174,7 +170,9 @@ LEFT JOIN OrgStructure_Address AS OSALoc ON OSALoc.house_id = ALoc.house_id AND 
                             'serviceAreaField': serviceAreaField,
                             'joins'          : joins,
                             'serviceAreaJoin': serviceAreaJoin,
-                            'mainCond'       : db.joinAnd(cond)})
+                            'mainCond'       : db.joinAnd(cond),
+                            'groupBy'        : grouping
+                                        })
 
 def fakeAgeTuple(age):
     return (age*365,
@@ -204,7 +202,7 @@ class CPopulationStructure(CReport):
         orgStructureId = params.get('orgStructureId', None)
         addressType = params.get('addressOrgStructureType', 0)
         isServiceArea = params.get('isServiceArea', False)
-        rowSize = 5
+        rowSize = 4
         query = selectData(endDate, ageFrom, ageTo, orgStructureId, addressType, isServiceArea)
         reportData = {}
         mapAreaIdToNetId = {}
@@ -228,7 +226,6 @@ class CPopulationStructure(CReport):
             if net.applicable(sex, fakeAgeTuple(age)):
                 cnt       = forceInt(record.value('cnt'))
                 attached  = forceBool(record.value('attached'))
-                confirmed = forceBool(record.value('confirmed'))
 
                 if isServiceArea:
                     addressHouseId = forceRef(record.value('addressHouseId'))
@@ -249,8 +246,6 @@ class CPopulationStructure(CReport):
                         reportRow[2] += cnt
                     if attached:
                         reportRow[3] += cnt
-                    if confirmed:
-                        reportRow[4] += cnt
                     reportLine[(addressHouseId, addressHouse)] = reportRow
                     reportData[areaId] = reportLine
                 else:
@@ -265,8 +260,6 @@ class CPopulationStructure(CReport):
                         reportRow[2] += cnt
                     if attached:
                         reportRow[3] += cnt
-                    if confirmed:
-                        reportRow[4] += cnt
 
         # now text
         doc = QtGui.QTextDocument()
@@ -284,7 +277,6 @@ class CPopulationStructure(CReport):
             ('10%', [u'М'], CReportBase.AlignRight),
             ('10%', [u'Ж'], CReportBase.AlignRight),
             ('10%', [u'Прикр.'], CReportBase.AlignRight),
-            ('10%', [u'Подтв. ЕИС'], CReportBase.AlignRight),
             ]
 
         table = createTable(cursor, tableColumns)

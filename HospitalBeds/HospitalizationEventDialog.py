@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2022 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -280,7 +280,7 @@ class CHospitalizationEventDialog(CDialogBase, Ui_HospitalizationEventDialog, CC
         self.clientSex = forceInt(record.value('sex'))
         self.clientBirthDate = forceDate(record.value('birthDate'))
         self.clientAge = calcAgeTuple(self.clientBirthDate, QDate().currentDate())
-        actionTypeIdList = selectActionTypes(self, self, [0, 1, 2, 3], orgStructureId=None, eventTypeId=None,
+        actionTypeIdList, amountDict = selectActionTypes(self, self, [0, 1, 2, 3], orgStructureId=None, eventTypeId=None,
                                              contractId=None, mesId=None, eventDate=QDate().currentDate(),
                                              visibleTblSelected=False, preActionTypeIdList=[])
         if actionTypeIdList:
@@ -320,6 +320,7 @@ class CHospitalizationEventDialog(CDialogBase, Ui_HospitalizationEventDialog, CC
                     newRecord.setValue('setPerson_id', toVariant(QtGui.qApp.userId))
                     newRecord.setValue('id', toVariant(None))
                     newRecord.setValue('event_id', toVariant(eventId))
+                    newRecord.setValue('amount', toVariant(amountDict.get(actionTypeId, 1.0)) if amountDict else toVariant(1.0))
 
                     newAction = CAction(record=newRecord)
                     newAction.updatePresetValuesConditions({'clientId': self.clientId, 'eventTypeId': eventTypeId})
@@ -1071,7 +1072,7 @@ class CFindClientInfoDialog(CHospitalizationEventDialog):
         self.clientSex = forceInt(record.value('sex'))
         self.clientBirthDate = forceDate(record.value('birthDate'))
         self.clientAge = calcAgeTuple(self.clientBirthDate, QDate().currentDate())
-        actionTypeIdList = selectActionTypes(self, self, [0, 1, 2, 3], orgStructureId=None, eventTypeId=None,
+        actionTypeIdList, amountDict = selectActionTypes(self, self, [0, 1, 2, 3], orgStructureId=None, eventTypeId=None,
                                              contractId=None, mesId=None, eventDate=QDate().currentDate(),
                                              visibleTblSelected=False, preActionTypeIdList=[])
         if actionTypeIdList:
@@ -1111,7 +1112,8 @@ class CFindClientInfoDialog(CHospitalizationEventDialog):
                     newRecord.setValue('setPerson_id', toVariant(QtGui.qApp.userId))
                     newRecord.setValue('id', toVariant(None))
                     newRecord.setValue('event_id', toVariant(eventId))
-
+                    newRecord.setValue('amount', toVariant(amountDict.get(actionTypeId, 1.0)) if amountDict else toVariant(1.0))
+                    
                     newAction = CAction(record=newRecord)
                     newAction.updatePresetValuesConditions({'clientId': self.clientId, 'eventTypeId': eventTypeId})
                     newAction.initPresetValues()

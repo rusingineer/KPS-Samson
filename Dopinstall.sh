@@ -42,6 +42,12 @@ DIR=/opt/client/install
 #	pip2 install $DIR/psutil-5.7.1.tar.gz || echo "Ошибка выполнения pip2 install $DIR/psutil-5.7.1.tar.gz"
 #fi
 
+if ! pip2 list | grep beautifulsoup4 ; then 
+	pip2 install $DIR/pip2/beautifulsoup4/* || echo "Ошибка выполнения pip2 install beautifulsoup4"
+fi
+
+
+
 ## Чиним проверку орфографии
 #cat /etc/os-release > LinuxVersion
 #if grep "RED OS" LinuxVersion ; then 

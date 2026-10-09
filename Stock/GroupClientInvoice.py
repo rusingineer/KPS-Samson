@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -429,7 +429,7 @@ class CGroupClientInvoice(CDialogBase, CRecordLockMixin, Ui_GroupClientInvoice):
                         for rec, recaction in groupingRecords:
                             recactionId = forceRef(rec.value('actionId'))
                             processContext._successActionIds.add(recactionId)
-                        res, messageExecWriteOffNomenclatureExpense = CStockService.doClientInvoice(action, record, actionOrgStructureId if actionOrgStructureId else self._orgStructureId, self._filters['date'], clientId=clientId, groupingRecords=groupingRecords)
+                        res, messageExecWriteOffNomenclatureExpense = CStockService.doClientInvoice(action, record, actionOrgStructureId if actionOrgStructureId else self._orgStructureId, self._filters['date'], clientId=clientId, groupingRecords=groupingRecords, dialog=self)
                         if messageExecWriteOffNomenclatureExpense:
                             messageFail = messageExecWriteOffNomenclatureExpense + processContext.failedData.get(actionId, u'')
                             processContext.fail(actionId, messageFail)

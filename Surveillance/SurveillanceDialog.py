@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #############################################################################
 ##
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -1589,7 +1589,7 @@ class CConsistsClientsModel(CSurveillanceClientsModel):
             dataRange = self.filter.get('dateRange')
             begDate, endDate = dataRange
             begDateCond = (' AND pp.endDate >= %s ' % db.formatDate(begDate)) if not begDate.isNull() else ''
-            endDateCond = (' AND pp.begDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
+            endDateCond = (' AND pp.endDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
             cond.append(u'''%sEXISTS(SELECT pp.id
                                                FROM ProphylaxisPlanning pp
                                                WHERE pp.client_id = Client.id
@@ -1649,7 +1649,7 @@ class CTakenClientsModel(CSurveillanceClientsModel):
             dataRange = self.filter.get('dateRange')
             begDate, endDate = dataRange
             begDateCond = (' AND pp.endDate >= %s ' % db.formatDate(begDate)) if not begDate.isNull() else ''
-            endDateCond = (' AND pp.begDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
+            endDateCond = (' AND pp.endDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
             cond.append(u'''%sEXISTS(SELECT pp.id
                                                        FROM ProphylaxisPlanning pp
                                                        WHERE pp.client_id = Client.id
@@ -1712,7 +1712,7 @@ class CRemoveClientsModel(CSurveillanceClientsModel):
             dataRange = self.filter.get('dateRange')
             begDate, endDate = dataRange
             begDateCond = (' AND pp.endDate >= %s ' % db.formatDate(begDate)) if not begDate.isNull() else ''
-            endDateCond = (' AND pp.begDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
+            endDateCond = (' AND pp.endDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
             cond.append(u'''%sEXISTS(SELECT pp.id
                                                        FROM ProphylaxisPlanning pp
                                                        WHERE pp.client_id = Client.id
@@ -1795,7 +1795,7 @@ class CSubjectToSurveillanceClientsModel(CSurveillanceClientsModel):
             dataRange = self.filter.get('dateRange')
             begDate, endDate = dataRange
             begDateCond = (' AND pp.endDate >= %s ' % db.formatDate(begDate)) if not begDate.isNull() else ''
-            endDateCond = (' AND pp.begDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
+            endDateCond = (' AND pp.endDate <= %s ' % db.formatDate(endDate)) if not endDate.isNull() else ''
             cond.append(u'''%sEXISTS(SELECT pp.id
                                                        FROM ProphylaxisPlanning pp
                                                        WHERE pp.client_id = Client.id
@@ -1849,20 +1849,17 @@ class CSurveillanceDiagnosisModel(CTableModel):
         def format(self, values):
             db = QtGui.qApp.db
             table = db.table('ProphylaxisPlanning')
-            record = db.getRecordEx(table, 'begDate, endDate', [table['client_id'].eq(values[0]),
+            record = db.getRecordEx(table, 'endDate', [table['client_id'].eq(values[0]),
                                                                 table['prophylaxisPlanningType_id'].eq(self.prophylaxisPlanningType),
                                                                 table['MKB'].eq(values[1]),
                                                                 table['deleted'].eq(0),
-                                                                table['begDate'].ge(QDate.currentDate())],
-                                    'begDate')
+                                                                table['endDate'].ge(QDate.currentDate())],
+                                    'endDate')
             date = ''
             if record:
-                begDate = forceDate(record.value(0))
-                endDate = forceDate(record.value(1))
-                if not begDate.isNull():
-                    date = formatDate(begDate)
-                    if not endDate.isNull():
-                        date += ' - ' + formatDate(endDate)
+                endDate = forceDate(record.value(0))
+                if not endDate.isNull():
+                    date = formatDate(endDate)
 
             return QVariant(date)
 
@@ -2967,7 +2964,7 @@ class CSurveillanceFindClientInfoDialog(CFindClientInfoDialog):
 def isSurveillanceActive(masterId, filterPP, filterD):
     diagnosisIdList = []
     if masterId:
-        begDate = filterPP.get('begDate', QDate())
+        endDate = filterPP.get('begDate', QDate())
         eventId = filterPP.get('event_id', None)
         db = QtGui.qApp.db
         MKBs = []
@@ -2994,8 +2991,8 @@ def isSurveillanceActive(masterId, filterPP, filterD):
                 tableProphylaxisPlanning['dispanser_id'].isNotNull(),
                 tableProphylaxisPlanning['parent_id'].isNotNull()
                 ]
-        if begDate:
-            cond.append(tableProphylaxisPlanning['endDate'].ge(begDate))
+        if endDate:
+            cond.append(tableProphylaxisPlanning['endDate'].ge(endDate))
         if eventId:
             cond.append(tableProphylaxisPlanning['MKB'].inlist(MKBs))
         diagnosisIdList = db.getDistinctIdList(tableProphylaxisPlanning, [u'ProphylaxisPlanning.id'], where=cond, order='ProphylaxisPlanning.endDate DESC')

@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -14,49 +14,50 @@
 
 # Форма 030: Этап диспансерного наблюдения
 
-from PyQt4 import QtGui, QtSql
-from PyQt4.QtCore import Qt, QDate, QDateTime, QModelIndex, QObject, QTime, QVariant, pyqtSignature, SIGNAL
+from Registry.ChangeDispanserBegDateLUD import CChangeDispanserBegDateLUD
+from Registry.ProphylaxisPlanningInfo import CProphylaxisPlanningInfoProxyList
+from Surveillance.ChangeDispanserPerson import CChangeDispanserPerson
+from PyQt4 import QtGui
+from PyQt4.QtCore import Qt, QDate, QDateTime, QTime, QVariant, pyqtSignature, SIGNAL
 
+from library.Attach.AttachAction import getAttachAction
+from library.Calendar import getNextWorkDay
+from library.InDocTable import CDateTimeForEventInDocTableCol
+from library.interchange import getDateEditValue, getDatetimeEditValue, getRBComboBoxValue, setDateEditValue, setDatetimeEditValue, setRBComboBoxValue
+from library.PrintInfo import CInfoContext
+from library.PrintTemplates import applyTemplate, customizePrintButton, getPrintButton
+from library.Utils import copyFields, forceBool, forceDate, forceInt, forceRef, forceString, formatNum, toVariant, forceStringEx, formatDate
+
+from Events.Action import CActionTypeCache
+from Events.ActionInfo import CActionInfoProxyList
+from Events.ActionsSummaryModel import CFxxxActionsSummaryModel
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
+from Events.EventEditDialog import CEventEditDialog
+from Events.EventInfo import CDiagnosticInfoProxyList, CVisitInfoProxyList
+from Events.EventVisitsModel import CEventVisitsModel
 from Events.ExportMIS import iniExportEvent
 from Events.RelatedEventAndActionListDialog import CRelatedEventAndActionListDialog
-from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
-from Orgs.Utils import getOrgstructureListByEventtypeId, getPersonListByEventtypeId
-from library.Attach.AttachAction import getAttachAction
-from Events.Action import CActionTypeCache
-from library.Calendar           import getNextWorkDay
-from library.crbcombobox        import CRBComboBox
-from library.ICDInDocTableCol   import CICDExInDocTableCol
-from library.ICDMorphologyInDocTableCol import CMKBMorphologyCol
-from library.InDocTable          import CBoolInDocTableCol, CDateTimeForEventInDocTableCol, CInDocTableCol, CMKBListInDocTableModel, CRBInDocTableCol, CRBLikeEnumInDocTableCol, CEnumInDocTableCol
-from library.interchange        import getDateEditValue, getDatetimeEditValue, getRBComboBoxValue, setDateEditValue, setDatetimeEditValue, setRBComboBoxValue
-from library.PrintInfo          import CInfoContext
-from library.PrintTemplates     import applyTemplate, customizePrintButton, getPrintButton
-from library.TNMS.TNMSComboBox   import CTNMSCol
-from library.MKBExSubclassComboBox import CMKBExSubclassCol
-from library.Utils               import copyFields, forceBool, forceDate, forceInt, forceRef, forceString, formatNum, toVariant, variantEq, forceStringEx
-
-from Events.ActionInfo          import CActionInfoProxyList
-from Events.ActionsSummaryModel import CFxxxActionsSummaryModel
-from Events.DiagnosisType       import CDiagnosisTypeCol
-from Events.EventEditDialog     import CEventEditDialog, CDiseaseCharacter, CDiseaseStage, CDiseasePhases, CToxicSubstances, getToxicSubstancesIdListByMKB
-from Events.EventInfo            import CDiagnosticInfoProxyList, CVisitInfoProxyList, CHospitalInfo
-from Events.EventVisitsModel    import CEventVisitsModel
 from Events.Utils import checkDiagnosis, checkIsHandleDiagnosisIsChecked, CTableSummaryActionsMenuMixin, \
     getAvailableCharacterIdByMKB, getDiagnosisId2, getEventAddVisit, getEventAvailableOrders, getEventDurationRange, getEventIsPrimary, \
-    getEventMesRequired, getDiagnosticResultIdList, getEventResultId, getEventSetPerson, getEventShowTime, \
+    getEventMesRequired, getEventResultId, getEventSetPerson, getEventShowTime, \
     getEventShowVisitTime, getHealthGroupFilter, hasEventVisitAssistant, isEventLong, \
     setAskedClassValueForDiagnosisManualSwitch, getNewResultCond, isDefaultResultIdValid, \
-    CFinanceType, mkbIsOnko, getEventTypeForm, mkbIsVIMIS, getEventAidTypeRegionalCode
-from F030.PreF030Dialog         import CPreF030Dialog, CPreF030DagnosticAndActionPresets
-from Orgs.PersonComboBoxEx      import CPersonFindInDocTableCol
-from Users.Rights                import urAccessF030planner, urAccessF090planner, urAdmin, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
+    CFinanceType, mkbIsOnko, getEventTypeForm, getEventAidTypeRegionalCode
+    
+from F030.F030Models import CF030SurveillanceModel, CF030FinalDiagnosticsModel 
+from F030.PreF030Dialog import CPreF030Dialog, CPreF030DagnosticAndActionPresets
+from F088.F0882022EditDialog import CEventExportTableModel, CAdvancedExportTableModel
+from Orgs.Utils import getOrgstructureListByEventtypeId, getPersonListByEventtypeId, getPersonInfo
 
-from F030.Ui_F030               import Ui_Dialog
+from Users.Rights import urAccessF030planner, urAccessF090planner, urAdmin, urEditEndDateEvent, urRegTabWriteRegistry, urRegTabReadRegistry, urCanReadClientVaccination, urCanEditClientVaccination
+
+from F030.Ui_F030 import Ui_Dialog
 
 
 class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     defaultEventResultId = None
     defaultDiagnosticResultId = None
+    dfFinished = 1  # Заключительный
     dfAccomp = 2 # Сопутствующий
 
     @pyqtSignature('')
@@ -75,8 +76,8 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 # create models
         self.addModels('Visits', CEventVisitsModel(self))
-        self.addModels('PreliminaryDiagnostics', CF030PreliminaryDiagnosticsModel(self))
-        self.addModels('FinalDiagnostics',       CF030FinalDiagnosticsModel(self))
+        self.addModels('FinalDiagnostics', CF030FinalDiagnosticsModel(self))
+        self.addModels('Surveillance', CF030SurveillanceModel(self))
         self.addModels('ActionsSummary', CFxxxActionsSummaryModel(self, True))
         self.addModels('Export', CEventExportTableModel(self))
         self.addModels('Export_FileAttach', CAdvancedExportTableModel(self))
@@ -89,6 +90,7 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.addObject('actShowAttachedToClientFiles', getAttachAction('Client_FileAttach',  self))
         self.addObject('actShowContingentsClient', QtGui.QAction(u'Показать все наблюдаемые контингенты', self))
         self.addObject('actOpenClientVaccinationCard', QtGui.QAction(u'Открыть прививочную карту', self))
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.addObject('actSurveillancePlanningClients', QtGui.QAction(u'Контрольная карта диспансерного наблюдения', self))
         self.addObject('btnPrint', getPrintButton(self, ''))
         # self.addObject('btnMedicalCommission', QtGui.QPushButton(u'ВК', self))
@@ -137,8 +139,8 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 # assign models
         self.tblVisits.setModel(self.modelVisits)
-        self.tblPreliminaryDiagnostics.setModel(self.modelPreliminaryDiagnostics)
-        self.tblPreliminaryDiagnostics.setDelRowsChecker(None)
+        self.tblSurveillance.setModel(self.modelSurveillance)
+        self.tblSurveillance.setDelRowsChecker(None)
         self.tblFinalDiagnostics.setModel(self.modelFinalDiagnostics)
         self.tblFinalDiagnostics.setDelRowsChecker(None)
         self.tblActions.setModel(self.modelActionsSummary)
@@ -163,9 +165,9 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.txtClientInfoBrowser.actions.append(self.actSurveillancePlanningClients)
         self.actOpenClientVaccinationCard.setEnabled(QtGui.qApp.userHasAnyRight([urCanReadClientVaccination, urCanEditClientVaccination]))
         self.actEditClient.setEnabled(QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]))
-        self.tblPreliminaryDiagnostics.addCopyDiagnosisToFinal(self)
         self.tblVisits.addPopupDelRow()
         self.setupVisitsIsExposedPopupMenu()
+        self.tblFinalDiagnostics.addPopupAction(self.actAddChronicDiseases)
         self.tblFinalDiagnostics.addCreateF111(self)
         self.tblFinalDiagnostics.addUpdateF111(self)
         self.tblActions.enableColsHide()
@@ -200,8 +202,30 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             self.edtEndDate.setEnabled(QtGui.qApp.userHasRight(urEditEndDateEvent))
         if hasattr(self, 'edtEndTime'):
             self.edtEndTime.setEnabled(QtGui.qApp.userHasRight(urEditEndDateEvent))
+        self.connect(self.modelFinalDiagnostics, SIGNAL('diagnosisChanged(QString)'), self.on_modelFinalDiagnostics_diagnosisChanged)
+        self.connect(self.modelFinalDiagnostics, SIGNAL('resultChanged()'), self.on_modelFinalDiagnostics_resultChanged)
+
+        self.addObject('actChangePersonDN', QtGui.QAction(u'Изменить врача ДН', self))
+        self.connect(self.actChangePersonDN, SIGNAL('triggered()'), self.on_actChangePersonDN_triggered)
+        self.tblSurveillance.addPopupAction(self.actChangePersonDN)
+        self.addObject('actChangeDispanserDate', QtGui.QAction(u'Изменить дату постановки на учет', self))
+        self.connect(self.actChangeDispanserDate, SIGNAL('triggered()'), self.on_actChangeDispanserDate_triggered)
+        self.tblSurveillance.addPopupAction(self.actChangeDispanserDate)
+        self.connect(self.tblSurveillance.popupMenu(), SIGNAL('aboutToShow()'), self.on_popupMenu_aboutToShow)
         self.btnPrintMedicalDiagnosis.setVisible(False)
+        
+        # signal-slot bound
+        self.tblFinalDiagnostics.popupMenuAboutToShow.connect(self.setFinalDiagnosticsMenuControlsState)
 # done
+
+    def setFinalDiagnosticsMenuControlsState(self):
+        """
+        Активность пункта меню "Вставить хронические диагнозы" в таблице Заключительный диагноз
+        """
+        self.actAddChronicDiseases.setEnabled(False)
+        current = self.tblFinalDiagnostics.currentItem()
+        if current and current.value('diagnosisType_id') == self.modelFinalDiagnostics.diagnosisTypeCol.codeToId(CF030Dialog.dfFinished):
+            self.actAddChronicDiseases.setEnabled(True)
 
 
     @pyqtSignature('QModelIndex, QModelIndex')
@@ -382,7 +406,6 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                 for MKB, dispanserId, healthGroupId, visitTypeId in presetDiagnostics:
                     item = self.modelFinalDiagnostics.getEmptyRecord()
                     item.setValue('MKB', toVariant(MKB))
-                    item.setValue('dispanser_id',   toVariant(dispanserId))
                     item.setValue('healthGroup_id', toVariant(healthGroupId))
                     characterIdList = getAvailableCharacterIdByMKB(MKB)
                     if characterIdList:
@@ -582,8 +605,12 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self._updateNoteByPrevEventId()
         self.tabNotes.setNotes(record)
         self.tabNotes.setEventEditor(self)
-        self.loadDiagnostics(self.modelPreliminaryDiagnostics, self.itemId())
+        
         self.loadDiagnostics(self.modelFinalDiagnostics, self.itemId())
+        self.modelSurveillance.setEventEditor(self)
+        self.modelSurveillance.setDiagnosticRecords(self.modelFinalDiagnostics.surveillanceRecords(self.clientId))
+        self.modelSurveillance.setClientId(self.clientId)
+        self.modelSurveillance.loadItems(None)
         self.tabMedicalDiagnosis.load(self.itemId())
         self.loadVisits()
         self.setOrgStructAndPersonsInCmbPersons(self.eventTypeId)
@@ -657,14 +684,13 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                     self.lblProlongateEvent.setText(u'п')
                     self.tabNotes.edtPrevEventInfo.setText(u'Продолжение обращения: %s от %s.'%(forceString(record.value('name')), forceDate(record.value('setDate')).toString('dd.MM.yyyy')))
             if self.prolongateEvent or self.flagHospitalization:
-                self.loadEventDiagnostics(self.modelPreliminaryDiagnostics, self.prevEventId)
+                pass
             else:
                 self.createDiagnostics(eventId)
 
 
     def createDiagnostics(self, eventId):
         if eventId:
-            self.loadDiagnostics(self.modelPreliminaryDiagnostics, eventId)
             self.loadDiagnostics(self.modelFinalDiagnostics, eventId)
 
 
@@ -742,8 +768,8 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
     def saveInternals(self, eventId):
         self.saveVisits(eventId)
-        self.saveDiagnostics(self.modelPreliminaryDiagnostics, eventId)
         self.saveDiagnostics(self.modelFinalDiagnostics, eventId)
+        self.modelSurveillance.saveItems()
         self.tabMedicalDiagnosis.save(eventId)
         self.tabMes.save(eventId)
         setAskedClassValueForDiagnosisManualSwitch(None)
@@ -843,29 +869,21 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
     def getFinalDiagnosisMKB(self):
         MKB, MKBEx = self.modelFinalDiagnostics.getFinalDiagnosisMKB()
-        if not MKB:
-            MKB, MKBEx = self.modelPreliminaryDiagnostics.getFinalDiagnosisMKB()
         return MKB, MKBEx
 
 
     def getAssociatedDiagnosisMKB(self):
         MKB = self.modelFinalDiagnostics.getAssociatedDiagnosisMKB()
-        if not MKB:
-            MKB = self.modelPreliminaryDiagnostics.getAssociatedDiagnosisMKB()
         return MKB
 
 
     def getComplicationDiagnosisMKB(self):
         MKB = self.modelFinalDiagnostics.getComplicationDiagnosisMKB()
-        if not MKB:
-            MKB = self.modelPreliminaryDiagnostics.getComplicationDiagnosisMKB()
         return MKB
 
 
     def getFinalDiagnosisId(self):
         id = self.modelFinalDiagnostics.getFinalDiagnosisId()
-        if not id:
-            id = self.modelPreliminaryDiagnostics.getFinalDiagnosisId()
         return id
 
 
@@ -954,20 +972,10 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         result = result and (self.cmbPerson.value() or self.checkInputMessage(u'врача', False, self.cmbPerson))
         result = result and self.checkExecPersonSpeciality(self.cmbPerson.value(), self.cmbPerson)
         result = result and (begDateCheck or self.checkInputMessage(u'дату назначения', False, self.edtBegDate))
-#        result = result and (endDate or self.checkInputMessage(u'дату выполнения', False, self.edtEndDate))
         if not endDateCheck:
             result = result and self.checkDiagnosticsPersonSpeciality()
             result = result and self.checkEventDate(begDate, endDate, nextDate, self.tabToken, self.edtNextDate,  self.edtEndDate, True)
         else:
-#            maxEndDate = self.getMaxEndDateByVisits()
-#            if maxEndDate:
-#                if QtGui.QMessageBox.question(self,
-#                                    u'Внимание!',
-#                                    u'Дата выполнения обращения не указана.\nУстановить дату завершения по максимальной дате посещений',
-#                                    QtGui.QMessageBox.No|QtGui.QMessageBox.Yes,
-#                                    QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
-#                    self.edtEndDate.setDate(maxEndDate)
-#                    endDate = maxEndDate
             result = result and self.checkActionDataEntered(begDate, QDateTime(), endDate, self.tabToken, self.edtBegDate, None, self.edtEndDate)
             result = result and self.checkEventDate(begDate, endDate, nextDate, self.tabToken, self.edtNextDate,  self.edtEndDate, True)
             minDuration,  maxDuration = getEventDurationRange(self.eventTypeId)
@@ -986,7 +994,8 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             result = result and self.checkExecDateForVisit(endDateCheck)
             result = result and self.checkExecPersonSpeciality(self.cmbPerson.value(), self.cmbPerson)
             result = result and self.checkDiagnosticsPersonSpeciality()
-#            result = result and self.checkActionsDataEntered(begDate, endDate)
+        result = result and self.checkSurveillanceDiagnosis()
+        result = result and self.checkSurveillanceData()
         result = result and self.checkActionsDateEnteredActuality(begDate, endDate, tabList)
         result = result and self.checkActionsDataEntered(begDate, endDate)
         result = result and self.checkDeposit(True)
@@ -994,7 +1003,6 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
             ) if not QtGui.qApp.checkGlobalPreference('23:checkChosenPerson',
                                                       u'не выполнять') else True)
         result = result and (len(self.modelVisits.items())>0 or self.checkInputMessage(u'посещение', False, self.tblVisits))
-        #result = result and self.checkVisitsDataEntered(begDate.date() if isinstance(begDate, QDateTime) else begDate, endDate.date() if isinstance(endDate, QDateTime) else endDate)
         result = result and self.checkVisitsDataEntered(begDate, endDate)
         result = result and self.tabCash.checkDataLocalContract()
         result = result and self.checkSerialNumberEntered()
@@ -1015,14 +1023,12 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
     
     def checkDiagnosticsPersonSpeciality(self):
         result = True
-        result = result and self.checkPersonSpecialityDiagnostics(self.modelPreliminaryDiagnostics, self.tblPreliminaryDiagnostics)
         result = result and self.checkPersonSpecialityDiagnostics(self.modelFinalDiagnostics, self.tblFinalDiagnostics)
         return result
 
 
     def checkDiagnosticsDataEntered(self):
         result = True
-        result = result and self.checkDiagnostics(self.modelPreliminaryDiagnostics, self.tblPreliminaryDiagnostics, None)
         result = result and self.checkDiagnostics(self.modelFinalDiagnostics, self.tblFinalDiagnostics, self.cmbPerson.value())
         result = result and self.checkDiagnosisType(self.modelFinalDiagnostics, self.tblFinalDiagnostics)
         return result
@@ -1082,6 +1088,205 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         result = result and self.checkPersonSpeciality(record, row, self.tblFinalDiagnostics)
         result = result and self.checkPeriodResultHealthGroup(record, row, table)
         return result
+    
+    
+    def checkSurveillanceDiagnosis(self):
+        result = True
+        db = QtGui.qApp.db
+        tableDiagnosis = db.table('Diagnosis')
+        tableDispanser = db.table('rbDispanser')
+        table = tableDiagnosis.leftJoin(tableDispanser, tableDispanser['id'].eq(tableDiagnosis['dispanser_id']))
+        for row, item in enumerate(self.modelFinalDiagnostics.items()):
+            if forceRef(item.value('dispanser_id')) in self.modelFinalDiagnostics.observedDispanserIdList:
+                MKB = forceString(item.value('MKB'))
+                if MKB:
+                    diag = MKB
+                    if len(MKB) >= 3:
+                        diag = MKB[:3]
+                    
+                    cols = [
+                        tableDiagnosis['id'],
+                        tableDispanser['observed'],
+                        tableDiagnosis['MKB']
+                    ]
+                    cond = [
+                        tableDiagnosis['client_id'].eq(self.clientId),
+                        tableDiagnosis['deleted'].eq(0),
+                        '''EXISTS(SELECT Diagnostic.id
+                                FROM Diagnostic
+                                LEFT JOIN Event ON Event.id = Diagnostic.event_id
+                                WHERE Diagnostic.diagnosis_id = Diagnosis.id
+                                    AND Diagnostic.deleted = 0
+                                    AND Event.deleted = 0)''',
+                        tableDiagnosis['MKB'].like(diag+'%')
+                    ]
+                    diagnosisItems = db.getRecordList(table, cols, cond, tableDiagnosis['endDate'].name() + ' DESC')
+                    if diagnosisItems:
+                        haveObs = False
+                        needCheck = True
+                        for diagnosisItem in diagnosisItems:
+                            diagMKB = forceString(diagnosisItem.value('MKB'))
+                            observed = forceInt(diagnosisItem.value('observed'))
+                            if diagMKB and observed:
+                                if diagMKB == MKB:
+                                    needCheck = False
+                                    break
+                                else:
+                                    haveObs = True
+                                    diag = diagMKB
+                                    
+                        if haveObs:
+                            message = QtGui.QMessageBox.warning( self,
+                                         u'Внимание!',
+                                         u'''Внимание, в блоке диагнозов указан МКБ "{}" Пациент состоит на диспансерном наблюдении по {} . Указанный МКБ корректный?'''.format(MKB, diag),
+                                         QtGui.QMessageBox.Yes|QtGui.QMessageBox.No,
+                                         QtGui.QMessageBox.No)
+                            if message == QtGui.QMessageBox.No:
+                                self.setFocusToWidget(self.tblFinalDiagnostics, row, item.indexOf('MKB'))
+                                return False
+                        elif needCheck:
+                            return self.checkValueMessage(u'''Внимание, в блоке диагнозов указан МКБ "{}" по которому пациент не состоит на диспансерном наблюдении. Для регистрации случая проведения Диспансерного приема пациент должен состоять на ДН по диагнозу данной группы'''.format(MKB), 
+                                                            True, 
+                                                            self.tblFinalDiagnostics, 
+                                                            row, 
+                                                            item.indexOf('MKB'))
+                    else:
+                        return self.checkValueMessage(u'''Внимание, в блоке диагнозов указан МКБ "{}" по которому пациент не состоит на диспансерном наблюдении. Для регистрации случая проведения Диспансерного приема пациент должен состоять на ДН по диагнозу данной группы'''.format(MKB), 
+                                                        True, 
+                                                        self.tblFinalDiagnostics, 
+                                                        row, 
+                                                        item.indexOf('MKB'))
+                    
+        return result 
+    
+    
+    def checkSurveillanceData(self):
+        result = True
+        for row, item in enumerate(self.modelFinalDiagnostics.items()):
+            if forceRef(item.value('dispanser_id')) in self.modelFinalDiagnostics.observedDispanserIdList:
+                MKB = forceString(item.value('MKB'))
+                if MKB:
+                    diag = MKB
+                    if len(MKB) >= 3:
+                        diag = MKB[:3]
+                for row, item in enumerate(self.modelSurveillance.items()):
+                    sMKB = forceString(item.value('MKB'))
+                    if sMKB:
+                        sDiag = sMKB
+                        if len(sMKB) >= 3:
+                            sDiag = sMKB[:3]
+                    if sDiag == diag:
+                        result = forceDate(item.value(item.indexOf('endDate'))) or self.checkInputMessage(u'дату следующей явки', False, self.tblSurveillance, row, item.indexOf('endDate'))
+                        if not result: 
+                            return result
+                        result = forceRef(item.value(item.indexOf('person_id'))) or self.checkInputMessage(u'врача по ДН', False, self.tblSurveillance, row, item.indexOf('person_id'))
+                        if not result: 
+                            return result
+                        result = forceDate(item.value(item.indexOf('takenDate'))) or self.checkInputMessage(u'дату взятия на ДН', False, self.tblSurveillance, row, item.indexOf('takenDate'))
+                        if not result: 
+                            return result
+                        self.syncPP()
+        return result 
+
+    
+    def syncPP(self):
+        db = QtGui.qApp.db
+        tableRBDispanser = db.table('rbDispanser')
+        table = db.table('ProphylaxisPlanning')
+        for row, item in enumerate(self.modelSurveillance.items()):
+            # Синхронизация данных с ЛУД
+            MKB = forceStringEx(item.value('MKB'))
+            diag = MKB
+            if len(MKB) >= 3:
+                diag = MKB[:3]
+            filter = [table['parent_id'].isNull(),
+                      table['client_id'].eq(self.clientId),
+                      table['deleted'].eq(0),
+                      table['MKB'].like(diag + '%')]
+            order = [table['takenDate'].name() + u'ASC', table['removeDate'].name() + u'DESC']
+            ppItems = db.getRecordList(table, '*', filter, order)
+            filteredItems = []
+            for ppItem in ppItems:
+                dispanserId = forceRef(ppItem.value('dispanser_id'))
+                observed = 0
+                if dispanserId:
+                    recObserved = db.getRecordEx(tableRBDispanser, [tableRBDispanser['observed']],
+                                                    [tableRBDispanser['id'].eq(dispanserId)])
+                    observed = forceInt(recObserved.value('observed')) if recObserved else 0
+                if observed:
+                    filteredItems.append(ppItem)
+            
+            if filteredItems:
+                filteredItem = filteredItems[0]
+                personId = forceRef(filteredItem.value('person_id'))
+                takenDate = forceDate(filteredItem.value('takenDate'))
+                specialityId = forceRef(QtGui.qApp.db.translate('Person', 'id', personId, 'speciality_id'))
+                diagnosticRecord = self.modelSurveillance.diagnosticRecords.get(MKB, None)
+                if not diagnosticRecord:
+                    MKBGroup = MKB[:3] if len(MKB) > 3 else MKB
+                    diagnosticRecord = self.modelSurveillance.diagnosticGroupRecords.get(MKBGroup, None)
+                diagnosisId = forceRef(diagnosticRecord.value('diagnosis_id')) if diagnosticRecord else None
+                diagEndDate = None
+                if diagnosisId:
+                    diagnosisRecord = QtGui.qApp.db.getRecordEx('Diagnosis', 'dispanserPerson_id, dispanserBegDate, endDate, dispanser_id', 'id=%s' % diagnosisId)
+                    dispanserPersonId = forceRef(diagnosisRecord.value('dispanserPerson_id'))
+                    dispanserBegDate = forceDate(diagnosisRecord.value('dispanserBegDate'))
+                    diagnosticRemovedRecord = QtGui.qApp.db.getRecordEx('Diagnostic', 'endDate', 'diagnosis_id={} AND dispanser_id in (3, 4, 5) AND deleted=0'.format(diagnosisId), order='endDate DESC')
+                    diagEndDate = None
+                    if diagnosticRemovedRecord:
+                        diagEndDate = forceDate(diagnosticRemovedRecord.value('endDate'))
+                    if not diagEndDate:
+                        diagEndDate = forceDate(diagnosisRecord.value('endDate')) if forceDate(diagnosisRecord.value('endDate')) else QDate().currentDate()
+                    dispanser = QtGui.qApp.db.getRecordEx('rbDispanser', 'name', 'code="{}"'.format(forceString(diagnosisRecord.value('dispanser_id'))))
+                    if not dispanserPersonId or not dispanserBegDate:
+                        valuesList = []
+                        if not dispanserPersonId:
+                            valuesList.append(u'врача по ДН')
+                        if not dispanserBegDate:
+                            valuesList.append(u'дату взятия')
+                        self.tblSurveillance.setCurrentRow(row)
+                        QtGui.QMessageBox.warning(self,
+                                                    u'Внимание!',
+                                                    u'Синхронизация данных по ДН с ЛУД\nдиагноз: %s\nдата взятия на ДН: %s\nврач: %s\nНеобходимо указать %s' % (
+                                                    MKB,
+                                                    formatDate(dispanserBegDate) if dispanserBegDate else u'отсутствует',
+                                                    getPersonInfo(dispanserPersonId)['fullName'] if dispanserPersonId else u'отсутствует',
+                                                    u' и '.join(valuesList)),
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok)
+                        return False
+
+                    personInfo = getPersonInfo(dispanserPersonId)
+                    orgStructureId = forceRef(filteredItem.value('orgStructure_id'))
+                    diagnosisDispanserId = forceInt(diagnosisRecord.value('dispanser_id'))
+                    if forceInt(filteredItem.value('dispanser_id')) in (1,2,6) and (personId != dispanserPersonId or takenDate != dispanserBegDate or specialityId != personInfo['specialityId'] or orgStructureId != personInfo['orgStructureId'] or \
+                        (diagnosisDispanserId != forceInt(filteredItem.value('dispanser_id')))):
+
+                        self.tblSurveillance.setCurrentRow(row)
+                        diagnosisDispanserCheck = diagnosisDispanserId and diagnosisDispanserId not in (1,2,6)
+                        QtGui.QMessageBox.warning(self,
+                                                    u'Внимание!',
+                                                    u'''Синхронизация данных по ДН с ЛУД\nдиагноз: {}\nдата взятия на ДН: {}\nврач: {}\nспециальность: {}\nподразделение: {}\nдолжность: {}\nДН: {}\nДата снятия: {}\n'''.format(MKB, 
+                                                                        formatDate(dispanserBegDate), 
+                                                                        personInfo['fullName'], 
+                                                                        personInfo['specialityName'], 
+                                                                        personInfo['orgStructureName'], 
+                                                                        personInfo['postName'],
+                                                                        forceString(dispanser.value('name')) if dispanser else u'',
+                                                                        forceString(diagEndDate) if diagnosisRecord and diagnosisDispanserCheck else u''),
+                                                    QtGui.QMessageBox.Ok,
+                                                    QtGui.QMessageBox.Ok)
+                        if dispanserPersonId:
+                            filteredItem.setValue('person_id', dispanserPersonId)
+                        if personInfo['specialityId']:
+                            filteredItem.setValue('speciality_id', personInfo['specialityId'])
+                        if personInfo['orgStructureId']:
+                            filteredItem.setValue('orgStructure_id', personInfo['orgStructureId'])
+                        filteredItem.setValue('takenDate', dispanserBegDate)
+                        filteredItem.setValue('removeDate', diagEndDate if diagnosisDispanserCheck else None)
+                        filteredItem.setValue('dispanser_id', diagnosisRecord.value('dispanser_id'))
+                        filteredItem.setValue('removeReason_id', 1 if diagnosisDispanserCheck else None)
+                        id = db.insertOrUpdate(table, filteredItem)
 
 
     def getVisitCount(self):
@@ -1155,7 +1360,8 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         result._actions = CActionInfoProxyList(context,
                 [self.tabStatus.modelAPActions, self.tabDiagnostic.modelAPActions, self.tabCure.modelAPActions, self.tabMisc.modelAPActions, self.tabMedicalDiagnosis.tblEventMedicalDiagnosis.model()],
                 result)
-        result._diagnosises = CDiagnosticInfoProxyList(context, [self.modelPreliminaryDiagnostics, self.modelFinalDiagnostics])
+        result._diagnosises = CDiagnosticInfoProxyList(context, [self.modelFinalDiagnostics])
+        result._surveillance = CProphylaxisPlanningInfoProxyList(context, [self.modelSurveillance])
         result._visits = CVisitInfoProxyList(context, self.modelVisits)
         return result
 
@@ -1284,15 +1490,29 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
 
 
     @pyqtSignature('')
-    def on_modelPreliminaryDiagnostics_diagnosisChanged(self):
+    def on_modelFinalDiagnostics_diagnosisChanged(self, MKB=''):
         self.updateVisitsByDiagnostics(self.sender())
         self.updateMesMKB()
-
-
-    @pyqtSignature('')
-    def on_modelFinalDiagnostics_diagnosisChanged(self):
-        self.updateVisitsByDiagnostics(self.sender())
-        self.updateMesMKB()
+        #self.updateActionsDiagnosisByDiagnostics()
+        diagnosticRecords = self.modelFinalDiagnostics.surveillanceRecords(self.clientId)
+        if diagnosticRecords:
+            self.modelSurveillance.setEventEditor(self)
+            self.modelSurveillance.setDiagnosticRecords(diagnosticRecords)
+            self.modelSurveillance.setClientId(self.clientId)
+            self.modelSurveillance.loadItem(forceString(MKB))
+        
+        
+    @pyqtSignature('QModelIndex, int, int')
+    def on_modelFinalDiagnostics_rowsRemoved(self, parent, start, end):
+        diagnosticRecords = self.modelFinalDiagnostics.surveillanceRecords(self.clientId)
+        self.modelSurveillance.setEventEditor(self)
+        self.modelSurveillance.setDiagnosticRecords(diagnosticRecords)
+        self.modelSurveillance.setClientId(self.clientId)
+        if diagnosticRecords:
+            self.modelSurveillance.loadItem(forceString(diagnosticRecords[0].value('MKB')))
+        else:
+            self.modelSurveillance.loadItems(None)
+        self.modelSurveillance.reset()
 
 
     @pyqtSignature('')
@@ -1384,6 +1604,28 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                     'tempInvalid': tempInvalidInfo
                     }
             applyTemplate(self, templateId, data, signAndAttachHandler=self.tabNotes.btnAttachedFiles.getSignAndAttachHandler())
+
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        :return:
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, self.modelFinalDiagnostics, self)
+        if dialog.exec_():
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    record = self.modelFinalDiagnostics.getEmptyRecord()
+                    record.setValue('MKB', item.value('MKB'))
+                    record.setValue('MKBEx', item.value('MKBEx'))
+                    record.setValue('TNMS', item.value('TNMS'))
+                    record.setValue('exSubclassMKB', item.value('exSubclassMKB'))
+                    record.setValue('morphologyMKB', item.value('morphologyMKB'))
+                    record.setValue('character_id', item.value('character_id'))
+                    record.setValue('dispanser_id', item.value('dispanser_id'))
+                    record.setValue('traumaType_id', item.value('traumaType_id'))
+                    self.modelFinalDiagnostics.addRecord(record)
         
     @pyqtSignature('')
     def on_btnPlanning_clicked(self):
@@ -1394,586 +1636,55 @@ class CF030Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         self.addActions(actionListToNewEvent)
 
 
-# # # Actions # # #
-
-class CF030BaseDiagnosticsModel(CMKBListInDocTableModel):
-    __pyqtSignals__ = ('diagnosisChanged()',
-                      )
-    MKB_allowed_morphology = ['C', 'D']
-
-    def __init__(self, parent, finishDiagnosisTypeCode, baseDiagnosisTypeCode, accompDiagnosisTypeCode, complicDiagnosisTypeCode):
-        CMKBListInDocTableModel.__init__(self, 'Diagnostic', 'id', 'event_id', parent)
-        self._parent = parent
-        self.isManualSwitchDiagnosis = QtGui.qApp.defaultIsManualSwitchDiagnosis()
-        self.isMKBMorphology = QtGui.qApp.defaultMorphologyMKBIsVisible()
-        self.characterIdForHandleDiagnosis = None
-        self.diagnosisTypeCol = CF030DiagnosisTypeCol( u'Тип', 'diagnosisType_id', 2, [finishDiagnosisTypeCode, baseDiagnosisTypeCode, accompDiagnosisTypeCode, complicDiagnosisTypeCode], smartMode=False)
-        self.addCol(self.diagnosisTypeCol)
-        self.addCol(CPersonFindInDocTableCol(u'Врач', 'person_id',  20, 'vrbPersonWithSpecialityAndOrgStr', parent=parent))
-        self.addExtCol(CICDExInDocTableCol(u'МКБ',         'MKB',   7), QVariant.String)
-        if QtGui.qApp.isExSubclassMKBVisible():
-            self.addExtCol(CMKBExSubclassCol(u'РСК', 'exSubclassMKB', 10), QVariant.String).setToolTip(u'Расширенная субклассификация МКБ')
-        self.addExtCol(CICDExInDocTableCol(u'Доп.МКБ',     'MKBEx', 7), QVariant.String)
-        if QtGui.qApp.isTNMSVisible():
-            self.addCol(CTNMSCol(u'TNM-Ст', 'TNMS',  10))
-        if QtGui.qApp.isClinicalGroupDiagnosticVisible():
-            self.addCol(CEnumInDocTableCol(u'КГ', 'clinicalGroup', 30, [u'', u'1а - подозрение', u'1б - предрак', u'2 - подлежат радикальному лечению', u'3 - ремиссия', u'4 - подлежат паллиативному лечению'])).setToolTip(u'Клиническая группа')
-        if self.isMKBMorphology:
-            self.addExtCol(CMKBMorphologyCol(u'Морф.', 'morphologyMKB', 10, 'MKB_Morphology', filter='`group` IS NOT NULL'), QVariant.String)
-        self.addCol(CDiseaseCharacter(     u'Хар',         'character_id',   7, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Характер')
-        if self.isManualSwitchDiagnosis:
-            self.addExtCol(CBoolInDocTableCol( u'П',   'handleDiagnosis', 10), QVariant.Int)
-            self.characterIdForHandleDiagnosis = forceRef(QtGui.qApp.db.translate('rbDiseaseCharacter', 'code', '1', 'id'))
-
-        self.addCol(CDiseasePhases(        u'Фаза',        'phase_id',       7, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Фаза')
-        self.addCol(CDiseaseStage(         u'Ст',          'stage_id',       7, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Стадия')
-        self.addCol(CRBInDocTableCol(    u'ДН',            'dispanser_id',   7, 'rbDispanser', showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Диспансерное наблюдение')
-        self.addCol(CRBLikeEnumInDocTableCol(u'Госп',      'hospital',       7, CHospitalInfo.names, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Потребность в госпитализации')
-        self.addCol(CRBInDocTableCol(    u'Травма',        'traumaType_id', 10, 'rbTraumaType', addNone=True, showFields=CRBComboBox.showName, preferredWidth=150))
-        self.addCol(CToxicSubstances(u'ТоксВещ', 'toxicSubstances_id', 10, addNone=True, showFields=CRBComboBox.showName, preferredWidth=150)).setToolTip(u'Токсичное вещество')
-        self.addCol(CRBInDocTableCol(    u'ГрЗд',          'healthGroup_id', 7, 'rbHealthGroup', addNone=True, showFields=CRBComboBox.showCode, preferredWidth=150)).setToolTip(u'Группа здоровья')
-        self.addCol(CInDocTableCol(u'Описание',     'freeInput', 15))
-        self.columnHandleDiagnosis = self.getColIndex('handleDiagnosis', None)
-        self.setFilter(self.table['diagnosisType_id'].inlist([id for id in self.diagnosisTypeCol.ids if id]))
-        self.readOnly = False
-        self.eventEditor = parent
-        self.getDispanserIdLists()
-
-
-    def getDispanserIdLists(self):
-        db = QtGui.qApp.db
-        self.observedDispanserIdList = db.getDistinctIdList('rbDispanser', 'id', ['observed = 1'])
-        recordIdList = db.getDistinctIdList('rbDispanser', 'id', ['code = 2'])
-        self.takenDispanserId = recordIdList[0] if len(recordIdList) > 0 else None
-        self.takenDispanserIdList = db.getDistinctIdList('rbDispanser', 'id', ['code = 2 OR code = 6'])
-        consistDispanserIdList = db.getDistinctIdList('rbDispanser', 'id', ['code = 1'])
-        self.consistDispanserId = consistDispanserIdList[0] if len(consistDispanserIdList) > 0 else None
-
-
-    def setReadOnly(self, value):
-        self.readOnly = value
-
-
-    def manualSwitchDiagnosis(self):
-        return self.isManualSwitchDiagnosis
-
-
-    def flags(self, index=QModelIndex()):
-        if self.readOnly:
-            return Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        result = CMKBListInDocTableModel.flags(self, index)
-        row = index.row()
-        if row < len(self._items):
-            column = index.column()
-            if self.isManualSwitchDiagnosis and index.isValid():
-                if column == self.columnHandleDiagnosis:
-                    characterId = forceRef(self.items()[row].value('character_id'))
-                    if characterId != self.characterIdForHandleDiagnosis:
-                        result = (result & ~Qt.ItemIsUserCheckable)
-#                        return result
-            if self.isMKBMorphology and index.isValid():
-                if column == self.getColIndex('morphologyMKB'):
-                    mkb = forceString(self.items()[row].value('MKB'))
-                    if not (bool(mkb) and mkb[0] in CF030BaseDiagnosticsModel.MKB_allowed_morphology):
-                        result = (result & ~Qt.ItemIsEditable)
-            if QtGui.qApp.isExSubclassMKBVisible() and index.isValid():
-                if column == self.getColIndex('exSubclassMKB'):
-                    mkb = forceString(self.items()[row].value('MKB'))
-                    if len(mkb) != 6:
-                        return Qt.ItemIsSelectable | Qt.ItemIsEnabled
-            if index.isValid():
-                if column == self.getColIndex('MKBEx'):
-                    mkb = forceString(self.items()[row].value('MKB'))
-                    if not (bool(mkb) and mkb[0] in (u'S', u'T')):
-                        return result & ~Qt.ItemIsEnabled
-        return result
-
-
-    def getEmptyRecord(self):
-        eventEditor = QObject.parent(self)
-        result = CMKBListInDocTableModel.getEmptyRecord(self)
-        result.append(QtSql.QSqlField('diagnosis_id',     QVariant.Int))
-        result.append(QtSql.QSqlField('speciality_id',    QVariant.Int))
-        result.append(QtSql.QSqlField('setDate',          QVariant.DateTime))
-        result.append(QtSql.QSqlField('endDate',          QVariant.DateTime))
-        result.append(QtSql.QSqlField('cTumor_id',        QVariant.Int))
-        result.append(QtSql.QSqlField('cNodus_id',        QVariant.Int))
-        result.append(QtSql.QSqlField('cMetastasis_id',   QVariant.Int))
-        result.append(QtSql.QSqlField('cTNMphase_id',     QVariant.Int))
-        result.append(QtSql.QSqlField('pTumor_id',        QVariant.Int))
-        result.append(QtSql.QSqlField('pNodus_id',        QVariant.Int))
-        result.append(QtSql.QSqlField('pMetastasis_id',   QVariant.Int))
-        result.append(QtSql.QSqlField('pTNMphase_id',     QVariant.Int))
-        result.setValue('person_id',     toVariant(eventEditor.getSuggestedPersonId()))
-        if self.items():
-            result.setValue('diagnosisType_id',  toVariant(self.diagnosisTypeCol.ids[2]))
-        else:
-            result.setValue('diagnosisType_id',  toVariant(self.diagnosisTypeCol.ids[0] if self.diagnosisTypeCol.ids[0] else self.diagnosisTypeCol.ids[1]))
-            result.setValue('result_id',  toVariant(CF030Dialog.defaultDiagnosticResultId if CF030Dialog.defaultDiagnosticResultId in getDiagnosticResultIdList(eventEditor.eventPurposeId, eventEditor.cmbResult.value()) else None))
-        return result
-
-
-    def data(self, index, role=Qt.DisplayRole):
-        column = index.column()
-        row = index.row()
-        if 0 <= row < len(self._items):
-            if role == Qt.EditRole:
-                if QtGui.qApp.isTNMSVisible() and 0 <= row < len(self.items()) and column == self.items()[row].indexOf('TNMS'):
-                    col = self._cols[column]
-                    record = self._items[row]
-                    tnmsMap = {}
-                    for keyName, fieldName in CEventEditDialog.TNMSFieldsDict.items():
-                        tnmsMap[keyName] = forceRef(record.value(fieldName))
-                    return QVariant([forceString(record.value(col.fieldName())), tnmsMap])
-            if index.isValid() and role == Qt.BackgroundRole and QtGui.qApp.preferences.propertyColor and index.column() == 2:
-                if mkbIsVIMIS(forceString(self.items()[row].value('MKB'))):
-                    return QVariant(QtGui.QBrush(QtGui.QColor(QtGui.qApp.preferences.propertyColor)))
-            if index.isValid() and role == Qt.BackgroundRole and column == self.getColIndex('MKBEx'):
-                if not Qt.ItemIsEnabled & index.flags():
-                    return QVariant(QtGui.QBrush(QtGui.QColor(226, 228, 230)))
-        return CMKBListInDocTableModel.data(self, index, role)
-
-
-    def setData(self, index, value, role=Qt.EditRole):
-        column = index.column()
-        row = index.row()
-        if not variantEq(self.data(index, role), value):
-            eventEditor = QObject.parent(self)
-            if column == 0: # тип диагноза
-                result = CMKBListInDocTableModel.setData(self, index, value, role)
-                if result:
-                    self.updateDiagnosisType(set([row]))
-                    self.emitDiagnosisChanged()
-                return result
-            elif column == 1: # врач
-                personId = forceRef(value)
-                if not eventEditor.checkClientAttendanceEE(personId):
-                    return False
-                result = CMKBListInDocTableModel.setData(self, index, value, role)
-                if result:
-                    self.updateDiagnosisType(set())
-                    self.emitDiagnosisChanged()
-                return result
-            elif column == 2: # код МКБ
-                newMKB = forceString(value)
-                if not newMKB:
-                    specifiedMKB = ''
-                    specifiedMKBEx = ''
-                    specifiedCharacterId = None
-                    specifiedTraumaTypeId = None
-                    specifiedDispanserId = None
-                    specifiedRequiresFillingDispanser = 0
-                    specifiedProlongMKB = False
-                else:
-                    acceptable, specifiedMKB, specifiedMKBEx, specifiedCharacterId, specifiedTraumaTypeId, specifiedDispanserId, specifiedRequiresFillingDispanser, specifiedProlongMKB = eventEditor.specifyDiagnosis(newMKB)
-                    if not acceptable:
-                        return False
-                value = toVariant(specifiedMKB)
-                oldMKB = forceString(self.items()[row].value('MKB')) if 0 <= row < len(self.items()) else None
-                result = CMKBListInDocTableModel.setData(self, index, value, role)
-                if result:
-                    if specifiedRequiresFillingDispanser == 2:
-                        self.updateDispanserByMKB(row, specifiedDispanserId, specifiedProlongMKB)
-                    self.updateCharacterByMKB(row, specifiedMKB, specifiedCharacterId)
-                    self.updateTraumaType(row, specifiedMKB, specifiedTraumaTypeId)
-                    self.updateClinicalGroup(row, oldMKB, specifiedMKB, eventEditor.itemId(), eventEditor.clientId, eventEditor.eventSetDateTime.date())
-                    self.updateToxicSubstancesByMKB(row, specifiedMKB)
-                    self.updateTNMS(index, self.items()[row], specifiedMKB)
-                    self.updateMKBTNMS(self.items()[row], specifiedMKB)
-                    self.inheritMKBTNMS(self.items()[row], oldMKB, specifiedMKB, eventEditor.clientId, eventEditor.eventSetDateTime)
-                    self.updateExSubclass(index, self.items()[row], specifiedMKB)
-                    self.updateMKBToExSubclass(self.items()[row], specifiedMKB)
-                    self.emitDiagnosisChanged()
-                return result
-            if 0 <= row < len(self.items()) and column == self.items()[row].indexOf('MKBEx'): # доп. код МКБ
-                newMKB = forceString(value)
-                if not newMKB:
-                    pass
-                else:
-                    acceptable = eventEditor.checkDiagnosis(newMKB)
-                    if not acceptable:
-                        return False
-                value = toVariant(newMKB)
-                result = CMKBListInDocTableModel.setData(self, index, value, role)
-#                if result:
-#                    self.updateCharacterByMKB(row, specifiedMKB)
-                self.emitDiagnosisChanged()
-                return result
-            elif row == len(self.items()) and column == self.getColIndex('MKBEx'):
-                return False
-            if QtGui.qApp.isTNMSVisible() and 0 <= row < len(self.items()) and column == self.items()[row].indexOf('TNMS'):
-                record = self.items()[row]
-                self.updateMKBTNMS(record, forceString(record.value('MKB')))
-                if value:
-                    valueList = value.toList()
-                    valueTNMS = valueList[0]
-                    tnmsMap = valueList[1].toMap()
-                    for name, TNMSId in tnmsMap.items():
-                        if name in CEventEditDialog.TNMSFieldsDict.keys():
-                            record.setValue(CEventEditDialog.TNMSFieldsDict[forceString(name)], TNMSId)
-                    self.emitRowChanged(row)
-                    return CMKBListInDocTableModel.setData(self, index, valueTNMS, role)
-            if QtGui.qApp.isExSubclassMKBVisible() and 0 <= row < len(self.items()) and column == self.items()[row].indexOf('exSubclassMKB'):
-                record = self.items()[row]
-                self.updateMKBToExSubclass(record, forceStringEx(record.value('MKB')))
-                return CMKBListInDocTableModel.setData(self, index, value, role)
-            return CMKBListInDocTableModel.setData(self, index, value, role)
-        else:
-            return True
-
-
-    def updateMKBToExSubclass(self, record, MKB):
-        if QtGui.qApp.isExSubclassMKBVisible():
-            self.cols()[record.indexOf('exSubclassMKB')].setMKB(forceString(MKB))
-
-
-    def updateExSubclass(self, index, record, MKB):
-        if QtGui.qApp.isExSubclassMKBVisible():
-            newMKB = forceString(MKB)
-            if self.cols()[record.indexOf('exSubclassMKB')].MKB != newMKB:
-                record.setValue('exSubclassMKB', toVariant(u''))
-                self.emitRowChanged(index.row())
-
-
-    def updateMKBTNMS(self, record, MKB):
-        if QtGui.qApp.isTNMSVisible():
-            self.cols()[record.indexOf('TNMS')].setMKB(forceString(MKB))
-
-
-    def updateTNMS(self, index, record, MKB):
-        if QtGui.qApp.isTNMSVisible():
-            newMKB = forceString(MKB)
-            if self.cols()[record.indexOf('TNMS')].MKB != newMKB:
-                row = index.row()
-                tnmsMap = {}
-                for keyName, fieldName in CEventEditDialog.TNMSFieldsDict.items():
-                    tnmsMap[keyName] = None
-                    record.setValue(fieldName, toVariant(None))
-                record.setValue('TNMS', toVariant(u''))
-                self.emitRowChanged(row)
-
-
-    def removeRowEx(self, row):
-        self.removeRows(row, 1)
-
-
-    def updateDiagnosisType(self, fixedRowSet):
-        mapPersonIdToRow = {}
-        diagnosisTypeIds = []
-        endDiagnosisTypeIds = None
-        endPersonId = None
-        endRow = -1
-        for row, item in enumerate(self.items()):
-            personId = forceRef(item.value('person_id'))
-            rows = mapPersonIdToRow.setdefault(personId, [])
-            rows.append(row)
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            diagnosisTypeIds.append(diagnosisTypeId)
-            if self.diagnosisTypeCol.ids[0] == diagnosisTypeId and personId == self._parent.personId:
-                endDiagnosisTypeIds = diagnosisTypeId
-                endPersonId = personId
-                endRow = row
-
-        for personId, rows in mapPersonIdToRow.iteritems():
-            usedDiagnosisTypeIds = [diagnosisTypeIds[row] for row in fixedRowSet.intersection(set(rows))]
-            listFixedRowSet = [row for row in fixedRowSet.intersection(set(rows))]
-            if ((self.diagnosisTypeCol.ids[0] in usedDiagnosisTypeIds) or (self.diagnosisTypeCol.ids[0] == diagnosisTypeIds[rows[0]])) and personId == self._parent.personId:
-                firstDiagnosisId = self.diagnosisTypeCol.ids[0]
-            elif (self.diagnosisTypeCol.ids[0] in usedDiagnosisTypeIds) and personId != self._parent.personId:
-                 res = QtGui.QMessageBox.warning(self._parent,
-                                           u'Внимание!',
-                                           u'Смена заключительного диагноза.\nОтветственный будет заменен на \'%s\'.\nВы подтверждаете изменения?' % (forceString(QtGui.qApp.db.translate('vrbPersonWithSpeciality', 'id', personId, 'name'))),
-                                           QtGui.QMessageBox.Ok|QtGui.QMessageBox.Cancel,
-                                           QtGui.QMessageBox.Cancel)
-                 if res == QtGui.QMessageBox.Ok:
-                     self._parent.personId = personId
-                     self._parent.cmbPerson.setValue(self._parent.personId)
-                     firstDiagnosisId = self.diagnosisTypeCol.ids[0]
-                     rowEndPersonId = mapPersonIdToRow[endPersonId] if endPersonId else None
-                     diagnosisTypeColIdsEnd = -1
-                     if rowEndPersonId and len(rowEndPersonId) > 1:
-                         for rowPerson in rowEndPersonId:
-                             if diagnosisTypeIds[rowPerson] == self.diagnosisTypeCol.ids[1] or diagnosisTypeIds[rowPerson] == self.diagnosisTypeCol.ids[0]:
-                                if endRow > -1 and endDiagnosisTypeIds == self.diagnosisTypeCol.ids[0] and endRow != rowPerson:
-                                     diagnosisTypeColIdsEnd = self.diagnosisTypeCol.ids[2]
-                                     break
-                         if diagnosisTypeColIdsEnd == -1:
-                             diagnosisTypeColIdsEnd = self.diagnosisTypeCol.ids[1]
-                     else:
-                         if endRow > -1 and endDiagnosisTypeIds == self.diagnosisTypeCol.ids[0]:
-                             diagnosisTypeColIdsEnd = self.diagnosisTypeCol.ids[1]
-                     if diagnosisTypeColIdsEnd > -1:
-                         self.items()[endRow].setValue('diagnosisType_id', toVariant(diagnosisTypeColIdsEnd))
-                         self.emitCellChanged(endRow, self.items()[endRow].indexOf('diagnosisType_id'))
-                         diagnosisTypeIds[endRow] = forceRef(self.items()[endRow].value('diagnosisType_id'))
-                 else:
-                     if endRow > -1 and endDiagnosisTypeIds == self.diagnosisTypeCol.ids[0]:
-                         self.items()[endRow].setValue('diagnosisType_id', toVariant(endDiagnosisTypeIds))
-                         self.emitCellChanged(endRow, self.items()[endRow].indexOf('diagnosisType_id'))
-                         diagnosisTypeIds[endRow] = forceRef(self.items()[endRow].value('diagnosisType_id'))
-                     firstDiagnosisId = self.diagnosisTypeCol.ids[1]
-                     diagnosisTypeColIdsRows = -1
-                     if len(rows) > 1:
-                         for rowPerson in rows:
-                             if diagnosisTypeIds[rowPerson] == self.diagnosisTypeCol.ids[1] or diagnosisTypeIds[rowPerson] == self.diagnosisTypeCol.ids[0] and (rowPerson not in listFixedRowSet):
-                                 diagnosisTypeColIdsRows = self.diagnosisTypeCol.ids[2]
-                                 break
-                         if diagnosisTypeColIdsRows == -1:
-                            diagnosisTypeColIdsRows = self.diagnosisTypeCol.ids[1]
-                     else:
-                         diagnosisTypeColIdsRows = self.diagnosisTypeCol.ids[1]
-                     if diagnosisTypeColIdsRows > -1:
-                         for rowFixed in listFixedRowSet:
-                             self.items()[rowFixed].setValue('diagnosisType_id', toVariant(diagnosisTypeColIdsRows))
-                             self.emitCellChanged(rowFixed, self.items()[rowFixed].indexOf('diagnosisType_id'))
-                             diagnosisTypeIds[rowFixed] = forceRef(self.items()[rowFixed].value('diagnosisType_id'))
-                     usedDiagnosisTypeIds = [diagnosisTypeIds[row] for row in fixedRowSet.intersection(set(rows))]
-            else:
-                firstDiagnosisId = self.diagnosisTypeCol.ids[1]
-            otherDiagnosisId = self.diagnosisTypeCol.ids[2]
-
-            diagnosisTypeId = firstDiagnosisId if firstDiagnosisId not in usedDiagnosisTypeIds else otherDiagnosisId
-            freeRows = set(rows).difference(fixedRowSet)
-            for row in rows:
-                if (row in freeRows) or diagnosisTypeIds[row] not in (firstDiagnosisId, otherDiagnosisId):
-                    if diagnosisTypeId != diagnosisTypeIds[row] and diagnosisTypeIds[row] != self.diagnosisTypeCol.ids[3]:
-                        self.items()[row].setValue('diagnosisType_id', toVariant(diagnosisTypeId))
-                        self.emitCellChanged(row, self.items()[row].indexOf('diagnosisType_id'))
-                        diagnosisTypeId = forceRef(self.items()[row].value('diagnosisType_id'))
-                        diagnosisTypeIds[row] = diagnosisTypeId
-                    diagnosisTypeId = otherDiagnosisId
-
-
-    def updateDispanserByMKB(self, row, specifiedDispanserId, specifiedProlongMKB):
-        item = self.items()[row]
-        if specifiedProlongMKB and specifiedDispanserId and specifiedDispanserId in self.observedDispanserIdList:
-            dispanserId = specifiedDispanserId if specifiedDispanserId not in self.takenDispanserIdList else self.consistDispanserId
-            item.setValue('dispanser_id', toVariant(dispanserId))
-            self.emitCellChanged(row, item.indexOf('dispanser_id'))
-        elif not specifiedProlongMKB:
-            item.setValue('dispanser_id', toVariant(self.takenDispanserId))
-            self.emitCellChanged(row, item.indexOf('dispanser_id'))
-
-
-    def updateCharacterByMKB(self, row, MKB, specifiedCharacterId):
-        characterIdList = getAvailableCharacterIdByMKB(MKB)
-        item = self.items()[row]
-        if specifiedCharacterId in characterIdList:
-            characterId = specifiedCharacterId
-        else:
-            characterId = forceRef(item.value('character_id'))
-            if (characterId in characterIdList) or (characterId is None and not characterIdList):
-                return
-            if characterIdList:
-                characterId = characterIdList[0]
-            else:
-                characterId = None
-        item.setValue('character_id', toVariant(characterId))
-        self.emitCellChanged(row, item.indexOf('character_id'))
-
-
-    def updateToxicSubstancesByMKB(self, row, MKB):
-        toxicSubstanceIdList = getToxicSubstancesIdListByMKB(MKB)
-        item = self.items()[row]
-        toxicSubstanceId = forceRef(item.value('toxicSubstances_id'))
-        if toxicSubstanceId and toxicSubstanceId in toxicSubstanceIdList:
-            return
-        item.setValue('toxicSubstances_id', toVariant(None))
-        self.emitCellChanged(row, item.indexOf('toxicSubstances_id'))
-
-
-    def updateTraumaType(self, row, MKB, specifiedTraumaTypeId):
-        item = self.items()[row]
-        prevTraumaTypeId = forceRef(item.value('traumaType_id'))
-        if specifiedTraumaTypeId:
-            traumaTypeId = specifiedTraumaTypeId
-        else:
-            traumaTypeId = prevTraumaTypeId
-        if traumaTypeId != prevTraumaTypeId:
-            item.setValue('traumaType_id', toVariant(traumaTypeId))
-            self.emitCellChanged(row, item.indexOf('traumaType_id'))
-
-
-    def getPersonsWithSignificantDiagnosisType(self):
-        result = []
-        significantDiagnosisTypeIdList = [self.diagnosisTypeCol.ids[0], self.diagnosisTypeCol.ids[1]]
-        for item in self.items():
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId and diagnosisTypeId in significantDiagnosisTypeIdList:
-                personId = forceRef(item.value('person_id'))
-                if personId and personId not in result:
-                    result.append(personId)
-        return result
-
-
-    def getFinalDiagnosisMKB(self):
-        finalDiagnosisTypeId = self.diagnosisTypeCol.ids[0] or self.diagnosisTypeCol.ids[1]
-        items = self.items()
-        for item in items:
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId == finalDiagnosisTypeId:
-                return forceString(item.value('MKB')), forceString(item.value('MKBEx'))
-        return '', ''
-
-
-    def getAssociatedDiagnosisMKB(self):
-        associatedDiagnosisTypeId = self.diagnosisTypeCol.ids[2]
-        items = self.items()
-        for item in items:
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId == associatedDiagnosisTypeId:
-                return forceString(item.value('MKB'))
-        return ''
-
-
-    def getComplicationDiagnosisMKB(self):
-        complicationDiagnosisTypeId = self.diagnosisTypeCol.ids[3]
-        items = self.items()
-        for item in items:
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId == complicationDiagnosisTypeId:
-                return forceString(item.value('MKB'))
-        return ''
-
-
-    def getFinalDiagnosisId(self):
-        finalDiagnosisTypeId = self.diagnosisTypeCol.ids[0]
-        items = self.items()
-        for item in items:
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId == finalDiagnosisTypeId:
-                return forceRef(item.value('diagnosis_id'))
-        return None
-
-
-    def getBaseServiceIdMKB(self):
-        serviceId = None
-        MKB, MKBEx = self.getFinalDiagnosisMKB()
-        if MKB:
-            db = QtGui.qApp.db
-            table = db.table('MKB')
-            cond = [table['DiagID'].like(MKB)]
-            record = db.getRecordEx(table, ['service_id'], cond)
-            serviceId = forceRef(record.value('service_id')) if record else None
-        return serviceId
-
-
-    def emitDiagnosisChanged(self):
-        self.emit(SIGNAL('diagnosisChanged()'))
-
-    
-    def saveItems(self, masterId = None):
-        CMKBListInDocTableModel.saveItems(self, masterId)
-        self.prophylaxisPlanningSync()
-
-
-class CF030PreliminaryDiagnosticsModel(CF030BaseDiagnosticsModel):
-    def __init__(self, parent):
-        CF030BaseDiagnosticsModel.__init__(self, parent, None, '7', '11', None)
-
-
-    def getMainDiagnosisTypeIdList(self):
-        return [self.diagnosisTypeCol.ids[1]]
-    
-    
-    def getEmptyRecord(self):
-        result = CF030BaseDiagnosticsModel.getEmptyRecord(self)
-        return result
-
-
-class CF030FinalDiagnosticsModel(CF030BaseDiagnosticsModel):
-    __pyqtSignals__ = ('resultChanged()',
-                      )
-
-    def __init__(self, parent):
-        CF030BaseDiagnosticsModel.__init__(self, parent, '1', '2', '9', '3')
-        self.addCol(CRBInDocTableCol(    u'Результат',     'result_id',     10, 'rbDiagnosticResult', showFields=CRBComboBox.showNameAndCode, preferredWidth=350))
-        self.mapMKBToServiceId = {}
-
-
-    def getCloseOrMainDiagnosisTypeIdList(self):
-        return self.diagnosisTypeCol.ids[:2]
-
-
-    def setData(self, index, value, role=Qt.EditRole):
-        resultId = self.resultId()
-        result = CF030BaseDiagnosticsModel.setData(self, index, value, role)
-        eventEditor = QObject.parent(self)
-        if resultId != self.resultId() or eventEditor.cmbResult.value() != self.resultId():
-            self.emitResultChanged()
-        return result
-
-
-    def removeRowEx(self, row):
-        resultId = self.resultId()
-        self.removeRows(row, 1)
-        eventEditor = QObject.parent(self)
-        if resultId != self.resultId() or eventEditor.cmbResult.value() != self.resultId():
-            self.emitResultChanged()
-
-
-    def resultId(self):
-        finalDiagnosisTypeId = self.diagnosisTypeCol.ids[0]
-        items = self.items()
-        for item in items:
-            diagnosisTypeId = forceRef(item.value('diagnosisType_id'))
-            if diagnosisTypeId == finalDiagnosisTypeId:
-                return forceRef(item.value('result_id'))
-        return None
-
-
-    def diagnosisServiceId(self):
-        items = self.items()
-        if items:
-            code = forceString(items[0].value('MKB'))
-            if code in self.mapMKBToServiceId:
-                return self.mapMKBToServiceId[code]
-            else:
-                serviceId = forceRef(QtGui.qApp.db.translate('MKB', 'DiagID', code, 'service_id'))
-                self.mapMKBToServiceId[code] = serviceId
-                return serviceId
-        else:
-            return None
-
-
-    def emitResultChanged(self):
-        self.emit(SIGNAL('resultChanged()'))
-
-
-# ###################################################################
-
-
-class CF030DiagnosisTypeCol(CDiagnosisTypeCol):
-    def __init__(self, title=u'Тип', fieldName='diagnosisType_id', width=5, diagnosisTypeCodes=[], smartMode=True, **params):
-        CDiagnosisTypeCol.__init__(self, title, fieldName, width, diagnosisTypeCodes, smartMode, **params)
-        self.namesF030 = [u'Закл', u'Осн', u'Соп', u'Осл']
-
-
-    def toString(self, val, record):
-        id = forceRef(val)
-        if id in self.ids:
-            return toVariant(self.namesF030[self.ids.index(id)])
-        return QVariant()
-
-
-    def setEditorData(self, editor, value, record):
-        editor.clear()
-        if value.isNull():
-            value = record.value(self.fieldName())
-        id = forceRef(value)
-        if self.smartMode:
-            if id == self.ids[0]:
-                editor.addItem(self.namesF030[0], toVariant(self.ids[0]))
-            elif id == self.ids[1]:
-                if self.ids[0]:
-                    editor.addItem(self.namesF030[0], toVariant(self.ids[0]))
-                editor.addItem(self.namesF030[1], toVariant(self.ids[1]))
-            else:
-                editor.addItem(self.namesF030[2], toVariant(self.ids[2]))
-                editor.addItem(self.namesF030[3], toVariant(self.ids[3]))
-        else:
-            for itemName, itemId in zip(self.namesF030, self.ids):
-                if itemId:
-                    editor.addItem(itemName, toVariant(itemId))
-        currentIndex = editor.findData(toVariant(id))
-        editor.setCurrentIndex(currentIndex)
+    def on_actChangePersonDN_triggered(self):
+        model = self.tblSurveillance.model()
+        item = self.tblSurveillance.currentItem()
+        if item:
+            MKB = forceString(item.value('MKB'))
+            record = model.diagnosticRecords.get(MKB, None)
+            if not record:
+                MKBGroup = MKB[:3] if len(MKB) > 3 else MKB
+                record = model.diagnosticGroupRecords.get(MKBGroup, None)
+            diagnosisId = forceRef(record.value('diagnosis_id')) if record else None
+            dialog = CChangeDispanserPerson(self)
+            if forceInt(item.value('dispanser_id')) == forceInt(record.value('diagnosisDispanser_id')):
+                dialog.load(diagnosisId)
+            if dialog.exec_():
+                personId = dialog.getPersonId()
+                dispanserPersonId = forceRef(personId)
+                personRecord = QtGui.qApp.db.getRecordEx('Person', 'speciality_id, orgStructure_id', 'id=%s' % dispanserPersonId)
+                specialityId = forceRef(personRecord.value('speciality_id'))
+                orgStructureId = forceRef(personRecord.value('orgStructure_id'))
+                item.setValue('person_id', dispanserPersonId)
+                item.setValue('speciality_id', specialityId)
+                item.setValue('orgStructure_id', orgStructureId)
+                model.reset()
+
+
+    @pyqtSignature('')
+    def on_actChangeDispanserDate_triggered(self):
+        model = self.tblSurveillance.model()
+        item = self.tblSurveillance.currentItem()
+        if item:
+            MKB = forceString(item.value('MKB'))
+            record = model.diagnosticRecords.get(MKB, None)
+            if not record:
+                MKBGroup = MKB[:3] if len(MKB) > 3 else MKB
+                record = model.diagnosticGroupRecords.get(MKBGroup, None)
+            diagnosisId = forceRef(record.value('diagnosis_id')) if record else None
+            dialog = CChangeDispanserBegDateLUD(self)
+            if forceInt(item.value('dispanser_id')) == forceInt(record.value('diagnosisDispanser_id')):
+                dialog.load(diagnosisId)
+            if dialog.exec_():
+                date = dialog.getDate()
+                item.setValue('takenDate', date)
+                model.reset()
+
+
+    def on_popupMenu_aboutToShow(self):
+        model = self.tblSurveillance.model()
+        rowCount = model.realRowCount() if hasattr(model, 'realRowCount') else model.rowCount()
+        row = self.tblSurveillance.currentIndex().row()
+        self.actChangeDispanserDate.setEnabled(0 <= row < rowCount)
+        self.actChangePersonDN.setEnabled(0 <= row < rowCount)
+        self.tblSurveillance.on_popupMenu_aboutToShow()

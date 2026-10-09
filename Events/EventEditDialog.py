@@ -2011,14 +2011,7 @@ LIMIT 1))))'''%(str(eventId)))
                     if dispanserId and forceInt(QtGui.qApp.db.translate('rbDispanser', 'id', dispanserId, 'observed')) == 1:
                         observed = True
                         break
-                planMessage = u'Запланировать явку по диспансерному наблюдению?' if observed else u'Открыть Контрольную карту диспансерного наблюдения?'
-                messagesaveSurveillancePlanning = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
-                                                                    planMessage,
-                                                                    QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
-                                                                    self)
-                messagesaveSurveillancePlanning.setDefaultButton(QtGui.QMessageBox.Ok)
-                res = messagesaveSurveillancePlanning.exec_()
-                if res == QtGui.QMessageBox.Ok:
+                if self.dispPlanMessage(observed, dispanserItems) == QtGui.QMessageBox.Ok:
                     for record in dispanserItems:
                         record.append(QSqlField('diagnosisDispanser_id', QVariant.Int))
                         record.setValue('diagnosisDispanser_id', QtGui.qApp.db.translate('Diagnosis', 'id', forceRef(record.value('diagnosis_id')), 'dispanser_id'))
@@ -2993,7 +2986,7 @@ LIMIT 1))))'''%(str(eventId)))
 
     def enterNextEventDate(self, eventTypeId, execDate, clientId):
         self.checkValueMessage(u"Требуется указать дату прохождения следующего профилактического мероприятия в регистрационной карте пациента\n на вкладке Соц.статус", False, None)
-        self.editClient('tabSocStatus')
+        self.editClient('tabSocStatus',(True if self.clientAge and self.clientAge[3] < 18 else False))
 
     def getSocStatusProfBegDate(self, clientId, execDate):
         db = QtGui.qApp.db
@@ -3011,6 +3004,10 @@ LIMIT 1))))'''%(str(eventId)))
         else:
             cond.append('YEAR(begDate)>\'%d\'' % execDate.year())
 
+        if self.clientAge and self.clientAge[3] < 18:
+            socStatusTypeId = forceInt(db.translate('rbSocStatusType', 'code', u'prof_d', 'id'))
+            cond.append(tableClientSocStatus['socStatusType_id'].eq(socStatusTypeId))
+
         return db.getRecordEx(tableClientSocStatus, 'begDate', cond, order='%s.id DESC' % tableClientSocStatus.name())
 
     def checkNextEventDate(self, execDate, clientId):
@@ -3020,7 +3017,7 @@ LIMIT 1))))'''%(str(eventId)))
             res = False
         return res
 
-    def editClient(self, focusWidget=''):
+    def editClient(self, focusWidget='', needAddSocStatus=False):
         if QtGui.qApp.userHasAnyRight([urAdmin, urRegTabWriteRegistry, urRegTabReadRegistry]):
             dialog = CClientEditDialog(self)
             try:
@@ -3028,6 +3025,8 @@ LIMIT 1))))'''%(str(eventId)))
                 if hasattr(dialog, focusWidget):
                         QtGui.qApp.restoreOverrideCursor()
                         dialog.setFocusToWidget(getattr(dialog, focusWidget))
+                if needAddSocStatus:
+                    dialog.socStatusChanged.emit()
                 if dialog.exec_():
                     self.updateClientInfo()
             finally:
@@ -3644,6 +3643,10 @@ LIMIT 1))))'''%(str(eventId)))
                          'SET DNew.setDate=DOld.setDate '
                          'WHERE DNew.id=%d AND DOld.id=%d AND DOld.mod_id=DNew.id AND '
                          'DNew.setDate IS NOT NULL AND DOld.setDate IS NOT NULL AND DOld.setDate<DNew.setDate'%(newDiagnosisId, oldDiagnosisId))
+                db.query('UPDATE Diagnosis AS DOld, Diagnosis AS DNew '
+                        'SET DNew.dispanserBegDate=DOld.dispanserBegDate, '
+                        'DNew.dispanserPerson_id=DOld.dispanserPerson_id '
+                        'WHERE DNew.id=%d AND DOld.id=%d AND DOld.mod_id=DNew.id' % (newDiagnosisId, oldDiagnosisId))
 
 
     def resetActionTemplateCache(self):
@@ -6557,6 +6560,65 @@ LIMIT 1))))'''%(str(eventId)))
             result = actionType.checkMaxOccursLimit(count, False)
             return result
         return False
+    
+    
+    def dispPlanMessage(self, observedAny=None, dispanserItems=[]):
+        prophylaxisRecords = []
+        db = QtGui.qApp.db
+        table = db.table('ProphylaxisPlanning').alias('parent')
+        tableChild = db.table('ProphylaxisPlanning').alias('child')
+        tableRBDispanser = db.table('rbDispanser')
+        queryTable = table.leftJoin(tableRBDispanser, tableRBDispanser['id'].eq(table['dispanser_id']))
+        queryTable = queryTable.leftJoin(tableChild, u'''child.id is NULL or child.id = (
+                                         SELECT c2.id 
+                                         FROM ProphylaxisPlanning AS c2
+                                         WHERE 
+                                         c2.parent_id = parent.id
+                                         AND c2.endDate > {}
+                                         AND c2.deleted = 0
+                                         ORDER BY c2.endDate ASC
+                                         LIMIT 1
+                                         )'''.format(db.formatDate(QDate.currentDate())))
+        filter = [table['parent_id'].isNull(),
+                table['client_id'].eq(self.clientId),
+                table['deleted'].eq(0),
+                tableRBDispanser['observed'].eq(1)]
+        condMKB = []
+        tempMKBs = []
+        for record in dispanserItems:
+            dispanserId = forceRef(record.value('dispanser_id'))
+            if dispanserId and not dispanserId in (3, 4, 5):
+                MKB = forceString(record.value('MKB'))
+                diag = MKB
+                if len(MKB) >= 3:
+                    diag = MKB[:3]
+                if diag and diag not in tempMKBs:
+                    tempMKBs.append(diag)
+        if tempMKBs:
+            for tempMKB in tempMKBs:
+                condMKB.append(table['MKB'].like(tempMKB + '%'))
+            filter.append(db.joinOr(condMKB))
+            order = [table['takenDate'].name() + u'ASC', table['removeDate'].name() + u'DESC']
+            prophylaxisRecords = db.getRecordList(queryTable, ['parent.id as parID', 'parent.MKB as parMKB', 'child.*'], filter, order)
+        messages = []
+        if prophylaxisRecords:
+            for item in prophylaxisRecords:
+                if forceRef(item.value('parID')):
+                    message = u'\nМКБ {}.'.format(forceString(item.value('parMKB')))
+                    if forceRef(item.value('id')):
+                        message += u' Следующая явка запланирована на {}'.format(forceString(item.value('endDate')))
+                    else:
+                        message += u' Следующая явка не запланирована'
+                    messages.append(message)
+        planMessage = u'Запланировать явку по диспансерному наблюдению?' if observedAny else u'Открыть Контрольную карту диспансерного наблюдения?'
+        for message in messages:
+            planMessage += message
+        messagesaveSurveillancePlanning = QtGui.QMessageBox(QtGui.QMessageBox.Warning, u'Внимание!',
+                                                            planMessage,
+                                                            QtGui.QMessageBox.Ok | QtGui.QMessageBox.Cancel,
+                                                            self)
+        messagesaveSurveillancePlanning.setDefaultButton(QtGui.QMessageBox.Ok)
+        return messagesaveSurveillancePlanning.exec_()
 
 
 # == столбики для редактирования характера и стадии в диагнозах

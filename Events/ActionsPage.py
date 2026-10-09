@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -3337,17 +3337,19 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if self.isReadOnly():
             return
         model = self.tblAPActions.model()
-        row = self.tblAPActions.currentIndex().row()
-        if 0<=row<model.rowCount()-1:
-            group = self.modelAPActions._mapProxyRow2Group[row]
-            if not group.expanded:
-                record = group.firstItem[0]
-            else:
-                record = model._items[row][0]
-            actionTypeId = forceRef(record.value('actionType_id'))
-            index = model.index(model.rowCount()-1, 0)
-            if model.setData(index, toVariant(actionTypeId), related = False):
-                self.tblAPActions.setCurrentIndex(index)
+        rows = self.tblAPActions.selectedIndexes()
+        for rowIndex in rows:
+            row = rowIndex.row()
+            if 0<=row<model.rowCount()-1:
+                group = self.modelAPActions._mapProxyRow2Group[row]
+                if not group.expanded:
+                    record = group.firstItem[0]
+                else:
+                    record = model._items[row][0]
+                actionTypeId = forceRef(record.value('actionType_id'))
+                index = model.index(model.rowCount()-1, 0)
+                if model.setData(index, toVariant(actionTypeId), related = False):
+                    self.tblAPActions.setCurrentIndex(index)
 
     
     @pyqtSignature('')
@@ -3413,6 +3415,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             index = model.index(row, 0)
             if model.setData(index, toVariant(action.actionType().id), related=False):
                 newRecord, newAction = model._items[index.row()]
+                newRecord.setValue('idx', row)
                 newAction.updateByAction(action.clone())
 
     @pyqtSignature('')
@@ -4368,12 +4371,12 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if not action.nomenclatureExpense:
             return True
 
+        nomenclatureIdDict = {}
         if action.nomenclatureExpense.stockMotionRecord():
             supplierId = forceRef(action.getRecord().value('orgStructure_id'))
             if supplierId:
                 action.nomenclatureExpense.setSupplierId(supplierId)
             if requireItems and not action.nomenclatureExpense.stockMotionItems():
-                nomenclatureIdDict = {}
                 nomenclatureId = action.findNomenclaturePropertyValue()
                 if not nomenclatureId:
                     return True

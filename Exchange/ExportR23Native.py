@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -3213,13 +3213,13 @@ IF(COALESCE(rbItemService.infis, rbEventService.infis) like 'G%%' and IF(Event.e
                                                         LEFT JOIN rbService rs1 ON rs1.id = ai1.service_id
                                                         INNER JOIN soc_spr97 s97 ON s97.kusl = rs1.infis AND s97.datn <= ai1.serviceDate AND (s97.dato is NULL OR s97.dato >= ai1.serviceDate)
                                                         WHERE ai1.event_id = Event.id AND ai1.master_id = Account_Item.master_id AND ai1.deleted = 0) THEN
-            (SELECT pp.begDate
+            (SELECT pp.endDate
              FROM ProphylaxisPlanning pp
              LEFT JOIN rbProphylaxisPlanningType ppt ON pp.prophylaxisPlanningType_id = ppt.id
              WHERE pp.client_id = Event.client_id AND ppt.code = 'ДН' AND pp.MKB like CONCAT(LEFT(Diagnosis.MKB, 3), '%%')
-              AND pp.begDate > Event.execDate
-               AND (YEAR(pp.begDate) = YEAR(Event.execDate) AND MONTH(pp.begDate) > MONTH(Event.execDate) OR YEAR(pp.begDate) > YEAR(Event.execDate))
-               AND pp.parent_id IS NOT NULL AND pp.deleted = 0 order BY pp.begDate limit 1)
+              AND pp.endDate > Event.execDate
+               AND (YEAR(pp.endDate) = YEAR(Event.execDate) AND MONTH(pp.endDate) > MONTH(Event.execDate) OR YEAR(pp.endDate) > YEAR(Event.execDate))
+               AND pp.parent_id IS NOT NULL AND pp.deleted = 0 order BY pp.endDate limit 1)
   END AS DATE_PO,
   rbEventProfile.regionalCode AS eventProfileRegionalCode,
   COALESCE((SELECT sst.code
@@ -4142,7 +4142,7 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                     Q_G = self.RecordListP[-1]['Q_G']
                     Q_G += 'm' if 'm' not in Q_G else ''
                     self.RecordListP[-1]['Q_G'] = Q_G
-            elif endDate >= QDate(2026, 7, 1) and VP in ('01', '02'):
+            elif endDate >= QDate(2026, 7, 1):
                 value = self.mapEventTypeToTFOMSAccIdent.get(eventTypeId, None)
                 if value is None:
                     value = getIdentification('EventType', eventTypeId, 'AccTFOMS', raiseIfNonFound=False)

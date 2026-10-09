@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2017 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -127,6 +127,7 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
         self.cmbAreaAddressType.setEnabled(value)
         self.chkUpdateData.setEnabled(value)
         self.chkAttach.setEnabled(value)
+        self.chkSaveAttachType.setEnabled(value and self.chkAttach.isChecked() and self.chkUpdateData.isChecked())
         self.btnClose.setEnabled(value)
         self.btnRun.setEnabled(value)
         self.btnPauseOrStop.setEnabled(not value)
@@ -433,17 +434,18 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
         tableClientAttach = db.table('ClientAttach')
         self.progressBar.setMaximum(len(clientIdList) if len(clientIdList) else 1)
         mapAttachId2Code = {}
+        saveAttachType = self.chkSaveAttachType.isChecked()
         while self._currentClientIdx < len(clientIdList):
             clientId = clientIdList[self._currentClientIdx]
             if self._stoped:
                 break
             QtGui.qApp.processEvents()
             self.stepCreateOrUpdateAttach(clientId, mapHouseId2Info, areaAddressType,
-                                          currentDate, orgStructureIdList, tableClientAttach, db, mapAttachId2Code)
+                                          currentDate, orgStructureIdList, tableClientAttach, db, mapAttachId2Code, saveAttachType)
 
 
     def stepCreateOrUpdateAttach(self, clientId, mapHouseId2Info, areaAddressType,
-                                       currentDate, orgStructureIdList, tableClientAttach, db, mapAttachId2Code):
+                                       currentDate, orgStructureIdList, tableClientAttach, db, mapAttachId2Code, saveAttachType):
         clientRecord = self.getCreateOrUpdateClientRecord(clientId, currentDate, areaAddressType)
         if clientRecord:
             houseId   = forceRef(clientRecord.value('house_id'))
@@ -452,6 +454,7 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
             masterId, organisationId = self.getMasterIdOrganisationId(mapHouseId2Info, houseId, clientId, clientBirthDate, clientSex)
             if masterId:
                 clientAttachRecord = self.getCreateOrUpdateClientAttachRecord(clientId)
+                attachTypeId = None
                 notes = u'Сервис "прикрепление": {0}, пользователь {1}'.format(
                     formatDateTime(QDateTime.currentDateTime()), QtGui.qApp.userName())
                 if clientAttachRecord:
@@ -481,7 +484,7 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
                         clientAttachRecord.value('endDate')) < self.edtDate.date()):
                     newRecord = tableClientAttach.newRecord()
                     newRecord.setValue('client_id', QVariant(clientId))
-                    newRecord.setValue('attachType_id', QVariant(1))
+                    newRecord.setValue('attachType_id', QVariant(attachTypeId if saveAttachType and attachTypeId else 1))
                     newRecord.setValue('LPU_id', QVariant(organisationId))
                     newRecord.setValue('orgStructure_id', QVariant(masterId))
                     newRecord.setValue('begDate', QVariant(currentDate))
@@ -606,6 +609,11 @@ class CCreateAttachClientsForAreaDialog(QtGui.QDialog, Ui_CreateAttachClientsFor
     def on_chkUpdateData_toggled(self, value):
         self.cmbDeAttachType.setEnabled(value)
         self.edtDate.setEnabled(value)
+        self.chkSaveAttachType.setEnabled(value and self.chkAttach.isChecked())
+
+    @pyqtSignature('bool')
+    def on_chkAttach_toggled(self, value):
+        self.chkSaveAttachType.setEnabled(value and self.chkUpdateData.isChecked())
 
 
     @pyqtSignature('QDate')

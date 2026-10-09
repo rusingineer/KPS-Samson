@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -496,6 +496,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
 
 
     def process(self):
+        QtGui.qApp._timeoutLogout.stop()
         checkedRecords = sum(forceInt(record.value('isChecked')) for record in self.records)
         self.progressBar.setMaximum(checkedRecords)
         self.progressBar.setValue(0)
@@ -516,6 +517,7 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
         self.done = True
         self.btnAbort.setEnabled(False)
         self.emit(SIGNAL('completeChanged()'))
+        QtGui.qApp._timeoutLogout.setup(QtGui.qApp.getConnectionTimeout() * 60000, timeoutFunc=QtGui.qApp.mainWindow.logoutAndLogin)
 
 
     def processRecord(self, record):

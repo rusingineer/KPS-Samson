@@ -430,7 +430,17 @@ WHEN mt.regionalCode IN ('271', '272') AND
   Action.endDate >= '2017-01-01' AND
   substr(Insurer.area, 1, 2) = '%(defaultRegion)s' THEN 0
 WHEN mt.regionalCode = '233' AND Event.execDate < '2026-02-01' AND rbService.infis IN ('B04.047.002', 'B04.047.004', 'B04.026.002')  THEN 0
-WHEN mt.regionalCode = '244' AND Event.execDate < '2026-02-01' AND ep.regionalCode IN ('8020') AND SUBSTR(rbService.infis, 1, 1) = 'A' THEN 0
+WHEN mt.regionalCode = '244' AND Event.execDate < '2026-02-01' AND ep.regionalCode IN ('8020') AND SUBSTR(rbService.infis, 1, 1) = 'A'  AND 
+  (rbService.infis <> 'A08.20.017.002' OR (rbService.infis = 'A08.20.017.002' AND 
+    EXISTS (
+      SELECT a.id FROM Action a LEFT JOIN ActionType at ON at.id = a.actionType_id
+      WHERE a.event_id = Event.id
+        AND a.id <> Action.id
+        AND a.deleted = 0
+        AND a.deleted = 0 
+        AND at.nomenclativeService_id IS NOT NULL
+    ))
+  ) THEN 0  
 WHEN Event.execDate >= '2020-01-01' and Event.execDate < '2026-02-01' AND mt.regionalCode in ('211', '233', '244', '261', '232', '252', '262') 
          AND rbService.infis in ('B04.026.001.001', 'B04.026.001.002', 'B04.026.001.005', 'B04.026.001.006',
                                  'B04.026.001.009', 'B04.026.001.010', 'B04.026.001.027', 'B04.026.001.028',

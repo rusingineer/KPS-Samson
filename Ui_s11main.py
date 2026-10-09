@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\s11main.ui'
+# Form implementation generated from reading ui file 'E:\projects\Samson\UP_s11\client_pre_release\s11main.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -2276,14 +2276,20 @@ class Ui_MainWindow(object):
         self.actStationaryF14KK4001.setObjectName(_fromUtf8("actStationaryF14KK4001"))
         self.actStationaryF14KK4100 = QtGui.QAction(MainWindow)
         self.actStationaryF14KK4100.setObjectName(_fromUtf8("actStationaryF14KK4100"))
+        self.actForm030dco13 = QtGui.QAction(MainWindow)
+        self.actForm030dco13.setObjectName(_fromUtf8("actForm030dco13"))
         self.actReportPatientSchoolJournal = QtGui.QAction(MainWindow)
         self.actReportPatientSchoolJournal.setObjectName(_fromUtf8("actReportPatientSchoolJournal"))
         self.actReportMonthlySchoolJournal = QtGui.QAction(MainWindow)
         self.actReportMonthlySchoolJournal.setObjectName(_fromUtf8("actReportMonthlySchoolJournal"))
         self.actReportAFT_002 = QtGui.QAction(MainWindow)
         self.actReportAFT_002.setObjectName(_fromUtf8("actReportAFT_002"))
+        self.actHealthCenterAnaliz = QtGui.QAction(MainWindow)
+        self.actHealthCenterAnaliz.setObjectName(_fromUtf8("actHealthCenterAnaliz"))
         self.actReportAFT_Forecast12month = QtGui.QAction(MainWindow)
         self.actReportAFT_Forecast12month.setObjectName(_fromUtf8("actReportAFT_Forecast12month"))
+        self.actFerzlAttach = QtGui.QAction(MainWindow)
+        self.actFerzlAttach.setObjectName(_fromUtf8("actFerzlAttach"))
         self.mnuMruEvents.addSeparator()
         self.mnuMruEvents.addAction(self.actClearMruEvents)
         self.menuFile.addAction(self.actLogin)
@@ -2715,6 +2721,7 @@ class Ui_MainWindow(object):
         self.mnuContingent.addAction(self.menu_28.menuAction())
         self.mnuContingent.addAction(self.actForm13dChildPopulation)
         self.mnuContingent.addAction(self.actForm25dNumberChildrenByAgeAndSocStatus)
+        self.mnuContingent.addAction(self.actFerzlAttach)
         self.mnuDispObservation.addAction(self.actDispObservationList)
         self.mnuDispObservation.addAction(self.actDispObservationSurvey)
         self.mnuDispObservation.addAction(self.actStatReportF12Clients)
@@ -3239,6 +3246,7 @@ class Ui_MainWindow(object):
         self.mnuStatReports.addAction(self.mnuNarcology.menuAction())
         self.mnuStatReports.addAction(self.mnuForm19.menuAction())
         self.mnuStatReports.addAction(self.actForm030po17)
+        self.mnuStatReports.addAction(self.actForm030dco13)
         self.mnuReportTrauma.addAction(self.actReportTraumaMiteBites)
         self.mnuReportTrauma.addAction(self.actReportTraumaAnimalBites)
         self.mnuReportTrauma.addAction(self.actReportTraumaHospitalization)
@@ -3259,6 +3267,7 @@ class Ui_MainWindow(object):
         self.mnuAdministrator.addAction(self.actAdminTemplate_YEARS)
         self.mnuUserTemplate.addAction(self.actNotTemplate)
         self.mnuHealthCenter.addAction(self.actHealthCenterForm68)
+        self.mnuHealthCenter.addAction(self.actHealthCenterAnaliz)
         self.mnuReports.addAction(self.mnuAdministrator.menuAction())
         self.mnuReports.addAction(self.mnuStatReports.menuAction())
         self.mnuReports.addAction(self.mnuAnaliticReports.menuAction())
@@ -4397,10 +4406,13 @@ class Ui_MainWindow(object):
         self.actStationaryF14KK4000.setText(_translate("MainWindow", "(4000) Хирургическая работа организации", None))
         self.actStationaryF14KK4001.setText(_translate("MainWindow", "(4001) Хирургическая работа организации (лица старше трудоспособного возраста)", None))
         self.actStationaryF14KK4100.setText(_translate("MainWindow", "(4100)", None))
+        self.actForm030dco13.setText(_translate("MainWindow", "Форма N 030-Д/с/о-13", None))
         self.actReportPatientSchoolJournal.setText(_translate("MainWindow", "Журнал регистрации пациентов, обучающихся в Школах с ХНИЗ", None))
         self.actReportMonthlySchoolJournal.setText(_translate("MainWindow", "Отчет о работе школ для пациентов с ХНИЗ", None))
         self.actReportAFT_002.setText(_translate("MainWindow", "Отчет для АФТ 002", None))
+        self.actHealthCenterAnaliz.setText(_translate("MainWindow", "Анализ факторов риска развития заболеваний среди первичных пациентов ЦЗ", None))
         self.actReportAFT_Forecast12month.setText(_translate("MainWindow", "Отчет для АФТ 12 месяцев", None))
+        self.actFerzlAttach.setText(_translate("MainWindow", "Данные прикреплённого населения ФЕРЗЛ", None))
 
 from library.MdiArea import CMdiArea
 import s11main_rc

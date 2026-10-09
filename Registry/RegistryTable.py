@@ -683,9 +683,16 @@ class CEventsTableModel(CTableModel):
             tableDiagnostic = db.table('Diagnostic')
             filter = [tableDiagnostic['id'].inlist(self.diagnosticIdList), tableDiagnostic['deleted'].eq(0)]
             db.deleteRecord(tableDiagnostic, filter)
-        if self.diagnosisIdList:
-            tableDiagnosis = db.table('Diagnosis')
-            tableDC = db.table('Diagnostic').alias('DC')
+        tableDiagnosis = db.table('Diagnosis')
+        tableDC = db.table('Diagnostic').alias('DC')
+        # Записи из Diagnostic не удаляются, а отмечаются deleted=1. Diagnostic.id IS NULL оставляю для истории, но
+        # он по-сути не нужен больше
+        # Одним запросом удалять записи из Diagnosis нельзя, поскольку, если среди удаляемых (проверяемых) записей
+        # есть хоть одна, которая не должна быть удалена - условие
+        # NOT EXISTS(SELECT DC.id FROM Diagnostic AS DC WHERE (%s) AND DC.deleted = 0 AND (%s))
+        # вернёт False для всего списка и ни одна запись не будет удалена (Mantis 0015991)
+        # Проходим по списку удаляемых и удаляем записи по одной
+        for id in self.diagnosisIdList:
             stmt = 'UPDATE Diagnosis '                                                  \
                    'LEFT JOIN Diagnostic ON Diagnostic.diagnosis_id = Diagnosis.id '    \
                    'LEFT JOIN TempInvalid ON TempInvalid.diagnosis_id = Diagnosis.id '  \
@@ -697,11 +704,11 @@ class CEventsTableModel(CTableModel):
                    'WHERE (%s) AND DC.deleted = 0 AND (%s)) '         \
                    'AND Diagnostic.id IS NULL '                                         \
                    'AND TempInvalid.id IS NULL '                                        \
-                   'AND D.id IS NULL;' % (tableDiagnosis['id'].inlist(self.diagnosisIdList), tableDC['diagnosis_id'].inlist(self.diagnosisIdList), tableDC['id'].notInlist(self.diagnosticIdList))
+                   'AND D.id IS NULL;' % (tableDiagnosis['id'].eq(id), tableDC['diagnosis_id'].eq(id), tableDC['id'].notInlist(self.diagnosticIdList))
             db.query(stmt)
-            self.updateDiagnosisData()
-            self.diagnosisIdList = []
-            self.diagnosticIdList = []
+        self.updateDiagnosisData()
+        self.diagnosisIdList = []
+        self.diagnosticIdList = []
         QtGui.qApp.emitCurrentClientInfoChanged()
 
     def deleteTakenTissue(self):

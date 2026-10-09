@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2025 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -29,6 +29,7 @@ from library.CRBSearchComboBox import CRBSearchComboBox, CRBTestSearchComboBox
 
 from library import database
 from library.ICDUtils       import getMKBName
+from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.Utils import CColsMovingFeature, copyFields, forceBool, forceDate, forceDouble, forceDateTime, forceInt, forceRef, forceString, forceStringEx, formatDate, formatDateTime, formatName, formatSex, formatTime, getDentitionActionTypeId, getPref, setPref, toVariant, trim, getExSubclassItemLastName
 
 
@@ -2275,7 +2276,7 @@ class CInDocTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
         index = self.currentIndex()
         if index.isValid():
             model = self.model()
-            if isinstance(model, (CInDocTableModel, CRecordListModel)):
+            if isinstance(model, (CInDocTableModel, CRecordListModel, CSortFilterProxyTableModel)):
                 row = index.row()
                 if 0 <= row < len(model.items()):
                    return model.items()[row]

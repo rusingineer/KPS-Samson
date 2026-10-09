@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2023 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -44,7 +44,6 @@ from library.interchange import (
 )
 
 from library.ItemsListDialog         import CItemEditorBaseDialog
-from library.JsonRpc.client          import CJsonRpcClent
 from library.PrintInfo               import CInfoContext
 from library.PrintTemplates          import applyTemplate, customizePrintButton, getPrintButton
 from library.Utils                   import (
@@ -93,17 +92,17 @@ from Events.Utils import (
     getEventMedicalAidKindId,
     getDeathDate,
     getEventPurposeId,
-    updateNomenclatureDosageValue, CFinanceType, getEventContextData
+    updateNomenclatureDosageValue,
+    CFinanceType
 )
 from library.TimeoutLogout         import CTimeoutLogout
-#from Events.ExecutionPlan.ExecutionPlanType import CActionExecutionPlanType
 from Orgs.Orgs                       import selectOrganisation
 from Registry.ClientEditDialog       import CClientEditDialog
 from Registry.Utils                  import getClientInfo, getClientBanner, removeExtCols
 from Resources.CourseStatus          import CCourseStatus
 from Resources.Utils                 import getNextDateExecutionPlan
 from Stock.ClientInvoiceEditDialog   import CClientInvoiceEditDialog, CClientRefundInvoiceEditDialog
-from Stock.Utils import getExistsNomenclatureAmount, getStockMotionItemQntEx, getStockMotionItemQnt, getRatio, getNomenclatureUnitRatio, getNomenclatureSimpleUnitRatio
+from Stock.Utils import getExistsNomenclatureAmount, getStockMotionItemQntEx, getNomenclatureUnitRatio, getNomenclatureSimpleUnitRatio
 from Users.Rights import (
     urAdmin,
     urCanUseNomenclatureButton,
@@ -1818,21 +1817,32 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                 isEnable = isEnable and self.isEnabledNomenclatureExpense(self.action)
             self.btnNextAction.setEnabled(isEnable)
 
+
     @pyqtSignature('')
     def on_actCopyInputActionProperty_triggered(self):
-        if not self.parent()._parent.eventEditor.applyChanges():
-            return
-        model = self.parent()._parent.tblAPActions.model()
-        items = model.items()
-        row = self.parent()._parent.tblAPActions.currentIndex().row()
-        data = getEventContextData(self.parent()._parent.eventEditor)
-        eventInfo = data['event']
-        currentActionIndex = eventInfo.actions._rawItems.index(items[row])
-        actionId = eventInfo.actions[currentActionIndex].id
+        # Если действие добавлено через пункт меню "Добавить действие" в картотеке,
+        if hasattr(self.parent(), 'applyChanges'):
+            # то сохраняем только его, т.к. нам нужен его id
+            if not self.applyChanges():
+                return
+        # иначе нам надо сохранить текущий редактор и всё событие, чтобы изменения были в БД
+        else:
+            if not self.applyChanges():
+                return
+            tblAPActions = self.parent()._parent.tblAPActions
+            index = tblAPActions.currentIndex()
+            row = index.row()
+            items = tblAPActions.model()._mapProxyRow2Group
+            items[row].getItem(row)._data = CActionRecordItem(self.getRecord(), self.action)
+            if not self.parent()._parent.eventEditor.applyChanges():
+                return
+
         from library.PrintInfo import CInfoContext
         context = CInfoContext()
         union_value = ''
         current_action = self.action
+        actionId = self.action.getId()
+        eventId = self.action.getEventId()
         from library.copyInput import searchActionIn, searchActionOut
         queryIn = searchActionIn(actionId)
         if queryIn.size() == 0:
@@ -1846,8 +1856,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                 current_dataInheritance = temp_settings[1][:-1]
             else:
                 settings = None
-                current_dataInheritance = forceString(recordIn.value('dataInheritance')).replace('[', '').replace(
-                    ']', '')
+                current_dataInheritance = forceString(recordIn.value('dataInheritance')).replace('[', '').replace(']', '')
 
             current_name = forceString(recordIn.value('name'))
             if not current_action[current_name]:
@@ -1857,7 +1866,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                 for short in current_dataInheritance.split(','):
                     if 'in_' in short.strip():
                         current_dataInheritance_temp.append(short.strip())
-                queryOut = searchActionOut(current_dataInheritance_temp, eventInfo.id)
+                queryOut = searchActionOut(current_dataInheritance_temp, eventId)
                 checkAction = 0
                 while queryOut.next():
                     recordOut = queryOut.record()
@@ -1873,33 +1882,30 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                                 if 'property' in short_settings:
                                     if union_value != '':
                                         union_value += '\n'
-                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace(
-                                        'property.', '')
-                                    exec (code)
+                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace('property.', '')
+                                    exec code
                                     union_value += ' '
                                 elif 'action' in short_settings and checkAction == 0:
                                     code = "union_value += temp_action." + short_settings.replace('action.', '')
-                                    exec (code)
+                                    exec code
                                     union_value += ' '
                         else:
                             if 'property' in settings:
                                 if union_value != '':
                                     union_value += '\n'
-                                code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace(
-                                    'property.', '')
-                                exec (code)
+                                code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace('property.', '')
+                                exec code
                                 union_value += ' '
                             elif 'action' in settings and checkAction == 0:
                                 code = "union_value += temp_action." + settings.replace('action.', '')
-                                exec (code)
+                                exec code
                                 union_value += ' '
                     else:
                         union_value = ''
                     if checkAction == 0:
                         checkAction = forceString(recordOut.value('action_id'))
 
-                    if (union_value + '\n' + value) not in current_action[current_name] and (
-                            union_value + ' - ' + value) not in current_action[current_name]:
+                    if (union_value + '\n' + value) not in current_action[current_name] and (union_value + ' - ' + value) not in current_action[current_name]:
                         if current_action[current_name] != '':
                             current_action[current_name] += '\n'
                         if union_value != '':
@@ -1910,7 +1916,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                         else:
                             current_action[current_name] += value
             else:
-                queryOut = searchActionOut(current_dataInheritance, eventInfo.id)
+                queryOut = searchActionOut(current_dataInheritance, eventId)
                 checkAction = 0
                 while queryOut.next():
                     recordOut = queryOut.record()
@@ -1926,25 +1932,23 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                                 if 'property' in short_settings:
                                     if union_value != '':
                                         union_value += '\n'
-                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace(
-                                        'property.', '')
-                                    exec (code)
+                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace('property.', '')
+                                    exec code
                                     union_value += ' '
                                 elif 'action' in short_settings and checkAction == 0:
                                     code = "union_value += temp_action." + short_settings.replace('action.', '')
-                                    exec (code)
+                                    exec code
                                     union_value += ' '
                         else:
                             if 'property' in settings:
                                 if union_value != '':
                                     union_value += '\n'
-                                code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace(
-                                    'property.', '')
-                                exec (code)
+                                code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace('property.', '')
+                                exec code
                                 union_value += ' '
                             elif 'action' in settings and checkAction == 0:
                                 code = "union_value += temp_action." + settings.replace('action.', '')
-                                exec (code)
+                                exec code
                                 union_value += ' '
                     else:
                         union_value = ''
@@ -1952,8 +1956,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
                     if checkAction == 0:
                         checkAction = forceString(recordOut.value('action_id'))
 
-                    if (union_value + '\n' + value) not in current_action[current_name] and (
-                            union_value + ' - ' + value) not in current_action[current_name]:
+                    if (union_value + '\n' + value) not in current_action[current_name] and (union_value + ' - ' + value) not in current_action[current_name]:
                         if current_action[current_name] != '':
                             current_action[current_name] += '\n'
                         if union_value != '':

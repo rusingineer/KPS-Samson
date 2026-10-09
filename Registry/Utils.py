@@ -6462,6 +6462,7 @@ def addActionTabPresence(obj, eventId, currentWidget, currentTable):
                     try:
                         createDialog = CActionCreateDialog(dialog)
                         createDialog.load(action.getRecord(), action, clientId)
+                        createDialog.setVisibleBtnCloseWidgets(True)
                         if createDialog.exec_():
                             if len(actionTypeClasses) > 1:
                                 if hasTblActions:

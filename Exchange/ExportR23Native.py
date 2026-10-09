@@ -228,12 +228,12 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
                      'SPV', 'SPS', 'SPN', 'INV', 'MSE', 'Q_G', 'NOVOR', 'VNOV_D', 'FAMP', 'IMP', 'OTP', 'POLP', 'DATRP',
                      'C_DOC', 'S_DOC', 'N_DOC', 'NAPR_MO', 'NAPR_N', 'NAPR_D', 'NAPR_DP', 'TAL_N', 'TAL_D', 'PR_D_N',
                      'PR_DS_N', 'DATN', 'DATO', 'ISHOB', 'ISHL', 'MP', 'DOC_SS', 'SPEC', 'PROFIL', 'MKBX', 'MKBXS',
-                     'DS_ONK', 'MKBX_PR', 'VMP', 'KSO', 'P_CEL', 'VB_P', 'WEI', 'ENP', 'DATE_PO', 'SOC']
+                     'DS_ONK', 'MKBX_PR', 'VMP', 'KSO', 'P_CEL', 'VB_P', 'WEI', 'VZ', 'ENP', 'DATE_PO', 'SOC', 'MOP']
 
-    fieldListKeyU = ['UID', 'CODE_MO', 'SN', 'ISTI', 'P_PER', 'KOTD', 'KPK', 'MKBX', 'MKBXS', 'MKBXS_PR', 'PR_MS_N',
+    fieldListKeyU = ['UID', 'CODE_MO', 'LPU_1', 'SN', 'ISTI', 'P_PER', 'KOTD', 'KPK', 'MKBX', 'MKBXS', 'MKBXS_PR', 'PR_MS_N',
                      'MKBXO', 'C_ZAB', 'VP', 'KRIT', 'KRIT2', 'KSLP', 'KSLP_IT', 'KUSL', 'KOLU', 'KD', 'DATN', 'DATO',
                      'TARU', 'SUMM', 'IS_OUT', 'OUT_MO',
-                     'DOC_SS', 'SPEC', 'PROFIL', 'VMP', 'DS_ONK',
+                     'DOC_SS', 'SPEC', 'PR_PR', 'KOEF_PR', 'PROFIL', 'VMP', 'DS_ONK',
                      'USL_TIP', 'HIR_TIP', 'LEK_TIPL', 'LEK_TIPV', 'LUCH_TIP']
 
     fieldListKeyD = ['CODE_MO', 'SNILS', 'FIO', 'IMA', 'OTCH', 'POL', 'DATR', 'DATN', 'DATO']
@@ -2494,7 +2494,8 @@ where t.typeFile = 'D'""")
             ('FKEY', 'C', 50),  # ключ записи ФЛК
             ('COMENTSL', 'C', 250),  # Служебное поле
             ('DATE_PO', 'D'),  # дата проведения следующего планового осмотра
-            ('SOC', 'C', 3)  # Социальная категория
+            ('SOC', 'C', 3),  # Социальная категория
+            ('MOP', 'C', 3)  # место обращения (посещения)
             )
         return dbf
 
@@ -4178,6 +4179,20 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
             else:
                 vmp = '11'
             dbfRecord['VMP'] = vmp
+
+            if self.RecordListP[-1]['USL_OK'] == 3 and self.RecordListP[-1]['DATO'] >= datetime.date(2026, 1, 1) and not self.RecordListP[-1]['MOP']:
+                if VP in ['01', '02']:
+                    self.RecordListP[-1]['MOP'] = '3'
+                elif self.accInfo['isFAP']:
+                    self.RecordListP[-1]['MOP'] = '5'
+                elif dbfRecord['IS_OUT'] == 1:
+                    self.RecordListP[-1]['MOP'] = '8'
+                # elif u'на дому' in forceString(record.value('service_name')).lower():
+                #     self.RecordListP[-1]['MOP'] = '2'
+                elif '8p' in self.RecordListP[-1]['Q_G']:
+                    self.RecordListP[-1]['MOP'] = '10'
+                else:
+                    self.RecordListP[-1]['MOP'] = '1'
 
             DS_ONK = '1' if (directionCancerId and directionCancerId not in self.exportedAppointments or forceString(record.value('phasesCode')) == '10') else '0'
             dbfRecord['DS_ONK'] = DS_ONK

@@ -19,7 +19,7 @@ from PyQt4.QtGui import QTextBlockFormat
 from Events.EventInfo import CEventInfo
 from library.DialogBase         import CConstructHelperMixin
 from library.PrintInfo          import CInfoContext
-from library.PrintTemplates import CPrintAction, addButtonActions, additionalCustomizePrintButton, applyTemplate, getPrintTemplates
+from library.PrintTemplates import CPrintAction, applyTemplate, getPrintTemplates
 from library.TableModel         import CTableModel, CCol, CDateCol, CRefBookCol, CSumCol
 from library.Utils              import forceDouble, forceInt, forceRef, forceString, formatDate
 
@@ -44,21 +44,8 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
     def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         self.setupUi(self)
-
         self.addModels('RadiationDose',  CRadiationDoseModel(self))
-
         self.setModels(self.tblRadiationDose, self.modelRadiationDose, self.selectionModelRadiationDose)
-
-        self.addObject('actExpertPrint', CPrintAction(u'Сигнальный лист учета дозы рентгеновского облучения', None, self, self))
-        self.addObject('actRadiationLoadAccounting', CPrintAction(u'Лист учета лучевых нагрузок', None, self, self))
-
-        self.btnRadiationDosePrint_actions = [{'action': self.actExpertPrint, 'slot': self.on_btnRadiationDose_printByTemplate},
-                                              {'action': self.actRadiationLoadAccounting, 'slot': self.on_btnRadiationLoadAccounting_printByTemplate},]
-
-
-        addButtonActions(self, self.btnRadiationDosePrint, self.btnRadiationDosePrint_actions)
-        additionalCustomizePrintButton(self, self.btnRadiationDosePrint, 'RadiationDose', self.btnRadiationDosePrint_actions)
-
 
         self.clientId = None
         self._onlyTotalDoseSumInfo = True
@@ -265,82 +252,9 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
         view.exec_()
 
 
-    @pyqtSignature('')
-    def on_btnRadiationDose_printByTemplate(self):
-        def formatClientInfo(clientInfo):
-            return u'\n'.join([u'ФИО: %s'           % clientInfo.fullName,
-                               u'Дата рождения: %s' % formatDate(clientInfo.birthDate),
-                               u'Пол: %s'           % clientInfo.sex,
-                               u'Код: %d'           % clientInfo.id])
+    def _printRadiationLoadAccountingReport(self):
 
-        def formatRadiationDoseSumInfo(radiationDoseSumInfo):
-            return '\n'.join(['%s: %f' % (key, item) for key, item in radiationDoseSumInfo.items() if key != 'total']+[u'Всего: %f'%radiationDoseSumInfo['total']])
-
-        doc    = QtGui.QTextDocument()
-        cursor = QtGui.QTextCursor(doc)
-
-        cursor.setCharFormat(CReportBase.ReportTitle)
-        cursor.insertText(u'Сигнальный лист учета дозы рентгеновского облучения')
-        cursor.setCharFormat(CReportBase.TableBody)
-        cursor.insertBlock()
-        clientInfo = getClientInfoEx(self.clientId)
-        cursor.insertText(formatClientInfo(clientInfo))
-        cursor.insertBlock()
-
-        tableColumns = [
-            ('2%', [u'№' ], CReportBase.AlignLeft),
-            ('10%', [u'Дата' ], CReportBase.AlignLeft),
-            ('20%', [u'Вид рентгенологического исследования'], CReportBase.AlignLeft),
-            ('10%', [u'Количество'], CReportBase.AlignRight),
-            ('10%', [u'Количество снимков'], CReportBase.AlignRight),
-            ('15%', [u'Суммарная доза облучения'], CReportBase.AlignRight),
-            ('10%', [u'Единица измерения'], CReportBase.AlignRight),
-            ]
-        table = createTable(cursor, tableColumns)
-
-        for idRow, id in enumerate(self.modelRadiationDose.idList()):
-            values = [idRow+1,
-                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
-                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))),
-                      "%d"%forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Количество')))),
-                      "%d"%self.modelRadiationDose.getPhotosAccount(id),
-                      "%f"%forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Доза')))),
-                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Ед.из'))))
-                     ]
-
-            i = table.addRow()
-            for column, value in enumerate(values):
-                table.setText(i, column, value)
-
-        i = table.addRow()
-        table.setText(i, 0, u'Итого')
-        table.setText(i, 3, "%d"%self.modelRadiationDose.actionsSum())
-        table.setText(i, 4, "%d"%self.modelRadiationDose.photosSum())
-        table.setText(i, 5, "%f"%self.modelRadiationDose.dosesSum())
-        table.setText(i, 6, "%s"%self.modelRadiationDose.unitsSum())
-
-        cursor.movePosition(QtGui.QTextCursor.End)
-
-        result = '          '.join(['\n\n\n'+forceString(QDate.currentDate()),
-                                  u'ФИО: %s' % getPersonName(QtGui.qApp.userId)])
-        cursor.insertText(result)
-        cursor.insertBlock()
-
-        view = CReportViewDialog(self)
-        view.setText(doc)
-        view.exec_()
-
-
-
-    @pyqtSignature('')
-    def on_btnRadiationLoadAccounting_printByTemplate(self):
-
-        def getrbServiceCode(actionId):
+        def getServiceCode(actionId):
             stmt = """
             SELECT 
               s.code
@@ -350,9 +264,9 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
             WHERE a.id = {0}""".format(actionId)
 
             query = QtGui.qApp.db.query(stmt)
+            code = ''
             if query.next():
                 code = forceString(query.value(0))
-
             return code
 
 
@@ -376,15 +290,13 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
         ]
         table = createTable(cursor, tableColumns)
 
-
-
         for idRow, id in enumerate(self.modelRadiationDose.idList()):
             values = [
-                        forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
-                        forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))).split("|")[1],
-                        getrbServiceCode(id),
-                        "%f"%forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза'))))
-                     ]
+                forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
+                forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))).split("|")[1],
+                getServiceCode(id),
+                "%f" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза'))))
+            ]
 
             i = table.addRow()
             for column, value in enumerate(values):
@@ -394,12 +306,11 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
         table.setText(i, 0, u'Итого:')
         table.setText(i, 1, u"   ")
         table.setText(i, 2, u"   ")
-        table.setText(i, 3, "%f"%self.modelRadiationDose.dosesSum())
+        table.setText(i, 3, "%f" % self.modelRadiationDose.dosesSum())
 
         cursor.movePosition(QtGui.QTextCursor.End)
 
-        result = '          '.join(['\n\n\n'+forceString(QDate.currentDate()),
-                                  u'ФИО: %s' % getPersonName(QtGui.qApp.userId)])
+        result = '          '.join(['\n\n\n' + forceString(QDate.currentDate()), u'ФИО: %s' % getPersonName(QtGui.qApp.userId)])
         cursor.insertText(result)
         cursor.insertBlock()
 

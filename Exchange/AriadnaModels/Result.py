@@ -9,6 +9,7 @@ from Exchange.AriadnaModels.Protocol import Protocol
 from Exchange.AriadnaModels.ResearchTable import ResearchTable
 from Exchange.AriadnaModels.ResourceRef import ResourceRef
 from Exchange.AriadnaModels.Verifier import Verifier
+from Exchange.AriadnaModels.XpsMessage import XpsMessage
 
 
 class Result(AbstractObject):
@@ -43,6 +44,7 @@ class Result(AbstractObject):
         self.protocol = None  # Array Object Необязательно Протокол
         self.mbioType = None  # String Необязательно Тип микроорганизма
         self.unitCode = None  # String Необязательно Код единицы измерения
+        self.xpsMessages = [] # Array Object Необязательно Сообщения экспертной системы
         super(Result, self).__init__(jsondict)
 
     def elementProperties(self):
@@ -79,5 +81,6 @@ class Result(AbstractObject):
              ("bacteria", "bacteria", Bacterium, True, None, True),
              ("protocol", "protocol", Protocol, True, None, False),
              ("mbioType", "mbioType", str, False, None, False),
-             ("unitCode", "unitCode", str, False, None, False), ])
+             ("unitCode", "unitCode", str, False, None, False),
+             ("xpsMessages", "xpsMessages", XpsMessage, True, None, False), ])
         return js

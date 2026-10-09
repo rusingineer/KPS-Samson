@@ -73,17 +73,17 @@ from Registry.ReferralEditDialog          import inputReferral, CReferral, CRefe
 from Registry.RegistrySuspenedAppointment import setRegistrySuspenedAppointment
 from Registry.RegistryProphylaxisPlanning import setRegistryProphylaxisPlanningList
 from Registry.ShowScheduleItemInfo import showScheduleItemInfo
-from Registry.Utils                       import (
-                                                  CAppointmentPurposeCache,
-                                                  CCheckNetMixin,
-                                                  CClientInfo,
-                                                  getClientAddressEx,
-                                                  getClientInfoEx,
-                                                  getClientMiniInfo,
-                                                  getClientInfo2,
-                                                  getClientAttachEx,
-                                                  createRelatedActionTMK
-                                                 )
+from Registry.Utils import (
+    CAppointmentPurposeCache,
+    CCheckNetMixin,
+    CClientInfo,
+    getClientAddressEx,
+    getClientInfoEx,
+    getClientMiniInfo,
+    getClientInfo2,
+    getClientAttachEx,
+    createRelatedActionTMK, getPostIdentCodeByPersonId
+)
 from Reports.ReportBase       import CReportBase, createTable
 from Reports.ReportBeforeRecord           import CReportBeforeRecord
 from Reports.ReportView       import CReportViewDialog
@@ -92,6 +92,8 @@ from Timeline.Schedule import (
     CSchedule,
     CScheduleItem,
     confirmAndFreeScheduleItem,
+    fillPostListsForInterofficeLogic,
+    updateDynamicItemTypes,
     getScheduleItemIdListForClient, getScheduleItemIdFinance, getScheduleItemIdListForClient_OMS, getExceptionSpecialty
 )
 from Timeline.TimeTable                   import formatTimeRange
@@ -275,7 +277,11 @@ class CResourcesDockContent(QtGui.QWidget,
         for treeWidget in (self.treeOrgStructure, self.treeOrgPersonnel):
             treeWidget.setIndentation(12)
             treeWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        refSectionSize = self.tblAmbQueue.verticalHeader().defaultSectionSize()
         for tableWidget in (self.tblAmbTimeTable, self.tblAmbQueue, self.tblHomeTimeTable, self.tblHomeQueue):
+            if tableWidget == self.tblAmbQueue:
+                tableWidget.setVerticalHeader(CQueueVerticalHTMLHeaderView(tableWidget))
+                tableWidget.verticalHeader().setDefaultSectionSize(refSectionSize)
             verticalHeader = tableWidget.verticalHeader()
             verticalHeader.show()
             verticalHeader.setResizeMode(QtGui.QHeaderView.Interactive)
@@ -794,6 +800,7 @@ class CResourcesDockContent(QtGui.QWidget,
         else:
             schedules = []
         modelQueue.setSchedules(schedules)
+        oldEnableQueueing = self.enableQueueing
         self.enableQueueing = False
         if personId:
             for schedule in schedules:
@@ -807,6 +814,12 @@ class CResourcesDockContent(QtGui.QWidget,
                         if not self.enableQueueing and scheduleItem.enableQueueing:
                             self.enableQueueing = True
                             break
+        # enableQueueing определяется уже после функции setSchedules (которая перерисовала
+        # вьюху по старому значению) — при его смене перерисуем колонку и хедер,
+        # т.к. от него зависит серый цвет в data() и в headerData()
+        if self.enableQueueing != oldEnableQueueing:
+            tblQueue.viewport().update()
+            tblQueue.verticalHeader().viewport().update()
         tblQueue.setEnabled(modelQueue.rowCount()>0)
 
 
@@ -957,7 +970,7 @@ class CResourcesDockContent(QtGui.QWidget,
         return tblQueue.model().getQueuedClientsCount()
 
 
-    def queueingEnabled(self, date, orgStructureId, specialityId, activityId, personId, schedule, tblQueue, row, clientId, appointmentPurposeId, scheduleItem=None):
+    def queueingEnabled(self, date, orgStructureId, specialityId, activityId, personId, schedule, tblQueue, tblTimeTable, row, clientId, appointmentPurposeId, recordType, scheduleItem=None):
         modelQueue = tblQueue.model()
         if modelQueue.getClientId(row):
             return False  # кто-то уже записан
@@ -1037,6 +1050,27 @@ class CResourcesDockContent(QtGui.QWidget,
                                                   message,
                                                   buttons) != QtGui.QMessageBox.Yes:
                     return False
+
+        # 4889 "По поручению МЗ сделать проверку на один нкт талон врача, чтобы на него можно было записать только на тмк"
+        if scheduleItem.dynamicItemType == scheduleItem.NKT and recordType != 4 and not scheduleItem.overtime:
+            # Внутри модели не обновляется инфа о записанных пациентах пока не пройдёт таймер обновления
+            # Можно делать запрос в бд или просто обновить модель, думаю полезней будет обновить, а то мало ли
+            self.updateTimeTable()
+            # Получаем все периоды за день т.к. перечитав увидел что необходимо "обеспечить хотя бы один талон в ДЕНЬ"
+            modelTblTimeTable = tblTimeTable.model()
+            schedulesDayList = [modelTblTimeTable.getSchedule(row) for row in
+                                modelTblTimeTable.getRowListForDate(scheduleItem.time.date())]
+            scheduleItemsDayList = [item for schedule in schedulesDayList for item in schedule.items]
+            updateDynamicItemTypes(scheduleItemsDayList, personId, self.appointmentType)
+            itemsNKT = [item for item in scheduleItemsDayList if not item.overtime and item.dynamicItemType == CScheduleItem.NKT]
+            if itemsNKT:
+                minReservedSlotsForTMK = forceInt(QtGui.qApp.db.translate('rbExchangePreferences', 'code', 'minReservedSlotsForTMK', 'value'))
+                countTMKItems = len([item for item in itemsNKT if item.clientId and item.recordType == 4])
+                countFreeItemsNKT = len(filter(lambda item: not item.clientId, itemsNKT))
+                if (countTMKItems < minReservedSlotsForTMK) and (countFreeItemsNKT <= minReservedSlotsForTMK - countTMKItems):
+                    QtGui.QMessageBox.critical(self,u'Внимание!', u'Данный талон предназначен для ТМК', QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+                    return False
+
         return True
 
 
@@ -1093,7 +1127,7 @@ class CResourcesDockContent(QtGui.QWidget,
                 and clientId
                 and schedule
                 and scheduleItem
-                and self.queueingEnabled(date, orgStructureId, specialityId, activityId, personId, schedule, tblQueue, row, clientId, appointmentPurposeId, scheduleItem)):
+                and self.queueingEnabled(date, orgStructureId, specialityId, activityId, personId, schedule, tblQueue, tblTimeTable, row, clientId, appointmentPurposeId, recordType, scheduleItem)):
 
                 appointmentPurposeId = schedule.appointmentPurposeId
                 appointmentType = modelQueue.appointmentType
@@ -2681,7 +2715,6 @@ class CQueueModel(QAbstractTableModel):
     def setItemsAreCheckable(self, value):
         self.itemsAreCheckable = bool(value)
 
-
     def complaintRequired(self):
         return self.appointmentType == CSchedule.atHome
 
@@ -2721,12 +2754,16 @@ class CQueueModel(QAbstractTableModel):
                     return QVariant(u'Назначение')
         if orientation == Qt.Vertical:
             if role == Qt.DisplayRole:
+                text = u'{time} {itemType}'
                 if 0 <= section < len(self.scheduleItems):
                     item = self.scheduleItems[section]
                     time = None if item.overtime else item.time
+                    # Определение КТ, НКТ и МКЗ
+                    dynamicItemType = item.dynamicItemType if item.dynamicItemType else u''
                 else:
                     time = None
-                return QVariant(locFormatTime(time))
+                    dynamicItemType = u''
+                return QVariant(text.format(time=locFormatTime(time), itemType=dynamicItemType))
             if role == Qt.TextAlignmentRole:
                 return QVariant(Qt.AlignRight)
             if role == Qt.ForegroundRole:
@@ -2859,9 +2896,12 @@ class CQueueModel(QAbstractTableModel):
         for schedule in self.schedules:
             newItems.extend(schedule.items)
         newItems.sort(key=lambda scheduleItem: (scheduleItem.overtime, scheduleItem.time))
+        personId = self.parent.getCurrentPersonId()
         for item in newItems:
-            appointmentPurposeId = item.appointmentPurposeId
-            item.enableQueueing = isAppointmentEnabled(appointmentPurposeId, self.parent.getCurrentPersonId())
+            item.enableQueueing = isAppointmentEnabled(item.appointmentPurposeId, personId)
+        # Определение КТ, НКТ и МКТ
+        # теперь считаем здесь, а не при отрисовке
+        updateDynamicItemTypes(newItems, self.personId, self.appointmentType)
         self.scheduleItems = newItems
 
 
@@ -2880,9 +2920,6 @@ class CQueueModel(QAbstractTableModel):
             for schedule in self.schedules:
                 schedule.reloadItems()
             self.collectScheduleItems()
-            for item in self.scheduleItems:
-                appointmentPurposeId = item.appointmentPurposeId
-                item.enableQueueing = isAppointmentEnabled(appointmentPurposeId, self.parent.getCurrentPersonId())
             newItems = self.scheduleItems
             newLen = len(newItems)
             if oldLen < newLen:
@@ -2896,7 +2933,10 @@ class CQueueModel(QAbstractTableModel):
             for row in xrange(min(oldLen, newLen)):
                 oldItem = oldItems[row]
                 newItem = newItems[row]
-                if oldItem.time != newItem.time:
+                # вызываем обновление не только если не совпало время
+                if (oldItem.time != newItem.time
+                        or oldItem.enableQueueing != newItem.enableQueueing
+                        or oldItem.dynamicItemType != newItem.dynamicItemType):
                     self.emitVerticalHeaderChanged(row)
                 if oldItem.clientId != newItem.clientId or oldItem.checked != newItem.checked:
                     self.emitDataChanged(row)
@@ -3123,6 +3163,93 @@ class CQueueModel(QAbstractTableModel):
             return getPrimaryQueuedCount(schedule)
 
 
+# TODO: сделать универсальным и перенести в library/
+class CQueueVerticalHTMLHeaderView(QtGui.QHeaderView):
+    """
+    Кастомный вертикальный header который повторяет стандартный, но добавляет рендеринг html тэгов
+    """
+
+    BASE_HTML = u"{time} <b>{ItemType}</b>"
+
+
+    def __init__(self, parent):
+        QtGui.QHeaderView.__init__(self, Qt.Vertical, parent)
+        self.parent = parent
+        self.setHighlightSections(True)
+        self._docCache = {}
+
+
+    def _getForegroundColor(self, logicalIndex):
+        value = self.model().headerData(logicalIndex, self.orientation(),
+                                        Qt.ForegroundRole)
+        if isinstance(value, QVariant):
+            value = value.toPyObject() if hasattr(value, 'toPyObject') else value
+        if isinstance(value, QtGui.QBrush):
+            return value.color()
+        if isinstance(value, QtGui.QColor):
+            return value
+        return None
+
+
+    def _getDoc(self, logicalIndex, isSelected):
+        value = self.model().headerData(logicalIndex, self.orientation(),
+                                        Qt.DisplayRole)
+        valueText = unicode(value.toString()) if isinstance(value, QVariant) \
+            else unicode(value)
+        parts = valueText.split(u' ', 1)
+        timeText = parts[0]
+        itemType = parts[1] if len(parts) > 1 else u''
+
+        cacheKey = (logicalIndex, valueText, isSelected)
+
+        if cacheKey not in self._docCache:
+            doc = QtGui.QTextDocument()
+            doc.setDocumentMargin(0)
+            docOption = QtGui.QTextOption(Qt.AlignRight)
+            doc.setDefaultTextOption(docOption)
+            font = self.font()
+            font.setBold(bool(isSelected))
+            doc.setDefaultFont(font)
+            htmlText = self.BASE_HTML.format(time=timeText, ItemType=itemType)
+            doc.setHtml(htmlText)
+
+            self._docCache[cacheKey] = doc
+
+        return self._docCache[cacheKey]
+
+
+    def paintSection(self, painter, rect, logicalIndex):
+        if not rect.isValid():
+            return
+
+        isSelected = self.parent.selectionModel().isRowSelected(logicalIndex, QModelIndex())
+
+        opt = QtGui.QStyleOptionHeader()
+        self.initStyleOption(opt)
+        opt.rect = rect
+        opt.section = logicalIndex
+        opt.text = u''
+        #opt.icon = QtGui.QIcon()
+        if isSelected:
+            opt.state |= QtGui.QStyle.State_On
+        painter.save()
+        self.style().drawControl(QtGui.QStyle.CE_Header, opt, painter, self)
+        painter.restore()
+
+        doc = self._getDoc(logicalIndex, isSelected)
+        doc.setTextWidth(rect.width())
+
+        painter.save()
+        painter.translate(rect.left() - 2,
+                          rect.top() + (rect.height() - doc.size().height()) / 2.0)
+        ctx = QtGui.QAbstractTextDocumentLayout.PaintContext()
+        color = self._getForegroundColor(logicalIndex)
+        if color is not None:
+            ctx.palette.setColor(QtGui.QPalette.Text, color)
+        doc.documentLayout().draw(painter, ctx)
+        painter.restore()
+
+
 # ######################################################################
 
 
@@ -3241,29 +3368,6 @@ def isReferralRequired(appointmentPurposeId):
     return False
 
 
-def getPostIdentCodeByPersonId(personId):
-    db = QtGui.qApp.db
-
-    tablePost = db.table('rbPost')
-    tablePerson = db.table('Person')
-    tablePostIdentification = db.table('rbPost_Identification')
-    tableAccountingSystem = db.table('rbAccountingSystem')
-
-    table = tablePost.leftJoin(tablePerson, tablePost['id'].eq(tablePerson['post_id']))
-    table = table.leftJoin(tablePostIdentification, tablePost['id'].eq(tablePostIdentification['master_id']))
-    table = table.leftJoin(tableAccountingSystem, tablePostIdentification['system_id'].eq(tableAccountingSystem['id']))
-
-    cond = [
-        tableAccountingSystem['urn'].eq('urn:oid:1.2.643.5.1.13.13.11.1002'),
-        tablePerson['id'].eq(personId)
-    ]
-
-    postRecord = db.getRecordEx(table, tablePostIdentification['value'], cond)
-    if postRecord:
-        return forceRef(postRecord.value('value'))
-    return None
-
-
 def checkInterofficeRecord(self, personId, scheduleItem=None):
     if QtGui.qApp.isReStagingInQueue():
         return True
@@ -3277,12 +3381,7 @@ def checkInterofficeRecord(self, personId, scheduleItem=None):
             return True
 
     if not self.postForMainLogicRecord and not self.postForInterofficeRecord:
-        records = db.getRecordList('GetPositionList', ['code_last', 'code'], 'code_last IN (13,14)')
-        for record in records:
-            if record.value('code_last') == 13:
-                self.postForMainLogicRecord.append(forceRef(record.value('code')))
-            else:
-                self.postForInterofficeRecord.append(forceRef(record.value('code')))
+        fillPostListsForInterofficeLogic(self.postForMainLogicRecord, self.postForInterofficeRecord)
 
     if getPostIdentCodeByPersonId(QtGui.qApp.userId) in self.postForInterofficeRecord:
         QtGui.QMessageBox.warning(self, u'Внимание!', u'Для вашей специальности запрещена запись в график!')

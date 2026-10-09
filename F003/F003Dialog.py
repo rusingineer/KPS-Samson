@@ -1932,8 +1932,6 @@ class CF003Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
         db = QtGui.qApp.db
         resultId = self.cmbResult.value()
         resultDeath = forceString(db.translate('rbResult', 'id', resultId, 'name')).lower() in (u'умер', u'смерть')
-        if resultDeath:
-            self.lastResultDeath = True
 
         if self.isVisible() and not self.blockResultChange:
             FinalDiagnosisType = self.modelFinalDiagnostics.diagnosisTypeCol.ids[0]
@@ -1954,7 +1952,8 @@ class CF003Dialog(CEventEditDialog, Ui_Dialog, CTableSummaryActionsMenuMixin):
                         item.setValue('result_id', QVariant(None))
                         self.on_modelFinalDiagnostics_resultChanged()
                     self.tblFinalDiagnostics.setFocus(Qt.OtherFocusReason)
-                    return
+                    break
+        self.lastResultDeath = resultDeath
 
 
     def on_modelPreliminaryDiagnostics_diagnosisChanged(self):

@@ -699,6 +699,7 @@ from Reports.ReportOnPerson                             import CReportOnPerson
 from Reports.ReportOnServiceType                        import CReportOnServiceType
 from Reports.ReportOperationalMonitoring                import CReportOperationalMonitoring
 from Reports.ReportAFT_002                              import CReportAFT_002
+from Reports.ReportAFT_Forecast12month                  import CReportAFT_Forecast12month
 from Reports.ReportStomPersonSalary                     import CReportStomPersonSalaryEx
 from Reports.ReportOrgStructureSummary                  import CReportOrgStructureSummary
 from Reports.ReportPayers                               import CReportPayers
@@ -3866,10 +3867,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             lpuCode = forceString(app.db.translate('Organisation', 'id', app.currentOrgId(), 'infisCode'))
             if lpuCode != '45014':
                 self.mnuAccountingAnalysis.removeAction(self.actReportPaidServices)
-            if lpuCode not in ('48001'):
-                self.actReportAFT_002.setVisible(False)
-            elif lpuCode in ('48001'):
-                self.actReportAFT_002.setVisible(True)
+            self.actReportAFT_002.setVisible(lpuCode == '48001')
+            self.actReportAFT_Forecast12month.setVisible(lpuCode == '48001')
         self.actRepServiceAttach.setVisible(QtGui.qApp.defaultKLADR()[:2] != u'23')
         self.mnuHealthCenter.setEnabled(True)
 
@@ -6537,6 +6536,10 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
     @pyqtSignature('')
     def on_actReportAFT_002_triggered(self):
         CReportAFT_002(self).exec_()
+
+    @pyqtSignature('')
+    def on_actReportAFT_Forecast12month_triggered(self):
+        CReportAFT_Forecast12month(self).exec_()
 
     @pyqtSignature('')
     def on_actReportStomPersonSalary_triggered(self):

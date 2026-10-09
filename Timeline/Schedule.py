@@ -17,7 +17,7 @@ from PyQt4.QtCore import QDate, QDateTime, QTime
 
 from library.recordWrapper import CSqlRecordWrapper, field
 from library.Utils import forceBool, forceDate, forceDateTime, forceInt, forceRef, forceString, forceTime, toVariant
-from Registry.Utils import CAppointmentPurposeCache
+from Registry.Utils import CAppointmentPurposeCache, getPostIdentCodeByPersonId
 from Users.Rights import urDeleteOtherQueue, urDeleteOwnQueue
 
 
@@ -77,6 +77,11 @@ class CScheduleItem(CSqlRecordWrapper):
     rcCallCenter = 2 # recordClass: call-центр
     rcInternet   = 3 # recordClass: интернет
 
+    KT = u'к'
+    NKT = u'н'
+    MKT = u'м'
+    dynamicItemType = None  # Тип талона. Изменяется от условий. Виды: КТ, НКТ, МКТ
+
     id = field('id')
     scheduleId     = field('master_id',       forceRef)
     idx            = field('idx',             forceInt)
@@ -119,6 +124,31 @@ class CScheduleItem(CSqlRecordWrapper):
         id = self.id
         if id:
             QtGui.qApp.db.markRecordsDeleted('Schedule_Item', 'id=%d' % id)
+
+    def getDynamicItemType(self, context):
+        financeType = context.getFinanceType(self)
+        if (financeType and financeType != '2') or context.isReStaging:
+            return u''
+        appointment = CAppointmentPurposeCache.getItem(self.appointmentPurposeId)
+        isNKT = appointment and (not appointment.enablePrimaryRecord
+                                 and not appointment.enableConsultancyRecord
+                                 and not appointment.enableRecordViaInfomat
+                                 and not appointment.enableRecordViaCallCenter
+                                 and not appointment.enableRecordViaInternet
+                                 and appointment.enableOwnRecord)
+        isKT = not appointment or (appointment
+                                   and appointment.enablePrimaryRecord
+                                   and appointment.enableConsultancyRecord
+                                   and appointment.enableRecordViaInfomat
+                                   and appointment.enableRecordViaCallCenter
+                                   and appointment.enableRecordViaInternet)
+        baseType = self.KT if isKT else self.NKT if isNKT else u''
+
+        if context.postIdentificationCode in context.postForMainLogicRecord:
+            return self.MKT if (not context.isExternal and isKT) else baseType
+        elif context.postIdentificationCode in context.postForInterofficeRecord:
+            return self.MKT
+        return baseType
 
 
 class CSchedule(CSqlRecordWrapper):
@@ -429,6 +459,74 @@ class CSchedule(CSqlRecordWrapper):
                 elif not QtGui.qApp.userSpecialityId and appointmentPurpose.enablePrimaryRecord:
                     capacity += 1
         return capacity
+
+
+# #####################################################
+
+
+def updateDynamicItemTypes(items, personId, appointmentType, context=None):
+    u"""
+    Пересчитывает тип талонов (КТ|НКТ|МКТ)
+    """
+    if not items:
+        return
+    elif not isinstance(items, list):
+        items = [items]
+    if appointmentType == CSchedule.atHome or not personId:
+        for item in items:
+            item.dynamicItemType = u''
+        return
+    if context is None:
+        context = CDynamicItemTypeContext(personId)
+    for item in items:
+        item.dynamicItemType = item.getDynamicItemType(context)
+
+
+_postListsForInterofficeLogic = None
+
+
+def fillPostListsForInterofficeLogic(postForMainLogicRecord, postForInterofficeRecord):
+    """
+    Получения списка должностей для вычисления МКЗ
+    перенёс сюда, чтоб не дублировать и по логике вроде тоже подходит
+    """
+    records = QtGui.qApp.db.getRecordList('GetPositionList', ['code_last', 'code'], 'code_last IN (13,14)')
+    for record in records:
+        if record.value('code_last') == 13:
+            postForMainLogicRecord.append(forceRef(record.value('code')))
+        else:
+            postForInterofficeRecord.append(forceRef(record.value('code')))
+
+
+def getPostListsForInterofficeLogic():
+    global _postListsForInterofficeLogic
+    if _postListsForInterofficeLogic is None:
+        postForMainLogicRecord, postForInterofficeRecord = [], []
+        fillPostListsForInterofficeLogic(postForMainLogicRecord, postForInterofficeRecord)
+        _postListsForInterofficeLogic = (postForMainLogicRecord, postForInterofficeRecord)
+    return _postListsForInterofficeLogic
+
+
+class CDynamicItemTypeContext(object):
+    u"""
+    Контекст для расчёта типа талона (КТ|НКТ|МКТ)
+    Сделано для хранения и нахождения одинаковых значений в одном месте
+    """
+
+    def __init__(self, personId):
+        self.personId = personId
+        self.postForMainLogicRecord, self.postForInterofficeRecord = getPostListsForInterofficeLogic()
+        self.postIdentificationCode = getPostIdentCodeByPersonId(personId)
+        self.isExternal = forceBool(QtGui.qApp.db.translate('Person', 'id', personId, 'availableForExternal'))
+        self.isReStaging = QtGui.qApp.isReStagingInQueue()
+        self._financeCache = {}
+
+    def getFinanceType(self, scheduleItem):
+        key = scheduleItem.appointmentPurposeId
+        if key not in self._financeCache:
+            record = getScheduleItemIdFinance(scheduleItem)
+            self._financeCache[key] = forceString(record.value('code')) if record else None
+        return self._financeCache[key]
 
 
 # #####################################################

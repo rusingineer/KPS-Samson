@@ -16,7 +16,8 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import Qt, QAbstractTableModel, QDate, QDateTime, QTime, QVariant, pyqtSignature, SIGNAL
 
 from Orgs.Utils import getPersonInfo
-from Registry.ResourcesDock import isAppointmentEnabledForClient, isAppointmentEnabledForDate, checkInterofficeRecord
+from Registry.ResourcesDock import isAppointmentEnabledForClient, isAppointmentEnabledForDate, checkInterofficeRecord, \
+    fillPostListsForInterofficeLogic
 from library.DialogBase               import CDialogBase
 from library.RecordLock               import CRecordLockMixin
 from library.TableModel               import CTableModel, CDesignationCol, CNameCol, CRefBookCol, CTextCol, CTimeCol
@@ -25,12 +26,58 @@ from library.Utils import forceBool, forceRef, forceString, forceTime, toVariant
 
 from Registry.Utils                   import getClientBanner, getClientMiniInfo
 from Timeline.Schedule import freeScheduleItemInt, getScheduleItemIdListForClient, getScheduleItemIdListForClient_OMS, \
-    getExceptionSpecialty, getScheduleItemIdFinance, CScheduleItem
+    getExceptionSpecialty, getScheduleItemIdFinance, CScheduleItem, updateDynamicItemTypes
 from Users.Rights import urAccessEditTimeLine
 
 from Timeline.Ui_ScheduleItemsDialog  import Ui_ScheduleItemsDialog
 from Timeline.Ui_RecordTransferDialog import Ui_RecordTransferDialog
 from library.crbcombobox import CRBComboBox, CRBModelDataCache
+
+
+class CHTMLTimeItemDelegate(CTimeItemDelegate):
+    u"""Делегат времени, который умеет в html тэги.
+    Редактирование наследуется от CTimeItemDelegate без изменений."""
+
+    def _getDoc(self, option, index):
+        # тут getDoc проще, т.к. делать кэширование тут не обязательно
+        text = unicode(index.data(Qt.DisplayRole).toString())
+        doc = QtGui.QTextDocument()
+        doc.setDocumentMargin(0)
+        doc.setDefaultFont(option.font)
+        doc.setHtml(text)
+        return doc
+
+    def paint(self, painter, option, index):
+        opt = QtGui.QStyleOptionViewItemV4(option)
+        widget = opt.widget
+        style = widget.style() if widget else QtGui.qApp.style()
+
+        opt.text = u''
+        style.drawControl(QtGui.QStyle.CE_ItemViewItem, opt, painter, widget)
+
+        doc = self._getDoc(option, index)
+        textRect = style.subElementRect(QtGui.QStyle.SE_ItemViewItemText, opt, widget)
+
+        painter.save()
+        painter.setClipRect(textRect)
+        y = textRect.top() + max(0, (textRect.height() - doc.size().height()) / 2.0)
+        painter.translate(textRect.left(), y)
+        ctx = QtGui.QAbstractTextDocumentLayout.PaintContext()
+        if opt.state & QtGui.QStyle.State_Selected:
+            ctx.palette.setColor(
+                QtGui.QPalette.Text,
+                opt.palette.color(QtGui.QPalette.Active, QtGui.QPalette.HighlightedText)
+            )
+        doc.documentLayout().draw(painter, ctx)
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        base = CTimeItemDelegate.sizeHint(self, option, index)
+        doc = self._getDoc(option, index)
+        size = doc.size().toSize()
+        size.setHeight(base.height())
+        size.setWidth(max(size.width(), base.width()))
+        return size
 
 
 class CScheduleItemsDialog(CDialogBase, CRecordLockMixin, Ui_ScheduleItemsDialog):
@@ -70,7 +117,7 @@ class CScheduleItemsDialog(CDialogBase, CRecordLockMixin, Ui_ScheduleItemsDialog
 
         self.setupUi(self)
         self.setModels(self.tblScheduleItems,  self.modelScheduleItems, self.selectionModelScheduleItems)
-        self.timeDelegate = CTimeItemDelegate(self)
+        self.timeDelegate = CHTMLTimeItemDelegate(self)
         self.purposeDelegate = CScheduleItemsDialog.CComboBoxDelegate(self)
         self.tblScheduleItems.setItemDelegateForColumn(0, self.timeDelegate)
         self.tblScheduleItems.setItemDelegateForColumn(2, self.purposeDelegate)
@@ -144,6 +191,7 @@ class CScheduleItemsModel(QAbstractTableModel):
     def __init__(self, parent):
         QAbstractTableModel.__init__(self, parent)
         self.items = []
+        self.parent = parent
 
 
     def columnCount(self, index = None):
@@ -181,7 +229,9 @@ class CScheduleItemsModel(QAbstractTableModel):
         item = self.items[row]
         if role == Qt.DisplayRole:
             if column == 0:
-                return QVariant(item[column])
+                # Определение КТ, НКТ и МКЗ
+                scheduleItem = item[3]
+                return QVariant(item[column].toString('H:mm:ss') + formatDynamicItemType(scheduleItem.dynamicItemType))
             if column == 1:
                 return QVariant(item[column])
             if column == 2:
@@ -204,16 +254,14 @@ class CScheduleItemsModel(QAbstractTableModel):
             column = index.column()
             row = index.row()
             if column == 0:
-                newValue = value.toTime()
-                if self.setTime(row, newValue):
-                    self.emitCellChanged(row, column)
-                else:
+                if not self.setTime(row, value.toTime()):
                     return False
+                self.emitCellChanged(row, column)
             if column == 2:
-                if self.setPurpose(row, value):
-                    self.emitCellChanged(row, column)
-                else:
+                if not self.setPurpose(row, forceRef(value)):
                     return False
+                self.emitCellChanged(row, column)
+                self.emitCellChanged(row, 0)
             return True
         return False
 
@@ -234,6 +282,8 @@ class CScheduleItemsModel(QAbstractTableModel):
                                 item.appointmentPurposeId,
                                ]
                              )
+        schedule = self.parent.schedule
+        updateDynamicItemTypes([i[3] for i in self.items], schedule.personId, schedule.appointmentType)
         self.reset()
 
 
@@ -242,20 +292,29 @@ class CScheduleItemsModel(QAbstractTableModel):
 
 
     def setTime(self, row, time):
-        if time.isValid():
-            self.items[row][0] = time
-            scheduleItem = self.items[row][3]
-            scheduleItem.time = QDateTime(scheduleItem.time.date(), time)
-            if scheduleItem.id:
-                scheduleItem.save()
+        if not time.isValid():
+            return False
+        self.items[row][0] = time
+        scheduleItem = self.items[row][3]
+        scheduleItem.time = QDateTime(scheduleItem.time.date(), time)
+        if scheduleItem.id:
+            scheduleItem.save()
+        return True
+
 
     def setPurpose(self, row, purposeId):
-        if purposeId:
-            self.items[row][4] = purposeId
-            scheduleItem = self.items[row][3]
-            scheduleItem.appointmentPurposeId = purposeId
-            if scheduleItem.id:
-                scheduleItem.save()
+        self.items[row][4] = purposeId
+        scheduleItem = self.items[row][3]
+        scheduleItem.appointmentPurposeId = purposeId
+        if scheduleItem.id:
+            scheduleItem.save()
+        self.updateDynamicItemType(row)
+        return True
+
+
+    def updateDynamicItemType(self, row):
+        schedule = self.parent.schedule
+        updateDynamicItemTypes([self.items[row][3]], schedule.personId, schedule.appointmentType)
 
 
     def getClientId(self, row):
@@ -282,6 +341,9 @@ class CScheduleItemsModel(QAbstractTableModel):
                             item,
                             item.appointmentPurposeId
                           ]
+        # reload() подменяет record, но не сбрасывает dynamicItemType
+        self.updateDynamicItemType(row)
+        self.emitCellChanged(row, 0)
         self.emitCellChanged(row, 1)
 
 
@@ -662,4 +724,11 @@ class CFreeScheduleItemsModel(CTableModel):
             CTimeCol(u'Время',    ['time'], 6),
             CRefBookCol(u'Назначение приёма',  ['appointmentPurpose_id'], 'rbAppointmentPurpose', 10),
             ], 'vScheduleItem')
+
+
+def formatDynamicItemType(_type):
+    if _type and len(_type) > 0:
+        return u' ' + u'<b>' + _type + u'</b>'
+    else:
+        return u''
 

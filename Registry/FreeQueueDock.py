@@ -41,7 +41,7 @@ from Registry.ResourcesDock import (CActivityModel,
                                     )
 from Registry.Utils                       import getClientAddressEx, CCheckNetMixin, getClientAttachEx, createRelatedActionTMK
 from Timeline.Schedule import CSchedule, CScheduleItem, getScheduleItemIdListForClient, getScheduleItemIdFinance, \
-    getExceptionSpecialty, getScheduleItemIdListForClient_OMS
+    getExceptionSpecialty, getScheduleItemIdListForClient_OMS, updateDynamicItemTypes
 
 from Registry.Ui_FreeQueueDockContent  import Ui_Form
 from library.crbcombobox import CRBComboBox
@@ -532,7 +532,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             self.timer.start()
 
 
-    def queueingEnabled(self, scheduleItemId, date, personId, specialityId, clientId, scheduleItem):
+    def queueingEnabled(self, scheduleItemId, date, personId, specialityId, clientId, scheduleItem, recordType):
         deathDate = getDeathDate(clientId)
         if deathDate:
             QtGui.QMessageBox.warning(self, u'Внимание!', u'Этот пациент не может быть записан к врачу, потому что есть отметка что он уже умер %s' % forceString(deathDate))
@@ -558,6 +558,11 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
 
         if not checkInterofficeRecord(self, personId, scheduleItem):
             return False
+
+        # 4889 "По поручению МЗ сделать проверку на один нкт талон врача, чтобы на него можно было записать только на тмк"
+        if scheduleItem and not scheduleItem.overtime and recordType != 4:
+            if not self.checkNKTReservedForTMK(personId, date):
+                return False
 
         quota = getQuota(personId, capacity)
         if quota<=busy:
@@ -593,6 +598,50 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             confirmation = messageBox.exec_()
             if (confirmation == 1 or not (QtGui.qApp.isReStagingInQueue() or (checkFinance and checkFinance != '2') or not scheduleItemIdList_OMS or exceptionSpecialty == 1)) and self.cmbAppointmentType.value() != 2:
                 return False
+
+        return True
+
+
+    def getDayScheduleItems(self, personId, date, appointmentType):
+        """
+        Все талончики по периодам на дату
+        """
+        db = QtGui.qApp.db
+        tableSchedule = db.table('Schedule')
+        tableScheduleItem = db.table('Schedule_Item')
+        table = tableScheduleItem.innerJoin(tableSchedule, tableScheduleItem['master_id'].eq(tableSchedule['id']))
+        records = db.getRecordList(table, 'Schedule_Item.*', [tableSchedule['deleted'].eq(0),
+                                                                 tableSchedule['person_id'].eq(personId),
+                                                                 tableSchedule['date'].eq(date),
+                                                                 tableSchedule['appointmentType'].eq(appointmentType),
+                                                                 tableScheduleItem['overtime'].eq(0),
+                                                                 tableScheduleItem['deleted'].eq(0),
+                                                                ])
+        return [CScheduleItem(record) for record in records]
+
+
+    def checkNKTReservedForTMK(self, personId, date):
+        """
+        Проверка на резервацию минимального кол-ва талонов для ТМК (НКТ)
+        """
+        appointmentType = self.modelAmbQueue.appointmentType
+        if appointmentType != CSchedule.atAmbulance:
+            return True
+        items = self.getDayScheduleItems(personId, date, appointmentType)
+        updateDynamicItemTypes(items, personId, appointmentType)
+        itemsNKT = [item for item in items if not item.overtime and item.dynamicItemType == CScheduleItem.NKT]
+        if not itemsNKT:
+            return True
+        minReservedSlotsForTMK = forceInt(QtGui.qApp.db.translate('rbExchangePreferences', 'code', 'minReservedSlotsForTMK', 'value'))
+        countTMKItems = len([item for item in itemsNKT if item.clientId and item.recordType == 4])
+        if countTMKItems >= minReservedSlotsForTMK:
+            return True
+        freeItemsNKT = [item for item in itemsNKT if not item.clientId]
+        if len(freeItemsNKT) <= minReservedSlotsForTMK - countTMKItems:
+            QtGui.QMessageBox.critical(self, u'Внимание!',
+                                       u'Данный талон предназначен для ТМК',
+                                       QtGui.QMessageBox.Ok, QtGui.QMessageBox.Ok)
+            return False
         return True
 
 
@@ -671,7 +720,7 @@ class CFreeQueueDockContent(QtGui.QWidget, Ui_Form, CConstructHelperMixin, CCont
             skipMessageBox = False
             if ( specialityId
                 and orgStructureId
-                and self.queueingEnabled(scheduleItemId, date, personId, specialityId, clientId, scheduleItem)
+                and self.queueingEnabled(scheduleItemId, date, personId, specialityId, clientId, scheduleItem, recordType)
                ):
                 if self.reserveOrder(row):
                     if self.edtCountTickets.value() > 1 and QtGui.QMessageBox.warning(self,

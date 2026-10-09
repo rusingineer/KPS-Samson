@@ -772,6 +772,7 @@
      <addaction name="actForeignCitizens"/>
      <addaction name="actOperationalMonitoring"/>
      <addaction name="actReportAFT_002"/>
+     <addaction name="actReportAFT_Forecast12month"/>
     </widget>
     <widget class="QMenu" name="mnuEmergencyCall">
      <property name="title">
@@ -6678,6 +6679,11 @@
   <action name="actReportAFT_002">
    <property name="text">
     <string>Отчет для АФТ 002</string>
+   </property>
+  </action>
+  <action name="actReportAFT_Forecast12month">
+   <property name="text">
+    <string>Отчет для АФТ 12 месяцев</string>
    </property>
   </action>
  </widget>

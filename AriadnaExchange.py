@@ -751,6 +751,8 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                     subTableAntibiotic= u''
                                     subTablePhenotype = u''
                                     subTableResistanceMarkers = u''
+                                    # чтоб по названию искать номер для соотвествия бактерии к сообщению экспертной системы
+                                    bacteriaToIndex = dict()
                                     # первый проход
                                     i = 0
                                     for bacteria in res.bacteria:
@@ -778,6 +780,7 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             for resistanceMarker in bacteria.resistanceMarkers:
                                                 if resistanceMarker.id not in resistanceMarkerList:
                                                     resistanceMarkerList.append(resistanceMarker.id)
+                                        bacteriaToIndex[bacteria.name] = i
 
                                     htmlText += u'<tr></tr>'
                                     if antibioticList:
@@ -801,9 +804,6 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             rowText += tmp
                                         htmlText += rowText.format(antibioticName) + u'</tr>'
                                     htmlText += u'</table></td></tr>'
-                                    if antibioticList:
-                                        htmlText += u'<tr><td align="center">** S - Чувствительный при стандартном режиме дозирования  I - Чувствительный при увеличенной экспозиции  R - Резистентный</td></tr>'
-                                    htmlText += u'</table></body></html>'
 
                                     if phenotypeList:
                                         htmlText += subTable.format(u'Фенотипические тесты') + subTablePhenotype + u"</tr>"
@@ -847,6 +847,46 @@ and aps.value = '{number}'""".format(externalSystemId=self.externalSystemId, num
                                             rowText += tmp
                                         htmlText += rowText.format(resistanceMarkerName) + u'</tr>'
                                     htmlText += u'</table></td></tr>'
+
+                                    if antibioticList:
+                                        htmlText += u'<tr><td align="center">** S - Чувствительный при стандартном режиме дозирования  I - Чувствительный при увеличенной экспозиции  R - Резистентный</td></tr>'
+                                    htmlText += u'</table>'
+
+                                    if res.xpsMessages:
+                                        groups = []
+                                        group = None
+
+                                        for xpsMessage in res.xpsMessages:
+                                            code = (xpsMessage.antibioticList, xpsMessage.bacteriaCode)
+
+                                            if group is None or group['code'] != code:
+                                                bacteriaIndex = bacteriaToIndex.get(xpsMessage.title.split(u'/')[0], 0)
+                                                group = {
+                                                    'code': code,
+                                                    'title': u'[%i] %s' % (bacteriaIndex, xpsMessage.title),
+                                                    'messages': [],
+                                                }
+                                                groups.append(group)
+
+                                            group['messages'].append(xpsMessage.message)
+
+                                        headerStyle = u'font-size: 14px; font-weight: bold; text-decoration: underline; margin: 10px 0 6px 0;'
+                                        titleStyle = u'font-size: 12px; font-weight: bold; font-style: italic; margin: 6px 0 2px 0;'
+                                        listStyle = u'margin: 0 0 4px 0; list-style-type: decimal; -qt-list-indent: 1;'
+                                        itemStyle = u'font-size: 12px; font-style: italic; margin: 0; line-height: 140%;'
+
+                                        groupsBlock = u'<div style="{style}">Сообщения экспертной системы</div>'.format(style=headerStyle)
+                                        for group in groups:
+                                            groupsBlock += u'<p style="{style}">{title}</p>'.format(style=titleStyle, title=group['title'])
+                                            items = u''.join(
+                                                u'<li style="{style}">{message}</li>'.format(style=itemStyle, message=message)
+                                                for message in group['messages']
+                                            )
+                                            groupsBlock += u'<ol style="{style}">{items}</ol>'.format(style=listStyle, items=items)
+
+                                        htmlText += groupsBlock
+
+                                    htmlText += u'</body></html>'
 
                                     prop = action.getPropertyByShortName(u'results')
                                     if prop:

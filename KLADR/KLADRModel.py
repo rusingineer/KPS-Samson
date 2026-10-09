@@ -610,7 +610,7 @@ class CStreetList(object):
 
     def addStreet(self, code):
         db = QtGui.qApp.db
-        stmt = """
+        stmt = u"""
         select kladr.STREET.CODE, CONCAT(kladr.STREET.NAME, ' ', kladr.STREET.SOCR) AS NAME, CONCAT(k.NAME, ' ', k.SOCR) AS CITY, kladr.STREET.IS_ACTUAL as isactual
 FROM kladr.STREET
 left join kladr.KLADR as k on k.code = CONCAT(kladr.STREET.level4,'00')

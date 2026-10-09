@@ -60,7 +60,7 @@ def checkIsActualSTREET(code):
         1 в колонке IS_ACTUAL - улица актуальная
             return True'''
     if code:
-        stmt = "select IS_ACTUAL from kladr.STREET where CODE = '{0}';".format(code)
+        stmt = u"select IS_ACTUAL from kladr.STREET where CODE = '{0}';".format(code)
         query = QtGui.qApp.db.query(stmt)
         while query.next():
             record = query.record()

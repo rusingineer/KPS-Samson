@@ -7041,3 +7041,27 @@ def createRelatedActionTMK(widget, clientId, directionPersonId, directionDateTim
             QtGui.qApp.setCounterController(None)
 
     return False
+
+
+def getPostIdentCodeByPersonId(personId):
+    db = QtGui.qApp.db
+
+    tablePost = db.table('rbPost')
+    tablePerson = db.table('Person')
+    tablePostIdentification = db.table('rbPost_Identification')
+    tableAccountingSystem = db.table('rbAccountingSystem')
+
+    table = tablePost.leftJoin(tablePerson, tablePost['id'].eq(tablePerson['post_id']))
+    table = table.leftJoin(tablePostIdentification, tablePost['id'].eq(tablePostIdentification['master_id']))
+    table = table.leftJoin(tableAccountingSystem, tablePostIdentification['system_id'].eq(tableAccountingSystem['id']))
+
+    cond = [
+        tableAccountingSystem['urn'].eq('urn:oid:1.2.643.5.1.13.13.11.1002'),
+        tablePerson['id'].eq(personId)
+    ]
+
+    postRecord = db.getRecordEx(table, tablePostIdentification['value'], cond)
+    if postRecord:
+        return forceRef(postRecord.value('value'))
+    return None
+

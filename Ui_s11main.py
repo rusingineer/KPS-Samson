@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client\s11main.ui'
+# Form implementation generated from reading ui file 'D:\Samson\UP_s11\client\s11main.ui'
 #
-# Created: Mon Sep 22 17:39:38 2025
-#      by: PyQt4 UI code generator 4.11.3
+# Created by: PyQt4 UI code generator 4.11.4
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -2283,6 +2282,8 @@ class Ui_MainWindow(object):
         self.actReportMonthlySchoolJournal.setObjectName(_fromUtf8("actReportMonthlySchoolJournal"))
         self.actReportAFT_002 = QtGui.QAction(MainWindow)
         self.actReportAFT_002.setObjectName(_fromUtf8("actReportAFT_002"))
+        self.actReportAFT_Forecast12month = QtGui.QAction(MainWindow)
+        self.actReportAFT_Forecast12month.setObjectName(_fromUtf8("actReportAFT_Forecast12month"))
         self.mnuMruEvents.addSeparator()
         self.mnuMruEvents.addAction(self.actClearMruEvents)
         self.menuFile.addAction(self.actLogin)
@@ -2768,6 +2769,7 @@ class Ui_MainWindow(object):
         self.mnuReportEconomicAnalisys.addAction(self.actForeignCitizens)
         self.mnuReportEconomicAnalisys.addAction(self.actOperationalMonitoring)
         self.mnuReportEconomicAnalisys.addAction(self.actReportAFT_002)
+        self.mnuReportEconomicAnalisys.addAction(self.actReportAFT_Forecast12month)
         self.menu_40.addAction(self.actEmergency2000)
         self.menu_40.addAction(self.actEmergency2001)
         self.menu_40.addAction(self.actEmergency2100)
@@ -4398,6 +4400,7 @@ class Ui_MainWindow(object):
         self.actReportPatientSchoolJournal.setText(_translate("MainWindow", "Журнал регистрации пациентов, обучающихся в Школах с ХНИЗ", None))
         self.actReportMonthlySchoolJournal.setText(_translate("MainWindow", "Отчет о работе школ для пациентов с ХНИЗ", None))
         self.actReportAFT_002.setText(_translate("MainWindow", "Отчет для АФТ 002", None))
+        self.actReportAFT_Forecast12month.setText(_translate("MainWindow", "Отчет для АФТ 12 месяцев", None))
 
 from library.MdiArea import CMdiArea
 import s11main_rc

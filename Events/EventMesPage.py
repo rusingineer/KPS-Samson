@@ -831,6 +831,40 @@ class CEventMesPage(QtGui.QWidget, CConstructHelperMixin, Ui_EventMesPageWidget)
             self.modelCSGSubItems.setMasterRecord(None)
             self.tblCSGSubItems.setEnabled(False)
 
+    @pyqtSignature('')
+    def on_btnCopyFromStat_pressed(self):
+        if self.modelCSGs.realRowCount() > 1 or (self.modelCSGs.realRowCount() == 1 and forceString(self.modelCSGs.getRecordByRow(0).value('CSGCode')) != ''):
+            # перенос должен срабатывать только когда нет данных по КСГ
+            return
+        begDate = forceDate(self.eventEditor.edtBegDate.date())
+        endDate = forceDate(self.eventEditor.edtEndDate.date())
+        diagnoses = {'finalDiagnosis': None, 'associatedDiagnosis': None, 'complicationDiagnosis': None}
+        for _ in self.eventEditor.modelFinalDiagnostics.items():
+            diagType = forceString(QtGui.qApp.db.translate('rbDiagnosisType', 'id', forceString(_.value('diagnosisType_id')), 'code'))
+            if diagType in ('1', '2'):
+                diagnoses['finalDiagnosis'] = forceString(_.value('MKB'))
+            if diagType == '9' and not diagnoses['associatedDiagnosis']:
+                diagnoses['associatedDiagnosis'] = forceString(_.value('MKB'))
+            if diagType == '3' and not diagnoses['complicationDiagnosis']:
+                diagnoses['complicationDiagnosis'] = forceString(_.value('MKB'))
+
+        isNewRow = self.modelCSGs.realRowCount() == 0
+        if isNewRow:
+            editRowCsg = self.modelCSGs.getEmptyRecord()
+        else:
+            editRowCsg = self.modelCSGs.getRecordByRow(0)
+
+        editRowCsg.setValue('begDate', toVariant(begDate))
+        editRowCsg.setValue('endDate', toVariant(endDate))
+        editRowCsg.setValue('MKB', toVariant(diagnoses['finalDiagnosis']))
+        editRowCsg.setValue('associatedMKB', toVariant(diagnoses['associatedDiagnosis']))
+        editRowCsg.setValue('complicationMKB', toVariant(diagnoses['complicationDiagnosis']))
+
+        if isNewRow:
+            self.modelCSGs.insertRecord(0, editRowCsg)
+        else:
+            self.modelCSGs.emitRowChanged(0)
+
 
 class CCheckMesParametersDialog(QtGui.QDialog, Ui_CheckMesParametersDialog):
     def __init__(self, parent=None):

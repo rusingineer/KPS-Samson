@@ -642,6 +642,7 @@ colContract = [contractName] * 5
 colInsurerCodeName = [insurerCodeName] * 5
 colIsWorking = [isWorking] * 5
 colStepECO = [stepECO] * 5
+colVUSirius = ["vuSirius.value as colVUSirius"] * 5
 
 def getColsStmt(cols):
     stmtCols = ['', '', '', '', '']
@@ -723,7 +724,9 @@ LEFT JOIN MKB m on m.diagID = d.MKB"""
                 if not idList:
                     idList = 'null'
             joinStmt[idx] += hospitalBedProfileJoin.format(idList)
-            
+        if colVUSirius in cols:
+            joinStmt[idx] += u"""
+LEFT JOIN rbService_Identification vuSirius ON vuSirius.master_id = rbService.id and vuSirius.system_id in ( select id from rbAccountingSystem as1 where as1.code = 'ActionType_Sirius_spr1' ) and vuSirius.deleted = 0 """
     return joinStmt
    
 def getStmt(colsStmt, cols, groupCols, orderCols, params, queryList=['action', 'visit', 'mes', 'csg'], additionCond=u" and ct.id is not null", having='', isOnlyMES=False):

@@ -16,16 +16,15 @@ from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QVariant, pyqtSignature, QObject, SIGNAL, Qt
 from PyQt4.QtGui import QTextBlockFormat
 
-from Events.EventInfo import CEventInfo
 from library.DialogBase         import CConstructHelperMixin
-from library.PrintInfo          import CInfoContext
-from library.PrintTemplates import CPrintAction, applyTemplate, getPrintTemplates
+from library.PrintInfo          import CInfoContext, CDateInfo
+from library.PrintTemplates     import getPrintTemplates, CPrintAction, applyTemplate
 from library.TableModel         import CTableModel, CCol, CDateCol, CRefBookCol, CSumCol
-from library.Utils              import forceDouble, forceInt, forceRef, forceString, formatDate
+from library.Utils              import forceDouble, forceInt, forceRef, forceString, forceDate, formatDate
 
 from Events.ActionInfo          import CActionInfo
 from Events.ActionTypeCol       import CActionTypeCol
-from Registry.Utils import getClientInfoEx
+from Registry.Utils             import getClientInfoEx, CClientInfo
 from Reports.ReportBase         import CReportBase, createTable
 from Reports.ReportView         import CReportViewDialog
 
@@ -90,54 +89,20 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
         tableActionPropertyType = db.table('ActionPropertyType')
 
         queryTable = tableAction
-
-        queryTable = queryTable.leftJoin(tableActionType,
-                                          tableActionType['id'].eq(tableAction['actionType_id']))
-        queryTable = queryTable.leftJoin(tableActionPropertyType,
-                                          tableActionPropertyType['actionType_id'].eq(tableActionType['id']))
-        queryTable = queryTable.leftJoin(tableEvent,
-                                          tableEvent['id'].eq(tableAction['event_id']))
+        queryTable = queryTable.leftJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+        queryTable = queryTable.leftJoin(tableActionPropertyType, tableActionPropertyType['actionType_id'].eq(tableActionType['id']))
+        queryTable = queryTable.leftJoin(tableEvent, tableEvent['id'].eq(tableAction['event_id']))
 
         cond = [tableEvent['client_id'].eq(clientId),
                 tableActionPropertyType['typeName'].eq(u'Доза облучения'),
                 tableAction['deleted'].eq(0)]
 
-        orderBY = 'Action.endDate DESC'
-        for key, value in self.tblRadiationDose.model().headerSortingCol.items():
-            if value:
-                ASC = u'ASC'
-            else:
-                ASC = u'DESC'
-            if key == 0:
-                orderBY = u'Action.endDate %s' % ASC
-            elif key == 1:
-                orderBY = u"(select name from ActionType where id = Action.actionType_id) %s" % ASC
-            elif key == 2:
-                orderBY = u'(select name from vrbPersonWithSpeciality where id = Action.person_id) %s' % ASC
-            elif key == 3:
-                orderBY = u'Action.amount %s' % ASC
-            elif key == 4:
-                orderBY = u'''(Select api.value from ActionProperty ap
-                                left join ActionPropertyType apt on apt.id = ap.type_id
-                                left join ActionProperty_Integer api on api.id = ap.id
-                                where apt.name = 'Количество снимков' and ap.action_id = Action.id) %s''' % ASC
-            elif key == 5:
-                orderBY = u'''(Select apd.value from ActionProperty ap
-                                left join ActionPropertyType apt on apt.id = ap.type_id
-                                left join ActionProperty_Double apd on apd.id = ap.id
-                                where apt.typeName = 'Доза облучения' and ap.action_id = Action.id) %s''' % ASC
-            elif key == 6:
-                orderBY = u'''(Select concat_ws(' | ',rbUnit.code, rbUnit.name) from ActionProperty ap
-                                left join ActionPropertyType apt on apt.id = ap.type_id
-                                left join ActionProperty_Double apd on apd.id = ap.id
-                                left join rbUnit on rbUnit.id = apt.unit_id
-                                where apt.typeName = 'Доза облучения' and ap.action_id = Action.id) %s''' % ASC
-
-        actionIdList = db.getDistinctIdList(queryTable, tableAction['id'].name(), cond, orderBY)
+        actionIdList = db.getIdList(queryTable, tableAction['id'].name(), cond)
 
         self.modelRadiationDose.setIdList(actionIdList)
 
-        #self.updateLabelsInfo()
+        self.updateLabelsInfo()
+
 
     def updateLabelsInfo(self):
         self.updateLabelRecordCountInfo()
@@ -147,15 +112,15 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
 
     def updateLabelRecordCountInfo(self):
-        self.lblRecordCount.setText(u'Количество записей: %d'%len(self.modelRadiationDose.idList()))
+        self.lblRecordCount.setText(u'Количество записей: %d' % len(self.modelRadiationDose.idList()))
 
 
     def updateLabelActionsSumInfo(self):
-        self.lblActionSum.setText(u'Сумма количества действий: %.1f'%self.modelRadiationDose.actionsSum())
+        self.lblActionSum.setText(u'Сумма количества действий: %.1f' % self.modelRadiationDose.actionsSum())
 
 
     def updateLabelPhotosSumInfo(self):
-        self.lblPhotosSum.setText(u'Сумма количества снимков: %d'%self.modelRadiationDose.photosSum())
+        self.lblPhotosSum.setText(u'Сумма количества снимков: %d' % self.modelRadiationDose.photosSum())
 
 
     def updateLabelRadiationDoseInfo(self):
@@ -165,28 +130,23 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
     @pyqtSignature('int')
     def on_btnRadiationDosePrint_printByTemplate(self, templateId):
-        temp = 0
-        listValues = []
-        for idRow, id in enumerate(self.modelRadiationDose.idList()):
-            if temp == 0:
-                context = CInfoContext()
-                actionInfo = context.getInstance(CActionInfo, id)
-                event = context.getInstance(CEventInfo, actionInfo.event.id)
-            values = [
-                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
-                      forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))),
-                      "%d"%forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Количество')))),
-                      "%d"%self.modelRadiationDose.getPhotosAccount(id),
-                      "%f"%forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(
-                            idRow, self.modelRadiationDose.columnIndex(u'Доза')))),
-                      forceString(id)
-                     ]# 141514
-            listValues.append([values, actionInfo, event])
-        data = {'rows': listValues, 'client': event.client}
-
+        context = CInfoContext()
+        clientInfo = CClientInfo(context, self.clientId)
+        items = []
+        for row in xrange(self.modelRadiationDose.rowCount()):
+            items.append({
+                'date': CDateInfo(forceDate(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 0)))),
+                'actionType': forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 1))),
+                'person': forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 2))),
+                'amount': forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 3))),
+                'photosCount': forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 4))),
+                'radiationDose': forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 5))),
+                'radiationDoseUnit': forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(row, 6))),
+            })
+        data = {
+            'client': clientInfo,
+            'items': items,
+        }
         QtGui.qApp.call(self, applyTemplate, (self, templateId, data))
 
 
@@ -228,7 +188,7 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
                       "%d" % self.modelRadiationDose.getPhotosAccount(id),
                       "%f" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза')))),
                       forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Ед.из'))))
-                      ]
+                     ]
 
             i = table.addRow()
             for column, value in enumerate(values):
@@ -292,11 +252,11 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
         for idRow, id in enumerate(self.modelRadiationDose.idList()):
             values = [
-                forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
-                forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))).split("|")[1],
-                getServiceCode(id),
-                "%f" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза'))))
-            ]
+                        forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Дата выполнения')))),
+                        forceString(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Тип действия')))).split("|")[1],
+                        getServiceCode(id),
+                        "%f" % forceDouble(self.modelRadiationDose.data(self.modelRadiationDose.index(idRow, self.modelRadiationDose.columnIndex(u'Доза'))))
+                     ]
 
             i = table.addRow()
             for column, value in enumerate(values):
@@ -329,29 +289,25 @@ class CRadiationDoseCol(CCol):
     def format(self, values):
         actionId = forceRef(values[0])
         value = self._cacheValues.get(actionId, None)
-        # if value is None:
-        db = QtGui.qApp.db
+        if value is None:
+            db = QtGui.qApp.db
 
-        tableAction = db.table('Action')
-        tableActionProperty = db.table('ActionProperty')
-        tableActionPropertyType = db.table('ActionPropertyType')
-        tableActionPropertyDouble = db.table('ActionProperty_Double')
+            tableAction = db.table('Action')
+            tableActionProperty = db.table('ActionProperty')
+            tableActionPropertyType = db.table('ActionPropertyType')
+            tableActionPropertyDouble = db.table('ActionProperty_Double')
 
-        queryTable = tableAction
+            queryTable = tableAction
+            queryTable = queryTable.innerJoin(tableActionProperty, tableActionProperty['action_id'].eq(tableAction['id']))
+            queryTable = queryTable.innerJoin(tableActionPropertyType, tableActionPropertyType['id'].eq(tableActionProperty['type_id']))
+            queryTable = queryTable.innerJoin(tableActionPropertyDouble, tableActionPropertyDouble['id'].eq(tableActionProperty['id']))
 
-        queryTable = queryTable.innerJoin(tableActionProperty,
-                                          tableActionProperty['action_id'].eq(tableAction['id']))
-        queryTable = queryTable.innerJoin(tableActionPropertyType,
-                                          tableActionPropertyType['id'].eq(tableActionProperty['type_id']))
-        queryTable = queryTable.innerJoin(tableActionPropertyDouble,
-                                          tableActionPropertyDouble['id'].eq(tableActionProperty['id']))
+            cond = [tableAction['id'].eq(actionId),
+                    tableActionPropertyType['typeName'].eq(u'Доза облучения')]
 
-        cond = [tableAction['id'].eq(actionId),
-                tableActionPropertyType['typeName'].eq(u'Доза облучения')]
-
-        record = db.getRecordEx(queryTable, tableActionPropertyDouble['value'].name(), cond)
-        value = QVariant("%.9f"%forceDouble(record.value('value'))) if record else CCol.invalid
-        self._cacheValues[actionId] = value
+            record = db.getRecordEx(queryTable, tableActionPropertyDouble['value'].name(), cond)
+            value = QVariant("%.9f" % forceDouble(record.value('value'))) if record else CCol.invalid
+            self._cacheValues[actionId] = value
 
         return value
 
@@ -365,34 +321,30 @@ class CRadiationDoseUnitCol(CCol):
     def format(self, values):
         actionId = forceRef(values[0])
         value = self._cacheValues.get(actionId, None)
-        # if value is None:
-        db = QtGui.qApp.db
+        if value is None:
+            db = QtGui.qApp.db
 
-        tableAction = db.table('Action')
-        tableActionType = db.table('ActionType')
-        tableActionPropertyType = db.table('ActionPropertyType')
-        tableUnit = db.table('rbUnit')
+            tableAction = db.table('Action')
+            tableActionType = db.table('ActionType')
+            tableActionPropertyType = db.table('ActionPropertyType')
+            tableUnit = db.table('rbUnit')
 
-        queryTable = tableAction
+            queryTable = tableAction
+            queryTable = queryTable.innerJoin(tableActionType, tableActionType['id'].eq(tableAction['actionType_id']))
+            queryTable = queryTable.innerJoin(tableActionPropertyType, tableActionPropertyType['actionType_id'].eq(tableActionType['id']))
+            queryTable = queryTable.innerJoin(tableUnit, tableUnit['id'].eq(tableActionPropertyType['unit_id']))
 
-        queryTable = queryTable.innerJoin(tableActionType,
-                                          tableActionType['id'].eq(tableAction['actionType_id']))
-        queryTable = queryTable.innerJoin(tableActionPropertyType,
-                                          tableActionPropertyType['actionType_id'].eq(tableActionType['id']))
-        queryTable = queryTable.innerJoin(tableUnit,
-                                          tableUnit['id'].eq(tableActionPropertyType['unit_id']))
+            cond = [tableAction['id'].eq(actionId),
+                    tableActionPropertyType['typeName'].eq(u'Доза облучения')]
 
-        cond = [tableAction['id'].eq(actionId),
-                tableActionPropertyType['typeName'].eq(u'Доза облучения')]
-
-        record = db.getRecordEx(queryTable, [tableUnit['name'].name(), tableUnit['code'].name()], cond)
-        value = QVariant(' | '.join([
-                                     forceString(record.value('code')),
-                                     forceString(record.value('name'))
-                                    ]
-                                   )
-                        ) if record else CCol.invalid
-        self._cacheValues[actionId] = value
+            record = db.getRecordEx(queryTable, [tableUnit['name'].name(), tableUnit['code'].name()], cond)
+            value = QVariant(' | '.join([
+                                         forceString(record.value('code')),
+                                         forceString(record.value('name'))
+                                        ]
+                                       )
+                            ) if record else CCol.invalid
+            self._cacheValues[actionId] = value
 
         return value
 
@@ -406,10 +358,10 @@ class CPhotosAccountCol(CCol):
     def format(self, values):
         actionId = forceRef(values[0])
         value = self._cacheValues.get(actionId, None)
-        # if value is None:
-        photosAccount = self._model.getPhotosAccount(actionId)
-        value = QVariant("%d"%photosAccount) if photosAccount else CCol.invalid
-        self._cacheValues[actionId] = value
+        if value is None:
+            photosAccount = self._model.getPhotosAccount(actionId)
+            value = QVariant("%d" % photosAccount) if photosAccount else CCol.invalid
+            self._cacheValues[actionId] = value
         return value
 
 
@@ -474,9 +426,7 @@ class CRadiationDoseModel(CTableModel):
         result = 0.00
         for row in xrange(self.rowCount()):
             radiationDose = forceDouble(self.data(self.index(row, radiationDoseColumnIndex)))
-
             result += radiationDose
-
         return result
 
     def radiationDoseSum(self):
@@ -486,19 +436,9 @@ class CRadiationDoseModel(CTableModel):
         for row in xrange(self.rowCount()):
             unit = forceString(self.data(self.index(row, radiationDoseUnitColumnIndex)))
             radiationDose = forceDouble(self.data(self.index(row, radiationDoseColumnIndex)))
-
             result['total'] += radiationDose
-
             if not unit in result.keys():
                 result[unit] = radiationDose
             else:
                 result[unit] += radiationDose
-
         return result
-
-
-
-
-
-def getKerContext():
-    return ['tempInvalid', 'tempInvalidList']

@@ -185,6 +185,15 @@ class CODIIExchange(QtCore.QCoreApplication):
     # Путь к инишнику для тестирования на Windows
     # iniFileName = 'C:\Users\prog5\AppData\Roaming\samson-vista\ODIIExchange.ini'
 
+    mapDocType195to1520 = {'385': '303',
+                           '349': '270',
+                           '398': '323',
+                           '366': '286',
+                           '350': '275',
+                           '148': '110',
+                           '388': '316',
+                           '387': '315'}
+
     def __init__(self, args):
         parser = OptionParser(usage="usage: %prog [options]")
         parser.add_option('-r', '--result', dest='idResult', help='', metavar='idResult', default='')
@@ -534,6 +543,7 @@ class CODIIExchange(QtCore.QCoreApplication):
         eventPurposeId = event.eventType.purpose.id
         serviceCode = None
         categoryCode = None
+        docType = action.identify('urn:oid:1.2.643.2.69.1.1.1.195.CDA')
 
         prop = action._action.getPropertyByShortName(u'research')
         if prop and prop.getValue():
@@ -623,7 +633,7 @@ class CODIIExchange(QtCore.QCoreApplication):
                         continue
                     if attachedFile.newName[-4:] == '.pdf' and hasPdf:
                         continue
-                    (binary, binRespSign, binaryOrgSign) = self.binarySigned(QtGui.qApp.webDAVInterface, attachedFile)
+                    (binary, binRespSign, binaryOrgSign) = self.binarySigned(QtGui.qApp.webDAVInterface, attachedFile, docType)
                     binaryReferenceList.append((addBundleEntry(bundle, binary, self.NS_FILEATTACH, attachedFile.id), binary.contentType))
                     if binRespSign:
                         binaryReferenceList.append((addBundleEntry(bundle, binRespSign, self.NS_FILEATTACH_PERSON_SIGNATURE, attachedFile.id), binRespSign.contentType))
@@ -668,13 +678,14 @@ class CODIIExchange(QtCore.QCoreApplication):
                     processed.append(file.id)
         return fileList
 
-    def binarySigned(self, interface, file):
+    def binarySigned(self, interface, file, docType):
         binary = respSign = orgSign = None
         extList = ['.pdf', '.xml']
         typeList = ['application/pdf', 'application/xml']
         userSignList = ['application/x-pkcs7-practitioner', 'application/x-pkcs7-practitioner-xml']
         orgSignList = ['application/x-pkcs7-organization', 'application/x-pkcs7-organization-xml']
-        xmlCoding = self.createCoding('urn:oid:1.2.643.5.1.13.13.11.1520', '110',)
+        docType1520 = self.mapDocType195to1520.get(docType, '110')
+        xmlCoding = self.createCoding('urn:oid:1.2.643.5.1.13.13.11.1520', docType1520)
         metaList = [None, xmlCoding]
         try:
             i = extList.index(file.newName[-4:])

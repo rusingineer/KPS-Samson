@@ -1673,7 +1673,7 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                     medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
 
                                 # по маммографии с ии должен быть TARU - с ценой, SUMM - 0
-                                if self.getServiceInfis(serviceId) == 'A06.30.002.017':
+                                if self.getServiceInfis(serviceId) == 'A06.30.002.017' and exposeDate < QDate(2026, 9, 1):
                                     sum = 0
                                     if eventBegDate > exposeDate:
                                         price = 0
@@ -4266,7 +4266,7 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
                                  serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted, isDispCompleted, actionEndDate):
 
     # по маммографии с ИИ должен быть TARU - с ценой, SUMM - 0
-    if serviceInfis == 'A06.30.002.017':
+    if serviceInfis == 'A06.30.002.017' and exposeDate < QDate(2026, 9, 1):
         summa = 0
         if eventBegDate > exposeDate:
             price = 0

@@ -101,6 +101,7 @@ class CAttachedFile:
 #        self.author        = None
 
         self.respSignature = None
+        self.respSigningDatetime = None
         self.orgSignature  = None
         self.additionalSignatures = None
         self.additionalSignaturesList = None  # Используется, в том числе для хранения не сохраненных в БД подписей
@@ -257,6 +258,7 @@ class CAttachedFile:
     def setRespSignature(self, signatureBytes, singerId, signingDateTime):
         if signatureBytes:
             self.respSignature = CAttachedFileSignature(signatureBytes, singerId, signingDateTime)
+            self.respSigningDatetime = signingDateTime
         else:
             self.respSignature = None
 

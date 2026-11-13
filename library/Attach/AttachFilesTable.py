@@ -823,6 +823,17 @@ class CAttachFilesTable(QtGui.QTableView):
             # показ диалога аутентификации Крипто-Про из popup у меня (kde5) приводит к зависанию оконного менеджера.
             # для решения делаем "коленце" - выделяем код подписания в функцию, которая будет вызвана
             # после закрытия popup
+            if fileItem.respSigningDatetime > QDateTime().currentDateTime():
+                QtGui.QMessageBox.warning(None,
+                    u'Внимание!',
+                    u'Документ подписан ЭЦП Врача {signDate} в {signTime}'
+                    u'\nНельзя подписать документ ЭЦП МО раньше этого времени!'.format(
+                        signDate=fileItem.respSigningDatetime.toString('dd.MM.yyyy'),
+                        signTime=fileItem.respSigningDatetime.toString('HH:mm:ss')),
+                    QtGui.QMessageBox.Ok
+                )
+                return
+
             ofr = self.widgetForFileDialog()
             if ofr == self:
                 QtGui.qApp.call(self, self.__signAsOrg, (model, row, fileItem))

@@ -33,7 +33,8 @@ from library.MSCAPI import MSCApi
 from library.MSCAPI.certErrors import ECertNotFound
 from library.SimpleProgressDialog import CSimpleProgressDialog
 from library.Utils import forceString, toVariant, forceBool, anyToUnicode, forceInt, forceRef, forceDate, \
-    exceptionToUnicode, formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, getPrefInt, trim
+    exceptionToUnicode, formatNameInt, unformatSNILS, setPref, getPref, getPrefBool, getPrefString, getPrefInt, trim, \
+    forceDateTime
 from F088.F088EditDialog import CF088EditDialog
 from F088.F0882022EditDialog import CF0882022EditDialog
 from Surveillance.SurveillanceDialog import CSurveillanceDialog
@@ -594,8 +595,16 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                 tmpFile.remove()
                 try:
                     if not forceBool(record.value('orgSigningDatetime')) and signOrg:
-                        if not forceBool(record.value('respSigner_id')):
+                        respSignerExists = forceBool(record.value('respSigner_id'))
+                        respSigningDatetime = forceDateTime(record.value('respSigningDatetime'))
+                        if not respSignerExists:
                             raise Exception(u'Для подписи сертификатом МО, необходимо сначала подписать сертификатом врача!')
+                        elif respSignerExists and respSigningDatetime > QDateTime.currentDateTime():
+                            raise Exception(
+                                u'Документ подписан ЭЦП Врача {signDate} в {signTime}'
+                                u'\nНельзя подписать документ ЭЦП МО раньше этого времени!'.format(signDate=respSigningDatetime.toString('dd.MM.yyyy'),
+                                                                                                   signTime=respSigningDatetime.toString('HH:mm:ss'))
+                                            )
                         detachedSignatureBytes = cert.createDetachedSignature(pdfBytes)
                         item.setOrgSignature(detachedSignatureBytes,
                                              QtGui.qApp.userId,
@@ -1117,7 +1126,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                     certName = certUser.surName() + '' + certUser.givenName() + ', ' + certUser.snils() if certUser else None
                     record.setValue('respSigner_name', toVariant(certName))
                     try:
-                        hasRespDate = forceDate(record.value('respSigningDatetime'))
+                        hasRespDate = forceDateTime(record.value('respSigningDatetime'))
                         hasOrgDate = forceDate(record.value('orgSigningDatetime'))
                         if not hasRespDate:
                             if record.value('respSigner_id') and certUser:
@@ -1127,6 +1136,12 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
                                                       QDateTime.currentDateTime())
                         if not hasOrgDate:
                             if record.value('orgSigner_id') and certOrg and QtGui.qApp.userHasAnyRight([urAdmin, urCanSingOrgSertNoAdmin, urCanSignForOrganisation]) and ((not hasRespDate and certUser) or hasRespDate):
+                                if hasRespDate and hasRespDate > QDateTime.currentDateTime():
+                                    raise Exception(
+                                        u'Документ подписан ЭЦП Врача {signDate} в {signTime}'
+                                        u'\nНельзя подписать документ ЭЦП МО раньше этого времени!\n'.format(signDate=hasRespDate.toString('dd.MM.yyyy'),
+                                                                                                           signTime=hasRespDate.toString('HH:mm:ss'))
+                                                    )
                                 detachedSingatureBytesOrg = certOrg.createDetachedSignature(pdfBytes)
                                 item.setOrgSignature(detachedSingatureBytesOrg,
                                                      QtGui.qApp.userId,
@@ -1155,7 +1170,7 @@ class CActionFileAttach(CDialogBase, Ui_ActionFileAttachDialog):
             if len(errorList):
                 errorString = self.sortErrors(errorList)
                 QtGui.QMessageBox.information(self,
-                                              u'Ошибки получения сертификата',
+                                              u'Ошибки подписания документов',
                                               errorString
                                               )
             QtGui.QMessageBox.information(self,
@@ -1781,6 +1796,12 @@ class CFileAttachModel(CRecordListModel):
     def getRespSignerId(self, index):
         return forceString(self.records[index].value('isRespSigned')) == u'Подписан'
 
+    def getRespSigningDatetime(self, index):
+        """
+        Получение даты подписи врачом (только для модели с Action_FileAttach, т.к. не факт что для остальных понадобиться)
+        """
+        pass
+
     def getAttachFilesId(self, indexList):
         idList = []
         for index in indexList:
@@ -1803,6 +1824,7 @@ class CActionFileAttachModel(CFileAttachModel):
         self.addCol(CInDocTableCol(u'Подразделение', 'orgStructName', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Дата изменения', 'modifyDatetime', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан врачом', 'isRespSigned', 20)).setReadOnly()
+        self.addCol(CInDocTableCol(u'Дата подписания врачом', 'respSigningDatetime', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Подписан МО', 'isOrgSigned', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Тип действия', 'actionType', 20)).setReadOnly()
         self.addCol(CInDocTableCol(u'Код карточки', 'eventId', 20)).setReadOnly()
@@ -1888,7 +1910,8 @@ class CActionFileAttachModel(CFileAttachModel):
                 u"IF(Action_FileAttach.orgSigner_id IS NULL, 0, 1) AS isOrgSigned",
                 tableEvent['org_id'],
                 u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetPerson.id,  Person.id) AS personId",
-                u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetOrgStruct.name,  OrgStructure.name) AS orgStructName"
+                u"IF(rbPrintTemplate.requireSignerPerson = 1,  SetOrgStruct.name,  OrgStructure.name) AS orgStructName",
+                tableActionFileAttach['respSigningDatetime'],
                 ]
         cond = [tableActionFileAttach['deleted'].eq(0)]
         if sign:
@@ -2064,6 +2087,10 @@ NOT EXISTS (SELECT
                 self.records.append(record)
         self.setItems(self.records)
         tableActionFileAttach.index_hint = None
+
+
+    def getRespSigningDatetime(self, index):
+        return forceDateTime(self.records[index].value('respSigningDatetime'))
 
 
 class CProphylaxisPlanningFileAttachModel(CFileAttachModel):

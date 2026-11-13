@@ -4154,7 +4154,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                 if contactTypeId is not None:
                     contact = {}
                     contactTypeCode = forceString(QtGui.qApp.db.translate('rbContactType', 'id', contactTypeId, 'code'))
-                    contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contactTypeCode)
+                    contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL', 'max': 'MTEL'}.get(contactTypeCode)
                     contactText = forceString(record.value('contact'))
                     if contactType and contactText:
                         contact['contactType'] = contactType
@@ -4318,7 +4318,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                     for contact in reprInfo.contacts:
                         contactDict = {}
                         if contact[3]:
-                            contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contact[3])
+                            contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL', 'max': 'MTEL'}.get(contact[3])
                             if contactType and contact[1]:
                                 contactDict['contactType'] = contactType
                                 contactDict['contactText'] = contact[1]
@@ -5487,7 +5487,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                         insurfCode = elements.get('smo', None)
                         insurfOkato = elements.get('terr', None)
                         if insurfCode:
-                            insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 and 3=3"
+                            insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 AND isActive = 1 AND isInsurer = 1 AND head_id is null"
                             if insurfCode:
                                 insurf_request = insurf_request.replace(u'1=1', u"smoCode = '" + forceString(insurfCode) + u"'")
                             if insurfOkato:

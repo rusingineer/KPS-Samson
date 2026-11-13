@@ -347,9 +347,9 @@ class CRISManageOrders(QtCore.QCoreApplication):
         for record in records:
             self.sendMessage(forceInt(record.value('message_id')))
             self.log(u'     ', u'Сообщение PacsMessages.id = %d (orderCode=%s) Заказ PacsOrder.id=%d Action.id=%d Event.id=%d' % (
-                forceRef(record.value('message_id')), forceString(record.value('orderCode')),
-                forceRef(record.value('order_id')), forceRef(record.value('action_id')),
-                forceRef(record.value('event_id'))), 2)
+                forceInt(record.value('message_id')), forceString(record.value('orderCode')),
+                forceInt(record.value('order_id')), forceInt(record.value('action_id')),
+                forceInt(record.value('event_id'))), 2)
 
     def sendMessage(self, idMessage):
         tmpStr = u'Сообщение не найдено'

@@ -104,7 +104,10 @@ class CDatabaseExceptionTrigger(CException):
                 message
             )
         elif sqlError and sqlError.number() == CDatabaseExceptionTrigger.S_TRIGGER_MYSQL_ERROR_SQL_HIDE:
-            message = unicode(sqlError.databaseText()).encode('latin-1').decode('utf-8')
+            try:
+                message = unicode(sqlError.databaseText()).encode('latin-1').decode('utf-8')
+            except:
+                message = unicode(sqlError.databaseText())
         CException.__init__(self, unicode(message))
         self.sqlError = sqlError
 

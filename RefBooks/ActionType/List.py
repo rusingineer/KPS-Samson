@@ -881,6 +881,16 @@ class CActionTypeList(Ui_ActionTypeListDialog, CHierarchicalItemsListDialog):
            dialog.deleteLater()
 
 
+    @pyqtSignature('')
+    def on_btnCopyUserDictionary_clicked(self):
+        from .UserDictionaryCopy import CUserDictionaryCopyDialog
+        dialog = CUserDictionaryCopyDialog(self)
+        try:
+            dialog.exec_()
+        finally:
+            dialog.deleteLater()
+
+
 class COrgStructureModel(CInDocTableModel):
     def __init__(self, parent = None):
         CInDocTableModel.__init__(self, 'ActionType_PFOrgStructure', 'id', 'master_id', parent)
@@ -1625,7 +1635,8 @@ class CPropertiesModel(CInDocTableModel):
                                        [u'Все',
                                         u'Назначивший действие',
                                         u'Исполнитель действия',
-                                        u'Никто',]))
+                                        u'Никто',
+                                        u'Никто после выгрузки']))
         self.addCol(CBoolInDocTableCol( u'Назначаемый',     'isAssignable', 6))
         self.addCol(CRBTestSearchInDocTableCol(u'Тест', 'test_id', 20, 'rbTest', showFields = CRBComboBox.showNameAndCode, prefferedWidth=600))
         self.addCol(CEnumInDocTableCol( u'Оценка',          'defaultEvaluation', 10, [u'не определять',

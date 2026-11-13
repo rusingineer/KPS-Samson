@@ -8759,6 +8759,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
             if dialog.exec_():
                 prevOrgId = application.currentOrgId()
                 prevOrgStructureId = application.currentOrgStructureId()
+                prevCombineTimetable = application.combineTimetable()
                 prevOrgStructureVisible = None
                 prevShowComplaintColumn = forceBool(QtGui.qApp.preferences.appPrefs.get('showComplaintColumn', False))
                 if QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames'):
@@ -8768,6 +8769,7 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                 orgId = application.currentOrgId()
                 OrgStructureVisible = [forceInt(checkedId) for checkedId in QtGui.qApp.preferences.appPrefs.get('TimetableOrgStructureCheckedNames').toList()]
                 ShowComplaintColumn = forceBool(QtGui.qApp.preferences.appPrefs.get('showComplaintColumn', False))
+                combineTimetable = application.combineTimetable()
                 if not orgId:
                     self.closeAllSubwindows()
                 self.setUserName(application.userName())
@@ -8779,6 +8781,8 @@ class CS11MainWindow(QtGui.QMainWindow, Ui_MainWindow, CConstructHelperMixin):
                     QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
                     QtGui.qApp.mainWindow.dockFreeQueue.onConnectionChanged(True)
                 elif ShowComplaintColumn != prevShowComplaintColumn:
+                    QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
+                elif combineTimetable != prevCombineTimetable:
                     QtGui.qApp.mainWindow.dockResources.onConnectionChanged(True)
                 QtGui.qApp.emitCurrentClientInfoChanged()
                 application.clearPreferencesCache()

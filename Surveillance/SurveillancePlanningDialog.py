@@ -2653,7 +2653,15 @@ class CActionPropertiesTableModel(QAbstractTableModel):
         elif propertyType.canChangeOnlyOwner == 1 and self.action:
             setPersonId = forceRef(self.action.getRecord().value('setPerson_id'))
             return setPersonId == QtGui.qApp.userId
+        elif propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
         return False
+
+    def hasAssignPropertyChangingRight(self, row):
+        propertyType = self.propertyTypeList[row]
+        if propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
+        return True
 
     def getDefaultEvaluation(self, propertyType, property, index):
         isClientNormalParameters = False
@@ -2751,7 +2759,7 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                     if propertyType.whatDepends:
                         self.updateDependedProperties(propertyType.whatDepends)
                     return True
-            if column == self.ciIsAssigned:
+            if column == self.ciIsAssigned and self.hasAssignPropertyChangingRight(row):
                 property.setAssigned(forceInt(value) == Qt.Checked)
                 self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
                 #                actionType = self.action.getType()

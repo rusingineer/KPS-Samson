@@ -214,7 +214,16 @@ class CActionPropertiesTableModel(QAbstractTableModel):
         elif propertyType.canChangeOnlyOwner == 2 and self.action:
             person_id = forceRef(self.action.getRecord().value('person_id'))
             return person_id == QtGui.qApp.userId
+        elif propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
         return False
+
+
+    def hasAssignPropertyChangingRight(self, row):
+        propertyType = self.propertyTypeList[row]
+        if propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
+        return True
 
     def getProperty(self, row):
         propertyType = self.propertyTypeList[row]
@@ -234,12 +243,10 @@ class CActionPropertiesTableModel(QAbstractTableModel):
             else:
                 return Qt.ItemIsEnabled|Qt.ItemIsSelectable
         else:
-            if column == self.ciIsAssigned and self.propertyTypeList[row].isAssignable:
+            if column == self.ciIsAssigned and propertyType.isAssignable and self.hasAssignPropertyChangingRight(row):
                 return Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable
-            if self.hasCommonPropertyChangingRight(row):
-                if column == self.ciIsAssigned and propertyType.isAssignable:
-                    return Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsUserCheckable
-                elif column == self.ciValue:
+            elif self.hasCommonPropertyChangingRight(row):
+                if column == self.ciValue:
                     if propertyType.isBoolean():
                         return Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsUserCheckable
                     return Qt.ItemIsSelectable|Qt.ItemIsEditable|Qt.ItemIsEnabled
@@ -481,7 +488,7 @@ class CActionPropertiesTableModel(QAbstractTableModel):
                     if propertyType.whatDepends:
                         self.updateDependedProperties(propertyType.whatDepends)
                     return True
-            if column == self.ciIsAssigned:
+            if column == self.ciIsAssigned and self.hasAssignPropertyChangingRight(row):
                 property.setAssigned(forceInt(value) == Qt.Checked)
                 self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
 #                actionType = self.action.getType()
@@ -751,6 +758,8 @@ class CActionPropertyDelegate(CActionPropertyBaseDelegate):
             elif propertyType.canChangeOnlyOwner == 2:
                 person_id = forceRef(model.action.getRecord().value('person_id'))
                 return person_id != QtGui.qApp.userId
+            elif propertyType.canChangeOnlyOwner == 4 and self.action:
+                return not self.action.isExported()
         else:
             return True
         return True

@@ -573,7 +573,7 @@ class CRecordTransferDialog(CDialogBase, Ui_RecordTransferDialog):
                  tableScheduleItem['client_id'].isNull(),
                ]
 
-        idList = db.getIdList(table, idCol=tableScheduleItem['id'], where=cond, order='idx, time')
+        idList = db.getIdList(table, idCol=tableScheduleItem['id'], where=cond, order=', '.join([table['time'].name(), table['appointmentPurpose_id'].name(), table['idx'].name()]))
         self.tblScheduleItems.setIdList(idList)
         self.tblScheduleItems.setCurrentRow(0)
 

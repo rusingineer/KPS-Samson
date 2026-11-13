@@ -503,7 +503,7 @@ class CAccountPool:
                 left join rbMedicalAidType mat on mat.id = et.medicalAidType_id
                 left join soc_dispanserServices sds on sds.code = s.infis and sds.begDate <= a.endDate and (sds.endDate >= a.endDate or sds.endDate is null)""",
                 u'a.id',
-                u"a.event_id = {0} and a.deleted = 0 and mat.regionalCode = '271' and sds.id is not null".format(eventId))
+                u"a.event_id = {0} and a.deleted = 0 and mat.regionalCode IN ('21', '22', '31', '32', '271') and sds.id is not null".format(eventId))
             self.mapEventIdToDispanser[eventId] = isDispanser
         return isDispanser
 

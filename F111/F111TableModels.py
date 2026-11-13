@@ -24,7 +24,8 @@ from library.InDocTable import (CInDocTableModel,
                                 CInDocTableCol,
                                 forcePyType,
                                 CSelectStrInDocTableCol,
-                                CRegExpedInDocTableCol)
+                                CRegExpedInDocTableCol,
+                                CBoolInDocTableCol)
 from library.LineEditWithRegExpValidator import CLineEditWithRegExpValidatorMasked
 from library.TableModel import CTableModel, CBoolCol, CCol
 from library.Utils import (forceDate,
@@ -33,7 +34,8 @@ from library.Utils import (forceDate,
                         forceString,
                         forceStringEx,
                         trim,
-                        toVariant
+                        toVariant,
+                        forceBool
                         )
 
 from Events.ActionPropertiesTable import CActionPropertiesTableModel
@@ -409,8 +411,8 @@ class CNVNBVARRSTableModel(CInDocTableModel):
 
 
     def loadItems(self, masterId):
+        self._items = []
         if not self.action or (self.action.getRecord() and not forceRef(self.action.getRecord().value('id'))):
-            self._items = []
             for idx in xrange(7):
                 item = self.getEmptyRecord()
                 item.setValue('risksComplications', toVariant(self.risksComplicationsNames[idx]))
@@ -480,15 +482,25 @@ class CNVNBVARRSTableModel(CInDocTableModel):
 
 
 class CNVNBARTableModel(CInDocTableModel):
+    ColDate = 2
     def __init__(self, parent):
         CInDocTableModel.__init__(self, 'Client', 'id', 'id', parent)
-        self.addExtCol(CInDocTableCol(u'Риск осложнений', 'riskComplications', 20), QVariant.String).setReadOnly(False)
-        self.addExtCol(CSelectStrInDocTableCol(u'При 1-й явке', 'firstVisit', 30, (u'низкий', u'высокий')), QVariant.String).setReadOnly(False)
-        self.addExtCol(CSelectStrInDocTableCol(u'В 11-13 недель', 'weeks11_18', 30, (u'низкий', u'высокий')), QVariant.String).setReadOnly(False)
-        self.addExtCol(CSelectStrInDocTableCol(u'В 18-20 недель', 'weeks18_20', 30, (u'низкий', u'высокий')), QVariant.String).setReadOnly(False)
-        self.addExtCol(CSelectStrInDocTableCol(u'В 30-34 недели', 'weeks30_34', 30, (u'низкий', u'высокий')), QVariant.String).setReadOnly(False)
-        self.risksComplicationsNames = [u'Тромбоэмболические осложнения',
-                                        u'Другие']
+        self.addExtCol(CInDocTableCol(u'Риск осложнений', 'riskComplications', 40), QVariant.String).setReadOnly(True)
+        self.addExtCol(CBoolInDocTableCol(u'Да', 'chosen', 15), QVariant.Bool).setReadOnly(False) 
+        self.addExtCol(CDateInDocTableCol(u'Дата установления', 'date', 30), QVariant.Date).setReadOnly(False)
+
+        self.risksComplicationsNames = [
+            u'Группа риска тромботических осложнений',
+            u'Группа риска по преэклампсии, эклампсии',
+            u'Группа риска по привычному невынашиванию',
+            u'Группа риска по преждевременным родам',
+            u'Группа риска по истмико-цервикальной недостаточности',
+            u'Группа риска по задержке роста плода (плацентарной недостаточности)',
+            u'Группа риска по кровотечению',
+            u'Группа риска по возникновению послеродовых гнойно-септических заболеваний',
+            u'Группа риска по резус-конфликтной беременности',
+            u'Группа риска по акушерскому травматизму'
+        ]
         self.readOnly = False
         self.action = None
         self.eventEditor = None
@@ -498,10 +510,8 @@ class CNVNBARTableModel(CInDocTableModel):
     def getEmptyRecord(self):
         result = QtSql.QSqlRecord()
         result.append(QtSql.QSqlField('riskComplications', QVariant.String))
-        result.append(QtSql.QSqlField('firstVisit', QVariant.String))
-        result.append(QtSql.QSqlField('weeks11_18', QVariant.String))
-        result.append(QtSql.QSqlField('weeks18_20', QVariant.String))
-        result.append(QtSql.QSqlField('weeks30_34', QVariant.String))
+        result.append(QtSql.QSqlField('chosen', QVariant.Bool))
+        result.append(QtSql.QSqlField('date', QVariant.Date))
         return result
 
 
@@ -539,7 +549,22 @@ class CNVNBARTableModel(CInDocTableModel):
     def flags(self, index):
         if self.readOnly:
             return Qt.ItemIsSelectable | Qt.ItemIsEnabled
-        return CInDocTableModel.flags(self, index)
+        flags = CInDocTableModel.flags(self, index)
+        
+        column = index.column()
+        row = index.row()
+        
+        if 0 <= row < len(self._items):
+            col = self._cols[column]
+
+            if col.fieldName() == 'date':
+                record = self._items[row]
+                isChosen = forceBool(record.value('chosen'))
+
+                if not isChosen:
+                    flags = flags & ~Qt.ItemIsEditable
+                    
+        return flags
 
 
     def data(self, index, role=Qt.DisplayRole):
@@ -574,9 +599,17 @@ class CNVNBARTableModel(CInDocTableModel):
 
     def setData(self, index, value, role=Qt.EditRole):
         row = index.row()
-        if row > 4:
+        if row > 9:
             return False
         result = CInDocTableModel.setData(self, index, value, role)
+        if result:
+            col = self._cols[index.column()]
+            if col.fieldName() == 'chosen':
+                isChosen = forceBool(value)
+                
+                if not isChosen:
+                    dateIndex = self.index(row, self.ColDate)
+                    CInDocTableModel.setData(self, dateIndex, QVariant(), Qt.EditRole)
         return result
 
 
@@ -596,9 +629,9 @@ class CNVNBARTableModel(CInDocTableModel):
 
 
     def loadItems(self, masterId):
+        self._items = []
         if not self.action or (self.action.getRecord() and not forceRef(self.action.getRecord().value('id'))):
-            self._items = []
-            for idx in xrange(2):
+            for idx in xrange(len(self.risksComplicationsNames)):
                 item = self.getEmptyRecord()
                 item.setValue('riskComplications', toVariant(self.risksComplicationsNames[idx]))
                 self._items.append(item)
@@ -621,43 +654,39 @@ class CNVNBARTableModel(CInDocTableModel):
                         else:
                             item.append(propertyValue)
                         items[shortName] = item
-                if items:
-                    self._items = []
-                    for idx in xrange(5):
-                        riskComplications = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:РО:%s'%(forceString(idx+1)), unicode)
-                        firstVisit = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:ППЯ:%s'%(forceString(idx+1)), unicode)
-                        weeks11_18 = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:11-13:%s'%(forceString(idx+1)), unicode)
-                        weeks18_20 = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:18-20:%s'%(forceString(idx+1)), unicode)
-                        weeks30_34 = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:30-34:%s'%(forceString(idx+1)), unicode)
-                        if riskComplications or firstVisit or weeks11_18 or weeks18_20 or weeks30_34:
-                            item = self.getEmptyRecord()
-                            item.setValue('riskComplications', toVariant(riskComplications))
-                            item.setValue('firstVisit', toVariant(firstVisit))
-                            item.setValue('weeks11_18', toVariant(weeks11_18))
-                            item.setValue('weeks18_20', toVariant(weeks18_20))
-                            item.setValue('weeks30_34', toVariant(weeks30_34))
-                            self._items.append(item)
+                for idx in xrange(len(self.risksComplicationsNames)):
+                    item = self.getEmptyRecord()
+                    item.setValue('riskComplications', toVariant(self.risksComplicationsNames[idx]))
+                    
+                    if items:
+                        chosen = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:РИСК:%s'%(forceString(idx+1)), QtGui.QCheckBox) 
+                        date = self.eventEditor.getPropertyValue(items, u'НВНБ:АР:ДАТА:%s'%(forceString(idx+1)), QDate)
+                        
+                        item.setValue('chosen', toVariant(chosen))
+                        item.setValue('date', toVariant(date))
+                    
+                    self._items.append(item)
         self.reset()
 
 
     def saveItems(self):
         if self.eventEditor and self.eventEditor.action:
             for idx, record in enumerate(self._items):
-                self.eventEditor.setProperty(QVariant(forceStringEx(record.value('riskComplications'))), u'НВНБ:АР:РО:%s'%(forceString(idx+1)))
-                self.eventEditor.setProperty(QVariant(forceStringEx(record.value('firstVisit'))), u'НВНБ:АР:ППЯ:%s'%(forceString(idx+1)))
-                self.eventEditor.setProperty(QVariant(forceStringEx(record.value('weeks11_18'))), u'НВНБ:АР:11-13:%s'%(forceString(idx+1)))
-                self.eventEditor.setProperty(QVariant(forceStringEx(record.value('weeks18_20'))), u'НВНБ:АР:18-20:%s'%(forceString(idx+1)))
-                self.eventEditor.setProperty(QVariant(forceStringEx(record.value('weeks30_34'))), u'НВНБ:АР:30-34:%s'%(forceString(idx+1)))
+                isChosen = forceBool(record.value('chosen'))
+                self.eventEditor.setProperty(QVariant(isChosen), u'НВНБ:АР:РИСК:%s'%(forceString(idx+1)))
+                if isChosen:
+                    date = forceDate(record.value('date'))
+                else:
+                    date = QDate()
+                self.eventEditor.setProperty(QVariant(date), u'НВНБ:АР:ДАТА:%s'%(forceString(idx+1)))
             rowCount = self.realRowCount()
-            if rowCount < 5:
-                noRows = 5 - rowCount
+            maxRows = len(self.risksComplicationsNames)
+            if rowCount < maxRows:
+                noRows = maxRows - rowCount
                 idx = rowCount + 1
                 while noRows > 0:
-                    self.delProperty(u'НВНБ:АР:РО:%s'%(forceString(idx)))
-                    self.delProperty(u'НВНБ:АР:ППЯ:%s'%(forceString(idx)))
-                    self.delProperty(u'НВНБ:АР:11-13:%s'%(forceString(idx)))
-                    self.delProperty(u'НВНБ:АР:18-20:%s'%(forceString(idx)))
-                    self.delProperty(u'НВНБ:АР:30-34:%s'%(forceString(idx)))
+                    self.delProperty(u'НВНБ:АР:РИСК:%s'%(forceString(idx)))
+                    self.delProperty(u'НВНБ:АР:ДАТА:%s'%(forceString(idx)))
                     idx += 1
                     noRows -= 1
             self.action = self.eventEditor.action

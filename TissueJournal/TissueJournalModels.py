@@ -723,6 +723,8 @@ class CActionEditorModel(QAbstractTableModel):
         elif propertyType.canChangeOnlyOwner == 2 and self.action:
             person_id = forceRef(action.getRecord().value('person_id'))
             return person_id == QtGui.qApp.userId
+        elif propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
         return False
 
 
@@ -1106,6 +1108,8 @@ class CPropertiesEditorModel(QAbstractTableModel):
         elif propertyType.canChangeOnlyOwner == 2 and self.action:
             person_id = forceRef(action.getRecord().value('person_id'))
             return person_id == QtGui.qApp.userId
+        elif propertyType.canChangeOnlyOwner == 4 and self.action:
+            return not self.action.isExported()
         return False
 
 

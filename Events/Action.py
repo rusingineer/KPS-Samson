@@ -423,6 +423,10 @@ class CActionType(object):
 
     def getPropertiesByName(self):
         return self._propertiesByName
+    
+    
+    def getPropertiesByShortName(self):
+        return self._propertiesByShortName
 
 
 #    def getPropertiesByVar(self):

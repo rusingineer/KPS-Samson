@@ -265,7 +265,7 @@ class CF088ActionPropertiesCheckTableModel(CActionPropertiesTableModel):
                     if propertyType.whatDepends:
                         self.updateDependedProperties(propertyType.whatDepends)
                     return True
-            if column == self.ciIsAssigned:
+            if column == self.ciIsAssigned and self.hasAssignPropertyChangingRight(row):
                 property.setAssigned(forceInt(value) == Qt.Checked)
                 self.emit(SIGNAL('dataChanged(QModelIndex, QModelIndex)'), index, index)
                 return True

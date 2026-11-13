@@ -229,6 +229,7 @@ class CResourcesDockContent(QtGui.QWidget,
         self.addObject('actAmbCreateOrder', QtGui.QAction(u'Поставить в очередь', self))
         self.addObject('actAmbCreateOrderUrgent', QtGui.QAction(u'Поставить в очередь неотложно', self))
         self.addObject('actAmbCreateOrderTMK', QtGui.QAction(u'Поставить в очередь на ТМК', self))
+        self.addObject('actAmbRecordTransfer', QtGui.QAction(u'Перенести запись', self))
         self.addObject('actAmbDeleteOrder', QtGui.QAction(u'Удалить из очереди', self))
         self.addObject('actAmbChangeComplaint', QtGui.QAction(u'Изменить жалобы', self))
         self.addObject('actAmbChangeReferral',  QtGui.QAction(u'Изменить данные направления', self))
@@ -249,6 +250,7 @@ class CResourcesDockContent(QtGui.QWidget,
 
         self.addObject('actHomeCreateOrder',QtGui.QAction(u'Поставить в очередь', self))
         self.addObject('actHomeCreateOrderUrgent', QtGui.QAction(u'Поставить в очередь неотложно', self))
+        self.addObject('actHomeRecordTransfer', QtGui.QAction(u'Перенести запись', self))
         self.addObject('actHomeDeleteOrder',QtGui.QAction(u'Удалить из очереди', self))
         self.addObject('actHomeChangeComplaint',QtGui.QAction(u'Изменить жалобы', self))
         self.addObject('actHomeChangeReferral', QtGui.QAction(u'Изменить данные направления', self))
@@ -273,6 +275,8 @@ class CResourcesDockContent(QtGui.QWidget,
         self.timer.setObjectName('timer')
         self.timer.setInterval(60*1000) # раз в минуту
         self.activityPref = application.getGlobalPreference('23')
+
+        self.timeTableCombinationRule = application.combineTimetable()
 
         self.setupUi(self)
         for treeWidget in (self.treeOrgStructure, self.treeOrgPersonnel):
@@ -308,6 +312,7 @@ class CResourcesDockContent(QtGui.QWidget,
         self.tblAmbQueue.createPopupMenu([self.actAmbCreateOrder,
                                           self.actAmbCreateOrderUrgent,
                                           self.actAmbCreateOrderTMK,
+                                          self.actAmbRecordTransfer,
                                           self.actAmbDeleteOrder,
                                           '-',
                                           self.actAmbChangeComplaint,
@@ -336,6 +341,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                           self.actAmbNotification])
         self.tblHomeQueue.createPopupMenu([self.actHomeCreateOrder,
                                           self.actHomeCreateOrderUrgent,
+                                          self.actHomeRecordTransfer,
                                           self.actHomeDeleteOrder,
                                           '-',
                                           self.actHomeChangeComplaint,
@@ -366,11 +372,11 @@ class CResourcesDockContent(QtGui.QWidget,
 
         self.treeOrgStructure.popupMenu().aboutToShow.connect(self.onTreeOrgStructurePopupMenuAboutToShow)
 
-        self.selectionModelAmbTimeTable.currentRowChanged.connect( self.onSelectionModelAmbTimeTableCurrentRowChanged,
+        self.selectionModelAmbTimeTable.currentChanged.connect( self.onSelectionModelAmbTimeTableCurrentRowChanged,
                                                                    type=Qt.QueuedConnection
                                                                  )
 
-        self.selectionModelHomeTimeTable.currentRowChanged.connect( self.onSelectionModelHomeTimeTableCurrentRowChanged,
+        self.selectionModelHomeTimeTable.currentChanged.connect( self.onSelectionModelHomeTimeTableCurrentRowChanged,
                                                                     type=Qt.QueuedConnection
                                                                   )
 
@@ -709,6 +715,7 @@ class CResourcesDockContent(QtGui.QWidget,
         maxDate = self.calendarWidget.maximumDate()
 
         currentRow = tblTimeTable.currentIndex().row()
+        currentColumn = tblTimeTable.currentIndex().column()
         modelTimeTable.setPersonActivityAndDate(personId, activityId, currentDate, minDate, maxDate)
         newCurrentRow = modelTimeTable.getRowForDate(currentDate, currentRow)
         if newCurrentRow>=0:
@@ -718,7 +725,8 @@ class CResourcesDockContent(QtGui.QWidget,
                                           tblQueue,
                                           modelQueue,
                                           newCurrentRow,
-                                          currentRow
+                                          currentRow,
+                                          currentColumn
                                          )
             newCurrentIndex = modelTimeTable.index(newCurrentRow, 0)
             tblTimeTable.scrollTo(newCurrentIndex)
@@ -757,12 +765,13 @@ class CResourcesDockContent(QtGui.QWidget,
                                 tblQueue,
                                 modelQueue,
                                 currentRow,
-                                previousRow):
+                                previousRow,
+                                currentColumn):
             currentDate = modelTimeTable.getDate(currentRow)
             previousDate = modelTimeTable.getDate(previousRow)
             if currentDate != previousDate:
                 rows = self.getCombinableRowsInTimeTable(modelTimeTable, currentRow)
-                self.selectRowsInTimeTable(selectionModelTimeTable, rows)
+                self.selectRowsInTimeTable(selectionModelTimeTable, rows, currentColumn)
                 prevBlock = self.calendarWidget.blockSignals(True)
                 try:
                     self.calendarWidget.setSelectedDate(currentDate)
@@ -798,7 +807,7 @@ class CResourcesDockContent(QtGui.QWidget,
                       tblQueue,
                       modelQueue
                      ):
-        rows = self.getSelectedRowsInTimeTable(selectionModelTimeTable)
+        rows, _ = self.getSelectedRowsInTimeTable(selectionModelTimeTable)
         personId = self.getCurrentPersonId()
         if self.isRightMaxDateLimit(personId):
             schedules = [ modelTimeTable.schedules[row] for row in rows ]
@@ -865,23 +874,48 @@ class CResourcesDockContent(QtGui.QWidget,
         return sorted([index.row()
                        for index in selectionModelTimeTable.selectedRows()
                       ]
-                     )
+                     ), selectionModelTimeTable.currentIndex().column() if selectionModelTimeTable.currentIndex() else 0
 
 
     def getCombinableRowsInTimeTable(self, modelTimeTable, row):
-        timeTableCombinationRule = QtGui.qApp.combineTimetable() # плохое название getTimeTableCombinationRule?
-        if timeTableCombinationRule == 0:
-            return [row]
+        # timeTableCombinationRule = QtGui.qApp.combineTimetable() # плохое название getTimeTableCombinationRule?
+        # if timeTableCombinationRule == 0:
+        #     return [row]
+        # else:
+        #     return modelTimeTable.getCombinableRows(row, timeTableCombinationRule == 1)
+        if self.timeTableCombinationRule == 1:
+            return modelTimeTable.getCombinableRows(row, True)
+        elif self.timeTableCombinationRule == 2:
+            return modelTimeTable.getCombinableRows(row, False)
         else:
-            return modelTimeTable.getCombinableRows(row, timeTableCombinationRule==1)
+            return [row]
 
 
-    def selectRowsInTimeTable(self, selectionModelTimeTable, rows):
+    def setSpanByAppointment(self, tblTimeTable, modelTimeTable):
+        if self.timeTableCombinationRule != 1:
+            return
+        tblTimeTable.clearSpans()
+        schedules = modelTimeTable.schedules
+        schedulesCount = len(schedules)
+        spanStart = 0
+        # берём первый период по данному назначению (spanStart) и идём пока не закончатся периоды данного назначения (spanEnd)
+        # spanEnd - spanStart это количество периодов по назначению, если их несколько, то объединяем
+        while spanStart < schedulesCount:
+            spanEnd = spanStart + 1
+            while spanEnd < schedulesCount and schedules[spanEnd].date == schedules[spanStart].date and schedules[spanEnd].appointmentPurposeId == schedules[spanStart].appointmentPurposeId:
+                spanEnd += 1
+            if spanEnd - spanStart > 1:
+                tblTimeTable.setSpan(spanStart, 0, spanEnd - spanStart, 1)
+            spanStart = spanEnd
+
+
+    def selectRowsInTimeTable(self, selectionModelTimeTable, rows, column=0):
         model = selectionModelTimeTable.model()
-        indexes = QtGui.QItemSelection()
+        selection = QtGui.QItemSelection()
         for row in rows:
-            indexes.append(QtGui.QItemSelectionRange(model.index(row, 0)))
-        selectionModelTimeTable.select(QtGui.QItemSelection(indexes), self.ClearAndSelectRows)
+            idx = model.index(row, column)
+            selection.select(idx, idx)
+        selectionModelTimeTable.select(selection, self.ClearAndSelectRows)
 
 
     def popupMenuAboutToShow(self,
@@ -889,6 +923,7 @@ class CResourcesDockContent(QtGui.QWidget,
                              actCreateOrder,
                              actCreateOrderUrgent,
                              actCreateOrderTMK,
+                             actRecordTransfer,
                              actDeleteOrder,
                              actChangeComplaint,
                              actChangeReferral,
@@ -944,6 +979,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                   and not deathDate
                                   and canFindClient and bool(currentClientId)
                                   and not overlapItem)
+        actRecordTransfer.setEnabled(orderPresent)
         actDeleteOrder.setEnabled(orderPresent)
         actChangeComplaint.setEnabled(orderPresent)
         actChangeReferral.setEnabled(orderPresent)
@@ -1308,6 +1344,36 @@ class CResourcesDockContent(QtGui.QWidget,
             printOrderByScheduleItem(self, scheduleItem.id)
 
 
+    def recordTransfer(self, tblTimeTable, tblQueue):
+        from Timeline.ScheduleItemsDialog import CRecordTransferDialog
+        modelQueue = tblQueue.model()
+        modelQueue.updateData()
+        row = tblQueue.currentIndex().row()
+        schedule = modelQueue.getSchedule(row)
+        scheduleItem = tblQueue.model().getScheduleItem(row)
+
+        if not scheduleItem or scheduleItem.clientId is None:
+            return
+
+        lockId = self.lock('Schedule_Item', scheduleItem.id)
+        if lockId:
+            try:
+                dlg = CRecordTransferDialog(self)
+                dlg.setup(modelQueue.appointmentType,
+                          schedule.appointmentPurposeId,
+                          schedule.personId,
+                          schedule.date,
+                          scheduleItem
+                          )
+
+                if dlg.exec_():
+                    self.updateTimeTableRow(tblTimeTable)
+                    modelQueue.emitDataChanged(row)
+                    modelQueue.updateData()
+            finally:
+                self.releaseLock(lockId)
+
+
     def deleteOrder(self, tblTimeTable, tblQueue):
         modelQueue = tblQueue.model()
         row = tblQueue.currentIndex().row()
@@ -1654,7 +1720,7 @@ class CResourcesDockContent(QtGui.QWidget,
                 else:
                     currentDate = self.getCurrentDate()
                     currentScheduleId = None
-                selectedRows = self.getSelectedRowsInTimeTable(selectionModelTimeTable)
+                selectedRows, selectedColumn = self.getSelectedRowsInTimeTable(selectionModelTimeTable)
                 selectedScheduleId = [ modelTimeTable.getSchedule(row).id
                                        for row in selectedRows
                                      ]
@@ -1666,8 +1732,8 @@ class CResourcesDockContent(QtGui.QWidget,
                                   ]
                 rowForCurrentScheduleId = modelTimeTable.findRowForScheduleId(currentScheduleId)
                 newCurrentRow = modelTimeTable.getRowForDate(currentDate, rowForCurrentScheduleId if rowForCurrentScheduleId>=0 else currentRow)
-                self.selectRowsInTimeTable(selectionModelTimeTable, newSelectedRows)
-                selectionModelTimeTable.setCurrentIndex(modelTimeTable.index(newCurrentRow, 0),
+                self.selectRowsInTimeTable(selectionModelTimeTable, newSelectedRows, selectedColumn)
+                selectionModelTimeTable.setCurrentIndex(modelTimeTable.index(newCurrentRow, selectedColumn),
                                                         selectionModelTimeTable.NoUpdate)
                 self.updateQueueEx(tblTimeTable,
                                    modelTimeTable,
@@ -1882,6 +1948,7 @@ class CResourcesDockContent(QtGui.QWidget,
     # @pyqtSignature('QModelIndex, QModelIndex')
     def onSelectionModelAmbTimeTableCurrentRowChanged(self, current, previous):
         currentRow = current.row()
+        currentColumn = current.column()
         previousRow = previous.row()
         if 0<=currentRow<self.modelAmbTimeTable.rowCount():
             self.updateTimeTableSelection(self.tblAmbTimeTable,
@@ -1890,13 +1957,15 @@ class CResourcesDockContent(QtGui.QWidget,
                                           self.tblAmbQueue,
                                           self.modelAmbQueue,
                                           currentRow,
-                                          previousRow)
+                                          previousRow,
+                                          currentColumn)
 
 
     # автоматическое связывание не годится :(
     # @pyqtSignature('QModelIndex, QModelIndex')
     def onSelectionModelHomeTimeTableCurrentRowChanged(self, current, previous):
         currentRow = current.row()
+        currentColumn = current.column()
         previousRow = previous.row()
         if 0<=currentRow<self.modelHomeTimeTable.rowCount():
             self.updateTimeTableSelection(self.tblHomeTimeTable,
@@ -1905,17 +1974,69 @@ class CResourcesDockContent(QtGui.QWidget,
                                           self.tblHomeQueue,
                                           self.modelHomeQueue,
                                           currentRow,
-                                          previousRow)
+                                          previousRow,
+                                          currentColumn)
+
+
+    # Сигнал clicked срабатывает только после mouseRelease и переприменяет selection,
+    # которую Qtшный ExtendedSelection переопределяет после клика по объединённой ячейке.
+    # это позволяет не использовать костыль в виде таймера для вызова функции выбора строк,
+    # чтоб прошёл mouseRelease (но время может быть рандомным и добавляет задержку при выборе в ui)
+    # проблема race condition сильно выражена в qt4, но насколько я понял ситуация в 6ом qt не сильно поменялась
+    # это насколько понял известная проблема при использовании span ячеек, extended selection и rowChanged сигнала вместе
+    @pyqtSignature('QModelIndex')
+    def on_tblAmbTimeTable_clicked(self, index):
+        self._resetGroupSelection(index,
+                                    self.tblAmbTimeTable,
+                                    self.modelAmbTimeTable,
+                                    self.selectionModelAmbTimeTable,
+                                    self.tblAmbQueue,
+                                    self.modelAmbQueue)
+
+
+    @pyqtSignature('QModelIndex')
+    def on_tblHomeTimeTable_clicked(self, index):
+        self._resetGroupSelection(index,
+                                    self.tblHomeTimeTable,
+                                    self.modelHomeTimeTable,
+                                    self.selectionModelHomeTimeTable,
+                                    self.tblHomeQueue,
+                                    self.modelHomeQueue)
+
+
+    def _resetGroupSelection(self,
+                               index,
+                               tblTimeTable,
+                               modelTimeTable,
+                               selectionModelTimeTable,
+                               tblQueue,
+                               modelQueue):
+        row = index.row()
+        column = index.column()
+        if not (0 <= row < modelTimeTable.rowCount()):
+            return
+        if column == 0:
+            rows = self.getCombinableRowsInTimeTable(modelTimeTable, row)
+        else:
+            rows = [row]
+        self.selectRowsInTimeTable(selectionModelTimeTable, rows, column)
+        self.updateQueueEx(tblTimeTable,
+                           modelTimeTable,
+                           selectionModelTimeTable,
+                           tblQueue,
+                           modelQueue)
 
 
     @pyqtSignature('')                                     # см. примечание 1
     def on_modelAmbTimeTable_rowCountChanged(self):               # см. примечание 1
         self.tblAmbTimeTable.verticalHeader().setUpdatesEnabled(True) # см. примечание 1
+        self.setSpanByAppointment(self.tblAmbTimeTable, self.modelAmbTimeTable)
 
 
     @pyqtSignature('')                                     # см. примечание 1
     def on_modelHomeTimeTable_rowCountChanged(self):                  # см. примечание 1
         self.tblHomeTimeTable.verticalHeader().setUpdatesEnabled(True)# см. примечание 1
+        self.setSpanByAppointment(self.tblHomeTimeTable, self.modelHomeTimeTable)
 
 
     @pyqtSignature('QModelIndex')
@@ -1957,6 +2078,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                   self.actAmbCreateOrder,
                                   self.actAmbCreateOrderUrgent,
                                   self.actAmbCreateOrderTMK,
+                                  self.actAmbRecordTransfer,
                                   self.actAmbDeleteOrder,
                                   self.actAmbChangeComplaint,
                                   self.actAmbChangeReferral,
@@ -1980,6 +2102,7 @@ class CResourcesDockContent(QtGui.QWidget,
         self.popupMenuAboutToShow(self.tblHomeQueue,
                                   self.actHomeCreateOrder,
                                   self.actHomeCreateOrderUrgent,
+                                  self.actHomeRecordTransfer,
                                   self.actHomeDeleteOrder,
                                   self.actHomeChangeComplaint,
                                   self.actHomeChangeReferral,
@@ -2040,6 +2163,12 @@ class CResourcesDockContent(QtGui.QWidget,
         if self.createOrder(self.tblAmbTimeTable, self.tblAmbQueue, QtGui.qApp.currentClientId(), recordType = 4):
             self.printOrder(self.tblAmbQueue)
             self.isSwitchToUserSchedule()
+        QtGui.qApp.emitCurrentClientInfoChanged()
+
+
+    @pyqtSignature('')
+    def on_actAmbRecordTransfer_triggered(self):
+        self.recordTransfer(self.tblAmbTimeTable, self.tblAmbQueue)
         QtGui.qApp.emitCurrentClientInfoChanged()
 
 
@@ -2217,6 +2346,11 @@ class CResourcesDockContent(QtGui.QWidget,
         if self.isSwitchToUserSchedule():
             return
         self.createOrder(self.tblHomeTimeTable, self.tblHomeQueue, QtGui.qApp.currentClientId(), isUrgent = 1)
+
+
+    @pyqtSignature('')
+    def on_actHomeRecordTransfer_triggered(self):
+        self.recordTransfer(self.tblHomeTimeTable, self.tblHomeQueue)
 
 
     @pyqtSignature('')
@@ -2616,11 +2750,13 @@ class CTimeTableModel(QAbstractTableModel):
             cond.append( '`Person`.`lastAccessibleTimelineDate` IS NULL OR `Person`.`lastAccessibleTimelineDate`=0 OR `Schedule`.`date`<=`Person`.`lastAccessibleTimelineDate`')
             if QtGui.qApp.isTimelineAccessibilityDays() == 1:
                 cond.append( '`Person`.`timelineAccessibleDays` <= 0 OR `Schedule`.`date`<=%s'%db.dateAdd('current_date', 'day', 'Person.timelineAccessibleDays'))
+            # За счёт смены ORDER BY (по назначению) теперь периоды идут чётко по день, НАЗНАЧЕНИЕ, время, ... чтобы можно было делать span,
+            # т.к. объединяемые периоды должны идти друг за другом.
 
             return [CSchedule(record) for record in db.getRecordList(table,
                                                                      'Schedule.*',
                                                                      cond,
-                                                                     'Schedule.date, Schedule.begTime, Schedule.id'
+                                                                     'Schedule.date, Schedule.appointmentPurpose_id, Schedule.begTime, Schedule.id'
                                                                     )
                    ]
         else:

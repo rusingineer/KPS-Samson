@@ -18,7 +18,7 @@ import json
 from collections import OrderedDict
 from PyQt4 import QtGui
 from PyQt4.QtGui import QCheckBox, QTextEdit, QComboBox
-from PyQt4.QtCore import Qt, QDate, QDateTime, QTime, QVariant, pyqtSlot, pyqtSignature, SIGNAL
+from PyQt4.QtCore import Qt, QDate, QDateTime, QTime, QVariant, pyqtSlot, pyqtSignature, SIGNAL, QString
 
 from library.Attach.AttachAction  import getAttachAction
 from library.Attach.AttachButton import CAttachButton
@@ -68,6 +68,7 @@ from Events.ActionProperty.DoubleActionPropertyValueType   import CDoubleActionP
 from Events.ActionProperty.ConstructorActionPropertyValueType import CConstructorActionPropertyValueType
 from Events.ActionStatus import CActionStatus
 from Events.ActionTemplateChoose import CActionTemplateCache
+from Events.EventAddChronicDiseasesDialog import CChronicDiseasesLoadDialog
 from Events.EventInfo import CCookedEventInfo, CEventInfo
 from Events.PropertyEditorAmbCard import CPropertyEditorAmbCard
 from Events.Utils import (checkAttachOnDate,
@@ -122,6 +123,8 @@ tabNotesFieldNames = ['relegateOrg_id',
 
 
 class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
+    dfFinished = 1  # Заключительный
+    
     cdSaveNoClose = 4 # сохранить не закрывая
 
     def __init__(self, parent, isCreate=False):
@@ -170,6 +173,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.addObject('actEditAction', QtGui.QAction(u'Редактировать Действие', self))
         self.addObject('actDeleteAction', QtGui.QAction(u'Удалить Действие', self))
         self.addObject('actAddPregnancyRetrospect',QtGui.QAction(u'Вставить в блок Действия', self))
+        self.addObject('actAddChronicDiseases', QtGui.QAction(u'Добавить хронические диагнозы', self))
         self.setupUi(self)
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint)
         self.setWindowTitleEx(u'Индивидуальная медицинская карта беременной и родильницы')
@@ -204,19 +208,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.modelSOPSvORNM.setEventEditor(self)
         self.tblSOPSvORNM.addPopupDelRow()
         
-        self.tblNVNBVARRS.resizeRowsToContents()
-        self.tblNVNBVARRS.resizeColumnsToContents()
-        rowHeight = self.tblNVNBVARRS.rowHeight(0)
-        headerHeight = self.tblNVNBVARRS.horizontalHeader().height()
-        margin = 2 * self.tblNVNBVARRS.frameWidth()
-        maxHeight = headerHeight + rowHeight * 7 + margin
-        self.tblNVNBVARRS.setMaximumHeight(headerHeight + rowHeight * 7 + margin)
-        self.tblNVNBAR.setMaximumHeight(headerHeight + rowHeight * 5 + margin)
-        self.tblSOPSvORNM.setMaximumHeight(headerHeight + rowHeight * 4 + margin)
-        
         self.modelNVNBVARRS.setEventEditor(self)
         self.modelNVNBAR.setEventEditor(self)
-        self.tblNVNBAR.addPopupDelRow()
         self.modelNVNBSGVB.setEventEditor(self)
         self.tblNVNBSGVB.addPopupDelRow()
         self.setWidgetsVisible(False)
@@ -241,6 +234,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         btnApply.clicked.connect(self.on_btnBoxPregnancyRetrospect_apply)
         btnReset.clicked.connect(self.on_btnBoxPregnancyRetrospect_reset)
         self.modelNVNBVARRS.setEnableAppendLine(False)
+        self.modelNVNBAR.setEnableAppendLine(False)
         self.frameAP.setVisible(False)
         
         self.ambWidgets = self.initAmbWidgets()
@@ -254,6 +248,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         for widget in self.ambWidgets.keys():
             widget.setContextMenuPolicy(Qt.CustomContextMenu)
             widget.customContextMenuRequested.connect(self.ambCardMenuExec)
+        self.cmbRiskExtraGenPat.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.cmbRiskExtraGenPat.customContextMenuRequested.connect(self.cmbRiskExtraGenPatMenu)
     
     def ambCardMenuExec(self, point):
         widget = self.sender()
@@ -270,6 +266,23 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             menu.insertSeparator(defaultActions[0])
         else:
             menu.addAction(self.actPropertyEditorAmbCard)
+        menu.exec_(widget.mapToGlobal(point))
+    
+    def cmbRiskExtraGenPatMenu(self, point):
+        widget = self.sender()
+        try:
+            menu = widget.createStandardContextMenu()
+        except AttributeError:
+            menu = QtGui.QMenu(widget)
+        self.actAddChronicDiseases.widget = widget
+        self.actAddChronicDiseases.setData(u'НВНБ:АР:ЕКСТРАГЕН:3')
+
+        defaultActions = menu.actions()
+        if defaultActions:
+            menu.insertAction(defaultActions[0], self.actAddChronicDiseases)
+            menu.insertSeparator(defaultActions[0])
+        else:
+            menu.addAction(self.actAddChronicDiseases)
         menu.exec_(widget.mapToGlobal(point))
 
 
@@ -400,6 +413,8 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.edtODPOBSBPR_5.setVisible(value)
         self.edtCloseReason.setVisible(value)
         self.lblCloseReason.setVisible(value)
+        self.cmbRiskExtraGenPat.setVisible(value)
+        self.edtRiskExtraGenPat.setVisible(value)
 
 
     def setInitDate(self):
@@ -847,6 +862,32 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.modelNVNBSGVB.setAction(self.action)
         self.modelNVNBSGVB.loadItems(self.clientId)
         self.modelPreviousPregnancy.loadItems(self.action.getId())
+        
+        self.tblNVNBVARRS.resizeRowsToContents()
+        self.tblNVNBVARRS.resizeColumnsToContents()
+        self.tblNVNBAR.resizeRowsToContents()
+        self.tblNVNBAR.resizeColumnsToContents()
+        def setTableFit(table, numRows):
+            table.resizeColumnsToContents()
+            table.resizeRowsToContents()
+            headerHeight = table.horizontalHeader().sizeHint().height()
+
+            model = table.model()
+            totalRows = model.rowCount() if model else 0
+            count = max(numRows, totalRows) if totalRows > 0 else numRows
+
+            if totalRows > 0:
+                rowsHeight = sum(table.rowHeight(r) for r in range(count))
+            else:
+                rowsHeight = table.verticalHeader().defaultSectionSize() * numRows
+
+            extra = table.horizontalScrollBar().sizeHint().height() + 2 * table.frameWidth() + 4
+
+            table.setFixedHeight(headerHeight + rowsHeight + extra)
+        
+        setTableFit(self.tblNVNBVARRS, 7)
+        setTableFit(self.tblNVNBAR, 9)
+        setTableFit(self.tblSOPSvORNM, 4)
         conActionId = self.modelPreviousPregnancy.getActionIdToRow(0)
         conItems = self.modelPreviousPregnancy.items()
         if conItems and hasattr(conItems[0], 'aboutChildrenProperties'):
@@ -1158,6 +1199,12 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                 isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:5', [u'обнаружен',u'не обнаружен'])
                 self.chkODPOBRPPGRF1_5.setChecked(isODPOBRPPGRF == 1)
                 self.chkODPOBRPPGRF2_5.setChecked(isODPOBRPPGRF == 2)
+                
+                # tabRisk
+                isRiskExtraGenPat = self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:1', QCheckBox)
+                self.chkRiskExtraGenPat.setChecked(isRiskExtraGenPat)
+                self.edtRiskExtraGenPat.setDate(self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:2', QDate))
+                self.cmbRiskExtraGenPat.setText(self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:3', unicode))
 
                 # tabGynecologicalExamination
                 isODGOOSMZ = self.getChkPropertyValue(items, u'ОД:ГО:ОШМЗ:1', [u'визуально не изменена', u'другое'])
@@ -2057,7 +2104,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         result = result and self.checkProperties()
         if not self.personId:
             result = result and self.checkValueMessage(u'"Внимание! Необходимо указать врача, наблюдающего данную беременность!', False, self.cmbPerson)
-
+        result = result and self.checkRisk()
         return result
     
     
@@ -2091,6 +2138,25 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
             return self.checkInputMessage(u'Предполагаемая дата родов', False, self.edtEstimatedBirthsDate)
         elif abs(checkDate.daysTo(estimadtedBirthsDate)) > 294:
             return self.checkValueMessage(u'Предполагаемая дата родов не может быть меньше/больше 294 дней от {}'.format(checkDateText), False, self.edtEstimatedBirthsDate)
+        return True
+    
+    
+    def checkRisk(self):
+        for row, item in enumerate(self.modelNVNBAR.items()):
+            if forceBool(item.value('chosen')):
+                begDate = forceDate(item.value('date'))
+                name = forceString(item.value('riskComplications'))
+                if not begDate:
+                    return self.checkValueMessage(u'Не указана дата установления риска для "{}"'.format(name), False, self.tblNVNBAR, row, item.indexOf('date'))
+        
+        if self.chkRiskExtraGenPat.isChecked():
+            begDate = forceDate(self.edtRiskExtraGenPat.date())
+            if not begDate:
+                return self.checkInputMessage(u'дату установления риска по экстрагенитальной патологии', False, self.edtRiskExtraGenPat)
+            MKB = forceString(self.cmbRiskExtraGenPat.text())
+            if not MKB:
+                return self.checkInputMessage(u'диагноз риска по экстрагенитальной патологии', False, self.cmbRiskExtraGenPat)
+
         return True
             
     
@@ -6840,6 +6906,48 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
                         self.modelPreviousPregnancy.reset()
                         self.tblPreviousPregnancy.setCurrentRow(actionRow)
                         self.modelPreviousPregnancy.invalidateRecordsCache()
+
+
+    @pyqtSlot(bool)
+    def on_chkRiskExtraGenPat_toggled(self, checked):
+        isChecked = self.chkRiskExtraGenPat.isChecked()
+        if isChecked:
+            self.edtRiskExtraGenPat.setVisible(True)
+            self.cmbRiskExtraGenPat.setVisible(True)
+            self.setProperty(toVariant(isChecked), u'НВНБ:АР:ЕКСТРАГЕН:1')
+        else:
+            self.edtRiskExtraGenPat.setVisible(False)
+            self.edtRiskExtraGenPat.setDate(QDate())
+            self.cmbRiskExtraGenPat.setVisible(False)
+            self.cmbRiskExtraGenPat.setText(u'')
+            self.setProperty(toVariant(isChecked), u'НВНБ:АР:ЕКСТРАГЕН:1')
+
+
+    @pyqtSlot(QDate)
+    def on_edtRiskExtraGenPat_dateChanged(self, date):
+        self.setProperty(toVariant(self.edtRiskExtraGenPat.date()), u'НВНБ:АР:ЕКСТРАГЕН:2')
+
+
+    @pyqtSlot(QString)
+    def on_cmbRiskExtraGenPat_textChanged(self, value):
+        self.setProperty(toVariant(self.cmbRiskExtraGenPat.text()), u'НВНБ:АР:ЕКСТРАГЕН:3')
+
+
+    @pyqtSignature('')
+    def on_actAddChronicDiseases_triggered(self):
+        """
+        Добавляем хронические диагнозы к списку диагнозов
+        :return:
+        """
+        dialog = CChronicDiseasesLoadDialog(self.clientId, {}, self, exclusiveCheck=True)
+        if dialog.exec_():
+            for rowNum, item in enumerate(dialog.modelChronicDiagnoses.items()):
+                index = dialog.modelChronicDiagnoses.index(rowNum, 0)
+                if index in dialog.selectionModelChronicDiagnoses.selectedRows():
+                    MKB = forceString(item.value('MKB'))
+                    if MKB:
+                        self.cmbRiskExtraGenPat.setText(MKB)
+                        break
 
 
     def editAction(self, actionId):

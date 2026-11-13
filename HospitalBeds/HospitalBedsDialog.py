@@ -363,6 +363,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.addObject('btnTemperatureList', QtGui.QPushButton(u'Температурный лист', self))
         self.addObject('btnFeed', QtGui.QPushButton(u'Питание', self))
         self.addObject('btnPlanOperatingDay', QtGui.QPushButton(u'План операционного дня', self))  #The plan for the operating day
+        self.addObject('btnFerzlNils', QtGui.QPushButton(u'Поиск НИЛ в ФЕРЗЛ', self))  #The plan for the operating day
         self.addBarcodeScanAction('actEventExternalIdBarcodeScan')
         self.setupHospitalBedsMenu()
         self.setupActionListMenu()
@@ -444,6 +445,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.edtFilterEndDate.canBeEmpty()
         self.edtSmpIdCallNumber.setValidator(QtGui.QRegExpValidator(QRegExp("\\d{1,15}"), self))
         self.cmbSmpCallStatus.addItems(CSmpCallStatus.names)
+        self.buttonBox.addButton(self.btnFerzlNils, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnPlanOperatingDay, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnFeed, QtGui.QDialogButtonBox.ActionRole)
         self.buttonBox.addButton(self.btnTemperatureList, QtGui.QDialogButtonBox.ActionRole)
@@ -4748,6 +4750,11 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
     def on_mnuBtnPlanOperatingDay_aboutToShow(self):
         self.on_mnuPlanOperatingDay_aboutToShow()
 
+    @pyqtSignature('')
+    def on_btnFerzlNils_clicked(self):
+        from Exchange.ferzl.NilDialog import CNilDialog
+        CNilDialog = CNilDialog(self)
+        CNilDialog.exec_()
 
     @pyqtSignature('')
     def on_mnuPlanOperatingDay_aboutToShow(self):

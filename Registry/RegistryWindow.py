@@ -6637,6 +6637,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             self.currentClientFromAction = False
             self.currentClientFromExpert = False
             self.updateVisitInfo(self.tblVisits.currentItemId())
+        elif index == self.tabMain.indexOf(self.tabMyDoctorArea): # Мой участок
+            self.tabMyDoctorAreaContent.initData()
         self.tabMainCurrentPage = index
 
 
@@ -7183,7 +7185,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
         for col in range(self.modelClients.columnCount()):
             mask.append(not self.tblClients.isColumnHidden(col))
         orientation = QtGui.QPrinter.Landscape
-        self.tblClients.printContent(mask, orientation)
+        self.tblClients.printContent(mask, orientation, onlyPrint=forceBool(QtGui.qApp.preferences.appPrefs.get('onlyPrint', False)))
         self.focusClients()
 
 
@@ -8780,7 +8782,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
 #            mask = [True]*(self.modelEvents.columnCount())
 #        self.tblEvents.printContent(mask)
         pageFormat = CPageFormat(pageSize=CPageFormat.A4, orientation=CPageFormat.Landscape, leftMargin=1, topMargin=1, rightMargin=1,  bottomMargin=1)
-        self.tblEvents.printContent(pageFormat = pageFormat)
+        self.tblEvents.printContent(pageFormat = pageFormat, onlyPrint=forceBool(QtGui.qApp.preferences.appPrefs.get('onlyPrint', False)))
         self.focusEvents()
 
 
@@ -10218,7 +10220,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
     #        else:
     #            mask = [True]*(model.columnCount())
     #        tblActions.printContent(mask)
-            tblActions.printContent()
+            tblActions.printContent(onlyPrint=forceBool(QtGui.qApp.preferences.appPrefs.get('onlyPrint', False)))
             self.focusActions()
         else:
             tblActions = self.getCurrentActionsTable()

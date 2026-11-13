@@ -865,7 +865,7 @@ class Ferzl_service:
                         return self.showListNrView(list_nrs, params.get('external_id', None))
                     else:
                         isError = True
-                        dialog = self.showMessageBox(u'Ничего не найдено', isError=isError) # Возможно это не нужно, но черт его знает 
+                        dialog = self.showMessageBox(u'Ничего не найдено', isError=isError) # Возможно это не нужно, но черт его знает
                         return None
 
                 if u'errors' in main_tag.keys():
@@ -952,6 +952,242 @@ class Ferzl_service:
                 return self.showMessageBox(message, isError=isError)
 
 
+
+    def findNils(self, params_dict=None):
+
+        if params_dict is None:
+            params_dict = {}
+
+        field_names = (
+            'teamNum', 'subst', 'assignNum',
+            'whenAdmittedSince', 'whenAdmittedTill',
+            'surnameEstim', 'firstNameEstim', 'patronymicEstim',
+            'dateKhodatSince', 'dateKhodatTill',
+            'estimAgeB', 'estimAgeE',
+            'nlr',
+        )
+
+        json_data = {}
+        for name in field_names:
+            value = params_dict.get(name)
+            if value is None:
+                continue
+            str_value = forceString(value).strip()
+            if str_value:
+                json_data[name] = str_value
+
+        result_dict = {
+            'result': False,
+            'elements': [],
+            'pagination': {},
+            'message': u'',
+        }
+
+        if not json_data:
+            result_dict['message'] = u'Не задано ни одного условия поиска'
+            return result_dict
+
+        url = forceString(self.url + '/oms/services/Nil/findNils')
+        headers = {'Content-Type': 'application/json'}
+
+        try:
+            resp = requests.post(url=url, json=json_data, headers=headers)
+        except Exception as e:
+            message = u'Ошибка запроса к сервису: ' + forceString(e)
+            QtGui.QMessageBox().warning(None, u'Поиск НИЛ', message)
+            result_dict['message'] = message
+            return result_dict
+
+        if resp.status_code != 200:
+            message = (u'Ошибка сервисов. Код ошибки: ' +
+                       forceString(resp.status_code) + u' - ' +
+                       forceString(resp.reason) + u'. findNils')
+            self.showMessageBox(message, isError=True, title=u'Поиск НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+       
+        try:
+            jsonResponse = resp.json()
+        except ValueError:
+            message = u'Ответ сервиса не является корректным JSON'
+            self.showMessageBox(message, isError=True, title=u'Поиск НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+        if not isinstance(jsonResponse, dict):
+            message = u'Неожиданный формат ответа сервиса'
+            self.showMessageBox(message, isError=True, title=u'Поиск НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+
+        if jsonResponse.get('success') is False:
+            error = jsonResponse.get('error') or {}
+            message = forceString(error.get('message')) or u'Неизвестная ошибка сервиса'
+
+            extra = []
+            operation = forceString(error.get('operation'))
+            code = forceString(error.get('code'))
+            detail = forceString(error.get('detail'))
+            if operation:
+                extra.append(u'операция: ' + operation)
+            if code:
+                extra.append(u'код: ' + code)
+            if detail:
+                extra.append(u'детали: ' + detail)
+            if extra:
+                message = message + u'\n(' + u'; '.join(extra) + u')'
+
+            self.showMessageBox(message, isError=True, title=u'Поиск НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+     
+     
+        if jsonResponse.get('success') is True:
+            data = jsonResponse.get('data') or {}
+
+            # Пагинация
+            pagination = data.get('pagination') or {}
+            result_dict['pagination'] = {
+                'pageNumber': forceInt(pagination.get('pageNumber')),
+                'itemPerPage': forceInt(pagination.get('itemPerPage')),
+                'count': forceInt(pagination.get('count')),
+            }
+
+            # Список НИЛ
+            result_dict['elements'] = self._parseNilData(data.get('nil'))
+            result_dict['result'] = True
+            return result_dict
+
+        message = u'Неизвестный ответ сервиса (нет поля success)'
+        self.showMessageBox(message, isError=True, title=u'Поиск НИЛ')
+        result_dict['message'] = message
+        return result_dict
+
+
+    def _parseNilData(self, nil_block):
+        """
+        Разбирает структуру:
+            {'nil': [ {..}, {..}, ... ]}
+        Возвращает список нормализованных dict-ов.
+        """
+        result = []
+        if not nil_block:
+            return result
+
+        if isinstance(nil_block, dict):
+            items = nil_block.get('nil')
+        else:
+            items = nil_block
+
+        if items is None:
+            return result
+        if isinstance(items, dict):
+            items = [items]
+        if not isinstance(items, list):
+            return result
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            result.append({
+                'oip': forceString(item.get('oip')),
+                'nlr': forceString(item.get('nlr')),
+                'fioEstim': forceString(item.get('fioEstim')),
+                'birthDay': forceString(item.get('birthDay')),
+                'gender': forceInt(item.get('gender')),
+                'dateKhodat': forceString(item.get('dateKhodat')),
+                'decision': forceString(item.get('decision')),
+                'moCode': forceString(item.get('moCode')),
+                'moOkato': forceString(item.get('moOkato')),
+            })
+        return result
+
+
+
+    def getNilsData(self, oip):
+
+        result_dict = {
+            'result': False,
+            'data': {},
+            'message': u'',
+        }
+
+        oip = forceString(oip).strip()
+        if not oip:
+            result_dict['message'] = u'Не передан ОИП'
+            return result_dict
+
+        url = forceString(self.url + '/oms/services/Nil/getNilsData')
+        headers = {'Content-Type': 'application/json'}
+        json_data = {'oip': oip}
+
+        try:
+            resp = requests.post(url=url, json=json_data, headers=headers)
+        except Exception as e:
+            message = u'Ошибка запроса к сервису: ' + forceString(e)
+            QtGui.QMessageBox().warning(None, u'НИЛ', message)
+            result_dict['message'] = message
+            return result_dict
+
+
+        if resp.status_code != 200:
+            message = (u'Ошибка сервисов. Код ошибки: ' +
+                       forceString(resp.status_code) + u' - ' +
+                       forceString(resp.reason) + u'. getNilsData')
+            self.showMessageBox(message, isError=True, title=u'НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+      
+        try:
+            jsonResponse = resp.json()
+        except ValueError:
+            message = u'Ответ сервиса не является корректным JSON'
+            self.showMessageBox(message, isError=True, title=u'НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+        if not isinstance(jsonResponse, dict):
+            message = u'Неожиданный формат ответа сервиса'
+            self.showMessageBox(message, isError=True, title=u'НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+        if jsonResponse.get('success') is False:
+            error = jsonResponse.get('error') or {}
+            message = forceString(error.get('message')) or u'Неизвестная ошибка сервиса'
+
+            extra = []
+            operation = forceString(error.get('operation'))
+            code = forceString(error.get('code'))
+            detail = forceString(error.get('detail'))
+            if operation:
+                extra.append(u'операция: ' + operation)
+            if code:
+                extra.append(u'код: ' + code)
+            if detail:
+                extra.append(u'детали: ' + detail)
+            if extra:
+                message = message + u'\n(' + u'; '.join(extra) + u')'
+
+            self.showMessageBox(message, isError=True, title=u'НИЛ')
+            result_dict['message'] = message
+            return result_dict
+
+
+        if jsonResponse.get('success') is True:
+            result_dict['result'] = True
+            result_dict['data'] = jsonResponse.get('data') or {}
+            return result_dict
+
+        message = u'Неизвестный ответ сервиса (нет поля success)'
+        self.showMessageBox(message, isError=True, title=u'НИЛ')
+        result_dict['message'] = message
+        return result_dict
+    
     def showListNrView(self, list_nr, external_id=None):
         dialog = QDialog()
         dialog.setWindowTitle(u'Выбор новорожденного')

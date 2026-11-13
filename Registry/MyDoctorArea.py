@@ -45,13 +45,11 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self._currentClientId = None
         self._currentTempInvalidId = None
         self.myDoctorsAreaList = []
-        self.isNarrowSpec = self.isNarrowSpecialist()
-        self.narrowPersonsList = [QtGui.qApp.userId]
         self.clientsWithDn = []
-        self.selectClientsWithDN()
-        self.chkMyObserved.setChecked(True)
-        self.setupMyDoctorsArea()
+        self.isNarrowSpec = False
+        self.narrowPersonsList = [QtGui.qApp.userId]
         self.updateButtonsState()
+        self.isLazyLoading = True
 
         # models
         self.modelEmergencyCalls = CSMPTableModel(self)
@@ -123,8 +121,16 @@ class CMyDoctorArea(QtGui.QWidget, CConstructHelperMixin, Ui_MyDoctorArea):
         self.connect(self.tblLeavedStationary.popupMenu(), SIGNAL('aboutToShow()'), self.tblLeavedStationaryPopupMenuAboutToShow)
 
         self.tblBadTest.addPopupAction(self.actEditEvent)
-        if QtGui.qApp.visibleMyDoctorArea:
+
+    def initData(self):
+        if self.isLazyLoading:
+            self.isNarrowSpec = self.isNarrowSpecialist()
+            self.narrowPersonsList = [QtGui.qApp.userId]
+            self.selectClientsWithDN()
+            self.chkMyObserved.setChecked(True)
+            self.setupMyDoctorsArea()
             self.reloadData(self.edtDate.date())
+            self.isLazyLoading = False
 
         self.chkSMPColor.setStyleSheet(' QCheckBox::indicator { background-color: '+ CSMPTableModel.ambulanceColor +';}')
         self.chkNMPColor.setStyleSheet(' QCheckBox::indicator { background-color: '+ CSMPTableModel.emergencyColor +';}')
@@ -1121,123 +1127,104 @@ class CBadTestTableModel(CRecordListModel):
     def loadData(self, date=QDate().currentDate(), orgStructureIdList=None, isNarrowSpec=False, narrowPersonList=None):
         db = QtGui.qApp.db
         tableClientAttach = db.table('ClientAttach').alias('ca')
-        tableEvent = db.table('Event').alias('e')
         orgStructures = ' AND ' + tableClientAttach['orgStructure_id'].inlist(orgStructureIdList)
-        personList = ' AND ' + tableEvent['execPerson_id'].inlist(narrowPersonList)
         tableDiagnosisE = db.table('Diagnosis').alias('ds2')
         diagnosisQuery = tableDiagnosisE['dispanserPerson_id'].inlist(narrowPersonList)
 
         if isNarrowSpec and narrowPersonList:
-            stmt = u"""SELECT DISTINCT clientName, sex, birthDate, client_id, eventId
-              FROM (select CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName,
-              IF(Client.sex = 1, 'м', 'ж') as sex,
-              Client.birthDate,
-              at.name AS typeName, apt.name AS propName,
-              aps.value AS rawValue,
-              CASE WHEN LENGTH(ap.norm) > 0 THEN ap.norm
-              WHEN LENGTH(apt.norm) > 0 THEN apt.norm ELSE NULL END AS rawNorm,
-              CAST(aps.value AS decimal(19,4)) AS value,
-              CASE WHEN LENGTH(ap.norm) > 0
-                THEN SUBSTRING_INDEX(ap.norm, '-', 1)
-                WHEN LENGTH(apt.norm) > 0
-                THEN SUBSTRING_INDEX(apt.norm, '-', 1)
-                ELSE NULL END AS refMin,
-              CASE WHEN LENGTH(ap.norm) > 0
-                THEN SUBSTRING_INDEX(ap.norm, '-',-1)
-                WHEN LENGTH(apt.norm) > 0
-                THEN SUBSTRING_INDEX(apt.norm, '-', -1)
-                ELSE NULL END AS refMax,
-                Client.id as client_id,
-                e.id AS eventId
-            from Action a
-              left JOIN Event e ON e.id = a.event_id
-              left JOIN Client ON Client.id = e.client_id
-            LEFT JOIN EventType ON EventType.id=e.eventType_id 
-            LEFT JOIN Diagnostic ON Diagnostic.event_id=e.id 
-            LEFT JOIN rbDispanser ON rbDispanser.id=Diagnostic.dispanser_id
-            LEFT JOIN rbMedicalAidType ON rbMedicalAidType.id=EventType.medicalAidType_id 
-              left JOIN ActionType at on at.id= a.actionType_id
-              left JOIN ActionPropertyType apt on apt.actionType_id = at.id
-              left JOIN ActionProperty ap on ap.action_id = a.id AND ap.type_id = apt.id
-              left JOIN ActionProperty_String aps on aps.id = ap.id
-              WHERE a.deleted = 0 AND e.deleted = 0 AND Client.deleted = 0 
-               AND apt.deleted = 0
-               AND ap.deleted = 0
-                AND at.serviceType = 10 
-                AND a.endDate >= {date} 
-                AND a.endDate < {date2}
-                AND ap.id IS NOT NULL 
-                AND apt.test_id is not NULL
-                AND (ap.norm != ''  or apt.norm != '')
-                AND (e.`deleted`=0) 
-                AND (rbMedicalAidType.`code` NOT IN ('1','7')) 
-
-                        
-                AND EXISTS (SELECT ds2.id 
-                FROM Diagnosis ds2 
-                LEFT JOIN rbDispanser rbds2 ON rbds2.id = ds2.dispanser_id
-                WHERE ds2.client_id = Client.id AND rbds2.`code` IN ('1','2','6') AND {diagnosisQuery})
-                AND (NOT EXISTS(SELECT Event.id FROM Event 
-                          LEFT JOIN Diagnostic dc ON dc.event_id = Event.id
-                          LEFT JOIN rbDispanser rbd ON rbd.id = dc.dispanser_id
-                          WHERE rbd.code IN (3, 4, 5) AND dc.diagnosis_id = Diagnostic.diagnosis_id AND e.execDate < Event.setDate AND Event.client_id = Client.id
-                    ))
-              HAVING value NOT BETWEEN CAST(refMin AS decimal(19,4)) AND CAST(refMax AS decimal(19,4))
-            ORDER BY clientName) t""".format(date=db.formatDate(date),
-                                             date2=db.formatDate(date.addDays(1)),
-                                             orgStructures=orgStructures,
-                                             personList=personList,
-                                             diagnosisQuery=diagnosisQuery)
-        else:
-            stmt = u"""SELECT DISTINCT clientName, sex, birthDate, client_id, eventId
-      FROM (select CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName,
+            stmt = u"""SELECT DISTINCT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName,
       IF(Client.sex = 1, 'м', 'ж') as sex,
       Client.birthDate,
-      at.name AS typeName, apt.name AS propName,
-      aps.value AS rawValue,
-      CASE WHEN LENGTH(ap.norm) > 0 THEN ap.norm
-      WHEN LENGTH(apt.norm) > 0 THEN apt.norm ELSE NULL END AS rawNorm,
-      CAST(aps.value AS decimal(19,4)) AS value,
-      CASE WHEN LENGTH(ap.norm) > 0
-        THEN SUBSTRING_INDEX(ap.norm, '-', 1)
-        WHEN LENGTH(apt.norm) > 0
-        THEN SUBSTRING_INDEX(apt.norm, '-', 1)
-        ELSE NULL END AS refMin,
-      CASE WHEN LENGTH(ap.norm) > 0
-        THEN SUBSTRING_INDEX(ap.norm, '-',-1)
-        WHEN LENGTH(apt.norm) > 0
-        THEN SUBSTRING_INDEX(apt.norm, '-', -1)
-        ELSE NULL END AS refMax,
-        Client.id as client_id,
-        e.id AS eventId
-    from Action a
-      left JOIN Event e ON e.id = a.event_id
-      left JOIN Client ON Client.id = e.client_id
-      left join ClientAttach ca on ca.id = (
+      Client.id as client_id,
+      e.id AS eventId
+    FROM Action a USE INDEX (actionTypeId_endDate)
+      INNER JOIN ActionType at on at.id = a.actionType_id
+      INNER JOIN Event e ON e.id = a.event_id  AND e.deleted = 0
+      INNER JOIN Client ON Client.id = e.client_id  AND Client.deleted = 0
+      INNER JOIN EventType ON EventType.id = e.eventType_id 
+      INNER JOIN rbMedicalAidType ON rbMedicalAidType.id=EventType.medicalAidType_id AND (rbMedicalAidType.`code` NOT IN ('1','7')) 
+WHERE a.deleted = 0
+        AND at.serviceType = 10 
+        AND at.deleted = 0
+        AND (   at.flatCode LIKE 'ariadna%'
+             OR at.flatCode LIKE 'alisa%'
+             OR at.flatCode LIKE 'alfalabgroup%'
+             OR at.flatCode LIKE 'soc_odli%'
+             OR at.flatCode LIKE 'soc%'
+             OR at.flatCode LIKE 's_lab%')
+        AND a.endDate >= {date} 
+        AND a.endDate < {date2}
+        AND EXISTS(SELECT 1 
+           FROM  ActionProperty ap 
+           LEFT JOIN ActionPropertyType apt on ap.type_id = apt.id
+           LEFT JOIN ActionProperty_String aps on aps.id = ap.id
+           WHERE ap.action_id = a.id 
+           AND ap.deleted = 0
+           AND ap.id IS NOT NULL 
+           AND apt.test_id is not NULL
+           AND (ap.norm != '' or apt.norm != '')
+           AND (CAST(aps.value AS decimal(19,4)) < CAST(CASE WHEN LENGTH(ap.norm) > 0 THEN SUBSTRING_INDEX(ap.norm, '-', 1)
+                                 WHEN LENGTH(apt.norm) > 0 THEN SUBSTRING_INDEX(apt.norm, '-', 1)
+                                 ELSE NULL END AS decimal(19,4))
+               OR 
+               CAST(aps.value AS decimal(19,4))  > CAST(CASE WHEN LENGTH(ap.norm) > 0 THEN SUBSTRING_INDEX(ap.norm, '-',-1)
+                                WHEN LENGTH(apt.norm) > 0 THEN SUBSTRING_INDEX(apt.norm, '-', -1)
+                                ELSE NULL END AS decimal(19,4))
+            ))
+        AND EXISTS (SELECT ds2.id 
+                FROM Diagnosis ds2 
+                LEFT JOIN rbDispanser rbds2 ON rbds2.id = ds2.dispanser_id
+                WHERE ds2.client_id = Client.id AND rbds2.`code` IN ('1','2','6') AND {diagnosisQuery}
+                AND ds2.deleted = 0)""".format(date=db.formatDate(date),
+                                               date2=db.formatDate(date.addDays(1)),
+                                               diagnosisQuery=diagnosisQuery)
+        else:
+            stmt = u"""SELECT DISTINCT CONCAT_WS(' ', Client.lastName, Client.firstName, Client.patrName) as clientName,
+      IF(Client.sex = 1, 'м', 'ж') as sex,
+      Client.birthDate,
+      Client.id as client_id,
+      e.id AS eventId
+    FROM Action a USE INDEX (actionTypeId_endDate)
+      INNER JOIN ActionType at on at.id = a.actionType_id
+      INNER JOIN Event e ON e.id = a.event_id  AND e.deleted = 0
+      INNER JOIN Client ON Client.id = e.client_id  AND Client.deleted = 0 
+      INNER join ClientAttach ca on ca.id = (
                           SELECT MAX(ClientAttach.id)
                                 FROM ClientAttach
                                 INNER JOIN rbAttachType ON rbAttachType.id = ClientAttach.attachType_id
                                 WHERE client_id = Client.id
                                   AND ClientAttach.deleted = 0
-                                  AND NOT rbAttachType.TEMPORARY)
-      left JOIN ActionType at on at.id= a.actionType_id
-      left JOIN ActionPropertyType apt on apt.actionType_id = at.id
-      left JOIN ActionProperty ap on ap.action_id = a.id AND ap.type_id = apt.id
-      left JOIN ActionProperty_String aps on aps.id = ap.id
-      WHERE a.deleted = 0 AND e.deleted = 0 AND Client.deleted = 0 
-       AND apt.deleted = 0
-       AND ap.deleted = 0
+                                  AND NOT rbAttachType.TEMPORARY) {orgStructures}
+      WHERE a.deleted = 0
         AND at.serviceType = 10 
+        AND at.deleted = 0
+        AND (   at.flatCode LIKE 'ariadna%'
+             OR at.flatCode LIKE 'alisa%'
+             OR at.flatCode LIKE 'alfalabgroup%'
+             OR at.flatCode LIKE 'soc_odli%'
+             OR at.flatCode LIKE 'soc%'
+             OR at.flatCode LIKE 's_lab%')
         AND a.endDate >= {date} 
         AND a.endDate < {date2}
-        AND ap.id IS NOT NULL 
-        AND apt.test_id is not NULL
-        AND (ap.norm != ''  or apt.norm != '')
-        {orgStructures}
-      HAVING value NOT BETWEEN CAST(refMin AS decimal(19,4)) AND CAST(refMax AS decimal(19,4))
-    ORDER BY clientName) t""".format(date=db.formatDate(date),
-                                     date2=db.formatDate(date.addDays(1)),
-                                     orgStructures=orgStructures)
+        AND EXISTS(SELECT 1 
+                   FROM  ActionProperty ap 
+                   LEFT JOIN ActionPropertyType apt on ap.type_id = apt.id
+                   LEFT JOIN ActionProperty_String aps on aps.id = ap.id
+                   WHERE ap.action_id = a.id 
+                   AND ap.deleted = 0
+                   AND ap.id IS NOT NULL 
+                   AND apt.test_id is not NULL
+                   AND (ap.norm != '' or apt.norm != '')
+                   AND (CAST(aps.value AS decimal(19,4)) < CAST(CASE WHEN LENGTH(ap.norm) > 0 THEN SUBSTRING_INDEX(ap.norm, '-', 1)
+                                         WHEN LENGTH(apt.norm) > 0 THEN SUBSTRING_INDEX(apt.norm, '-', 1)
+                                         ELSE NULL END AS decimal(19,4))
+                       OR 
+                       CAST(aps.value AS decimal(19,4))  > CAST(CASE WHEN LENGTH(ap.norm) > 0 THEN SUBSTRING_INDEX(ap.norm, '-',-1)
+                                        WHEN LENGTH(apt.norm) > 0 THEN SUBSTRING_INDEX(apt.norm, '-', -1)
+                                        ELSE NULL END AS decimal(19,4))
+                    ))""".format(date=db.formatDate(date),
+                                  date2=db.formatDate(date.addDays(1)),
+                                  orgStructures=orgStructures)
         items = []
         query = db.query(stmt)
         while query.next():

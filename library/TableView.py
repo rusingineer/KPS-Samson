@@ -362,7 +362,7 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
             QtGui.qApp.stopProgressBar()
 
 
-    def printContent(self, showMask=None, orientation=None, pageFormat=None):
+    def printContent(self, showMask=None, orientation=None, pageFormat=None, onlyPrint=None):
         html = self.contentToHTML(showMask)
         view = CReportViewDialog(self)
         if orientation:
@@ -370,7 +370,10 @@ class CTableView(QtGui.QTableView, CPreferencesMixin, CColsMovingFeature):
         if pageFormat:
             view.setPageFormat(pageFormat)
         view.setText(html)
-        view.exec_()
+        if onlyPrint:
+            view.buttonBox.button(QtGui.QDialogButtonBox.Save).click()
+        else:
+            view.exec_()
         view.deleteLater()
 
 

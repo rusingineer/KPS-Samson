@@ -79,6 +79,7 @@ from Events.ExecTimeNextActionDialog import CExecTimeNextActionDialog
 from Events.ExecutionPlanDialog      import CGetExecutionPlan
 from Events.GetPrevActionIdHelper    import CGetPrevActionIdHelper
 from Events.UserDictionaryEditDialog import CUserDictionaryEditDialog
+from Events.UserDictionaryList       import propertyTypeSupportsUserDictionary
 from Events.Utils import (
     checkDiagnosis,
     checkAttachOnDate,
@@ -3185,7 +3186,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         if self.enableUserDictionary:
             row = current.row()
             propertyType = self.modelActionProperties.getPropertyType(row)
-            if self.lvUserDictionary.supportsPropertyType(propertyType):
+            if propertyTypeSupportsUserDictionary(propertyType):
                 self.lvUserDictionary.load(propertyType)
                 self.wgtUserDictionary.setVisible(True)
                 self.tblProps.resizeLastColumn()
@@ -3199,7 +3200,7 @@ class CActionEditDialog(CItemEditorBaseDialog, Ui_ActionDialog):
         if self.enableUserDictionary:
             row = self.tblProps.currentIndex().row()
             propertyType = self.modelActionProperties.getPropertyType(row)
-            if self.lvUserDictionary.supportsPropertyType(propertyType):
+            if propertyTypeSupportsUserDictionary(propertyType):
                 self.lvUserDictionary.setPropertyEditor(editor)
     
 

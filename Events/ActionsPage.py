@@ -51,6 +51,7 @@ from Events.PropertiesDialog         import CPropertiesDialog
 from Events.PropertyEditorAmbCard import CPropertyEditorAmbCard
 from Events.ActionGroupSignDialog import CActionGroupSignDialog
 from Events.UserDictionaryEditDialog import CUserDictionaryEditDialog
+from Events.UserDictionaryList       import propertyTypeSupportsUserDictionary
 from Events.Utils                    import (CFinanceType,
                                              CInputCutFeedDialog,
                                              getIdListActionType,
@@ -3037,7 +3038,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if self.enableUserDictionary:
             row = current.row()
             propertyType = self.modelAPActionProperties.getPropertyType(row)
-            if self.lvUserDictionary.supportsPropertyType(propertyType):
+            if propertyTypeSupportsUserDictionary(propertyType):
                 self.lvUserDictionary.load(propertyType)
                 self.wgtUserDictionary.setVisible(True)
                 self.tblAPProps.resizeLastColumn()
@@ -3051,7 +3052,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         if self.enableUserDictionary:
             row = self.tblAPProps.currentIndex().row()
             propertyType = self.modelAPActionProperties.getPropertyType(row)
-            if self.lvUserDictionary.supportsPropertyType(propertyType):
+            if propertyTypeSupportsUserDictionary(propertyType):
                 self.lvUserDictionary.setPropertyEditor(editor)
     
 

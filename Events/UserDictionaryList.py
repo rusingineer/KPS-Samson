@@ -9,6 +9,12 @@ from library.Utils import forceString
 from RefBooks.Person.List import getSamePersonIdList
 
 
+UserDictionaryPropertyTypes = ['Text']
+
+def propertyTypeSupportsUserDictionary(propertyType):
+    return propertyType.typeName in UserDictionaryPropertyTypes
+
+
 class CUserDictionaryListModel(QAbstractListModel):
     def __init__(self, parent):
         self.records = []
@@ -75,9 +81,6 @@ class CUserDictionaryListView(QtGui.QListView):
             self.setStyleSheet("")
             self.setMouseTracking(False)
             self.setCursor(Qt.ArrowCursor)
-    
-    def supportsPropertyType(self, propertyType):
-        return (propertyType.typeName == 'Text')
     
     def mouseMoveEvent(self, event):
         if self.propertyEditor():

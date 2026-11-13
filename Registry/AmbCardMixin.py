@@ -476,20 +476,19 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.modelAmbCardNVNBAR.setEventEditor(self)
         self.modelAmbCardNVNBSGVB.setEventEditor(self)
         self.modelAmbCardNVNBAR.setReadOnly(True)
+        self.modelAmbCardNVNBVARRS.setEnableAppendLine(False)
+        self.modelAmbCardNVNBAR.setEnableAppendLine(False)
         self.setInitDate()
+        self.resetAmbCardFilter(self.edtAmbCardKBiRBegDate,
+                                self.edtAmbCardKBiREndDate,
+                                self.cmbAmbCardKBiRGroup,
+                                self.edtAmbCardKBiROffice,
+                                self.cmbAmbCardKBiROrgStructure
+                                )
         self.setWidgetsVisible(False)
         self.setComoboBoxWheel()
         self.setReferenceComboBoxes()
         self.setKBirReadOnly(True)
-        self.tblAmbCardNVNBVARRS.resizeRowsToContents()
-        self.tblAmbCardNVNBVARRS.resizeColumnsToContents()
-        rowHeight = self.tblAmbCardNVNBVARRS.rowHeight(0)
-        headerHeight = self.tblAmbCardNVNBVARRS.horizontalHeader().height()
-        margin = 2 * self.tblAmbCardNVNBVARRS.frameWidth()
-        maxHeight = headerHeight + rowHeight * 7 + margin
-        self.tblAmbCardNVNBVARRS.setMaximumHeight(headerHeight + rowHeight * 7 + margin)
-        self.tblAmbCardNVNBAR.setMaximumHeight(headerHeight + rowHeight * 5 + margin)
-        self.tblAmbCardSOPSvORNM.setMaximumHeight(headerHeight + rowHeight * 4 + margin)
 
         self.modelAmbCardPreviousPregnancy.setReadOnly(True)
         self.modelAmbCardPreviousPregnancyChildren.setReadOnly(True)
@@ -499,6 +498,12 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.modelAmbCardNVNBAR.setReadOnly(True)
         self.tblAmbCardKBiRActions.setSortingEnabled(True)
         self.__ambCardKBiRIsInitialised = True
+        self.selectionModelAmbCardKBiRActionsSort.currentRowChanged.connect( # Если делаем отложенную загрузку, то не забываем про то
+            self.on_selectionModelAmbCardKBiRActionsSort_currentRowChanged   # что автоподключение сигналов не сработает
+        )
+        self.selectionModelAmbCardPreviousPregnancy.currentRowChanged.connect(
+            self.on_selectionModelAmbCardPreviousPregnancy_currentRowChanged
+        )
 
 
     def ambCardContentTabEnabled(self):
@@ -1428,6 +1433,8 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.edtAmbCardODPOBSBPR_5.setVisible(value)
         self.edtAmbCardCloseReason.setVisible(value)
         self.lblAmbCardCloseReason.setVisible(value)
+        self.cmbAmbCardRiskExtraGenPat.setVisible(value)
+        self.edtAmbCardRiskExtraGenPat.setVisible(value)
         
     
     def setODPOBRPPGRFVisible(self, value):
@@ -1459,6 +1466,65 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.chkAmbCardODPOBRPPGRF2_4.setChecked(False)
         self.chkAmbCardODPOBRPPGRF1_5.setChecked(False)
         self.chkAmbCardODPOBRPPGRF2_5.setChecked(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM2_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM2.isChecked()
+        if isChecked:
+            self.chkAmbCardNVNBIBRM6.setChecked(False)
+        else:
+            self.chkAmbCardNVNBIBRM4.setChecked(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM6_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM6.isChecked()
+        if isChecked:
+            self.chkAmbCardNVNBIBRM2.setChecked(False)
+            self.chkAmbCardNVNBIBRM7.setVisible(True)
+            self.chkAmbCardNVNBIBRM8.setVisible(True)
+        else:
+            self.chkAmbCardNVNBIBRM7.setChecked(False)
+            self.chkAmbCardNVNBIBRM8.setChecked(False)
+            self.chkAmbCardNVNBIBRM7.setVisible(False)
+            self.chkAmbCardNVNBIBRM8.setVisible(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM7_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM7.isChecked()
+        if isChecked:
+            self.chkAmbCardNVNBIBRM8.setChecked(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM8_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM8.isChecked()
+        if isChecked:
+            self.edtAmbCardNVNBIBRM7.setVisible(True)
+            self.chkAmbCardNVNBIBRM7.setChecked(False)
+        else:
+            self.edtAmbCardNVNBIBRM7.setText('')
+            self.edtAmbCardNVNBIBRM7.setVisible(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM3_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM3.isChecked()
+        if isChecked:
+            self.chkAmbCardNVNBIBRM4.setChecked(False)
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardNVNBIBRM4_toggled(self, checked):
+        isChecked = self.chkAmbCardNVNBIBRM4.isChecked()
+        if isChecked:
+            self.edtAmbCardNVNBIBRM4.setVisible(True)
+            self.chkAmbCardNVNBIBRM3.setChecked(False)
+        else:
+            self.edtAmbCardNVNBIBRM4.setText('')
+            self.edtAmbCardNVNBIBRM4.setVisible(False)
 
     
     def setComoboBoxWheel(self, value=False):
@@ -1703,10 +1769,16 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSpontaneously.setChecked(isBeginPregnancy == 1)
             self.chkAmbCardInduced.setChecked(isBeginPregnancy == 2)
             self.chkAmbCardWithHelpVRT.setChecked(isBeginPregnancy == 3)
+            self.frameAgeCryoAmbCard.setVisible(isBeginPregnancy == 3)
+            self.frameCryoAmbCard.setVisible(isBeginPregnancy == 3)
+            self.frameEmbryosAmbCard.setVisible(isBeginPregnancy == 3)
+            self.frameVRTAmbCard.setVisible(isBeginPregnancy == 3)
+            
             isPregravidar = self.getChkPropertyValue(items, u'ОД:СНБ:ПП:1', [u'нет',u'да'])
             self.chkAmbCardPregravidarNot.setChecked(isPregravidar == 1)
             self.chkAmbCardPregravidarYes.setChecked(isPregravidar == 2)
             self.edtAmbCardPregravidarText.setText(self.getPropertyValue(items, u'ОД:СНБ:ПП:2', QString))
+            self.edtAmbCardPregravidarText.setVisible(isPregravidar == 2)
             self.edtAmbCardVRTNumber.setValue(self.getPropertyValue(items, u'ОД:СНБ:ВРТ:1', int))
             self.edtAmbCardVRTDate.setDate(self.getPropertyValue(items, u'ОД:СНБ:ВРТ:2', QDate))
             isTransferFetus = self.getChkPropertyValue(items, u'ОД:СНБ:ВРТ:3', [u'нативного',u'криоконсервированного'])
@@ -1722,6 +1794,8 @@ class CAmbCardMixin(CConstructHelperMixin):
                 self.frame_42AmbCard.setVisible(False)
                 self.frame_43AmbCard.setVisible(False)
             self.chkAmbCardMultipleFetus.setChecked(isPregnancyType == 2)
+            self.edtAmbCardFetusCount.setVisible(isPregnancyType == 2)
+            self.lblAmbCardFetusCount.setVisible(isPregnancyType == 2)
             self.edtAmbCardFetusCount.setValue(self.getPropertyValue(items, u'ОД:СНБ:Б:2', int))
             if self.edtAmbCardFetusCount.value() == 0:
                 self.frame_40AmbCard.setVisible(False)
@@ -1764,6 +1838,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBGNot.setChecked(isODPOBG == 1)
             self.chkAmbCardODPOBGYes.setChecked(isODPOBG == 2)
             self.edtAmbCardODPOBGText.setText(self.getPropertyValue(items, u'ОД:ПОБ:Ж:2', QString))
+            self.edtAmbCardODPOBGText.setVisible(isODPOBG == 2)
             isODPOBRVGK = self.getChkPropertyValue(items, u'ОД:ПОБ:РВЖК:1', [u'по женскому типу',u'по мужскому типу'])
             self.chkAmbCardODPOBRVGKWoman.setChecked(isODPOBRVGK == 1)
             self.chkAmbCardODPOBRVGKMen.setChecked(isODPOBRVGK == 2)
@@ -1775,6 +1850,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBONot.setChecked(isODPOBO == 1)
             self.chkAmbCardODPOBOYes.setChecked(isODPOBO == 2)
             self.edtAmbCardODPOBOLocalizationText.setText(self.getPropertyValue(items, u'ОД:ПОБ:О:2', QString))
+            self.edtAmbCardODPOBOLocalizationText.setVisible(isODPOBO == 2)
             isODPOBVRVNK = self.getChkPropertyValue(items, u'ОД:ПОБ:ВРВНК', [u'нет',u'да'])
             self.chkAmbCardODPOBVRVNKNot.setChecked(isODPOBVRVNK == 1)
             self.chkAmbCardODPOBVRVNKYes.setChecked(isODPOBVRVNK == 2)
@@ -1782,11 +1858,13 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBULUNot.setChecked(isODPOBULU == 1)
             self.chkAmbCardODPOBULUYes.setChecked(isODPOBULU == 2)
             self.edtAmbCardODPOBULULocalizationText.setText(self.getPropertyValue(items, u'ОД:ПОБ:УЛУ:2', QString))
+            self.edtAmbCardODPOBULULocalizationText.setVisible(isODPOBULU == 2)
             isODPOBOPMG = self.getChkPropertyValue(items, u'ОД:ПОБ:ОПМЖ:1', [u'патологических изменений нет',u'признаки фиброзно-кистозной мистопатии',u'пальпируется узловое образование'])
             self.chkAmbCardODPOBOPMG1.setChecked(isODPOBOPMG == 1)
             self.chkAmbCardODPOBOPMG2.setChecked(isODPOBOPMG == 2)
             self.chkAmbCardODPOBOPMG3.setChecked(isODPOBOPMG == 3)
             self.edtAmbCardODPOBOPMG3Text.setText(self.getPropertyValue(items, u'ОД:ПОБ:ОПМЖ:2', QString))
+            self.edtAmbCardODPOBOPMG3Text.setVisible(isODPOBOPMG == 3)
             isODPOBOPMG2 = self.getChkPropertyValue(items, u'ОД:ПОБ:ОПМЖ:3', [u'безболезненны',u'масталгия'])
             self.chkAmbCardODPOBOPMG4.setChecked(isODPOBOPMG2 == 1)
             self.chkAmbCardODPOBOPMG5.setChecked(isODPOBOPMG2 == 2)
@@ -1795,10 +1873,12 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBC2.setChecked(isODPOBC == 2)
             self.chkAmbCardODPOBC3.setChecked(isODPOBC == 3)
             self.edtAmbCardODPOBC3Text.setText(self.getPropertyValue(items, u'ОД:ПОБ:С:2', QString))
+            self.edtAmbCardODPOBC3Text.setVisible(isODPOBC == 3)
             isODPOBTS = self.getChkPropertyValue(items, u'ОД:ПОБ:ТС:1', [u'ясные',u'другие'])
             self.chkAmbCardODPOBTS1.setChecked(isODPOBTS == 1)
             self.chkAmbCardODPOBTS2.setChecked(isODPOBTS == 2)
             self.edtAmbCardODPOBTS2Text.setText(self.getPropertyValue(items, u'ОД:ПОБ:ТС:2', QString))
+            self.edtAmbCardODPOBTS2Text.setVisible(isODPOBTS == 2)
             self.edtAmbCardODPOBP.setValue(self.getPropertyValue(items, u'ОД:ПОБ:П', int))
             self.edtAmbCardODPOBADPR.setText(self.getPropertyValue(items, u'ОД:ПОБ:АД:1', QString))
             self.edtAmbCardODPOBADLR.setText(self.getPropertyValue(items, u'ОД:ПОБ:АД:2', QString))
@@ -1806,6 +1886,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBAL1.setChecked(isODPOBAL == 1)
             self.chkAmbCardODPOBAL2.setChecked(isODPOBAL == 2)
             self.edtAmbCardODPOBAL2Text.setText(self.getPropertyValue(items, u'ОД:ПОБ:АЛ:2', QString))
+            self.edtAmbCardODPOBAL2Text.setVisible(isODPOBAL == 2)
             isODPOBSP = self.getChkPropertyValue(items, u'ОД:ПОБ:ШП16', [u'ощущает',u'не ощущает'])
             self.chkAmbCardODPOBSP1.setChecked(isODPOBSP == 1)
             self.chkAmbCardODPOBSP2.setChecked(isODPOBSP == 2)
@@ -1823,6 +1904,9 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODPOBMT1_1.setChecked(isODPOBMT == 1)
             self.chkAmbCardODPOBMT1_2.setChecked(isODPOBMT == 2)
             isODPOBSBPRList = self.getChkPropertyList(items, u'ОД:ПОБ:СПР1:1', [u'Ясное',u'Ритмичное',u'Другое'])
+            self.chkAmbCardODPOBSBPR1_1.setChecked(False)
+            self.chkAmbCardODPOBSBPR2_1.setChecked(False)
+            self.chkAmbCardODPOBSBPR3_1.setChecked(False)
             for isODPOBSBPR in isODPOBSBPRList:
                 if isODPOBSBPR == 1:
                     self.chkAmbCardODPOBSBPR1_1.setChecked(True)
@@ -1831,6 +1915,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                 elif isODPOBSBPR == 3:
                     self.chkAmbCardODPOBSBPR3_1.setChecked(True)
                     self.edtAmbCardODPOBSBPR_1.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:1', unicode))
+                    self.edtAmbCardODPOBSBPR_1.setVisible(isODPOBSBPR == 3)
             self.edtAmbCardEstimatedWeight_1.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:1', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:1', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_1.setChecked(isODPOBRPPGRF == 1)
@@ -1855,6 +1940,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                 elif isODPOBSBPR == 3:
                     self.chkAmbCardODPOBSBPR3_2.setChecked(True)
                     self.edtAmbCardODPOBSBPR_2.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:2', unicode))
+                    self.edtAmbCardODPOBSBPR_2.setVisible(isODPOBSBPR == 3)
             self.edtAmbCardEstimatedWeight_2.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:2', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:2', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_2.setChecked(isODPOBRPPGRF == 1)
@@ -1879,6 +1965,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                 elif isODPOBSBPR == 3:
                     self.chkAmbCardODPOBSBPR3_3.setChecked(True)
                     self.edtAmbCardODPOBSBPR_3.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:3', unicode))
+                    self.edtAmbCardODPOBSBPR_3.setVisible(isODPOBSBPR == 3)
             self.edtAmbCardEstimatedWeight_3.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:3', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:3', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_3.setChecked(isODPOBRPPGRF == 1)
@@ -1903,6 +1990,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                 elif isODPOBSBPR == 3:
                     self.chkAmbCardODPOBSBPR3_4.setChecked(True)
                     self.edtAmbCardODPOBSBPR_4.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:4', unicode))
+                    self.edtAmbCardODPOBSBPR_4.setVisible(isODPOBSBPR == 3)
             self.edtAmbCardEstimatedWeight_4.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:4', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:4', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_4.setChecked(isODPOBRPPGRF == 1)
@@ -1927,10 +2015,19 @@ class CAmbCardMixin(CConstructHelperMixin):
                 elif isODPOBSBPR == 3:
                     self.chkAmbCardODPOBSBPR3_5.setChecked(True)
                     self.edtAmbCardODPOBSBPR_5.setText(self.getPropertyValue(items, u'ОД:ПОБ:СПР2:5', unicode))
+                    self.edtAmbCardODPOBSBPR_5.setVisible(isODPOBSBPR == 3)
             self.edtAmbCardEstimatedWeight_5.setValue(self.getPropertyValue(items, u'ОД:ПОБ:ПМ:5', int))
             isODPOBRPPGRF = self.getChkPropertyValue(items, u'ОД:ПОБ:РППГРФ:5', [u'обнаружен',u'не обнаружен'])
             self.chkAmbCardODPOBRPPGRF1_5.setChecked(isODPOBRPPGRF == 1)
             self.chkAmbCardODPOBRPPGRF2_5.setChecked(isODPOBRPPGRF == 2)
+                
+            # tabRisk
+            isRiskExtraGenPat = self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:1', QCheckBox)
+            self.chkAmbCardRiskExtraGenPat.setChecked(isRiskExtraGenPat)
+            self.edtAmbCardRiskExtraGenPat.setDate(self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:2', QDate))
+            self.edtAmbCardRiskExtraGenPat.setVisible(isRiskExtraGenPat)
+            self.cmbAmbCardRiskExtraGenPat.setText(self.getPropertyValue(items, u'НВНБ:АР:ЕКСТРАГЕН:3', unicode))
+            self.cmbAmbCardRiskExtraGenPat.setVisible(isRiskExtraGenPat)
 
             # tabGynecologicalExamination
             isODGOOSMZ = self.getChkPropertyValue(items, u'ОД:ГО:ОШМЗ:1', [u'визуально не изменена', u'другое'])
@@ -1941,10 +2038,12 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODGONPO1.setChecked(isODGONPO == 1)
             self.chkAmbCardODGONPO2.setChecked(isODGONPO == 2)
             self.edtAmbCardODGONPO2Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:НПО:2', QString))
+            self.edtAmbCardODGONPO2Text.setVisible(isODGONPO == 2)
             isODGOV = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:В:1', [u'без патологии', u'указать отклонение'])
             self.chkAmbCardODGOV1.setChecked(isODGOV == 1)
             self.chkAmbCardODGOV2.setChecked(isODGOV == 2)
             self.edtAmbCardODGOV2Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:В:2', QString))
+            self.edtAmbCardODGOV2Text.setVisible(isODGOV == 2)
             isODGOSM = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:ШМ:1', [u'плотная',u'размягчённая',u'мягкая',u'другое'])
             self.chkAmbCardODGOSM1.setChecked(isODGOSM == 1)
             self.chkAmbCardODGOSM2.setChecked(isODGOSM == 2)
@@ -1952,6 +2051,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODGOSM4.setChecked(isODGOSM == 4)
             self.edtAmbCardODGODSM.setValue(self.getPropertyValue(items, u'ОД:ГО:ВИ:ШМ:2', int))
             self.edtAmbCardODGODSMText.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ШМ:3', QString))
+            self.edtAmbCardODGODSMText.setVisible(isODGOSM == 4)
             isODGOSMO = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:ШМ:4', [u'кзади',u'кпереди',u'расположена по центру'])
             self.chkAmbCardODGOSMO1.setChecked(isODGOSMO == 1)
             self.chkAmbCardODGOSMO2.setChecked(isODGOSMO == 2)
@@ -1968,20 +2068,24 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardODGOTM3.setChecked(isODGOTM2 == 1)
             self.chkAmbCardODGOTM4.setChecked(isODGOTM2 == 2)
             self.edtAmbCardODGOTM4Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ТМ:3', QString))
+            self.edtAmbCardODGOTM4Text.setVisible(isODGOTM2 == 2)
             self.edtAmbCardODGOTMU.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ТМ:4', QString))
             self.edtAmbCardODGOOMP.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ОП', QString))
             isODGOPSL = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:ПСл:1', [u'без особенностей',u'особенности'])
             self.chkAmbCardODGOPSL1.setChecked(isODGOPSL == 1)
             self.chkAmbCardODGOPSL2.setChecked(isODGOPSL == 2)
             self.edtAmbCardODGOPSL2Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ПСл:2', QString))
+            self.edtAmbCardODGOPSL2Text.setVisible(isODGOPSL == 2)
             isODGOPSP = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:ПСп:1', [u'без особенностей',u'особенности'])
             self.chkAmbCardODGOPSP1.setChecked(isODGOPSP == 1)
             self.chkAmbCardODGOPSP2.setChecked(isODGOPSP == 2)
             self.edtAmbCardODGOPSP3Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ПСп:2', QString))
+            self.edtAmbCardODGOPSP3Text.setVisible(isODGOPSP == 2)
             isODGOE = self.getChkPropertyValue(items, u'ОД:ГО:ВИ:Э:1', [u'нет',u'обнаружены'])
             self.chkAmbCardODGOE1.setChecked(isODGOE == 1)
             self.chkAmbCardODGOE2.setChecked(isODGOE == 2)
             self.edtAmbCardODGOE2Text.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:Э:2', QString))
+            self.edtAmbCardODGOE2Text.setVisible(isODGOE == 2)
             self.edtAmbCardODGOOZK.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ОЦК', QString))
             self.edtAmbCardODGOOV.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:ОБ', QString))
             self.edtAmbCardODGOA.setText(self.getPropertyValue(items, u'ОД:ГО:ВИ:Ан', QString))
@@ -1993,6 +2097,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPWPRNot.setChecked(isSOPWPR == 1)
             self.chkAmbCardSOPWPRYes.setChecked(isSOPWPR == 2)
             self.edtAmbCardSOPWPRText.setText(self.getPropertyValue(items, u'СОП:ВПР:2', QString))
+            self.edtAmbCardSOPWPRText.setVisible(isSOPWPR == 2)
             self.edtAmbCardSOPIMT.setValue(self.getPropertyValue(items, u'СОП:ИМТМ', int))
             self.edtAmbCardSOPRost.setValue(self.getPropertyValue(items, u'СОП:РПЯ', int))
             self.edtAmbCardSOPMT.setValue(self.getPropertyValue(items, u'СОП:МТПЯ', float))
@@ -2004,18 +2109,22 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPDB1.setChecked(isSOPDB == 1)
             self.chkAmbCardSOPDB2.setChecked(isSOPDB == 2)
             self.edtAmbCardSOPDBText.setText(self.getPropertyValue(items, u'СОП:ПЗ:ДИ:2', QString))
+            self.edtAmbCardSOPDBText.setVisible(isSOPDB == 2)
             isSOPDS = self.getChkPropertyValue(items, u'СОП:ПЗ:НДУ:1', [u'не состояла', u'состояла'])
             self.chkAmbCardSOPDS1.setChecked(isSOPDS == 1)
             self.chkAmbCardSOPDS2.setChecked(isSOPDS == 2)
             self.edtAmbCardSOPDSText.setText(self.getPropertyValue(items, u'СОП:ПЗ:НДУ:2', QString))
+            self.edtAmbCardSOPDSText.setVisible(isSOPDS == 2)
             isSOPTRO = self.getChkPropertyValue(items, u'СОП:ПЗ:ТО:1', [u'нет', u'да'])
             self.chkAmbCardSOPTRO1.setChecked(isSOPTRO == 1)
             self.chkAmbCardSOPTRO2.setChecked(isSOPTRO == 2)
             self.edtAmbCardSOPTROText.setText(self.getPropertyValue(items, u'СОП:ПЗ:ТО:2', QString))
+            self.edtAmbCardSOPTROText.setVisible(isSOPTRO == 2)
             isSOPSZ = self.getChkPropertyValue(items, u'СОП:ПЗ:СЗ:1', [u'нет', u'да'])
             self.chkAmbCardSOPSZ1.setChecked(isSOPSZ == 1)
             self.chkAmbCardSOPSZ2.setChecked(isSOPSZ == 2)
             self.edtAmbCardSOPSZText.setText(self.getPropertyValue(items, u'СОП:ПЗ:СЗ:2', QString))
+            self.edtAmbCardSOPSZText.setVisible(isSOPSZ == 2)
             isSOPSZIList = self.getChkPropertyList(items, u'СОП:ПЗ:СЗИ:1', [u'нет',u'ВИЧ',u'Туберкулёз',u'Гепатит-В',u'Гепатит-С',u'Сифилис',u'другие'])
             self.chkAmbCardSOPSZI1.setChecked(False)
             self.chkAmbCardSOPSZI2.setChecked(False)
@@ -2039,6 +2148,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                     self.chkAmbCardSOPSZI6.setChecked(True)
                 elif isSOPSZI == 7:
                     self.chkAmbCardSOPSZI7.setChecked(True)
+                    self.edtAmbCardSOPSZIText.setVisible(isSOPSZI == 7)
             self.edtAmbCardSOPSZIText.setText(self.getPropertyValue(items, u'СОП:ПЗ:СЗИ:2', QString))
             isSOPVSTATUS = self.getChkPropertyValue(items, u'СОП:ПЗ:ВИЧ:1', [u'негативный',u'позитивный'])
             self.chkAmbCardSOPVSTATUS1.setChecked(isSOPVSTATUS == 1)
@@ -2050,10 +2160,15 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPNZ1.setChecked(isSOPNZ == 1)
             self.chkAmbCardSOPNZ2.setChecked(isSOPNZ == 2)
             self.edtAmbCardSOPNZText.setText(self.getPropertyValue(items, u'СОП:ПЗ:НЗ:2', QString))
+            self.edtAmbCardSOPNZText.setVisible(isSOPNZ == 2)
             isSOPGTR = self.getChkPropertyValue(items, u'СОП:ПЗ:Г:1', [u'нет', u'да'])
             self.chkAmbCardSOPGTR1.setChecked(isSOPGTR == 1)
             self.chkAmbCardSOPGTR2.setChecked(isSOPGTR == 2)
             self.edtAmbCardSOPGTRDate.setText(self.getPropertyValue(items, u'СОП:ПЗ:Г:2', QString))
+            self.edtAmbCardSOPGTRDate.setVisible(isSOPGTR == 2)
+            self.label_67AmbCard.setVisible(isSOPGTR == 2)
+            self.edtAmbCardSOPGTRComponent.setVisible(isSOPGTR == 2)
+            self.lblAmbCardSOPGTRComponent.setVisible(isSOPGTR == 2)
             self.edtAmbCardSOPGTRComponent.setText(self.getPropertyValue(items, u'СОП:ПЗ:Г:3', QString))
             self.edtAmbCardSOPPFDate.setDate(self.getPropertyValue(items, u'СОП:ПЗ:ПФ:1', QDate))
             self.edtAmbCardSOPPFText.setText(self.getPropertyValue(items, u'СОП:ПЗ:ПФ:2', QString))
@@ -2087,6 +2202,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPPRW1.setChecked(isSOPPRW == 1)
             self.chkAmbCardSOPPRW2.setChecked(isSOPPRW == 2)
             self.edtAmbCardSOPPRWText.setText(self.getPropertyValue(items, u'СОП:ПВ:2', QString))
+            self.edtAmbCardSOPPRWText.setVisible(isSOPPRW == 2)
             isSOPSOPRList = self.getChkPropertyList(items, u'СОП:СОПр:1', [u'столбняк', u'дифтерия', u'корь', u'краснуха', u'ветряная оспа', u'грипп', u'ВПЧ', u'гепатит-В', u'другие'])
             self.chkAmbCardSOPSOPR1.setChecked(False)
             self.chkAmbCardSOPSOPR2.setChecked(False)
@@ -2133,6 +2249,10 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.edtAmbCardSOPMNText.setText(self.getPropertyValue(items, u'СОП:Менстр:3', QString))
             self.edtAmbCardSOPMN2.setValue(self.getPropertyValue(items, u'СОП:Менстр:5', int))
             self.edtAmbCardSOPMN3.setText(self.getPropertyValue(items, u'СОП:Менстр:6', QString))
+            self.edtAmbCardSOPMNText.setVisible(isSOPMN != 1)
+            self.label_215AmbCard.setVisible(isSOPMN != 1)
+            self.edtAmbCardSOPMNText.setVisible(isSOPMN != 1)
+            self.label_86AmbCard.setVisible(isSOPMN != 1)
             isSOPMN2 = self.getChkPropertyValue(items, u'СОП:Менстр:7', [u'скудные',u'умеренные',u'обильные'])
             self.chkAmbCardSOPMN3.setChecked(isSOPMN2 == 1)
             self.chkAmbCardSOPMN4.setChecked(isSOPMN2 == 2)
@@ -2150,6 +2270,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPIPPP1.setChecked(isSOPIPPP == 1)
             self.chkAmbCardSOPIPPP2.setChecked(isSOPIPPP == 2)
             self.edtAmbCardSOPIPPPText.setText(self.getPropertyValue(items, u'СОП:ИППП:2', QString))
+            self.edtAmbCardSOPIPPPText.setVisible(isSOPIPPP == 2)
             self.edtAmbCardSOPPIMGDate.setText(self.getPropertyValue(items, u'СОП:ПИМЖ:1', QString))
             self.edtAmbCardSOPPIMGText1.setText(self.getPropertyValue(items, u'СОП:ПИМЖ:2', QString))
             self.edtAmbCardSOPPIMGText2.setText(self.getPropertyValue(items, u'СОП:ПИМЖ:3', QString))
@@ -2178,10 +2299,12 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSOPOXZ1.setChecked(isSOPOXZ == 1)
             self.chkAmbCardSOPOXZ2.setChecked(isSOPOXZ == 2)
             self.edtAmbCardSOPOXZText.setText(self.getPropertyValue(items, u'СОП:СОР:ХЗ:2', QString))
+            self.edtAmbCardSOPOXZText.setVisible(isSOPOXZ == 2)
             isSOPOIPPP = self.getChkPropertyValue(items, u'СОП:СОР:ИППП:1', [u'нет', u'да'])
             self.chkAmbCardSOPOIPPP1.setChecked(isSOPOIPPP == 1)
             self.chkAmbCardSOPOIPPP2.setChecked(isSOPOIPPP == 2)
             self.edtAmbCardSOPOIPPPText.setText(self.getPropertyValue(items, u'СОП:СОР:ИППП:2', QString))
+            self.edtAmbCardSOPOIPPPText.setVisible(isSOPOIPPP == 2)
             isSOPOSZIList = self.getChkPropertyList(items, u'СОП:СОР:СЗП:1', [u'нет',u'ВИЧ',u'Туберкулёз',u'Гепатит-В',u'Гепатит-С',u'Сифилис',u'другие'])
             self.chkAmbCardSOPOSZI1.setChecked(False)
             self.chkAmbCardSOPOSZI2.setChecked(False)
@@ -2205,6 +2328,7 @@ class CAmbCardMixin(CConstructHelperMixin):
                     self.chkAmbCardSOPOSZI6.setChecked(True)
                 elif isSOPOSZI == 7:
                     self.chkAmbCardSOPOSZI7.setChecked(True)
+                    self.edtAmbCardSOPOSZIText.setVisible(isSOPOSZI == 7)
             self.edtAmbCardSOPOSZIText.setText(self.getPropertyValue(items, u'СОП:СОР:СЗП:2', QString))
             self.edtAmbCardSOPOPFDate.setDate(self.getPropertyValue(items, u'СОП:СОР:ПФ:1', QDate))
             self.edtAmbCardSOPOPFText.setText(self.getPropertyValue(items, u'СОП:СОР:ПФ:2', QString))
@@ -2230,6 +2354,15 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardNVNBDG1.setChecked(isNVNBDG == 1)
             self.chkAmbCardNVNBDG2.setChecked(isNVNBDG == 2)
             self.edtAmbCardNVNBDG2Text.setText(self.getPropertyValue(items, u'НВНБ:ДГ:2', QString))
+            self.edtAmbCardNVNBDG2Text.setVisible(isNVNBDG == 2)
+            self.lblAmbCardNVNBDGK.setVisible(isNVNBDG == 2)
+            self.chkAmbCardNVNBDGK1.setVisible(isNVNBDG == 2)
+            self.chkAmbCardNVNBDGK2.setVisible(isNVNBDG == 2)
+            self.lblAmbCardNVNBDGO.setVisible(isNVNBDG == 2)
+            self.edtAmbCardNVNBDGO.setVisible(isNVNBDG == 2)
+            self.edtAmbCardPreHospitalizationTermWeeks.setVisible(isNVNBDG == 2)
+            self.lblAmbCardPreHospitalizationTermWeeks.setVisible(isNVNBDG == 2)
+            self.lblAmbCardPreHospitalizationTermWeeks_2.setVisible(isNVNBDG == 2)
             isNVNBDGK = self.getChkPropertyValue(items, u'НВНБ:ДГ:3', [u'в отделение патологии беременности', u'в отделение акушерского ухода'])
             self.chkAmbCardNVNBDGK1.setChecked(isNVNBDGK == 1)
             self.chkAmbCardNVNBDGK2.setChecked(isNVNBDGK == 2)
@@ -2267,16 +2400,23 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.cmbAmbCardNVNBPUDKOV.setValue(self.getPropertyValue(items, u'НВНБ:УД:КОВ:s', int))
             self.cmbAmbCardNVNBPUDCA.setValue(self.getPropertyValue(items, u'НВНБ:УД:СА:s', int))
             self.cmbAmbCardNVNBIBRM.setValue(self.getPropertyValue(items, u'НВНБ:ИБРМ:1:s', int))
+            self.on_cmbAmbCardNVNBIBRM_currentIndexChanged(None)
             isNVNBIBRM2 = self.getChkPropertyValue(items, u'НВНБ:ИБРМ:2', [u'Роды: самопроизвольные', u'оперативные'])
             self.chkAmbCardNVNBIBRM2.setChecked(isNVNBIBRM2 == 1)
+            self.on_chkAmbCardNVNBIBRM2_toggled(isNVNBIBRM2 == 1)
             self.chkAmbCardNVNBIBRM6.setChecked(isNVNBIBRM2 == 2)
+            self.on_chkAmbCardNVNBIBRM6_toggled(isNVNBIBRM2 == 2)
             isNVNBIBRM2 = self.getChkPropertyValue(items, u'НВНБ:ИБРМ:3', [u'без осложнений', u'с осложнениями'])
             self.chkAmbCardNVNBIBRM3.setChecked(isNVNBIBRM2 == 1)
+            self.on_chkAmbCardNVNBIBRM3_toggled(isNVNBIBRM2 == 1)
             self.chkAmbCardNVNBIBRM4.setChecked(isNVNBIBRM2 == 2)
+            self.on_chkAmbCardNVNBIBRM4_toggled(isNVNBIBRM2 == 2)
             self.edtAmbCardNVNBIBRM4.setText(self.getPropertyValue(items, u'НВНБ:ИБРМ:5', QString))
             isNVNBIBRM4 = self.getChkPropertyValue(items, u'НВНБ:ИБРМ:8', [u'кесарево сечение', u'другое'])
             self.chkAmbCardNVNBIBRM7.setChecked(isNVNBIBRM4 == 1)
+            self.on_chkAmbCardNVNBIBRM7_toggled(isNVNBIBRM4 == 1)
             self.chkAmbCardNVNBIBRM8.setChecked(isNVNBIBRM4 == 2)
+            self.on_chkAmbCardNVNBIBRM8_toggled(isNVNBIBRM4 == 2)
             self.edtAmbCardNVNBIBRM7.setText(self.getPropertyValue(items, u'НВНБ:ИБРМ:9', QString))
             self.edtAmbCardNVNBIBRM13Date.setDate(self.getPropertyValue(items, u'НВНБ:ИБРМ:15', QDate))
             self.edtAmbCardNVNBIBRM13Time.setTime(self.getPropertyValue(items, u'НВНБ:ИБРМ:15', QTime))
@@ -2286,6 +2426,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.edtAmbCardNVNBIBRMResultDateDays.setValue(self.getPropertyValue(items, u'НВНБ:ИБРМ:1:2', int))
             self.edtAmbCardNVNBIBRM3.setText(self.getPropertyValue(items, u'НВНБ:ИБРМ:1:3', unicode))
             self.chkAmbCardNVNBIBRM13.setChecked(self.getPropertyValue(items, u'НВНБ:ИБРМ:15:1', QCheckBox))
+            self.on_chkAmbCardNVNBIBRM13_toggled(self.getPropertyValue(items, u'НВНБ:ИБРМ:15:1', QCheckBox))
             self.edtAmbCardNVNBIBRP1.setValue(self.getPropertyValue(items, u'НВНБ:ИБРП:КД', int))
             self.setNVNBIBRPPRVisible()
             # Первый ребёнок
@@ -2381,6 +2522,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.chkAmbCardSkinStatus1.setChecked(isSkinStatus == 1)
             self.chkAmbCardSkinStatus2.setChecked(isSkinStatus == 2)
             self.edtAmbCardSkinStatus.setText(self.getPropertyValue(items, u'ОД:СКП:2', QString))
+            self.edtAmbCardSkinStatus.setVisible(isSkinStatus == 2)
             self.edtAmbCardCloseReason.setText(self.getPropertyValue(items, u'НВНБ:ПЗ', QString))
             date = self.edtAmbCardNVNBDZKDate.date()
             if date and date.isValid():
@@ -2513,6 +2655,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.setInitDate()
         self.setWidgetsVisible(False)
         record = None
+        recordClient = None
         db = QtGui.qApp.db
         tableAction = db.table('Action')
         if actionId:
@@ -2526,6 +2669,7 @@ class CAmbCardMixin(CConstructHelperMixin):
             if recordEvent:
                 eventDate = forceDate(recordEvent.value('execDate'))
         self.edtAmbCardNVNBDZKDate.setDate(eventDate)
+        self.on_edtAmbCardNVNBDZKDate_dateChanged(eventDate)
         isRhNegative = False
         clientId = forceRef(QtGui.qApp.db.translate('Event', 'id', eventId, 'client_id'))
         if clientId:
@@ -2563,6 +2707,28 @@ class CAmbCardMixin(CConstructHelperMixin):
         self.modelAmbCardNVNBSGVB.setAction(action)
         self.modelAmbCardNVNBSGVB.loadItems(clientId)
         self.modelAmbCardPreviousPregnancy.loadItems(action.getId())
+        
+        def setTableFit(table, numRows):
+            table.resizeColumnsToContents()
+            table.resizeRowsToContents()
+            headerHeight = table.horizontalHeader().sizeHint().height()
+
+            model = table.model()
+            totalRows = model.rowCount() if model else 0
+            count = max(numRows, totalRows) if totalRows > 0 else numRows
+
+            if totalRows > 0:
+                rowsHeight = sum(table.rowHeight(r) for r in range(count))
+            else:
+                rowsHeight = table.verticalHeader().defaultSectionSize() * numRows
+
+            #extra = table.horizontalScrollBar().sizeHint().height() + 2 * table.frameWidth() + 4
+
+            table.setFixedHeight(headerHeight + rowsHeight)
+        
+        setTableFit(self.tblAmbCardNVNBVARRS, 7)
+        setTableFit(self.tblAmbCardNVNBAR, 9)
+        setTableFit(self.tblAmbCardSOPSvORNM, 4)
         conActionId = self.modelAmbCardPreviousPregnancy.getActionIdToRow(0)
         conItems = self.modelAmbCardPreviousPregnancy.items()
         if conItems and hasattr(conItems[0], 'aboutChildrenProperties'):
@@ -2971,20 +3137,6 @@ class CAmbCardMixin(CConstructHelperMixin):
 
 
     @pyqtSlot(bool)
-    def on_chkAmbCardNVNBIBRM4_toggled(self, checked):
-        isChecked = self.chkAmbCardNVNBIBRM4.isChecked()
-        if isChecked:
-            self.edtAmbCardNVNBIBRM4.setVisible(True)
-
-
-    @pyqtSlot(bool)
-    def on_chkAmbCardNVNBIBRM8_toggled(self, checked):
-        isChecked = self.chkAmbCardNVNBIBRM8.isChecked()
-        if isChecked:
-            self.edtAmbCardNVNBIBRM7.setVisible(True)
-
-
-    @pyqtSlot(bool)
     def on_chkAmbCardNVNBIBRM13_toggled(self, checked):
         self.frameAmbCard_30.setVisible(checked)
         self.setProperty(QVariant(self.chkAmbCardNVNBIBRM13.isChecked()), u'НВНБ:ИБРМ:15:1')
@@ -2999,6 +3151,17 @@ class CAmbCardMixin(CConstructHelperMixin):
             self.lblAmbCardCloseReason.setVisible(False)
             self.edtAmbCardCloseReason.setVisible(False)    
             self.edtAmbCardCloseReason.setText('')
+
+
+    @pyqtSlot(bool)
+    def on_chkAmbCardRiskExtraGenPat_toggled(self, checked):
+        isChecked = self.chkAmbCardRiskExtraGenPat.isChecked()
+        if isChecked:
+            self.edtAmbCardRiskExtraGenPat.setVisible(True)
+            self.cmbAmbCardRiskExtraGenPat.setVisible(True)
+        else:
+            self.edtAmbCardRiskExtraGenPat.setVisible(False)
+            self.cmbAmbCardRiskExtraGenPat.setVisible(False)
 
 
     def on_chkAmbCardFilesDate_toggled(self, checked):
@@ -3104,7 +3267,10 @@ class CAmbCardMixin(CConstructHelperMixin):
         """
         self.__ambCardMiscFilter = filter
         order = self.tblAmbCardKBiRActions.order() if self.tblAmbCardKBiRActions.order() else ['Action.endDate DESC', 'id']
-        self.tblAmbCardKBiRActions.setIdList(self.selectAmbCardActions(filter, None, order, fieldName, isKBiR=True), posToId)
+        idList = self.selectAmbCardActions(filter, None, order, fieldName, isKBiR=True)
+        self.tblAmbCardKBiRActions.setIdList(idList, posToId)
+        if not idList:
+            self.updateAmbCardKBiRF111(None)
 
     def focusAmbCardKBiRActions(self):
         self.tblAmbCardKBiRActions.setFocus(Qt.TabFocusReason)
@@ -3364,6 +3530,7 @@ class CAmbCardMixin(CConstructHelperMixin):
         elif index == self.tabAmbCardContent.indexOf(self.tabAmbCardKBiR):
             if not self.__ambCardKBiRIsInitialised:
                 self.initKBiR()
+                self.on_cmdAmbCardKBiRButtonBox_apply()
         self.actAmbCardPrintActions.setVisible(index in (1, 2, 3, 4, 8))
 
     def updateAmbCardMonitoring(self, clientId):

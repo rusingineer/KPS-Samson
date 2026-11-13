@@ -259,7 +259,7 @@ def requestNewEvent(params):
                 elif boxResult == QtGui.QMessageBox.Close:
                     break
             documentRecord = doc.get('documentRecord')
-            if order is None:
+            if order is None or order < 0:
                 order = getEventOrder(eventTypeId)
             if not eventSetDate and not eventDate:
                 msg = u'Новый осмотр не может быть добавлен.\nНе введены даты начала и выполнения данного события.'

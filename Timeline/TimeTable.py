@@ -264,7 +264,7 @@ class CTimeTableModel(CRecordListModel):
         column = index.column()
         schedule = self.getItem(index.row())
         if not schedule.isFreeToChange() or schedule in self.foundedNotFreeToChangeList:
-            if (not column == self.getColIndex('appointmentPurpose_id') and column <= self.getColIndex(
+            if (column not in (self.getColIndex('appointmentPurpose_id'), self.getColIndex('office')) and column <= self.getColIndex(
                     'capacity')) or column == self.getColIndex('activity_id'):  # 6 - это capacity
                 return u'Изменение запрещено, так как в очереди уже есть пациенты'
         if column == self.getColIndex('capacity'):
@@ -346,6 +346,16 @@ class CTimeTableModel(CRecordListModel):
                 if checkValue:
                     value = checkValue
             schedule.cleanItems()
+        if column == self.getColIndex('office'):
+            row = index.row()
+            schedule = self._items[row]
+            if value != schedule.office:
+                if not schedule.isFreeToChange():
+                    pass
+                elif not schedule.isFreeToChange_CustomWithoutItems():
+                    self.foundedNotFreeToChangeList.append(schedule)
+                    schedule.checkAndUpdateItems()
+                return CRecordListModel.setData(self, index, value, role)
         if column == self.getColIndex('appointmentPurpose_id'): # назначение приема
             row = index.row()
             schedule = self._items[row]

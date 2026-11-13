@@ -248,7 +248,7 @@ class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstru
             self.cmbActionStatus.setCurrentIndex(0)
             self.chkSetDate.setChecked(True)
             self.chkExecDate.setChecked(True)
-            self.chkPerson.setChecked(False)
+            self.chkPerson.setChecked(True)
             self.cmbPerson.setValue(QtGui.qApp.userId)
             self.chkSetPerson.setChecked(False)
             self.cmbSetPerson.setValue(QtGui.qApp.userId)

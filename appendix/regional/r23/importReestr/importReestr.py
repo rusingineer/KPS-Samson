@@ -91,6 +91,14 @@ class CMyApp(QtGui.QApplication):
     def getGlobalPreference(self, code):
         return None
 
+    def currentOrgId(self):
+        try:
+            prefs = CPreferences('S11App.ini')
+            prefs.load()
+            return forceRef(prefs.appPrefs.get('orgId', QVariant()))
+        except Exception:
+            return None
+
 
     def documentEditor(self):
         return forceString(QtGui.qApp.preferences.appPrefs.get('documentEditor', ''))
@@ -959,9 +967,11 @@ class CMainWindow(QtGui.QMainWindow, Ui_MainWindow):
 
         # Формируем payload (дата может браться из поля ввода)
         dt = self.edtdataFerzl.date().addMonths(1)
+        org_id = QtGui.qApp.currentOrgId()
         payload = {
             "dt": forceString(dt.toString("yyyy-MM-dd")),
-            "criteries": criteries
+            "criteries": criteries,
+            "org_id": org_id
         }
 
         data = json.dumps(payload, ensure_ascii=False).encode('utf-8')

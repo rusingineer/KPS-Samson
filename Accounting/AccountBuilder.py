@@ -2722,7 +2722,7 @@ AND NOT EXISTS(SELECT NULL FROM ActionProperty ap2
                         from Action a
                         left join ActionType at on at.id = a.actionType_id
                         left join rbService rs on rs.id = at.nomenclativeService_id
-                        where a.id = {aEvent_id} and a.deleted = 0
+                        where a.event_id = {aEvent_id} and a.deleted = 0
                         and rs.infis in ('B05.015.002.010', 'B05.015.002.011', 'B05.015.002.012', 'B05.023.002.012',
                            'B05.023.002.013', 'B05.023.002.14', 'B05.050.004.019', 'B05.050.004.020', 'B05.050.004.021',
                            'B05.070.010', 'B05.070.011', 'B05.070.012')""".format(aEvent_id=eventId)

@@ -167,6 +167,9 @@ class CferzlDialog(CDialogBase, Ui_ferzlDialog):
             param_dict['enp'] = row_data[3]
             service = Ferzl_service()
             self.result_service = service.getPersonDataFrom(param_dict, 1)
+            if self.result_service.get('result') is False:
+                warninWindow(self.result_service['elements'])
+                return None
             mass = u'Хотите зарегистрировать пациента?' + u'\n' + self.result_service['massges_info']
             res = QtGui.QMessageBox.warning(self,
                                             u'Внимание',

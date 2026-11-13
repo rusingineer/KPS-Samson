@@ -2750,13 +2750,15 @@ class CTimeTableModel(QAbstractTableModel):
             cond.append( '`Person`.`lastAccessibleTimelineDate` IS NULL OR `Person`.`lastAccessibleTimelineDate`=0 OR `Schedule`.`date`<=`Person`.`lastAccessibleTimelineDate`')
             if QtGui.qApp.isTimelineAccessibilityDays() == 1:
                 cond.append( '`Person`.`timelineAccessibleDays` <= 0 OR `Schedule`.`date`<=%s'%db.dateAdd('current_date', 'day', 'Person.timelineAccessibleDays'))
-            # За счёт смены ORDER BY (по назначению) теперь периоды идут чётко по день, НАЗНАЧЕНИЕ, время, ... чтобы можно было делать span,
-            # т.к. объединяемые периоды должны идти друг за другом.
+            if self.parent.timeTableCombinationRule == 1:
+                order = 'Schedule.date, Schedule.appointmentPurpose_id, Schedule.begTime, Schedule.id'
+            else:
+                order = 'Schedule.date, Schedule.begTime, Schedule.id'
 
             return [CSchedule(record) for record in db.getRecordList(table,
                                                                      'Schedule.*',
                                                                      cond,
-                                                                     'Schedule.date, Schedule.appointmentPurpose_id, Schedule.begTime, Schedule.id'
+                                                                     order
                                                                     )
                    ]
         else:

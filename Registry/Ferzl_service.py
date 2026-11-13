@@ -168,7 +168,8 @@ class Ferzl_service:
                   "pcyNum": forceString(params_dict.get('pcyNum', None)),
                   "dudlSer": forceString(params_dict.get('dudlSer', None)),
                   "dudlNum": forceString(params_dict.get('dudlNum', None)),
-                  "dudlType": forceString(params_dict.get("dudlType", None))
+                  "dudlType": forceString(params_dict.get("dudlType", None)),
+                  "org_id": QtGui.qApp.currentOrgId()
                   }
         isError = False
         buttonName = None
@@ -190,12 +191,23 @@ class Ferzl_service:
             jsonRequest = resp.json()
             message = u""
             try:
+                if isinstance(jsonRequest, dict) and jsonRequest.get('success') is False:
+                    error = jsonRequest.get('error') or {}
+                    result_dict['massage'] = forceString(error.get('message') or jsonRequest.get('message') or '')
+                    return {'result': False, 'elements': result_dict['massage']}
                 # Извлекаем вложенные словари с проверкой наличия ключей
                 envelope = jsonRequest.get('Envelope', {})
                 body = envelope.get('Body', {})
                 response_data = body.get('getInsuranceStatusResponse', {})
-
+                
                 if response_data:
+                    # Проверяем наличие ошибок в ответе
+                    errors = response_data.get('errors')
+                    if errors:
+                        error_item = errors.get('errorItem', {})
+                        error_message = forceString(error_item.get('message') or '')
+                        result_dict['massage'] = error_message
+                        return {'result': False, 'elements': error_message}
                     # Проверяем наличие статуса
                     status = response_data.get('status')
                     if status:
@@ -260,7 +272,7 @@ class Ferzl_service:
                             
                         if policy_pcyStatus:
                             # policy_dict['policy_pcyStatus'] = policy_pcyStatus
-                            message = message + u'\nСтатус: ' + getPersonData_attachStatus[policy_pcyStatus]
+                            message = message + u'\nСтатус: ' + getPersonData_pcyStatus[policy_pcyStatus]
                 else:
                     # Проверяем, не пришёл ли SOAP-сбой
                     fault = body.get('Fault')
@@ -286,82 +298,112 @@ class Ferzl_service:
                 return {'result': False, 'elements': None}
             # return result_dict
 
-    def getfindPersonsByPersCriteria(self, params_dict = {}):
+    def getfindPersonsByPersCriteria(self, params_dict={}):
 
         params = {
             "external_id": forceString(params_dict.get('external_id')),
-                  "enp": forceString(params_dict.get('enp', None)),
-                  "pcyType": forceString(params_dict.get('pcyType', None)),
-                  "pcySer": forceString(params_dict.get('pcySer', None)),
-                  "pcyNum": forceString(params_dict.get('pcyNum', None)),
-                  "dudlSer": forceString(params_dict.get('dudlSer', None)),
-                  "dudlNum": forceString(params_dict.get('dudlNum', None)),
-                  "dudlType": forceString(params_dict.get("dudlType", None))
-                  }
+            "enp": forceString(params_dict.get('enp', None)),
+            "pcyType": forceString(params_dict.get('pcyType', None)),
+            "pcySer": forceString(params_dict.get('pcySer', None)),
+            "pcyNum": forceString(params_dict.get('pcyNum', None)),
+            "dudlSer": forceString(params_dict.get('dudlSer', None)),
+            "dudlNum": forceString(params_dict.get('dudlNum', None)),
+            "dudlType": forceString(params_dict.get("dudlType", None)),
+            "org_id": QtGui.qApp.currentOrgId()
+        }
+
         isError = False
         buttonName = None
-        url = forceString(self.url+'/oms/services/MpiPersonInfo/findPersonsByPersCriteria') + forceString('?') + forceString(self.generateURLParams(params))
+
+        url = (
+                forceString(self.url + '/oms/services/MpiPersonInfo/findPersonsByPersCriteria')
+                + forceString('?')
+                + forceString(self.generateURLParams(params))
+        )
+
         resp = requests.get(url=url, params=params)
+
         result_dict = {
             'result': False,
-
+            'success': False,
         }
+
         if resp.status_code != 200:
-            message = u'Ошибка сервисов. Код ошибки: ' + forceString(resp.status_code) + u' - ' + forceString(
-                resp.reason)+ u'. MpiPersonInfo'
+            message = (
+                    u'Ошибка сервисов. Код ошибки: '
+                    + forceString(resp.status_code)
+                    + u' - '
+                    + forceString(resp.reason)
+                    + u'. MpiPersonInfo'
+            )
             msgbx = self.showMessageBox(message, isError=True)
             if msgbx == QtGui.QMessageBox.Cancel:
                 return None
+
         if resp:
             try:
-                data = resp.json()  # парсим JSON
+                data = resp.json()
             except ValueError:
                 print("Ошибка: ответ не является корректным JSON")
+                result_dict['success'] = False
+                result_dict['massage'] = u'Ответ не является корректным JSON'
+                return result_dict
+
+            # Проверка прямого ответа с признаком success = False
+            if isinstance(data, dict) and data.get('success') is False:
+                error = data.get('error') or {}
+                result_dict['success'] = False
+                result_dict['massage'] = forceString(error.get('message') or data.get('message') or '')
+                result_dict['code'] = forceString(error.get('code') or '')
+                return result_dict
+
+            # Далее — старая логика разбора Envelope
             envelope = data.get('Envelope', {})
             body = envelope.get('Body', {})
             response = body.get('findPersonsByPersCriteriaResponse', {})
+
             # Проверяем наличие ошибок
             errors = response.get('errors')
             if errors:
                 error_item = errors.get('errorItem', {})
+
+                result_dict['success'] = False
                 result_dict['code'] = error_item.get('code')
                 result_dict['massage'] = error_item.get('message')
+
                 return result_dict
-            else:
-                # Если ошибок нет, обрабатываем успешный ответ
-                external_id = response.get('externalRequestId')
-                persons_data = response.get('persons')
-                persons_list = []
-                if persons_data:
-                    # В зависимости от структуры, persons может быть:
-                    # - словарь с ключом 'personDataShortItem' (один элемент)
-                    # - список таких словарей (несколько элементов)
-                    if 'personDataShortItem' in persons_data:
-                        # Случай одного объекта
-                        item = persons_data['personDataShortItem']
-                        # Если item - словарь, добавляем в список
-                        if isinstance(item, dict):
-                            persons_list.append(item)
-                        # Если вдруг item - список (на всякий случай)
-                        elif isinstance(item, list):
-                            persons_list.extend(item)
-                    elif isinstance(persons_data, list):
-                        # Случай массива объектов (каждый объект может содержать 'personDataShortItem')
-                        for entry in persons_data:
-                            if isinstance(entry, dict) and 'personDataShortItem' in entry:
-                                persons_list.append(entry['personDataShortItem'])
-                            elif isinstance(entry, dict):
-                                # Если пришёл просто словарь без обёртки
-                                persons_list.append(entry)
-                    elif isinstance(persons_data, dict):
-                        # Если это словарь, но без ключа personDataShortItem (маловероятно)
-                        persons_list.append(persons_data)
-                result_dict['person'] =persons_list
-                return result_dict
+
+            # Если ошибок нет, обрабатываем успешный ответ
+            external_id = response.get('externalRequestId')
+            persons_data = response.get('persons')
+            persons_list = []
+
+            if persons_data:
+                if 'personDataShortItem' in persons_data:
+                    item = persons_data['personDataShortItem']
+
+                    if isinstance(item, dict):
+                        persons_list.append(item)
+                    elif isinstance(item, list):
+                        persons_list.extend(item)
+
+                elif isinstance(persons_data, list):
+                    for entry in persons_data:
+                        if isinstance(entry, dict) and 'personDataShortItem' in entry:
+                            persons_list.append(entry['personDataShortItem'])
+                        elif isinstance(entry, dict):
+                            persons_list.append(entry)
+
+                elif isinstance(persons_data, dict):
+                    persons_list.append(persons_data)
+
+            result_dict['success'] = True
+            result_dict['person'] = persons_list
+
+            return result_dict
 
 
     def getPersonDataFrom(self, params_dict = {}, type=0):
-
         params = {
                   "external_id": forceString(params_dict.get('external_id')),
                   "pcyType": forceString(params_dict.get('pcyType',None)),
@@ -373,7 +415,8 @@ class Ferzl_service:
                   "dudlType": forceString(params_dict.get("dudlType", None)),
                   "dudlDateB": forceString(params_dict.get("dudlDateB", None)),
                   "dt": forceString(params_dict.get('dt', None)),
-                  "show": forceString(params_dict.get("show", None))
+                  "show": forceString(params_dict.get("show", None)),
+                  "org_id": QtGui.qApp.currentOrgId()
                   }
         isError = False
         buttonName = None
@@ -392,6 +435,11 @@ class Ferzl_service:
         if resp:
             jsonRequest = resp.json()
             message = u""
+            if isinstance(jsonRequest, dict) and jsonRequest.get('success') is False:
+                error = jsonRequest.get('error') or {}
+                result_dict['massage'] = forceString(error.get('message') or jsonRequest.get('message') or '')
+                return {'result': False, 'elements': result_dict['massage']}
+            
             oip, policy, attach, person = None, None, None, None
             firstName, surname, patronymic, birthDay, gender, deathDate, whenMerged = None, None, None, None, None, None, None
             if u'getPersonDataResponse' in jsonRequest['Envelope']['Body'].keys():
@@ -786,6 +834,7 @@ class Ferzl_service:
             'NRDocs_docNR_docNum': forceString(params_dict.get('docNum', None)),
             'legalPerson_oip': forceString(params_dict.get('legalPerson_oip', None)),
             'legalPerson_enp': forceString(params_dict.get('legalPerson_enp', None)),
+            "org_id": QtGui.qApp.currentOrgId()
         }
         isError = False
         url = forceString(self.url+'/oms/services/MpiNr/findNR') + forceString('?') + forceString(self.generateURLParams(params))
@@ -989,7 +1038,7 @@ class Ferzl_service:
 
         url = forceString(self.url + '/oms/services/Nil/findNils')
         headers = {'Content-Type': 'application/json'}
-
+        json_data['org_id'] = QtGui.qApp.currentOrgId()
         try:
             resp = requests.post(url=url, json=json_data, headers=headers)
         except Exception as e:
@@ -1122,7 +1171,7 @@ class Ferzl_service:
 
         url = forceString(self.url + '/oms/services/Nil/getNilsData')
         headers = {'Content-Type': 'application/json'}
-        json_data = {'oip': oip}
+        json_data = {'oip': oip, 'org_id': QtGui.qApp.currentOrgId()}
 
         try:
             resp = requests.post(url=url, json=json_data, headers=headers)
@@ -1291,7 +1340,10 @@ class Ferzl_service:
 
     def showMessageBox(self, message, buttonName = None, isError=False, title=u'Данные персоны, полученные из ФЕРЗЛ'):
         msgbox = QtGui.QMessageBox()
-        msgbox.setIcon(QtGui.QMessageBox.Information)
+        if isError:
+            msgbox.setIcon(QtGui.QMessageBox.Critical)
+        else:
+            msgbox.setIcon(QtGui.QMessageBox.Information)
         msgbox.setWindowFlags(msgbox.windowFlags() | Qt.WindowStaysOnTopHint)
         msgbox.setWindowTitle(title)
         msgbox.setText(message)
@@ -1313,8 +1365,8 @@ class Ferzl_service:
             "idSemd": forceString(params_dict.get('idSemd', None)),
             "docSer": forceString(params_dict.get('docSer', None)),
             "docNum": forceString(params_dict.get('docNum', None)),
-            "oip": forceString(params_dict.get('oip', None))
-
+            "oip": forceString(params_dict.get('oip', None)),
+            "org_id": QtGui.qApp.currentOrgId()
         }
         isError = False
         buttonName = None
@@ -1848,7 +1900,7 @@ None, None, None, None, None, None, None, None, None, None, None, None, None, No
             prop = action.getPropertyByShortName(u'persIdent')
             if prop and prop.getValue():
                 dataJson['data']['persIdent'] = prop.getValue()
-
+            dataJson['org_id'] = QtGui.qApp.currentOrgId()
             servicesURL = forceString(QtGui.qApp.getGlobalPreference('23:servicesURL'))
             servicesURL = urlparse.urljoin(servicesURL, '/api/ferzl/oms/services')
             response = requests.post(servicesURL + '/NilData', json=json.loads(json.dumps(dataJson)))
@@ -1863,9 +1915,11 @@ None, None, None, None, None, None, None, None, None, None, None, None, None, No
                 detachedSignatureBytesUser = certUser.createDetachedSignature(data)
                 guid = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(clientId)))
                 dictForJson = {
-                                'guid': guid,
+                               'guid': guid,
                                'sign': base64.b64encode(detachedSignatureBytesUser),
-                               'certificate': base64.b64encode(detachedSignatureBytesUser), 'data': data}
+                               'certificate': base64.b64encode(detachedSignatureBytesUser),
+                               'data': data,
+                               'org_id': QtGui.qApp.currentOrgId()}
                 response = requests.post(servicesURL + '/NilBuild', json=json.loads(json.dumps(dictForJson)))
                 if response.status_code != 200:
                     message = u'Ошибка сервисов. Код ошибки: ' + forceString(response.status_code) + u' - ' + forceString(response.reason) + u'. NilBuild'

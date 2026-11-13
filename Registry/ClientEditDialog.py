@@ -46,6 +46,8 @@ from library.RBTreeComboBox import CRBTreeInDocTableCol
 from library.SortFilterProxyTableModel import CSortFilterProxyTableModel
 from library.crbcombobox                      import CRBModelDataCache, CRBComboBox
 from library.database import CTableRecordCache, decorateString
+from Registry.Utils import CClientInfo
+from library.PrintInfo import CInfoContext
 from library.DbComboBox                       import CDbModel
 from library.InDocTable import (CInDocTableModel, CDateInDocTableCol, CDateTimeInDocTableCol, CEnumInDocTableCol,
                                 CFloatInDocTableCol, CInDocTableCol, CIntInDocTableCol, CRBInDocTableCol,
@@ -92,7 +94,7 @@ from Registry.Utils import (CClientRelationComboBoxForConsents, CDbSearchWidget,
                             getAddressId, getClientAddress, getClientDocument, getClientWork,
                             uniqueIdentifierCheckingIsPassed, unitedPolicyIsVaid, CClientActiveDispensaryInfo,
                             CClientContingentKindInfo, CClientForcedTreatmentInfo, CClientSuicideInfo,
-                            checkClientAttachService)
+                            checkClientAttachService, getClientSexAge, getClientInfo)
 from Users.Rights import (
     urRegEditClientDeathDate, urRegEditClientHistory, urRegTabReadRegistry, urRegTabWriteRegistry,
     urRegDeleteAttachSync, urEnableTabPassport, urEnableSocStatus, urEnableClientAttach, urEnableTabWork,
@@ -4121,9 +4123,229 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             orgId = forceRef(recordRow.value('LPU_id'))
             orgStructureId = forceRef(recordRow.value('orgStructure_id'))
             moId = getIdentification('Organisation', orgId, 'urn:oid:1.2.643.5.1.13.13.11.1461', raiseIfNonFound=False)
+            moDepId = ''
             regKLADRCode = self.cmbRegStreet.code()
             locKLADRCode = self.cmbLocStreet.code()
             guid = str(uuid.uuid5(uuid.UUID(bytes='ClientAttach'.ljust(16, '\0')), repr(forceInt(itemId))))
+
+            missingValuesList = []
+
+            # if self.edtCompulsoryPolisNumber.text():
+            #     enp = str(self.edtCompulsoryPolisNumber.text())
+            # else:
+            #     missingValuesList.append(u'ЕНП ЗЛ')
+            if not moId:
+                missingValuesList.append(u'Идентификатор МО в ФРМО (1.2.643.5.1.13.13.11.1461)')
+            moCode = forceString(QtGui.qApp.db.translate('Organisation', 'id', orgId, 'smoCode'))
+            if not moCode:
+                missingValuesList.append(u'Код МО в реестре ОМС')
+            if orgStructureId:
+                moDepId = getOrgStructureIdentification(orgStructureId, 'urn:oid:1.2.643.5.1.13.13.99.2.114')
+                if not moDepId:
+                    missingValuesList.append(u'Идентификация подразделения по справочнику 1.2.643.5.1.13.13.99.2.114')
+            else:
+                missingValuesList.append(u'Подразделение')
+            addressValidFrom = str(self.edtAddressDate.date().toString('yyyy-MM-dd'))
+            if not addressValidFrom:
+                missingValuesList.append(u'Дата адреса регистрации')
+            clientContacts = []
+            for row, record in enumerate(self.modelContacts.items()):
+                contactTypeId = forceRef(record.value('contactType_id'))
+                if contactTypeId is not None:
+                    contact = {}
+                    contactTypeCode = forceString(QtGui.qApp.db.translate('rbContactType', 'id', contactTypeId, 'code'))
+                    contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contactTypeCode)
+                    contactText = forceString(record.value('contact'))
+                    if contactType and contactText:
+                        contact['contactType'] = contactType
+                        contact['contactText'] = contactText
+                        contact['description'] = forceString(record.value('notes'))
+                        clientContacts.append(contact)
+            if not clientContacts:
+                missingValuesList.append(u'Контакт(ы) пациента')
+
+            # представитель
+            legalReps = []
+            clientAge = calcAgeTuple(self.clientBirthDate, QDate.currentDate())
+            if clientAge and clientAge[3] < 18:
+                db = QtGui.qApp.db
+                repVoucherDoc = {}
+                birthCertSerial = birthCertNumber = u''
+                birthCertDate = QDate()
+                currentDocType = self.cmbDocType.value()
+                if forceInt(db.translate('rbDocumentType', 'id', currentDocType, 'regionalCode')) == 3:
+                    docSerialLeft = forceString(self.edtDocSerialLeft.text())
+                    docSerialRight = forceString(self.edtDocSerialRight.text())
+                    partSeparator = forceString(getDocumentTypeDescr(currentDocType).partSeparator)
+                    if docSerialLeft and docSerialRight:
+                        birthCertSerial = docSerialLeft + partSeparator + docSerialRight
+                    birthCertNumber = forceString(self.edtDocNumber.text())
+                    birthCertDate = forceDate(self.edtDocDate.date())
+                elif self._id:
+                    tableCD = db.table('ClientDocument')
+                    tableDT = db.table('rbDocumentType')
+                    docRecord = db.getRecordEx(tableCD.innerJoin(tableDT, tableDT['id'].eq(tableCD['documentType_id'])),
+                                               [tableCD['serial'], tableCD['number'], tableCD['date']],
+                                               [tableCD['client_id'].eq(self._id),
+                                                tableCD['deleted'].eq(0),
+                                                tableDT['regionalCode'].eq(3),
+                                                tableCD['serial'].ne(''),
+                                                tableCD['number'].ne(''),
+                                                tableCD['date'].isNotNull()],
+                                               'ClientDocument.date DESC, ClientDocument.id DESC')
+                    if docRecord:
+                        birthCertSerial = forceString(docRecord.value('serial'))
+                        birthCertNumber = forceString(docRecord.value('number'))
+                        birthCertDate = forceDate(docRecord.value('date'))
+                if not birthCertSerial or not birthCertNumber or not birthCertDate:
+                    missingValuesList.append(u'Свидетельство о рождении пациента (серия, номер, дата выдачи) (в текущем документе или в истории документов)')
+                else:
+                    repVoucherDoc['dudlType'] = '1'
+                    repVoucherDoc['dudlSer'] = birthCertSerial
+                    repVoucherDoc['dudlNum'] = birthCertNumber
+                    repVoucherDoc['dudlDateB'] = str(birthCertDate.toString('yyyy-MM-dd'))
+
+                relationTypes = []
+                for item in self.modelBackwardRelations.items():
+                    relationTypes.append(forceRef(item.value('relativeType_id')))
+                records = []
+                if relationTypes:
+                    tableRBRT = db.table('rbRelationType')
+                    tableCR = db.table('ClientRelation')
+                    table = tableCR.innerJoin(tableRBRT, tableCR['relativeType_id'].eq(tableRBRT['id']))
+                    cols = [
+                        tableCR['client_id'],
+                    ]
+                    cond = [
+                        tableCR['relative_id'].eq(self._id),
+                        tableCR['deleted'].eq(0),
+                        tableRBRT['id'].inlist(relationTypes),
+                        tableRBRT['isDirectRepresentative'].eq(1),
+                        tableRBRT['regionalCode'].eq(1)
+                    ]
+                    records = db.getRecordList(table, cols, cond)
+                if not records:
+                    missingValuesList.append(u'Законный представитель')
+
+                legalRepsMissing = []
+                for record in records:
+                    context = CInfoContext()
+                    reprInfo = context.getInstance(CClientInfo, forceRef(record.value('client_id')))
+                    reprName = u' '.join(name for name in (reprInfo.lastName, reprInfo.firstName, reprInfo.patrName) if name)
+                    repMissing = []
+
+                    legalRep = {}
+                    legalRep['legalRepRel'] = '2'
+                    legalRep['repVoucherDoc'] = repVoucherDoc
+
+                    legalRepDoc = {}
+                    if not reprInfo.lastName:
+                        repMissing.append(u'фамилия')
+                    if not reprInfo.firstName:
+                        repMissing.append(u'имя')
+                    if not reprInfo.birthDate:
+                        repMissing.append(u'дата рождения')
+                    legalRepDoc['surname'] = reprInfo.lastName
+                    legalRepDoc['firstName'] = reprInfo.firstName
+                    legalRepDoc['patronymic'] = reprInfo.patrName
+                    legalRepDoc['birthday'] = str(reprInfo.birthDate.toString('yyyy-MM-dd'))
+
+                    if reprInfo.sexCode not in (1, 2):
+                        repMissing.append(u'пол')
+                    legalRepDoc['gender'] = str(reprInfo.sexCode)
+
+                    reprDocInfo = reprInfo.document
+                    reprDocCode = str(reprDocInfo.documentTypeRegionalCode)
+                    reprDocSer = reprDocInfo.serial
+                    reprDocNum = reprDocInfo.number
+                    reprDocDate = reprDocInfo.date.date
+                    if not reprDocCode:
+                        repMissing.append(u'тип документа удостоверяющего личность')
+                    if not reprDocNum:
+                        repMissing.append(u'номер документа')
+                    if not reprDocDate.isValid():
+                        repMissing.append(u'дата выдачи документа')
+                    legalRepDoc['dudlType'] = str(reprDocCode)
+                    legalRepDoc['dudlSer'] = reprDocSer
+                    legalRepDoc['dudlNum'] = reprDocNum
+                    if reprDocCode == 14 and not reprDocInfo.originCode:
+                        repMissing.append(u'код подразделения, выдавшего паспорт')
+                    elif reprDocInfo.originCode:
+                        legalRepDoc['dudlCodeDivision'] = reprDocInfo.originCode
+                    if reprDocInfo.origin:
+                        legalRepDoc['issuer'] = reprDocInfo.origin
+                    legalRepDoc['noCitizenship'] = False
+                    if getDocumentTypeDescr(reprDocInfo.documentTypeId).isCitizenship:
+                        legalRepDoc['ctznOksm'] = 'RUS'
+                    else:
+                        query = db.query('SELECT getClientCitizenship(%d, CURDATE())' % forceRef(record.value('client_id')))
+                        citizenshipCode = forceString(query.value(0)) if query.first() else u''
+                        if citizenshipCode == u'м643':
+                            legalRepDoc['ctznOksm'] = 'RUS'
+                        elif citizenshipCode.startswith(u'м') and citizenshipCode[1:]:
+                            legalRepDoc['ctznOksm'] = str(citizenshipCode[1:])
+                        else:
+                            repMissing.append(u'гражданство')
+                    legalRepDoc['dudlDateB'] = str(reprDocDate.toString('yyyy-MM-dd')) if reprDocDate.isValid() else ''
+
+                    legalRep['legalRepDoc'] = legalRepDoc
+
+                    addrLegalRep = []
+                    addrProblems = []
+                    reprRegAddress, reprLocAddress = reprInfo.regAddress, reprInfo.locAddress
+                    for address, addressType in ((reprRegAddress, '1'), (reprLocAddress, '2')):
+                        if not (address and address.KLADRCode):
+                            continue
+                        if addressType == '1' and not address.addressDate:
+                            addrProblems.append(u'дата регистрации по месту жительства')
+                            continue
+                        addrItem = {}
+                        addrItem['okato'] = address.OKATO.code[:5]
+                        addrItem['oksm'] = 'RUS'
+                        addrItem['aoguid'] = address.FIASStreetGUID
+                        if not addrItem['aoguid']:
+                            addrProblems.append(u'адрес не найден в ГАР')
+                            continue
+                        addrItem['addressType'] = addressType
+                        if address.addressDate:
+                            addrItem['validFrom'] = str(address.addressDate.toString('yyyy-MM-dd'))
+                        addrLegalRep.append(addrItem)
+                    if not addrLegalRep:
+                        repMissing.extend(addrProblems or [u'адрес регистрации или пребывания'])
+                    legalRep['addrLegalRep'] = addrLegalRep
+
+                    applicantContList = []
+                    for contact in reprInfo.contacts:
+                        contactDict = {}
+                        if contact[3]:
+                            contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contact[3])
+                            if contactType and contact[1]:
+                                contactDict['contactType'] = contactType
+                                contactDict['contactText'] = contact[1]
+                                if contact[2]:
+                                    contactDict['description'] = contact[2]
+                                applicantContList.append(contactDict)
+                    if not applicantContList:
+                        repMissing.append(u'телефон')
+                    legalRep['applicantCont'] = applicantContList
+
+                    if repMissing:
+                        legalRepsMissing.append((reprName, repMissing))
+                    else:
+                        legalReps.append(legalRep)
+
+                if not legalReps:
+                    for reprName, repMissing in legalRepsMissing:
+                        missingValuesList.append(u'Законный представитель %s: %s' % (reprName, u', '.join(repMissing)))
+
+
+            if missingValuesList:
+                title = u'Ошибка!'
+                message = u'Отсутствуют обязательные к заполнению параметры:\n'
+                missingMessage = u'\n'.join(u'  {0}. {1}'.format(i, val) for i, val in enumerate(missingValuesList, start=1))
+                message += missingMessage
+                service.showMessageBox(message, isError=True, title=title)
+                return
 
             dataJson = {}
             dataJson['data'] = {}
@@ -4137,10 +4359,12 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             dataJson['data']['attachMethod'] = attachMethod
             dataJson['data']['areaType'] = 1
             dataJson['data']['moId'] = moId
-            dataJson['data']['moCode'] = forceString(QtGui.qApp.db.translate('Organisation', 'id', orgId, 'smoCode'))
-            dataJson['data']['moDepId'] = getOrgStructureIdentification(orgStructureId, 'urn:oid:1.2.643.5.1.13.13.99.2.114')
+            dataJson['data']['moCode'] = moCode
+            dataJson['data']['moDepId'] = moDepId
             dataJson['data']['addr'] = []
-            dataJson['data']['applicationCont'] = []
+            dataJson['data']['applicationCont'] = clientContacts
+            if legalReps:
+                dataJson['data']['legalRep'] = legalReps[0]
             if regKLADRCode:
                 address = {}
                 address['okato'] = getOKATO(self.cmbRegCity.code(), regKLADRCode, self.edtRegHouse.text())[:5]
@@ -4150,7 +4374,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                 if query.first():
                     address['aoguid'] = forceString(query.value(0))
                 address['addressType'] = 1
-                address['validFrom'] = str(self.edtAddressDate.date().toString('yyyy-MM-dd'))
+                address['validFrom'] = addressValidFrom
                 dataJson['data']['addr'].append(address)
             if locKLADRCode:
                 address = {}
@@ -4162,16 +4386,16 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                     address['aoguid'] = forceString(query.value(0))
                 address['addressType'] = 2
                 dataJson['data']['addr'].append(address)
-            for row, record in enumerate(self.modelContacts.items()):
-                contactTypeId = forceRef(record.value('contactType_id'))
-                if contactTypeId is not None:
-                    contactTypeCode = forceString(QtGui.qApp.db.translate('rbContactType', 'id', contactTypeId, 'code'))
-                    contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contactTypeCode)
-                    if contactType:
-                        contactText = forceString(record.value('contact'))
-                        description = forceString(record.value('notes'))
-                        dataJson['data']['applicationCont'].append({'contactType': contactType, 'contactText': contactText, 'description':description})
-            
+            # for row, record in enumerate(self.modelContacts.items()):
+            #     contactTypeId = forceRef(record.value('contactType_id'))
+            #     if contactTypeId is not None:
+            #         contactTypeCode = forceString(QtGui.qApp.db.translate('rbContactType', 'id', contactTypeId, 'code'))
+            #         contactType = {'1': 'TEL', '2': 'TEL', '3': 'MTEL'}.get(contactTypeCode)
+            #         if contactType:
+            #             contactText = forceString(record.value('contact'))
+            #             description = forceString(record.value('notes'))
+            #             dataJson['data']['applicationCont'].append({'contactType': contactType, 'contactText': contactText, 'description':description})
+            dataJson['org_id'] = QtGui.qApp.currentOrgId()
             content = requests.post(serviceUrl + '/AttachMoData', json=json.loads(json.dumps(dataJson)))
             if content.status_code != 200:
                 message = u'Ошибка сервисов. Код ошибки: '+ forceString(content.status_code) + u' - ' + forceString(content.reason)+u'. AttachMoData'
@@ -4184,10 +4408,11 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                 data = content.text.encode('utf-8').replace("<?xml version='1.0' encoding='utf8'?>\n", '')
                 detachedSignatureBytesUser = certUser.createDetachedSignature(data)
                 dictForJson = {
-                                'guid': guid,
+                               'guid': guid,
                                'sign': base64.b64encode(detachedSignatureBytesUser),
                                'certificate': base64.b64encode(detachedSignatureBytesUser),
-                               'data': data}
+                               'data': data,
+                               'org_id': QtGui.qApp.currentOrgId()}
                 result = service.registerAttachMo(dictForJson)
                 if result.get('result', None):
                     QtGui.QMessageBox().information(self,u'Прикрепление в ФЕРЗЛ',u'Прикрепление успешно отправлено в ФЕРЗЛ', QtGui.QMessageBox.Ok)
@@ -5186,7 +5411,15 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             service = Ferzl_service()
             param_dict = self.param_ferzl(u'ATTACH')
             result_service = service.getInsuranceStatus(param_dict)
-            
+            if result_service.get('result') is False:
+                message = result_service.get('elements','')
+                if message:
+                    buttons = QtGui.QMessageBox.Ok
+                    QtGui.QMessageBox.warning(QtGui.qApp.mainWindow,
+                                              u'Информация',
+                                              message if message else '',
+                                              buttons)
+                return None
             if result_service:
                 if result_service.get('result',None):
                     elements = result_service.get('elements', None)
@@ -5211,7 +5444,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                             self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
                         if pcyType:
                             pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "
-                            if pcyType == u'П':
+                            if pcyType in [u'П', u'Ц']:
                                 pcyType_request = pcyType_request.replace(u'/*CODE*/', u'3')
                                 pcyType_query = QtGui.qApp.db.query(pcyType_request)
                                 if pcyType_query.next():
@@ -5306,7 +5539,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                 buttons = QtGui.QMessageBox.Ok
                 QtGui.QMessageBox.warning(QtGui.qApp.mainWindow,
                                           u'Информация',
-                                          self.result_service['elements'],
+                                          self.result_service['massges_info'],
                                           buttons)
                 return
             buttons = QtGui.QMessageBox.Ok

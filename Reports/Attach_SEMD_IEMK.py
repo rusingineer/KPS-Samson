@@ -801,6 +801,8 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixi
                 dialog.exec_()
             except:
                 QtGui.qApp.logCurrentException()
+            finally:    
+                dialog.deleteLater()
         else:
             lockIdList = []
             excludedActionIdList = []
@@ -829,6 +831,7 @@ class CAttach_SEMD_IEMK(CDialogBase, Ui_Attach_SEMD_IEMK_Dialog, CRecordLockMixi
             finally:
                 for lockId in lockIdList:
                     self.releaseLock(lockId)
+                dialog.deleteLater()
     
     def openEvent(self):
         tbl, sortModel, model = self.getModelAndTable()

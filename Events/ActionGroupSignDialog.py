@@ -43,12 +43,13 @@ from library.PrintTemplates     import (getPrintTemplates,
                                         svgTemplate,
                                         CTemplateExecutionResult)
 from library.PrintInfo          import CInfoContext
+from library.SafeCleanupMixin import SafeCleanupMixin
 from Ui_ActionGroupSignPage1    import Ui_ActionGroupSignPage1
 from Reports.ReportView         import CReportViewDialog
 from library.Attach.AttachButton import CAttachButton
 
 
-class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin, CRecordLockMixin):
+class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin, CRecordLockMixin, SafeCleanupMixin):
     # currentAttachButton - CAttachButton для алгоритма подписи (signAndAttachHandler)
     # currentAction - CAction для обновления списка прикрепленных файлов
     def __init__(self, parent=None, currentAttachButton=None, currentAction=None, innerAppLock=False, noFilters=False):
@@ -156,6 +157,12 @@ class CActionGroupSignDialog(QtGui.QWizard, CDialogPreferencesMixin, CRecordLock
                     self.releaseLock(lockId)
                 except:
                     QtGui.qApp.logCurrentException()
+
+    def deleteLater(self):
+        if hasattr(self, 'safeDelete'):
+            self.safeDelete()
+        else:
+            QtGui.QWizard.deleteLater(self)
 
 
 class CActionGroupSignPage1(QtGui.QWizardPage, Ui_ActionGroupSignPage1, CConstructHelperMixin):
@@ -615,6 +622,23 @@ class CActionGroupSignPage2(QtGui.QWizardPage):
             self.skippedCount += 1
 
         self.releaseActionLock(actionInfo, actionId)
+
+        if actionInfo:
+            if hasattr(actionInfo, '_properties') and isinstance(actionInfo._properties, dict):
+                actionInfo._properties.clear()
+            if hasattr(actionInfo, '_propertyMap') and isinstance(actionInfo._propertyMap, dict):
+                actionInfo._propertyMap.clear()
+            if hasattr(actionInfo, '_eventInfo'):
+                actionInfo._eventInfo = None
+            if hasattr(actionInfo, '_event'):
+                actionInfo._event = None
+
+        self.wizard().actionInfoMap.pop(actionId, None)
+
+        if actionInfo and hasattr(actionInfo, '_context') and actionInfo._context:
+            if hasattr(actionInfo._context, '_cache'):
+                actionInfo._context._cache.clear()
+
 
     def releaseActionLock(self, actionInfo, actionId):
         if self.wizard().innerAppLock:

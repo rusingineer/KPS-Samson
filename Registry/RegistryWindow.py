@@ -413,7 +413,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 else:
                     subMenu = subMenuDict.get(template.group)
                     if subMenu is None:
-                        subMenu = QtGui.QMenu(template.group, self.parentWidget())
+                        subMenu = QtGui.QMenu(template.group, self) # self.parentWidget())
                         subMenuDict[template.group] = subMenu
                     action = CPrintAction(template.name, template.id, self.btnEventPrint, self.btnEventPrint)
                     subMenu.addAction(action)
@@ -433,7 +433,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 else:
                     subMenu = subMenuDict.get(template.group)
                     if subMenu is None:
-                        subMenu = QtGui.QMenu(template.group, self.parentWidget())
+                        subMenu = QtGui.QMenu(template.group, self) #self.parentWidget())
                         subMenuDict[template.group] = subMenu
                     action = CPrintAction(template.name, template.id, self.btnVisitPrint, self.btnVisitPrint)
                     subMenu.addAction(action)
@@ -458,7 +458,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 else:
                     subMenu = subMenuDict.get(template.group)
                     if subMenu is None:
-                        subMenu = QtGui.QMenu(template.group, self.parentWidget())
+                        subMenu = QtGui.QMenu(template.group, self) #self.parentWidget())
                         subMenuDict[template.group] = subMenu
                     action = CPrintAction(template.name, template.id, self.btnActionPrint, self.btnActionPrint)
                     subMenu.addAction(action)
@@ -481,7 +481,7 @@ class CRegistryWindow(QtGui.QScrollArea, Ui_RegistryWindow, CDialogPreferencesMi
                 else:
                     subMenu = subMenuDict.get(template.group)
                     if subMenu is None:
-                        subMenu = QtGui.QMenu(template.group, self.parentWidget())
+                        subMenu = QtGui.QMenu(template.group, self) #self.parentWidget())
                         subMenuDict[template.group] = subMenu
                     action = CPrintAction(template.name, template.id, self.btnPrint, self.btnPrint)
                     subMenu.addAction(action)
@@ -7305,6 +7305,8 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
                 dialog.exec_()
             except:
                 QtGui.qApp.logCurrentException()
+            finally:    
+                dialog.deleteLater()
         else:
             lockIdList = []
             excludedActionIdList = []
@@ -7333,6 +7335,7 @@ AND TID.master_id = TempInvalid.id AND TID.electronic = %d)''' % (filter.get('el
             finally:
                 for lockId in lockIdList:
                     self.releaseLock(lockId)
+                dialog.deleteLater()
     
     @pyqtSignature('')
     def on_actSimplifiedClientSearch_triggered(self):

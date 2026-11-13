@@ -396,6 +396,14 @@ class CExportPage1(CAbstractExportPage1, Ui_ExportR23NativePage1, CExportHelperM
             record = query.record()
             self.mapOrgStructF033[forceRef(record.value('id'))] = forceString(record.value('uid'))
 
+        # для определения услуг тмк
+        self.telemedServices = set()
+        stmt = u"""SELECT posCode FROM soc_OBRPOS WHERE posName LIKE '%телемед%';"""
+        query = self.db.query(stmt)
+        while query.next():
+            record = query.record()
+            self.telemedServices.add(forceString(record.value('posCode')))
+
 
     def showEvent(self, event):
         """Вызывается при показе страницы"""
@@ -1191,6 +1199,8 @@ where t.typeFile = 'D'""")
                       and rec_p['DATO'] >= datetime.date(2025, 9, 1)):
                     if rec_p['MP'] == '8' and not event['hasObrService']:
                         cel = '1.1'  # посещениe в неотложной форме
+                    elif event['hasTelemedService'] and not event['hasObrService']:
+                        cel = '1.3'  # если в счёте услуга тмк и нет обращений
                     elif VP in ['01', '02']:
                         cel = '2.7'  # Посещение с профилактическими целями центров здоровья
                     elif VP in ['261', '262']:
@@ -3634,6 +3644,7 @@ ORDER BY Account_Item.event_id, Account_Item.id""" % self.db.joinAnd(cond)
                                         'hasDiabetSchool': 0,
                                         'hasChronSchoolService': 0,
                                         'hasPregnancySchoolService': 0,
+                                        'hasTelemedService': 0,
                                         'VB_P': None}
             dbfRecord = dbfP.newRecord()
             if self.exportType != self.exportTypeAttachments:
@@ -3839,6 +3850,8 @@ ORDER BY Account_Item.event_id, Account_Item.id""" % self.db.joinAnd(cond)
                 self.eventsDict[eventId]['hasDiabetSchool'] = 1
             if isObr:
                 self.eventsDict[eventId]['hasObrService'] = 1
+            if serviceCode in self.telemedServices:
+                self.eventsDict[eventId]['hasTelemedService'] = 1
 
             dbfRecord = dbfU.newRecord()
             dbfRecord['UID'] = UID

@@ -3544,8 +3544,11 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         record, action = items[row]
         dialog = CActionGroupSignDialog(self, self.btnAPAttachedFiles, action)
         dialog.setEventEditor(self.eventEditor)
-        dialog.exec_()
-
+        try:
+            dialog.exec_()
+        finally:    
+            dialog.deleteLater()
+    
 
     @pyqtSignature('QDate')
     def on_edtAPDirectionDate_dateChanged(self, date):

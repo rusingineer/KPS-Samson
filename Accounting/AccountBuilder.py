@@ -1672,13 +1672,8 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 if medicalAidTypeCode in ['271', '272'] and (account.settleDate >= QDate(2020, 5, 1) or eventEndDate >= QDate(2017, 9, 1) and account.payerId == contractDescr.payerId):
                                     medicalAidTypeCode = '21' if medicalAidTypeCode == '271' else '22'
 
-                                # по маммографии с ии должен быть TARU - с ценой, SUMM - 0
-                                if self.getServiceInfis(serviceId) == 'A06.30.002.017' and exposeDate < QDate(2026, 9, 1):
-                                    sum = 0
-                                    if eventBegDate > exposeDate:
-                                        price = 0
                                 #Скорая помощь vp in (801, 802) OKATO_OMS == '03000' KUSL like 'B01.044%' должен быть TARU - с ценой, SUMM - 0 с 01.01.2025
-                                elif medicalAidTypeCode in ('801', '802') and self.getServiceInfis(serviceId).startswith('B01.044') and eventEndDate >= QDate(2025, 2, 1):
+                                if medicalAidTypeCode in ('801', '802') and self.getServiceInfis(serviceId).startswith('B01.044') and eventEndDate >= QDate(2025, 2, 1):
                                     from Registry.Utils import getClientCompulsoryPolicy
                                     record = getClientCompulsoryPolicy(clientId, eventEndDate, eventId)
                                     if record:
@@ -4265,13 +4260,8 @@ def evalPriceActionsForKrasnodar(actionId, eventId, orgId, isInternalOrg, isTFOM
                                  exposeDate, serviceInfis, amount, price, summa,
                                  serviceIsObr, serviceHasObr, eventHasReab, isProfCompleted, isDispCompleted, actionEndDate):
 
-    # по маммографии с ИИ должен быть TARU - с ценой, SUMM - 0
-    if serviceInfis == 'A06.30.002.017' and exposeDate < QDate(2026, 9, 1):
-        summa = 0
-        if eventBegDate > exposeDate:
-            price = 0
     # тарификация услуг обращения/посещения для поликлиники
-    elif (medicalAidTypeCode in ['21', '22']
+    if (medicalAidTypeCode in ['21', '22']
           and serviceInfis[:3] in ['B01', 'B02', 'B04', 'B05']
           and not serviceIsObr
           and serviceHasObr

@@ -5484,24 +5484,32 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
 #                             elif pcyType == u'Х':
 #                                 enp = polis.get('policyNumEnp', None)
 
-                        insurfCode = elements.get('smo', None)
-                        insurfOkato = elements.get('terr', None)
-                        if insurfCode:
-                            insurf_request = u"SELECT id from Organisation WHERE 1=1 and 2=2 AND isActive = 1 AND isInsurer = 1 AND head_id is null"
-                            if insurfCode:
-                                insurf_request = insurf_request.replace(u'1=1', u"smoCode = '" + forceString(insurfCode) + u"'")
-                            if insurfOkato:
-                                insurf_request = insurf_request.replace(u'2=2', u"OKATO = '" + forceString(insurfOkato) + u"'")
-                            insurf_query = QtGui.qApp.db.query(insurf_request)
-                            if insurf_query.next():
-                                insurf_id = insurf_query.record().value('id')
-                                if insurf_id:
-                                    self.cmbCompulsoryPolisCompany.setValue(forceInt(insurf_id))
-                        else:
-                            insurf_string = u""
-                            if insurfCode:
-                                insurf_string = insurf_string + forceString(insurfCode)
-                            self.edtCompulsoryPolisName.setText(insurf_string)
+                        # Определение страховой организации
+                        insurer_code = elements.get('smo', None)
+                        insurer_okato = elements.get('terr', None)
+                        db = QtGui.qApp.db
+                        if insurer_code:
+                            table_org = db.table('Organisation')
+                            cond = [table_org['isActive'].eq(1),
+                                    table_org['isInsurer'].eq(1),
+                                    table_org['deleted'].eq(0),
+                                    table_org['head_id'].isNull(),
+                                    table_org['smoCode'].eq(forceString(insurer_code))]
+                            if insurer_okato:
+                                cond.append(table_org['OKATO'].eq(forceString(insurer_okato)))
+                            record = db.getRecordEx(table_org, 'id, area', cond)
+                            if record:
+                                insurer_id = forceRef(record.value('id'))
+                                insurer_area = forceString(record.value('area'))
+                                if insurer_area:
+                                    self.updateCompulsoryPolicyCompanyArea([insurer_area])
+                                self.cmbCompulsoryPolisCompany.setValue(insurer_id)
+                            else:
+                                # Если не нашли, то пишем текстом
+                                insurer_name = u"Код СМО: {0} (ОКАТО{1})".format(insurer_code, insurer_okato)
+                                self.edtCompulsoryPolisName.setText(insurer_name)
+                                self.cmbCompulsoryPolisCompany.setValue(None)
+
                         oip = elements.get('oip', None)
                         if oip:
                             request_identification = u"SELECT id FROM rbAccountingSystem  WHERE code = 'FERZL_patient'"

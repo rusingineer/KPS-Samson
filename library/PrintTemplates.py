@@ -479,13 +479,16 @@ def execTemplate(documentName, code, data, templateId, pageFormat=None, fromWidg
             supplements = execContext.getSupplements()
             documentName = execContext.getDocumentName()
             supressPreview = execContext.supressPreview
-            variables = execContext.globals
+            variables = {k: v for k, v in execContext.globals.items() if not hasattr(v, '__self__')}
         except SystemExit:
             supressPreview = True
         finally:
             sys.stdout = oldStdout
-        if os.path.exists(filename):
-            os.remove(filename)
+            if os.path.exists(filename):
+                os.remove(filename)
+            if 'execContext' in locals():
+                execContext.globals.clear()
+                execContext.builtins.clear()
         if supressPreview:
             return CTemplateExecutionResult(None, None, None, None)
         else:
@@ -1552,10 +1555,10 @@ class CTemplateContext(object):
             self.pyplot.savefig(buf, format='png')
             buf.seek(0)
             ba = QByteArray(buf.getvalue())
+            self.pyplot.close('all')
             return 'data:image/png;base64,' + b64encode(ba)
         else:
             raise ETemplateContext(u'Отсутствует пакет matplotlib!')
-
 
     def pdf417Url(self, data, **params):
 #        params['data'] = data

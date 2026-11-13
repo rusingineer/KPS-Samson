@@ -2,7 +2,7 @@
 #############################################################################
 ##
 ## Copyright (C) 2006-2012 Chuk&Gek and Vista Software. All rights reserved.
-## Copyright (C) 2012-2024 SAMSON Group. All rights reserved.
+## Copyright (C) 2012-2026 SAMSON Group. All rights reserved.
 ##
 #############################################################################
 ##
@@ -27,7 +27,7 @@ from PyQt4.QtCore import (Qt,
 
 from Users.Rights import urHBVisibleOwnEventsParentOrgStructureOnly, urHBVisibleOwnEventsOrgStructureOnly
 from library.Calendar import wpFiveDays, wpSixDays, wpSevenDays
-from library.database import CTableRecordCache, CRecordCache, addCondLike
+from library.database import CTableRecordCache, addCondLike
 from library.InDocTable           import (CDateInDocTableCol, 
                                           CEnumInDocTableCol,
                                           CInDocTableCol, 
@@ -53,7 +53,6 @@ from library.Utils                import (calcAge,
                                           forceRef,
                                           forceString,
                                           forceDouble,
-                                          formatShortNameInt,
                                           getAgeRangeCond,
                                           getDataOSHB,
                                           getHospDocumentLocationInfo,
@@ -69,10 +68,10 @@ from Events.Utils import getActionTypeIdListByFlatCode, getRealPayed, getEventDu
 
 from Reports.Utils import (getActionClientPolicyForDate, getActionQueueClientPolicyForDate,
                            getActionTypeStringPropertyValue, getClientPolicyForDate, getContractClientPolicyForDate,
-                           getDataOrgStructure, getDataOrgStructureName, getDataOrgStructureNameMoving,
+                           getDataOrgStructure, getDataOrgStructureName,
                            getPropertyAPHBP, getStringProperty, getStringPropertyValue, getTransferPropertyIn,
                            isActionToServiceTypeForEvent, getStringPropertyEventYes, updateLIKE,
-                           getPropertyHospitalBedProfile, getPropertyAPHBPNoProfile, )
+                           getPropertyHospitalBedProfile)
 
 from Resources.JobTicketChooser   import getJobTicketAsText
 from Orgs.Orgs          import selectOrganisation
@@ -755,6 +754,7 @@ class CPresenceModel(CMonitoringModel):
         tableAP = db.table('ActionProperty')
         tableActionType = db.table('ActionType')
         tableAction = db.table('Action')
+        tableAction.index_hint = 'USE INDEX(actionTypeId_begDate, actionTypeId_endDate)'
         tableEvent = db.table('Event')
         tableEventType = db.table('EventType')
         tableMAT = db.table('rbMedicalAidType')
@@ -1092,6 +1092,7 @@ class CPresenceModel(CMonitoringModel):
                 records = db.getRecordListGroupBy(queryTable, cols, cond, groupBY)
             else:
                 records = db.getRecordList(queryTable, cols, cond)
+            tableAction.index_hint = None
             for record in records:
                 documentLocationInfo  = forceString(record.value('documentLocationInfo')).split("  ")
                 hospDocumentLocation  = forceString(documentLocationInfo[0]) if len(documentLocationInfo) >= 1 else ''
@@ -6606,36 +6607,6 @@ class CReanimationModel(CRecordListModel):
 
 
 class CAttendanceActionsTableModel(CTableModel):
-    class CLocPresenceOSColumn(CCol):
-        def __init__(self, title, fields, defaultWidth):
-            CCol.__init__(self, title, fields, defaultWidth, 'l')
-
-
-        def format(self, values):
-            val = values[0]
-            eventId  = forceRef(val)
-            clientId = None
-            if eventId:
-                db = QtGui.qApp.db
-                table = db.table('Event')
-                clientRecord = db.getRecordEx(table, [table['client_id']], [table['deleted'].eq(0), table['id'].eq(eventId)])
-                if clientRecord:
-                    clientId = forceRef(clientRecord.value('client_id'))
-                if not clientId:
-                    return CCol.invalid
-                record = values[1]
-                actionDate = forceDate(record.value('directionDate'))
-                if not actionDate:
-                    actionDate = forceDate(record.value('begDate'))
-                if not actionDate:
-                    return CCol.invalid
-                query = QtGui.qApp.db.query(getDataOrgStructureNameMoving(u'Отделение пребывания', actionDate, clientId, u'moving%%'))
-                if query.first():
-                    record=query.record()
-                    return record.value('nameOrgStructure')
-                return CCol.invalid
-            return CCol.invalid
-
 
     class CLocJobTicketColumn(CCol):
         def __init__(self, title, fields, defaultWidth):
@@ -6644,145 +6615,20 @@ class CAttendanceActionsTableModel(CTableModel):
 
         def format(self, values):
             val = values[0]
-            actionId  = forceRef(val)
-            if actionId:
-                db = QtGui.qApp.db
-                tableAction = db.table('Action')
-                tableAP = db.table('ActionProperty')
-                tableAPT = db.table('ActionPropertyType')
-                tableAPJT = db.table('ActionProperty_Job_Ticket')
-                tableJT = db.table('Job_Ticket')
-                table = tableAction.innerJoin(tableAP, tableAP['action_id'].eq(tableAction['id']))
-                table = table.innerJoin(tableAPT, tableAPT['id'].eq(tableAP['type_id']))
-                table = table.innerJoin(tableAPJT, tableAP['id'].eq(tableAPJT['id']))
-                table = table.innerJoin(tableJT, tableAPJT['value'].eq(tableJT['id']))
-                cond = [tableAction['id'].eq(actionId),
-                        tableJT['deleted'].eq(0),
-                        tableAPT['deleted'].eq(0),
-                        tableAPT['actionType_id'].eq(tableAction['actionType_id']),
-                        tableAP['action_id'].eq(tableAction['id']),
-                        tableAPT['typeName'].like('JobTicket'),
-                        tableJT['id'].isNotNull()
-                        ]
-                record = db.getRecordEx(table, [tableAPJT['value']], cond, order=tableAPJT['id'].name())
-                if record:
-                    jobTicketId = forceRef(record.value('value'))
-                    return toVariant(getJobTicketAsText(jobTicketId)) if jobTicketId else QVariant()
-                return CCol.invalid
-            return CCol.invalid
-
-
-    class CLocClientColumn(CCol):
-        def __init__(self, title, fields, defaultWidth):
-            CCol.__init__(self, title, fields, defaultWidth, 'l')
-
-
-        def format(self, values):
-            val = values[0]
-            eventId  = forceRef(val)
-            if eventId:
-                db = QtGui.qApp.db
-                tableEvent = db.table('Event')
-                tableClient = db.table('Client')
-                table = tableEvent.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
-
-                clientRecord = db.getRecordEx(table, [tableClient['lastName'], tableClient['firstName'], tableClient['patrName']], [tableEvent['deleted'].eq(0), tableClient['deleted'].eq(0), tableEvent['id'].eq(eventId)])
-                if clientRecord:
-                    name  = formatShortNameInt(forceString(clientRecord.value('lastName')),
-                                                    forceString(clientRecord.value('firstName')),
-                                                    forceString(clientRecord.value('patrName')))
-                    return toVariant(name)
-                return CCol.invalid
-            return CCol.invalid
-
-
-    class CLocClientIdentifierColumn(CCol):
-        def __init__(self, title, fields, defaultWidth):
-            CCol.__init__(self, title, fields, defaultWidth, 'l')
-            self.identifiersCache = CRecordCache()
-
-
-        def getClientIdentifier(self, clientId):
-            identifier = self.identifiersCache.get(clientId)
-            if identifier is None:
-                accountingSystemId = QtGui.qApp.defaultAccountingSystemId()
-                if accountingSystemId is None:
-                    identifier = clientId
-                else:
-                    db = QtGui.qApp.db
-                    tableClientIdentification = db.table('ClientIdentification')
-                    cond = [tableClientIdentification['client_id'].eq(clientId),
-                            tableClientIdentification['accountingSystem_id'].eq(accountingSystemId)]
-                    record = db.getRecordEx(tableClientIdentification, tableClientIdentification['identifier'], cond)
-                    identifier = forceString(record.value(0)) if record else ''
-                self.identifiersCache.put(clientId, identifier)
-            return identifier
-
-
-        def format(self, values):
-            val = values[0]
-            eventId = forceRef(val)
-            if eventId:
-                db = QtGui.qApp.db
-                table = db.table('Event')
-                clientRecord = db.getRecordEx(table, [table['client_id'], table['externalId']], [table['deleted'].eq(0), table['id'].eq(eventId)])
-                if clientRecord:
-                    clientId = forceRef(clientRecord.value('client_id'))
-                    externalId = forceString(clientRecord.value('externalId'))
-                    return toVariant(forceString(self.getClientIdentifier(clientId)) + (u', карта %s'%(externalId) if externalId else u''))
-            return CCol.invalid
-
-
-    class CLocClientBirthDateColumn(CCol):
-        def __init__(self, title, fields, defaultWidth):
-            CCol.__init__(self, title, fields, defaultWidth, 'l')
-
-
-        def format(self, values):
-            val = values[0]
-            eventId  = forceRef(val)
-            if eventId:
-                db = QtGui.qApp.db
-                tableEvent = db.table('Event')
-                tableClient = db.table('Client')
-                table = tableEvent.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
-                clientRecord = db.getRecordEx(table, [tableClient['birthDate']], [tableEvent['deleted'].eq(0), tableClient['deleted'].eq(0), tableEvent['id'].eq(eventId)])
-                if clientRecord:
-                    return toVariant(forceString(clientRecord.value('birthDate')))
-            return CCol.invalid
-
-
-    class CLocClientSexColumn(CCol):
-        def __init__(self, title, fields, defaultWidth):
-            CCol.__init__(self, title, fields, defaultWidth, 'l')
-
-
-        def format(self, values):
-            val = values[0]
-            eventId  = forceRef(val)
-            if eventId:
-                db = QtGui.qApp.db
-                tableEvent = db.table('Event')
-                tableClient = db.table('Client')
-                table = tableEvent.innerJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
-                clientRecord = db.getRecordEx(table, [tableClient['sex']], [tableEvent['deleted'].eq(0), tableClient['deleted'].eq(0), tableEvent['id'].eq(eventId)])
-                if clientRecord:
-                    return toVariant([u'', u'М', u'Ж'][forceInt(clientRecord.value('sex'))])
+            jobTicketId  = forceRef(val)
+            if jobTicketId:
+                return toVariant(getJobTicketAsText(jobTicketId))
             return CCol.invalid
 
 
     def __init__(self, parent):
         CTableModel.__init__(self, parent)
-        self.clientCol   = CAttendanceActionsTableModel.CLocClientColumn( u'Ф.И.О.', ['event_id'], 60)
-        self.clientIdentifierCol = CAttendanceActionsTableModel.CLocClientIdentifierColumn(u'Идентификатор', ['event_id'], 30)
-        self.clientBirthDateCol = CAttendanceActionsTableModel.CLocClientBirthDateColumn(u'Дата рожд.', ['event_id'], 20)
-        self.clientSexCol = CAttendanceActionsTableModel.CLocClientSexColumn(u'Пол', ['event_id'], 5)
-        self.addColumn(self.clientCol)
-        self.addColumn(self.clientBirthDateCol)
-        self.addColumn(self.clientSexCol)
+        self.addColumn(CTextCol(u'Ф.И.О.', ['FIO'], 60))
+        self.addColumn(CDateCol(u'Дата рожд.', ['birthDate'], 20, highlightRedDate=False))
+        self.addColumn(CEnumCol(u'Пол', ['sex'], ['', u'М', u'Ж'], 5))
         self.addColumn(CDateTimeFixedCol(u'Назначено',      ['directionDate'], 15))
-        self.addColumn(CAttendanceActionsTableModel.CLocPresenceOSColumn( u'Отделение пребывания', ['event_id'], 60))
-        self.addColumn(CAttendanceActionsTableModel.CLocJobTicketColumn( u'Номерок', ['id'], 60))
+        self.addColumn(CTextCol(u'Отделение пребывания', ['nameOrgStructure'], 60))
+        self.addColumn(CAttendanceActionsTableModel.CLocJobTicketColumn( u'Номерок', ['jobTicketId'], 60))
         self.addColumn(CActionTypeCol(u'Действие', 15))
         self.addColumn(CBoolCol(u'Срочно',         ['isUrgent'],      15))
         self.addColumn(CIntCol(u'Д',               ['duration'],      15))
@@ -6798,32 +6644,26 @@ class CAttendanceActionsTableModel(CTableModel):
         self.addColumn(CTextCol(u'Примечания',     ['note'],                                  6))
         self.setTable('Action')
         self.headerSortingCol = {}
-        self._mapColumnToOrder = {u'event_id'           :u'CONCAT(Client.lastName, Client.firstName, Client.patrName)',
-                                 u'birthDate'          :u'Client.birthDate',
-                                 u'sex'                :u'Client.sex',
-                                 u'directionDate'      :u'Action.directionDate',
-                                 u'actionType_id'      :u'AT.name',
-                                 u'duration'           :u'Action.duration',
-                                 u'periodicity'        :u'Action.periodicity',
-                                 u'aliquoticity'       :u'Action.aliquoticity',
-                                 u'isUrgent'           :u'Action.isUrgent',
-                                 u'status'             :u'Action.status',
-                                 u'plannedEndDate'     :u'Action.plannedEndDate',
-                                 u'begDate'            :u'Action.begDate',
-                                 u'endDate'            :u'Action.endDate',
-                                 u'setPerson_id'       :u'vrbSetPersonWithSpeciality.name',
-                                 u'person_id'          :u'vrbPersonWithSpeciality.name',
-                                 u'office'             :u'Action.office',
-                                 u'note'               :u'Action.note',
-                                 u'id'                 :u'ActionProperty_Job_Ticket.value'
+        self._mapColumnToOrder = {u'FIO'               : u'FIO',
+                                 u'birthDate'          : u'Client.birthDate',
+                                 u'sex'                : u'Client.sex',
+                                 u'directionDate'      : u'Action.directionDate',
+                                 u'nameOrgStructure'   : u'nameOrgStructure',
+                                 u'jobTicketId'        : u'jobTicketId',
+                                 u'actionType_id'      : u'AT.name',
+                                 u'isUrgent'           : u'Action.isUrgent',
+                                 u'duration'           : u'Action.duration',
+                                 u'periodicity'        : u'Action.periodicity',
+                                 u'aliquoticity'       : u'Action.aliquoticity',
+                                 u'status'             : u'Action.status',
+                                 u'begDate'            : u'Action.begDate',
+                                 u'endDate'            : u'Action.endDate',
+                                 u'plannedEndDate'     : u'Action.plannedEndDate',
+                                 u'setPerson_id'       : u'vrbSetPersonWithSpeciality.name',
+                                 u'person_id'          : u'vrbPersonWithSpeciality.name',
+                                 u'office'             : u'Action.office',
+                                 u'note'               : u'Action.note'
                                  }
-
-
-    def getOrder(self, fieldName, column):
-        if hasattr(self._cols[column], 'extraFields'):
-            if len(self._cols[column].extraFields) > 0:
-                fieldName = self._cols[column].extraFields[0]
-        return self._mapColumnToOrder[fieldName]
 
 
     def getEventId(self, row):
@@ -6836,17 +6676,8 @@ class CAttendanceActionsTableModel(CTableModel):
     def getClientId(self, row):
         if row is not None and row >= 0:
             record = self.getRecordByRow(row)
-            eventId = forceRef(record.value('event_id')) if record else None
-            if eventId:
-                db = QtGui.qApp.db
-                tableEvent = db.table('Event')
-                recordEvent = db.getRecordEx(tableEvent, [tableEvent['client_id']], [tableEvent['id'].eq(eventId), tableEvent['deleted'].eq(0)])
-                return forceRef(recordEvent.value('client_id')) if recordEvent else None
+            return forceRef(record.value('clientId')) if record else None
         return None
-
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        return CTableModel.headerData(self, section, orientation, role)
 
 
     def flags(self, index):
@@ -6857,7 +6688,7 @@ class CAttendanceActionsTableModel(CTableModel):
             return Qt.ItemIsSelectable
 
 
-    def setTable(self, tableName):
+    def setTable(self, table, recordCacheCapacity=300):
         db = QtGui.qApp.db
         tableClient = db.table('Client')
         tableEvent = db.table('Event')
@@ -6868,7 +6699,32 @@ class CAttendanceActionsTableModel(CTableModel):
         Action.directionDate, Action.isUrgent, Action.plannedEndDate,
         Action.begDate, Action.endDate, Action.actionType_id, Action.status, Action.setPerson_id,
         Action.person_id, Action.office, Action.note, Action.specifiedName, Action.duration,
-        Action.periodicity, Action.aliquoticity''')
+        Action.periodicity, Action.aliquoticity,
+        (SELECT OS.name
+                FROM Action A
+                JOIN ActionType AType ON A.actionType_id = AType.id
+                JOIN Event E ON A.event_id = E.id
+                JOIN Client C ON E.client_id = C.id
+                JOIN ActionPropertyType AS APT ON APT.actionType_id = A.actionType_id
+                JOIN ActionProperty AS AP ON AP.type_id = APT.id
+                JOIN ActionProperty_OrgStructure AS APOS ON APOS.id = AP.id
+                JOIN OrgStructure AS OS ON OS.id = APOS.value
+                WHERE AType.flatCode LIKE "moving%" AND E.id = Event.id
+                AND DATE(A.begDate) <= DATE(IFNULL(Action.directionDate, Action.begDate))
+                AND (DATE(A.endDate) IS NULL OR DATE(A.endDate) >= DATE(IFNULL(Action.directionDate, Action.begDate)))
+                AND AP.action_id = A.id AND A.deleted = 0 AND E.deleted = 0 AND AType.deleted = 0
+                AND APT.deleted = 0 AND APT.name LIKE 'Отделение пребывания'
+                AND OS.deleted = 0 AND C.deleted = 0
+                ORDER BY A.begDate DESC
+                LIMIT 1) AS nameOrgStructure,
+        (SELECT
+                ActionProperty_Job_Ticket.`value`
+                FROM ActionProperty
+                INNER JOIN ActionPropertyType ON ActionPropertyType.`id` = ActionProperty.`type_id` AND ActionPropertyType.`deleted` = 0 AND ActionPropertyType.`typeName` LIKE 'JobTicket'
+                INNER JOIN ActionProperty_Job_Ticket ON ActionProperty.`id` = ActionProperty_Job_Ticket.`id`
+                INNER JOIN Job_Ticket ON ActionProperty_Job_Ticket.`value` = Job_Ticket.`id` AND Job_Ticket.`deleted` = 0
+                WHERE ActionProperty.action_id = Action.id
+                ORDER BY ActionProperty_Job_Ticket.`id` LIMIT 1) AS jobTicketId''')
         queryTable = tableAction.leftJoin(tableEvent, tableAction['event_id'].eq(tableEvent['id']))
         queryTable = queryTable.leftJoin(tableClient, tableEvent['client_id'].eq(tableClient['id']))
         self._table = queryTable
@@ -6879,7 +6735,7 @@ class CHospitalActionsTableModel(CAttendanceActionsTableModel):
     def __init__(self, parent):
         CTableModel.__init__(self, parent)
         self.addColumn(CDateTimeFixedCol(u'Назначено',      ['directionDate'], 15))
-        self.addColumn(CAttendanceActionsTableModel.CLocJobTicketColumn( u'Номерок', ['id'], 60))
+        self.addColumn(CAttendanceActionsTableModel.CLocJobTicketColumn( u'Номерок', ['jobTicketId'], 60))
         self.addColumn(CActionTypeCol(u'Действие', 15))
         self.addColumn(CBoolCol(u'Срочно',         ['isUrgent'],      15))
         self.addColumn(CIntCol(u'Д',               ['duration'],      15))
@@ -6897,7 +6753,6 @@ class CHospitalActionsTableModel(CAttendanceActionsTableModel):
         self.addColumn(CDateCol(u'Дата рожд.', ['birthDate'], 20, highlightRedDate=False))
         self.addColumn(CEnumCol(u'Пол', ['sex'], ['', u'М', u'Ж'], 5))
         self.setTable('Action')
-        self.headerSortingCol = {}
 
     def headerData(self, section, orientation, role = Qt.DisplayRole):
         if orientation == Qt.Horizontal:

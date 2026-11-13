@@ -1001,7 +1001,7 @@ class CResourcesDockContent(QtGui.QWidget,
                                               'shortName'])
             return False
 
-        if not checkInterofficeRecord(self, personId, scheduleItem):
+        if schedule.appointmentType != schedule.atHome and not checkInterofficeRecord(self, personId, scheduleItem):
             return False
 
         scheduleItemIdList = getScheduleItemIdListForClient(clientId, specialityId, date, modelQueue.appointmentType)

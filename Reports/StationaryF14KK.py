@@ -1072,14 +1072,23 @@ class CStationaryF14KK(CReport):
         cursor.insertBlock()
 
 
+    # def getOrgStructureIdList(self, params):
+    #     orgStructureId = params.get('orgStructureId', None)
+    #     if orgStructureId:
+    #         orgStructureIndex = self.stationaryF14SetupDialog.cmbOrgStructure._model.index(self.stationaryF14SetupDialog.cmbOrgStructure.currentIndex(), 0, self.stationaryF14SetupDialog.cmbOrgStructure.rootModelIndex())
+    #         treeItem = orgStructureIndex.internalPointer() if orgStructureIndex.isValid() else None
+    #         if treeItem:
+    #             return treeItem.getItemIdList()
+    #     return None
+
     def getOrgStructureIdList(self, params):
+        db = QtGui.qApp.db
         orgStructureId = params.get('orgStructureId', None)
-        if orgStructureId:
-            orgStructureIndex = self.stationaryF14SetupDialog.cmbOrgStructure._model.index(self.stationaryF14SetupDialog.cmbOrgStructure.currentIndex(), 0, self.stationaryF14SetupDialog.cmbOrgStructure.rootModelIndex())
-            treeItem = orgStructureIndex.internalPointer() if orgStructureIndex.isValid() else None
-            if treeItem:
-                return treeItem.getItemIdList()
-        return None
+        orgStructureIdList = db.getDescendants('OrgStructure', 'parent_id', orgStructureId)
+        if orgStructureIdList:
+            return orgStructureIdList
+        else:
+            return None
 
 
     def dataReceivedMKB(self, eventId):

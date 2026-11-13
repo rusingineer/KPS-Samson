@@ -25,8 +25,9 @@ from cStringIO import StringIO
 from library import xlwt
 try:
     from bs4 import BeautifulSoup
-    bsSupport = False
+    bsSupport = True
 except ImportError,  e:
+    bsSupport = False
     BeautifulSoup = None
 
 import requests
@@ -1239,7 +1240,6 @@ class CReportViewDialog(QtGui.QDialog, Ui_ReportViewDialog):
                 printer.setNumCopies(1)
             if hasattr(printer, 'setCopyCount'):
                 printer.setCopyCount(1)
-            printer.setDuplex(1)
 
             if (   defaultPrinterInfo.isNull() 
                 or not QtGui.qApp.enableFastPrint()

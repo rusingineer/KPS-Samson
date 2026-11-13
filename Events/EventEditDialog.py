@@ -1745,9 +1745,14 @@ LIMIT 1))))'''%(str(eventId)))
     def getPayStatusAdditional(self, tableName, eventId):
         db = QtGui.qApp.db
         table = db.table(tableName)
-        record = db.getRecordEx(table, [table['payStatus']], [table['event_id'].eq(eventId),
-                                                              table['payStatus'].ne(0),
-                                                              table['deleted'].eq(0)])
+        cond = [table['payStatus'].ne(0)]
+        if table.hasField('deleted'):
+            cond.append(table['deleted'].eq(0))
+        if table.hasField('event_id'):
+            cond.append(table['event_id'].eq(eventId))
+        else:
+            cond.append(table['master_id'].eq(eventId))
+        record = db.getRecordEx(table, [table['payStatus']], cond)
         return forceInt(record.value('payStatus')) if record else 0
 
     def getPayStatusReason(self, tableName, eventId):
@@ -1777,18 +1782,19 @@ LIMIT 1))))'''%(str(eventId)))
 
             payStatusReason = self.getPayStatusReason('Account_Item', eventId)
 
+            payStatusCSG = self.getPayStatusAdditional('Event_CSG', eventId)
             payStatusVisit  = self.getPayStatusAdditional('Visit', eventId)
             payStatusAction = self.getPayStatusAdditional('Action', eventId)
             isRegTabReadEvent = QtGui.qApp.userHasRight(urRegTabReadEvents)
 
             if (payStatusReason != 0) or (payStatusReason == 0 and not QtGui.qApp.userHasRight(urEditAfterReturnEvent)):
-                if payStatus or (isClosed and (payStatusVisit or payStatusAction)):
+                if payStatus or (isClosed and (payStatusVisit or payStatusAction or payStatusCSG)):
                     if QtGui.qApp.userHasRight(urEditAfterInvoicingEvent):
                         message = u''
                         if payStatus:
                             message = u'Данное событие выставлено в счёт\nи его данные изменять нежелательно!\nВы настаиваете на изменении?'
-                        elif payStatusVisit or payStatusAction:
-                            message = u'%s из закрытого события были выставлены в счет\nи его данные изменять нежелательно!\nВы настаиваете на изменении?'%(u'Визит и Действие' if (payStatusVisit and payStatusAction) else (u'Визиты' if payStatusVisit else u'Действия'))
+                        elif payStatusVisit or payStatusAction or payStatusCSG:
+                            message = u'%s из закрытого события были выставлены в счет\nи его данные изменять нежелательно!\nВы настаиваете на изменении?' % (u'КСГ' if payStatusCSG else (u'Визит и Действие' if (payStatusVisit and payStatusAction) else (u'Визиты' if payStatusVisit else u'Действия')))
                         if not QtGui.QMessageBox.critical(QtGui.qApp.mainWindow, u'Внимание!', message, QtGui.QMessageBox.Yes|QtGui.QMessageBox.No, QtGui.QMessageBox.No) == QtGui.QMessageBox.Yes:
                             if isRegTabReadEvent:
                                 self.setReadOnly(isRegTabReadEvent)
@@ -1802,8 +1808,8 @@ LIMIT 1))))'''%(str(eventId)))
                         message = u''
                         if payStatus:
                             message = u'Данное событие выставлено в счёт, редактирование запрещено!'
-                        elif payStatusVisit or payStatusAction:
-                            message = u'%s из закрытого события были выставлены в счет, редактирование запрещено!'%(u'Визит и Действие' if (payStatusVisit and payStatusAction) else (u'Визиты' if payStatusVisit else u'Действия'))
+                        elif payStatusVisit or payStatusAction or payStatusCSG:
+                            message = u'%s из закрытого события были выставлены в счет, редактирование запрещено!' % (u'КСГ' if payStatusCSG else (u'Визит и Действие' if (payStatusVisit and payStatusAction) else (u'Визиты' if payStatusVisit else u'Действия')))
                         QtGui.QMessageBox.critical(QtGui.qApp.mainWindow, u'Внимание!', message)
                         if isRegTabReadEvent:
                             self.setReadOnly(isRegTabReadEvent)

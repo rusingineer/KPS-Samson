@@ -61,6 +61,7 @@ def searchActionOut(shortNames, eventId):
         shortName = " dataInheritance like ('%" + shortNames.replace("in_", "out_") + "%')"
     stmt = u'''  SELECT
     Action.id as action_id,
+    Action.idx as action_idx,
     ActionPropertyType.dataInheritance,
     ActionPropertyType.name,
     ActionType.name as actionName,

@@ -425,19 +425,26 @@ class CJobTicketProbeTestItem(CJobTicketProbeBaseItem):
         if self.isCourseJobTicket:
             return self._isItemSavedInCourse()
         return self._isItemSavedNotInCourse()
-
+    
+    
+    def tissueTypeId(self):
+        return self.model().getTissueTypeIdForAction(self.parent().action().getId())
 
     def _isItemSavedNotInCourse(self):
-        if self.model().hasSavedTakenTissue():
-            takenTissueId = self.model().takenTissueId()
+        tissueTypeId = self.tissueTypeId()
+        if self.model().hasSavedTakenTissue(tissueTypeId):
+            takenTissueId = self.model().takenTissueId(tissueTypeId)
             return self.__checkItemSaved(takenTissueId)
-
+        return False
 
     def _isItemSavedInCourse(self):
         model = self.model()
-        if model.isCoursePassed(self._course) or (model.isLastCoursePart() and model.hasSavedTakenTissue()):
-            takenTissueId = model.getTakenTissueIdByCourseNumber(self._course)
-            return self.__checkItemSaved(takenTissueId)
+        tissueTypeId = self.tissueTypeId()
+        if model.isCoursePassed(self._course) or (model.isLastCoursePart() and model.hasSavedTakenTissue(tissueTypeId)):
+            takenTissueId = model.getTakenTissueIdByCourseNumber(self._course, tissueTypeId)
+            if takenTissueId:
+                return self.__checkItemSaved(takenTissueId)
+        return False
 
 
     def __checkItemSaved(self, takenTissueId):
@@ -734,20 +741,17 @@ class CJobTicketCourseItem(CJobTicketProbeBaseItem):
         db = QtGui.qApp.db
         existsContainerTypeId = []
         model = self.model()
-
         result = []
+        
         for action in self.__actionList:
             actionRecord = action.getRecord()
-            tissueJournalId = forceRef(actionRecord.value('takenTissueJournal_id'))
-            tissueTypeId = model.suggestedTissueTypeId() if not tissueJournalId else None
-            if tissueJournalId or tissueTypeId:
-                if not tissueTypeId and tissueJournalId:
-                    tissueTypeId = forceRef(db.translate('TakenTissueJournal', 'id',
-                                                         tissueJournalId, 'tissueType_id'))
+            tissueTypeId = model.getTissueTypeIdForAction(action.getId())
+            if tissueTypeId:
                 actionTypeId = forceRef(actionRecord.value('actionType_id'))
                 condTmpl = 'course=%d AND master_id=%d AND tissueType_id=%d AND (jobType_id=%d OR jobType_id IS NULL)'
                 cond = condTmpl % (self._course, actionTypeId, tissueTypeId, model.jobTypeId)
                 containerTypeId = self._getContainerTypeId(cond, actionTypeId)
+                
                 if containerTypeId:
                     if containerTypeId not in existsContainerTypeId:
                         existsContainerTypeId.append(containerTypeId)
@@ -820,22 +824,20 @@ class CJobTicketProbeRootItem(CJobTicketProbeBaseItem):
         for action in actionList:
             mapClientInfoByAction(action)
             actionRecord = action.getRecord()
-            tissueJournalId = forceRef(actionRecord.value('takenTissueJournal_id'))
-            tissueTypeId = self.model().suggestedTissueTypeId() if not tissueJournalId else None
-            if tissueJournalId or tissueTypeId:
-                if not tissueTypeId and tissueJournalId:
-                    tissueTypeId = forceRef(db.translate('TakenTissueJournal', 'id',
-                                                         tissueJournalId, 'tissueType_id'))
+            tissueTypeId = self.model().getTissueTypeIdForAction(action.getId())
+            if tissueTypeId:
                 actionTypeId = forceRef(actionRecord.value('actionType_id'))
                 condTmpl = 'master_id=%d AND tissueType_id=%d AND (jobType_id=%d OR jobType_id IS NULL)'
                 cond =  condTmpl % (actionTypeId, tissueTypeId, self.model().jobTypeId)
                 containerTypeId = self._getContainerTypeId(cond, actionTypeId)
+                
                 if containerTypeId:
                     if containerTypeId not in existsContainerTypeId:
                         existsContainerTypeId.append(containerTypeId)
                         containerItem = CJobTicketProbeContainerItem(self, containerTypeId, self.model())
                         result.append(containerItem)
                     self.mapContainerTypeIdToActionList(containerTypeId, action)
+                    
         result.sort()
         return result
 
@@ -881,15 +883,23 @@ class CJobTicketProbeModel(CTreeModel):
         self._parent = parent
         self._jobTypeId = None
         self.resetCache()
-        self._currentTakenTissueExternalId = None
         self._checkAssignable = False
         self._orgStructureId = None
+        
+        
+    def getTissueTypeIdForAction(self, actionId):
+        for tissueTypeId, (records, actionIdList) in self._parent.actualByTissueType.items():
+            if actionId in actionIdList:
+                return tissueTypeId
+        return self._parent.cmbTissueType.value()
 
-    def isCoursePassed(self, course):
-        return self._parent.isCoursePassed(course)
+    def getTakenTissueIdByCourseNumber(self, course, tissueTypeId=None):
+        return self._parent.getTakenTissueIdByCourseNumber(course, tissueTypeId)
 
-    def getTakenTissueIdByCourseNumber(self, course):
-        return self._parent.getTakenTissueIdByCourseNumber(course)
+    def hasSavedTakenTissue(self, tissueTypeId=None):
+        if tissueTypeId is None:
+            tissueTypeId = self.suggestedTissueTypeId()
+        return tissueTypeId in self._parent.takenTissueRecords
 
     def isLastCoursePart(self):
         return self._parent.isLastCoursePart()
@@ -955,24 +965,32 @@ class CJobTicketProbeModel(CTreeModel):
         return self._parent.cmbTissueType.value()
 
 
-    def hasSavedTakenTissue(self):
-        return bool(self._parent.takenTissueRecord)
-
-
     def saveTakenTissueRecord(self):
-        self._parent.saveTakenTissueRecord()
+        if self._parent.saveTakenTissueRecord():
+            jobTicketId = self._parent.itemId()
+            if jobTicketId:
+                self._parent._saveInternals(jobTicketId)
+            return True
+        return False
+    
+
+    def takenTissueRecord(self, tissueTypeId=None):
+        if tissueTypeId is None:
+            tissueTypeId = self.suggestedTissueTypeId()
+        return self._parent.takenTissueRecords.get(tissueTypeId)
 
 
-    def takenTissueRecord(self):
-        if not self.hasSavedTakenTissue():
-            if self.askOkOrCancel(u'Необходимо сохранить забор ткани. Сохранить?'):
-                self.saveTakenTissueRecord()
-        return self._parent.takenTissueRecord
+    def takenTissueId(self, tissueTypeId=None):
+        TTJR = self.takenTissueRecord(tissueTypeId)
+        return forceRef(TTJR.value('id')) if TTJR else None
 
 
-    def takenTissueId(self):
-        takenTissueRecord = self.takenTissueRecord()
-        return forceRef(takenTissueRecord.value('id')) if takenTissueRecord else None
+    def getTakenTissueIdForItem(self, item):
+        tissueTypeId = self.getTissueTypeIdForAction(item.parent().action().getId())
+        if self.isCourseJobTicket:
+            return self.getTakenTissueIdByCourseNumber(item._course, tissueTypeId)
+        else:
+            return self.takenTissueId(tissueTypeId)
 
 
     def mapContainerTypeIdToActionRecordList(self, containerTypeId, action):
@@ -1124,22 +1142,23 @@ class CJobTicketProbeModel(CTreeModel):
 
 
     def existCheckedProbeItems(self, notSaved=False):
-        has_tt =  self.hasSavedTakenTissue()
-        if has_tt:
-            takenTissueRecord = self.takenTissueRecord()
-            courseNumber = forceInt(takenTissueRecord.value('course'))
-        else:
-            courseNumber = None
-
         def filterFunc(item):
-            result = isinstance(item, CJobTicketProbeTestItem) and forceBool(item.checked(ITEM_CHECKED_COLUMN))
-            if result and has_tt and self.isCourseJobTicket:
-                result = item._course == courseNumber
-            if result and notSaved:
-                result = not item.saved()
-            return result
-        allItems = self.absoluteItemList()
-        return filter(filterFunc, allItems)
+            if not (isinstance(item, CJobTicketProbeTestItem) and forceBool(item.checked(ITEM_CHECKED_COLUMN))):
+                return False
+                
+            if self.isCourseJobTicket:
+                tissueTypeId = self.getTissueTypeIdForAction(item.parent().action().getId())
+                ttjr = self._parent.takenTissueRecords.get(tissueTypeId)
+                currentCourse = forceInt(ttjr.value('course')) if ttjr else 1
+                if item._course != currentCourse:
+                    return False
+                    
+            if notSaved and item.saved():
+                return False
+                
+            return True
+
+        return filter(filterFunc, self.absoluteItemList())
 
 
     def askOkOrCancel(self, message):
@@ -1180,22 +1199,45 @@ class CJobTicketProbeModel(CTreeModel):
 
 
     def registrateProbe(self, forceCheck=False):
-        takenTissueId = self.takenTissueId()
-        if not takenTissueId:
+        if forceCheck:
+            self.getRootItem().setChecked(True)
+            
+        testItems = self.existCheckedProbeItems(notSaved=False)
+        if not testItems:
             return
 
-        takenTissueRecord = self.takenTissueRecord()
-        courseNumber = forceInt(takenTissueRecord.value('course'))
+        unsavedTissues = {}
+        for item in testItems:
+            tissueTypeId = self.getTissueTypeIdForAction(item.parent().action().getId())
+            if not self.takenTissueId(tissueTypeId):
+                extId = forceString(item.data(EXTERNAL_ID_COLUMN))
+                if tissueTypeId not in unsavedTissues or extId:
+                    unsavedTissues[tissueTypeId] = extId
+
+        if unsavedTissues:
+            if not self.askOkOrCancel(u'Необходимо сохранить забор ткани для выбранных проб. Сохранить?'):
+                return
+                
+            for tissueTypeId, extId in unsavedTissues.items():
+                success = self._parent.saveSpecificTakenTissue(tissueTypeId, extId)
+                if not success:
+                    tissueName = forceString(QtGui.qApp.db.translate('rbTissueType', 'id', tissueTypeId, 'name'))
+                    QtGui.QMessageBox.warning(self._parent, 
+                        u'Внимание!', 
+                        u'Не удалось сохранить забор для типа ткани "%s".' % tissueName,
+                        QtGui.QMessageBox.Ok)
+                    return
+
         testIdToProbeId = {}
         isAutoSave = True
-        for item in self.absoluteItemList():
-            if isinstance(item, CJobTicketProbeTestItem) and not item.saved() and item._equipmentId:
+        for item in testItems:
+            if not item.saved() and item._equipmentId:
                 if forceInt(QtGui.qApp.db.translate('rbEquipment', 'id', item._equipmentId, 'samplePreparationMode')) != 1:
                     isAutoSave = False
                     break
+                    
         self.setProbesStatus(testIdToProbeId.values(), 1)
-        if forceCheck:
-            self.getRootItem().setChecked(True)
+            
         if self.isExistsCheckedItems(True):
             if not isAutoSave and not self.askOkOrCancel(u'Вы уверены, что хотите зарегистрировать выбранные пробы?'):
                 return
@@ -1211,17 +1253,19 @@ class CJobTicketProbeModel(CTreeModel):
         tableEquipment = db.table('rbEquipment')
         equipmentCache = {}
         taskMap = {}
-        taskSkel = { '_id'       : None,
-                     'ttjid'     : takenTissueId,
-                     'patient'   : None,
-                     'ibm'       : None,
-                     'tests'     : []
-                   }
         isOk = True
-        testItems = self.existCheckedProbeItems(notSaved=False)
+        
         for item in testItems:
-            if self.isCourseJobTicket and item._course != courseNumber:
+            takenTissueId = self.getTakenTissueIdForItem(item)
+            if not takenTissueId:
                 continue
+
+            if self.isCourseJobTicket:
+                takenTissueRecord = db.getRecord('TakenTissueJournal', '*', takenTissueId)
+                courseNumber = forceInt(takenTissueRecord.value('course')) if takenTissueRecord else 1
+                if item._course != courseNumber:
+                    continue
+
             if item.saved():
                 equipmentId = item.equipmentId()
                 equipment = equipmentCache.setdefault(equipmentId,  db.getRecord(tableEquipment, '*', equipmentId))
@@ -1231,7 +1275,18 @@ class CJobTicketProbeModel(CTreeModel):
                 protocol = forceInt(equipment.value('protocol'))
                 if protocol != CEquipmentProtocol.samson:
                     continue
-                task = taskMap.setdefault((equipment, item.externalId), taskSkel)
+                
+                taskKey = (equipment, item.externalId)
+                if taskKey not in taskMap:
+                    taskMap[taskKey] = { 
+                        '_id'       : None,
+                        'ttjid'     : takenTissueId,
+                        'patient'   : None,
+                        'ibm'       : None,
+                        'tests'     : []
+                    }
+                task = taskMap[taskKey]
+                
                 action = item.getAction()
                 prop = item.getProperty()
                 testRec = db.getRecordEx(tableTest, ['hardwareTestCode', 'type'],  [tableTest['test_id'].eq(item.testId()), tableTest['equipment_id'].eq(equipmentId)])
@@ -1263,6 +1318,7 @@ class CJobTicketProbeModel(CTreeModel):
                     if prop._value:
                         test['result'] = unicode(prop._value)
                     task['tests'].append(test)
+                    
         if isOk:
             for (equipment, externalId), task in taskMap.items():
                 if task['tests']:
@@ -1288,25 +1344,29 @@ class CJobTicketProbeModel(CTreeModel):
                                            u'Произошла ошибка при передаче в лис',
                                            QtGui.QMessageBox.Ok ,
                                            QtGui.QMessageBox.Ok)
+        else:
+            self.emitAllChanged()
 
 
     def _registrateProbe(self):
-        takenTissueId = self.takenTissueId()
-        if not takenTissueId:
-            return
-
-        takenTissueRecord = self.takenTissueRecord()
-        courseNumber = forceInt(takenTissueRecord.value('course'))
-
         db = QtGui.qApp.db
-
         db.transaction()
         try:
             testItems = self.existCheckedProbeItems(notSaved=True)
             testIdToProbeId = {}
             for item in testItems:
-                if self.isCourseJobTicket and item._course != courseNumber:
+                takenTissueId = self.getTakenTissueIdForItem(item)
+                if not takenTissueId:
                     continue
+                    
+                if self.isCourseJobTicket:
+                    takenTissueRecord = db.getRecord('TakenTissueJournal', '*', takenTissueId)
+                    courseNumber = forceInt(takenTissueRecord.value('course')) if takenTissueRecord else 1
+                    if item._course != courseNumber:
+                        continue
+                else:
+                    courseNumber = 1
+
                 probeId = self.saveProbe(takenTissueId,
                                          item.propertyType(),
                                          forceString(item.data(EXTERNAL_ID_COLUMN)),
@@ -1320,7 +1380,11 @@ class CJobTicketProbeModel(CTreeModel):
 
             self.setProbesStatus(testIdToProbeId.values(), 1)
             db.commit()
-        except Exception, e:
+            
+            self.emitAllChanged()
+            self.resetItems()
+            
+        except Exception as e:
             db.rollback()
             QtGui.qApp.logCurrentException()
             QtGui.QMessageBox.critical(self._parent,
@@ -1336,7 +1400,7 @@ class CJobTicketProbeModel(CTreeModel):
         equipmentId = item.equipmentId()
         specimenTypeId = item.specimenTypeId()
         if not equipmentId:
-            return
+            return None
 
         if not specimenTypeId:
             specimenTypeId = getActualSpecimenTypeId(testId, equipmentId)
@@ -1345,13 +1409,13 @@ class CJobTicketProbeModel(CTreeModel):
             item.setSpecimenTypeId(specimenTypeId)
 
         probeId = testIdToProbeId.get(testId, None)
+        
         if not externalId:
-            if self._currentTakenTissueExternalId is None:
-                self._currentTakenTissueExternalId = forceString(QtGui.qApp.db.translate('TakenTissueJournal', 'id',
-                                                                                         takenTissueId, 'externalId'))
-            externalId = self._currentTakenTissueExternalId
+            externalId = forceString(QtGui.qApp.db.translate('TakenTissueJournal', 'id', takenTissueId, 'externalId'))
+
         if not externalId:
             return None
+            
         action = item.getAction()
         isUrgent = forceInt(action.getRecord().value('isUrgent'))
         if not probeId:
@@ -1373,6 +1437,7 @@ class CJobTicketProbeModel(CTreeModel):
             record.setValue('isUrgent',  QVariant(isUrgent))
             probeId = db.insertRecord(tableProbe, record)
             testIdToProbeId[testId] = probeId
+            
         self.syncItemsForSaving(testId, externalId, probeId, testActionList)
         return probeId
 

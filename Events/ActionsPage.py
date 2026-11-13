@@ -4705,178 +4705,169 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         data = getEventContextData(self.eventEditor)
         eventInfo = data['event']
         currentActionIndex = eventInfo.actions._rawItems.index(items[row])
-        actionId = eventInfo.actions[currentActionIndex].id
+        currentActionId = forceString(eventInfo.actions[currentActionIndex].id)
+        allActionIds = [forceString(act.id) for act in eventInfo.actions._rawItems]
+        
         from library.PrintInfo import CInfoContext
         context = CInfoContext()
-        union_value = ''
+        unionValue = ''
+        
         if 0 <= row < len(items):
-            record_, current_action = items[row]
+            record_, currentAction = items[row]
             from library.copyInput import searchActionIn, searchActionOut
-            queryIn = searchActionIn(actionId)
+            queryIn = searchActionIn(currentActionId)
+            
             if queryIn.size() == 0:
                 return
+                
             while queryIn.next():
                 recordIn = queryIn.record()
 
-                temp_settings = forceString(recordIn.value('dataInheritance')).split('][')
-                if len(temp_settings) > 1:
-                    settings = temp_settings[0][1:]
-                    current_dataInheritance = temp_settings[1][:-1]
+                rawInheritance = forceString(recordIn.value('dataInheritance'))
+                tempSettings = rawInheritance.split('][')
+                if len(tempSettings) > 1:
+                    settings = tempSettings[0].replace('[', '')
+                    currentDataInheritance = tempSettings[1].replace(']', ',').replace('[', ',')
                 else:
                     settings = None
-                    current_dataInheritance = forceString(recordIn.value('dataInheritance')).replace('[','').replace(']','')
+                    currentDataInheritance = rawInheritance.replace('[', ',').replace(']', ',')
 
-                current_name = forceString(recordIn.value('name'))
-                type_name = forceString(recordIn.value('typeName'))
+                currentName = forceString(recordIn.value('name'))
+                typeName = forceString(recordIn.value('typeName'))
 
-                if type_name not in ('Double', 'Integer', 'Temperature'):
-                    if not current_action[current_name]:
-                        current_action[current_name] = ''
+                if typeName not in ('Double', 'Integer', 'Temperature'):
+                    if not currentAction[currentName]:
+                        currentAction[currentName] = ''
                         
-                if len(current_dataInheritance.split(',')) > 1:
-                    current_dataInheritance_temp = []
-                    for short in current_dataInheritance.split(','):
-                        if 'in_' in short.strip():
-                            current_dataInheritance_temp.append(short.strip())
-                    queryOut = searchActionOut(current_dataInheritance_temp, eventInfo.id)
-                    checkAction = 0
-                    while queryOut.next():
-                        recordOut = queryOut.record()
-                        value = forceString(recordOut.value('value'))
-                        if checkAction != forceString(recordOut.value('action_id')):
-                            checkAction = 0
-                        if settings:
-                            union_value = ''
-                            from Events.ActionInfo import CActionInfo
-                            temp_action = context.getInstance(CActionInfo, forceString(recordOut.value('action_id')))
-                            if len(settings.split(',')) > 1:
-                                for short_settings in settings.split(','):
-                                    if 'property' in short_settings:
-                                        if union_value != '':
-                                            union_value += '\n'
-                                        code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace('property.', '')
-                                        exec (code)
-                                        union_value += ' '
-                                    elif 'action' in short_settings and checkAction == 0:
-                                        code = "union_value += temp_action." + short_settings.replace('action.', '')
-                                        exec (code)
-                                        union_value += ' '
-                            else:
-                                if 'property' in settings:
-                                    if union_value != '':
-                                        union_value += '\n'
-                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace('property.', '')
-                                    exec (code)
-                                    union_value += ' '
-                                elif 'action' in settings and checkAction == 0:
-                                    code = "union_value += temp_action." + settings.replace('action.', '')
-                                    exec (code)
-                                    union_value += ' '
-                        else:
-                            union_value = ''
-                        if checkAction == 0:
-                            checkAction = forceString(recordOut.value('action_id'))
+                inTags = []
+                for short in currentDataInheritance.split(','):
+                    if 'in_' in short.strip():
+                        inTags.append(short.strip())
+                
+                if not inTags:
+                    continue
 
-                        if type_name in ('Double', 'Integer', 'Temperature'):
-                            try:
-                                normalized_value = unicode(value).replace(',', '.')
-
-                                if type_name == 'Integer':
-                                    parsed_value = int(float(normalized_value))
-                                else:
-                                    parsed_value = float(normalized_value)
-
-                                value = unicode(parsed_value)
-
-                            except (ValueError, TypeError):
-                                value = unicode(value)
-                        else:
-                            value = unicode(value)
+                queryOut = searchActionOut(inTags, eventInfo.id)
+                
+                records = []
+                maxIDX = {}
+                actionIdTag = {}
+                outTags = [t.replace('in_', 'out_') for t in inTags]
+                
+                while queryOut.next():
+                    rec = queryOut.record()
+                    recActionId = forceString(rec.value('action_id'))
+                    
+                    try:
+                        recActionListIndex = allActionIds.index(recActionId)
+                    except ValueError:
+                        recActionListIndex = -1
                         
-                        if (union_value + '\n' + value) not in current_action[current_name] and (union_value + ' - ' + value) not in current_action[current_name]:
-                            if current_action[current_name] != '':
-                                current_action[current_name] += '\n'
-                            if union_value != '':
-                                if settings and 'property' in settings:
-                                    current_action[current_name] += union_value + ' - ' + value
-                                else:
-                                    current_action[current_name] += union_value + '\n' + value
-                            else:
-                                current_action[current_name] += value
-                else:
-                    queryOut = searchActionOut(current_dataInheritance, eventInfo.id)
-                    checkAction = 0
-                    while queryOut.next():
-                        recordOut = queryOut.record()
-                        value = forceString(recordOut.value('value'))
-                        if checkAction != forceString(recordOut.value('action_id')):
-                            checkAction = 0
-                        if settings:
-                            union_value = ''
-                            from Events.ActionInfo import CActionInfo
-                            temp_action = context.getInstance(CActionInfo, forceString(recordOut.value('action_id')))
-                            if len(settings.split(',')) > 1:
-                                for short_settings in settings.split(','):
-                                    if 'property' in short_settings:
-                                        if union_value != '':
-                                            union_value += '\n'
-                                        code = "union_value += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace('property.', '')
-                                        exec(code)
-                                        union_value += ' '
-                                    elif 'action' in short_settings  and checkAction == 0:
-                                        code = "union_value += temp_action." + short_settings.replace('action.', '')
-                                        exec (code)
-                                        union_value += ' '
-                            else:
-                                if 'property' in settings:
-                                    if union_value != '':
-                                        union_value += '\n'
-                                    code = "union_value += temp_action[forceString(recordOut.value('name'))]." + settings.replace('property.', '')
-                                    exec (code)
-                                    union_value += ' '
-                                elif 'action' in settings  and checkAction == 0:
-                                    code = "union_value += temp_action." + settings.replace('action.', '')
-                                    exec (code)
-                                    union_value += ' '
-                        else:
-                            union_value = ''
-
-                        if checkAction == 0:
-                            checkAction = forceString(recordOut.value('action_id'))
-
-                        if type_name in ('Double', 'Integer', 'Temperature'):
-                            try:
-                                normalized_value = unicode(value).replace(',', '.')
-
-                                if type_name == 'Integer':
-                                    parsed_value = int(float(normalized_value))
-                                else:
-                                    parsed_value = float(normalized_value)
-
-                                value = unicode(parsed_value)
-
-                            except (ValueError, TypeError):
-                                value = unicode(value)
-                        else:
-                            value = unicode(value)
+                    if recActionListIndex != -1 and recActionListIndex >= currentActionIndex:
+                        continue
+                        
+                    records.append(rec)
+                    recInheritance = forceString(rec.value('dataInheritance'))
+                    try:
+                        recIDX = int(forceString(rec.value('action_idx')))
+                    except (ValueError, TypeError):
+                        recIDX = -1
+                    
+                    for outTag in outTags:
+                        if outTag in recInheritance:
+                            if outTag not in maxIDX or recIDX > maxIDX[outTag]:
+                                maxIDX[outTag] = recIDX
+                                actionIdTag[outTag] = recActionId
+                                
+                validRecords = []
+                for rec in records:
+                    recActionId = forceString(rec.value('action_id'))
+                    recInheritance = forceString(rec.value('dataInheritance'))
+                    
+                    isValid = False
+                    for outTag in outTags:
+                        if outTag in recInheritance and actionIdTag.get(outTag) == recActionId:
+                            isValid = True
+                            break
                             
-                        if (union_value + '\n' + value) not in unicode(current_action[current_name]) and (union_value + ' - ' + value) not in unicode(current_action[current_name]):
-                            if current_action[current_name] != '':
-                                current_action[current_name] = unicode(current_action[current_name]) + '\n'
-                            if union_value != '':
-                                if settings and 'property' in settings:
-                                    current_action[current_name] = unicode(current_action[current_name]) + union_value + ' - ' + value
-                                else:
-                                    current_action[current_name] = unicode(current_action[current_name]) + union_value + '\n' + value
+                    if isValid:
+                        validRecords.append(rec)
+                
+                checkAction = 0
+                
+                for recordOut in validRecords:
+                    value = forceString(recordOut.value('value'))
+                    
+                    if checkAction != forceString(recordOut.value('action_id')):
+                        checkAction = 0
+                        
+                    if settings:
+                        unionValue = ''
+                        from Events.ActionInfo import CActionInfo
+                        temp_action = context.getInstance(CActionInfo, forceString(recordOut.value('action_id')))
+                        if len(settings.split(',')) > 1:
+                            for short_settings in settings.split(','):
+                                if 'property' in short_settings:
+                                    if unionValue != '':
+                                        unionValue += '\n'
+                                    code = "unionValue += temp_action[forceString(recordOut.value('name'))]." + short_settings.replace('property.', '')
+                                    exec(code)
+                                    unionValue += ' '
+                                elif 'action' in short_settings and checkAction == 0:
+                                    code = "unionValue += temp_action." + short_settings.replace('action.', '')
+                                    exec(code)
+                                    unionValue += ' '
+                        else:
+                            if 'property' in settings:
+                                if unionValue != '':
+                                    unionValue += '\n'
+                                code = "unionValue += temp_action[forceString(recordOut.value('name'))]." + settings.replace('property.', '')
+                                exec(code)
+                                unionValue += ' '
+                            elif 'action' in settings and checkAction == 0:
+                                code = "unionValue += temp_action." + settings.replace('action.', '')
+                                exec(code)
+                                unionValue += ' '
+                    else:
+                        unionValue = ''
+                        
+                    if checkAction == 0:
+                        checkAction = forceString(recordOut.value('action_id'))
+
+                    if typeName in ('Double', 'Integer', 'Temperature'):
+                        try:
+                            normalizedValue = unicode(value).replace(',', '.')
+                            if typeName == 'Integer':
+                                parsedValue = int(float(normalizedValue))
                             else:
-                                current_action[current_name] = unicode(current_action[current_name]) + value
-                                    
-            for prop in current_action.getProperties():
-                if prop.isChanged():
-                    current_action.setChanged(True)
-                    self.setDirty()
-                    self.tblAPProps.model().reset()
-                    break
+                                parsedValue = float(normalizedValue)
+                            value = unicode(parsedValue)
+                        except (ValueError, TypeError):
+                            value = unicode(value)
+                    else:
+                        value = unicode(value)
+                    
+                    currentVal = unicode(currentAction[currentName])
+                    
+                    if (unionValue + '\n' + value) not in currentVal and (unionValue + ' - ' + value) not in currentVal:
+                        if currentVal != '':
+                            currentVal += '\n'
+                        if unionValue != '':
+                            if settings and 'property' in settings:
+                                currentVal += unionValue + ' - ' + value
+                            else:
+                                currentVal += unionValue + '\n' + value
+                        else:
+                            currentVal += value
+                            
+                        currentAction[currentName] = currentVal
+                                        
+                for prop in currentAction.getProperties():
+                    if prop.isChanged():
+                        currentAction.setChanged(True)
+                        self.setDirty()
+                        self.tblAPProps.model().reset()
+                        break
 
 
     @pyqtSignature('')
@@ -5076,12 +5067,8 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             return True
 
 
-    def checkDataInheritanceGlobalPreference(self):
-        return QtGui.qApp.checkGlobalPreference(u'23:DataInheritanceByModel',
-                                                u'да') and self.tblAPActions.model().actionTypeClass in (0,)
-
     def onAddedNewAction(self, row):
-        if self.checkDataInheritanceGlobalPreference():
+        if QtGui.qApp.checkGlobalPreference(u'23:DataInheritanceByModel', u'да'):
             try:
                 self.copyDataInheritanceByModel(self.tblAPActions.model(), row)
             except:
@@ -5091,7 +5078,7 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
     def copyDataInheritanceByModel(self, model, currentRow):
         '''
             Копирование значений при добавлении нового типа действия.
-            Копируется с последнего найденного в списке отображения действия,
+            Поиск значений для копирования идет по всем вкладкам (статус, диагностика, etc)в порядке отображения.
             а так же с последнего в списке отображения свойства данного деиствия, если таких несколько
             Пустые значения свойств не учитываются в поиске.
             Тип целевого свойства - текст, либо обязан совпадать с типом свойства источника
@@ -5104,18 +5091,20 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         from ActionInfo import CCookedActionInfo
 
         # 0 < - для первой добавленной строки негде искать данные
-        if not 0 < currentRow < len(model.items()):
+        if not 0 <= currentRow < len(model.items()):
             return
 
         # сбор всех свойств с наследованием в типе действия
         needResizeModel = False
+        currentModel = model
         currentAction = model.items()[currentRow][1]
         currentActionPropertyTypeIn = [x[1] for x in currentAction.getType().getPropertiesById().items() if
-                                x[1].dataInheritanceExt.incoming]
-        # currentActionPropertyTypeIn.sort(key=lambda x: x.idx, reverse=True)
+                                       x[1].dataInheritanceExt.incoming]
+                                       
         if not currentActionPropertyTypeIn:
             return
-
+        
+        currentActionPropertyTypeIn.sort(key=lambda x: x.idx)
         cache = {}
         cacheTitle = {}
         context = CInfoContext()
@@ -5123,32 +5112,59 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         # текстовые идентификаторы используемые в наследовании
         for propertyType in currentActionPropertyTypeIn:
             for name in propertyType.dataInheritanceExt.incoming:
-                if not name in cache:
+                if name not in cache:
                     cache[name] = [None, None]
         completed = len(cache)
 
-        # поиск значений всех наследуемых свойств в модели
-        for row in reversed(range(currentRow)):
+        # поиск значений всех наследуемых свойств в моделях
+        for tabIndex, actionTab in enumerate(self.eventEditor.getActionsTabsList()):
             if completed <= 0:
                 break
-            record, action = model.items()[row]
-            actionPropertyTypeOut = [x for x in action.getType().getPropertiesById().items() if
-                              any(key in cache for key in x[1].dataInheritanceExt.outgoing)]
-            actionPropertyTypeOut.sort(key=lambda x: x[1].idx, reverse=True)
 
-            for propertyType in actionPropertyTypeOut:
+            model = actionTab.modelAPActions
+
+            if model == currentModel:
+                rows = range(currentRow)
+            else:
+                rows = range(len(model.items()))
+
+            for row in reversed(rows):
                 if completed <= 0:
                     break
-                for name in propertyType[1].dataInheritanceExt.outgoing:
+
+                record, action = model.items()[row]
+
+                actionPropertyTypeOut = []
+                for propId, propType in action.getType().getPropertiesById().items():
+                    isMatch = False
+                    for outName in propType.dataInheritanceExt.outgoing:
+                        matchName = outName.replace('out_', 'in_')
+                        if matchName in cache:
+                            isMatch = True
+                            break
+
+                    if isMatch:
+                        actionPropertyTypeOut.append((propId, propType))
+
+                actionPropertyTypeOut.sort(key=lambda x: x[1].idx, reverse=True)
+
+                for propertyType in actionPropertyTypeOut:
                     if completed <= 0:
                         break
-                    if not name in cache:
-                        continue
-                    if not any(cache.get(name, [None])):
-                        actionProp = action.getPropertyById(propertyType[0])
-                        if actionProp.getValue():
-                            cache[name] = [(record, action), actionProp]
-                            completed -= 1
+
+                    for outName in propertyType[1].dataInheritanceExt.outgoing:
+                        if completed <= 0:
+                            break
+
+                        matchName = outName.replace('out_', 'in_')
+                        if matchName not in cache:
+                            continue
+
+                        if not any(cache.get(matchName, [None])):
+                            actionProp = action.getPropertyById(propertyType[0])
+                            if actionProp.getValue():
+                                cache[matchName] = [(record, action), actionProp]
+                                completed -= 1
 
         # не найдено ни одного наследуемого значения
         if completed == len(cache):
@@ -5158,10 +5174,14 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
         for currentPropertyType in currentActionPropertyTypeIn:
             # Копируемое значение не является составным. При копировании необходима проверка соответствия типов свойств,
             if currentPropertyType.dataInheritanceExt.isSimple():
-                _, actionProp = cache.get(
-                    currentPropertyType.dataInheritanceExt.getIncomingSequence()[0].name())
-                if not actionProp:
+                incomingName = currentPropertyType.dataInheritanceExt.getIncomingSequence()[0].name()
+                cachedItem = cache.get(incomingName)
+                
+                if not cachedItem or cachedItem[0] is None or cachedItem[1] is None:
                     continue
+                    
+                _, actionProp = cachedItem
+                
                 val = actionProp.getTextScalar() if currentPropertyType.isString() else actionProp.getValue()
                 if val:
                     currentAction.updatePropertyByPreparedValue(currentPropertyType, val,
@@ -5171,16 +5191,18 @@ class CActionsPage(QtGui.QWidget, CConstructHelperMixin, Ui_ActionsPageWidget):
             else:
                 result = u''
                 lastAction = None
-                
-                for idx, item in enumerate(currentPropertyType.dataInheritanceExt.getIncomingSequence()):
+            
+                validItems = []
+                for item in currentPropertyType.dataInheritanceExt.getIncomingSequence():
                     cachedItem = cache.get(item.name())
-                    if not cachedItem or cachedItem[0] is None or cachedItem[1] is None:
-                        continue
-                    
-                    (record, action), actionProp = cachedItem
-                    if not actionProp:
-                        continue
-                        
+                    if cachedItem and cachedItem[0] is not None and cachedItem[1] is not None:
+                        (record, action), actionProp = cachedItem
+                        if actionProp:
+                            validItems.append((item, record, action, actionProp))
+                            
+                validItems.sort(key=lambda x: x[3].type().idx)
+                
+                for item, record, action, actionProp in validItems:
                     val = actionProp.getTextScalar()
                     if val:
                         if item.title():

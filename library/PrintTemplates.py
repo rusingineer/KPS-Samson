@@ -33,8 +33,9 @@ import tempfile
 
 try:
     from bs4 import BeautifulSoup
-    bsSupport = False
+    bsSupport = True
 except ImportError,  e:
+    bsSupport = False
     BeautifulSoup = None
 
 from Reports.ReportBrowser import CReportBrowser
@@ -533,7 +534,8 @@ class CConsentTypeListCache(CDbEntityCache):
 def changeClientConsent(widget, clientId, templateId):
     consentTypeList = CConsentTypeListCache.get(templateId)
     if consentTypeList:
-        dlg = CClientConsentAddingDialog(widget, clientId, consentTypeList)
+        parent = QtGui.QApplication.activeWindow() or widget
+        dlg = CClientConsentAddingDialog(parent, clientId, consentTypeList)
         dlg.exec_()
 
 

@@ -15,6 +15,7 @@
 from PyQt4 import QtGui
 from PyQt4.QtCore import QDate, QDateTime, QTime
 
+from library.database import CDatabaseException
 from library.recordWrapper import CSqlRecordWrapper, field
 from library.Utils import forceBool, forceDate, forceDateTime, forceInt, forceRef, forceString, forceTime, toVariant, \
     calcAgeInYears
@@ -670,11 +671,23 @@ def freeScheduleItemInt(record, deleteForTransfer=False, additionalDeleteNote=u'
         newRecord.setNull('recordType')
         newRecord.setNull('infections')
         newRecord.setValue('isUrgent', toVariant(0))
-        db.insertRecord(table, newRecord)
+        # В продолжении разбирательства с ошибкой "Column 'endOfReserve' cannot be null"
+        # Значение с нулевой датой Qt может прочитать как невалидное, но НЕ как null
+        # а при подстановке в INSERT оно превратится в null, так что отлавливаем ошибку
+        # и в случае чего делаем поле принудительно null чтобы insertRecord его не добавлял в запрос
+        try:
+            newRecordId = db.insertRecord(table, newRecord)
+        except CDatabaseException as e:
+            if not (e.sqlError and e.sqlError.number() == 1048):
+                raise
+            newRecord.setNull('endOfReserve')
+            newRecordId = db.insertRecord(table, newRecord)
 
         # --- После 10.02.2026 у старой записи deleted = 1
         record.setValue('deleted', toVariant(1))
-        record.setNull('endOfReserve')
+        # На всякий случай больше не надеемся на проставление default значения в БД
+        # record.setNull('endOfReserve')
+        record.setValue('endOfReserve', toVariant('0000-00-00 00:00:00'))
 
         if deleteForTransfer:
             record.setNull('system_guid')

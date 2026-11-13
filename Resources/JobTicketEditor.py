@@ -123,7 +123,8 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         self.actionPersonChanger = 0
         self.actionDateChanger   = 0
         self.execCourse = CCourseStatus.proceed
-        self.firstTTJR = self.takenTissueRecord = None
+        self.firstTTJRs = {}
+        self.takenTissueRecords = {}
         self.tissueExternalIdForProperty = None
         self._manualInputExternalId = None
         self.actionIdListCanDeleted = []
@@ -255,6 +256,21 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
     @property
     def needUpdateAfterClose(self):
         return bool(self.actionIdListCanDeleted) or self._detachedActionsExists
+
+    @property
+    def firstTTJR(self):
+        return self.firstTTJRs.get(self.cmbTissueType.value())
+
+    @property
+    def takenTissueRecord(self):
+        return self.takenTissueRecords.get(self.cmbTissueType.value())
+
+    @takenTissueRecord.setter
+    def takenTissueRecord(self, value):
+        if value is None:
+            self.takenTissueRecords.pop(self.cmbTissueType.value(), None)
+        else:
+            self.takenTissueRecords[self.cmbTissueType.value()] = value
 
     def getMaxCourseNumber(self):
         return self._maxCourseNumber
@@ -574,9 +590,9 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         return list(set(ttjList + pList))
 
     def saveTakenTissueRecord(self):
-        if self.isTakenTissue:# and self.cmbStatus.value() == CJobTicketStatus.done:
+        if self.isTakenTissue:
             tissueTypeId = self.cmbTissueType.value()
-            canBeSaved = bool(not self.takenTissueRecord) and bool(tissueTypeId)
+            canBeSaved = (tissueTypeId not in self.takenTissueRecords) and bool(tissueTypeId)
             if canBeSaved:#комбобокс с тканями ограничен по ActionType_TissueType
                 db = QtGui.qApp.db
                 table = db.table('TakenTissueJournal')
@@ -597,28 +613,110 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
                 record.setValue('execPerson_id', QVariant(execPersonId))
                 record.setValue('note', QVariant(self.edtTissueNote.text()))
                 record.setValue('course', self._courseNumber)
-                if self.firstTTJR is not None:
-                    # Если курсовой забор, то мы выстраиваем цепочки потомков у первого забора.
-                    # Через первый забор мы свяжем набор заборов с набором действий.
-                    record.setValue('parent_id', self.firstTTJR.value('id'))
+                if tissueTypeId in self.firstTTJRs:
+                    record.setValue('parent_id', self.firstTTJRs[tissueTypeId].value('id'))
                 datetimeTaken = QDateTime()
                 datetimeTaken.setDate(self.edtTissueDate.date())
                 datetimeTaken.setTime(self.edtTissueTime.time())
                 record.setValue('datetimeTaken', QVariant(datetimeTaken))
                 recordId = db.insertRecord(table, record)
-                if self.firstTTJR is None:
-                    # Для дюбого первого забора подкинем связь на самого себя.
-                    # Это унифицирует ситуацию как для курса так и для всего остального
-                    # при линковании с Action-ами будет проще вытащить все нужные записи.
-                    # SELECT TakenTissueJournal.* FROM TakenTissueJournal
-                    # INNER JOIN TakenTissueJournal AS MainTTJ ON TakenTissueJournal.parent_id=MainTTJ.id
-                    # WHERE MainTTJ.id = Action.id
-                    record.setValue('parent_id', QVariant(recordId))
+                record.setValue('id', toVariant(recordId))
+                if tissueTypeId not in self.firstTTJRs:
+                    record.setValue('parent_id', toVariant(recordId))
                     db.updateRecord(table, record)
-                self.takenTissueRecord = record
+                self.takenTissueRecords[tissueTypeId] = record
                 self.setTissueWidgetsEditable(False)
                 return True
         return False
+
+    
+    def saveSpecificTakenTissue(self, tissueTypeId, treeExternalId=None):
+        if tissueTypeId in self.takenTissueRecords:
+            return True
+            
+        db = QtGui.qApp.db
+        table = db.table('TakenTissueJournal')
+        record = table.newRecord()
+        record.setValue('client_id', QVariant(self.clientId))
+        record.setValue('tissueType_id', QVariant(tissueTypeId))
+        
+        actualByTissueTypeList, actionIdList = self.actualByTissueType.get(tissueTypeId, ([], []))
+        totalAmount = 0
+        globalUnitId = None
+        actionTypesList = []
+        for actualRecord in actualByTissueTypeList:
+            actionTypeId = forceRef(actualRecord.value('actionTypeId'))
+            amount = forceInt(actualRecord.value('amount'))
+            unitId = forceRef(actualRecord.value('unit_id'))
+            if not unitId:
+                continue
+            if actionTypeId not in actionTypesList:
+                actionTypesList.append(actionTypeId)
+                if not globalUnitId:
+                    globalUnitId = unitId
+                else:
+                    if unitId != globalUnitId:
+                        continue
+                totalAmount += amount
+                
+        if not globalUnitId:
+            globalUnitId = self.cmbTissueUnit.value()
+            
+        record.setValue('amount', QVariant(totalAmount))
+        record.setValue('unit_id', QVariant(globalUnitId))
+        
+        manualInput = forceBool(QtGui.qApp.db.translate('rbTissueType', 'id', tissueTypeId, 'counterManualInput'))
+        finalExternalId = treeExternalId
+        
+        if not finalExternalId:
+            if not manualInput:
+                finalExternalId = self.recountTissueExternalId(tissueType=tissueTypeId, _manualInputExternalId=False)
+            else:
+                if self.cmbTissueType.value() == tissueTypeId and unicode(self.edtTissueExternalId.text()):
+                    finalExternalId = unicode(self.edtTissueExternalId.text())
+                else:
+                    finalExternalId = ''
+                    
+        record.setValue('externalId', QVariant(finalExternalId))
+        record.setValue('number', QVariant(finalExternalId))
+        
+        execPersonId = self.cmbTissueExecPerson.value()
+        if not execPersonId:
+            execPersonId = QtGui.qApp.userId
+        record.setValue('execPerson_id', QVariant(execPersonId))
+        
+        record.setValue('course', self._courseNumber)
+        
+        if tissueTypeId in self.firstTTJRs:
+            record.setValue('parent_id', self.firstTTJRs[tissueTypeId].value('id'))
+            
+        isRTProcessing = self.getRTProcessingValue(tissueTypeId)
+        datetimeTaken = QDateTime.currentDateTime() if isRTProcessing else self.datetime
+        
+        if self.cmbTissueType.value() == tissueTypeId:
+            dt = QDateTime()
+            dt.setDate(self.edtTissueDate.date())
+            dt.setTime(self.edtTissueTime.time())
+            datetimeTaken = dt
+            record.setValue('note', QVariant(self.edtTissueNote.text()))
+        else:
+            record.setValue('note', QVariant(''))
+
+        record.setValue('datetimeTaken', QVariant(datetimeTaken))
+        
+        recordId = db.insertRecord(table, record)
+        if tissueTypeId not in self.firstTTJRs:
+            record.setValue('parent_id', QVariant(recordId))
+            db.updateRecord(table, record)
+            
+        self.takenTissueRecords[tissueTypeId] = record
+        
+        if self.cmbTissueType.value() == tissueTypeId:
+            self.setTissueWidgetsEditable(False)
+            self.edtTissueExternalId.setText(finalExternalId)
+            self.edtTissueNumber.setText(finalExternalId)
+            
+        return True
 
 
     def saveInternals(self, id):
@@ -672,30 +770,37 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
 
     def _saveInternals(self, id):
-        takenTissueEnabled = self.isTakenTissue and bool(self.takenTissueRecord)
+        takenTissueEnabled = self.isTakenTissue
         for action in self.mapActionIdToAction.values():
             record = action.getRecord()
             actionId = forceRef(record.value('id'))
+            
+            tissueTypeId = None
+            for TTid, (records, actIdList) in self.actualByTissueType.items():
+                if actionId in actIdList:
+                    tissueTypeId = TTid
+                    break
 
-            actualByTissueTypeList, actionIdList = self.actualByTissueType.get(self.cmbTissueType.value(), ([], []))
-            if takenTissueEnabled and actionId in actionIdList:
-                if self.firstTTJR is None:
-                    # Это значит что мы регистрируем первый забор в курсе. Если у нас курсовой забор, конечно.
-                    # Иначе все работает как по старому, так как забор все равно один.
-                    record.setValue('takenTissueJournal_id', self.takenTissueRecord.value('id'))
+            ttRecord = self.takenTissueRecords.get(tissueTypeId) if tissueTypeId else None
+
+            if takenTissueEnabled and tissueTypeId and ttRecord:
+                if tissueTypeId not in self.firstTTJRs:
+                    record.setValue('takenTissueJournal_id', ttRecord.value('id'))
+                    
             record.setValue('expose', QVariant(1))
-            if takenTissueEnabled and forceInt(record.value('status')) in (CActionStatus.finished, CActionStatus.withoutResult):
-                action = self.freeJobTicket(action, forceDateTime(self.takenTissueRecord.value('datetimeTaken')))
-            elif forceInt(record.value('status')) == CActionStatus.finished:  # and not self.isTakenTissue:
+            
+            if takenTissueEnabled and ttRecord and forceInt(record.value('status')) in (CActionStatus.finished, CActionStatus.withoutResult):
+                action = self.freeJobTicket(action, forceDateTime(ttRecord.value('datetimeTaken')))
+            elif forceInt(record.value('status')) == CActionStatus.finished:
                 action = self.freeJobTicket(action)
-
-            # idx=-1 значит что мы не меняем этот параметр. Наверное нужно использовать None
+                
             action.save(idx=-1, checkModifyDate=False)
-
+            
         if takenTissueEnabled:
-            takenTissueJournalId = forceRef(self.takenTissueRecord.value('id'))
-            actionTakenTissueJournalId = forceRef(self.takenTissueRecord.value('parent_id'))
-            checkTissueJournalStatus(takenTissueJournalId, actionTakenTissueJournalId)
+            for TTJR in self.takenTissueRecords.values():
+                takenTissueJournalId = forceRef(TTJR.value('id'))
+                actionTakenTissueJournalId = forceRef(TTJR.value('parent_id'))
+                checkTissueJournalStatus(takenTissueJournalId, actionTakenTissueJournalId)
 
 
     def freeJobTicket(self, action, dateTimeExecJob=None):
@@ -1153,7 +1258,13 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
     def loadTakenTissue(self):
         if self.isTakenTissue:
-            if self.takenTissueRecord:
+            if not self.cmbTissueType.value():
+                self.setTissueWidgetsEditable(False)
+                self.edtTissueExternalId.setText('')
+                self.edtTissueNumber.setText('')
+                self.edtTissueAmount.setValue(0)
+                self.edtTissueNote.setText('')
+            elif self.takenTissueRecord:
                 self.cmbTissueType.blockSignals(True)
                 self.edtTissueDate.blockSignals(True)
                 execPersonId = forceRef(self.takenTissueRecord.value('execPerson_id'))
@@ -1171,15 +1282,16 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
                 datetimeTaken = forceDateTime(self.takenTissueRecord.value('datetimeTaken'))
                 self.edtTissueDate.setDate(datetimeTaken.date())
                 self.edtTissueTime.setTime(datetimeTaken.time())
-                if forceString(self.takenTissueRecord.value('externalId'))!=u'':
-                    self.setTissueWidgetsEditable(False)
-                else:
-                    self.setTissueWidgetsEditable(True)
-                    self.cmbTissueType.blockSignals(False)
-                    self.edtTissueDate.blockSignals(False)
-
+                
+                self.setTissueWidgetsEditable(False)
+                    
+                self.cmbTissueType.blockSignals(False)
+                self.edtTissueDate.blockSignals(False)
+                
             else:
                 self.setTissueWidgetsEditable(True)
+                self.edtTissueExternalId.setText('')
+                self.edtTissueNumber.setText('')
                 execPersonId = QtGui.qApp.userId
                 self.checkSpecialityExists(self.cmbTissueExecPerson, execPersonId)
                 self.cmbTissueExecPerson.setValue(execPersonId)
@@ -1187,7 +1299,6 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
 
     def setTissueWidgetsEditable(self, val):
-        self.cmbTissueType.setEnabled(val)
         self.edtTissueExternalId.setEnabled(val)
         self.edtTissueNumber.setEnabled(val)
         self.edtTissueAmount.setEnabled(val)
@@ -1227,10 +1338,16 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         db = QtGui.qApp.db
         table = db.table('Action')
         actionRecords = db.getRecordList(table, '*', table['id'].inlist(actionIdList))
+        self.firstTTJRs = {}
         for actionRecord in actionRecords:
             takenTissueJournalId = forceRef(actionRecord.value('takenTissueJournal_id'))
-            if self.firstTTJR is None and takenTissueJournalId:
-                self.firstTTJR = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
+            if takenTissueJournalId:
+                if takenTissueJournalId not in [forceRef(r.value('id')) for r in self.firstTTJRs.values()]:
+                    TTJR = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
+                    if TTJR:
+                        tissueTypeId = forceRef(TTJR.value('tissueType_id'))
+                        if tissueTypeId not in self.firstTTJRs:
+                            self.firstTTJRs[tissueTypeId] = TTJR
             actionId = forceRef(actionRecord.value('id'))
             action = CAction(record=actionRecord)
             self.mapActionIdToAction[actionId] = action
@@ -1245,55 +1362,58 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
 
     def checkTakenTissueJournalCourse(self, actionIdList):
+        self.takenTissueRecords = {}
         if not self.isCourseJobTicket:
-            self.takenTissueRecord = self.firstTTJR
+            self.takenTissueRecords = dict(self.firstTTJRs)
             return
 
-        if self.firstTTJR is None:
+        if not self.firstTTJRs:
             return
 
         db = QtGui.qApp.db
+        for tissueTypeId, first_ttjr in self.firstTTJRs.items():
+            firstTTJId = forceRef(first_ttjr.value('id'))
+            
+            self._courseNumber2TakenTissueRecordId[tissueTypeId] = {}
 
-        firstTTJId = forceRef(self.firstTTJR.value('id'))
+            stmt = """
+            SELECT
+              TakenTissueJournal.id,
+              TakenTissueJournal.course,
+              EXISTS (SELECT NULL FROM Probe WHERE takenTissueJournal_id = TakenTissueJournal.id) AS withProbes
+            FROM TakenTissueJournal
+            WHERE TakenTissueJournal.parent_id = %d
+            """ % firstTTJId
 
-        stmt = """
-        SELECT
-          TakenTissueJournal.id,
-          TakenTissueJournal.course,
-          EXISTS (SELECT NULL FROM Probe WHERE takenTissueJournal_id = TakenTissueJournal.id) AS withProbes
-        FROM TakenTissueJournal
-        WHERE TakenTissueJournal.parent_id = %d
-        """ % firstTTJId
+            courseToProbeExists = {}
+            query = db.query(stmt)
+            while query.next():
+                takenTissueJournalId = forceRef(query.value(0))
+                course = forceInt(query.value(1))
+                withProbes = forceBool(query.value(2))
+                self._courseNumber2TakenTissueRecordId[tissueTypeId][course] = takenTissueJournalId
+                courseToProbeExists[course] = withProbes
 
-        courseToProbeExists = {}
-        query = db.query(stmt)
-        while query.next():
-            takenTissueJournalId = forceRef(query.value(0))
-            course = forceInt(query.value(1))
-            withProbes = forceBool(query.value(2))
-            self._courseNumber2TakenTissueRecordId[course] = takenTissueJournalId
-            courseToProbeExists[course] = withProbes
+            if courseToProbeExists:
+                course = max(courseToProbeExists.keys())
+                takenTissueJournalId = self._courseNumber2TakenTissueRecordId[tissueTypeId][course]
+                withProbes = courseToProbeExists[course]
 
-        # Так как в этом месте мы уже получили проверку что firstTTJR существует,
-        # Значит предыдущий запрос точно что-то вернул.
-
-        course = max(courseToProbeExists.keys())
-        takenTissueJournalId = self._courseNumber2TakenTissueRecordId[course]
-        withProbes = courseToProbeExists[course]
-
-        if not withProbes:
-            self._courseNumber = course
-            self.takenTissueRecord = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
-        elif takenTissueJournalId:
-            if course == self._maxCourseNumber:
-                self.takenTissueRecord = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
-                self._courseNumber = course
-            else:
-                self._courseNumber = course + 1
+                if not withProbes:
+                    self._courseNumber = course
+                    self.takenTissueRecords[tissueTypeId] = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
+                elif takenTissueJournalId:
+                    if course == self._maxCourseNumber:
+                        self.takenTissueRecords[tissueTypeId] = db.getRecord('TakenTissueJournal', '*', takenTissueJournalId)
+                        self._courseNumber = course
+                    else:
+                        self._courseNumber = course + 1
 
 
     def getTakenTissueIdByCourseNumber(self, courseNumber):
-        return self._courseNumber2TakenTissueRecordId[courseNumber]
+        if tissueTypeId is None:
+            tissueTypeId = self.cmbTissueType.value()
+        return self._courseNumber2TakenTissueRecordId.get(tissueTypeId, {}).get(courseNumber)
 
 
     def lock(self, tableName, id):
@@ -1401,11 +1521,13 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
 
     def recountTissueExternalId(self, tissueType=None, existCountValue=None, _manualInputExternalId=False):
-        if self.takenTissueRecord:
-            return forceString(self.takenTissueRecord.value('externalId'))
-
         if not tissueType:
             tissueType = self.cmbTissueType.value()
+            
+        ttRecord = self.takenTissueRecords.get(tissueType) if tissueType else None
+        if ttRecord:
+            return forceString(ttRecord.value('externalId'))
+            
         tableTakenTissueJournal = QtGui.qApp.db.table('TakenTissueJournal')
         date = self.edtTissueDate.date()
         if tissueType and date:
@@ -1754,10 +1876,23 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
 
     def resetProbesTree(self):
         self.modelJobTicketProbe.resetCache()
-        self.modelJobTicketProbe.setActionList(self.mapActionIdToAction.values(), force=True)
+        
+        if self.isTakenTissue:
+            tissueTypeId = self.cmbTissueType.value()
+            if tissueTypeId:
+                actualByTissueTypeList, actionIdList = self.actualByTissueType.get(tissueTypeId, ([], []))
+                uniqueActionIds = set(actionIdList)
+                filteredActions = [self.mapActionIdToAction[aid] for aid in uniqueActionIds if aid in self.mapActionIdToAction]
+            else:
+                filteredActions = self.mapActionIdToAction.values()
+        else:
+            filteredActions = self.mapActionIdToAction.values()
+
+        self.modelJobTicketProbe.setActionList(filteredActions, force=True)
         self.modelJobTicketProbe.setJobTypeId(self._jobTypeId)
         self.modelJobTicketProbe.resetItems()
         self.modelJobTicketProbe.loadAll()
+        
         equipId = self.modelJobTicketProbe.getRootEquipmentId()
         self.cmbEquipment.setValue(equipId)
 
@@ -2064,28 +2199,30 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
     def on_btnPrintTissueLabel_clicked(self, callingByBarCode=False):
         self.isFinishExec = False
         callingByBarCode = callingByBarCode or self._barCodeExecutingContext.isWork()
+        tissueType = self.cmbTissueType.value()
 
         if self.cmbStatus.value() != CJobTicketStatus.done:
-            probeExternalIdList = []
-            for item in self.modelJobTicketProbe.absoluteItemList():
-                if isinstance(item, CJobTicketProbeTestItem) and item.isCourseJobTicket == False:
-                    probeExternalIdList.append(item.externalId)
-            if not self.edtTissueExternalId.text() and not all(probeExternalIdList):
-                QtGui.QMessageBox.critical(self,
-                                           u'Внимание!',
-                                           u'Идентификатор биоматериала не заполнен',
-                                           QtGui.QMessageBox.Close)
-                return
-            probeExternalIdList = list(set([i if i else forceString(self.edtTissueExternalId.text()) for i in probeExternalIdList]))
-            foundedIdList = self.findExistsExternalId(self.edtTissueExternalId.text(), probeExternalIdList, self.cmbTissueType.value(),
-                                     self.edtTissueDate.date())
-            if foundedIdList:
-                QtGui.QMessageBox.critical(self,
-                                           u'Внимание!',
-                                           u'Идентификатор %s биоматериала не уникальный'%(foundedIdList[0]) if len(foundedIdList)==1 else \
-                                             u'Идентификаторы %s не уникальны'%(', '.join(foundedIdList)),
-                                           QtGui.QMessageBox.Close)
-                return
+            if tissueType:
+                probeExternalIdList = []
+                for item in self.modelJobTicketProbe.absoluteItemList():
+                    if isinstance(item, CJobTicketProbeTestItem) and item.isCourseJobTicket == False:
+                        probeExternalIdList.append(item.externalId)
+                if not self.edtTissueExternalId.text() and not all(probeExternalIdList):
+                    QtGui.QMessageBox.critical(self,
+                                            u'Внимание!',
+                                            u'Идентификатор биоматериала не заполнен',
+                                            QtGui.QMessageBox.Close)
+                    return
+                probeExternalIdList = list(set([i if i else forceString(self.edtTissueExternalId.text()) for i in probeExternalIdList]))
+                foundedIdList = self.findExistsExternalId(self.edtTissueExternalId.text(), probeExternalIdList, self.cmbTissueType.value(),
+                                        self.edtTissueDate.date())
+                if foundedIdList:
+                    QtGui.QMessageBox.critical(self,
+                                            u'Внимание!',
+                                            u'Идентификатор %s биоматериала не уникальный'%(foundedIdList[0]) if len(foundedIdList)==1 else \
+                                                u'Идентификаторы %s не уникальны'%(', '.join(foundedIdList)),
+                                            QtGui.QMessageBox.Close)
+                    return
 
             ask = not callingByBarCode or QtGui.qApp.askCloseJTAfterIBMBarCodeScanning()
             if self.isLastCoursePart():
@@ -2126,7 +2263,7 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
                         else:
                             return
 
-        if not self.takenTissueRecord:
+        if tissueType and not self.takenTissueRecord:
             equipId = self.cmbEquipment.value()
             isAutoSave = False
             if equipId:
@@ -2140,12 +2277,13 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
                                        QtGui.QMessageBox.Cancel) == QtGui.QMessageBox.Cancel:
                                            return
 
-        if self.saveTakenTissueRecord():
-            self._saveInternals(self.itemId())
-
+        if tissueType:
+            self.saveTakenTissueRecord()
+            
         self.modelJobTicketProbe.registrateProbe()
+        self._saveInternals(self.itemId())
 
-        if self.takenTissueRecord:
+        if tissueType and self.takenTissueRecord:
             printer = QtGui.qApp.labelPrinter()
             if self.labelTemplate and printer:
                 context = CInfoContext()
@@ -2231,6 +2369,7 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
         datetimeTaken = QDateTime.currentDateTime() if isRTProcessing else  self.datetime
         self.edtTissueDate.setDate(datetimeTaken.date())
         self.edtTissueTime.setTime(datetimeTaken.time())
+        self.loadTakenTissue()
 
 
     @pyqtSignature('QDate')
@@ -2360,8 +2499,6 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
             record = db.getRecordEx(tablePerson, [tablePerson['speciality_id']], [tablePerson['deleted'].eq(0), tablePerson['id'].eq(personId)])
             specialityId = forceRef(record.value('speciality_id')) if record else None
         return specialityId
-    
-    
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_modelActionProperties_dataChanged(self, index, index2):
         column = index.column()
@@ -2382,6 +2519,7 @@ class CJobTicketEditor(CItemEditorBaseDialog, CJobActionsCoursesMixin, Ui_JobTic
                     self.updateClientInfo()
             finally:
                 dialog.deleteLater()
+
 
 
 # #################################################

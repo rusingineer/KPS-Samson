@@ -583,7 +583,7 @@ class CF030FinalDiagnosticsModel(CF030BaseDiagnosticsModel):
         resultId = self.resultId()
         self.removeRows(row, 1)
         eventEditor = QObject.parent(self)
-        eventEditor.updateActionsDiagnosisByDiagnostics()
+        #eventEditor.updateActionsDiagnosisByDiagnostics()
         if resultId != self.resultId() or eventEditor.cmbResult.value() != self.resultId():
             self.emitResultChanged()
 
@@ -614,6 +614,9 @@ class CF030FinalDiagnosticsModel(CF030BaseDiagnosticsModel):
 
     def emitResultChanged(self):
         self.emit(SIGNAL('resultChanged()'))
+        
+    def getMainDiagnosisTypeIdList(self):
+        return [self.diagnosisTypeCol.codeToId('2')]
 
 class CF030SurveillanceModel(CInDocTableModel):
     Col_MKB = 0
@@ -1259,10 +1262,10 @@ class CF030SurveillanceModel(CInDocTableModel):
                     planRecord = db.getRecordEx(table, '*', [table['id'].eq(record.planId)])
                 if not planRecord:
                     planRecord = self.getEmptyRecordEx(forceString(record.value('MKB')),
-                                                forceInt(record.value('prophylaxisPlanningType_id')),
-                                                forceInt(record.value('client_id')),
-                                                forceInt(self._parent.cmbPerson.value()),
-                                                forceInt(record.value('dispanser_id')))
+                                                forceRef(record.value('prophylaxisPlanningType_id')),
+                                                forceRef(record.value('client_id')),
+                                                forceRef(self._parent.cmbPerson.value()),
+                                                forceRef(record.value('dispanser_id')))
                         
                 planRecord.setValue('endDate', toVariant(endDate))
                 planRecord.setValue('begDate', toVariant(endDate))

@@ -782,11 +782,11 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
         self.cmbAssistant.setVisible(actionType.hasAssistant)
         self.setWindowTitle(actionType.code + '|' + actionType.name)
         setCheckBoxValue(self.chkIsUrgent, record, 'isUrgent')
+        setRBComboBoxValue(self.cmbStatus,      record, 'status')
         setDatetimeEditValue(self.edtDirectionDate,    self.edtDirectionTime,    record, 'directionDate')
         setDatetimeEditValue(self.edtPlannedEndDate,   self.edtPlannedEndTime,   record, 'plannedEndDate')
         setDatetimeEditValue(self.edtBegDate,          self.edtBegTime,          record, 'begDate')
         setDatetimeEditValue(self.edtEndDate,          self.edtEndTime,          record, 'endDate')
-        setRBComboBoxValue(self.cmbStatus,      record, 'status')
         setDoubleBoxValue(self.edtAmount,       record, 'amount')
         setDoubleBoxValue(self.edtUet,          record, 'uet')
         setRBComboBoxValue(self.cmbPerson,      record, 'person_id')
@@ -6495,13 +6495,7 @@ class CF111EditDialog(CItemEditorBaseDialog, CCheckNetMixin, Ui_F111Dialog):
     @pyqtSlot(int)
     def on_cmbStatus_currentIndexChanged(self, index):
         actionStatus = self.cmbStatus.value()
-        if actionStatus in (CActionStatus.finished, CActionStatus.canceled, CActionStatus.refused):
-            if not self.edtEndDate.date():
-                now = QDateTime.currentDateTime()
-                self.edtEndDate.setDate(now.date())
-                if self.edtEndTime.isVisible():
-                    self.edtEndTime.setTime(now.time())
-            if actionStatus in (CActionStatus.canceled, CActionStatus.refused) and not self.cmbSetPerson.value():
+        if actionStatus in (CActionStatus.canceled, CActionStatus.refused) and not self.cmbSetPerson.value():
                 if QtGui.qApp.userId and QtGui.qApp.userSpecialityId:
                     self.cmbPerson.setValue(QtGui.qApp.userId)
                 else:

@@ -546,6 +546,8 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
             self.btn_FERZL.setVisible(False)
             self.btn_findNR.setEnabled(False)
             self.btn_findNR.setVisible(False)
+            self.btnFerzlAtach.setEnabled(False)
+            self.btnFerzlAtach.setVisible(False)
 
 
     def addPopupDelRowHistory(self):
@@ -5127,53 +5129,62 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                 break
         return canRemove
 
+    def param_ferzl(self, show = u'ATTACH PERSON OMS_POLICY'):
+        param_dict = {}
+        if self.edtDocSerialLeft.text() != u'' or self.edtDocSerialRight.text() != u'' or self.edtDocNumber.text() != u"":
+            docTypeId = self.cmbDocType.value()
+            docTypeCode = None
+            if docTypeId:
+                docTypeCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', docTypeId, 'regionalCode'))
+            param_dict['dudlType'] = docTypeCode
+        if param_dict.get('dudlType', None):
+            if int(param_dict.get('dudlType')) == 14:
+                if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
+                    param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + ' ' + self.edtDocSerialRight.text())
+                    param_dict['dudlNum'] = self.edtDocNumber.text()
+                else:
+                    if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
+                        param_dict['dudlSer'] = self.edtDocSerialRight.text()
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
+                    elif self.edtDocSerialLeft.text() and not (self.edtDocSerialRight.text()):
+                        param_dict['dudlSer'] = self.edtDocSerialLeft.text()
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
 
+            elif int(param_dict.get('dudlType')) == 3:
+                if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
+                    param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + '-' + self.edtDocSerialRight.text())
+                    param_dict['dudlNum'] = self.edtDocNumber.text()
+
+                else:
+                    if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
+                        param_dict['dudlSer'] = self.edtDocSerialRight.text()
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
+                    elif self.edtDocSerialLeft.text() and not (self.edtDocSerialRight.text()):
+                        param_dict['dudlSer'] = self.edtDocSerialLeft.text()
+                        param_dict['dudlNum'] = self.edtDocNumber.text()
+
+            else:
+                param_dict['dudlNum'] = self.edtDocNumber.text()
+        elif self.edtCompulsoryPolisSerial.text() and self.edtCompulsoryPolisNumber.text():
+            param_dict['pcySer'] = forceString(self.edtCompulsoryPolisSerial.text())
+            param_dict['pcyNum'] = forceString(self.edtCompulsoryPolisNumber.text())
+            param_dict['pcyType'] = u'С'
+
+        enp = unicode(self.edtCompulsoryPolisNumber.text()).strip()
+        if len(enp) == 16 and enp.isdigit():
+            param_dict['enp'] = enp
+        param_dict['dt'] = forceString(date.today().strftime('%Y-%m-%d'))
+        param_dict['show'] = show
+        external_id = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(self.getClientId())))
+        param_dict['external_id'] = external_id
+        return param_dict
+        
     @pyqtSignature('')
     def on_btn_FERZL_clicked(self):
         from Registry.Ferzl_service import Ferzl_service
         try:
             service = Ferzl_service()
-            param_dict = {}
-            if self.edtDocSerialLeft.text() != u'' or self.edtDocSerialRight.text() != u'' or self.edtDocNumber.text() != u"":
-                docTypeId = self.cmbDocType.value()
-                docTypeCode = None
-                if docTypeId:
-                    docTypeCode = forceString(QtGui.qApp.db.translate('rbDocumentType', 'id', docTypeId, 'regionalCode'))
-                param_dict['dudlType'] = docTypeCode
-            if param_dict.get('dudlType', None):
-                if int(param_dict.get('dudlType')) == 14:
-                    if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
-                        param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + ' ' + self.edtDocSerialRight.text())
-                        param_dict['dudlNum'] = self.edtDocNumber.text()
-                    else:
-                        if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
-                            param_dict['dudlSer'] = self.edtDocSerialRight.text()
-                            param_dict['dudlNum'] = self.edtDocNumber.text()
-                        elif self.edtDocSerialLeft.text() and  not(self.edtDocSerialRight.text()):
-                            param_dict['dudlSer'] = self.edtDocSerialLeft.text()
-                            param_dict['dudlNum'] = self.edtDocNumber.text()
-
-                elif int(param_dict.get('dudlType')) == 3:
-                    if self.edtDocSerialLeft.text() and self.edtDocSerialRight.text():
-                        param_dict['dudlSer'] = (self.edtDocSerialLeft.text() + '-' + self.edtDocSerialRight.text())
-                        param_dict['dudlNum'] = self.edtDocNumber.text()
-
-                    else:
-                        if (not self.edtDocSerialLeft.text()) and self.edtDocSerialRight.text():
-                            param_dict['dudlSer'] = self.edtDocSerialRight.text()
-                            param_dict['dudlNum'] = self.edtDocNumber.text()
-                        elif self.edtDocSerialLeft.text() and  not(self.edtDocSerialRight.text()):
-                            param_dict['dudlSer'] = self.edtDocSerialLeft.text()
-                            param_dict['dudlNum'] = self.edtDocNumber.text()
-                else:
-                    param_dict['dudlNum'] = self.edtDocNumber.text()
-
-            enp = self.edtCompulsoryPolisNumber.text()
-            param_dict['enp'] = enp
-            param_dict['dt'] = forceString(date.today().strftime('%Y-%m-%d'))
-            param_dict['show'] = u'ATTACH PERSON OMS_POLICY'
-            external_id = str(uuid.uuid5(uuid.UUID(bytes='Client'.ljust(16, '\0')), repr(self.getClientId())))
-            param_dict['external_id'] = external_id
+            param_dict = self.param_ferzl(u'ATTACH')
             result_service = service.getInsuranceStatus(param_dict)
             
             if result_service:
@@ -5196,7 +5207,7 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                 self.edtCompulsoryPolisSerial.setText(pcySer)
                                 
                         if polisDateB:
-                            polisDateB = QDate.fromString(polisDateB, "dd.MM.yyyy")
+                            polisDateB = QDate.fromString(polisDateB, "yyyy-MM-dd")
                             self.edtCompulsoryPolisBegDate.setDate(forceDate(polisDateB))
                         if pcyType:
                             pcyType_request = u"select id from rbPolicyKind where code = '/*CODE*/' "
@@ -5280,8 +5291,33 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                         record.setValue('client_id', toVariant(forceRef(self.getClientId())))
                                         self.modelClientIdentification.items().append(record)
 
-        except Exception as e:
-            print(str(e))
+        except Exception:
+            QtGui.qApp.logCurrentException()
+            raise
+
+    @pyqtSignature('')
+    def on_btnFerzlAtach_clicked(self):
+        from Registry.Ferzl_service import Ferzl_service
+        try:
+            service = Ferzl_service()
+            param_dict = self.param_ferzl(u'ATTACH')
+            self.result_service = service.getPersonDataFrom(param_dict, 1)
+            if self.result_service.get('result') is False:
+                buttons = QtGui.QMessageBox.Ok
+                QtGui.QMessageBox.warning(QtGui.qApp.mainWindow,
+                                          u'Информация',
+                                          self.result_service['elements'],
+                                          buttons)
+                return
+            buttons = QtGui.QMessageBox.Ok
+            QtGui.QMessageBox.warning(QtGui.qApp.mainWindow,
+                                      u'Информация',
+                                      self.result_service['massges_info'],
+                                      buttons)
+
+        except Exception:
+            QtGui.qApp.logCurrentException()
+            raise
 
     def hide_show_btn_findNR(self):
         if QtGui.qApp.gis_oms_enable():
@@ -5387,8 +5423,9 @@ class CClientEditDialog(CItemEditorBaseDialog, Ui_Dialog, SafeCleanupMixin):
                                     self.tblClientIdentification.model().addRecord(record_identification)
 
 
-        except Exception as e:
-            print(str(e))
+        except Exception:
+            QtGui.qApp.logCurrentException()
+            raise
 
 def checkSNILSEntered(self):
     SNILS = unformatSNILS(forceStringEx(self.edtSNILS.text()))

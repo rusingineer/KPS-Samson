@@ -1107,7 +1107,7 @@ class CF0882022EditDialog(CItemEditorBaseDialog, Ui_F0882022Dialog):
         if index == 6:  # Статус (п.29)
             self.on_cmdAmbCardStatusButtonBox_29_reset()
             self.on_cmdAmbCardStatusButtonBox_29_apply()
-        if index == 7:  # Обследование (п.30)
+        if index == 8:  # Обследование (п.30)
             self.on_cmdAmbCardDiagnosticButtonBox_30_reset()
             self.on_cmdAmbCardDiagnosticButtonBox_30_apply()
             self.modelAddActions_30.setClientInfo(self.clientId, self.clientSex, self.clientAge)

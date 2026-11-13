@@ -487,7 +487,14 @@ colVisitSUM = u"round(ct.price, 2) as colSUM"
 colMesSUM = u"""CalcCSGTarif(Event.id, Event.execDate, rbService.infis, d.mkb,
     WorkDays(Event.setDate, Event.execDate, EventType.weekProfileCode, mt.regionalCode), ct.frag1Start,
     ct.frag2Start, age(Client.birthDate, Event.setDate), mt.regionalCode, ct.master_id, ct.price) as colSUM"""
-colCsgSUM = u"""IF (substr(rbService.infis, 4) = 'st02.003' AND Event.execDate >= '2025-06-01', CalcCSGTarif(Event.id, Event.execDate, rbService.infis, d.mkb,
+colCsgSUM = u"""IF ((substr(rbService.infis, 4) = 'st02.003' AND Event.execDate >= '2025-06-01') 
+    OR Event.execDate >= '2026-06-01' AND (
+      IF(substr(Event_CSG.CSGCode, 4) = 'st02.001', 
+         IF(EXISTS(SELECT 1 FROM Event_CSG ec WHERE ec.master_id = Event.id AND substr(ec.CSGCode, 4) IN ('st02.003', 'st02.004') 
+         UNION ALL SELECT 1 FROM mes.MES m WHERE m.id = Event.MES_id AND substr(m.code, 4) IN ('st02.003', 'st02.004')), 1, 0), NULL
+       ) <> 1
+    ) AND substr(Event_CSG.CSGCode, 4) NOT IN ('st36.050', 'st36.051', 'st36.052', 'st36.053', 'st36.054', 'st36.009', 'st36.025', 'st36.026'),
+    CalcCSGTarif(Event.id, Event.execDate, rbService.infis, d.mkb,
     WorkDays(Event_CSG.begDate, Event_CSG.endDate, EventType.weekProfileCode, mt.regionalCode), ct.frag1Start,
     ct.frag2Start, age(Client.birthDate, Event.setDate), mt.regionalCode, ct.master_id, ct.price), round(ct.price, 2)) as colSUM"""
 colAccountSum = u"round(Account_Item.sum, 2) as colSUM"

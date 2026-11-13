@@ -52,20 +52,30 @@ class CActionPropertyTypeDataInheritance(object):
         '''
         reDest = u'%s\w+' % prefix
         if re.search(reDest, self._dataInheritance):
-            title = []
-            dataList = re.findall(self.reBrackets, self._dataInheritance)
-            for idx, tmpData in enumerate(dataList or [self._dataInheritance]):
-                if re.search(self.reTitle, tmpData):
-                    title = re.findall(self.reTitle, tmpData)
-                else:
-                    for name in map(lambda x: re.sub('^' + prefix, '', x), re.findall(reDest, tmpData)):
-                        if prefix == self.in_prefix:
+            if prefix == self.out_prefix:
+                for name in map(lambda x: re.sub('^' + prefix, '', x), re.findall(reDest, self._dataInheritance)):
+                    self._outgoingSequence.append(CActionPropertyTypeDataInheritanceItem([], name))
+                    self.outgoing.add(name)
+            else:
+                title = []
+                foundInBrackets = set()
+                dataList = re.findall(self.reBrackets, self._dataInheritance)
+                
+                for idx, tmpData in enumerate(dataList or [self._dataInheritance]):
+                    if re.search(self.reTitle, tmpData):
+                        title = re.findall(self.reTitle, tmpData)
+                    else:
+                        for name in map(lambda x: re.sub('^' + prefix, '', x), re.findall(reDest, tmpData)):
                             self._incomingSequence.append(CActionPropertyTypeDataInheritanceItem(title, name))
                             self.incoming.add(name)
-                        elif prefix == self.out_prefix:
-                            self._outgoingSequence.append(CActionPropertyTypeDataInheritanceItem([], name))
-                            self.outgoing.add(name)
-                    title = []
+                            foundInBrackets.add(name)
+                        title = []
+                        
+                allNames = map(lambda x: re.sub('^' + prefix, '', x), re.findall(reDest, self._dataInheritance))
+                for name in allNames:
+                    if name not in foundInBrackets:
+                        self._incomingSequence.append(CActionPropertyTypeDataInheritanceItem([], name))
+                        self.incoming.add(name)
 
     def getIncomingSequence(self):
         return self._incomingSequence

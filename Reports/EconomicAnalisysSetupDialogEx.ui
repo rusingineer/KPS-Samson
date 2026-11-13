@@ -32,16 +32,7 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>4</number>
-   </property>
-   <property name="topMargin">
-    <number>4</number>
-   </property>
-   <property name="rightMargin">
-    <number>4</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>4</number>
    </property>
    <property name="spacing">
@@ -87,7 +78,7 @@
       <property name="geometry">
        <rect>
         <x>0</x>
-        <y>-91</y>
+        <y>-320</y>
         <width>505</width>
         <height>960</height>
        </rect>
@@ -322,16 +313,7 @@
           <property name="spacing">
            <number>9</number>
           </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
+          <property name="margin">
            <number>0</number>
           </property>
           <item>
@@ -496,16 +478,7 @@
           <property name="spacing">
            <number>9</number>
           </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
+          <property name="margin">
            <number>0</number>
           </property>
           <item>
@@ -670,16 +643,7 @@
           <property name="spacing">
            <number>4</number>
           </property>
-          <property name="leftMargin">
-           <number>4</number>
-          </property>
-          <property name="topMargin">
-           <number>4</number>
-          </property>
-          <property name="rightMargin">
-           <number>4</number>
-          </property>
-          <property name="bottomMargin">
+          <property name="margin">
            <number>4</number>
           </property>
           <item>
@@ -724,16 +688,7 @@
           <property name="spacing">
            <number>9</number>
           </property>
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <property name="bottomMargin">
+          <property name="margin">
            <number>0</number>
           </property>
           <item>
@@ -748,7 +703,7 @@
              </size>
             </property>
             <property name="inputMask">
-             <string>&gt;A&lt;00.00</string>
+             <string>&gt;A&lt;00.00; </string>
             </property>
             <property name="text">
              <string>A00.00</string>
@@ -767,7 +722,7 @@
              </size>
             </property>
             <property name="inputMask">
-             <string>&gt;A&lt;00.00</string>
+             <string>&gt;A&lt;00.00; </string>
             </property>
             <property name="text">
              <string>Z99.99</string>
@@ -1184,6 +1139,38 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>277</x>
      <y>626</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkMKBFilter</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtMKBFrom</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>77</x>
+     <y>434</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>192</x>
+     <y>434</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkMKBFilter</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>edtMKBTo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>77</x>
+     <y>434</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>291</x>
+     <y>434</y>
     </hint>
    </hints>
   </connection>

@@ -103,6 +103,7 @@ END_SCRIPT
 	#echo '11' | sudo rm -rf /opt/client_old /opt/update.log /opt/LinuxVersion /opt/client_lin.tar.gz /opt/VERSION /opt/Samson.LOCKFILE
 	
 	echo "[$(date +%Y%m%d-%T)] Распаковываем client_lin.tar.gz" 
+	echo "[$(date +%Y%m%d-%T)] Распаковываем client_lin.tar.gz" >> "$outfile"
 	tar xvzf client_lin.tar.gz -C /opt/client --strip-components=1 >> "$desktop/Обновление МИС САМСОН" 2>&1 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" 
 	echo "[$(date +%Y%m%d-%T)] Клиент обновлен до версии $version_new!" >> "$outfile"

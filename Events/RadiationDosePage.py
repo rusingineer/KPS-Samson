@@ -95,7 +95,8 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
 
         cond = [tableEvent['client_id'].eq(clientId),
                 tableActionPropertyType['typeName'].eq(u'Доза облучения'),
-                tableAction['deleted'].eq(0)]
+                tableAction['deleted'].eq(0),
+                tableActionPropertyType['deleted'].eq(0)]
 
         actionIdList = db.getIdList(queryTable, tableAction['id'].name(), cond)
 
@@ -177,7 +178,7 @@ class CRadiationDosePage(QtGui.QWidget, Ui_RadiationDosePage, CConstructHelperMi
             ('10%', [u'Количество снимков'], CReportBase.AlignRight),
             ('15%', [u'Суммарная доза облучения'], CReportBase.AlignRight),
             ('10%', [u'Единица измерения'], CReportBase.AlignRight),
-6            ]
+            ]
         table = createTable(cursor, tableColumns)
 
         for idRow, id in enumerate(self.modelRadiationDose.idList()):

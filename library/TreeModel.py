@@ -563,7 +563,10 @@ class CDragDropDBTreeModelWithClassItems(CDragDropDBTreeModel):
 
 
     def setAvailableItemIdList(self, idList):
-        self._availableItemIdList = idList
+        self._availableItemIdList = set(idList) if idList is not None else None
+        
+        if hasattr(self, 'cachedRecords'):
+            self.cachedRecords.clear()
         self.update()
 
     def setClassItems(self, items):
@@ -604,12 +607,14 @@ class CDragDropDBTreeModelWithClassItems(CDragDropDBTreeModel):
     def loadChildrenItems(self, group):
         result = []
         if group == self.getRootItem():
-            result = self.classItems
-        else:
+            return self.classItems
+        
+        if getattr(self, 'cachedRecords', None) is None or not self.cachedRecords:
+            self.cachedRecords = dict()
             db = QtGui.qApp.db
             table = db.table(self.tableName)
-            cond = [ table[self.groupColName].eq(group._id) ]
-            cond.append(table[self.classColName].eq(group.className))
+            cond = [] #[ table[self.groupColName].eq(group._id) ]
+            #cond.append(table[self.classColName].eq(group.className))
             if self.showInForm:
                 cond.append(table['showInForm'].eq(1))
             if table.hasField('deleted'):
@@ -617,14 +622,32 @@ class CDragDropDBTreeModelWithClassItems(CDragDropDBTreeModel):
             if not self.leavesVisible:
                 alias = table.alias(self.tableName+'2')
                 cond.append(db.existsStmt(alias, alias[self.groupColName].eq(table[self.idColName])))
-            for record in db.getRecordList(table, [self.idColName, self.nameColName], cond, self.order):
-                id   = forceRef(record.value(0))
-                if (self._availableItemIdList is not None) and (id not in self._availableItemIdList):
+                
+            recordList = db.getRecordList(table, [self.idColName, self.nameColName, self.groupColName, self.classColName], cond, self.order)
+            for record in recordList:
+                rId = forceRef(record.value(0))
+                if (self._availableItemIdList is not None) and (rId not in self._availableItemIdList):
                     continue
-                name = forceString(record.value(1))
-                item = CDBTreeItemWithClass(group, name, id, group.className, self)
-                self.mapItemToId[id] = item
-                result.append(item)
+                
+                groupId = forceRef(record.value(2))
+                if groupId is None:
+                    groupId = -1
+                    
+                clsName = forceString(record.value(3)) if record.value(3) is not None else None
+
+                self.cachedRecords.setdefault((groupId, clsName), []).append(record)
+                
+        groupId = group._id if group._id is not None else -1
+        clsName = forceString(group.className) if group.className is not None else None
+        
+        records = self.cachedRecords.get((groupId, clsName), [])
+        
+        for record in records:
+            id = forceRef(record.value(0))
+            name = forceString(record.value(1))
+            item = CDBTreeItemWithClass(group, name, id, group.className, self)
+            self.mapItemToId[id] = item
+            result.append(item)
         return result
 
 

@@ -3129,7 +3129,10 @@ IF(substr(COALESCE(rbItemService.infis, rbVisitService.infis, rbEventService.inf
         FROM ActionType AT1
         WHERE AT1.flatCode = 'appointments'
         AND AT1.deleted = 0)), NULL) as appointmentsActionId,
-  IF(IF(mt.regionalCode in ('211', '261', '233', '244', '232', '252', '262'), Account_Item.sum > 0, Account_Item.price > 0),
+  IF(
+  IF(mt.regionalCode in ('211', '261', '233', '244', '232', '252', '262'), 
+    Account_Item.sum > 0 AND (rbItemService.infis LIKE 'B04.047.%%' OR rbItemService.infis LIKE 'B04.026.%%' OR rbItemService.infis LIKE 'B04.031.%%'), 
+    Account_Item.price > 0),
   (SELECT
         MAX(A1.id)
       FROM Action A1
@@ -3416,7 +3419,7 @@ LEFT JOIN Action AS KRITAction
         AND AT1.deleted = 0))
   LEFT JOIN Organisation AS Payer ON Payer.id = Account.payer_id
 WHERE %s
-ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
+ORDER BY Account_Item.event_id, Account_Item.id""" % self.db.joinAnd(cond)
         return self.db.query(stmt)
 
 
@@ -4067,15 +4070,15 @@ ORDER BY Account_Item.event_id""" % self.db.joinAnd(cond)
                     dbfRecord['DATN'] = pyDate(begDateCSG)
                 else:
                     dbfRecord['DATN'] = pyDate(servDate)
-            elif dbfRecord['KUSL'] in self.pobr or (dbfRecord['KUSL'] in CExportPage1.diabetSchoolKuslList and endDate >= QDate(2025, 3, 1)) or (dbfRecord['KUSL'] in CExportPage1.chronicDiseaseSchoolKuslList and endDate >= QDate(2025, 10, 1)):
-                dbfRecord['DATN'] = pyDate(servDate)
-                self.eventsDict[eventId]['hasChronSchoolService'] = 1
-            elif dbfRecord['KUSL'] == 'B04.001.003':
+            elif dbfRecord['KUSL'] in ('B04.001.003', 'B04.001.003.010'):
                 dbfRecord['DATN'] = pyDate(servDate)
                 if endDate >= QDate(2026, 1, 1):
                     self.eventsDict[eventId]['hasPregnancySchoolService'] = 1
                 else:
                     self.eventsDict[eventId]['hasChronSchoolService'] = 1
+            elif dbfRecord['KUSL'] in self.pobr or (dbfRecord['KUSL'] in CExportPage1.diabetSchoolKuslList and endDate >= QDate(2025, 3, 1)) or (dbfRecord['KUSL'] in CExportPage1.chronicDiseaseSchoolKuslList and endDate >= QDate(2025, 10, 1)):
+                dbfRecord['DATN'] = pyDate(servDate)
+                self.eventsDict[eventId]['hasChronSchoolService'] = 1
             else:
                 dbfRecord['DATN'] = pyDate(endDate)
 
@@ -6176,7 +6179,7 @@ class CTypeOfEmploymentInfo(CMultiRecordInfo):
         stmt = u"""SELECT 
   Event.id AS eventId,
   IF (
-    mat.regionalCode IN ('11','12','301','302','401','402', '41', '42', '411', '422', '51', '52', '511', '522', '71', '72', '90', '43'), 
+    mat.regionalCode IN ('11','12','301','302','401','402', '41', '42', '411', '422', '51', '52', '511', '522', '71', '72', '90', '43', '801', '802'), 
     '',
     COALESCE(ssti.value, if(ssc.code = '9', '6', '6'))
   ) AS VZ

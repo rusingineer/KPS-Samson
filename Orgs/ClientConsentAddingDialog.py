@@ -132,7 +132,6 @@ class CClientConsentModel(CInDocTableModel):
         self._date = None
         self._representerClientId = None
         self.setEnableAppendLine(False)
-        self.idListEGISZ = QtGui.qApp.db.getIdList('rbClientConsentType', where=" (code like 'egisz' or code like 'not_egis') ")
 
 
     def setClientId(self, clientId):
@@ -142,29 +141,25 @@ class CClientConsentModel(CInDocTableModel):
     def saveItems(self, masterId):
         if self._items is not None:
             db = QtGui.qApp.db
-            idList = []
-
+            idList = []                 # ЗАЧЕМ?
             for record in self._items:
-                if forceInt(record.value('clientConsentType_id')) in self.idListEGISZ:
-                    pass
-                else:
-                    record.setValue('client_id', QVariant(masterId))
-                    actualRecord = self.checkRecordByExists(record)
-                    if actualRecord.value('id') != record.value('id'):
-                        actualRecord.setValue('representerClient_id', QVariant(self._representerClientId))
-                        # actualRecord.setValue('date', QVariant(self._date))
-                        actualRecord.setValue('endDate', QVariant(self._date.addDays(-1)))
-                        id = db.insertOrUpdate(self._table, actualRecord)
-                        # actualRecord.setValue('id', toVariant(id))
-                        idList.append(id)
-                    record.setValue('representerClient_id', QVariant(self._representerClientId))
-                    record.setValue('date', QVariant(self._date))
-                    id = db.insertOrUpdate(self._table, record)
+                record.setValue('client_id', QVariant(masterId))
+                actualRecord = self.checkRecordByExists(record)
+                if actualRecord.value('id') != record.value('id'):
+                    actualRecord.setValue('representerClient_id', QVariant(self._representerClientId))
+                    # actualRecord.setValue('date', QVariant(self._date))
+                    actualRecord.setValue('endDate', QVariant(self._date))
+                    id = db.insertOrUpdate(self._table, actualRecord)
+                    # actualRecord.setValue('id', toVariant(id))
                     idList.append(id)
+                record.setValue('representerClient_id', QVariant(self._representerClientId))
+                record.setValue('date', QVariant(self._date))
+                id = db.insertOrUpdate(self._table, record)
+                idList.append(id)
 
 
-    def fillInEndDateAgreement(self):
-        self._model
+    # def fillInEndDateAgreement(self):
+    #     self._model
 
 
     def checkRecordByExists(self, record):

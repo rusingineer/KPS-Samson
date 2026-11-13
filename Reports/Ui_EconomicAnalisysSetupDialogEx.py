@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file './EconomicAnalisysSetupDialogEx.ui'
+# Form implementation generated from reading ui file 'C:\Samson\UP_s11\client\Reports\EconomicAnalisysSetupDialogEx.ui'
 #
-# Created: Wed Oct 01 10:41:21 2025
+# Created: Mon Oct 05 10:55:54 2026
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -36,8 +36,8 @@ class Ui_EconomicAnalisysSetupDialogEx(object):
         EconomicAnalisysSetupDialogEx.setMinimumSize(QtCore.QSize(475, 675))
         EconomicAnalisysSetupDialogEx.setSizeGripEnabled(True)
         self.gridLayout = QtGui.QGridLayout(EconomicAnalisysSetupDialogEx)
-        self.gridLayout.setSpacing(4)
         self.gridLayout.setMargin(4)
+        self.gridLayout.setSpacing(4)
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.buttonBox = QtGui.QDialogButtonBox(EconomicAnalisysSetupDialogEx)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -57,7 +57,7 @@ class Ui_EconomicAnalisysSetupDialogEx(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setObjectName(_fromUtf8("scrollArea"))
         self.scrollAreaWidgetContents = QtGui.QWidget()
-        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, -91, 505, 960))
+        self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, -320, 505, 960))
         self.scrollAreaWidgetContents.setObjectName(_fromUtf8("scrollAreaWidgetContents"))
         self.gridLayout_4 = QtGui.QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout_4.setObjectName(_fromUtf8("gridLayout_4"))
@@ -450,6 +450,8 @@ class Ui_EconomicAnalisysSetupDialogEx(object):
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), EconomicAnalisysSetupDialogEx.accept)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), EconomicAnalisysSetupDialogEx.reject)
         QtCore.QObject.connect(self.rbDatalech, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.cbOnlyNotExposed.setVisible)
+        QtCore.QObject.connect(self.chkMKBFilter, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.edtMKBFrom.setEnabled)
+        QtCore.QObject.connect(self.chkMKBFilter, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.edtMKBTo.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(EconomicAnalisysSetupDialogEx)
         EconomicAnalisysSetupDialogEx.setTabOrder(self.rbDatalech, self.rbSchetf)
         EconomicAnalisysSetupDialogEx.setTabOrder(self.rbSchetf, self.rbNomer)
@@ -503,9 +505,9 @@ class Ui_EconomicAnalisysSetupDialogEx(object):
         self.rbDatalech.setText(_translate("EconomicAnalisysSetupDialogEx", "Дате окончания лечения", None))
         self.rbSchetf.setText(_translate("EconomicAnalisysSetupDialogEx", "Дате счет-фактуры", None))
         self.rbNomer.setText(_translate("EconomicAnalisysSetupDialogEx", "Номеру счета", None))
-        self.edtMKBFrom.setInputMask(_translate("EconomicAnalisysSetupDialogEx", ">A<00.00", None))
+        self.edtMKBFrom.setInputMask(_translate("EconomicAnalisysSetupDialogEx", ">A<00.00; ", None))
         self.edtMKBFrom.setText(_translate("EconomicAnalisysSetupDialogEx", "A00.00", None))
-        self.edtMKBTo.setInputMask(_translate("EconomicAnalisysSetupDialogEx", ">A<00.00", None))
+        self.edtMKBTo.setInputMask(_translate("EconomicAnalisysSetupDialogEx", ">A<00.00; ", None))
         self.edtMKBTo.setText(_translate("EconomicAnalisysSetupDialogEx", "Z99.99", None))
         self.ismancheckedage.setText(_translate("EconomicAnalisysSetupDialogEx", "Мужчины", None))
         self.cmbScheta.setItemText(0, _translate("EconomicAnalisysSetupDialogEx", "Все", None))
@@ -548,13 +550,3 @@ from Orgs.ContractFindComboBox import CARMSIndependentContractTreeFindComboBox
 from Orgs.OrgStructComboBoxes import COrgStructureComboBox
 from library.MultivalueComboBox import CRBMultivalueComboBox
 from library.DateEdit import CDateEdit
-
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    EconomicAnalisysSetupDialogEx = QtGui.QDialog()
-    ui = Ui_EconomicAnalisysSetupDialogEx()
-    ui.setupUi(EconomicAnalisysSetupDialogEx)
-    EconomicAnalisysSetupDialogEx.show()
-    sys.exit(app.exec_())
-

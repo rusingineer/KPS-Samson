@@ -212,7 +212,7 @@ class Ferzl_service:
                         info = result_dict['elements']
                         buttonName = u"Обновить полисные данные?"
                         policy_insurfCode = forceString(info.get('smo', None))
-                        policy_insurfCode = forceString(info.get('smo', None))
+                        policy_terrCode = forceString(info.get('terr', None))
                         policy_pcyNum = forceString(info.get('policyNumEnp', None))
                         policy_pcySer = forceString(info.get('policySer', None))
                         policy_pcyDateB = forceString(info.get('policyValidFrom', None))
@@ -225,6 +225,8 @@ class Ferzl_service:
                         policy_dict = {}
                         if fio:
                             message = message + u'\nФИО: ' + fio
+                        if policy_gender:
+                            message = message + u'\nПол: ' + getNrData_gender[policy_gender]
                         if policy_pcySer:
                             # policy_dict['policy_pcySer'] = policy_pcySer
                             message = message + u'\nСерия: ' + policy_pcySer
@@ -241,14 +243,24 @@ class Ferzl_service:
                         if policy_pcyType:
                             # policy_dict['policy_pcyType'] = policy_pcyType
                             message = message + u'\nТип полиса: ' + type_polis_oms[policy_pcyType]
+                        if policy_insurfCode:
+                            smt = u"""SELECT Organisation.fullName as fullName
+                                                FROM Organisation_Identification
+                                                INNER JOIN rbAccountingSystem ON rbAccountingSystem.id = Organisation_Identification.system_id
+                                                INNER JOIN Organisation ON Organisation.id = Organisation_Identification.master_id
+                                                WHERE rbAccountingSystem.urn = 'urn:oid:1.2.643.5.1.13.2.1.1.635' AND Organisation_Identification.value = {0}""".format(policy_insurfCode)
+                            query = QtGui.qApp.db.query(smt)
+                            if query.next():
+                                fullName = query.record().value('fullName')
+                                if fullName:
+                                    message = message + u'\nНаименование СМО: ' + forceString(fullName)
+                            message = message + u'\nКод СМО: ' + policy_insurfCode
+                        if policy_terrCode:
+                            message = message + u'\nOKATO: ' + policy_terrCode
+                            
                         if policy_pcyStatus:
                             # policy_dict['policy_pcyStatus'] = policy_pcyStatus
-                            message = message + u'\nСтатус: ' + policy_pcyStatus
-                        if policy_gender:
-                            # message = message + u"Половая принадлежность: " + policy_gender + u'\n'
-                            # policy_dict['policy_gender'] = policy_gender
-                            message = message + u'\nПол: ' + getNrData_gender[policy_gender]
-
+                            message = message + u'\nСтатус: ' + getPersonData_attachStatus[policy_pcyStatus]
                 else:
                     # Проверяем, не пришёл ли SOAP-сбой
                     fault = body.get('Fault')

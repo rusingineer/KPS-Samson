@@ -1707,12 +1707,14 @@ class CAccountBuilder(CMapActionTypeIdToServiceIdList):
                                 # профилактические мероприятия с февраля 2026 новые правила тарификации
                                 # все простые услуги должны выставляться в поле Taru с ценой из договора, поле summ нулевые
                                 # а комплексная услуга в поле Taru c нулевой ценой, поле summ сумма всех простых услуг (пересчитывается в процедуре beforeUpdateAccount).
-                                elif (QDate(2026, 2, 1) <= eventEndDate
+                                elif (QDate(2026, 1, 1) <= eventEndDate
                                       and medicalAidTypeCode in ['211', '261', '233', '244', '232', '252', '262']
                                       and eventProfileRegionalCode not in ['8009', '8015', '8016', '103', '8019', '8021']
                                       and self.getServiceInfis(serviceId) not in ['B04.053.001.019', 'B04.057.001.030']):
-                                    if eventEndDate < QDate(2026, 7, 1):
-                                        sum = 0
+                                    # с сентября 2026 обнуление сумм было убрано, 
+                                    # все простые услуги должны сохранять свою сумму
+                                    # начиная с января 2026
+                                    pass
                                 # обнуление простых услуг для детских профосмотров
                                 elif medicalAidTypeCode in ['232', '252', '262'] and eventEndDate >= QDate(2019, 3, 1) and self.getServiceInfis(serviceId)[:7] not in ['B04.031', 'B04.026']:
                                     price, sum = 0, 0

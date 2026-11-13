@@ -6840,11 +6840,12 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         self.cmbFilterActionStatus.setEnabled(not checked)
 
 
-    def updateActionsList(self, filter, eventIdList = [], posToId=None):
+    def updateActionsList(self, filter, eventIdList=[], posToId=None):
         actionClass = self.tabWidgetActionsClasses.currentIndex()-1
         if eventIdList and self.notSelectedRows:
             db = QtGui.qApp.db
             table = db.table('Action')
+            table.index_hint = None
             tableEvent = db.table('Event')
             tableActionType = db.table('ActionType')
             currentTable = self.getCurrentActionsTable()
@@ -7053,7 +7054,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
                         orderBY = u'(select concat_ws(" ",lastName, firstName, patrName) from Person \
                         where Person.id = Action.person_id) %s' % ASC
                     elif key == 14:
-                        orderBY = u'office %s' % ASC
+                        orderBY = u'Action.office %s' % ASC
                     elif key == 15:
                         orderBY = u'Action.note %s' % ASC
                     elif key == 16:
@@ -7175,7 +7176,7 @@ class CHospitalBedsDialog(CDialogBase, CAmbCardMixin, CCheckNetMixin, CRecordLoc
         if self.cmbFilterActionMKB.currentIndex():
             filter['MKBFrom'] = self.edtFilterMKBFrom.text()
             filter['MKBTo'] = self.edtFilterMKBTo.text()
-        self.updateActionsList(filter, self.modelPresence.eventIdList if self.tabWidgetActionsClasses.currentIndex()!= 0 else [self.getCurrentEventId(1)])
+        self.updateActionsList(filter, self.modelPresence.eventIdList if self.tabWidgetActionsClasses.currentIndex() != 0 else [self.getCurrentEventId(1)])
 
     @pyqtSignature('QModelIndex, QModelIndex')
     def on_selectionModelHospitalBeds_currentRowChanged(self, current, previous):
